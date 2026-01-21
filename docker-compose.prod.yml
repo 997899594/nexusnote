@@ -1,0 +1,122 @@
+version: '3.8'
+
+services:
+  # ============================================
+  # Database Services
+  # ============================================
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: nexusnote-db
+    restart: always
+    environment:
+      POSTGRES_DB: nexusnote
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./packages/db/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nexusnote-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: nexusnote-redis
+    restart: always
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nexusnote-network
+
+  # ============================================
+  # Application Services
+  # ============================================
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: nexusnote-web
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=${API_URL:-http://server:3001}
+      - NEXT_PUBLIC_COLLAB_URL=${COLLAB_URL:-ws://server:1234}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    depends_on:
+      server:
+        condition: service_healthy
+    networks:
+      - nexusnote-network
+
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    container_name: nexusnote-server
+    restart: always
+    ports:
+      - "3001:3001"
+      - "1234:1234"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - HOCUSPOCUS_PORT=1234
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/nexusnote
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:3000}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - nexusnote-network
+
+  # ============================================
+  # Reverse Proxy (Optional)
+  # ============================================
+  nginx:
+    image: nginx:alpine
+    container_name: nexusnote-nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - web
+      - server
+    networks:
+      - nexusnote-network
+    profiles:
+      - with-nginx
+
+networks:
+  nexusnote-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
