@@ -104,3 +104,185 @@
   line-height: normal;
   user-select: none;
 }
+
+/* ============================================ */
+/* Task List / Checklist */
+/* ============================================ */
+.tiptap ul[data-type="taskList"] {
+  @apply list-none pl-0 my-2;
+}
+
+.tiptap ul[data-type="taskList"] li {
+  @apply flex items-start gap-2 my-1;
+}
+
+.tiptap ul[data-type="taskList"] li > label {
+  @apply flex items-center justify-center mt-0.5;
+}
+
+.tiptap ul[data-type="taskList"] li > label > input[type="checkbox"] {
+  @apply w-4 h-4 rounded border-border cursor-pointer accent-primary;
+}
+
+.tiptap ul[data-type="taskList"] li > div {
+  @apply flex-1 min-w-0;
+}
+
+.tiptap ul[data-type="taskList"] li[data-checked="true"] > div {
+  @apply line-through text-muted-foreground;
+}
+
+/* ============================================ */
+/* Table */
+/* ============================================ */
+.tiptap .editor-table {
+  @apply border-collapse w-full my-4 overflow-hidden rounded-lg;
+}
+
+.tiptap table {
+  @apply border-collapse w-full my-4;
+}
+
+.tiptap table th,
+.tiptap table td {
+  @apply border border-border p-2 min-w-[80px] relative align-top;
+}
+
+.tiptap table th {
+  @apply bg-muted font-semibold text-left;
+}
+
+.tiptap table td {
+  @apply bg-background;
+}
+
+.tiptap table .selectedCell {
+  @apply bg-primary/10;
+}
+
+.tiptap table .selectedCell::after {
+  @apply absolute inset-0 pointer-events-none;
+  content: "";
+  background: hsl(var(--primary) / 0.1);
+}
+
+/* Table resize handle */
+.tiptap .column-resize-handle {
+  @apply absolute top-0 right-[-2px] bottom-[-2px] w-1;
+  background-color: hsl(var(--primary));
+  cursor: col-resize;
+}
+
+.tiptap .tableWrapper {
+  @apply overflow-x-auto my-4;
+}
+
+.tiptap .resize-cursor {
+  cursor: col-resize;
+}
+
+/* ============================================ */
+/* Image */
+/* ============================================ */
+.tiptap .editor-image {
+  @apply max-w-full h-auto my-4 rounded-lg;
+}
+
+.tiptap img {
+  @apply max-w-full h-auto rounded-lg;
+}
+
+.tiptap img.ProseMirror-selectednode {
+  @apply ring-2 ring-primary ring-offset-2;
+}
+
+/* ============================================ */
+/* YouTube / Video Embed */
+/* ============================================ */
+.tiptap .editor-youtube {
+  @apply w-full my-4;
+}
+
+.tiptap div[data-youtube-video] {
+  @apply relative w-full my-4;
+  padding-bottom: 56.25%; /* 16:9 aspect ratio */
+}
+
+.tiptap div[data-youtube-video] iframe {
+  @apply absolute top-0 left-0 w-full h-full rounded-lg;
+}
+
+/* ============================================ */
+/* Dropcursor */
+/* ============================================ */
+.ProseMirror-dropcursor {
+  @apply bg-primary;
+}
+
+/* ============================================ */
+/* Gapcursor */
+/* ============================================ */
+.ProseMirror-gapcursor {
+  @apply relative;
+}
+
+.ProseMirror-gapcursor:after {
+  @apply absolute block w-5 border-t border-foreground;
+  content: "";
+  top: -2px;
+}
+
+/* ============================================ */
+/* Callout */
+/* ============================================ */
+.tiptap .callout {
+  @apply rounded-lg border p-4 my-4;
+}
+
+.tiptap .callout-info {
+  @apply bg-blue-50 border-blue-200;
+}
+
+.tiptap .callout-warning {
+  @apply bg-yellow-50 border-yellow-200;
+}
+
+.tiptap .callout-success {
+  @apply bg-green-50 border-green-200;
+}
+
+.tiptap .callout-error {
+  @apply bg-red-50 border-red-200;
+}
+
+/* Dark mode support */
+.dark .tiptap .callout-info {
+  @apply bg-blue-950/30 border-blue-800;
+}
+
+.dark .tiptap .callout-warning {
+  @apply bg-yellow-950/30 border-yellow-800;
+}
+
+.dark .tiptap .callout-success {
+  @apply bg-green-950/30 border-green-800;
+}
+
+.dark .tiptap .callout-error {
+  @apply bg-red-950/30 border-red-800;
+}
+
+/* ============================================ */
+/* Collapsible / Toggle */
+/* ============================================ */
+.tiptap .collapsible {
+  @apply border rounded-lg my-4 overflow-hidden;
+}
+
+.tiptap .collapsible > div:first-child {
+  @apply bg-muted/50 cursor-pointer select-none;
+}
+
+.tiptap .collapsible > div:last-child {
+  @apply border-t;
+}

@@ -2,12 +2,32 @@
 
 import { useChat } from '@ai-sdk/react'
 import { useRef, useEffect, useState, FormEvent } from 'react'
-import { Send, Square, User, Bot, BookOpen } from 'lucide-react'
+import { Send, Square, User, Bot, BookOpen, FileText, Pencil, Copy, FileDown } from 'lucide-react'
+import { smartConvert, sanitizeHtml } from '@/lib/markdown'
+import { useEditorContext } from '@/contexts/EditorContext'
+import { EditPreviewPanel, parseEditResponse } from './EditPreviewPanel'
+import type { EditCommand } from '@/lib/document-parser'
+
+interface PendingEditItem {
+  command: EditCommand
+  originalContent: string
+}
+
+interface PendingEdits {
+  items: PendingEditItem[]
+  messageId: string
+}
 
 export function ChatSidebar() {
-  const [enableRAG, setEnableRAG] = useState(true)
+  const [enableRAG, setEnableRAG] = useState(false)
+  const [useDocContext, setUseDocContext] = useState(true)
+  const [editMode, setEditMode] = useState(true) // 默认开启编辑模式
   const [input, setInput] = useState('')
+  const [pendingEdits, setPendingEdits] = useState<PendingEdits | null>(null)
+  const [currentEditIndex, setCurrentEditIndex] = useState(0) // 当前预览的编辑索引
+  const [processedMessageIds, setProcessedMessageIds] = useState<Set<string>>(new Set())
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const editorContext = useEditorContext()
 
   const { messages, status, stop, error, sendMessage } = useChat({
     id: 'chat-sidebar',
@@ -19,91 +39,377 @@ export function ChatSidebar() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  // 检测最新的 AI 消息是否包含编辑命令（支持批量）
+  useEffect(() => {
+    if (isLoading || !editMode || !editorContext) return
+
+    const lastAssistantMessage = messages.filter(m => m.role === 'assistant').pop()
+    if (!lastAssistantMessage) return
+
+    // 跳过已处理过的消息
+    if (processedMessageIds.has(lastAssistantMessage.id)) return
+
+    const text = lastAssistantMessage.parts
+      .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
+      .map(p => p.text)
+      .join('')
+
+    const { editCommands } = parseEditResponse(text)
+
+    if (editCommands.length > 0 && !pendingEdits) {
+      const structure = editorContext.getDocumentStructure()
+      const items: PendingEditItem[] = []
+
+      for (const cmd of editCommands) {
+        // replace_all 特殊处理：用整个文档内容作为原始内容
+        if (cmd.action === 'replace_all') {
+          items.push({
+            command: cmd,
+            originalContent: editorContext.getDocumentContent(),
+          })
+        } else {
+          const targetBlock = structure?.blocks.find(b => b.id === cmd.targetId)
+          if (targetBlock) {
+            items.push({
+              command: cmd,
+              originalContent: targetBlock.content,
+            })
+          }
+        }
+      }
+
+      if (items.length > 0) {
+        setPendingEdits({
+          items,
+          messageId: lastAssistantMessage.id,
+        })
+        setCurrentEditIndex(0)
+      }
+    }
+  }, [messages, isLoading, editMode, editorContext, pendingEdits, processedMessageIds])
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     if (!input.trim() || isLoading) return
 
     const text = input.trim()
     setInput('')
+    setPendingEdits(null) // 清除之前的待处理编辑
+    setCurrentEditIndex(0)
 
-    await sendMessage({ text }, { body: { enableRAG } })
+    // 获取当前文档内容
+    const documentContext = useDocContext ? editorContext?.getDocumentContent() : undefined
+
+    // 获取文档结构（编辑模式需要）
+    const documentStructure = editMode && useDocContext
+      ? editorContext?.getDocumentSummary()
+      : undefined
+
+    await sendMessage({ text }, {
+      body: {
+        enableRAG,
+        documentContext,
+        documentStructure,
+        editMode: editMode && useDocContext,
+      }
+    })
+  }
+
+  // 应用所有编辑（批量）
+  const handleApplyAllEdits = () => {
+    if (!pendingEdits || !editorContext) return
+
+    const commands = pendingEdits.items.map(item => item.command)
+    const result = editorContext.applyEdits(commands)
+
+    console.log(`[ChatSidebar] Applied ${result.success}/${commands.length} edits`)
+    if (result.failed > 0) {
+      console.warn(`[ChatSidebar] ${result.failed} edits failed`)
+    }
+
+    // 标记消息已处理
+    setProcessedMessageIds(prev => new Set(prev).add(pendingEdits.messageId))
+    setPendingEdits(null)
+    setCurrentEditIndex(0)
+  }
+
+  // 应用当前单个编辑
+  const handleApplySingleEdit = () => {
+    if (!pendingEdits || !editorContext) return
+
+    const currentItem = pendingEdits.items[currentEditIndex]
+    if (!currentItem) return
+
+    const success = editorContext.applyEdit(currentItem.command)
+    if (success) {
+      console.log(`[ChatSidebar] Edit ${currentEditIndex + 1} applied`)
+    }
+
+    // 移动到下一个编辑，或完成
+    if (currentEditIndex < pendingEdits.items.length - 1) {
+      setCurrentEditIndex(currentEditIndex + 1)
+    } else {
+      // 所有编辑完成
+      setProcessedMessageIds(prev => new Set(prev).add(pendingEdits.messageId))
+      setPendingEdits(null)
+      setCurrentEditIndex(0)
+    }
+  }
+
+  // 跳过当前编辑
+  const handleSkipEdit = () => {
+    if (!pendingEdits) return
+
+    if (currentEditIndex < pendingEdits.items.length - 1) {
+      setCurrentEditIndex(currentEditIndex + 1)
+    } else {
+      // 跳过最后一个，全部完成
+      setProcessedMessageIds(prev => new Set(prev).add(pendingEdits.messageId))
+      setPendingEdits(null)
+      setCurrentEditIndex(0)
+    }
+  }
+
+  // 放弃所有编辑
+  const handleDiscardAllEdits = () => {
+    if (!pendingEdits) return
+    setProcessedMessageIds(prev => new Set(prev).add(pendingEdits.messageId))
+    setPendingEdits(null)
+    setCurrentEditIndex(0)
+  }
+
+  // 高亮当前目标块
+  const handleHighlightBlock = () => {
+    if (!pendingEdits || !editorContext) return
+    const currentItem = pendingEdits.items[currentEditIndex]
+    if (currentItem && currentItem.command.action !== 'replace_all') {
+      editorContext.highlightBlock(currentItem.command.targetId)
+    }
+  }
+
+  // 格式化消息显示（隐藏编辑标记）
+  const formatMessageText = (text: string): string => {
+    // 移除编辑命令块（包括正在流式输出的不完整块）
+    let cleaned = text
+    // 移除完整的编辑块
+    cleaned = cleaned.replace(/<<<EDIT_START>>>[\s\S]*?<<<EDIT_END>>>/g, '')
+    // 移除正在输出的不完整编辑块
+    cleaned = cleaned.replace(/<<<EDIT_START>>>[\s\S]*/g, '')
+    // 移除解释前缀
+    cleaned = cleaned.replace(/^解释[：:]\s*/gm, '').trim()
+    return cleaned || '正在生成编辑建议...'
+  }
+
+  // 将 AI 内容插入编辑器（带 Markdown 转换）
+  const insertToEditor = (text: string) => {
+    if (!editorContext?.editor) return
+
+    // 转换 Markdown 为 HTML
+    const { html } = smartConvert(text)
+    const safeHtml = sanitizeHtml(html)
+
+    // 在当前位置插入
+    editorContext.editor.chain().focus().insertContent(safeHtml).run()
+  }
+
+  // 复制内容
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+    } catch (err) {
+      console.error('Failed to copy:', err)
+    }
   }
 
   return (
-    <div className="flex-1 flex flex-col">
-      {/* RAG 开关 */}
-      <div className="px-4 py-2 border-b flex items-center justify-between bg-muted/30">
-        <div className="flex items-center gap-2 text-sm">
-          <BookOpen className="w-4 h-4" />
-          <span>Knowledge Base</span>
-        </div>
-        <button
-          onClick={() => setEnableRAG(!enableRAG)}
-          className={`relative w-10 h-5 rounded-full transition-colors ${
-            enableRAG ? 'bg-primary' : 'bg-muted'
-          }`}
-        >
-          <span
-            className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
-              enableRAG ? 'left-5' : 'left-0.5'
+    <div className="flex-1 flex flex-col min-h-0">
+      {/* Context 开关区 */}
+      <div className="px-4 py-2 border-b bg-muted/30 space-y-2 flex-shrink-0">
+        {/* 当前文档上下文 */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm">
+            <FileText className="w-4 h-4" />
+            <span>Current Document</span>
+          </div>
+          <button
+            onClick={() => setUseDocContext(!useDocContext)}
+            className={`relative w-10 h-5 rounded-full transition-colors ${
+              useDocContext ? 'bg-primary' : 'bg-muted'
             }`}
-          />
-        </button>
+          >
+            <span
+              className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
+                useDocContext ? 'left-5' : 'left-0.5'
+              }`}
+            />
+          </button>
+        </div>
+
+        {/* 编辑模式 */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm">
+            <Pencil className="w-4 h-4" />
+            <span>Edit Mode</span>
+          </div>
+          <button
+            onClick={() => setEditMode(!editMode)}
+            disabled={!useDocContext}
+            className={`relative w-10 h-5 rounded-full transition-colors ${
+              editMode && useDocContext ? 'bg-primary' : 'bg-muted'
+            } ${!useDocContext ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            <span
+              className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
+                editMode && useDocContext ? 'left-5' : 'left-0.5'
+              }`}
+            />
+          </button>
+        </div>
+
+        {/* 知识库 RAG */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm">
+            <BookOpen className="w-4 h-4" />
+            <span>Knowledge Base</span>
+          </div>
+          <button
+            onClick={() => setEnableRAG(!enableRAG)}
+            className={`relative w-10 h-5 rounded-full transition-colors ${
+              enableRAG ? 'bg-primary' : 'bg-muted'
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
+                enableRAG ? 'left-5' : 'left-0.5'
+              }`}
+            />
+          </button>
+        </div>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-auto p-4 space-y-4">
+      <div className="flex-1 overflow-auto p-4 space-y-4 min-h-0">
         {messages.length === 0 && (
           <div className="text-center text-muted-foreground py-8">
             <Bot className="w-12 h-12 mx-auto mb-4 opacity-50" />
             <p>Ask me anything about your notes</p>
             <p className="text-sm mt-2">
-              {enableRAG
+              {editMode && useDocContext
+                ? 'Edit mode: Try "把第一段改成更正式的语气"'
+                : useDocContext
+                ? 'I can see your current document content.'
+                : enableRAG
                 ? 'I\'ll search your knowledge base for relevant context.'
-                : 'RAG is disabled. Enable it to search your notes.'}
+                : 'Enable options above to use document context.'}
             </p>
           </div>
         )}
 
         {messages.map((message) => {
-          const text = message.parts
+          const rawText = message.parts
             .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
             .map(p => p.text)
             .join('')
 
-          return (
-            <div
-              key={message.id}
-              className={`flex gap-3 ${
-                message.role === 'user' ? 'justify-end' : 'justify-start'
-              }`}
-            >
-              {message.role === 'assistant' && (
-                <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                  <Bot className="w-4 h-4 text-primary-foreground" />
-                </div>
-              )}
+          const displayText = message.role === 'assistant'
+            ? formatMessageText(rawText)
+            : rawText
 
+          // 检查这条消息是否有待处理的编辑
+          const hasPendingEdits = pendingEdits?.messageId === message.id
+          const currentEditItem = hasPendingEdits ? pendingEdits.items[currentEditIndex] : null
+          const totalEdits = hasPendingEdits ? pendingEdits.items.length : 0
+
+          return (
+            <div key={message.id}>
               <div
-                className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                  message.role === 'user'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted'
+                className={`flex gap-3 ${
+                  message.role === 'user' ? 'justify-end' : 'justify-start'
                 }`}
               >
-                <p className="text-sm whitespace-pre-wrap">{text}</p>
+                {message.role === 'assistant' && (
+                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                    <Bot className="w-4 h-4 text-primary-foreground" />
+                  </div>
+                )}
+
+                <div
+                  className={`max-w-[80%] rounded-lg px-4 py-2 ${
+                    message.role === 'user'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted'
+                  }`}
+                >
+                  <p className="text-sm whitespace-pre-wrap">{displayText || '...'}</p>
+
+                  {/* AI 消息操作按钮 */}
+                  {message.role === 'assistant' && displayText && !hasPendingEdits && (
+                    <div className="flex items-center gap-1 mt-2 pt-2 border-t border-border/50">
+                      <button
+                        onClick={() => insertToEditor(displayText)}
+                        className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 px-2 py-1 rounded hover:bg-background/50"
+                        title="Insert to editor"
+                      >
+                        <FileDown className="w-3 h-3" />
+                        插入
+                      </button>
+                      <button
+                        onClick={() => copyToClipboard(displayText)}
+                        className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 px-2 py-1 rounded hover:bg-background/50"
+                        title="Copy"
+                      >
+                        <Copy className="w-3 h-3" />
+                        复制
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {message.role === 'user' && (
+                  <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                    <User className="w-4 h-4" />
+                  </div>
+                )}
               </div>
 
-              {message.role === 'user' && (
-                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-                  <User className="w-4 h-4" />
+              {/* 批量编辑预览面板 */}
+              {hasPendingEdits && currentEditItem && (
+                <div className="mt-3 ml-11">
+                  {/* 批量编辑进度指示 */}
+                  {totalEdits > 1 && (
+                    <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
+                      <span>编辑 {currentEditIndex + 1} / {totalEdits}</span>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleApplyAllEdits}
+                          className="px-2 py-1 bg-primary text-primary-foreground rounded hover:opacity-90"
+                        >
+                          全部应用
+                        </button>
+                        <button
+                          onClick={handleDiscardAllEdits}
+                          className="px-2 py-1 border rounded hover:bg-muted"
+                        >
+                          全部放弃
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  <EditPreviewPanel
+                    originalContent={currentEditItem.originalContent}
+                    editCommand={currentEditItem.command}
+                    onApply={totalEdits > 1 ? handleApplySingleEdit : handleApplyAllEdits}
+                    onDiscard={totalEdits > 1 ? handleSkipEdit : handleDiscardAllEdits}
+                    onHighlight={handleHighlightBlock}
+                  />
                 </div>
               )}
             </div>
           )
         })}
 
-        {isLoading && (
+        {/* 只在提交请求等待响应时显示加载动画，流式输出时不显示（避免重复气泡） */}
+        {status === 'submitted' && (
           <div className="flex gap-3">
             <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
               <Bot className="w-4 h-4 text-primary-foreground" />
@@ -128,12 +434,20 @@ export function ChatSidebar() {
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSubmit} className="p-4 border-t">
+      <form onSubmit={handleSubmit} className="p-4 border-t flex-shrink-0">
         <div className="flex gap-2">
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={enableRAG ? 'Search your knowledge base...' : 'Ask AI...'}
+            placeholder={
+              editMode && useDocContext
+                ? 'Edit: "把第一段改成..."'
+                : useDocContext
+                ? 'Ask about this document...'
+                : enableRAG
+                ? 'Search your knowledge base...'
+                : 'Ask AI...'
+            }
             className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
             disabled={isLoading}
           />
@@ -158,11 +472,17 @@ export function ChatSidebar() {
           )}
         </div>
 
-        {enableRAG && (
-          <p className="text-xs text-muted-foreground mt-2">
-            RAG enabled - AI will search your notes for context
-          </p>
-        )}
+        <p className="text-xs text-muted-foreground mt-2">
+          {editMode && useDocContext
+            ? 'Edit mode: AI can modify your document'
+            : useDocContext && enableRAG
+            ? 'Using current document + knowledge base'
+            : useDocContext
+            ? 'Using current document context'
+            : enableRAG
+            ? 'Searching knowledge base'
+            : ''}
+        </p>
       </form>
     </div>
   )

@@ -1,0 +1,60 @@
+databases:
+  - name: nexusnote-db
+    plan: free
+    databaseName: nexusnote
+    user: nexusnote
+    postgresMajorVersion: 16
+    ipAllowList: []
+
+services:
+  # NestJS Backend + Hocuspocus
+  - type: web
+    name: nexusnote-server
+    runtime: node
+    plan: free
+    buildCommand: pnpm install && pnpm --filter @nexusnote/server build
+    startCommand: node apps/server/dist/main.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: nexusnote-db
+          property: connectionString
+      - key: AI_PROVIDER
+        sync: false
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_BASE_URL
+        sync: false
+      - key: AI_CHAT_MODEL
+        value: gpt-4o-mini
+      - key: AI_EMBEDDING_MODEL
+        value: text-embedding-3-small
+
+  # Next.js Frontend
+  - type: web
+    name: nexusnote-web
+    runtime: node
+    plan: free
+    buildCommand: pnpm install && pnpm --filter @nexusnote/web build
+    startCommand: node apps/web/.next/standalone/apps/web/server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          name: nexusnote-server
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: NEXT_PUBLIC_WS_URL
+        value: wss://nexusnote-server.onrender.com
+      - key: AI_PROVIDER
+        sync: false
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_BASE_URL
+        sync: false
+      - key: AI_CHAT_MODEL
+        value: gpt-4o-mini

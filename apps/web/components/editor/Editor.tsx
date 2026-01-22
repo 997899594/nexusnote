@@ -5,7 +5,18 @@ import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import Collaboration from '@tiptap/extension-collaboration'
 import CollaborationCursor from '@tiptap/extension-collaboration-cursor'
-import { useMemo, useEffect, useState, useCallback } from 'react'
+import { Table } from '@tiptap/extension-table'
+import { TableRow } from '@tiptap/extension-table-row'
+import { TableCell } from '@tiptap/extension-table-cell'
+import { TableHeader } from '@tiptap/extension-table-header'
+import { Image } from '@tiptap/extension-image'
+import { Youtube } from '@tiptap/extension-youtube'
+import { TaskList } from '@tiptap/extension-task-list'
+import { TaskItem } from '@tiptap/extension-task-item'
+import { Dropcursor } from '@tiptap/extension-dropcursor'
+import { Gapcursor } from '@tiptap/extension-gapcursor'
+import { useMemo, useEffect, useState, useCallback, useContext } from 'react'
+import { useEditorContext } from '@/contexts/EditorContext'
 import * as Y from 'yjs'
 import { IndexeddbPersistence } from 'y-indexeddb'
 import { HocuspocusProvider } from '@hocuspocus/provider'
@@ -13,7 +24,10 @@ import { getRandomColor, getRandomUserName } from '@/lib/collaboration'
 import { Wifi, WifiOff, Users } from 'lucide-react'
 import { EditorToolbar } from './EditorToolbar'
 import { AIBubbleMenu } from './AIBubbleMenu'
+import { TableMenu } from './TableMenu'
 import { SlashCommand } from './SlashCommand'
+import { Callout } from './extensions/callout'
+import { Collapsible } from './extensions/collapsible'
 
 interface EditorProps {
   documentId: string
@@ -25,6 +39,7 @@ type ConnectionStatus = 'connecting' | 'connected' | 'disconnected'
 export function Editor({ documentId, showToolbar = true }: EditorProps) {
   const [status, setStatus] = useState<ConnectionStatus>('connecting')
   const [collaborators, setCollaborators] = useState<Array<{ name: string; color: string }>>([])
+  const editorContext = useEditorContext() // 可能为 null
 
   // 创建 Yjs 文档
   const ydoc = useMemo(() => new Y.Doc(), [])
@@ -113,9 +128,10 @@ export function Editor({ documentId, showToolbar = true }: EditorProps) {
 
   // 初始化编辑器
   const editor = useEditor({
+    immediatelyRender: false, // TipTap 3.x: 避免 SSR 水合不匹配
     extensions: [
       StarterKit.configure({
-        history: false, // 禁用内置 history，使用 Yjs
+        // TipTap 3.x: history 已从 StarterKit 移除，使用 Collaboration 时自动禁用
       }),
       Placeholder.configure({
         placeholder: 'Start writing, or press / for commands...',
@@ -128,6 +144,47 @@ export function Editor({ documentId, showToolbar = true }: EditorProps) {
         user: currentUser,
       }),
       SlashCommand,
+
+      // 拖拽和光标
+      Dropcursor.configure({
+        color: 'hsl(var(--primary))',
+        width: 2,
+      }),
+      Gapcursor,
+
+      // Task List
+      TaskList,
+      TaskItem.configure({
+        nested: true,
+      }),
+
+      // Table
+      Table.configure({
+        resizable: true,
+        HTMLAttributes: {
+          class: 'editor-table',
+        },
+      }),
+      TableRow,
+      TableCell,
+      TableHeader,
+
+      // Media
+      Image.configure({
+        allowBase64: true,
+        HTMLAttributes: {
+          class: 'editor-image',
+        },
+      }),
+      Youtube.configure({
+        HTMLAttributes: {
+          class: 'editor-youtube',
+        },
+      }),
+
+      // Custom Extensions
+      Callout,
+      Collapsible,
     ],
     editorProps: {
       attributes: {
@@ -136,10 +193,19 @@ export function Editor({ documentId, showToolbar = true }: EditorProps) {
     },
   })
 
-  // 获取文档内容（供 AI 使用）
-  const getDocumentContent = useCallback(() => {
-    return editor?.getText() || ''
-  }, [editor])
+  // 注册 editor 到 Context（供 ChatSidebar 等组件使用）
+  useEffect(() => {
+    if (editorContext && editor) {
+      console.log('[Editor] Registering editor to context')
+      editorContext.setEditor(editor)
+    }
+    return () => {
+      if (editorContext) {
+        console.log('[Editor] Unregistering editor from context')
+        editorContext.setEditor(null)
+      }
+    }
+  }, [editor, editorContext])
 
   if (!editor) {
     return (
@@ -162,6 +228,9 @@ export function Editor({ documentId, showToolbar = true }: EditorProps) {
 
         {/* AI Bubble Menu */}
         <AIBubbleMenu editor={editor} />
+
+        {/* Table Menu */}
+        <TableMenu editor={editor} />
       </div>
 
       {/* Status Bar */}

@@ -22,6 +22,11 @@ import {
   Code,
   Minus,
   Sparkles,
+  Table,
+  Image,
+  Youtube,
+  Info,
+  ChevronRight,
 } from 'lucide-react'
 
 interface CommandItem {
@@ -70,6 +75,75 @@ const COMMANDS: CommandItem[] = [
     icon: <ListOrdered className="w-4 h-4" />,
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).toggleOrderedList().run()
+    },
+  },
+  {
+    title: 'Task List',
+    description: 'Create a checklist with tasks',
+    icon: <CheckSquare className="w-4 h-4" />,
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).toggleTaskList().run()
+    },
+  },
+  {
+    title: 'Table',
+    description: 'Insert a table',
+    icon: <Table className="w-4 h-4" />,
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range)
+        .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+        .run()
+    },
+  },
+  {
+    title: 'Image',
+    description: 'Upload or embed an image',
+    icon: <Image className="w-4 h-4" />,
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).run()
+      // 触发文件选择器
+      const input = document.createElement('input')
+      input.type = 'file'
+      input.accept = 'image/*'
+      input.onchange = async (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0]
+        if (file) {
+          const reader = new FileReader()
+          reader.onload = (e) => {
+            const src = e.target?.result as string
+            editor.chain().focus().setImage({ src }).run()
+          }
+          reader.readAsDataURL(file)
+        }
+      }
+      input.click()
+    },
+  },
+  {
+    title: 'YouTube',
+    description: 'Embed a YouTube video',
+    icon: <Youtube className="w-4 h-4 text-red-500" />,
+    command: ({ editor, range }) => {
+      const url = window.prompt('Enter YouTube URL:')
+      if (url) {
+        editor.chain().focus().deleteRange(range).setYoutubeVideo({ src: url }).run()
+      }
+    },
+  },
+  {
+    title: 'Callout',
+    description: 'Add a callout block for tips, warnings',
+    icon: <Info className="w-4 h-4 text-blue-500" />,
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).setCallout('info').run()
+    },
+  },
+  {
+    title: 'Toggle',
+    description: 'Add a collapsible section',
+    icon: <ChevronRight className="w-4 h-4" />,
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).setCollapsible().run()
     },
   },
   {

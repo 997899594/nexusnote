@@ -1,6 +1,7 @@
 'use client'
 
-import { BubbleMenu, Editor } from '@tiptap/react'
+import { Editor } from '@tiptap/react'
+import { BubbleMenu } from '@tiptap/react/menus'
 import { useInlineAI, AI_ACTIONS, AIAction } from '@/hooks/useInlineAI'
 import { useState, useEffect, useCallback } from 'react'
 import { Sparkles, Loader2, X, Check, RotateCcw } from 'lucide-react'
@@ -65,8 +66,7 @@ export function AIBubbleMenu({ editor }: AIBubbleMenuProps) {
       {/* 基础气泡菜单 */}
       <BubbleMenu
         editor={editor}
-        tippyOptions={{ duration: 100 }}
-        shouldShow={({ editor, state }) => {
+        shouldShow={({ state }) => {
           // 有选中文本且不在显示结果时才显示
           const { from, to } = state.selection
           return from !== to && !showResult

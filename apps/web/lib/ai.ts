@@ -1,5 +1,5 @@
 import { createOpenAI } from '@ai-sdk/openai'
-import { LanguageModelV1, EmbeddingModelV1 } from 'ai'
+import { LanguageModel, EmbeddingModel } from 'ai'
 
 // ============================================
 // 2026 现代化 AI 架构 - 多 Provider + Embedding
@@ -145,7 +145,7 @@ function getPrimaryProvider(): ProviderConfig | null {
 // ============================================
 
 // 创建 Chat 模型
-function createChatModel(provider: ProviderConfig, modelType: 'chat' | 'fast'): LanguageModelV1 {
+function createChatModel(provider: ProviderConfig, modelType: 'chat' | 'fast'): LanguageModel {
   const openai = createOpenAI({
     baseURL: provider.baseURL,
     apiKey: provider.apiKey,
@@ -154,14 +154,13 @@ function createChatModel(provider: ProviderConfig, modelType: 'chat' | 'fast'): 
 }
 
 // 创建 Embedding 模型 (AI SDK 6.x)
-function createEmbeddingModel(config: EmbeddingProviderConfig): EmbeddingModelV1<string> {
+function createEmbeddingModel(config: EmbeddingProviderConfig): EmbeddingModel {
   const openai = createOpenAI({
     baseURL: config.baseURL,
     apiKey: config.apiKey,
   })
-  return openai.embedding(config.model, {
-    dimensions: config.dimensions,
-  })
+  // AI SDK 6.x: dimensions 需要在调用时指定，不在模型创建时
+  return openai.embedding(config.model)
 }
 
 // ============================================
@@ -173,16 +172,16 @@ const embeddingConfig = getEmbeddingProvider()
 // Chat 模型
 export const chatModel = primaryProvider
   ? createChatModel(primaryProvider, 'chat')
-  : null as unknown as LanguageModelV1
+  : null as unknown as LanguageModel
 
 export const fastModel = primaryProvider
   ? createChatModel(primaryProvider, 'fast')
-  : null as unknown as LanguageModelV1
+  : null as unknown as LanguageModel
 
 // Embedding 模型 (AI SDK 6.x)
 export const embeddingModel = embeddingConfig
   ? createEmbeddingModel(embeddingConfig)
-  : null as unknown as EmbeddingModelV1<string>
+  : null as unknown as EmbeddingModel
 
 // ============================================
 // 工具函数
@@ -218,12 +217,12 @@ export function getEmbeddingConfig() {
 // ============================================
 // 故障转移支持
 // ============================================
-export function getModelWithFallback(modelType: 'chat' | 'fast' = 'chat'): LanguageModelV1 | null {
+export function getModelWithFallback(modelType: 'chat' | 'fast' = 'chat'): LanguageModel | null {
   const providers = getConfiguredProviders()
   if (providers.length === 0) return null
   return createChatModel(providers[0], modelType)
 }
 
-export function getAllModels(modelType: 'chat' | 'fast' = 'chat'): LanguageModelV1[] {
+export function getAllModels(modelType: 'chat' | 'fast' = 'chat'): LanguageModel[] {
   return getConfiguredProviders().map(p => createChatModel(p, modelType))
 }

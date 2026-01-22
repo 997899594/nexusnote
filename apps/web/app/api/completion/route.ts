@@ -19,8 +19,8 @@ export async function POST(req: Request) {
   const { prompt, action, selection } = await req.json()
 
   if (!isAIConfigured()) {
-    const { provider } = getAIProviderInfo()
-    return new Response(JSON.stringify({ error: `AI API key not configured for provider: ${provider}` }), {
+    const info = getAIProviderInfo()
+    return new Response(JSON.stringify({ error: `AI API key not configured. Provider: ${info.chat.provider}` }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     })
