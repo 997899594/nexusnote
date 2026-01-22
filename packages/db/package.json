@@ -7,12 +7,14 @@
   "scripts": {
     "push": "drizzle-kit push",
     "studio": "drizzle-kit studio",
-    "generate": "drizzle-kit generate"
+    "generate": "drizzle-kit generate",
+    "migrate": "tsx migrate.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.30.0",
     "postgres": "^3.4.0",
-    "pgvector": "^0.2.0"
+    "pgvector": "^0.2.0",
+    "tsx": "^4.7.0"
   },
   "devDependencies": {
     "drizzle-kit": "^0.21.0",
