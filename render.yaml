@@ -12,7 +12,7 @@ services:
     name: nexusnote-server
     runtime: node
     plan: free
-    buildCommand: pnpm install --prod=false && pnpm --filter @nexusnote/server build
+    buildCommand: pnpm install && pnpm --filter @nexusnote/server build
     startCommand: node apps/server/dist/main.js
     healthCheckPath: /health
     envVars:
@@ -50,8 +50,8 @@ services:
     name: nexusnote-web
     runtime: node
     plan: free
-    buildCommand: pnpm install --prod=false && pnpm --filter @nexusnote/web build
-    startCommand: node apps/web/.next/standalone/apps/web/server.js
+    buildCommand: pnpm install && pnpm --filter @nexusnote/web build
+    startCommand: pnpm --filter @nexusnote/web start
     envVars:
       - key: NODE_ENV
         value: production
