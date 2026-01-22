@@ -22,16 +22,28 @@ services:
         fromDatabase:
           name: nexusnote-db
           property: connectionString
+      # AI Provider 选择
       - key: AI_PROVIDER
+        value: deepseek
+      # DeepSeek API Key (需要在 Render Dashboard 手动填入)
+      - key: DEEPSEEK_API_KEY
         sync: false
-      - key: AI_API_KEY
+      # 302.ai API Key (用于 Embedding，需要手动填入)
+      - key: AI_302_API_KEY
         sync: false
-      - key: AI_BASE_URL
+      # Embedding 配置
+      - key: EMBEDDING_MODEL
+        value: Qwen/Qwen3-Embedding-8B
+      - key: EMBEDDING_DIMENSIONS
+        value: "4000"
+      # 认证密钥 (需要手动填入)
+      - key: JWT_SECRET
         sync: false
-      - key: AI_CHAT_MODEL
-        value: gpt-4o-mini
-      - key: AI_EMBEDDING_MODEL
-        value: text-embedding-3-small
+      # 可选：Reranker
+      - key: RERANKER_MODEL
+        value: Qwen/Qwen3-Reranker-8B
+      - key: RERANKER_ENABLED
+        value: "true"
 
   # Next.js Frontend
   - type: web
@@ -43,18 +55,21 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      # 自动从 server 服务获取 API URL
       - key: NEXT_PUBLIC_API_URL
         fromService:
           name: nexusnote-server
           type: web
           envVarKey: RENDER_EXTERNAL_URL
+      # WebSocket URL (部署后需要手动设置为 wss://nexusnote-server.onrender.com)
       - key: NEXT_PUBLIC_WS_URL
-        value: wss://nexusnote-server.onrender.com
+        sync: false
+      # AI Provider
       - key: AI_PROVIDER
+        value: deepseek
+      # DeepSeek API Key (需要手动填入)
+      - key: DEEPSEEK_API_KEY
         sync: false
-      - key: AI_API_KEY
+      # 302.ai API Key (需要手动填入)
+      - key: AI_302_API_KEY
         sync: false
-      - key: AI_BASE_URL
-        sync: false
-      - key: AI_CHAT_MODEL
-        value: gpt-4o-mini
