@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { History, ChevronRight, RotateCcw, GitCompare, Clock, Sparkles, Users, Save } from 'lucide-react'
+import { X, RotateCcw, GitCompare, Clock, Sparkles, Users, Save, Plus, ChevronDown } from 'lucide-react'
 import { DocumentSnapshot, snapshotStore, SnapshotTrigger } from '@/lib/storage'
 import { DiffView } from './DiffView'
 import * as Y from 'yjs'
@@ -14,20 +14,12 @@ interface TimelinePanelProps {
   onRestore: (snapshot: DocumentSnapshot) => void
 }
 
-const triggerIcons: Record<SnapshotTrigger, React.ReactNode> = {
-  auto: <Clock className="w-3 h-3" />,
-  manual: <Save className="w-3 h-3" />,
-  ai_edit: <Sparkles className="w-3 h-3" />,
-  collab_join: <Users className="w-3 h-3" />,
-  restore: <RotateCcw className="w-3 h-3" />,
-}
-
-const triggerLabels: Record<SnapshotTrigger, string> = {
-  auto: '自动保存',
-  manual: '手动保存',
-  ai_edit: 'AI 编辑',
-  collab_join: '协作者加入',
-  restore: '版本恢复',
+const triggerConfig: Record<SnapshotTrigger, { icon: React.ReactNode; label: string; color: string }> = {
+  auto: { icon: <Clock className="w-3.5 h-3.5" />, label: '自动', color: 'text-zinc-400' },
+  manual: { icon: <Save className="w-3.5 h-3.5" />, label: '手动保存', color: 'text-emerald-500' },
+  ai_edit: { icon: <Sparkles className="w-3.5 h-3.5" />, label: 'AI 编辑', color: 'text-violet-500' },
+  collab_join: { icon: <Users className="w-3.5 h-3.5" />, label: '协作者', color: 'text-blue-500' },
+  restore: { icon: <RotateCcw className="w-3.5 h-3.5" />, label: '恢复', color: 'text-amber-500' },
 }
 
 export function TimelinePanel({ documentId, ydoc, isOpen, onClose, onRestore }: TimelinePanelProps) {
@@ -36,6 +28,7 @@ export function TimelinePanel({ documentId, ydoc, isOpen, onClose, onRestore }: 
   const [compareSnapshot, setCompareSnapshot] = useState<DocumentSnapshot | null>(null)
   const [showDiff, setShowDiff] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (isOpen && documentId) {
@@ -48,6 +41,11 @@ export function TimelinePanel({ documentId, ydoc, isOpen, onClose, onRestore }: 
     try {
       const snaps = await snapshotStore.getSnapshots(documentId)
       setSnapshots(snaps)
+      // Auto-expand today
+      if (snaps.length > 0) {
+        const today = formatDate(Date.now())
+        setExpandedDates(new Set([today]))
+      }
     } catch (error) {
       console.error('Failed to load snapshots:', error)
     } finally {
@@ -62,218 +60,198 @@ export function TimelinePanel({ documentId, ydoc, isOpen, onClose, onRestore }: 
   }
 
   const handleRestore = async (snapshot: DocumentSnapshot) => {
-    if (confirm('确定要恢复到这个版本吗？当前内容会被替换（但会自动备份）。')) {
+    if (confirm('恢复到此版本？当前内容会自动备份。')) {
       onRestore(snapshot)
       await loadSnapshots()
     }
   }
 
-  const handleCompare = (snapshot: DocumentSnapshot) => {
-    if (!selectedSnapshot) {
-      setSelectedSnapshot(snapshot)
-    } else if (selectedSnapshot.id === snapshot.id) {
-      setSelectedSnapshot(null)
-    } else {
-      setCompareSnapshot(snapshot)
-      setShowDiff(true)
-    }
+  const formatTime = (timestamp: number) => {
+    const diff = Date.now() - timestamp
+    if (diff < 60000) return '刚刚'
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`
+    return new Date(timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
   }
 
-  const formatTime = (timestamp: number) => {
+  const formatDate = (timestamp: number) => {
     const date = new Date(timestamp)
-    const now = new Date()
-    const diff = now.getTime() - timestamp
+    const today = new Date()
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
 
-    if (diff < 60000) return '刚刚'
-    if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`
-    if (diff < 604800000) return `${Math.floor(diff / 86400000)} 天前`
-
-    return date.toLocaleDateString('zh-CN', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
+    if (date.toDateString() === today.toDateString()) return '今天'
+    if (date.toDateString() === yesterday.toDateString()) return '昨天'
+    return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
   }
 
   const groupSnapshotsByDate = (snapshots: DocumentSnapshot[]) => {
-    const groups: { date: string; snapshots: DocumentSnapshot[] }[] = []
-    let currentDate = ''
-
+    const groups: Map<string, DocumentSnapshot[]> = new Map()
     for (const snap of snapshots) {
-      const date = new Date(snap.timestamp).toLocaleDateString('zh-CN', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      })
-
-      if (date !== currentDate) {
-        currentDate = date
-        groups.push({ date, snapshots: [] })
-      }
-
-      groups[groups.length - 1].snapshots.push(snap)
+      const date = formatDate(snap.timestamp)
+      if (!groups.has(date)) groups.set(date, [])
+      groups.get(date)!.push(snap)
     }
-
     return groups
+  }
+
+  const toggleDate = (date: string) => {
+    const newExpanded = new Set(expandedDates)
+    if (newExpanded.has(date)) {
+      newExpanded.delete(date)
+    } else {
+      newExpanded.add(date)
+    }
+    setExpandedDates(newExpanded)
   }
 
   if (!isOpen) return null
 
+  const groups = groupSnapshotsByDate(snapshots)
+
   return (
     <>
-      <div className="fixed inset-y-0 right-0 w-80 bg-white dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800 shadow-xl z-50 flex flex-col">
+      {/* Backdrop */}
+      <div className="fixed inset-0 bg-black/20 z-40" onClick={onClose} />
+
+      {/* Panel */}
+      <div className="fixed inset-y-0 right-0 w-72 bg-zinc-900 border-l border-zinc-800 shadow-2xl z-50 flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-200 dark:border-zinc-800">
-          <div className="flex items-center gap-2">
-            <History className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
-            <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">时间轴</h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded"
-          >
-            <ChevronRight className="w-5 h-5 text-zinc-500" />
+        <div className="flex items-center justify-between px-3 py-2.5 border-b border-zinc-800">
+          <span className="text-sm font-medium text-zinc-200">版本历史</span>
+          <button onClick={onClose} className="p-1 hover:bg-zinc-800 rounded text-zinc-500 hover:text-zinc-300">
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Actions */}
-        <div className="px-4 py-2 border-b border-zinc-200 dark:border-zinc-800">
+        {/* Save Button */}
+        <div className="px-3 py-2 border-b border-zinc-800/50">
           <button
             onClick={handleCreateManualSnapshot}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors"
+            className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-300 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-md transition-colors"
           >
-            <Save className="w-4 h-4" />
+            <Plus className="w-3.5 h-3.5" />
             保存当前版本
           </button>
-          {selectedSnapshot && (
-            <p className="mt-2 text-xs text-zinc-500 text-center">
-              已选择一个版本，点击另一个版本进行对比
-            </p>
-          )}
         </div>
 
         {/* Timeline */}
         <div className="flex-1 overflow-y-auto">
           {loading ? (
-            <div className="flex items-center justify-center h-32">
-              <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />
+            <div className="flex items-center justify-center h-24">
+              <div className="w-5 h-5 border-2 border-zinc-600 border-t-zinc-400 rounded-full animate-spin" />
             </div>
           ) : snapshots.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-32 text-zinc-500">
-              <History className="w-8 h-8 mb-2 opacity-50" />
-              <p className="text-sm">暂无历史版本</p>
-              <p className="text-xs mt-1">编辑文档时会自动保存</p>
+            <div className="flex flex-col items-center justify-center h-32 text-zinc-500 text-sm">
+              <Clock className="w-6 h-6 mb-2 opacity-40" />
+              <p>暂无历史版本</p>
             </div>
           ) : (
-            <div className="py-2">
-              {groupSnapshotsByDate(snapshots).map((group) => (
-                <div key={group.date}>
-                  <div className="px-4 py-2 text-xs font-medium text-zinc-500 dark:text-zinc-400 sticky top-0 bg-white dark:bg-zinc-900">
-                    {group.date}
-                  </div>
-                  <div className="relative">
-                    {/* Timeline line */}
-                    <div className="absolute left-6 top-0 bottom-0 w-px bg-zinc-200 dark:bg-zinc-700" />
+            <div className="py-1">
+              {Array.from(groups.entries()).map(([date, dateSnapshots]) => (
+                <div key={date}>
+                  {/* Date Header */}
+                  <button
+                    onClick={() => toggleDate(date)}
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-zinc-500 hover:text-zinc-400 hover:bg-zinc-800/50"
+                  >
+                    <ChevronDown className={`w-3 h-3 transition-transform ${expandedDates.has(date) ? '' : '-rotate-90'}`} />
+                    {date}
+                    <span className="text-zinc-600">({dateSnapshots.length})</span>
+                  </button>
 
-                    {group.snapshots.map((snapshot, index) => (
-                      <div
-                        key={snapshot.id}
-                        className={`relative px-4 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 cursor-pointer ${
-                          selectedSnapshot?.id === snapshot.id ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-                        }`}
-                        onClick={() => handleCompare(snapshot)}
-                      >
-                        {/* Timeline dot */}
-                        <div
-                          className={`absolute left-5 top-4 w-3 h-3 rounded-full border-2 ${
-                            index === 0 && group === groupSnapshotsByDate(snapshots)[0]
-                              ? 'bg-blue-500 border-blue-500'
-                              : 'bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-600'
-                          }`}
-                        />
+                  {/* Snapshots */}
+                  {expandedDates.has(date) && (
+                    <div className="relative ml-3 pl-3 border-l border-zinc-800">
+                      {dateSnapshots.map((snapshot, idx) => {
+                        const config = triggerConfig[snapshot.trigger]
+                        const isFirst = idx === 0 && date === '今天'
 
-                        <div className="ml-6">
-                          <div className="flex items-center gap-2">
-                            <span className="text-zinc-400 dark:text-zinc-500">
-                              {triggerIcons[snapshot.trigger]}
-                            </span>
-                            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                              {triggerLabels[snapshot.trigger]}
-                            </span>
-                            <span className="text-xs text-zinc-400">
-                              {formatTime(snapshot.timestamp)}
-                            </span>
-                          </div>
+                        return (
+                          <div
+                            key={snapshot.id}
+                            className={`group relative py-2 px-2 mx-1 rounded hover:bg-zinc-800/50 cursor-pointer ${
+                              selectedSnapshot?.id === snapshot.id ? 'bg-zinc-800' : ''
+                            }`}
+                          >
+                            {/* Dot */}
+                            <div className={`absolute -left-[17px] top-3 w-2 h-2 rounded-full border-2 ${
+                              isFirst
+                                ? 'bg-emerald-500 border-emerald-500'
+                                : 'bg-zinc-900 border-zinc-600'
+                            }`} />
 
-                          {snapshot.summary && (
-                            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2">
-                              {snapshot.summary}
-                            </p>
-                          )}
+                            {/* Content */}
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <span className={config.color}>{config.icon}</span>
+                                  <span className="text-xs text-zinc-300">{config.label}</span>
+                                  <span className="text-xs text-zinc-600">{formatTime(snapshot.timestamp)}</span>
+                                </div>
 
-                          <div className="mt-1 flex items-center gap-3 text-xs text-zinc-400">
-                            <span>{snapshot.wordCount} 字</span>
-                            {snapshot.diffFromPrevious && (
-                              <>
-                                {snapshot.diffFromPrevious.added > 0 && (
-                                  <span className="text-green-500">
-                                    +{snapshot.diffFromPrevious.added}
-                                  </span>
+                                {snapshot.summary && (
+                                  <p className="mt-0.5 text-xs text-zinc-500 truncate">{snapshot.summary}</p>
                                 )}
-                                {snapshot.diffFromPrevious.removed > 0 && (
-                                  <span className="text-red-500">
-                                    -{snapshot.diffFromPrevious.removed}
-                                  </span>
-                                )}
-                              </>
-                            )}
-                          </div>
 
-                          {/* Action buttons */}
-                          <div className="mt-2 flex items-center gap-2">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleRestore(snapshot)
-                              }}
-                              className="flex items-center gap-1 px-2 py-1 text-xs text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
-                            >
-                              <RotateCcw className="w-3 h-3" />
-                              恢复
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setSelectedSnapshot(snapshot)
-                                setCompareSnapshot(null)
-                                // Compare with current
-                                setShowDiff(true)
-                              }}
-                              className="flex items-center gap-1 px-2 py-1 text-xs text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded"
-                            >
-                              <GitCompare className="w-3 h-3" />
-                              对比当前
-                            </button>
+                                <div className="mt-1 flex items-center gap-2 text-[10px] text-zinc-600">
+                                  <span>{snapshot.wordCount}字</span>
+                                  {snapshot.diffFromPrevious && (
+                                    <>
+                                      {snapshot.diffFromPrevious.added > 0 && (
+                                        <span className="text-emerald-600">+{snapshot.diffFromPrevious.added}</span>
+                                      )}
+                                      {snapshot.diffFromPrevious.removed > 0 && (
+                                        <span className="text-red-500">-{snapshot.diffFromPrevious.removed}</span>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Hover Actions */}
+                            <div className="absolute right-1 top-1.5 hidden group-hover:flex items-center gap-0.5">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setSelectedSnapshot(snapshot)
+                                  setShowDiff(true)
+                                }}
+                                className="p-1 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-700 rounded"
+                                title="对比当前"
+                              >
+                                <GitCompare className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleRestore(snapshot)
+                                }}
+                                className="p-1 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-700 rounded"
+                                title="恢复此版本"
+                              >
+                                <RotateCcw className="w-3 h-3" />
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        {/* Stats footer */}
-        <div className="px-4 py-2 border-t border-zinc-200 dark:border-zinc-800 text-xs text-zinc-500">
-          共 {snapshots.length} 个版本
+        {/* Footer */}
+        <div className="px-3 py-2 border-t border-zinc-800 text-[10px] text-zinc-600">
+          共 {snapshots.length} 个版本 · 自动保存每5分钟
         </div>
       </div>
 
-      {/* Diff View Modal */}
+      {/* Diff View */}
       {showDiff && selectedSnapshot && (
         <DiffView
           snapshot1={selectedSnapshot}
