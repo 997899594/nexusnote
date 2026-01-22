@@ -60,6 +60,21 @@ export const documentChunks = pgTable('document_chunks', {
   createdAt: timestamp('created_at').defaultNow(),
 })
 
+// 文档快照表（时间轴）
+export const documentSnapshots = pgTable('document_snapshots', {
+  id: text('id').primaryKey(), // 格式: documentId-timestamp
+  documentId: uuid('document_id').references(() => documents.id, { onDelete: 'cascade' }),
+  yjsState: bytea('yjs_state'), // Yjs 完整状态
+  plainText: text('plain_text'),
+  timestamp: timestamp('timestamp').notNull(),
+  trigger: text('trigger').notNull(), // 'auto' | 'manual' | 'ai_edit' | 'collab_join' | 'restore'
+  summary: text('summary'),
+  wordCount: integer('word_count'),
+  diffAdded: integer('diff_added'),
+  diffRemoved: integer('diff_removed'),
+  createdAt: timestamp('created_at').defaultNow(),
+})
+
 // 类型导出
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
@@ -67,3 +82,5 @@ export type Document = typeof documents.$inferSelect
 export type NewDocument = typeof documents.$inferInsert
 export type DocumentChunk = typeof documentChunks.$inferSelect
 export type NewDocumentChunk = typeof documentChunks.$inferInsert
+export type DocumentSnapshot = typeof documentSnapshots.$inferSelect
+export type NewDocumentSnapshot = typeof documentSnapshots.$inferInsert

@@ -2,25 +2,30 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import * as Y from 'yjs'
-import { DocumentSnapshot, snapshotStore, SnapshotTrigger } from '@/lib/storage'
+import { DocumentSnapshot, snapshotStore, SnapshotTrigger, snapshotSync } from '@/lib/storage'
 
 interface UseTimelineOptions {
   documentId: string
   ydoc: Y.Doc | null
   autoSnapshotInterval?: number // ms, default 5 minutes
+  autoSyncInterval?: number // ms, default 2 minutes
   enabled?: boolean
+  syncEnabled?: boolean
 }
 
 interface UseTimelineReturn {
   snapshots: DocumentSnapshot[]
   isLoading: boolean
+  isSyncing: boolean
   createSnapshot: (trigger?: SnapshotTrigger, summary?: string) => Promise<DocumentSnapshot | null>
   restoreSnapshot: (snapshotId: string) => Promise<boolean>
   deleteSnapshot: (snapshotId: string) => Promise<void>
   refreshSnapshots: () => Promise<void>
+  syncSnapshots: () => Promise<void>
   stats: {
     total: number
     lastSnapshotTime: number | null
+    lastSyncTime: number | null
   }
 }
 
@@ -28,11 +33,16 @@ export function useTimeline({
   documentId,
   ydoc,
   autoSnapshotInterval = 5 * 60 * 1000,
+  autoSyncInterval = 2 * 60 * 1000,
   enabled = true,
+  syncEnabled = true,
 }: UseTimelineOptions): UseTimelineReturn {
   const [snapshots, setSnapshots] = useState<DocumentSnapshot[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isSyncing, setIsSyncing] = useState(false)
+  const [lastSyncTime, setLastSyncTime] = useState<number | null>(null)
   const autoSnapshotTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const autoSyncTimerRef = useRef<NodeJS.Timeout | null>(null)
   const lastActivityRef = useRef<number>(Date.now())
 
   // Load snapshots
@@ -91,12 +101,34 @@ export function useTimeline({
       try {
         await snapshotStore.deleteSnapshot(snapshotId)
         setSnapshots((prev) => prev.filter((s) => s.id !== snapshotId))
+        // Also delete from server if sync is enabled
+        if (syncEnabled) {
+          snapshotSync.deleteFromServer(snapshotId).catch(console.error)
+        }
       } catch (error) {
         console.error('[useTimeline] Failed to delete snapshot:', error)
       }
     },
-    []
+    [syncEnabled]
   )
+
+  // Sync snapshots with server
+  const syncSnapshots = useCallback(async () => {
+    if (!documentId || !syncEnabled || !navigator.onLine) return
+    setIsSyncing(true)
+    try {
+      const { pushed, pulled } = await snapshotSync.sync(documentId)
+      if (pulled > 0) {
+        await refreshSnapshots()
+      }
+      setLastSyncTime(Date.now())
+      console.log(`[useTimeline] Synced: pushed=${pushed}, pulled=${pulled}`)
+    } catch (error) {
+      console.error('[useTimeline] Sync failed:', error)
+    } finally {
+      setIsSyncing(false)
+    }
+  }, [documentId, syncEnabled, refreshSnapshots])
 
   // Initial load
   useEffect(() => {
@@ -142,19 +174,39 @@ export function useTimeline({
     }
   }, [ydoc])
 
+  // Auto-sync timer
+  useEffect(() => {
+    if (!enabled || !syncEnabled || !documentId || autoSyncInterval <= 0) return
+
+    // Initial sync
+    syncSnapshots()
+
+    // Periodic sync
+    autoSyncTimerRef.current = setInterval(syncSnapshots, autoSyncInterval)
+
+    return () => {
+      if (autoSyncTimerRef.current) {
+        clearInterval(autoSyncTimerRef.current)
+      }
+    }
+  }, [enabled, syncEnabled, documentId, autoSyncInterval, syncSnapshots])
+
   // Compute stats
   const stats = {
     total: snapshots.length,
     lastSnapshotTime: snapshots.length > 0 ? snapshots[0].timestamp : null,
+    lastSyncTime,
   }
 
   return {
     snapshots,
     isLoading,
+    isSyncing,
     createSnapshot,
     restoreSnapshot,
     deleteSnapshot,
     refreshSnapshots,
+    syncSnapshots,
     stats,
   }
 }
