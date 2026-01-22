@@ -21,13 +21,15 @@ import * as Y from 'yjs'
 import { IndexeddbPersistence } from 'y-indexeddb'
 import { HocuspocusProvider } from '@hocuspocus/provider'
 import { getRandomColor, getRandomUserName } from '@/lib/collaboration'
-import { Wifi, WifiOff, Users } from 'lucide-react'
+import { Wifi, WifiOff, Users, History } from 'lucide-react'
 import { EditorToolbar } from './EditorToolbar'
 import { AIBubbleMenu } from './AIBubbleMenu'
 import { TableMenu } from './TableMenu'
 import { SlashCommand } from './SlashCommand'
 import { Callout } from './extensions/callout'
 import { Collapsible } from './extensions/collapsible'
+import { TimelinePanel, useTimeline, useAIEditSnapshot } from '@/components/timeline'
+import { snapshotStore, DocumentSnapshot } from '@/lib/storage'
 
 interface EditorProps {
   documentId: string
@@ -39,6 +41,7 @@ type ConnectionStatus = 'connecting' | 'connected' | 'disconnected'
 export function Editor({ documentId, showToolbar = true }: EditorProps) {
   const [status, setStatus] = useState<ConnectionStatus>('connecting')
   const [collaborators, setCollaborators] = useState<Array<{ name: string; color: string }>>([])
+  const [showTimeline, setShowTimeline] = useState(false)
   const editorContext = useEditorContext() // 可能为 null
 
   // 创建 Yjs 文档
@@ -207,6 +210,24 @@ export function Editor({ documentId, showToolbar = true }: EditorProps) {
     }
   }, [editor, editorContext])
 
+  // Timeline 功能
+  const { snapshots, createSnapshot, restoreSnapshot, stats } = useTimeline({
+    documentId,
+    ydoc,
+    enabled: true,
+  })
+
+  // AI 编辑快照
+  const { createAISnapshot } = useAIEditSnapshot(documentId, ydoc)
+
+  // 恢复快照处理
+  const handleRestoreSnapshot = useCallback(async (snapshot: DocumentSnapshot) => {
+    const success = await snapshotStore.restoreSnapshot(snapshot.id, ydoc)
+    if (success) {
+      console.log('[Editor] Restored to snapshot:', snapshot.id)
+    }
+  }, [ydoc])
+
   if (!editor) {
     return (
       <div className="animate-pulse">
@@ -268,6 +289,21 @@ export function Editor({ documentId, showToolbar = true }: EditorProps) {
           </span>
         </div>
 
+        {/* Timeline Button */}
+        <button
+          onClick={() => setShowTimeline(true)}
+          className="flex items-center gap-1 px-2 py-1 hover:bg-muted rounded transition-colors"
+          title="查看版本历史"
+        >
+          <History className="w-3 h-3" />
+          <span>时间轴</span>
+          {stats.total > 0 && (
+            <span className="ml-1 px-1.5 py-0.5 bg-muted rounded text-[10px]">
+              {stats.total}
+            </span>
+          )}
+        </button>
+
         {/* Collaborators */}
         {collaborators.length > 0 && (
           <div className="flex items-center gap-2">
@@ -292,6 +328,15 @@ export function Editor({ documentId, showToolbar = true }: EditorProps) {
           </div>
         )}
       </div>
+
+      {/* Timeline Panel */}
+      <TimelinePanel
+        documentId={documentId}
+        ydoc={ydoc}
+        isOpen={showTimeline}
+        onClose={() => setShowTimeline(false)}
+        onRestore={handleRestoreSnapshot}
+      />
     </div>
   )
 }
