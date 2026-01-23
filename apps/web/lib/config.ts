@@ -48,6 +48,11 @@ export const config = {
     url: API_URL,
     timeout: 30000, // 30 seconds
   },
+  ai: {
+    baseUrl: process.env.NEXT_PUBLIC_AI_BASE_URL || 'https://api.openai.com/v1',
+    apiKey: process.env.NEXT_PUBLIC_AI_API_KEY || '',
+    model: process.env.NEXT_PUBLIC_AI_MODEL || 'gpt-4o-mini',
+  },
   collaboration: {
     url: COLLAB_URL,
     reconnectInterval: 3000,

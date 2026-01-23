@@ -2,13 +2,16 @@
 
 import { useChat } from '@ai-sdk/react'
 import { useRef, useEffect, useState, FormEvent } from 'react'
-import { Send, Square, User, Bot, BookOpen, FileText, Pencil, Copy, FileDown, Sparkles } from 'lucide-react'
+import { Send, Square, User, Bot, BookOpen, FileText, Pencil, Copy, FileDown, Sparkles, MessageSquare } from 'lucide-react'
 import { smartConvert, sanitizeHtml } from '@/lib/markdown'
 import { useEditorContext } from '@/contexts/EditorContext'
 import { EditPreviewPanel, parseEditResponse } from './EditPreviewPanel'
+import { AgentChat } from './AgentChat'
 import type { EditCommand } from '@/lib/document-parser'
 // Generative UI Components
 import { FlashcardCreated, SearchResults, ReviewStats, LearningPlan } from './ui'
+
+type SidebarMode = 'chat' | 'agent'
 
 interface PendingEditItem {
   command: EditCommand
@@ -62,6 +65,7 @@ function renderToolInvocation(toolName: string, result: any) {
 }
 
 export function ChatSidebar() {
+  const [mode, setMode] = useState<SidebarMode>('chat')
   const [enableRAG, setEnableRAG] = useState(false)
   const [useDocContext, setUseDocContext] = useState(true)
   const [editMode, setEditMode] = useState(true) // 默认开启编辑模式
@@ -264,8 +268,55 @@ export function ChatSidebar() {
     }
   }
 
+  // 获取当前文档上下文给 Agent
+  const documentContext = editorContext ? {
+    id: 'current',
+    title: 'Current Document',
+    content: editorContext.getDocumentContent() || '',
+  } : undefined
+
   return (
     <div className="flex-1 flex flex-col min-h-0">
+      {/* Mode Tabs */}
+      <div className="flex border-b flex-shrink-0">
+        <button
+          onClick={() => setMode('chat')}
+          className={`flex-1 px-4 py-2 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
+            mode === 'chat'
+              ? 'text-primary border-b-2 border-primary'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <MessageSquare className="w-4 h-4" />
+          Chat
+        </button>
+        <button
+          onClick={() => setMode('agent')}
+          className={`flex-1 px-4 py-2 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
+            mode === 'agent'
+              ? 'text-primary border-b-2 border-primary'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <Sparkles className="w-4 h-4" />
+          Agent
+        </button>
+      </div>
+
+      {/* Agent Mode */}
+      {mode === 'agent' && (
+        <AgentChat
+          agentType="knowledge"
+          documentContext={documentContext}
+          onResult={(output) => {
+            console.log('[ChatSidebar] Agent result:', output)
+          }}
+        />
+      )}
+
+      {/* Chat Mode */}
+      {mode === 'chat' && (
+        <>
       {/* Context 开关区 */}
       <div className="px-4 py-2 border-b bg-muted/30 space-y-2 flex-shrink-0">
         {/* 当前文档上下文 */}
@@ -563,6 +614,8 @@ export function ChatSidebar() {
             : ''}
         </p>
       </form>
+        </>
+      )}
     </div>
   )
 }
