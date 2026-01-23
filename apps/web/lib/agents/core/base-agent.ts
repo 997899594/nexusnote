@@ -5,8 +5,6 @@
  * 所有具体 Agent 继承此类
  */
 
-import { generateText } from 'ai'
-import { chatModel } from '@/lib/ai'
 import { v4 as uuid } from 'uuid'
 import { toolRegistry } from '../tools/tool-registry'
 import type {
@@ -183,11 +181,8 @@ export abstract class BaseAgent {
     this.emit({ type: 'planning', agentId: this.state.id, thought: '分析目标，制定计划...' })
 
     const tools = this.getAvailableTools()
-    const provider = chatModel
-    if (!provider) {
-      throw new Error('AI model not configured')
-    }
-
+    
+    // 使用 API Route 调用 AI（避免暴露 API Key）
     const systemPrompt = this.buildPlanningPrompt(tools)
     const userPrompt = `
 目标: ${goal}
@@ -211,12 +206,24 @@ ${constraints?.length ? `约束条件:\n${constraints.join('\n')}` : ''}
 }
 `
 
-    const { text } = await generateText({
-      model: provider,
-      system: systemPrompt,
-      prompt: userPrompt,
-      temperature: this.state.context.config.temperature,
+    // 调用 Agent API Route
+    const response = await fetch('/api/agent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+      }),
     })
+
+    if (!response.ok) {
+      throw new Error(`Agent API failed: ${response.status}`)
+    }
+
+    const data = await response.json()
+    const text = data.text || data.content || ''
 
     // 解析计划
     const steps = this.parsePlanResponse(text)
@@ -307,15 +314,7 @@ ${constraints?.length ? `约束条件:\n${constraints.join('\n')}` : ''}
       reflection: `检测到 ${failedSteps.length} 个失败步骤，正在调整计划...`,
     })
 
-    const provider = chatModel
-    if (!provider) {
-      throw new Error('AI model not configured')
-    }
-
-    const { text } = await generateText({
-      model: provider,
-      system: '你是一个反思助手，帮助分析失败原因并调整计划。',
-      prompt: `
+    const prompt = `
 最近执行的步骤:
 ${recentSteps.map(s => `- ${s.thought || s.tool}: ${s.status} ${s.error ? `(错误: ${s.error})` : ''}`).join('\n')}
 
@@ -324,9 +323,27 @@ ${this.getRemainingSteps().map(s => `- ${s.thought || s.tool}`).join('\n')}
 
 请分析失败原因，并建议是否需要调整计划。
 返回 JSON: { "shouldAdjust": boolean, "reason": "原因", "newSteps": [...] }
-`,
-      temperature: 0.3,
+`
+
+    // 调用 Agent API Route
+    const response = await fetch('/api/agent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system: '你是一个反思助手，帮助分析失败原因并调整计划。',
+        prompt,
+        temperature: 0.3,
+        mode: 'generate',
+      }),
     })
+
+    if (!response.ok) {
+      console.error('[Agent] Reflection failed:', response.status)
+      return
+    }
+
+    const data = await response.json()
+    const text = data.text || ''
 
     try {
       const reflection = JSON.parse(text)
@@ -357,21 +374,7 @@ ${this.getRemainingSteps().map(s => `- ${s.thought || s.tool}`).join('\n')}
     const pendingEdits = this.collectPendingEdits()
 
     // 生成总结
-    const provider = chatModel
-    if (!provider) {
-      return {
-        success: this.state.status !== 'failed',
-        summary: '执行完成',
-        artifacts,
-        steps: this.state.history,
-        pendingEdits: pendingEdits.length > 0 ? pendingEdits : undefined,
-      }
-    }
-
-    const { text: summary } = await generateText({
-      model: provider,
-      system: '简洁地总结 Agent 的执行结果，用中文回复。',
-      prompt: `
+    const prompt = `
 执行目标: ${this.state.plan?.goal}
 
 执行步骤:
@@ -381,9 +384,25 @@ ${this.state.history.map(s => `- ${s.thought || s.tool}: ${s.status}`).join('\n'
 待确认编辑: ${pendingEdits.length}
 
 请用 1-2 句话总结执行结果。
-`,
-      temperature: 0.3,
+`
+
+    // 调用 Agent API Route
+    const response = await fetch('/api/agent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system: '简洁地总结 Agent 的执行结果，用中文回复。',
+        prompt,
+        temperature: 0.3,
+        mode: 'generate',
+      }),
     })
+
+    let summary = '执行完成'
+    if (response.ok) {
+      const data = await response.json()
+      summary = data.text || summary
+    }
 
     return {
       success: this.state.status !== 'failed',
