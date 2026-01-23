@@ -13,6 +13,8 @@ interface ProviderConfig {
     chat: string
     fast: string
   }
+  // 302.ai 支持模型后缀扩展能力
+  supportsWebSearch?: boolean
 }
 
 interface EmbeddingProviderConfig {
@@ -42,7 +44,7 @@ function getConfiguredProviders(): ProviderConfig[] {
     })
   }
 
-  // 302.ai - 聚合平台
+  // 302.ai - 聚合平台（支持 -web-search 后缀联网）
   if (process.env.AI_302_API_KEY) {
     providers.push({
       name: '302ai',
@@ -52,6 +54,7 @@ function getConfiguredProviders(): ProviderConfig[] {
         chat: 'deepseek-chat',
         fast: 'deepseek-chat',
       },
+      supportsWebSearch: true, // 302.ai 支持 -web-search 后缀
     })
   }
 
@@ -212,6 +215,33 @@ export function getAIProviderInfo() {
 // Embedding 配置导出（供后端使用）
 export function getEmbeddingConfig() {
   return embeddingConfig
+}
+
+// ============================================
+// 联网搜索模型（302.ai 专属）
+// ============================================
+
+// 创建联网搜索版模型（自动添加 -web-search 后缀）
+function createWebSearchModel(provider: ProviderConfig, modelType: 'chat' | 'fast'): LanguageModel | null {
+  if (!provider.supportsWebSearch) return null
+
+  const openai = createOpenAI({
+    baseURL: provider.baseURL,
+    apiKey: provider.apiKey,
+  })
+  const baseModel = provider.models[modelType]
+  return openai.chat(`${baseModel}-web-search`)
+}
+
+// 联网搜索模型（需要 302.ai API Key）
+export const webSearchModel = (() => {
+  const provider = getConfiguredProviders().find(p => p.supportsWebSearch)
+  return provider ? createWebSearchModel(provider, 'chat') : null
+})()
+
+// 检查是否支持联网搜索
+export function isWebSearchAvailable(): boolean {
+  return webSearchModel !== null
 }
 
 // ============================================

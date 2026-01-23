@@ -1,20 +1,20 @@
-import { generateObject } from 'ai'
+import { generateText } from 'ai'
 import { z } from 'zod'
-import { chatModel, isAIConfigured, getAIProviderInfo } from '@/lib/ai'
+import { chatModel, webSearchModel, isAIConfigured, isWebSearchAvailable, getAIProviderInfo } from '@/lib/ai'
 
 export const runtime = 'nodejs'
 
-// Course outline schema
+// Course outline schema for validation
 const CourseOutlineSchema = z.object({
-  title: z.string().describe('课程标题，简洁明了'),
-  description: z.string().describe('课程简介，说明学完能达到什么水平'),
-  difficulty: z.enum(['beginner', 'intermediate', 'advanced']).describe('难度等级'),
-  estimatedMinutes: z.number().describe('预计完成时间（分钟）'),
+  title: z.string(),
+  description: z.string(),
+  difficulty: z.enum(['beginner', 'intermediate', 'advanced']),
+  estimatedMinutes: z.number(),
   chapters: z.array(z.object({
-    title: z.string().describe('章节标题'),
-    summary: z.string().describe('章节简介'),
-    keyPoints: z.array(z.string()).describe('本章要点，3-5个'),
-  })).describe('课程章节，6-12章'),
+    title: z.string(),
+    summary: z.string(),
+    keyPoints: z.array(z.string()),
+  })),
 })
 
 export async function POST(req: Request) {
@@ -33,37 +33,59 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { object: outline } = await generateObject({
-      model: chatModel,
-      schema: CourseOutlineSchema,
-      prompt: `你是一位资深教育专家，擅长设计结构清晰、循序渐进的学习课程。
+    // 优先使用联网模型获取最新知识，否则使用普通模型
+    const model = webSearchModel ?? chatModel
+    const useWebSearch = isWebSearchAvailable()
 
+    console.log(`[Learn Generate] Using ${useWebSearch ? 'web search' : 'standard'} model`)
+
+    // 使用 generateText + JSON 解析，兼容 DeepSeek
+    const { text } = await generateText({
+      model,
+      prompt: `你是一位资深教育专家，擅长设计结构清晰、循序渐进的学习课程。
+${useWebSearch ? '你可以联网搜索最新资料，请确保内容是 2025-2026 年最新的。\n' : ''}
 用户的学习目标：${goal}
 
-请设计一个完整的学习课程大纲。要求：
+请设计一个完整的学习课程大纲，**必须以 JSON 格式输出**，结构如下：
 
-1. **标题**：简洁有力，体现核心价值
-2. **简介**：说明学完后能达到什么水平
-3. **难度**：根据内容复杂度判断
-4. **时长**：合理估算完成时间
-5. **章节设计**：
-   - 6-12 章节
-   - 从基础到进阶，循序渐进
-   - 每章聚焦一个核心概念或技能
-   - 包含理论和实践
-   - 关键要点 3-5 个
+{
+  "title": "课程标题",
+  "description": "课程简介，说明学完能达到什么水平",
+  "difficulty": "beginner" | "intermediate" | "advanced",
+  "estimatedMinutes": 预计完成时间（分钟，数字）,
+  "chapters": [
+    {
+      "title": "章节标题",
+      "summary": "章节简介",
+      "keyPoints": ["要点1", "要点2", "要点3"]
+    }
+  ]
+}
 
-示例章节结构：
-1. 入门介绍 - 建立整体认知
-2. 核心概念 - 打好基础
-3-7. 进阶内容 - 深入学习
-8-9. 实战应用 - 动手练习
-10. 高级技巧 - 提升进阶
-最后. 总结回顾 - 知识整合
+要求：
+1. 6-12 个章节，从基础到进阶
+2. 每章 3-5 个关键要点
+3. 必须是合法的 JSON，不要添加额外说明文字
 
-请用中文输出。`,
+请直接输出 JSON：`,
       temperature: 0.7,
     })
+
+    // 提取 JSON（处理可能的 markdown 代码块）
+    let jsonStr = text.trim()
+    if (jsonStr.startsWith('```json')) {
+      jsonStr = jsonStr.slice(7)
+    } else if (jsonStr.startsWith('```')) {
+      jsonStr = jsonStr.slice(3)
+    }
+    if (jsonStr.endsWith('```')) {
+      jsonStr = jsonStr.slice(0, -3)
+    }
+    jsonStr = jsonStr.trim()
+
+    // 解析并验证
+    const parsed = JSON.parse(jsonStr)
+    const outline = CourseOutlineSchema.parse(parsed)
 
     return Response.json(outline)
   } catch (error) {
