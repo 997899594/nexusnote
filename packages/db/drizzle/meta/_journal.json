@@ -15,6 +15,13 @@
       "when": 1769151522009,
       "tag": "0001_famous_the_captain",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1737641057000,
+      "tag": "0002_fix_pgvector_optional",
+      "breakpoints": true
     }
   ]
 }

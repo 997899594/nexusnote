@@ -12,7 +12,7 @@ services:
     name: nexusnote-server
     runtime: node
     plan: free
-    buildCommand: NODE_ENV=development pnpm install && pnpm --filter @nexusnote/db build && pnpm --filter @nexusnote/db migrate && pnpm --filter @nexusnote/server build
+    buildCommand: NODE_ENV=development pnpm install && pnpm --filter @nexusnote/types build && pnpm --filter @nexusnote/db build && pnpm --filter @nexusnote/db migrate && pnpm --filter @nexusnote/server build
     startCommand: node apps/server/dist/main.js
     healthCheckPath: /health
     envVars:
@@ -36,6 +36,9 @@ services:
         value: Qwen/Qwen3-Embedding-8B
       - key: EMBEDDING_DIMENSIONS
         value: "4000"
+      # pgvector 配置（如果数据库不支持 pgvector，设为 false）
+      - key: USE_PGVECTOR
+        value: "true"
       # 认证密钥 (需要手动填入)
       - key: JWT_SECRET
         sync: false
@@ -50,7 +53,7 @@ services:
     name: nexusnote-web
     runtime: node
     plan: free
-    buildCommand: NODE_ENV=development pnpm install && pnpm --filter @nexusnote/web build
+    buildCommand: NODE_ENV=development pnpm install && pnpm --filter @nexusnote/types build && pnpm --filter @nexusnote/web build
     startCommand: pnpm --filter @nexusnote/web start
     envVars:
       - key: NODE_ENV

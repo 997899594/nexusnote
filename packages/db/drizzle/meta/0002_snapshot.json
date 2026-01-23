@@ -1,0 +1,14 @@
+{
+  "id": "0002_fix_pgvector_optional",
+  "prevId": "0001_famous_the_captain",
+  "version": "6",
+  "dialect": "postgresql",
+  "tables": {},
+  "enums": {},
+  "schemas": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  }
+}
