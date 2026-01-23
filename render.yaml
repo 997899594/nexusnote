@@ -12,7 +12,7 @@ services:
     name: nexusnote-server
     runtime: node
     plan: free
-    buildCommand: NODE_ENV=development pnpm install && pnpm --filter @nexusnote/types build && pnpm --filter @nexusnote/config build && pnpm --filter @nexusnote/db build && pnpm --filter @nexusnote/db migrate && pnpm --filter @nexusnote/server build
+    buildCommand: NODE_ENV=development pnpm install --no-frozen-lockfile && pnpm --filter @nexusnote/db migrate && pnpm turbo build --filter=@nexusnote/server
     startCommand: node apps/server/dist/main.js
     healthCheckPath: /health
     envVars:
@@ -50,7 +50,7 @@ services:
     name: nexusnote-web
     runtime: node
     plan: free
-    buildCommand: NODE_ENV=development pnpm install && pnpm --filter @nexusnote/types build && pnpm --filter @nexusnote/config build && pnpm --filter @nexusnote/web build
+    buildCommand: NODE_ENV=development pnpm install --no-frozen-lockfile && pnpm turbo build --filter=@nexusnote/web
     startCommand: pnpm --filter @nexusnote/web start
     envVars:
       - key: NODE_ENV
