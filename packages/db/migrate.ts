@@ -35,7 +35,31 @@ async function runMigrations() {
   try {
     // Check PostgreSQL version
     const versionResult = await migrationClient`SELECT version()`
-    console.log('[Migrate] PostgreSQL:', versionResult[0]?.version?.split(',')[0])
+    const versionString = versionResult[0]?.version || 'unknown'
+    console.log('[Migrate] PostgreSQL:', versionString.split(',')[0])
+    
+    // Extract major version number
+    const versionMatch = versionString.match(/PostgreSQL (\d+)/)
+    const majorVersion = versionMatch ? parseInt(versionMatch[1]) : 0
+    console.log('[Migrate] Major version:', majorVersion)
+    
+    if (majorVersion > 0 && majorVersion < 13) {
+      console.error('')
+      console.error('╔════════════════════════════════════════════════════════════════╗')
+      console.error('║  ❌ PostgreSQL 版本过低                                         ║')
+      console.error('╠════════════════════════════════════════════════════════════════╣')
+      console.error(`║  当前版本: PostgreSQL ${majorVersion}                           ║`)
+      console.error('║  需要版本: PostgreSQL 13+                                       ║')
+      console.error('║                                                                 ║')
+      console.error('║  PostgreSQL 11 和 12 不支持自定义扩展                           ║')
+      console.error('╠════════════════════════════════════════════════════════════════╣')
+      console.error('║  解决方案：                                                     ║')
+      console.error('║  在 Render Dashboard 升级数据库到 PostgreSQL 16                 ║')
+      console.error('║  Settings → PostgreSQL Version → 16                             ║')
+      console.error('╚════════════════════════════════════════════════════════════════╝')
+      console.error('')
+      throw new Error(`PostgreSQL ${majorVersion} does not support custom extensions (requires 13+)`)
+    }
 
     // Check available extensions
     console.log('[Migrate] Checking pgvector availability...')
@@ -114,29 +138,22 @@ async function runMigrations() {
       console.error('╔════════════════════════════════════════════════════════════════╗')
       console.error('║  ❌ pgvector 扩展未安装                                         ║')
       console.error('╠════════════════════════════════════════════════════════════════╣')
-      console.error('║  Render 免费版不支持 PostgreSQL 扩展                            ║')
+      console.error('║  CREATE EXTENSION 命令执行了，但扩展未生效                       ║')
       console.error('╠════════════════════════════════════════════════════════════════╣')
-      console.error('║  推荐方案（免费）：                                             ║')
+      console.error('║  手动安装步骤：                                                 ║')
       console.error('║                                                                 ║')
-      console.error('║  1. Supabase (最简单)                                           ║')
-      console.error('║     https://supabase.com                                        ║')
-      console.error('║     • 免费 500MB                                                ║')
-      console.error('║     • 自带 pgvector 0.7+                                        ║')
-      console.error('║     • 无需任何配置                                              ║')
+      console.error('║  1. Render Dashboard → nexusnote-db → Connect                   ║')
+      console.error('║  2. 复制 "PSQL Command"                                         ║')
+      console.error('║  3. 在本地终端执行连接命令                                      ║')
+      console.error('║  4. 执行: CREATE EXTENSION IF NOT EXISTS vector;                ║')
+      console.error('║  5. 验证: SELECT extversion FROM pg_extension                   ║')
+      console.error('║           WHERE extname=\'vector\';                              ║')
       console.error('║                                                                 ║')
-      console.error('║  2. Neon                                                        ║')
-      console.error('║     https://neon.tech                                           ║')
-      console.error('║     • 免费 3GB                                                  ║')
-      console.error('║     • 需手动执行: CREATE EXTENSION vector;                      ║')
-      console.error('║                                                                 ║')
-      console.error('║  3. Railway                                                     ║')
-      console.error('║     https://railway.app                                         ║')
-      console.error('║     • $5 免费额度                                               ║')
-      console.error('║                                                                 ║')
-      console.error('║  Render 用户：升级到 Starter ($7/月) 支持扩展                   ║')
+      console.error('║  如果仍然失败，联系 Render 支持:                                ║')
+      console.error('║  support@render.com                                             ║')
       console.error('╚════════════════════════════════════════════════════════════════╝')
       console.error('')
-      throw new Error('pgvector extension is required but not available')
+      throw new Error('pgvector extension is required but not installed')
     }
 
     const pgvectorVersion = extResult[0]?.extversion || 'unknown'

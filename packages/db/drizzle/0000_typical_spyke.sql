@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS "document_chunks" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"document_id" uuid,
 	"content" text NOT NULL,
-	"embedding" "halfvec(4000)",
+	"embedding" halfvec(4000),
 	"chunk_index" integer NOT NULL,
 	"created_at" timestamp DEFAULT now()
 );
