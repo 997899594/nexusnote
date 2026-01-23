@@ -44,6 +44,9 @@ services:
         value: Qwen/Qwen3-Reranker-8B
       - key: RERANKER_ENABLED
         value: "true"
+      # Redis (使用 Upstash 免费版，需要手动填入)
+      - key: REDIS_URL
+        sync: false
 
   # Next.js Frontend
   - type: web
