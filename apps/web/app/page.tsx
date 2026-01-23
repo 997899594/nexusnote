@@ -26,6 +26,12 @@ export default function Home() {
           >
             New Document
           </button>
+          <button
+            onClick={() => router.push('/learn')}
+            className="px-6 py-3 bg-violet-600 text-white rounded-lg hover:bg-violet-500 transition"
+          >
+            Learning Center
+          </button>
         </div>
 
         <div className="mt-12 grid grid-cols-3 gap-6 text-left">

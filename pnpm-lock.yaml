@@ -19,7 +19,7 @@ importers:
     dependencies:
       '@ai-sdk/openai':
         specifier: ^3.0.12
-        version: 3.0.12(zod@3.25.76)
+        version: 3.0.12(zod@4.3.6)
       '@hocuspocus/extension-database':
         specifier: ^2.13.0
         version: 2.15.3(y-protocols@1.0.7)(yjs@13.6.29)
@@ -40,7 +40,7 @@ importers:
         version: link:../../packages/db
       ai:
         specifier: ^6.0.41
-        version: 6.0.41(zod@3.25.76)
+        version: 6.0.41(zod@4.3.6)
       bullmq:
         specifier: ^5.7.0
         version: 5.66.5
@@ -86,10 +86,10 @@ importers:
     dependencies:
       '@ai-sdk/openai':
         specifier: ^3.0.12
-        version: 3.0.12(zod@3.25.76)
+        version: 3.0.12(zod@4.3.6)
       '@ai-sdk/react':
         specifier: ^3.0.43
-        version: 3.0.43(react@18.3.1)(zod@3.25.76)
+        version: 3.0.43(react@18.3.1)(zod@4.3.6)
       '@hocuspocus/provider':
         specifier: ^2.13.0
         version: 2.15.3(y-protocols@1.0.7)(yjs@13.6.29)
@@ -155,7 +155,7 @@ importers:
         version: 6.0.0
       ai:
         specifier: ^6.0.41
-        version: 6.0.41(zod@3.25.76)
+        version: 6.0.41(zod@4.3.6)
       clsx:
         specifier: ^2.1.0
         version: 2.1.1
@@ -183,6 +183,9 @@ importers:
       tippy.js:
         specifier: ^6.3.0
         version: 6.3.7
+      uuid:
+        specifier: ^13.0.0
+        version: 13.0.0
       y-indexeddb:
         specifier: ^9.0.0
         version: 9.0.12(yjs@13.6.29)
@@ -192,6 +195,9 @@ importers:
       yjs:
         specifier: ^13.6.0
         version: 13.6.29
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
     devDependencies:
       '@types/node':
         specifier: ^20.0.0
@@ -202,6 +208,9 @@ importers:
       '@types/react-dom':
         specifier: ^18.3.0
         version: 18.3.7(@types/react@18.3.27)
+      '@types/uuid':
+        specifier: ^11.0.0
+        version: 11.0.0
       autoprefixer:
         specifier: ^10.4.0
         version: 10.4.23(postcss@8.5.6)
@@ -258,30 +267,30 @@ importers:
 
 packages:
 
-  /@ai-sdk/gateway@3.0.16(zod@3.25.76):
+  /@ai-sdk/gateway@3.0.16(zod@4.3.6):
     resolution: {integrity: sha512-OOY5CfRJiHvh/8np2vs1RQaCZ5hWv2qOeEmmeiABXK3gLQHUVnCO+1hhoLsZdHM5iElu6M407dAOfyvTsKJqcQ==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
     dependencies:
       '@ai-sdk/provider': 3.0.4
-      '@ai-sdk/provider-utils': 4.0.8(zod@3.25.76)
+      '@ai-sdk/provider-utils': 4.0.8(zod@4.3.6)
       '@vercel/oidc': 3.1.0
-      zod: 3.25.76
+      zod: 4.3.6
     dev: false
 
-  /@ai-sdk/openai@3.0.12(zod@3.25.76):
+  /@ai-sdk/openai@3.0.12(zod@4.3.6):
     resolution: {integrity: sha512-zqLWEKuaKnjXhu7xCw1jgz/+yTbd3F7EtgU4T2Q8BAo8OJC5wZv14l+kwM7Jai7M1/2Y2T/zBkrfiIu+7NsvfQ==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
     dependencies:
       '@ai-sdk/provider': 3.0.4
-      '@ai-sdk/provider-utils': 4.0.8(zod@3.25.76)
-      zod: 3.25.76
+      '@ai-sdk/provider-utils': 4.0.8(zod@4.3.6)
+      zod: 4.3.6
     dev: false
 
-  /@ai-sdk/provider-utils@4.0.8(zod@3.25.76):
+  /@ai-sdk/provider-utils@4.0.8(zod@4.3.6):
     resolution: {integrity: sha512-ns9gN7MmpI8vTRandzgz+KK/zNMLzhrriiKECMt4euLtQFSBgNfydtagPOX4j4pS1/3KvHF6RivhT3gNQgBZsg==}
     engines: {node: '>=18'}
     peerDependencies:
@@ -290,7 +299,7 @@ packages:
       '@ai-sdk/provider': 3.0.4
       '@standard-schema/spec': 1.1.0
       eventsource-parser: 3.0.6
-      zod: 3.25.76
+      zod: 4.3.6
     dev: false
 
   /@ai-sdk/provider@3.0.4:
@@ -300,14 +309,14 @@ packages:
       json-schema: 0.4.0
     dev: false
 
-  /@ai-sdk/react@3.0.43(react@18.3.1)(zod@3.25.76):
+  /@ai-sdk/react@3.0.43(react@18.3.1)(zod@4.3.6):
     resolution: {integrity: sha512-FHlm5mK6qNHR2/jhr2PSNSd6aphHSdzTFP96qumpMpLWoLzK9ZLeAY2ylPqUjlTlPUKx6OfUUafV0zlFbIHEVA==}
     engines: {node: '>=18'}
     peerDependencies:
       react: ^18 || ~19.0.1 || ~19.1.2 || ^19.2.1
     dependencies:
-      '@ai-sdk/provider-utils': 4.0.8(zod@3.25.76)
-      ai: 6.0.41(zod@3.25.76)
+      '@ai-sdk/provider-utils': 4.0.8(zod@4.3.6)
+      ai: 6.0.41(zod@4.3.6)
       react: 18.3.1
       swr: 2.3.8(react@18.3.1)
       throttleit: 2.1.0
@@ -2008,6 +2017,13 @@ packages:
     resolution: {integrity: sha512-zFDAD+tlpf2r4asuHEj0XH6pY6i0g5NeAHPn+15wk3BV6JA69eERFXC1gyGThDkVa1zCyKr5jox1+2LbV/AMLg==}
     dev: false
 
+  /@types/uuid@11.0.0:
+    resolution: {integrity: sha512-HVyk8nj2m+jcFRNazzqyVKiZezyhDKrGUA3jlEcg/nZ6Ms+qHwocba1Y/AaVaznJTAM9xpdFSh+ptbNrhOGvZA==}
+    deprecated: This is a stub types definition. uuid provides its own type definitions, so you do not need this installed.
+    dependencies:
+      uuid: 13.0.0
+    dev: true
+
   /@vercel/oidc@3.1.0:
     resolution: {integrity: sha512-Fw28YZpRnA3cAHHDlkt7xQHiJ0fcL+NRcIqsocZQUSmbzeIKRpwttJjik5ZGanXP+vlA4SbTg+AbA3bP363l+w==}
     engines: {node: '>= 20'}
@@ -2141,17 +2157,17 @@ packages:
     hasBin: true
     dev: true
 
-  /ai@6.0.41(zod@3.25.76):
+  /ai@6.0.41(zod@4.3.6):
     resolution: {integrity: sha512-FaFKBiqOX3RKEz7PJ/K6d9+1JnHilzR4ID2elRzZ/yVGC5vM4RvVRyYHlhFso/gyQRXrQZtOSbqbBchAwcTDXg==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
     dependencies:
-      '@ai-sdk/gateway': 3.0.16(zod@3.25.76)
+      '@ai-sdk/gateway': 3.0.16(zod@4.3.6)
       '@ai-sdk/provider': 3.0.4
-      '@ai-sdk/provider-utils': 4.0.8(zod@3.25.76)
+      '@ai-sdk/provider-utils': 4.0.8(zod@4.3.6)
       '@opentelemetry/api': 1.9.0
-      zod: 3.25.76
+      zod: 4.3.6
     dev: false
 
   /ajv-formats@2.1.1(ajv@8.12.0):
@@ -5482,6 +5498,10 @@ packages:
     hasBin: true
     dev: false
 
+  /uuid@13.0.0:
+    resolution: {integrity: sha512-XQegIaBTVUjSHliKqcnFqYypAd4S+WCYt5NIeRs6w/UAry7z8Y9j5ZwRRL4kzq9U3sD6v+85er9FvkEaBpji2w==}
+    hasBin: true
+
   /vary@1.1.2:
     resolution: {integrity: sha512-BNGbWLfd0eUPabhkXUVm0j8uuvREyTh5ovRa/dyow/BqAbZJyC+5fU+IzQOzmAKzYqYRAISoRhdQr3eIZ/PXqg==}
     engines: {node: '>= 0.8'}
@@ -5678,3 +5698,8 @@ packages:
 
   /zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
+    dev: true
+
+  /zod@4.3.6:
+    resolution: {integrity: sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg==}
+    dev: false

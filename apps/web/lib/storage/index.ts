@@ -13,6 +13,7 @@ export * from './document-store'
 export * from './snapshot-store'
 export * from './sync-engine'
 export * from './snapshot-sync'
+export * from './learning-store'
 
 // Re-export singletons for convenience
 export { localDb } from './local-db'
@@ -20,3 +21,4 @@ export { documentStore } from './document-store'
 export { snapshotStore } from './snapshot-store'
 export { syncEngine } from './sync-engine'
 export { snapshotSync } from './snapshot-sync'
+export { learningStore } from './learning-store'

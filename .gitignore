@@ -16,8 +16,15 @@ out
 # IDE
 .idea
 .vscode
+.trae
 *.swp
 *.swo
+
+# Build cache
+*.tsbuildinfo
+
+# Drizzle-kit generated (we use our own migrations/)
+packages/db/drizzle/
 
 # OS
 .DS_Store

@@ -10,7 +10,7 @@
  */
 
 const DB_NAME = 'nexusnote-local'
-const DB_VERSION = 1
+const DB_VERSION = 2
 
 // Store names
 export const STORES = {
@@ -18,6 +18,11 @@ export const STORES = {
   SNAPSHOTS: 'snapshots',
   SYNC_STATE: 'sync_state',
   METADATA: 'metadata',
+  // Learning module stores
+  LEARNING_CONTENTS: 'learning_contents',
+  LEARNING_CHAPTERS: 'learning_chapters',
+  LEARNING_PROGRESS: 'learning_progress',
+  LEARNING_HIGHLIGHTS: 'learning_highlights',
 } as const
 
 // Document stored locally
@@ -63,6 +68,64 @@ export interface SyncState {
 export interface LocalMetadata {
   key: string
   value: any
+}
+
+// ============================================
+// Learning Module Interfaces
+// ============================================
+
+export type LearningContentType = 'book' | 'article' | 'course'
+export type LearningDifficulty = 'beginner' | 'intermediate' | 'advanced'
+
+export interface LocalLearningContent {
+  id: string
+  title: string
+  type: LearningContentType
+  author?: string
+  coverUrl?: string
+  sourceUrl?: string
+  totalChapters: number
+  difficulty: LearningDifficulty
+  estimatedMinutes?: number
+  tags: string[]
+  summary?: string
+  createdAt: number
+  updatedAt: number
+  syncedAt: number | null
+  isDirty: boolean
+}
+
+export interface LocalLearningChapter {
+  id: string
+  contentId: string
+  documentId: string  // 关联到 documents 表
+  chapterIndex: number
+  title: string
+  summary?: string
+  keyPoints: string[]
+  createdAt: number
+}
+
+export interface LocalLearningProgress {
+  id: string
+  contentId: string
+  currentChapter: number
+  completedChapters: number[]
+  totalTimeSpent: number  // 分钟
+  lastAccessedAt: number
+  startedAt: number
+  completedAt?: number
+  masteryLevel: number  // 0-100
+}
+
+export interface LocalLearningHighlight {
+  id: string
+  chapterId: string
+  content: string
+  note?: string
+  color: 'yellow' | 'green' | 'blue' | 'pink' | 'purple'
+  position: number
+  createdAt: number
 }
 
 class LocalDatabase {
@@ -115,6 +178,32 @@ class LocalDatabase {
         // Metadata store
         if (!db.objectStoreNames.contains(STORES.METADATA)) {
           db.createObjectStore(STORES.METADATA, { keyPath: 'key' })
+        }
+
+        // Learning contents store
+        if (!db.objectStoreNames.contains(STORES.LEARNING_CONTENTS)) {
+          const contentStore = db.createObjectStore(STORES.LEARNING_CONTENTS, { keyPath: 'id' })
+          contentStore.createIndex('type', 'type', { unique: false })
+          contentStore.createIndex('updatedAt', 'updatedAt', { unique: false })
+        }
+
+        // Learning chapters store
+        if (!db.objectStoreNames.contains(STORES.LEARNING_CHAPTERS)) {
+          const chapterStore = db.createObjectStore(STORES.LEARNING_CHAPTERS, { keyPath: 'id' })
+          chapterStore.createIndex('contentId', 'contentId', { unique: false })
+          chapterStore.createIndex('documentId', 'documentId', { unique: false })
+        }
+
+        // Learning progress store
+        if (!db.objectStoreNames.contains(STORES.LEARNING_PROGRESS)) {
+          const progressStore = db.createObjectStore(STORES.LEARNING_PROGRESS, { keyPath: 'id' })
+          progressStore.createIndex('contentId', 'contentId', { unique: false })
+        }
+
+        // Learning highlights store
+        if (!db.objectStoreNames.contains(STORES.LEARNING_HIGHLIGHTS)) {
+          const highlightStore = db.createObjectStore(STORES.LEARNING_HIGHLIGHTS, { keyPath: 'id' })
+          highlightStore.createIndex('chapterId', 'chapterId', { unique: false })
         }
 
         console.log('[LocalDB] Schema upgrade complete')
