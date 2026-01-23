@@ -26,6 +26,9 @@ out
 # Drizzle-kit generated (we use our own migrations/)
 packages/db/drizzle/
 
+# DB package build output (built on CI)
+packages/db/dist/
+
 # OS
 .DS_Store
 Thumbs.db
