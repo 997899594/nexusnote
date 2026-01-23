@@ -17,10 +17,9 @@ const bytea = customType<{ data: Buffer }>({
 });
 
 // halfvec: 半精度向量，支持 4000 维度 + 省 50% 存储
-// 2026: Qwen3-Embedding-8B (MTEB #1)
+// 需要 pgvector 0.5.0+
 const EMBEDDING_DIMENSIONS = process.env.EMBEDDING_DIMENSIONS || "4000";
 
-// 导出 halfvec 定义以便在其他模块复用，并避免重复定义
 export const halfvec = customType<{ data: number[] }>({
   dataType() {
     return `halfvec(${EMBEDDING_DIMENSIONS})`;

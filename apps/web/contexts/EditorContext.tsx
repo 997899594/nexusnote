@@ -74,7 +74,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
   const highlightBlock = useCallback((blockId: string) => {
     if (!editor) return
     const structure = parseDocument(editor)
-    const block = structure.blocks.find(b => b.id === blockId)
+    const block = structure.blocks.find((b: DocumentBlock) => b.id === blockId)
     if (block) {
       editor.chain().focus().setTextSelection({ from: block.from + 1, to: block.to - 1 }).run()
     }
