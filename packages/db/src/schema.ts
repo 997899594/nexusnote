@@ -24,12 +24,6 @@ export const halfvec = customType<{ data: number[] }>({
   dataType() {
     return `halfvec(${EMBEDDING_DIMENSIONS})`;
   },
-  toDriver(value: number[]) {
-    return `[${value.join(",")}]`;
-  },
-  fromDriver(value: string) {
-    return JSON.parse(value);
-  },
 });
 
 // 用户表
