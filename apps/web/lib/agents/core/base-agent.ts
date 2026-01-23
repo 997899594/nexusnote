@@ -247,7 +247,25 @@ ${constraints?.length ? `约束条件:\n${constraints.join('\n')}` : ''}
     this.emit({ type: 'stepStarted', agentId: this.state.id, step })
 
     try {
-      if (step.tool) {
+      // 特殊处理：需要用户输入的步骤
+      if (step.type === 'ask_user') {
+        step.status = 'waiting_user'
+        this.state.status = 'paused'
+        this.emit({ 
+          type: 'paused', 
+          agentId: this.state.id, 
+          reason: step.question || '需要用户输入'
+        })
+        
+        // 等待用户输入（通过 resume() 方法提供）
+        await this.waitForResume()
+        
+        // 用户输入后继续
+        step.output = { userResponse: step.userResponse }
+        step.status = 'completed'
+        this.state.status = 'executing'
+      }
+      else if (step.tool) {
         // 调用工具
         this.emit({
           type: 'toolCalled',
@@ -445,11 +463,33 @@ ${this.state.history.map(s => `- ${s.thought || s.tool}: ${s.status}`).join('\n'
 可用工具:
 ${toolDescriptions}
 
+步骤类型:
+1. **ask_user** - 向用户提问以澄清需求（当用户目标不明确时使用）
+2. **execute** - 执行工具调用
+3. **plan** - 纯思考步骤
+
 规则:
-1. 分析用户目标，制定清晰的执行计划
+1. 如果用户目标不明确或缺少关键信息，**必须先使用 ask_user 步骤**
 2. 每个步骤应该明确、可执行
 3. 优先使用已有工具，避免不必要的步骤
 4. 考虑步骤之间的依赖关系
+
+示例计划:
+{
+  "steps": [
+    {
+      "type": "ask_user",
+      "thought": "用户提到'笔试'但没有说明具体科目和时间",
+      "question": "请问你要准备什么科目的笔试？大概什么时候考试？"
+    },
+    {
+      "type": "execute",
+      "thought": "根据用户回答制定学习计划",
+      "tool": "createLearningPlan",
+      "input": { "goal": "准备XX笔试" }
+    }
+  ]
+}
 `
   }
 
@@ -472,11 +512,12 @@ ${toolDescriptions}
   protected createStep(data: Partial<AgentStep>): AgentStep {
     return {
       id: uuid(),
-      type: data.tool ? 'execute' : 'plan',
+      type: data.type || (data.tool ? 'execute' : 'plan'),
       status: 'pending',
       tool: data.tool,
       input: data.input,
       thought: data.thought,
+      question: data.question,  // 支持 ask_user 类型
     }
   }
 
@@ -600,10 +641,19 @@ ${toolDescriptions}
   }
 
   /**
-   * 恢复执行
+   * 恢复执行（提供用户输入）
    */
-  resume(): void {
+  resume(userInput?: string): void {
     if (this.state.status === 'paused') {
+      // 找到等待用户输入的步骤
+      const waitingStep = this.state.plan?.steps.find(
+        s => s.status === 'waiting_user'
+      )
+      
+      if (waitingStep && userInput) {
+        waitingStep.userResponse = userInput
+      }
+      
       this.state.status = 'executing'
       this.emit({ type: 'resumed', agentId: this.state.id })
     }

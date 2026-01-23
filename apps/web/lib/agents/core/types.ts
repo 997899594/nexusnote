@@ -20,9 +20,9 @@ export type AgentStatus =
   | 'completed'
   | 'failed'
 
-export type StepType = 'observe' | 'plan' | 'execute' | 'reflect'
+export type StepType = 'observe' | 'plan' | 'execute' | 'reflect' | 'ask_user'
 
-export type StepStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped'
+export type StepStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped' | 'waiting_user'
 
 /**
  * Agent 执行步骤
@@ -36,6 +36,8 @@ export interface AgentStep {
   output?: unknown
   error?: string
   thought?: string  // Agent 的思考过程（透明执行）
+  question?: string  // 需要用户回答的问题（type='ask_user' 时使用）
+  userResponse?: string  // 用户的回答
   startedAt?: number
   completedAt?: number
 }
