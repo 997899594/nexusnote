@@ -38,97 +38,128 @@ async function runMigrations() {
     console.log('[Migrate] PostgreSQL:', versionResult[0]?.version?.split(',')[0])
 
     // Check available extensions
-    console.log('[Migrate] Checking available extensions...')
+    console.log('[Migrate] Checking pgvector availability...')
     const availableExts = await migrationClient`
-      SELECT name, default_version FROM pg_available_extensions
-      WHERE name IN ('vector', 'pgvector')
+      SELECT name, default_version, installed_version 
+      FROM pg_available_extensions
+      WHERE name = 'vector'
     `
-    console.log('[Migrate] Available vector extensions:', JSON.stringify(availableExts))
+    console.log('[Migrate] pgvector in pg_available_extensions:', JSON.stringify(availableExts))
+    
+    if (availableExts.length === 0) {
+      console.error('')
+      console.error('╔════════════════════════════════════════════════════════════════╗')
+      console.error('║  ❌ pgvector 扩展不可用                                         ║')
+      console.error('╠════════════════════════════════════════════════════════════════╣')
+      console.error('║  PostgreSQL 服务器未安装 pgvector 扩展                          ║')
+      console.error('║                                                                 ║')
+      console.error('║  Render 免费版：                                                ║')
+      console.error('║  • 不支持安装扩展                                               ║')
+      console.error('║  • 需要升级到 Starter ($7/月)                                   ║')
+      console.error('╠════════════════════════════════════════════════════════════════╣')
+      console.error('║  推荐免费替代方案：                                             ║')
+      console.error('║                                                                 ║')
+      console.error('║  1. Supabase - https://supabase.com                             ║')
+      console.error('║     • 免费 500MB，自带 pgvector 0.7+                            ║')
+      console.error('║                                                                 ║')
+      console.error('║  2. Neon - https://neon.tech                                    ║')
+      console.error('║     • 免费 3GB，支持 pgvector                                   ║')
+      console.error('╚════════════════════════════════════════════════════════════════╝')
+      console.error('')
+      throw new Error('pgvector extension not available on this PostgreSQL server')
+    }
 
     // Check installed extensions
     const installedExts = await migrationClient`
       SELECT extname, extversion FROM pg_extension
     `
-    console.log('[Migrate] Installed extensions:', installedExts.map(e => `${e.extname}@${e.extversion}`).join(', '))
+    console.log('[Migrate] Currently installed extensions:', installedExts.map(e => `${e.extname}@${e.extversion}`).join(', '))
 
     // Enable pgvector extension first (if not exists)
-    console.log('[Migrate] Installing pgvector extension...')
+    console.log('[Migrate] Attempting to install pgvector extension...')
+    
+    // Try to install pgvector
     try {
       await migrationClient`CREATE EXTENSION IF NOT EXISTS vector`
-
-      // Check pgvector version
-      const extResult = await migrationClient`
-        SELECT extversion FROM pg_extension WHERE extname = 'vector'
-      `
+      console.log('[Migrate] CREATE EXTENSION command executed')
+    } catch (createError: any) {
+      console.error('[Migrate] CREATE EXTENSION failed:', createError.message)
+      console.error('[Migrate] Error code:', createError.code)
       
-      if (extResult.length === 0) {
-        throw new Error('pgvector extension not found after installation')
-      }
-
-      const pgvectorVersion = extResult[0]?.extversion || 'unknown'
-      console.log('[Migrate] ✓ pgvector extension installed (version:', pgvectorVersion + ')')
-
-      // halfvec requires pgvector 0.5.0+
-      if (pgvectorVersion && pgvectorVersion < '0.5.0') {
+      if (createError.code === '42501') {
+        // Permission denied
         console.error('')
         console.error('╔════════════════════════════════════════════════════════════════╗')
-        console.error('║  pgvector 版本过低                                              ║')
+        console.error('║  ❌ 权限不足，无法安装扩展                                      ║')
         console.error('╠════════════════════════════════════════════════════════════════╣')
-        console.error(`║  当前版本: ${pgvectorVersion.padEnd(50)} ║`)
-        console.error('║  需要版本: 0.5.0+                                               ║')
+        console.error('║  当前数据库用户没有 SUPERUSER 权限                              ║')
         console.error('║                                                                 ║')
-        console.error('║  halfvec 类型需要 pgvector 0.5.0 或更高版本                     ║')
-        console.error('╠════════════════════════════════════════════════════════════════╣')
-        console.error('║  解决方案：                                                     ║')
-        console.error('║  1. 升级 pgvector 扩展到 0.5.0+                                 ║')
-        console.error('║  2. 使用支持最新 pgvector 的数据库服务：                        ║')
-        console.error('║     - Supabase (免费，pgvector 0.7+)                            ║')
-        console.error('║     - Neon (免费，pgvector 0.7+)                                ║')
-        console.error('║     - Railway (pgvector 0.7+)                                   ║')
+        console.error('║  Render 免费版不允许安装扩展                                    ║')
+        console.error('║  需要升级到 Starter 计划 ($7/月)                                ║')
         console.error('╚════════════════════════════════════════════════════════════════╝')
         console.error('')
-        throw new Error(`pgvector ${pgvectorVersion} does not support halfvec type (requires 0.5.0+)`)
       }
+      
+      throw createError
+    }
 
-      console.log('[Migrate] ✓ pgvector version check passed')
-
-    } catch (extError: any) {
+    // Check if pgvector is actually installed
+    const extResult = await migrationClient`
+      SELECT extversion FROM pg_extension WHERE extname = 'vector'
+    `
+    
+    if (extResult.length === 0) {
+      // pgvector not installed - show error and exit
       console.error('')
       console.error('╔════════════════════════════════════════════════════════════════╗')
-      console.error('║  pgvector 扩展安装失败                                          ║')
+      console.error('║  ❌ pgvector 扩展未安装                                         ║')
       console.error('╠════════════════════════════════════════════════════════════════╣')
-      console.error(`║  错误: ${(extError.message || 'Unknown error').substring(0, 54).padEnd(54)} ║`)
-      console.error(`║  代码: ${(extError.code || 'N/A').padEnd(54)} ║`)
+      console.error('║  Render 免费版不支持 PostgreSQL 扩展                            ║')
       console.error('╠════════════════════════════════════════════════════════════════╣')
-      console.error('║  可能原因：                                                     ║')
-      console.error('║  1. 数据库不支持 pgvector 扩展                                  ║')
-      console.error('║  2. 没有安装权限（需要 SUPERUSER 或 rds_superuser）             ║')
-      console.error('║  3. PostgreSQL 版本过低（需要 12+）                             ║')
-      console.error('╠════════════════════════════════════════════════════════════════╣')
-      console.error('║  解决方案：                                                     ║')
+      console.error('║  推荐方案（免费）：                                             ║')
       console.error('║                                                                 ║')
-      console.error('║  【推荐】使用支持 pgvector 的免费数据库：                       ║')
-      console.error('║  • Supabase: https://supabase.com (免费 500MB)                  ║')
-      console.error('║    - 自带 pgvector 0.7+                                         ║')
-      console.error('║    - 无需手动安装                                               ║')
+      console.error('║  1. Supabase (最简单)                                           ║')
+      console.error('║     https://supabase.com                                        ║')
+      console.error('║     • 免费 500MB                                                ║')
+      console.error('║     • 自带 pgvector 0.7+                                        ║')
+      console.error('║     • 无需任何配置                                              ║')
       console.error('║                                                                 ║')
-      console.error('║  • Neon: https://neon.tech (免费 3GB)                           ║')
-      console.error('║    - 支持 pgvector                                              ║')
-      console.error('║    - Serverless PostgreSQL                                      ║')
+      console.error('║  2. Neon                                                        ║')
+      console.error('║     https://neon.tech                                           ║')
+      console.error('║     • 免费 3GB                                                  ║')
+      console.error('║     • 需手动执行: CREATE EXTENSION vector;                      ║')
       console.error('║                                                                 ║')
-      console.error('║  Render 用户：                                                  ║')
-      console.error('║  - 免费版不支持扩展                                             ║')
-      console.error('║  - 需要升级到 $7/月 Starter 计划                                ║')
+      console.error('║  3. Railway                                                     ║')
+      console.error('║     https://railway.app                                         ║')
+      console.error('║     • $5 免费额度                                               ║')
       console.error('║                                                                 ║')
-      console.error('║  自建数据库：                                                   ║')
-      console.error('║  1. 使用 pgvector Docker 镜像：                                 ║')
-      console.error('║     docker run -d pgvector/pgvector:pg16                        ║')
-      console.error('║  2. 或手动安装：                                                ║')
-      console.error('║     https://github.com/pgvector/pgvector#installation           ║')
+      console.error('║  Render 用户：升级到 Starter ($7/月) 支持扩展                   ║')
       console.error('╚════════════════════════════════════════════════════════════════╝')
       console.error('')
       throw new Error('pgvector extension is required but not available')
     }
+
+    const pgvectorVersion = extResult[0]?.extversion || 'unknown'
+    console.log('[Migrate] ✓ pgvector extension found (version:', pgvectorVersion + ')')
+
+    // halfvec requires pgvector 0.5.0+
+    if (pgvectorVersion < '0.5.0') {
+      console.error('')
+      console.error('╔════════════════════════════════════════════════════════════════╗')
+      console.error('║  ❌ pgvector 版本过低                                           ║')
+      console.error('╠════════════════════════════════════════════════════════════════╣')
+      console.error(`║  当前版本: ${pgvectorVersion}                                   ║`)
+      console.error('║  需要版本: 0.5.0+                                               ║')
+      console.error('║                                                                 ║')
+      console.error('║  halfvec 类型需要 pgvector 0.5.0 或更高版本                     ║')
+      console.error('╠════════════════════════════════════════════════════════════════╣')
+      console.error('║  解决方案：升级 pgvector 或使用新数据库                         ║')
+      console.error('╚════════════════════════════════════════════════════════════════╝')
+      console.error('')
+      throw new Error(`pgvector ${pgvectorVersion} does not support halfvec (requires 0.5.0+)`)
+    }
+
+    console.log('[Migrate] ✓ pgvector version check passed')
 
     // Run drizzle migrations
     console.log('[Migrate] Running schema migrations...')
