@@ -107,9 +107,9 @@ export default function ChapterReaderPage({ params }: ChapterReaderProps) {
       console.log('[ChapterReader] Content loaded from IndexedDB')
       // Check if content is empty after sync
       setTimeout(() => {
-        const text = ydoc.getText('default')?.toString() || ''
-        const xmlFragment = ydoc.getXmlFragment('default')
-        const hasContent = text.trim().length > 10 || xmlFragment.length > 0
+        // 使用 prosemirror 作为类型名（与 Tiptap Collaboration 一致）
+        const xmlFragment = ydoc.getXmlFragment('prosemirror')
+        const hasContent = xmlFragment.length > 0
         setContentEmpty(!hasContent)
       }, 500)
     })
@@ -175,16 +175,19 @@ export default function ChapterReaderPage({ params }: ChapterReaderProps) {
       const decoder = new TextDecoder()
       let accumulated = ''
 
+      // 先清空编辑器（只调用一次）
+      editor.commands.clearContent()
+
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
 
         const chunk = decoder.decode(value, { stream: true })
         accumulated += chunk
-
-        // Update editor content progressively
-        editor.commands.setContent(accumulated)
       }
+
+      // 流式接收完成后，一次性设置内容
+      editor.commands.setContent(accumulated)
 
       setContentEmpty(false)
       console.log('[ChapterReader] Content generated successfully')
