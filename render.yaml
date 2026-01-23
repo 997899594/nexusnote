@@ -22,6 +22,9 @@ services:
         fromDatabase:
           name: nexusnote-db
           property: connectionString
+      # CORS 配置（允许 Web 前端访问）
+      - key: CORS_ORIGIN
+        value: https://nexusnote-web.onrender.com
       # AI Provider 选择
       - key: AI_PROVIDER
         value: deepseek
@@ -53,7 +56,7 @@ services:
     name: nexusnote-web
     runtime: node
     plan: free
-    buildCommand: NODE_ENV=development pnpm install --no-frozen-lockfile && pnpm turbo build --filter=@nexusnote/web
+    buildCommand: NODE_ENV=development pnpm install --no-frozen-lockfile && pnpm turbo build --filter=@nexusnote/web --filter=@nexusnote/types --filter=@nexusnote/config
     startCommand: pnpm --filter @nexusnote/web start
     envVars:
       - key: NODE_ENV
