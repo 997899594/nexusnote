@@ -27,6 +27,18 @@ export class SnapshotService {
    * 保存快照到服务器
    */
   async saveSnapshot(snapshot: SnapshotDTO): Promise<void> {
+    // 检查文档是否存在
+    const docExists = await db
+      .select({ id: documents.id })
+      .from(documents)
+      .where(eq(documents.id, snapshot.documentId))
+      .limit(1)
+
+    if (docExists.length === 0) {
+      console.warn(`[Snapshot] Document ${snapshot.documentId} not found, skipping snapshot ${snapshot.id}`)
+      return
+    }
+
     const yjsState = Buffer.from(snapshot.yjsState, 'base64')
 
     await db.insert(documentSnapshots).values({
