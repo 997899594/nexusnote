@@ -7,7 +7,7 @@ import { smartConvert, sanitizeHtml } from '@/lib/markdown'
 import { useEditorContext } from '@/contexts/EditorContext'
 import { EditPreviewPanel, parseEditResponse } from './EditPreviewPanel'
 import { AgentChat } from './AgentChat'
-import type { EditCommand } from '@/lib/document-parser'
+import type { EditCommand, DocumentBlock } from '@/lib/document-parser'
 // Generative UI Components
 import { FlashcardCreated, SearchResults, ReviewStats, LearningPlan } from './ui'
 
@@ -115,7 +115,7 @@ export function ChatSidebar() {
             originalContent: editorContext.getDocumentContent(),
           })
         } else {
-          const targetBlock = structure?.blocks.find(b => b.id === cmd.targetId)
+          const targetBlock = structure?.blocks.find((b: DocumentBlock) => b.id === cmd.targetId)
           if (targetBlock) {
             items.push({
               command: cmd,
