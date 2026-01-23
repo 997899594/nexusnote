@@ -94,7 +94,7 @@ vercel
 
 # 设置环境变量 (Vercel 控制台)
 NEXT_PUBLIC_API_URL=https://your-app.fly.dev
-NEXT_PUBLIC_WS_URL=wss://your-app.fly.dev
+NEXT_PUBLIC_COLLAB_URL=wss://your-app.fly.dev
 AI_API_KEY=xxx
 ```
 
@@ -164,7 +164,7 @@ cat backup.sql | docker exec -i nexusnote-db psql -U postgres nexusnote
 | `AI_CHAT_MODEL` | 聊天模型 | `gpt-4o-mini` |
 | `POSTGRES_PASSWORD` | 数据库密码 | `secure-password` |
 | `PUBLIC_API_URL` | 后端 API 地址 | `https://api.your-domain.com` |
-| `PUBLIC_WS_URL` | WebSocket 地址 | `wss://ws.your-domain.com` |
+| `PUBLIC_COLLAB_URL` | 协作 WebSocket 地址 | `wss://collab.your-domain.com` |
 
 ---
 

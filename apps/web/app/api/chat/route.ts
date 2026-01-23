@@ -1,12 +1,15 @@
 import { streamText } from 'ai'
 import { chatModel, isAIConfigured, getAIProviderInfo } from '@/lib/ai'
+import { skills } from '@/lib/ai/skills'
+import { API_URL, config } from '@/lib/config'
 
 export const runtime = 'nodejs'
+export const maxDuration = 60
 
-// 配置
-const RAG_API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-const RAG_TIMEOUT = 5000 // 5秒超时
-const RAG_RETRIES = 2    // 最多重试2次
+// 使用集中配置
+const RAG_API_URL = API_URL
+const RAG_TIMEOUT = config.rag.timeout
+const RAG_RETRIES = config.rag.retries
 const SIMILARITY_THRESHOLD = parseFloat(process.env.RAG_SIMILARITY_THRESHOLD || '0.3')
 
 // 带超时的 fetch
@@ -91,14 +94,14 @@ export async function POST(req: Request) {
   const {
     messages: rawMessages,
     enableRAG = false,
+    enableTools = true,  // 新增：是否启用工具调用
     documentContext,
-    documentStructure,  // Phase 2: 文档结构 (用于编辑模式)
-    editMode = false,   // Phase 2: 是否为编辑模式
+    documentStructure,
+    editMode = false,
   } = await req.json()
   const messages = normalizeMessages(rawMessages || [])
 
-  // Debug: 检查收到的参数
-  console.log('[Chat API] enableRAG:', enableRAG, '| documentContext:', documentContext ? `${documentContext.slice(0, 50)}...` : 'NONE', '| editMode:', editMode)
+  console.log('[Chat API] enableRAG:', enableRAG, '| enableTools:', enableTools, '| editMode:', editMode)
 
   // 检查 API Key
   if (!isAIConfigured()) {
@@ -121,9 +124,8 @@ export async function POST(req: Request) {
     ragSources = sources
   }
 
-  // 2. 构建 system prompt，同时支持当前文档 + 知识库
+  // 2. 构建 system prompt
   if (documentContext && ragContext) {
-    // 两者都有
     systemPrompt = `你是 NexusNote 知识库助手。
 
 ## 当前文档内容
@@ -138,9 +140,7 @@ ${ragContext}
 3. 引用知识库内容时，使用 [1], [2] 等标记
 4. 保持回答简洁、专业`
   } else if (documentContext) {
-    // 仅当前文档
     if (editMode && documentStructure) {
-      // 编辑模式：AI 需要返回结构化的编辑指令
       systemPrompt = `你是 NexusNote 文档编辑助手。
 
 ## 当前文档结构
@@ -151,93 +151,31 @@ ${documentContext}
 
 ## 你的任务
 用户会请求修改文档。你需要：
-1. 理解用户的编辑意图（润色、改写、扩写、缩写、翻译、重写等）
-2. 判断编辑范围：
-   - 如果是修改特定部分（如"第一段"、"标题"），使用 replace 并指定目标块
-   - 如果是全文重写/生成新文章/删除全部重写，使用 replace_all
-   - 如果需要修改多个部分，输出多个编辑块
+1. 理解用户的编辑意图
+2. 判断编辑范围
 3. 生成修改后的新内容
 
 ## 响应格式
-### 单块编辑（修改特定部分）
 <<<EDIT_START>>>
-TARGET: [目标块ID，如 p-0, h-1 等]
-ACTION: [replace/insert_after/insert_before/delete]
+TARGET: [目标块ID 或 document]
+ACTION: [replace/replace_all/insert_after/insert_before/delete]
 CONTENT:
-[修改后的新内容]
+[修改后的内容]
 <<<EDIT_END>>>
 
-### 全文替换（重写整篇文章）
-<<<EDIT_START>>>
-TARGET: document
-ACTION: replace_all
-CONTENT:
-[完整的新文章内容，使用 Markdown 格式]
-<<<EDIT_END>>>
-
-### 多块编辑（同时修改多处）
-可以输出多个 <<<EDIT_START>>>...<<<EDIT_END>>> 块
-
-解释：[简要说明你做了什么修改]
-
-## 示例1：修改单段
-用户：把第一段改成更正式的语气
-<<<EDIT_START>>>
-TARGET: p-0
-ACTION: replace
-CONTENT:
-本文旨在探讨人工智能技术在现代企业管理中的应用价值与实践路径。
-<<<EDIT_END>>>
-
-解释：将第一段改写为更正式的学术语气。
-
-## 示例2：全文重写
-用户：删掉这些内容，帮我写一篇关于春天的作文
-<<<EDIT_START>>>
-TARGET: document
-ACTION: replace_all
-CONTENT:
-# 春天的脚步
-
-春天悄然而至，万物复苏...
-
-（完整的作文内容）
-<<<EDIT_END>>>
-
-解释：已生成一篇关于春天的作文，替换原有内容。
-
-## 示例3：多处修改
-用户：把标题改好听点，然后把第一段扩写
-<<<EDIT_START>>>
-TARGET: h-0
-ACTION: replace
-CONTENT:
-探索知识的边界
-<<<EDIT_END>>>
-
-<<<EDIT_START>>>
-TARGET: p-0
-ACTION: replace
-CONTENT:
-知识的海洋浩瀚无垠...（扩写后的内容）
-<<<EDIT_END>>>
-
-解释：更新了标题并扩写了第一段。
+解释：[简要说明修改]
 
 ## 注意
 - 如果用户只是提问而不是请求编辑，正常回答即可
-- 当用户说"删掉全部"、"重新写"、"写一篇新的"时，使用 replace_all
-- 使用 Markdown 格式书写新内容（标题用 #，列表用 -，等等）
-- 保持修改后的内容风格与用户要求一致`
+- 使用 Markdown 格式书写新内容`
     } else {
       systemPrompt = `你是 NexusNote 知识库助手。当前文档内容如下：
 
 ${documentContext}
 
-请基于上述文档内容回答用户问题。如果问题与文档无关，可以使用通用知识回答。`
+请基于上述文档内容回答用户问题。`
     }
   } else if (ragContext) {
-    // 仅知识库 RAG
     systemPrompt = `你是 NexusNote 知识库助手。请根据以下知识库内容回答用户问题。
 
 ## 知识库内容
@@ -245,26 +183,36 @@ ${ragContext}
 
 ## 回答规则
 1. 优先使用知识库中的信息回答
-2. 如果知识库中没有相关信息，可以使用你的通用知识，但需说明
-3. 引用知识库内容时，使用 [1], [2] 等标记
-4. 保持回答简洁、专业`
-  } else if (enableRAG) {
-    // 启用了 RAG 但没有找到相关内容
-    systemPrompt = `你是 NexusNote 知识库助手。用户启用了知识库检索，但未找到相关内容。请基于通用知识回答。`
+2. 引用知识库内容时，使用 [1], [2] 等标记`
   } else {
-    // 默认模式
-    systemPrompt = `你是 NexusNote 知识库助手，帮助用户进行写作、整理知识和回答问题。
+    // 默认模式 - 包含工具使用说明
+    systemPrompt = `你是 NexusNote 知识库助手，帮助用户进行写作、整理知识和学习。
 
-你可以：
-- 帮助用户润色、扩写、缩写文本
-- 回答关于写作和知识管理的问题
-- 提供创意建议和头脑风暴
-- 解释复杂概念
+## 你的能力
+你可以使用以下工具帮助用户：
 
-请用简洁、专业的方式回答。`
+1. **createFlashcards** - 创建闪卡
+   - 当用户说"把这段做成闪卡"、"帮我记忆这些"、"创建卡片"时使用
+   - 将内容拆分成问答对，生成便于记忆的卡片
+
+2. **searchNotes** - 搜索笔记
+   - 当用户问"我之前写过什么关于..."、"搜索我的笔记"时使用
+   - 在知识库中查找相关内容
+
+3. **getReviewStats** - 获取学习统计
+   - 当用户问"我的学习进度"、"今天要复习多少"时使用
+   - 显示闪卡复习数据
+
+4. **createLearningPlan** - 生成学习计划
+   - 当用户说"帮我制定学习计划"、"规划一下学习"时使用
+   - 根据主题生成结构化的学习计划
+
+## 回答规则
+1. 主动识别用户意图，适时调用工具
+2. 工具调用后，基于结果给出友好的总结
+3. 保持回答简洁、有帮助`
   }
 
-  // 如果有 RAG sources，在 system prompt 末尾添加
   if (ragSources.length > 0) {
     systemPrompt += `\n\n---\n参考来源：${ragSources.map(s => s.title).join(', ')}`
   }
@@ -276,6 +224,11 @@ ${ragContext}
       messages,
       maxOutputTokens: 4096,
       temperature: 0.7,
+      // 启用工具调用
+      ...(enableTools && !editMode ? {
+        tools: skills,
+        maxSteps: 3, // 允许多轮工具调用
+      } : {}),
     })
 
     return result.toUIMessageStreamResponse()

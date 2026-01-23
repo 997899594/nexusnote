@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.12",
+    "@nexusnote/config": "workspace:*",
+    "@nexusnote/types": "workspace:*",
     "@ai-sdk/react": "^3.0.43",
     "@hocuspocus/provider": "^2.13.0",
     "@tiptap/core": "^3.16.0",

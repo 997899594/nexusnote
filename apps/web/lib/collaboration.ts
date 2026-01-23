@@ -1,12 +1,10 @@
 import { HocuspocusProvider } from '@hocuspocus/provider'
 import * as Y from 'yjs'
+import type { CollaborationUser } from '@nexusnote/types'
+import { COLLAB_URL, getAuthToken } from './config'
 
-export interface CollaborationUser {
-  id: string
-  name: string
-  color: string
-  avatar?: string
-}
+// Re-export type for backward compatibility
+export type { CollaborationUser }
 
 export interface CreateProviderOptions {
   documentId: string
@@ -17,8 +15,6 @@ export interface CreateProviderOptions {
   onDisconnect?: () => void
   onAuthenticationFailed?: () => void
 }
-
-const COLLAB_URL = process.env.NEXT_PUBLIC_COLLAB_URL || 'ws://localhost:1234'
 
 export function createCollaborationProvider({
   documentId,
@@ -33,7 +29,7 @@ export function createCollaborationProvider({
     url: COLLAB_URL,
     name: documentId,
     document: ydoc,
-    token: token || 'dev-token',
+    token: token || getAuthToken(),
 
     onSynced() {
       console.log('[Collab] Document synced with server')

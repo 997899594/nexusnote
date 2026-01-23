@@ -131,7 +131,7 @@ Settings → Custom Domain → 添加你的域名
 
 ```bash
 # Render 免费版支持 WebSocket
-# 确保 NEXT_PUBLIC_WS_URL 使用 wss:// 而非 ws://
+# 确保 NEXT_PUBLIC_COLLAB_URL 使用 wss:// 而非 ws://
 ```
 
 ---

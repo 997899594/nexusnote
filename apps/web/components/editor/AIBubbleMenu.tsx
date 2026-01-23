@@ -4,7 +4,8 @@ import { Editor } from '@tiptap/react'
 import { BubbleMenu } from '@tiptap/react/menus'
 import { useInlineAI, AI_ACTIONS, AIAction } from '@/hooks/useInlineAI'
 import { useState, useEffect, useCallback } from 'react'
-import { Sparkles, Loader2, X, Check, RotateCcw } from 'lucide-react'
+import { Sparkles, Loader2, X, Check, RotateCcw, Brain } from 'lucide-react'
+import { CreateFlashcardDialog } from '@/components/srs/CreateFlashcardDialog'
 
 interface AIBubbleMenuProps {
   editor: Editor
@@ -13,6 +14,8 @@ interface AIBubbleMenuProps {
 export function AIBubbleMenu({ editor }: AIBubbleMenuProps) {
   const [showAI, setShowAI] = useState(false)
   const [showResult, setShowResult] = useState(false)
+  const [showFlashcardDialog, setShowFlashcardDialog] = useState(false)
+  const [flashcardSelection, setFlashcardSelection] = useState('')
   const { completion, isLoading, runAction, stop, reset } = useInlineAI()
 
   // 获取选中的文本
@@ -103,6 +106,23 @@ export function AIBubbleMenu({ editor }: AIBubbleMenuProps) {
             <Sparkles className="w-4 h-4" />
             <span>AI</span>
           </button>
+
+          <div className="w-px h-6 bg-border mx-1" />
+
+          {/* 创建卡片按钮 */}
+          <button
+            onClick={() => {
+              const text = getSelectedText()
+              if (text) {
+                setFlashcardSelection(text)
+                setShowFlashcardDialog(true)
+              }
+            }}
+            className="p-2 rounded hover:bg-muted flex items-center gap-1 text-sm"
+            title="创建闪卡"
+          >
+            <Brain className="w-4 h-4" />
+          </button>
         </div>
 
         {/* AI 操作菜单 */}
@@ -180,6 +200,13 @@ export function AIBubbleMenu({ editor }: AIBubbleMenuProps) {
           </div>
         </div>
       )}
+
+      {/* 创建闪卡对话框 */}
+      <CreateFlashcardDialog
+        isOpen={showFlashcardDialog}
+        onClose={() => setShowFlashcardDialog(false)}
+        initialFront={flashcardSelection}
+      />
     </>
   )
 }

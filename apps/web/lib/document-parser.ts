@@ -1,29 +1,10 @@
 import { Editor } from '@tiptap/react'
 import { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { smartConvert, sanitizeHtml } from './markdown'
+import type { DocumentBlock, DocumentStructure, EditCommand } from '@nexusnote/types'
 
-// ============================================
-// 文档结构解析器
-// 用于 AI 对话编辑时定位和操作文档块
-// ============================================
-
-export interface DocumentBlock {
-  id: string           // 唯一标识 (e.g., "p-0", "h1-1", "list-2")
-  type: string         // 节点类型 (paragraph, heading, bulletList, etc.)
-  level?: number       // 标题级别 (1-6)
-  content: string      // 纯文本内容
-  from: number         // ProseMirror 起始位置
-  to: number           // ProseMirror 结束位置
-  index: number        // 在同类型块中的索引
-  globalIndex: number  // 全局块索引
-}
-
-export interface DocumentStructure {
-  blocks: DocumentBlock[]
-  totalBlocks: number
-  headings: DocumentBlock[]
-  paragraphs: DocumentBlock[]
-}
+// Re-export types for backward compatibility
+export type { DocumentBlock, DocumentStructure, EditCommand }
 
 /**
  * 解析编辑器文档结构
@@ -209,17 +190,6 @@ function getTypeLabel(type: string, level?: number): string {
     collapsible: '折叠块',
   }
   return labels[type] || type
-}
-
-/**
- * 编辑命令类型
- */
-export interface EditCommand {
-  action: 'replace' | 'insert_after' | 'insert_before' | 'delete' | 'replace_all'
-  targetId: string           // 目标块 ID (replace_all 时可为 'document')
-  targetRef?: string         // 原始自然语言引用
-  newContent?: string        // 新内容 (replace/insert 时需要)
-  explanation?: string       // AI 对修改的解释
 }
 
 /**

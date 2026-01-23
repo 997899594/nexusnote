@@ -6,6 +6,10 @@ import { addRagIndexJob } from '../queue/queue.module'
 import { documents } from '@nexusnote/db'
 import { db } from '../database/database.module'
 import { env } from '../config/env.config'
+import { AuthService } from '../auth/auth.service'
+
+// Auth service instance for JWT verification
+const authService = new AuthService()
 
 // 防抖器 - 用于 RAG 索引
 const debounceTimers = new Map<string, NodeJS.Timeout>()
@@ -78,13 +82,36 @@ export function startHocuspocus() {
 
     // 鉴权
     async onAuthenticate({ token, documentName }) {
-      // TODO: 生产环境启用 JWT 验证
       console.log(`[Hocuspocus] Client authenticating for: ${documentName}`)
+
+      // In development mode, allow dev-token for testing
+      if (env.NODE_ENV !== 'production' && token === 'dev-token') {
+        console.log('[Hocuspocus] Using dev token (development mode)')
+        return {
+          user: {
+            id: `dev-${Date.now()}`,
+            name: 'Dev User',
+            color: '#6366f1',
+          },
+        }
+      }
+
+      // Verify JWT token
+      if (!token) {
+        throw new Error('Authentication required: no token provided')
+      }
+
+      const user = authService.getUserFromToken(token)
+      if (!user) {
+        throw new Error('Authentication failed: invalid or expired token')
+      }
+
+      console.log(`[Hocuspocus] Authenticated user: ${user.name} (${user.id})`)
       return {
         user: {
-          id: `user-${Date.now()}`,
-          name: 'User',
-          color: '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0'),
+          id: user.id,
+          name: user.name,
+          color: user.color,
         },
       }
     },

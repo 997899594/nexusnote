@@ -8,8 +8,7 @@
  */
 
 import { localDb, STORES, DocumentSnapshot } from './local-db'
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+import { API_URL } from '../config'
 
 interface ServerSnapshot {
   id: string
@@ -73,7 +72,7 @@ export class SnapshotSync {
       }))
 
       // 批量上传
-      const response = await fetch(`${API_BASE}/snapshots/sync`, {
+      const response = await fetch(`${API_URL}/snapshots/sync`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ snapshots: serverSnapshots }),
@@ -109,7 +108,7 @@ export class SnapshotSync {
         : 0
 
       // 获取服务器快照
-      const response = await fetch(`${API_BASE}/snapshots/${documentId}`)
+      const response = await fetch(`${API_URL}/snapshots/${documentId}`)
       if (!response.ok) {
         throw new Error(`Fetch failed: ${response.status}`)
       }
@@ -166,7 +165,7 @@ export class SnapshotSync {
    */
   private async getServerLatestTimestamp(documentId: string): Promise<number | null> {
     try {
-      const response = await fetch(`${API_BASE}/snapshots/${documentId}/latest-timestamp`)
+      const response = await fetch(`${API_URL}/snapshots/${documentId}/latest-timestamp`)
       if (!response.ok) return null
 
       const { timestamp } = await response.json()
@@ -181,7 +180,7 @@ export class SnapshotSync {
    */
   async deleteFromServer(snapshotId: string): Promise<void> {
     try {
-      await fetch(`${API_BASE}/snapshots/${snapshotId}`, {
+      await fetch(`${API_URL}/snapshots/${snapshotId}`, {
         method: 'DELETE',
       })
     } catch (error) {

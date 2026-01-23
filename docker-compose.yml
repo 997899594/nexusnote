@@ -75,7 +75,7 @@ services:
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:3001}
-      NEXT_PUBLIC_WS_URL: ${PUBLIC_WS_URL:-ws://localhost:1234}
+      NEXT_PUBLIC_COLLAB_URL: ${PUBLIC_COLLAB_URL:-ws://localhost:1234}
       AI_PROVIDER: ${AI_PROVIDER:-302ai}
       AI_API_KEY: ${AI_API_KEY}
       AI_BASE_URL: ${AI_BASE_URL:-https://api.302.ai/v1}

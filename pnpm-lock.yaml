@@ -35,9 +35,15 @@ importers:
       '@nestjs/platform-express':
         specifier: ^10.3.0
         version: 10.4.22(@nestjs/common@10.4.22)(@nestjs/core@10.4.22)
+      '@nexusnote/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@nexusnote/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@nexusnote/types':
+        specifier: workspace:*
+        version: link:../../packages/types
       ai:
         specifier: ^6.0.41
         version: 6.0.41(zod@4.3.6)
@@ -105,6 +111,12 @@ importers:
       '@hocuspocus/provider':
         specifier: ^2.13.0
         version: 2.15.3(y-protocols@1.0.7)(yjs@13.6.29)
+      '@nexusnote/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@nexusnote/types':
+        specifier: workspace:*
+        version: link:../../packages/types
       '@tiptap/core':
         specifier: ^3.16.0
         version: 3.16.0(@tiptap/pm@3.16.0)
@@ -236,6 +248,19 @@ importers:
         specifier: ^5.3.0
         version: 5.9.3
 
+  packages/config:
+    dependencies:
+      zod:
+        specifier: ^3.23.0
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.30
+      typescript:
+        specifier: ^5.3.0
+        version: 5.9.3
+
   packages/db:
     dependencies:
       drizzle-orm:
@@ -254,6 +279,12 @@ importers:
       drizzle-kit:
         specifier: ^0.21.0
         version: 0.21.4
+      typescript:
+        specifier: ^5.3.0
+        version: 5.9.3
+
+  packages/types:
+    devDependencies:
       typescript:
         specifier: ^5.3.0
         version: 5.9.3
@@ -5792,7 +5823,6 @@ packages:
 
   /zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
-    dev: true
 
   /zod@4.3.6:
     resolution: {integrity: sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg==}

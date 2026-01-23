@@ -21,6 +21,7 @@ import * as Y from 'yjs'
 import { IndexeddbPersistence } from 'y-indexeddb'
 import { HocuspocusProvider } from '@hocuspocus/provider'
 import { getRandomColor, getRandomUserName } from '@/lib/collaboration'
+import { COLLAB_URL, getAuthToken } from '@/lib/config'
 import { Wifi, WifiOff, Users, History } from 'lucide-react'
 import { EditorToolbar } from './EditorToolbar'
 import { AIBubbleMenu } from './AIBubbleMenu'
@@ -56,13 +57,11 @@ export function Editor({ documentId, showToolbar = true }: EditorProps) {
 
   // Hocuspocus Provider
   const provider = useMemo(() => {
-    const collabUrl = process.env.NEXT_PUBLIC_COLLAB_URL || 'ws://localhost:1234'
-
     return new HocuspocusProvider({
-      url: collabUrl,
+      url: COLLAB_URL,
       name: documentId,
       document: ydoc,
-      token: 'dev-token', // Phase 2+: 从 Auth 获取 JWT
+      token: getAuthToken(),
 
       onConnect() {
         setStatus('connected')

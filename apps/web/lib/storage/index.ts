@@ -14,6 +14,7 @@ export * from './snapshot-store'
 export * from './sync-engine'
 export * from './snapshot-sync'
 export * from './learning-store'
+export * from './flashcard-store'
 
 // Re-export singletons for convenience
 export { localDb } from './local-db'
@@ -22,3 +23,4 @@ export { snapshotStore } from './snapshot-store'
 export { syncEngine } from './sync-engine'
 export { snapshotSync } from './snapshot-sync'
 export { learningStore } from './learning-store'
+export { flashcardStore } from './flashcard-store'

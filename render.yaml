@@ -61,8 +61,8 @@ services:
           name: nexusnote-server
           type: web
           envVarKey: RENDER_EXTERNAL_URL
-      # WebSocket URL (部署后需要手动设置为 wss://nexusnote-server.onrender.com)
-      - key: NEXT_PUBLIC_WS_URL
+      # Collaboration WebSocket URL (部署后需要手动设置为 wss://nexusnote-server.onrender.com)
+      - key: NEXT_PUBLIC_COLLAB_URL
         sync: false
       # AI Provider
       - key: AI_PROVIDER

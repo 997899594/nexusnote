@@ -2,11 +2,13 @@
 
 import { useChat } from '@ai-sdk/react'
 import { useRef, useEffect, useState, FormEvent } from 'react'
-import { Send, Square, User, Bot, BookOpen, FileText, Pencil, Copy, FileDown } from 'lucide-react'
+import { Send, Square, User, Bot, BookOpen, FileText, Pencil, Copy, FileDown, Sparkles } from 'lucide-react'
 import { smartConvert, sanitizeHtml } from '@/lib/markdown'
 import { useEditorContext } from '@/contexts/EditorContext'
 import { EditPreviewPanel, parseEditResponse } from './EditPreviewPanel'
 import type { EditCommand } from '@/lib/document-parser'
+// Generative UI Components
+import { FlashcardCreated, SearchResults, ReviewStats, LearningPlan } from './ui'
 
 interface PendingEditItem {
   command: EditCommand
@@ -16,6 +18,47 @@ interface PendingEditItem {
 interface PendingEdits {
   items: PendingEditItem[]
   messageId: string
+}
+
+// 渲染工具调用结果的 Generative UI
+function renderToolInvocation(toolName: string, result: any) {
+  if (!result) return null
+
+  switch (toolName) {
+    case 'createFlashcards':
+      if (result.success && result.cards) {
+        return <FlashcardCreated count={result.count} cards={result.cards} />
+      }
+      break
+
+    case 'searchNotes':
+      return <SearchResults query={result.query || ''} results={result.results || []} />
+
+    case 'getReviewStats':
+      return (
+        <ReviewStats
+          totalCards={result.totalCards || 0}
+          dueToday={result.dueToday || 0}
+          newCards={result.newCards || 0}
+          learningCards={result.learningCards || 0}
+          masteredCards={result.masteredCards || 0}
+          retention={result.retention || 0}
+          streak={result.streak || 0}
+        />
+      )
+
+    case 'createLearningPlan':
+      return (
+        <LearningPlan
+          topic={result.topic || ''}
+          duration={result.duration || ''}
+          level={result.level || 'beginner'}
+          phases={result.phases}
+        />
+      )
+  }
+
+  return null
 }
 
 export function ChatSidebar() {
@@ -311,6 +354,11 @@ export function ChatSidebar() {
             .map(p => p.text)
             .join('')
 
+          // 提取工具调用结果 (AI SDK 4.x format)
+          const toolParts = message.parts.filter(
+            (p) => p.type?.startsWith('tool-')
+          ) as Array<any>
+
           const displayText = message.role === 'assistant'
             ? formatMessageText(rawText)
             : rawText
@@ -333,36 +381,67 @@ export function ChatSidebar() {
                   </div>
                 )}
 
-                <div
-                  className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                    message.role === 'user'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted'
-                  }`}
-                >
-                  <p className="text-sm whitespace-pre-wrap">{displayText || '...'}</p>
+                <div className="max-w-[85%] space-y-2">
+                  {/* 文本消息 */}
+                  {displayText && (
+                    <div
+                      className={`rounded-lg px-4 py-2 ${
+                        message.role === 'user'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted'
+                      }`}
+                    >
+                      <p className="text-sm whitespace-pre-wrap">{displayText}</p>
 
-                  {/* AI 消息操作按钮 */}
-                  {message.role === 'assistant' && displayText && !hasPendingEdits && (
-                    <div className="flex items-center gap-1 mt-2 pt-2 border-t border-border/50">
-                      <button
-                        onClick={() => insertToEditor(displayText)}
-                        className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 px-2 py-1 rounded hover:bg-background/50"
-                        title="Insert to editor"
-                      >
-                        <FileDown className="w-3 h-3" />
-                        插入
-                      </button>
-                      <button
-                        onClick={() => copyToClipboard(displayText)}
-                        className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 px-2 py-1 rounded hover:bg-background/50"
-                        title="Copy"
-                      >
-                        <Copy className="w-3 h-3" />
-                        复制
-                      </button>
+                      {/* AI 消息操作按钮 */}
+                      {message.role === 'assistant' && !hasPendingEdits && toolParts.length === 0 && (
+                        <div className="flex items-center gap-1 mt-2 pt-2 border-t border-border/50">
+                          <button
+                            onClick={() => insertToEditor(displayText)}
+                            className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 px-2 py-1 rounded hover:bg-background/50"
+                            title="Insert to editor"
+                          >
+                            <FileDown className="w-3 h-3" />
+                            插入
+                          </button>
+                          <button
+                            onClick={() => copyToClipboard(displayText)}
+                            className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 px-2 py-1 rounded hover:bg-background/50"
+                            title="Copy"
+                          >
+                            <Copy className="w-3 h-3" />
+                            复制
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
+
+                  {/* Generative UI - 工具调用结果 */}
+                  {message.role === 'assistant' && toolParts.map((part, idx) => {
+                    // AI SDK 4.x tool part format: { type: 'tool-createFlashcards', ... }
+                    const toolName = part.type?.replace('tool-', '') || ''
+                    const state = part.state
+                    const result = part.output
+
+                    // 工具正在调用中
+                    if (state === 'call' || state === 'input-streaming') {
+                      return (
+                        <div key={idx} className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-lg px-3 py-2">
+                          <Sparkles className="w-4 h-4 animate-pulse" />
+                          <span>正在执行 {toolName}...</span>
+                        </div>
+                      )
+                    }
+
+                    // 工具调用完成，渲染 UI
+                    if (state === 'result' || state === 'output-complete') {
+                      const ui = renderToolInvocation(toolName, result)
+                      if (ui) return <div key={idx}>{ui}</div>
+                    }
+
+                    return null
+                  })}
                 </div>
 
                 {message.role === 'user' && (

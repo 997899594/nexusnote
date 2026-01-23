@@ -13,6 +13,7 @@ import { HocuspocusProvider } from '@hocuspocus/provider'
 import { documentStore } from './document-store'
 import { snapshotStore } from './snapshot-store'
 import { localDb, STORES, SyncState } from './local-db'
+import { COLLAB_URL, getAuthToken } from '../config'
 
 type SyncStatus = 'idle' | 'syncing' | 'offline' | 'error'
 type ConnectionState = 'connected' | 'connecting' | 'disconnected'
@@ -34,11 +35,7 @@ export class SyncEngine {
   private syncQueue: Set<string> = new Set()
   private isSyncing = false
 
-  private wsUrl: string
-
   constructor() {
-    this.wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:1234'
-
     // 监听网络状态
     if (typeof window !== 'undefined') {
       window.addEventListener('online', () => this.handleOnline())
@@ -98,10 +95,10 @@ export class SyncEngine {
     }
 
     const provider = new HocuspocusProvider({
-      url: this.wsUrl,
+      url: COLLAB_URL,
       name: documentId,
       document: ydoc,
-      token: 'dev-token', // TODO: 使用真实 JWT
+      token: getAuthToken(),
 
       onSynced: () => {
         console.log(`[SyncEngine] Synced with server: ${documentId}`)

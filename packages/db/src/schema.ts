@@ -152,6 +152,65 @@ export const learningHighlights = pgTable("learning_highlights", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// ============================================
+// SRS 间隔重复系统 (Spaced Repetition System)
+// 基于 FSRS-5 算法
+// ============================================
+
+// 闪卡表
+export const flashcards = pgTable("flashcards", {
+  id: uuid("id").primaryKey().defaultRandom(),
+
+  // 来源关联（二选一）
+  highlightId: uuid("highlight_id").references(() => learningHighlights.id, {
+    onDelete: "cascade",
+  }),
+  documentId: uuid("document_id").references(() => documents.id, {
+    onDelete: "cascade",
+  }),
+
+  // 卡片内容
+  front: text("front").notNull(), // 问题/提示
+  back: text("back").notNull(), // 答案
+  context: text("context"), // 上下文（来源段落）
+  tags: jsonb("tags"), // JSON array
+
+  // FSRS-5 核心参数
+  state: integer("state").notNull().default(0), // 0=New, 1=Learning, 2=Review, 3=Relearning
+  due: timestamp("due").notNull().defaultNow(), // 下次复习时间
+  stability: integer("stability").notNull().default(0), // 记忆稳定性（天数 * 100，整数存储）
+  difficulty: integer("difficulty").notNull().default(50), // 难度 0-100
+  elapsedDays: integer("elapsed_days").notNull().default(0), // 距上次复习天数
+  scheduledDays: integer("scheduled_days").notNull().default(0), // 计划间隔天数
+  reps: integer("reps").notNull().default(0), // 成功复习次数
+  lapses: integer("lapses").notNull().default(0), // 遗忘次数
+
+  // 元数据
+  suspended: timestamp("suspended"), // 暂停时间（null=活跃）
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  dueIdx: index("flashcards_due_idx").on(table.due),
+  stateIdx: index("flashcards_state_idx").on(table.state),
+}));
+
+// 复习记录表（用于 FSRS 参数优化和学习分析）
+export const reviewLogs = pgTable("review_logs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  flashcardId: uuid("flashcard_id").references(() => flashcards.id, {
+    onDelete: "cascade",
+  }),
+  rating: integer("rating").notNull(), // 1=Again, 2=Hard, 3=Good, 4=Easy
+  state: integer("state").notNull(), // 复习时的状态
+  due: timestamp("due").notNull(), // 原定复习时间
+  stability: integer("stability").notNull(), // 复习前稳定性
+  difficulty: integer("difficulty").notNull(), // 复习前难度
+  elapsedDays: integer("elapsed_days").notNull(),
+  scheduledDays: integer("scheduled_days").notNull(),
+  reviewDuration: integer("review_duration"), // 复习用时（毫秒）
+  reviewedAt: timestamp("reviewed_at").defaultNow(),
+});
+
 // 类型导出
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -166,3 +225,7 @@ export type NewLearningContent = typeof learningContents.$inferInsert;
 export type LearningChapter = typeof learningChapters.$inferSelect;
 export type LearningProgress = typeof learningProgress.$inferSelect;
 export type LearningHighlight = typeof learningHighlights.$inferSelect;
+export type Flashcard = typeof flashcards.$inferSelect;
+export type NewFlashcard = typeof flashcards.$inferInsert;
+export type ReviewLog = typeof reviewLogs.$inferSelect;
+export type NewReviewLog = typeof reviewLogs.$inferInsert;

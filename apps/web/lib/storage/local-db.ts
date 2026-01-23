@@ -9,8 +9,19 @@
  * - Yjs CRDT 自动解决并发冲突
  */
 
+import type {
+  CardState,
+  ReviewRating,
+  LearningContentType,
+  LearningDifficulty,
+} from '@nexusnote/types'
+
+// Re-export for backward compatibility
+export type { CardState, ReviewRating, LearningContentType, LearningDifficulty }
+export type FlashcardState = CardState  // Alias for local usage
+
 const DB_NAME = 'nexusnote-local'
-const DB_VERSION = 2
+const DB_VERSION = 3 // v3: Added flashcards & review_logs
 
 // Store names
 export const STORES = {
@@ -23,6 +34,9 @@ export const STORES = {
   LEARNING_CHAPTERS: 'learning_chapters',
   LEARNING_PROGRESS: 'learning_progress',
   LEARNING_HIGHLIGHTS: 'learning_highlights',
+  // SRS (Spaced Repetition System) stores
+  FLASHCARDS: 'flashcards',
+  REVIEW_LOGS: 'review_logs',
 } as const
 
 // Document stored locally
@@ -74,9 +88,6 @@ export interface LocalMetadata {
 // Learning Module Interfaces
 // ============================================
 
-export type LearningContentType = 'book' | 'article' | 'course'
-export type LearningDifficulty = 'beginner' | 'intermediate' | 'advanced'
-
 export interface LocalLearningContent {
   id: string
   title: string
@@ -126,6 +137,51 @@ export interface LocalLearningHighlight {
   color: 'yellow' | 'green' | 'blue' | 'pink' | 'purple'
   position: number
   createdAt: number
+}
+
+// ============================================
+// SRS (Spaced Repetition System) Interfaces
+// ============================================
+
+export interface LocalFlashcard {
+  id: string
+  // 来源关联（支持高亮或文档）
+  highlightId?: string
+  documentId?: string
+  // 内容
+  front: string          // 问题/提示
+  back: string           // 答案
+  context?: string       // 上下文
+  tags: string[]
+  // FSRS-5 调度参数
+  state: FlashcardState
+  due: number            // 下次复习时间戳
+  stability: number      // 记忆稳定性（天数 * 100 存储为整数）
+  difficulty: number     // 难度 0-100
+  elapsedDays: number
+  scheduledDays: number
+  reps: number           // 成功复习次数
+  lapses: number         // 遗忘次数
+  // 元数据
+  suspended?: number     // 暂停时间戳
+  createdAt: number
+  updatedAt: number
+  syncedAt: number | null
+  isDirty: boolean
+}
+
+export interface LocalReviewLog {
+  id: string
+  flashcardId: string
+  rating: ReviewRating
+  state: FlashcardState  // 复习时的状态
+  due: number
+  stability: number
+  difficulty: number
+  elapsedDays: number
+  scheduledDays: number
+  reviewDuration?: number // 复习用时(毫秒)
+  reviewedAt: number
 }
 
 class LocalDatabase {
@@ -204,6 +260,23 @@ class LocalDatabase {
         if (!db.objectStoreNames.contains(STORES.LEARNING_HIGHLIGHTS)) {
           const highlightStore = db.createObjectStore(STORES.LEARNING_HIGHLIGHTS, { keyPath: 'id' })
           highlightStore.createIndex('chapterId', 'chapterId', { unique: false })
+        }
+
+        // SRS Flashcards store
+        if (!db.objectStoreNames.contains(STORES.FLASHCARDS)) {
+          const flashcardStore = db.createObjectStore(STORES.FLASHCARDS, { keyPath: 'id' })
+          flashcardStore.createIndex('due', 'due', { unique: false })
+          flashcardStore.createIndex('state', 'state', { unique: false })
+          flashcardStore.createIndex('highlightId', 'highlightId', { unique: false })
+          flashcardStore.createIndex('documentId', 'documentId', { unique: false })
+          flashcardStore.createIndex('isDirty', 'isDirty', { unique: false })
+        }
+
+        // SRS Review logs store
+        if (!db.objectStoreNames.contains(STORES.REVIEW_LOGS)) {
+          const reviewLogStore = db.createObjectStore(STORES.REVIEW_LOGS, { keyPath: 'id' })
+          reviewLogStore.createIndex('flashcardId', 'flashcardId', { unique: false })
+          reviewLogStore.createIndex('reviewedAt', 'reviewedAt', { unique: false })
         }
 
         console.log('[LocalDB] Schema upgrade complete')
