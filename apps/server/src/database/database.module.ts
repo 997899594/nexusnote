@@ -2,10 +2,9 @@ import { Module, Global, OnModuleInit } from '@nestjs/common'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import * as postgres from 'postgres'
 import * as schema from '@nexusnote/db'
+import { env } from '../config/env.config'
 
-const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5433/nexusnote'
-
-const client = postgres(DATABASE_URL)
+const client = postgres(env.DATABASE_URL)
 export const db = drizzle(client, { schema })
 
 // Initialize pgvector extension
@@ -13,10 +12,11 @@ async function initializeDatabase() {
   try {
     await client`CREATE EXTENSION IF NOT EXISTS vector`
     console.log('[Database] pgvector extension ready')
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Ignore if already exists or no permission (non-superuser)
-    if (!error.message?.includes('already exists')) {
-      console.warn('[Database] Could not create vector extension:', error.message)
+    const message = error instanceof Error ? error.message : String(error)
+    if (!message.includes('already exists')) {
+      console.warn('[Database] Could not create vector extension:', message)
     }
   }
 }

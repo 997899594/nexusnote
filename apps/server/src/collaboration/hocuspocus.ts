@@ -1,33 +1,11 @@
 import { Server } from '@hocuspocus/server'
 import { Database } from '@hocuspocus/extension-database'
-import { drizzle } from 'drizzle-orm/postgres-js'
 import { eq } from 'drizzle-orm'
-import * as postgres from 'postgres'
 import * as Y from 'yjs'
 import { addRagIndexJob } from '../queue/queue.module'
-
-// 数据库连接
-const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5433/nexusnote'
-const client = postgres(DATABASE_URL)
-const db = drizzle(client)
-
-// Schema 定义
-import { pgTable, uuid, text, timestamp, customType } from 'drizzle-orm/pg-core'
-
-const bytea = customType<{ data: Buffer }>({
-  dataType() {
-    return 'bytea'
-  },
-})
-
-const documents = pgTable('documents', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  title: text('title').notNull().default('Untitled'),
-  content: bytea('content'),
-  plainText: text('plain_text'),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
-})
+import { documents } from '@nexusnote/db'
+import { db } from '../database/database.module'
+import { env } from '../config/env.config'
 
 // 防抖器 - 用于 RAG 索引
 const debounceTimers = new Map<string, NodeJS.Timeout>()
@@ -96,7 +74,7 @@ function extractTextFromXmlFragment(element: Y.XmlFragment | Y.XmlElement): stri
 
 export function startHocuspocus() {
   const server = Server.configure({
-    port: parseInt(process.env.HOCUSPOCUS_PORT || '1234'),
+    port: env.HOCUSPOCUS_PORT,
 
     // 鉴权
     async onAuthenticate({ token, documentName }) {
@@ -190,5 +168,5 @@ export function startHocuspocus() {
   })
 
   server.listen()
-  console.log(`[Hocuspocus] Collaboration server running on ws://localhost:${process.env.HOCUSPOCUS_PORT || 1234}`)
+  console.log(`[Hocuspocus] Collaboration server running on ws://localhost:${env.HOCUSPOCUS_PORT}`)
 }

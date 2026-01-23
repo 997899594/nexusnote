@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Delete, Body, Param, Query } from '@nestjs/common'
-import { SnapshotService, SnapshotDTO } from './snapshot.service'
+import { SnapshotService } from './snapshot.service'
+import { SyncSnapshotsDto, GetSnapshotsQueryDto, GetSnapshotsRangeQueryDto } from './snapshot.dto'
 
 @Controller('snapshots')
 export class SnapshotController {
@@ -10,7 +11,7 @@ export class SnapshotController {
    * POST /snapshots/sync
    */
   @Post('sync')
-  async syncSnapshots(@Body() body: { snapshots: SnapshotDTO[] }) {
+  async syncSnapshots(@Body() body: SyncSnapshotsDto) {
     await this.snapshotService.saveSnapshots(body.snapshots)
     return { success: true, count: body.snapshots.length }
   }
@@ -22,11 +23,11 @@ export class SnapshotController {
   @Get(':documentId')
   async getSnapshots(
     @Param('documentId') documentId: string,
-    @Query('limit') limit?: string
+    @Query() query: GetSnapshotsQueryDto
   ) {
     const snapshots = await this.snapshotService.getSnapshots(
       documentId,
-      limit ? parseInt(limit, 10) : 100
+      query.limit ?? 100
     )
     return { snapshots }
   }
@@ -61,13 +62,12 @@ export class SnapshotController {
   @Get(':documentId/range')
   async getSnapshotsByRange(
     @Param('documentId') documentId: string,
-    @Query('start') start: string,
-    @Query('end') end: string
+    @Query() query: GetSnapshotsRangeQueryDto
   ) {
     const snapshots = await this.snapshotService.getSnapshotsByTimeRange(
       documentId,
-      parseInt(start, 10),
-      parseInt(end, 10)
+      query.start,
+      query.end
     )
     return { snapshots }
   }

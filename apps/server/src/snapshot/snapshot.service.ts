@@ -1,12 +1,9 @@
 import { Injectable } from '@nestjs/common'
-import { drizzle } from 'drizzle-orm/postgres-js'
-import postgres from 'postgres'
-import { eq, desc, and, gte, lte } from 'drizzle-orm'
+import { eq, desc, and, gte, lte, inArray, InferSelectModel } from 'drizzle-orm'
 import { documentSnapshots, documents } from '@nexusnote/db'
+import { db } from '../database/database.module'
 
-const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5433/nexusnote'
-const client = postgres(DATABASE_URL)
-const db = drizzle(client)
+type SnapshotRow = InferSelectModel<typeof documentSnapshots>
 
 // 每个文档最大快照数
 const MAX_SNAPSHOTS_PER_DOC = 50
@@ -143,6 +140,7 @@ export class SnapshotService {
 
   /**
    * 清理旧快照（保留最新 N 个）
+   * 使用单条 DELETE 语句替代 N+1 循环
    */
   private async pruneSnapshots(documentId: string): Promise<void> {
     const allSnapshots = await db
@@ -152,29 +150,33 @@ export class SnapshotService {
       .orderBy(desc(documentSnapshots.timestamp))
 
     if (allSnapshots.length > MAX_SNAPSHOTS_PER_DOC) {
-      const toDelete = allSnapshots.slice(MAX_SNAPSHOTS_PER_DOC)
-      for (const snap of toDelete) {
-        await db.delete(documentSnapshots).where(eq(documentSnapshots.id, snap.id))
-      }
-      console.log(`[Snapshot] Pruned ${toDelete.length} old snapshots for ${documentId}`)
+      const idsToDelete = allSnapshots
+        .slice(MAX_SNAPSHOTS_PER_DOC)
+        .map(snap => snap.id)
+
+      // 单条批量删除，避免 N+1
+      await db.delete(documentSnapshots).where(
+        inArray(documentSnapshots.id, idsToDelete)
+      )
+      console.log(`[Snapshot] Pruned ${idsToDelete.length} old snapshots for ${documentId}`)
     }
   }
 
   /**
    * 转换为 DTO
    */
-  private toDTO(row: any): SnapshotDTO {
+  private toDTO(row: SnapshotRow): SnapshotDTO {
     return {
       id: row.id,
-      documentId: row.documentId,
-      yjsState: row.yjsState?.toString('base64') || '',
-      plainText: row.plainText || '',
+      documentId: row.documentId ?? '',
+      yjsState: row.yjsState?.toString('base64') ?? '',
+      plainText: row.plainText ?? '',
       timestamp: row.timestamp.getTime(),
       trigger: row.trigger as SnapshotDTO['trigger'],
-      summary: row.summary || undefined,
-      wordCount: row.wordCount || 0,
-      diffAdded: row.diffAdded || undefined,
-      diffRemoved: row.diffRemoved || undefined,
+      summary: row.summary ?? undefined,
+      wordCount: row.wordCount ?? 0,
+      diffAdded: row.diffAdded ?? undefined,
+      diffRemoved: row.diffRemoved ?? undefined,
     }
   }
 }

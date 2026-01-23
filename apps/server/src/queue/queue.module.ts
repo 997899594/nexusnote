@@ -1,11 +1,10 @@
 import { Module, Global, OnModuleInit, OnModuleDestroy } from '@nestjs/common'
 import { Queue, Worker, Job } from 'bullmq'
 import IORedis from 'ioredis'
-
-const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6380'
+import { env } from '../config/env.config'
 
 // Redis 连接
-const connection = new IORedis(REDIS_URL, {
+const connection = new IORedis(env.REDIS_URL, {
   maxRetriesPerRequest: null,
 })
 

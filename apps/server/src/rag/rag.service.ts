@@ -1,44 +1,24 @@
-import { Injectable, OnModuleInit } from "@nestjs/common";
+import { Injectable, OnModuleInit, Inject } from "@nestjs/common";
 import { Worker, Job } from "bullmq";
 import IORedis from "ioredis";
-import { drizzle } from "drizzle-orm/postgres-js";
-import { eq, sql } from "drizzle-orm";
-import * as postgres from "postgres";
+import { eq, sql, inArray } from "drizzle-orm";
 import { createOpenAI } from "@ai-sdk/openai";
 import { embed, embedMany } from "ai";
 import { documents, documentChunks } from "@nexusnote/db";
-
-// ============================================
-// 2026 现代化配置 - AI SDK 6.x
-// ============================================
-const DATABASE_URL =
-  process.env.DATABASE_URL ||
-  "postgresql://postgres:postgres@localhost:5433/nexusnote";
-const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6380";
-
-// 302.ai Embedding 配置 - Qwen3-Embedding-8B (MTEB #1, halfvec 4000维)
-const AI_302_API_KEY = process.env.AI_302_API_KEY || "";
-const EMBEDDING_MODEL =
-  process.env.EMBEDDING_MODEL || "Qwen/Qwen3-Embedding-8B";
-const EMBEDDING_DIMENSIONS = parseInt(
-  process.env.EMBEDDING_DIMENSIONS || "4000",
-);
-
-// 302.ai Reranker 配置 - Qwen3-Reranker-8B (二阶段重排序)
-const RERANKER_MODEL = process.env.RERANKER_MODEL || "Qwen/Qwen3-Reranker-8B";
-const RERANKER_ENABLED = process.env.RERANKER_ENABLED === "true";
+import { db } from "../database/database.module";
+import { env } from "../config/env.config";
 
 // ============================================
 // AI SDK 6.x Embedding Provider
 // ============================================
-const openai = AI_302_API_KEY
+const openai = env.AI_302_API_KEY
   ? createOpenAI({
       baseURL: "https://api.302.ai/v1",
-      apiKey: AI_302_API_KEY,
+      apiKey: env.AI_302_API_KEY,
     })
   : null;
 
-const embeddingModel = openai ? openai.embedding(EMBEDDING_MODEL) : null;
+const embeddingModel = openai ? openai.embedding(env.EMBEDDING_MODEL) : null;
 
 // AI SDK 6.x 单文本 embedding
 async function embedText(text: string): Promise<number[]> {
@@ -53,7 +33,7 @@ async function embedText(text: string): Promise<number[]> {
       value: text,
     });
     // MRL 截断: Qwen3 支持 Matryoshka，前 N 维保持语义完整
-    return embedding.slice(0, EMBEDDING_DIMENSIONS);
+    return embedding.slice(0, env.EMBEDDING_DIMENSIONS);
   } catch (err) {
     console.error("[RAG] Embed error:", err);
     throw err;
@@ -73,7 +53,7 @@ async function embedTexts(texts: string[]): Promise<number[][]> {
       values: texts,
     });
     // MRL 截断: Qwen3 支持 Matryoshka，前 N 维保持语义完整
-    return embeddings.map((e) => e.slice(0, EMBEDDING_DIMENSIONS));
+    return embeddings.map((e) => e.slice(0, env.EMBEDDING_DIMENSIONS));
   } catch (err) {
     console.error("[RAG] EmbedMany error:", err);
     throw err;
@@ -93,7 +73,7 @@ async function rerank(
   documents: string[],
   topN = 5,
 ): Promise<RerankResult[]> {
-  if (!RERANKER_ENABLED || !AI_302_API_KEY) {
+  if (!env.RERANKER_ENABLED || !env.AI_302_API_KEY) {
     return documents.map((_, i) => ({
       index: i,
       relevance_score: 1 - i * 0.1,
@@ -105,10 +85,10 @@ async function rerank(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${AI_302_API_KEY}`,
+        Authorization: `Bearer ${env.AI_302_API_KEY}`,
       },
       body: JSON.stringify({
-        model: RERANKER_MODEL,
+        model: env.RERANKER_MODEL,
         query,
         documents,
         top_n: topN,
@@ -134,12 +114,6 @@ async function rerank(
     }));
   }
 }
-
-// ============================================
-// 数据库 Schema
-// ============================================
-const client = postgres(DATABASE_URL);
-const db = drizzle(client);
 
 // ============================================
 // 智能文本分块
@@ -188,14 +162,14 @@ export class RagService implements OnModuleInit {
 
   async onModuleInit() {
     console.log("[RAG] 2026 Architecture - AI SDK 6.x");
-    console.log(`[RAG] Model: ${EMBEDDING_MODEL}`);
-    console.log(`[RAG] Dimensions: ${EMBEDDING_DIMENSIONS}`);
+    console.log(`[RAG] Model: ${env.EMBEDDING_MODEL}`);
+    console.log(`[RAG] Dimensions: ${env.EMBEDDING_DIMENSIONS}`);
     console.log(`[RAG] Provider: 302.ai`);
     await this.startWorker();
   }
 
   private async startWorker() {
-    const connection = new IORedis(REDIS_URL, { maxRetriesPerRequest: null });
+    const connection = new IORedis(env.REDIS_URL, { maxRetriesPerRequest: null });
 
     this.worker = new Worker(
       "rag-index",
@@ -265,7 +239,7 @@ export class RagService implements OnModuleInit {
     if (embedding.length === 0) return [];
 
     const embeddingStr = `[${embedding.join(",")}]`;
-    const candidateCount = RERANKER_ENABLED ? topK * 4 : topK; // Reranker 需要更多候选
+    const candidateCount = env.RERANKER_ENABLED ? topK * 4 : topK; // Reranker 需要更多候选
 
     const candidates = (await db.execute(sql`
       SELECT content, document_id as "documentId",
@@ -283,9 +257,9 @@ export class RagService implements OnModuleInit {
     if (candidates.length === 0) return [];
 
     // Step 2: Reranker 重排序 (显著提升精度)
-    if (RERANKER_ENABLED && candidates.length > 1) {
+    if (env.RERANKER_ENABLED && candidates.length > 1) {
       console.log(
-        `[RAG] Reranking ${candidates.length} candidates with ${RERANKER_MODEL}`,
+        `[RAG] Reranking ${candidates.length} candidates with ${env.RERANKER_MODEL}`,
       );
       const rerankResults = await rerank(
         query,
