@@ -6,10 +6,9 @@
  */
 
 import { generateText } from 'ai'
-import { createOpenAI } from '@ai-sdk/openai'
+import { chatModel } from '@/lib/ai'
 import { v4 as uuid } from 'uuid'
 import { toolRegistry } from '../tools/tool-registry'
-import { config } from '@/lib/config'
 import type {
   AgentStatus,
   AgentStep,
@@ -25,17 +24,6 @@ import type {
   AgentArtifact,
   DEFAULT_AGENT_CONFIG,
 } from './types'
-
-// ============================================
-// 创建 OpenAI Provider
-// ============================================
-
-function createProvider() {
-  return createOpenAI({
-    baseURL: config.ai.baseUrl,
-    apiKey: config.ai.apiKey,
-  })
-}
 
 // ============================================
 // Agent 基类
@@ -194,8 +182,11 @@ export abstract class BaseAgent {
   ): Promise<AgentPlan> {
     this.emit({ type: 'planning', agentId: this.state.id, thought: '分析目标，制定计划...' })
 
-    const provider = createProvider()
     const tools = this.getAvailableTools()
+    const provider = chatModel
+    if (!provider) {
+      throw new Error('AI model not configured')
+    }
 
     const systemPrompt = this.buildPlanningPrompt(tools)
     const userPrompt = `
@@ -221,7 +212,7 @@ ${constraints?.length ? `约束条件:\n${constraints.join('\n')}` : ''}
 `
 
     const { text } = await generateText({
-      model: provider(config.ai.model),
+      model: provider,
       system: systemPrompt,
       prompt: userPrompt,
       temperature: this.state.context.config.temperature,
@@ -316,10 +307,13 @@ ${constraints?.length ? `约束条件:\n${constraints.join('\n')}` : ''}
       reflection: `检测到 ${failedSteps.length} 个失败步骤，正在调整计划...`,
     })
 
-    const provider = createProvider()
+    const provider = chatModel
+    if (!provider) {
+      throw new Error('AI model not configured')
+    }
 
     const { text } = await generateText({
-      model: provider(config.ai.model),
+      model: provider,
       system: '你是一个反思助手，帮助分析失败原因并调整计划。',
       prompt: `
 最近执行的步骤:
@@ -363,9 +357,19 @@ ${this.getRemainingSteps().map(s => `- ${s.thought || s.tool}`).join('\n')}
     const pendingEdits = this.collectPendingEdits()
 
     // 生成总结
-    const provider = createProvider()
+    const provider = chatModel
+    if (!provider) {
+      return {
+        success: this.state.status !== 'failed',
+        summary: '执行完成',
+        artifacts,
+        steps: this.state.history,
+        pendingEdits: pendingEdits.length > 0 ? pendingEdits : undefined,
+      }
+    }
+
     const { text: summary } = await generateText({
-      model: provider(config.ai.model),
+      model: provider,
       system: '简洁地总结 Agent 的执行结果，用中文回复。',
       prompt: `
 执行目标: ${this.state.plan?.goal}
