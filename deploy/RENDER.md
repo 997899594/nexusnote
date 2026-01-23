@@ -64,23 +64,12 @@ AI_API_KEY=sk-your-api-key
 AI_BASE_URL=https://api.302.ai/v1
 ```
 
-### 5. 启用 pgvector（可选）
-
-**重要：** 如果 Render 的 PostgreSQL 不支持 pgvector，系统会自动降级使用 text 类型存储向量。
-
-如果支持 pgvector，可以手动启用以获得更好的性能：
+### 5. 启用 pgvector
 
 ```bash
 # Dashboard → nexusnote-db → Connect → Shell
 # 执行:
-CREATE EXTENSION IF NOT EXISTS vector;
-```
-
-如果看到错误 "extension vector is not available"，不用担心，系统会自动使用备用方案。
-
-要禁用 pgvector（使用 text 类型），在环境变量中添加：
-```
-USE_PGVECTOR=false
+CREATE EXTENSION vector;
 ```
 
 ### 6. 完成！
