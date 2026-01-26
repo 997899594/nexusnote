@@ -4,7 +4,7 @@ import { IndexDocumentDto, SearchQueryDto } from './rag.dto'
 
 @Controller('rag')
 export class RagController {
-  constructor(private readonly ragService: RagService) {}
+  constructor(private readonly ragService: RagService) { }
 
   // 手动触发索引（调试用）
   @Post('index')
@@ -16,7 +16,11 @@ export class RagController {
   // 检索测试
   @Get('search')
   async search(@Query() query: SearchQueryDto) {
-    const results = await this.ragService.retrieve(query.q, query.topK ?? 5)
+    const results = await this.ragService.retrieve(
+      query.q,
+      query.userId || '', // In production, this should be validated/required
+      query.topK ?? 5
+    )
 
     // 附加文档标题
     const enriched = await Promise.all(

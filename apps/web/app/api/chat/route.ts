@@ -29,6 +29,7 @@ async function fetchWithTimeout(url: string, options: RequestInit, timeout: numb
 // 带重试的 RAG 检索
 async function retrieveContext(
   query: string,
+  userId: string,
   retries = RAG_RETRIES
 ): Promise<{ context: string; sources: Array<{ documentId: string; title: string }> }> {
   const emptyResult = { context: '', sources: [] }
@@ -36,7 +37,7 @@ async function retrieveContext(
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const response = await fetchWithTimeout(
-        `${RAG_API_URL}/rag/search?q=${encodeURIComponent(query)}&topK=5`,
+        `${RAG_API_URL}/rag/search?q=${encodeURIComponent(query)}&topK=5&userId=${userId}`,
         { method: 'GET', headers: { 'Content-Type': 'application/json' } },
         RAG_TIMEOUT
       )
@@ -128,7 +129,7 @@ export async function POST(req: Request) {
   // 1. 如果启用 RAG，先获取知识库上下文
   if (enableRAG) {
     const lastUserMessage = messages.filter(m => m.role === 'user').pop()?.content || ''
-    const { context, sources } = await retrieveContext(lastUserMessage)
+    const { context, sources } = await retrieveContext(lastUserMessage, session.user!.id!)
     ragContext = context
     ragSources = sources
   }

@@ -14,9 +14,9 @@ import { env, config } from '../config/env.config'
 // ============================================
 const openai = env.AI_302_API_KEY
   ? createOpenAI({
-      baseURL: 'https://api.302.ai/v1',
-      apiKey: env.AI_302_API_KEY,
-    })
+    baseURL: 'https://api.302.ai/v1',
+    apiKey: env.AI_302_API_KEY,
+  })
   : null
 
 const embeddingModel = openai ? openai.embedding(env.EMBEDDING_MODEL) : null
@@ -316,6 +316,7 @@ export class RagService implements OnModuleInit {
 
   async retrieve(
     query: string,
+    userId: string,
     topK = config.rag.topK
   ): Promise<Array<{ content: string; documentId: string; similarity: number }>> {
     // Step 1: Vector retrieval (recall more candidates for reranker)
@@ -325,12 +326,16 @@ export class RagService implements OnModuleInit {
     const embeddingStr = `[${embedding.join(',')}]`
     const candidateCount = config.reranker.enabled ? topK * 4 : topK
 
+    // Join with documents and workspaces to filter by ownerId
     const candidates = (await db.execute(sql`
-      SELECT content, document_id as "documentId",
-             1 - (embedding <=> ${embeddingStr}::halfvec) as similarity
-      FROM document_chunks
-      WHERE embedding IS NOT NULL
-      ORDER BY embedding <=> ${embeddingStr}::halfvec
+      SELECT c.content, c.document_id as "documentId",
+             1 - (c.embedding <=> ${embeddingStr}::halfvec) as similarity
+      FROM document_chunks c
+      JOIN documents d ON c.document_id = d.id
+      JOIN workspaces w ON d.workspace_id = w.id
+      WHERE c.embedding IS NOT NULL 
+        AND w.owner_id = ${userId}::uuid
+      ORDER BY c.embedding <=> ${embeddingStr}::halfvec
       LIMIT ${candidateCount}
     `)) as unknown as Array<{
       content: string

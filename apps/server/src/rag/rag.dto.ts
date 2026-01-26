@@ -22,4 +22,8 @@ export class SearchQueryDto {
   @Min(1)
   @Max(50)
   topK?: number
+
+  @IsOptional()
+  @IsString()
+  userId?: string
 }

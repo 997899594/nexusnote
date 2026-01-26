@@ -13,6 +13,7 @@
   "dependencies": {
     "@ai-sdk/openai": "^3.0.12",
     "@hocuspocus/extension-database": "^2.13.0",
+    "@hocuspocus/extension-redis": "^2.15.3",
     "@hocuspocus/server": "^2.13.0",
     "@nestjs/common": "^10.3.0",
     "@nestjs/core": "^10.3.0",
