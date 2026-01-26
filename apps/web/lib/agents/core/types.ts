@@ -109,6 +109,8 @@ export interface AgentConfig {
   autoApplyEdits: boolean
   /** 超时时间（毫秒） */
   timeout: number
+  /** 最大澄清轮数（防止无限循环） */
+  maxClarificationRounds: number
 }
 
 /**
@@ -216,4 +218,5 @@ export const DEFAULT_AGENT_CONFIG: AgentConfig = {
   enableReflection: true,
   autoApplyEdits: false,  // 默认需要确认
   timeout: 60000,  // 1 分钟
+  maxClarificationRounds: 2,  // 最多澄清 2 轮
 }

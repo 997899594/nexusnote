@@ -34,7 +34,7 @@ interface AgentPanelProps {
   events: AgentEvent[]
   isRunning: boolean
   onPause: () => void
-  onResume: () => void
+  onResume: (userInput?: string) => void
   onAbort: () => void
 }
 
@@ -53,6 +53,8 @@ function StepStatusIcon({ status }: { status: AgentStep['status'] }) {
       return <XCircle className="w-4 h-4 text-red-500" />
     case 'running':
       return <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
+    case 'waiting_user':
+      return <Clock className="w-4 h-4 text-yellow-500 animate-pulse" />
     case 'skipped':
       return <Clock className="w-4 h-4 text-muted-foreground" />
     default:
@@ -108,7 +110,7 @@ function AgentStepItem({
     <div
       className={`border rounded-lg overflow-hidden transition-all ${
         isActive ? 'border-primary bg-primary/5' : 'border-border'
-      }`}
+      } ${step.status === 'waiting_user' ? 'border-yellow-500 bg-yellow-50' : ''}`}
     >
       {/* Step header */}
       <button
@@ -139,6 +141,22 @@ function AgentStepItem({
       {/* Step details */}
       {isExpanded && (
         <div className="px-3 pb-3 pt-1 border-t space-y-2">
+          {/* Waiting for user indicator */}
+          {step.status === 'waiting_user' && step.question && (
+            <div className="text-xs bg-yellow-50 border border-yellow-200 p-2 rounded">
+              <span className="text-yellow-700 font-medium">⏸️ 等待用户回答: </span>
+              <span className="text-yellow-900">{step.question}</span>
+            </div>
+          )}
+
+          {/* User Response (after answered) */}
+          {step.userResponse && (
+            <div className="text-xs bg-green-50 border border-green-200 p-2 rounded">
+              <span className="text-green-700 font-medium">✅ 用户回答: </span>
+              <span className="text-green-900">{step.userResponse}</span>
+            </div>
+          )}
+
           {/* Tool info */}
           {step.tool ? (
             <div className="text-xs">
@@ -184,7 +202,11 @@ function AgentStepItem({
 /**
  * 计划面板
  */
-function PlanSection({ plan }: { plan: AgentPlan | null }) {
+function PlanSection({ 
+  plan, 
+}: { 
+  plan: AgentPlan | null
+}) {
   const [isExpanded, setIsExpanded] = useState(true)
 
   if (!plan) return null
@@ -393,7 +415,7 @@ export function AgentPanel({
           <div className="flex items-center gap-1">
             {state?.status === 'paused' ? (
               <button
-                onClick={onResume}
+                onClick={() => onResume()}
                 className="p-1.5 hover:bg-muted rounded transition-colors"
                 title="Resume"
               >
@@ -422,7 +444,11 @@ export function AgentPanel({
       {/* Content */}
       <div className="p-4 space-y-4 max-h-[500px] overflow-y-auto">
         {/* Plan */}
-        {state?.plan && <PlanSection plan={state.plan} />}
+        {state?.plan && (
+          <PlanSection 
+            plan={state.plan} 
+          />
+        )}
 
         {/* History (completed steps) */}
         {state?.history && state.history.length > 0 && (

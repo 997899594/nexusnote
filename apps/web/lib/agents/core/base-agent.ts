@@ -450,6 +450,7 @@ ${this.state.history.map(s => `- ${s.thought || s.tool}: ${s.status}`).join('\n'
         enableReflection: true,
         autoApplyEdits: false,
         timeout: 60000,
+        maxClarificationRounds: 2,  // 最多澄清 2 轮
       },
       ...partial,
     }
@@ -457,6 +458,13 @@ ${this.state.history.map(s => `- ${s.thought || s.tool}: ${s.status}`).join('\n'
 
   protected buildPlanningPrompt(tools: string[]): string {
     const toolDescriptions = toolRegistry.getDescriptions(tools)
+    
+    // 统计已经澄清的次数
+    const clarificationCount = this.state.history.filter(
+      s => s.type === 'ask_user'
+    ).length
+    const maxRounds = this.state.context.config.maxClarificationRounds
+    const canAskUser = clarificationCount < maxRounds
 
     return `你是一个智能 Agent，负责帮助用户完成知识管理任务。
 
@@ -469,22 +477,25 @@ ${toolDescriptions}
 3. **plan** - 纯思考步骤
 
 规则:
-1. 如果用户目标不明确或缺少关键信息，**必须先使用 ask_user 步骤**
-2. 每个步骤应该明确、可执行
-3. 优先使用已有工具，避免不必要的步骤
-4. 考虑步骤之间的依赖关系
+1. 如果用户目标不明确或缺少关键信息，可以使用 ask_user 步骤澄清
+2. **澄清限制**: 你最多只能澄清 ${maxRounds} 次，当前已澄清 ${clarificationCount} 次
+${!canAskUser ? '3. ⚠️ **已达到澄清上限，必须基于现有信息直接执行，不能再使用 ask_user**' : ''}
+${canAskUser ? '3. 如果目标已经足够明确，直接执行，不要浪费时间问问题' : ''}
+4. 每个步骤应该明确、可执行
+5. 优先使用已有工具，避免不必要的步骤
+6. 考虑步骤之间的依赖关系
 
 示例计划:
 {
   "steps": [
-    {
+    ${canAskUser ? `{
       "type": "ask_user",
       "thought": "用户提到'笔试'但没有说明具体科目和时间",
       "question": "请问你要准备什么科目的笔试？大概什么时候考试？"
-    },
+    },` : ''}
     {
       "type": "execute",
-      "thought": "根据用户回答制定学习计划",
+      "thought": "根据用户${canAskUser ? '回答' : '需求'}制定学习计划",
       "tool": "createLearningPlan",
       "input": { "goal": "准备XX笔试" }
     }
