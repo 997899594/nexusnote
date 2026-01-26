@@ -2,13 +2,16 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import { SessionProvider } from 'next-auth/react'
 import { SessionWatcher } from '@/components/auth/SessionWatcher'
+import { ThemeProvider } from '@/components/layout/ThemeProvider'
+import { Aura } from '@/components/layout/Aura'
+import { AdaptiveDock } from '@/components/layout/AdaptiveDock'
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'NexusNote - AI-Powered Knowledge Base',
-  description: 'Local-first, AI-driven intelligent knowledge base',
+  title: 'NexusNote - AI 驱动的智慧知识库',
+  description: '本地优先、AI 驱动的次世代智慧知识库',
 }
 
 export default function RootLayout({
@@ -17,11 +20,22 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
+    <html lang="zh-CN" suppressHydrationWarning>
+      <body className={`${inter.className} antialiased`}>
         <SessionProvider>
-          <SessionWatcher />
-          {children}
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="dark"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <SessionWatcher />
+            <Aura />
+            <AdaptiveDock />
+            <main className="relative min-h-screen">
+              {children}
+            </main>
+          </ThemeProvider>
         </SessionProvider>
       </body>
     </html>

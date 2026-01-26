@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { Editor } from '@tiptap/react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Ghost, Sparkles, X } from 'lucide-react'
+import { Ghost, Sparkles, X, Zap } from 'lucide-react'
 
 interface GhostBrainProps {
     editor: Editor | null
@@ -11,8 +11,8 @@ interface GhostBrainProps {
     title?: string
 }
 
-const INACTIVITY_THRESHOLD = 20000 // 20 seconds
-const ANALYSIS_COOLDOWN = 120000 // 2 minutes
+const INACTIVITY_THRESHOLD = 20000
+const ANALYSIS_COOLDOWN = 120000
 
 export function GhostBrain({ editor, documentId, title }: GhostBrainProps) {
     const [comment, setComment] = useState<string | null>(null)
@@ -23,61 +23,31 @@ export function GhostBrain({ editor, documentId, title }: GhostBrainProps) {
 
     useEffect(() => {
         if (!editor) return
-
-        const handleUpdate = () => {
-            lastChangeTime.current = Date.now()
-            if (comment) setComment(null)
-        }
-
+        const handleUpdate = () => { lastChangeTime.current = Date.now(); if (comment) setComment(null) }
         const handleFocus = () => { isActive.current = true }
         const handleBlur = () => { isActive.current = false }
-
         editor.on('update', handleUpdate)
         editor.on('focus', handleFocus)
         editor.on('blur', handleBlur)
 
         const timer = setInterval(async () => {
             const now = Date.now()
-
-            // Conditions for Ghost Intervention:
-            // 1. Inactive for threshold
-            // 2. Editor is focused
-            // 3. Not recently analyzed (cooldown)
-            // 4. Not currently thinking or showing a comment
-            if (
-                now - lastChangeTime.current > INACTIVITY_THRESHOLD &&
-                isActive.current &&
-                now - lastAnalysisTime.current > ANALYSIS_COOLDOWN &&
-                !isThinking &&
-                !comment
-            ) {
-                // Get surrounding context from current selection
+            if (now - lastChangeTime.current > INACTIVITY_THRESHOLD && isActive.current && now - lastAnalysisTime.current > ANALYSIS_COOLDOWN && !isThinking && !comment) {
                 const { from } = editor.state.selection
                 const context = editor.getText().slice(Math.max(0, from - 500), from + 500)
-
-                if (context.trim().length < 50) return // Don't bother with empty docs
-
-                console.log('[GhostBrain] Detecting inactivity, analyzing context...')
+                if (context.trim().length < 50) return
                 setIsThinking(true)
                 lastAnalysisTime.current = now
-
                 try {
                     const res = await fetch('/api/ghost/analyze', {
                         method: 'POST',
                         body: JSON.stringify({ context, documentTitle: title }),
                     })
-
                     if (res.ok) {
                         const text = await res.text()
-                        if (text && text.trim().length > 0) {
-                            setComment(text.trim())
-                        }
+                        if (text?.trim()) setComment(text.trim())
                     }
-                } catch (err) {
-                    console.error('[GhostBrain] Analysis failed:', err)
-                } finally {
-                    setIsThinking(false)
-                }
+                } catch (err) { } finally { setIsThinking(false) }
             }
         }, 5000)
 
@@ -89,42 +59,61 @@ export function GhostBrain({ editor, documentId, title }: GhostBrainProps) {
         }
     }, [editor, comment, isThinking, title])
 
+    const handleApply = () => {
+        if (!editor || !comment) return
+        editor.chain().focus().insertContent(`\n\n> AI 建议: ${comment}\n\n`).run()
+        setComment(null)
+    }
+
     return (
         <AnimatePresence>
             {comment && (
                 <motion.div
-                    initial={{ opacity: 0, y: 20, scale: 0.9 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
-                    className="fixed bottom-20 right-10 z-[100] max-w-sm"
+                    initial={{ opacity: 0, scale: 0.8, x: 20, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, x: 0, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.8, x: 20, transition: { duration: 0.2 } }}
+                    className="fixed bottom-28 right-8 z-[110] max-w-[320px] md:max-w-sm"
                 >
-                    <div className="bg-violet-600 dark:bg-violet-700 text-white p-4 rounded-2xl shadow-2xl border border-violet-400/30 relative">
-                        <div className="absolute -top-3 -left-3 bg-violet-500 rounded-full p-1.5 shadow-lg">
-                            <Ghost className="w-4 h-4 text-white animate-pulse" />
+                    <div className="glass-panel p-5 rounded-[2.5rem] relative overflow-visible shadow-2xl border-violet-500/20">
+                        {/* Status Icon */}
+                        <div className="absolute -top-4 -left-4 w-12 h-12 bg-violet-600 rounded-2xl flex items-center justify-center shadow-lg shadow-violet-950/40 ring-4 ring-background">
+                            <Ghost className="w-6 h-6 text-white animate-pulse" />
                         </div>
 
-                        <button
-                            onClick={() => setComment(null)}
-                            className="absolute top-2 right-2 text-violet-200 hover:text-white transition-colors"
-                        >
-                            <X className="w-4 h-4" />
-                        </button>
+                        {/* Top Controls */}
+                        <div className="flex justify-end mb-2">
+                            <button
+                                onClick={() => setComment(null)}
+                                className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-muted-foreground/60 hover:text-foreground"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
 
-                        <div className="flex gap-3">
-                            <div className="flex-1">
-                                <p className="text-sm leading-relaxed italic">
-                                    "{comment}"
-                                </p>
-                                <div className="flex items-center gap-1 mt-2 text-[10px] text-violet-200 uppercase tracking-widest font-bold">
-                                    <Sparkles className="w-3 h-3" />
-                                    Ghost Thought
+                        {/* Content */}
+                        <div className="px-1">
+                            <p className="text-sm md:text-md leading-relaxed italic text-foreground/80 pr-2">
+                                “{comment}”
+                            </p>
+
+                            <div className="mt-5 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full bg-violet-500 animate-ping" />
+                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-500/60">Ghost Pilot</span>
                                 </div>
+                                <button
+                                    onClick={handleApply}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 text-white rounded-xl text-[10px] font-bold shadow-lg shadow-violet-900/10 hover:scale-[1.05] active:scale-95 transition-all"
+                                >
+                                    <Zap className="w-3 h-3 fill-current" />
+                                    立即采纳
+                                </button>
                             </div>
                         </div>
-                    </div>
 
-                    {/* Ghost Tail / Bubble Tip */}
-                    <div className="absolute bottom-0 right-10 translate-y-2 w-4 h-4 bg-violet-600 transform rotate-45" />
+                        {/* Spatial Glow */}
+                        <div className="absolute inset-0 -z-10 bg-violet-500/5 blur-3xl rounded-[2.5rem]" />
+                    </div>
                 </motion.div>
             )}
         </AnimatePresence>

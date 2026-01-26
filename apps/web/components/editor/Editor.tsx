@@ -16,14 +16,14 @@ import { TaskItem } from '@tiptap/extension-task-item'
 import { Dropcursor } from '@tiptap/extension-dropcursor'
 import { Gapcursor } from '@tiptap/extension-gapcursor'
 import { useSession } from 'next-auth/react'
-import { useMemo, useEffect, useState, useCallback, useContext } from 'react'
+import { useMemo, useEffect, useState, useCallback } from 'react'
 import { useEditorContext } from '@/contexts/EditorContext'
 import * as Y from 'yjs'
 import { IndexeddbPersistence } from 'y-indexeddb'
 import { HocuspocusProvider } from '@hocuspocus/provider'
 import { getRandomColor, getRandomUserName } from '@/lib/collaboration'
 import { COLLAB_URL, API_URL, getAuthToken } from '@/lib/config'
-import { Wifi, WifiOff, Users, History } from 'lucide-react'
+import { Wifi, WifiOff, Users, History, Lock, Edit3 } from 'lucide-react'
 import { EditorToolbar } from './EditorToolbar'
 import { AIBubbleMenu } from './AIBubbleMenu'
 import { TableMenu } from './TableMenu'
@@ -33,39 +33,46 @@ import { Callout } from './extensions/callout'
 import { Collapsible } from './extensions/collapsible'
 import { TimelinePanel, useTimeline, useAIEditSnapshot } from '@/components/timeline'
 import { snapshotStore, DocumentSnapshot } from '@/lib/storage'
+import { motion, AnimatePresence } from 'framer-motion'
 
 interface EditorProps {
   documentId: string
   showToolbar?: boolean
+  isVault?: boolean
+  setIsVault?: (v: boolean) => void
+  title?: string
+  setTitle?: (t: string) => void
 }
 
 type ConnectionStatus = 'connecting' | 'connected' | 'disconnected'
 
-export function Editor({ documentId, showToolbar = true }: EditorProps) {
+export function Editor({
+  documentId,
+  showToolbar = true,
+  isVault = false,
+  setIsVault,
+  title = '无标题文档',
+  setTitle
+}: EditorProps) {
   const { data: session } = useSession()
   const [status, setStatus] = useState<ConnectionStatus>('connecting')
   const [collaborators, setCollaborators] = useState<Array<{ name: string; color: string }>>([])
   const [showTimeline, setShowTimeline] = useState(false)
-  const [isVault, setIsVault] = useState(false)
-  const [title, setTitle] = useState('Untitled')
-  const editorContext = useEditorContext() // 可能为 null
+  const editorContext = useEditorContext()
 
-  // 获取文档元数据（如 isVault）
   useEffect(() => {
     const fetchMetadata = async () => {
       try {
         const res = await fetch(`${API_URL}/documents/${documentId}`)
         if (res.ok) {
           const doc = await res.json()
-          setIsVault(doc.isVault || false)
-          setTitle(doc.title || 'Untitled')
+          setIsVault?.(doc.isVault || false)
+          setTitle?.(doc.title || '无标题文档')
         }
-      } catch (err) {
-        console.error('[Editor] Failed to fetch document metadata:', err)
-      }
+      } catch (err) { }
     }
     fetchMetadata()
-  }, [documentId])
+  }, [documentId, setIsVault, setTitle])
 
   const toggleVault = async () => {
     const nextValue = !isVault
@@ -75,315 +82,150 @@ export function Editor({ documentId, showToolbar = true }: EditorProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isVault: nextValue }),
       })
-      if (res.ok) {
-        setIsVault(nextValue)
-      }
-    } catch (err) {
-      console.error('[Editor] Failed to toggle vault mode:', err)
-    }
+      if (res.ok) setIsVault?.(nextValue)
+    } catch (err) { }
   }
 
-  // 创建 Yjs 文档
   const ydoc = useMemo(() => new Y.Doc(), [])
 
-  // 当前用户信息（优先从 Session 获取）
   const currentUser = useMemo(() => {
     if (session?.user) {
-      return {
-        id: session.user.id || `user-${Math.random().toString(36).slice(2, 9)}`,
-        name: session.user.name || 'Anonymous',
-        color: getRandomColor(), // 颜色依然可以随机生成
-        image: session.user.image,
-      }
+      return { id: session.user.id || `u-${Math.random()}`, name: session.user.name || 'Anonymous', color: getRandomColor(), image: session.user.image }
     }
-    return {
-      id: `user-${Math.random().toString(36).slice(2, 9)}`,
-      name: getRandomUserName(),
-      color: getRandomColor(),
-    }
+    return { id: `u-${Math.random()}`, name: getRandomUserName(), color: getRandomColor() }
   }, [session])
 
-  // Hocuspocus Provider
   const provider = useMemo(() => {
     return new HocuspocusProvider({
       url: COLLAB_URL,
       name: documentId,
       document: ydoc,
       token: (session as any)?.accessToken || getAuthToken(),
-
-      onConnect() {
-        setStatus('connected')
-      },
-
-      onDisconnect() {
-        setStatus('disconnected')
-      },
-
-      onSynced() {
-        console.log('[Editor] Document synced with server')
-      },
-
-      onAuthenticationFailed() {
-        console.error('[Editor] Auth failed')
-        setStatus('disconnected')
-      },
+      onConnect() { setStatus('connected') },
+      onDisconnect() { setStatus('disconnected') },
     })
   }, [documentId, ydoc, session])
 
-  // 设置用户 Awareness
   useEffect(() => {
     if (!currentUser) return
     provider.setAwarenessField('user', currentUser)
-
-    // 监听协作者变化
     const updateCollaborators = () => {
       const states = provider.awareness?.getStates()
       if (!states) return
-
-      const users: Array<{ name: string; color: string }> = []
-      states.forEach((state, clientId) => {
-        if (clientId !== provider.awareness?.clientID && state.user) {
-          users.push(state.user)
-        }
-      })
+      const users: any[] = []
+      states.forEach((state, cli) => { if (cli !== provider.awareness?.clientID && state.user) users.push(state.user) })
       setCollaborators(users)
     }
-
     provider.awareness?.on('change', updateCollaborators)
-    updateCollaborators()
-
-    return () => {
-      provider.awareness?.off('change', updateCollaborators)
-    }
+    return () => { provider.awareness?.off('change', updateCollaborators) }
   }, [provider, currentUser])
 
-  // IndexedDB 持久化（离线支持）
   useEffect(() => {
     const persistence = new IndexeddbPersistence(documentId, ydoc)
-
-    persistence.on('synced', () => {
-      console.log('[Editor] Content loaded from IndexedDB')
-    })
-
-    return () => {
-      persistence.destroy()
-    }
+    return () => { persistence.destroy() }
   }, [documentId, ydoc])
 
-  // 清理 Provider
-  useEffect(() => {
-    return () => {
-      provider.destroy()
-    }
-  }, [provider])
-
-  // 初始化编辑器
   const editor = useEditor({
-    immediatelyRender: false, // TipTap 3.x: 避免 SSR 水合不匹配
+    immediatelyRender: false,
     extensions: [
-      StarterKit.configure({
-        // TipTap 3.x: history 已从 StarterKit 移除，使用 Collaboration 时自动禁用
-      }),
-      Placeholder.configure({
-        placeholder: 'Start writing, or press / for commands...',
-      }),
-      Collaboration.configure({
-        document: ydoc,
-      }),
-      CollaborationCursor.configure({
-        provider,
-        user: currentUser,
-      }),
+      StarterKit,
+      Placeholder.configure({ placeholder: '开始记笔记...' }),
+      Collaboration.configure({ document: ydoc }),
+      CollaborationCursor.configure({ provider, user: currentUser }),
       SlashCommand,
-
-      // 拖拽和光标
-      Dropcursor.configure({
-        color: 'hsl(var(--primary))',
-        width: 2,
-      }),
+      Dropcursor.configure({ color: 'hsl(var(--primary))', width: 2 }),
       Gapcursor,
-
-      // Task List
       TaskList,
-      TaskItem.configure({
-        nested: true,
-      }),
-
-      // Table
-      Table.configure({
-        resizable: true,
-        HTMLAttributes: {
-          class: 'editor-table',
-        },
-      }),
-      TableRow,
-      TableCell,
-      TableHeader,
-
-      // Media
-      Image.configure({
-        allowBase64: true,
-        HTMLAttributes: {
-          class: 'editor-image',
-        },
-      }),
-      Youtube.configure({
-        HTMLAttributes: {
-          class: 'editor-youtube',
-        },
-      }),
-
-      // Custom Extensions
+      TaskItem.configure({ nested: true }),
+      Table.configure({ resizable: true }),
+      TableRow, TableCell, TableHeader,
+      Image.configure({ allowBase64: true }),
+      Youtube.configure({}),
       Callout,
       Collapsible,
     ],
     editorProps: {
       attributes: {
-        class: 'tiptap prose prose-sm sm:prose lg:prose-lg focus:outline-none min-h-[500px]',
+        class: 'tiptap prose prose-sm sm:prose lg:prose-neutral dark:prose-invert max-w-none focus:outline-none min-h-[70vh] pb-64 leading-relaxed',
       },
     },
   })
 
-  // 注册 editor 到 Context（供 ChatSidebar 等组件使用）
   useEffect(() => {
-    if (editorContext && editor) {
-      console.log('[Editor] Registering editor to context')
-      editorContext.setEditor(editor)
-    }
-    return () => {
-      if (editorContext) {
-        console.log('[Editor] Unregistering editor from context')
-        editorContext.setEditor(null)
-      }
-    }
+    if (editorContext && editor) editorContext.setEditor(editor)
+    return () => { if (editorContext) editorContext.setEditor(null) }
   }, [editor, editorContext])
 
-  // Timeline 功能
-  const { snapshots, createSnapshot, restoreSnapshot, stats } = useTimeline({
-    documentId,
-    ydoc,
-    enabled: true,
-  })
-
-  // AI 编辑快照
-  const { createAISnapshot } = useAIEditSnapshot(documentId, ydoc)
-
-  // 恢复快照处理
-  const handleRestoreSnapshot = useCallback(async (snapshot: DocumentSnapshot) => {
-    const success = await snapshotStore.restoreSnapshot(snapshot.id, ydoc)
-    if (success) {
-      console.log('[Editor] Restored to snapshot:', snapshot.id)
-    }
+  const { stats } = useTimeline({ documentId, ydoc, enabled: true })
+  const handleRestoreSnapshot = useCallback(async (s: DocumentSnapshot) => {
+    if (await snapshotStore.restoreSnapshot(s.id, ydoc)) console.log('Restored')
   }, [ydoc])
 
-  if (!editor) {
-    return (
-      <div className="animate-pulse">
-        <div className="h-8 bg-muted rounded w-1/3 mb-4" />
-        <div className="h-4 bg-muted rounded w-full mb-2" />
-        <div className="h-4 bg-muted rounded w-2/3" />
-      </div>
-    )
-  }
+  if (!editor) return <div className="animate-pulse space-y-4"><div className="h-10 bg-muted rounded-xl w-1/4" /><div className="h-64 bg-muted rounded-2xl w-full" /></div>
 
   return (
-    <div className="border rounded-lg overflow-hidden">
+    <div className="relative flex flex-col">
+      {/* Normalized Header */}
+      <div className="mb-12">
+        <div className="flex items-center gap-3 mb-4">
+          <Edit3 className="w-4 h-4 text-muted-foreground/40" />
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/30">笔记编辑</span>
+          {isVault && (
+            <div className="px-2 py-0.5 rounded-lg bg-violet-500/10 text-violet-500 text-[10px] font-bold flex items-center gap-1.5 uppercase tracking-wider border border-violet-500/10">
+              <Lock className="w-3 h-3" /> 已加密
+            </div>
+          )}
+        </div>
+
+        <h1 className="text-3xl font-bold tracking-tight mb-4 text-foreground/90 uppercase">
+          {title}
+        </h1>
+
+        <div className="flex items-center gap-6 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/30">
+          <div className="flex items-center gap-2">
+            {status === 'connected' ? <Wifi className="w-3 h-3 text-emerald-500/50" /> : <WifiOff className="w-3 h-3 text-rose-500/50" />}
+            {status === 'connected' ? '云端已同步' : '离线模式'}
+          </div>
+          <div>{editor.getText().length} 字符</div>
+          {collaborators.length > 0 && (
+            <div className="flex items-center gap-2">
+              <Users className="w-3 h-3" />
+              <div className="flex items-center -space-x-1.5">
+                {collaborators.slice(0, 3).map((u, i) => (
+                  <div key={i} className="w-4 h-4 rounded-full border border-background shadow-sm" style={{ backgroundColor: u.color }} />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Toolbar */}
       {showToolbar && (
-        <EditorToolbar
-          editor={editor}
-          isVault={isVault}
-          onToggleVault={toggleVault}
-        />
+        <div className="mb-8 sticky top-20 z-40 transition-all">
+          <div className="bg-white/80 dark:bg-black/40 backdrop-blur-3xl p-1 rounded-2xl inline-flex border border-white/10 shadow-sm">
+            <EditorToolbar editor={editor} isVault={isVault} onToggleVault={toggleVault} />
+          </div>
+        </div>
       )}
 
-      {/* Editor Content */}
-      <div className="p-4">
+      {/* Content */}
+      <div className="relative z-10">
         <EditorContent editor={editor} />
-
-        {/* AI Bubble Menu */}
         <AIBubbleMenu editor={editor} documentId={documentId} />
-
-        {/* Table Menu */}
         <TableMenu editor={editor} />
       </div>
 
-      {/* Status Bar */}
-      <div className="px-4 py-2 border-t text-xs text-muted-foreground flex items-center justify-between bg-muted/30">
-        <div className="flex items-center gap-4">
-          {/* Character Count */}
-          <span>
-            {editor.getText().length} characters
-          </span>
-
-          {/* Connection Status */}
-          <span className="flex items-center gap-1">
-            {status === 'connected' ? (
-              <>
-                <Wifi className="w-3 h-3 text-green-500" />
-                <span className="text-green-600">Connected</span>
-              </>
-            ) : status === 'connecting' ? (
-              <>
-                <Wifi className="w-3 h-3 text-yellow-500 animate-pulse" />
-                <span className="text-yellow-600">Connecting...</span>
-              </>
-            ) : (
-              <>
-                <WifiOff className="w-3 h-3 text-red-500" />
-                <span className="text-red-600">Offline</span>
-              </>
-            )}
-          </span>
-
-          {/* Local Save Status */}
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-green-500" />
-            Saved locally
-          </span>
-        </div>
-
-        {/* Timeline Button */}
+      {/* Timeline Toggle */}
+      <div className="fixed bottom-32 right-12 z-[100]">
         <button
           onClick={() => setShowTimeline(true)}
-          className="flex items-center gap-1 px-2 py-1 hover:bg-muted rounded transition-colors"
-          title="查看版本历史"
+          className="w-12 h-12 bg-white/10 dark:bg-black/20 backdrop-blur-3xl rounded-2xl flex items-center justify-center border border-white/10 text-muted-foreground hover:text-primary transition-all hover:scale-105"
         >
-          <History className="w-3 h-3" />
-          <span>时间轴</span>
-          {stats.total > 0 && (
-            <span className="ml-1 px-1.5 py-0.5 bg-muted rounded text-[10px]">
-              {stats.total}
-            </span>
-          )}
+          <History className="w-5 h-5" />
         </button>
-
-        {/* Collaborators */}
-        {collaborators.length > 0 && (
-          <div className="flex items-center gap-2">
-            <Users className="w-3 h-3" />
-            <div className="flex -space-x-2">
-              {collaborators.slice(0, 5).map((user, i) => (
-                <div
-                  key={i}
-                  className="w-6 h-6 rounded-full border-2 border-background flex items-center justify-center text-[10px] font-medium text-white"
-                  style={{ backgroundColor: user.color }}
-                  title={user.name}
-                >
-                  {user.name.charAt(0)}
-                </div>
-              ))}
-              {collaborators.length > 5 && (
-                <div className="w-6 h-6 rounded-full border-2 border-background bg-muted flex items-center justify-center text-[10px]">
-                  +{collaborators.length - 5}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Timeline Panel */}
       <TimelinePanel
         documentId={documentId}
         ydoc={ydoc}
@@ -392,12 +234,7 @@ export function Editor({ documentId, showToolbar = true }: EditorProps) {
         onRestore={handleRestoreSnapshot}
       />
 
-      {/* Ghost Brain (AI Feedback) */}
-      <GhostBrain
-        editor={editor}
-        documentId={documentId}
-        title={title}
-      />
+      <GhostBrain editor={editor} documentId={documentId} title={title} />
     </div>
   )
 }

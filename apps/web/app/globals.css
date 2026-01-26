@@ -4,23 +4,39 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --border: 214.3 31.8% 91.4%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Snow Alabaster (Light Theme) */
+    --background: 0 0% 98.5%;
+    --foreground: 240 10% 3.9%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --border: 240 5.9% 90%;
+    --primary: 262.1 83.3% 57.8%;
+    --primary-foreground: 210 20% 98%;
+
+    /* Spatial UI Specifics */
+    --glass-background: 0 0% 100% / 0.7;
+    --glass-border: 0 0% 0% / 0.05;
+    --glass-shadow: rgba(0, 0, 0, 0.05);
+    --aura-1: 262 83% 58% / 0.1;
+    --aura-2: 199 89% 48% / 0.1;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --border: 217.2 32.6% 17.5%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    /* Obsidian Deep (Dark Theme) */
+    --background: 240 10% 2.5%;
+    --foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --border: 240 3.7% 15.9%;
+    --primary: 263.4 70% 50.4%;
+    --primary-foreground: 210 20% 98%;
+
+    /* Spatial UI Specifics */
+    --glass-background: 0 0% 0% / 0.4;
+    --glass-border: 0 0% 100% / 0.05;
+    --glass-shadow: rgba(0, 0, 0, 0.8);
+    --aura-1: 262 83% 58% / 0.08;
+    --aura-2: 199 89% 48% / 0.05;
   }
 }
 
@@ -28,9 +44,56 @@
   * {
     @apply border-border;
   }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground transition-colors duration-500 overflow-x-hidden;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
+}
+
+/* ============================================ */
+/* Spatial UI Utilities */
+/* ============================================ */
+
+@layer components {
+  .glass-panel {
+    @apply backdrop-blur-xl border-white/5 dark:border-white/10;
+    background-color: hsla(var(--glass-background));
+    box-shadow: 0 4px 24px 0 var(--glass-shadow);
+    will-change: transform, opacity;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+  }
+
+  .aura-bg {
+    @apply fixed inset-0 overflow-hidden pointer-events-none -z-10;
+    perspective: 1000px;
+  }
+
+  .aura-blob {
+    @apply absolute rounded-full opacity-20;
+    filter: blur(80px);
+    -webkit-filter: blur(80px);
+  }
+}
+
+@keyframes slow-rotate {
+  from {
+    transform: rotate(0deg) scale(1);
+  }
+
+  50% {
+    transform: rotate(180deg) scale(1.1);
+  }
+
+  to {
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+.animate-slow-rotate {
+  animation: slow-rotate 20s linear infinite;
 }
 
 /* Tiptap Editor Styles */
@@ -116,19 +179,19 @@
   @apply flex items-start gap-2 my-1;
 }
 
-.tiptap ul[data-type="taskList"] li > label {
+.tiptap ul[data-type="taskList"] li>label {
   @apply flex items-center justify-center mt-0.5;
 }
 
-.tiptap ul[data-type="taskList"] li > label > input[type="checkbox"] {
+.tiptap ul[data-type="taskList"] li>label>input[type="checkbox"] {
   @apply w-4 h-4 rounded border-border cursor-pointer accent-primary;
 }
 
-.tiptap ul[data-type="taskList"] li > div {
+.tiptap ul[data-type="taskList"] li>div {
   @apply flex-1 min-w-0;
 }
 
-.tiptap ul[data-type="taskList"] li[data-checked="true"] > div {
+.tiptap ul[data-type="taskList"] li[data-checked="true"]>div {
   @apply line-through text-muted-foreground;
 }
 
@@ -205,7 +268,8 @@
 
 .tiptap div[data-youtube-video] {
   @apply relative w-full my-4;
-  padding-bottom: 56.25%; /* 16:9 aspect ratio */
+  padding-bottom: 56.25%;
+  /* 16:9 aspect ratio */
 }
 
 .tiptap div[data-youtube-video] iframe {
@@ -279,10 +343,10 @@
   @apply border rounded-lg my-4 overflow-hidden;
 }
 
-.tiptap .collapsible > div:first-child {
+.tiptap .collapsible>div:first-child {
   @apply bg-muted/50 cursor-pointer select-none;
 }
 
-.tiptap .collapsible > div:last-child {
+.tiptap .collapsible>div:last-child {
   @apply border-t;
 }
