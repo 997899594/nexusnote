@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS "document_chunks" (
 CREATE TABLE IF NOT EXISTS "document_snapshots" (
 	"id" text PRIMARY KEY NOT NULL,
 	"document_id" uuid,
-	"yjs_state" "bytea",
+	"yjs_state" bytea,
 	"plain_text" text,
 	"timestamp" timestamp NOT NULL,
 	"trigger" text NOT NULL,
@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS "documents" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"title" text DEFAULT 'Untitled' NOT NULL,
 	"workspace_id" uuid,
-	"content" "bytea",
+	"content" bytea,
 	"plain_text" text,
 	"created_at" timestamp DEFAULT now(),
 	"updated_at" timestamp DEFAULT now()

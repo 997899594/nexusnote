@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS "document_chunks" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"document_id" uuid,
 	"content" text NOT NULL,
-	"embedding" "halfvec(4000)",
+	"embedding" halfvec(4000),
 	"chunk_index" integer NOT NULL,
 	"created_at" timestamp DEFAULT now()
 );
@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS "document_chunks" (
 CREATE TABLE IF NOT EXISTS "document_snapshots" (
 	"id" text PRIMARY KEY NOT NULL,
 	"document_id" uuid,
-	"yjs_state" "bytea",
+	"yjs_state" bytea,
 	"plain_text" text,
 	"timestamp" timestamp NOT NULL,
 	"trigger" text NOT NULL,
@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS "documents" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"title" text DEFAULT 'Untitled' NOT NULL,
 	"workspace_id" uuid,
-	"content" "bytea",
+	"content" bytea,
 	"plain_text" text,
 	"created_at" timestamp DEFAULT now(),
 	"updated_at" timestamp DEFAULT now()
@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS "extracted_notes" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" uuid,
 	"content" text NOT NULL,
-	"embedding" "halfvec(4000)",
+	"embedding" halfvec(4000),
 	"source_type" text NOT NULL,
 	"source_document_id" uuid,
 	"source_chapter_id" uuid,
@@ -133,7 +133,7 @@ CREATE TABLE IF NOT EXISTS "topics" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" uuid,
 	"name" text NOT NULL,
-	"embedding" "halfvec(4000)",
+	"embedding" halfvec(4000),
 	"note_count" integer DEFAULT 0,
 	"last_active_at" timestamp DEFAULT now(),
 	"created_at" timestamp DEFAULT now(),

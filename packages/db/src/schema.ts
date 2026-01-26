@@ -16,8 +16,11 @@ const bytea = customType<{ data: Buffer }>({
   },
 });
 
-// halfvec: 半精度向量，支持 4000 维度 + 省 50% 存储
-// 需要 pgvector 0.7.0+
+// halfvec: 半精度向量，4000 维度，省 50% 存储
+// 需要 pgvector 0.5.0+
+//
+// ⚠️ Drizzle bug: customType 会给类型名加引号导致迁移失败
+// 生成迁移后需手动修复：sed -i 's/"halfvec(4000)"/halfvec(4000)/g' drizzle/*.sql
 const EMBEDDING_DIMENSIONS = process.env.EMBEDDING_DIMENSIONS || "4000";
 
 export const halfvec = customType<{ data: number[] }>({
