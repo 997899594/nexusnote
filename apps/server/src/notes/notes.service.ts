@@ -37,6 +37,8 @@ export interface TopicWithNotes {
 // ============================================
 // AI Provider
 // ============================================
+const FAST_MODEL = process.env.AI_FAST_MODEL || 'gemini-2.5-flash-preview-05-20'
+
 const openai = env.AI_302_API_KEY
   ? createOpenAI({
       baseURL: 'https://api.302.ai/v1',
@@ -107,7 +109,7 @@ async function generateTopicName(content: string): Promise<string> {
 
   try {
     const { text } = await generateText({
-      model: openai('gemini-2.5-flash-preview-05-20'),
+      model: openai(FAST_MODEL),
       prompt: `基于这段笔记内容，生成一个简短的技术主题名称（不超过6个字，中文）：\n\n${content.slice(0, 500)}`,
     })
     return text.trim().slice(0, 20)
@@ -133,6 +135,7 @@ export class NotesService implements OnModuleInit {
   async onModuleInit() {
     console.log('[Notes] Liquid Knowledge System - NexusNote 3.1')
     console.log(`[Notes] Topic threshold: ${this.TOPIC_THRESHOLD}`)
+    console.log(`[Notes] Fast model: ${FAST_MODEL}`)
     await this.startWorker()
   }
 

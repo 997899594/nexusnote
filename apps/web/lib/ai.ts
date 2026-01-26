@@ -51,8 +51,8 @@ function getConfiguredProviders(): ProviderConfig[] {
       baseURL: 'https://api.302.ai/v1',
       apiKey: process.env.AI_302_API_KEY,
       models: {
-        chat: 'deepseek-chat',
-        fast: 'deepseek-chat',
+        chat: process.env.AI_CHAT_MODEL || 'gemini-2.5-flash-preview-05-20',
+        fast: process.env.AI_FAST_MODEL || 'gemini-2.5-flash-preview-05-20',
       },
       supportsWebSearch: true, // 302.ai 支持 -web-search 后缀
     })
