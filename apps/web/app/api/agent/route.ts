@@ -1,5 +1,5 @@
 import { generateText, stepCountIs } from 'ai'
-import { chatModel, isAIConfigured } from '@/lib/ai'
+import { agentModel, isAIConfigured } from '@/lib/ai'
 import { toolRegistry } from '@/lib/agents/tools'
 
 export const runtime = 'nodejs'
@@ -22,7 +22,7 @@ export async function POST(req: Request) {
       maxSteps = 5,      // 最大工具调用步数
     } = await req.json()
 
-    if (!isAIConfigured()) {
+    if (!isAIConfigured() || !agentModel) {
       return new Response(
         JSON.stringify({ error: 'AI model not configured' }),
         { status: 500, headers: { 'Content-Type': 'application/json' } }
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
 
     // 使用 generateText 支持 Function Calling
     const result = await generateText({
-      model: chatModel,
+      model: agentModel!,
       system,
       prompt,
       messages,

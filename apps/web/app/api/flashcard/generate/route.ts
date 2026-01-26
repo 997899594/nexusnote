@@ -1,5 +1,5 @@
 import { generateText } from 'ai'
-import { chatModel, isAIConfigured, getAIProviderInfo } from '@/lib/ai'
+import { fastModel, isAIConfigured, getAIProviderInfo } from '@/lib/ai'
 
 export const runtime = 'nodejs'
 
@@ -21,9 +21,9 @@ export async function POST(req: Request) {
     })
   }
 
-  if (!isAIConfigured()) {
+  if (!isAIConfigured() || !fastModel) {
     const info = getAIProviderInfo()
-    return new Response(JSON.stringify({ error: `AI API key not configured. Provider: ${info.chat.provider}` }), {
+    return new Response(JSON.stringify({ error: `AI API key not configured. Provider: ${info.provider}` }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     })
@@ -35,7 +35,7 @@ export async function POST(req: Request) {
 
   try {
     const result = await generateText({
-      model: chatModel,
+      model: fastModel!,
       system: SYSTEM_PROMPT,
       prompt: userPrompt,
       maxOutputTokens: 500,

@@ -2,11 +2,11 @@ import { Injectable, OnModuleInit } from '@nestjs/common'
 import { Worker, Job, Queue } from 'bullmq'
 import IORedis from 'ioredis'
 import { eq, sql } from 'drizzle-orm'
-import { createOpenAI } from '@ai-sdk/openai'
 import { embed, generateText } from 'ai'
-import { topics, extractedNotes, documents, learningChapters } from '@nexusnote/db'
+import { topics, extractedNotes } from '@nexusnote/db'
 import { db } from '../database/database.module'
 import { env, config } from '../config/env.config'
+import { getFastModel, getEmbeddingModel, AI_MODEL, isAIConfigured } from '../lib/ai'
 
 // ============================================
 // Types
@@ -33,20 +33,6 @@ export interface TopicWithNotes {
   lastActiveAt: Date | null
   recentNotes?: Array<{ id: string; content: string }>
 }
-
-// ============================================
-// AI Provider
-// ============================================
-const FAST_MODEL = process.env.AI_FAST_MODEL || 'gemini-2.5-flash-preview-05-20'
-
-const openai = env.AI_302_API_KEY
-  ? createOpenAI({
-      baseURL: 'https://api.302.ai/v1',
-      apiKey: env.AI_302_API_KEY,
-    })
-  : null
-
-const embeddingModel = openai ? openai.embedding(env.EMBEDDING_MODEL) : null
 
 // ============================================
 // Retry Utility
@@ -77,15 +63,15 @@ async function withRetry<T>(
 // Embedding Function
 // ============================================
 async function embedText(text: string): Promise<number[]> {
-  if (!embeddingModel) {
-    console.warn('[Notes] No embedding model configured')
+  if (!isAIConfigured()) {
+    console.warn('[Notes] No AI configured')
     return []
   }
 
   return withRetry(
     async () => {
       const { embedding } = await embed({
-        model: embeddingModel,
+        model: getEmbeddingModel(),
         value: text,
       })
       return embedding.slice(0, config.embedding.dimensions)
@@ -102,15 +88,14 @@ async function embedText(text: string): Promise<number[]> {
 // Topic Name Generation
 // ============================================
 async function generateTopicName(content: string): Promise<string> {
-  if (!openai) {
-    // Fallback: use first few words
+  if (!isAIConfigured()) {
     return content.slice(0, 20).replace(/\s+/g, ' ').trim() + '...'
   }
 
   try {
     const { text } = await generateText({
-      model: openai(FAST_MODEL),
-      prompt: `基于这段笔记内容，生成一个简短的技术主题名称（不超过6个字，中文）：\n\n${content.slice(0, 500)}`,
+      model: getFastModel(),
+      prompt: `基于这段内容，生成一个简短的主题名称（不超过6个字，中文）：\n\n${content.slice(0, 500)}`,
     })
     return text.trim().slice(0, 20)
   } catch (err) {
@@ -128,30 +113,28 @@ export class NotesService implements OnModuleInit {
   private queue: Queue | null = null
   private processingNotes = new Set<string>()
 
-  // Similarity threshold for topic matching (cosine distance)
-  // Lower = stricter matching, 0.25 is about 75% similarity
-  private readonly TOPIC_THRESHOLD = 0.25
+  // 从配置读取阈值
+  private get topicThreshold() {
+    return config.notes.topicThreshold
+  }
 
   async onModuleInit() {
     console.log('[Notes] Liquid Knowledge System - NexusNote 3.1')
-    console.log(`[Notes] Topic threshold: ${this.TOPIC_THRESHOLD}`)
-    console.log(`[Notes] Fast model: ${FAST_MODEL}`)
+    console.log(`[Notes] Topic threshold: ${this.topicThreshold}`)
+    console.log(`[Notes] Model: ${AI_MODEL}`)
     await this.startWorker()
   }
 
   private async startWorker() {
     const connection = new IORedis(env.REDIS_URL, { maxRetriesPerRequest: null })
 
-    // Create queue
     this.queue = new Queue('note-classify', { connection: connection as any })
 
-    // Create worker
     this.worker = new Worker<NoteClassifyJob>(
       'note-classify',
       async (job: Job<NoteClassifyJob>) => {
         const { noteId, content, userId } = job.data
 
-        // Idempotency check
         if (this.processingNotes.has(noteId)) {
           console.log(`[Notes] Skipping duplicate: ${noteId}`)
           return
@@ -181,11 +164,7 @@ export class NotesService implements OnModuleInit {
     console.log('[Notes Worker] Started')
   }
 
-  /**
-   * Core classification logic
-   */
   private async classifyNote(noteId: string, content: string, userId: string) {
-    // Step 1: Generate embedding
     const embedding = await embedText(content)
     if (embedding.length === 0) {
       console.warn('[Notes] No embedding generated, marking as classified without topic')
@@ -195,18 +174,14 @@ export class NotesService implements OnModuleInit {
       return
     }
 
-    // Step 2: Find nearest topic
     const nearestTopic = await this.findNearestTopic(userId, embedding)
 
-    // Step 3: Decide: assign to existing topic or create new one
     let topicId: string
 
-    if (nearestTopic && nearestTopic.distance < this.TOPIC_THRESHOLD) {
-      // Assign to existing topic
+    if (nearestTopic && nearestTopic.distance < this.topicThreshold) {
       topicId = nearestTopic.id
       console.log(`[Notes] Matched topic: ${nearestTopic.name} (distance: ${nearestTopic.distance.toFixed(3)})`)
     } else {
-      // Create new topic
       const topicName = await generateTopicName(content)
       const [newTopic] = await db.insert(topics).values({
         userId,
@@ -219,9 +194,7 @@ export class NotesService implements OnModuleInit {
       console.log(`[Notes] Created topic: ${topicName}`)
     }
 
-    // Step 4: Update note with embedding and topic (transaction)
     await db.transaction(async (tx) => {
-      // Update note
       await tx.update(extractedNotes)
         .set({
           topicId,
@@ -230,8 +203,7 @@ export class NotesService implements OnModuleInit {
         })
         .where(eq(extractedNotes.id, noteId))
 
-      // Increment topic count (only if existing topic)
-      if (nearestTopic && nearestTopic.distance < this.TOPIC_THRESHOLD) {
+      if (nearestTopic && nearestTopic.distance < this.topicThreshold) {
         await tx.update(topics)
           .set({
             noteCount: sql`note_count + 1`,
@@ -242,9 +214,6 @@ export class NotesService implements OnModuleInit {
     })
   }
 
-  /**
-   * Find the nearest topic for a given embedding
-   */
   private async findNearestTopic(
     userId: string,
     embedding: number[]
@@ -266,11 +235,7 @@ export class NotesService implements OnModuleInit {
   // Public API Methods
   // ============================================
 
-  /**
-   * Create a new extracted note and queue for classification
-   */
   async createNote(dto: CreateNoteDto): Promise<{ noteId: string }> {
-    // Insert note with processing status
     const [note] = await db.insert(extractedNotes).values({
       userId: dto.userId,
       content: dto.content,
@@ -281,7 +246,6 @@ export class NotesService implements OnModuleInit {
       status: 'processing',
     }).returning()
 
-    // Queue classification job
     if (this.queue) {
       await this.queue.add('classify', {
         noteId: note.id,
@@ -298,9 +262,6 @@ export class NotesService implements OnModuleInit {
     return { noteId: note.id }
   }
 
-  /**
-   * Get all topics for a user with note counts
-   */
   async getTopics(userId: string): Promise<TopicWithNotes[]> {
     const userTopics = await db
       .select({
@@ -313,7 +274,6 @@ export class NotesService implements OnModuleInit {
       .where(eq(topics.userId, userId))
       .orderBy(sql`last_active_at DESC NULLS LAST`)
 
-    // Fetch recent notes for each topic (max 3)
     const topicsWithNotes = await Promise.all(
       userTopics.map(async (topic) => {
         const recentNotes = await db
@@ -337,9 +297,6 @@ export class NotesService implements OnModuleInit {
     return topicsWithNotes
   }
 
-  /**
-   * Get all notes for a specific topic
-   */
   async getTopicNotes(topicId: string): Promise<Array<{
     id: string
     content: string
@@ -364,9 +321,6 @@ export class NotesService implements OnModuleInit {
       .orderBy(sql`created_at DESC`)
   }
 
-  /**
-   * Get pending/processing notes for a user
-   */
   async getPendingNotes(userId: string): Promise<Array<{
     id: string
     content: string

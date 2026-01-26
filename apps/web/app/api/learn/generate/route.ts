@@ -24,17 +24,17 @@ export async function POST(req: Request) {
     return Response.json({ error: 'Missing learning goal' }, { status: 400 })
   }
 
-  if (!isAIConfigured()) {
+  if (!isAIConfigured() || (!webSearchModel && !chatModel)) {
     const info = getAIProviderInfo()
     return Response.json(
-      { error: `AI API key not configured. Provider: ${info.chat.provider}` },
+      { error: `AI API key not configured. Provider: ${info.provider}` },
       { status: 500 }
     )
   }
 
   try {
     // 优先使用联网模型获取最新知识，否则使用普通模型
-    const model = webSearchModel ?? chatModel
+    const model = (webSearchModel ?? chatModel)!
     const useWebSearch = isWebSearchAvailable()
 
     console.log(`[Learn Generate] Using ${useWebSearch ? 'web search' : 'standard'} model`)

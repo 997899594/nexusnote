@@ -10,3 +10,6 @@ export const db = drizzle(client, { schema })
 
 export * from './schema.js'
 export * from './fsrs.js'
+
+// Re-export common drizzle-orm operators for consistency
+export { eq, ne, gt, gte, lt, lte, and, or, sql, inArray, notInArray } from 'drizzle-orm'

@@ -1,258 +1,149 @@
+/**
+ * AI Configuration Module (2026 Modern Stack)
+ *
+ * 统一的 AI 模型配置，基于 Gemini 3 系列
+ *
+ * 模型分层：
+ * - chatModel:      Gemini 3 Flash  - 通用任务（对话、快速生成）
+ * - courseModel:    Gemini 3 Pro    - 长文本生成（课程内容）
+ * - webSearchModel: Gemini 3 Flash+联网 - 需要最新知识（课程大纲）
+ * - embeddingModel: Qwen3-Embedding - 向量化
+ */
+
 import { createOpenAI } from '@ai-sdk/openai'
-import { LanguageModel, EmbeddingModel } from 'ai'
 
 // ============================================
-// 2026 现代化 AI 架构 - 多 Provider + Embedding
+// 环境变量读取
 // ============================================
+const AI_302_API_KEY = process.env.AI_302_API_KEY
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY
 
-interface ProviderConfig {
-  name: string
-  baseURL: string
-  apiKey: string
-  models: {
-    chat: string
-    fast: string
+// 模型配置（默认 Gemini 3 系列）
+const AI_MODEL = process.env.AI_MODEL || 'gemini-3-flash-preview'
+const AI_MODEL_PRO = process.env.AI_MODEL_PRO || 'gemini-3-pro-preview'
+const AI_MODEL_WEB_SEARCH = process.env.AI_MODEL_WEB_SEARCH || 'gemini-3-flash-preview-web-search'
+const EMBEDDING_MODEL = process.env.EMBEDDING_MODEL || 'Qwen/Qwen3-Embedding-8B'
+const EMBEDDING_DIMENSIONS = parseInt(process.env.EMBEDDING_DIMENSIONS || '4000')
+
+// ============================================
+// Provider 配置
+// ============================================
+function getProviderConfig(): { baseURL: string; apiKey: string; name: string } | null {
+  // 302.ai 优先（支持所有模型）
+  if (AI_302_API_KEY) {
+    return {
+      baseURL: 'https://api.302.ai/v1',
+      apiKey: AI_302_API_KEY,
+      name: '302.ai',
+    }
   }
-  // 302.ai 支持模型后缀扩展能力
-  supportsWebSearch?: boolean
-}
 
-interface EmbeddingProviderConfig {
-  name: string
-  baseURL: string
-  apiKey: string
-  model: string
-  dimensions: number
-}
-
-// ============================================
-// Chat Provider 配置
-// ============================================
-function getConfiguredProviders(): ProviderConfig[] {
-  const providers: ProviderConfig[] = []
-
-  // DeepSeek 官方 - 主要 Chat Provider
-  if (process.env.DEEPSEEK_API_KEY) {
-    providers.push({
-      name: 'deepseek',
+  // DeepSeek 备选
+  if (DEEPSEEK_API_KEY) {
+    return {
       baseURL: 'https://api.deepseek.com',
-      apiKey: process.env.DEEPSEEK_API_KEY,
-      models: {
-        chat: 'deepseek-chat',
-        fast: 'deepseek-chat',
-      },
-    })
-  }
-
-  // 302.ai - 聚合平台（支持 -web-search 后缀联网）
-  if (process.env.AI_302_API_KEY) {
-    providers.push({
-      name: '302ai',
-      baseURL: 'https://api.302.ai/v1',
-      apiKey: process.env.AI_302_API_KEY,
-      models: {
-        chat: process.env.AI_CHAT_MODEL || 'gemini-2.5-flash-preview-05-20',
-        fast: process.env.AI_FAST_MODEL || 'gemini-2.5-flash-preview-05-20',
-      },
-      supportsWebSearch: true, // 302.ai 支持 -web-search 后缀
-    })
-  }
-
-  // 硅基流动
-  if (process.env.SILICONFLOW_API_KEY) {
-    providers.push({
-      name: 'siliconflow',
-      baseURL: 'https://api.siliconflow.cn/v1',
-      apiKey: process.env.SILICONFLOW_API_KEY,
-      models: {
-        chat: 'deepseek-ai/DeepSeek-V3',
-        fast: 'Qwen/Qwen2.5-72B-Instruct',
-      },
-    })
-  }
-
-  // OpenAI 官方
-  if (process.env.OPENAI_API_KEY) {
-    providers.push({
-      name: 'openai',
-      baseURL: 'https://api.openai.com/v1',
-      apiKey: process.env.OPENAI_API_KEY,
-      models: {
-        chat: 'gpt-4o',
-        fast: 'gpt-4o-mini',
-      },
-    })
-  }
-
-  return providers
-}
-
-// ============================================
-// Embedding Provider 配置
-// ============================================
-function getEmbeddingProvider(): EmbeddingProviderConfig | null {
-  // 优先使用 302.ai - Qwen3-Embedding-8B (MTEB #1, halfvec 4000维)
-  if (process.env.AI_302_API_KEY) {
-    return {
-      name: '302ai',
-      baseURL: 'https://api.302.ai/v1',
-      apiKey: process.env.AI_302_API_KEY,
-      model: process.env.EMBEDDING_MODEL || 'Qwen/Qwen3-Embedding-8B',
-      dimensions: parseInt(process.env.EMBEDDING_DIMENSIONS || '4000'),
+      apiKey: DEEPSEEK_API_KEY,
+      name: 'deepseek',
     }
   }
 
-  // 备选：硅基流动
-  if (process.env.SILICONFLOW_API_KEY) {
+  // OpenAI 备选
+  if (OPENAI_API_KEY) {
     return {
-      name: 'siliconflow',
-      baseURL: 'https://api.siliconflow.cn/v1',
-      apiKey: process.env.SILICONFLOW_API_KEY,
-      model: process.env.EMBEDDING_MODEL || 'Qwen/Qwen3-Embedding-8B',
-      dimensions: parseInt(process.env.EMBEDDING_DIMENSIONS || '4096'),
-    }
-  }
-
-  // 备选：OpenAI
-  if (process.env.OPENAI_API_KEY) {
-    return {
-      name: 'openai',
       baseURL: 'https://api.openai.com/v1',
-      apiKey: process.env.OPENAI_API_KEY,
-      model: 'text-embedding-3-large',
-      dimensions: 3072,
+      apiKey: OPENAI_API_KEY,
+      name: 'openai',
     }
   }
 
   return null
 }
 
-// ============================================
-// Provider 选择逻辑
-// ============================================
-function getPrimaryProvider(): ProviderConfig | null {
-  const providers = getConfiguredProviders()
-
-  // 如果指定了 AI_PROVIDER，优先使用
-  const preferredProvider = process.env.AI_PROVIDER
-  if (preferredProvider) {
-    const preferred = providers.find(p => p.name === preferredProvider)
-    if (preferred) return preferred
-  }
-
-  return providers[0] || null
-}
+const providerConfig = getProviderConfig()
+const openai = providerConfig
+  ? createOpenAI({ baseURL: providerConfig.baseURL, apiKey: providerConfig.apiKey })
+  : null
 
 // ============================================
-// 模型实例创建
+// 模型实例导出
 // ============================================
 
-// 创建 Chat 模型
-function createChatModel(provider: ProviderConfig, modelType: 'chat' | 'fast'): LanguageModel {
-  const openai = createOpenAI({
-    baseURL: provider.baseURL,
-    apiKey: provider.apiKey,
-  })
-  return openai.chat(provider.models[modelType])
-}
+/**
+ * 通用模型 - Gemini 3 Flash
+ * 用途：对话、问答、写作辅助、快速任务
+ */
+export const chatModel = openai?.chat(AI_MODEL) ?? null
 
-// 创建 Embedding 模型 (AI SDK 6.x)
-function createEmbeddingModel(config: EmbeddingProviderConfig): EmbeddingModel {
-  const openai = createOpenAI({
-    baseURL: config.baseURL,
-    apiKey: config.apiKey,
-  })
-  // AI SDK 6.x: dimensions 需要在调用时指定，不在模型创建时
-  return openai.embedding(config.model)
-}
+/**
+ * Pro 模型 - Gemini 3 Pro
+ * 用途：课程内容生成、长文本、复杂任务
+ */
+export const courseModel = openai?.chat(AI_MODEL_PRO) ?? null
 
-// ============================================
-// 导出实例
-// ============================================
-const primaryProvider = getPrimaryProvider()
-const embeddingConfig = getEmbeddingProvider()
+/**
+ * 联网模型 - Gemini 3 Flash + Web Search
+ * 用途：课程大纲（需要最新知识）、研究
+ */
+export const webSearchModel = openai?.chat(AI_MODEL_WEB_SEARCH) ?? null
 
-// Chat 模型
-export const chatModel = primaryProvider
-  ? createChatModel(primaryProvider, 'chat')
-  : null as unknown as LanguageModel
+/**
+ * 快速模型 - 同 chatModel
+ */
+export const fastModel = chatModel
 
-export const fastModel = primaryProvider
-  ? createChatModel(primaryProvider, 'fast')
-  : null as unknown as LanguageModel
+/**
+ * Agent 模型 - 同 chatModel（Gemini 3 工具调用能力强）
+ */
+export const agentModel = chatModel
 
-// Embedding 模型 (AI SDK 6.x)
-export const embeddingModel = embeddingConfig
-  ? createEmbeddingModel(embeddingConfig)
-  : null as unknown as EmbeddingModel
+/**
+ * Embedding 模型 - Qwen3-Embedding-8B
+ */
+export const embeddingModel = openai?.embedding(EMBEDDING_MODEL) ?? null
 
 // ============================================
 // 工具函数
 // ============================================
+
 export function isAIConfigured(): boolean {
-  return primaryProvider !== null
+  return providerConfig !== null
 }
 
 export function isEmbeddingConfigured(): boolean {
-  return embeddingConfig !== null
+  return providerConfig !== null
+}
+
+export function isWebSearchAvailable(): boolean {
+  // 302.ai 支持 -web-search 后缀
+  return providerConfig?.name === '302.ai'
 }
 
 export function getAIProviderInfo() {
   return {
-    chat: {
-      provider: primaryProvider?.name || 'none',
-      model: primaryProvider?.models.chat || 'none',
+    provider: providerConfig?.name ?? 'none',
+    models: {
+      chat: AI_MODEL,
+      pro: AI_MODEL_PRO,
+      webSearch: AI_MODEL_WEB_SEARCH,
+      embedding: EMBEDDING_MODEL,
     },
-    embedding: {
-      provider: embeddingConfig?.name || 'none',
-      model: embeddingConfig?.model || 'none',
-      dimensions: embeddingConfig?.dimensions || 0,
-    },
-    configured: getConfiguredProviders().map(p => p.name),
+    embeddingDimensions: EMBEDDING_DIMENSIONS,
+    configured: !!providerConfig,
   }
 }
 
-// Embedding 配置导出（供后端使用）
 export function getEmbeddingConfig() {
-  return embeddingConfig
+  return {
+    model: EMBEDDING_MODEL,
+    dimensions: EMBEDDING_DIMENSIONS,
+  }
 }
 
 // ============================================
-// 联网搜索模型（302.ai 专属）
+// 日志（启动时打印）
 // ============================================
-
-// 创建联网搜索版模型（自动添加 -web-search 后缀）
-function createWebSearchModel(provider: ProviderConfig, modelType: 'chat' | 'fast'): LanguageModel | null {
-  if (!provider.supportsWebSearch) return null
-
-  const openai = createOpenAI({
-    baseURL: provider.baseURL,
-    apiKey: provider.apiKey,
-  })
-  const baseModel = provider.models[modelType]
-  return openai.chat(`${baseModel}-web-search`)
-}
-
-// 联网搜索模型（需要 302.ai API Key）
-export const webSearchModel = (() => {
-  const provider = getConfiguredProviders().find(p => p.supportsWebSearch)
-  return provider ? createWebSearchModel(provider, 'chat') : null
-})()
-
-// 检查是否支持联网搜索
-export function isWebSearchAvailable(): boolean {
-  return webSearchModel !== null
-}
-
-// ============================================
-// 故障转移支持
-// ============================================
-export function getModelWithFallback(modelType: 'chat' | 'fast' = 'chat'): LanguageModel | null {
-  const providers = getConfiguredProviders()
-  if (providers.length === 0) return null
-  return createChatModel(providers[0], modelType)
-}
-
-export function getAllModels(modelType: 'chat' | 'fast' = 'chat'): LanguageModel[] {
-  return getConfiguredProviders().map(p => createChatModel(p, modelType))
+if (typeof window === 'undefined' && providerConfig) {
+  console.log('[AI] Provider:', providerConfig.name)
+  console.log('[AI] Models:', { chat: AI_MODEL, pro: AI_MODEL_PRO, web: AI_MODEL_WEB_SEARCH })
 }

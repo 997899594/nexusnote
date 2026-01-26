@@ -1,5 +1,5 @@
 import { streamText } from 'ai'
-import { chatModel, isAIConfigured, getAIProviderInfo } from '@/lib/ai'
+import { courseModel, isAIConfigured, getAIProviderInfo } from '@/lib/ai'
 
 export const runtime = 'nodejs'
 
@@ -18,10 +18,10 @@ export async function POST(req: Request) {
     return Response.json({ error: 'Missing required fields' }, { status: 400 })
   }
 
-  if (!isAIConfigured()) {
+  if (!isAIConfigured() || !courseModel) {
     const info = getAIProviderInfo()
     return Response.json(
-      { error: `AI API key not configured. Provider: ${info.chat.provider}` },
+      { error: `AI API key not configured. Provider: ${info.provider}` },
       { status: 500 }
     )
   }
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
 
   try {
     const result = streamText({
-      model: chatModel,
+      model: courseModel!,
       prompt: `你是一位优秀的技术写作者，擅长用清晰、生动的方式讲解技术概念。
 
 课程：${courseTitle}

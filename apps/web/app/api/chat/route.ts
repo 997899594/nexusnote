@@ -104,9 +104,9 @@ export async function POST(req: Request) {
   console.log('[Chat API] enableRAG:', enableRAG, '| enableTools:', enableTools, '| editMode:', editMode)
 
   // 检查 API Key
-  if (!isAIConfigured()) {
+  if (!isAIConfigured() || !chatModel) {
     const info = getAIProviderInfo()
-    return new Response(JSON.stringify({ error: `AI API key not configured. Provider: ${info.chat.provider}` }), {
+    return new Response(JSON.stringify({ error: `AI API key not configured. Provider: ${info.provider}` }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     })
@@ -219,7 +219,7 @@ ${ragContext}
 
   try {
     const result = streamText({
-      model: chatModel,
+      model: chatModel!,
       system: systemPrompt,
       messages,
       maxOutputTokens: 4096,

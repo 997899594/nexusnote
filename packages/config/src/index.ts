@@ -41,6 +41,23 @@ export const defaults = {
     enabled: false,
   },
 
+  // AI Models (2026 Modern Stack - Gemini 3)
+  ai: {
+    // 通用模型 - Gemini 3 Flash (速度快、成本低、推理强)
+    model: 'gemini-3-flash-preview',
+    // Pro 模型 - Gemini 3 Pro (复杂任务)
+    modelPro: 'gemini-3-pro-preview',
+    // 联网搜索模型
+    modelWebSearch: 'gemini-3-flash-preview-web-search',
+    // 302.ai 为首选 Provider
+    baseURL: 'https://api.302.ai/v1',
+  },
+
+  // Notes / Liquid Knowledge
+  notes: {
+    topicThreshold: 0.25, // 语义聚类阈值
+  },
+
   // Snapshot / Timeline
   snapshot: {
     intervalMs: 5 * 60 * 1000, // 5 minutes
@@ -62,36 +79,6 @@ export const defaults = {
   // Redis
   redis: {
     url: 'redis://localhost:6380',
-  },
-
-  // AI Providers
-  ai: {
-    provider: 'deepseek' as const,
-    providers: {
-      deepseek: {
-        baseURL: 'https://api.deepseek.com',
-        chatModel: 'deepseek-chat',
-        fastModel: 'deepseek-chat',
-      },
-      '302ai': {
-        baseURL: 'https://api.302.ai/v1',
-        chatModel: 'deepseek-chat',
-        fastModel: 'deepseek-chat',
-        supportsWebSearch: true,
-      },
-      siliconflow: {
-        baseURL: 'https://api.siliconflow.cn/v1',
-        chatModel: 'deepseek-ai/DeepSeek-V3',
-        fastModel: 'Qwen/Qwen2.5-72B-Instruct',
-      },
-      openai: {
-        baseURL: 'https://api.openai.com/v1',
-        chatModel: 'gpt-4o',
-        fastModel: 'gpt-4o-mini',
-        embeddingModel: 'text-embedding-3-large',
-        embeddingDimensions: 3072,
-      },
-    },
   },
 
   // Collaboration
@@ -136,7 +123,14 @@ export const serverEnvSchema = z.object({
   DEEPSEEK_API_KEY: z.string().optional(),
   SILICONFLOW_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
-  AI_PROVIDER: z.enum(['deepseek', '302ai', 'siliconflow', 'openai']).optional(),
+
+  // AI Models (2026 Modern Stack - Gemini 3 优先)
+  AI_MODEL: z.string().default(defaults.ai.model),
+  AI_MODEL_PRO: z.string().default(defaults.ai.modelPro),
+  AI_MODEL_WEB_SEARCH: z.string().default(defaults.ai.modelWebSearch),
+
+  // Notes / Liquid Knowledge
+  NOTES_TOPIC_THRESHOLD: z.coerce.number().min(0).max(1).default(defaults.notes.topicThreshold),
 
   // Embedding
   EMBEDDING_MODEL: z.string().default(defaults.embedding.model),
@@ -180,7 +174,11 @@ export const clientEnvSchema = z.object({
   AI_302_API_KEY: z.string().optional(),
   SILICONFLOW_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
-  AI_PROVIDER: z.enum(['deepseek', '302ai', 'siliconflow', 'openai']).optional(),
+
+  // AI Models
+  AI_MODEL: z.string().default(defaults.ai.model),
+  AI_MODEL_PRO: z.string().default(defaults.ai.modelPro),
+  AI_MODEL_WEB_SEARCH: z.string().default(defaults.ai.modelWebSearch),
 
   // Embedding (client may need for dimensions)
   EMBEDDING_MODEL: z.string().default(defaults.embedding.model),
@@ -262,6 +260,9 @@ export interface RuntimeConfig {
     ragMaxRetries: number
     ragBackoffDelay: number
   }
+  notes: {
+    topicThreshold: number
+  }
 }
 
 /**
@@ -294,6 +295,9 @@ export function buildRuntimeConfig(env: ServerEnv): RuntimeConfig {
       ragMaxRetries: env.QUEUE_RAG_MAX_RETRIES,
       ragBackoffDelay: env.QUEUE_RAG_BACKOFF_DELAY,
     },
+    notes: {
+      topicThreshold: env.NOTES_TOPIC_THRESHOLD,
+    },
   }
 }
 
@@ -314,12 +318,11 @@ export function logServerConfig(env: ServerEnv): void {
   console.log(`  DATABASE_URL: ${env.DATABASE_URL.replace(/\/\/[^@]+@/, '//***@')}`)
   console.log(`  REDIS_URL: ${env.REDIS_URL}`)
   console.log(`  AI_302_API_KEY: ${maskSecret(env.AI_302_API_KEY)}`)
-  console.log(`  DEEPSEEK_API_KEY: ${maskSecret(env.DEEPSEEK_API_KEY)}`)
+  console.log(`  AI_MODEL: ${env.AI_MODEL}`)
+  console.log(`  AI_MODEL_PRO: ${env.AI_MODEL_PRO}`)
+  console.log(`  AI_MODEL_WEB_SEARCH: ${env.AI_MODEL_WEB_SEARCH}`)
   console.log(`  EMBEDDING_MODEL: ${env.EMBEDDING_MODEL}`)
   console.log(`  EMBEDDING_DIMENSIONS: ${env.EMBEDDING_DIMENSIONS}`)
-  console.log(`  RERANKER_ENABLED: ${env.RERANKER_ENABLED}`)
-  console.log(`  RAG_TIMEOUT: ${env.RAG_TIMEOUT}ms`)
-  console.log(`  RAG_CHUNK_SIZE: ${env.RAG_CHUNK_SIZE}`)
 }
 
 // ============================================

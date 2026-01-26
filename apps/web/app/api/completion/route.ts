@@ -1,5 +1,5 @@
 import { streamText } from 'ai'
-import { chatModel, isAIConfigured, getAIProviderInfo } from '@/lib/ai'
+import { fastModel, isAIConfigured, getAIProviderInfo } from '@/lib/ai'
 
 export const runtime = 'nodejs'
 
@@ -18,9 +18,9 @@ const PROMPTS: Record<string, string> = {
 export async function POST(req: Request) {
   const { prompt, action, selection } = await req.json()
 
-  if (!isAIConfigured()) {
+  if (!isAIConfigured() || !fastModel) {
     const info = getAIProviderInfo()
-    return new Response(JSON.stringify({ error: `AI API key not configured. Provider: ${info.chat.provider}` }), {
+    return new Response(JSON.stringify({ error: `AI API key not configured. Provider: ${info.provider}` }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     })
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
 
   try {
     const result = streamText({
-      model: chatModel,
+      model: fastModel!,
       prompt: fullPrompt,
       maxOutputTokens: 2048,
       temperature: 0.7,
