@@ -15,10 +15,14 @@ import {
   Heading1,
   Heading2,
   Heading3,
+  Shield,
+  ShieldOff,
 } from 'lucide-react'
 
 interface EditorToolbarProps {
   editor: Editor | null
+  isVault?: boolean
+  onToggleVault?: () => void
 }
 
 interface ToolbarButtonProps {
@@ -35,9 +39,8 @@ function ToolbarButton({ onClick, isActive, disabled, children, title }: Toolbar
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={`p-2 rounded hover:bg-muted transition-colors ${
-        isActive ? 'bg-muted text-primary' : 'text-muted-foreground'
-      } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+      className={`p-2 rounded hover:bg-muted transition-colors ${isActive ? 'bg-muted text-primary' : 'text-muted-foreground'
+        } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
     >
       {children}
     </button>
@@ -48,7 +51,7 @@ function Divider() {
   return <div className="w-px h-6 bg-border mx-1" />
 }
 
-export function EditorToolbar({ editor }: EditorToolbarProps) {
+export function EditorToolbar({ editor, isVault, onToggleVault }: EditorToolbarProps) {
   if (!editor) return null
 
   return (
@@ -159,6 +162,21 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         title="Divider"
       >
         <Minus className="w-4 h-4" />
+      </ToolbarButton>
+
+      <Divider />
+
+      {/* Vault Mode */}
+      <ToolbarButton
+        onClick={() => onToggleVault?.()}
+        isActive={isVault}
+        title={isVault ? 'Disable Vault Mode' : 'Enable Vault Mode'}
+      >
+        {isVault ? (
+          <Shield className="w-4 h-4 text-amber-500" />
+        ) : (
+          <ShieldOff className="w-4 h-4" />
+        )}
       </ToolbarButton>
     </div>
   )

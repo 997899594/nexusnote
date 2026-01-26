@@ -32,6 +32,7 @@ import {
   LocalLearningChapter,
   LocalLearningProgress,
 } from '@/lib/storage'
+import { markdownToHtml } from '@/lib/markdown'
 import { ChatSidebar } from '@/components/ai/ChatSidebar'
 import { EditorProvider } from '@/contexts/EditorContext'
 import { Callout } from '@/components/editor/extensions/callout'
@@ -186,8 +187,9 @@ export default function ChapterReaderPage({ params }: ChapterReaderProps) {
         accumulated += chunk
       }
 
-      // 流式接收完成后，一次性设置内容
-      editor.commands.setContent(accumulated)
+      // 流式接收完成后，将 Markdown 转换为 HTML 再设置内容
+      const html = markdownToHtml(accumulated)
+      editor.commands.setContent(html)
 
       setContentEmpty(false)
       console.log('[ChapterReader] Content generated successfully')

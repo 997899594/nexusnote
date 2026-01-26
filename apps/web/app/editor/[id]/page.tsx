@@ -5,10 +5,8 @@ import { ChatSidebar } from '@/components/ai/ChatSidebar'
 import { EditorProvider } from '@/contexts/EditorContext'
 import { NoteExtractionProvider, useNoteExtraction } from '@/contexts/NoteExtractionContext'
 import { useState, useEffect } from 'react'
+import { useSession } from 'next-auth/react'
 import { MessageSquare, X } from 'lucide-react'
-
-// Dev user ID - replace with actual auth in production
-const DEV_USER_ID = 'dev-user-001'
 
 export default function EditorPage({ params }: { params: { id: string } }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -91,12 +89,14 @@ function NoteExtractionInitializer({
 }: {
   children: React.ReactNode
 }) {
+  const { data: session } = useSession()
   const { setUserId } = useNoteExtraction()
 
   useEffect(() => {
-    // Set dev user ID - replace with actual auth in production
-    setUserId(DEV_USER_ID)
-  }, [setUserId])
+    if (session?.user?.id) {
+      setUserId(session.user.id)
+    }
+  }, [session?.user?.id, setUserId])
 
   return <>{children}</>
 }

@@ -2,6 +2,7 @@ import { streamText } from 'ai'
 import { chatModel, isAIConfigured, getAIProviderInfo } from '@/lib/ai'
 import { skills } from '@/lib/ai/skills'
 import { API_URL, config } from '@/lib/config'
+import { auth } from '@/auth'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -91,6 +92,14 @@ function normalizeMessages(messages: any[]): Array<{ role: 'user' | 'assistant';
 }
 
 export async function POST(req: Request) {
+  const session = await auth()
+  if (!session) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
   const {
     messages: rawMessages,
     enableRAG = false,

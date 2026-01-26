@@ -7,6 +7,7 @@ import {
   customType,
   index,
   jsonb,
+  boolean,
 } from "drizzle-orm/pg-core";
 
 // 自定义 bytea 类型
@@ -55,6 +56,7 @@ export const documents = pgTable("documents", {
   workspaceId: uuid("workspace_id").references(() => workspaces.id),
   content: bytea("content"), // Yjs 二进制状态
   plainText: text("plain_text"), // 纯文本（用于搜索和 RAG）
+  isVault: boolean("is_vault").notNull().default(false), // 是否为隐私保险箱内容
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

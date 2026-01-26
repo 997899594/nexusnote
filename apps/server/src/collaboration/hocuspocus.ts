@@ -128,6 +128,19 @@ export function startHocuspocus() {
 
     // 文档变更 - 触发 RAG 索引队列（10秒防抖）
     async onChange({ documentName, document }) {
+      // 检查文档是否为 Vault
+      const result = await db.select({ isVault: documents.isVault })
+        .from(documents)
+        .where(eq(documents.id, documentName))
+        .limit(1)
+
+      const isVault = result[0]?.isVault ?? false
+
+      if (isVault) {
+        console.log(`[Hocuspocus] Skipping RAG index for Vault document: ${documentName}`)
+        return
+      }
+
       const plainText = extractPlainText(document)
       if (plainText.length > 20) {
         debouncedIndexDocument(documentName, plainText)

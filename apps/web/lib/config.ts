@@ -28,15 +28,22 @@ export function isDevelopment(): boolean {
 
 /**
  * Get authentication token.
- * In development, returns dev token. In production, should get from auth provider.
+ * In development, returns the last saved session token if available.
+ * In production, strictly requires a valid JWT.
  */
 export function getAuthToken(): string {
-  // TODO: In production, get token from auth provider (localStorage, cookie, etc.)
+  if (typeof window === 'undefined') return ''
+
+  // 优先从 localStorage 获取（由 SessionWatcher 同步）
+  const token = localStorage.getItem('nexusnote_token')
+  if (token) return token
+
+  // 开发环境下回退
   if (isDevelopment()) {
-    return DEV_TOKEN
+    return 'dev-token'
   }
-  // Production: should integrate with your auth provider
-  return localStorage.getItem('nexusnote_token') || ''
+
+  return ''
 }
 
 // ============================================

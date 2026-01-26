@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
+import { useSession } from 'next-auth/react'
 import useSWR from 'swr'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -15,9 +16,6 @@ import {
   Clock,
   Hash
 } from 'lucide-react'
-
-// Dev user ID - replace with actual auth in production
-const DEV_USER_ID = 'dev-user-001'
 
 interface ExtractedNote {
   id: string
@@ -127,11 +125,15 @@ function NoteCard({ note, index }: { note: ExtractedNote; index: number }) {
  */
 export default function TopicDetailPage({ params }: { params: { topicId: string } }) {
   const { topicId } = params
-  const [userId, setUserId] = useState<string | null>(null)
+  const { data: session, status } = useSession()
+  const userId = session?.user?.id ?? null
 
+  // Redirect to login if not authenticated
   useEffect(() => {
-    setUserId(DEV_USER_ID)
-  }, [])
+    if (status === 'unauthenticated') {
+      window.location.href = '/login'
+    }
+  }, [status])
 
   // Fetch topic info
   const { data: topicsData } = useSWR<{ topics: Topic[] }>(

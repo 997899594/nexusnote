@@ -15,18 +15,20 @@ import { TaskList } from '@tiptap/extension-task-list'
 import { TaskItem } from '@tiptap/extension-task-item'
 import { Dropcursor } from '@tiptap/extension-dropcursor'
 import { Gapcursor } from '@tiptap/extension-gapcursor'
+import { useSession } from 'next-auth/react'
 import { useMemo, useEffect, useState, useCallback, useContext } from 'react'
 import { useEditorContext } from '@/contexts/EditorContext'
 import * as Y from 'yjs'
 import { IndexeddbPersistence } from 'y-indexeddb'
 import { HocuspocusProvider } from '@hocuspocus/provider'
 import { getRandomColor, getRandomUserName } from '@/lib/collaboration'
-import { COLLAB_URL, getAuthToken } from '@/lib/config'
+import { COLLAB_URL, API_URL, getAuthToken } from '@/lib/config'
 import { Wifi, WifiOff, Users, History } from 'lucide-react'
 import { EditorToolbar } from './EditorToolbar'
 import { AIBubbleMenu } from './AIBubbleMenu'
 import { TableMenu } from './TableMenu'
 import { SlashCommand } from './SlashCommand'
+import { GhostBrain } from './GhostBrain'
 import { Callout } from './extensions/callout'
 import { Collapsible } from './extensions/collapsible'
 import { TimelinePanel, useTimeline, useAIEditSnapshot } from '@/components/timeline'
@@ -40,20 +42,66 @@ interface EditorProps {
 type ConnectionStatus = 'connecting' | 'connected' | 'disconnected'
 
 export function Editor({ documentId, showToolbar = true }: EditorProps) {
+  const { data: session } = useSession()
   const [status, setStatus] = useState<ConnectionStatus>('connecting')
   const [collaborators, setCollaborators] = useState<Array<{ name: string; color: string }>>([])
   const [showTimeline, setShowTimeline] = useState(false)
+  const [isVault, setIsVault] = useState(false)
+  const [title, setTitle] = useState('Untitled')
   const editorContext = useEditorContext() // 可能为 null
+
+  // 获取文档元数据（如 isVault）
+  useEffect(() => {
+    const fetchMetadata = async () => {
+      try {
+        const res = await fetch(`${API_URL}/documents/${documentId}`)
+        if (res.ok) {
+          const doc = await res.json()
+          setIsVault(doc.isVault || false)
+          setTitle(doc.title || 'Untitled')
+        }
+      } catch (err) {
+        console.error('[Editor] Failed to fetch document metadata:', err)
+      }
+    }
+    fetchMetadata()
+  }, [documentId])
+
+  const toggleVault = async () => {
+    const nextValue = !isVault
+    try {
+      const res = await fetch(`${API_URL}/documents/${documentId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isVault: nextValue }),
+      })
+      if (res.ok) {
+        setIsVault(nextValue)
+      }
+    } catch (err) {
+      console.error('[Editor] Failed to toggle vault mode:', err)
+    }
+  }
 
   // 创建 Yjs 文档
   const ydoc = useMemo(() => new Y.Doc(), [])
 
-  // 当前用户信息（实际项目从 Auth 获取）
-  const currentUser = useMemo(() => ({
-    id: `user-${Math.random().toString(36).slice(2, 9)}`,
-    name: getRandomUserName(),
-    color: getRandomColor(),
-  }), [])
+  // 当前用户信息（优先从 Session 获取）
+  const currentUser = useMemo(() => {
+    if (session?.user) {
+      return {
+        id: session.user.id || `user-${Math.random().toString(36).slice(2, 9)}`,
+        name: session.user.name || 'Anonymous',
+        color: getRandomColor(), // 颜色依然可以随机生成
+        image: session.user.image,
+      }
+    }
+    return {
+      id: `user-${Math.random().toString(36).slice(2, 9)}`,
+      name: getRandomUserName(),
+      color: getRandomColor(),
+    }
+  }, [session])
 
   // Hocuspocus Provider
   const provider = useMemo(() => {
@@ -61,7 +109,7 @@ export function Editor({ documentId, showToolbar = true }: EditorProps) {
       url: COLLAB_URL,
       name: documentId,
       document: ydoc,
-      token: getAuthToken(),
+      token: (session as any)?.accessToken || getAuthToken(),
 
       onConnect() {
         setStatus('connected')
@@ -80,10 +128,11 @@ export function Editor({ documentId, showToolbar = true }: EditorProps) {
         setStatus('disconnected')
       },
     })
-  }, [documentId, ydoc])
+  }, [documentId, ydoc, session])
 
   // 设置用户 Awareness
   useEffect(() => {
+    if (!currentUser) return
     provider.setAwarenessField('user', currentUser)
 
     // 监听协作者变化
@@ -240,7 +289,13 @@ export function Editor({ documentId, showToolbar = true }: EditorProps) {
   return (
     <div className="border rounded-lg overflow-hidden">
       {/* Toolbar */}
-      {showToolbar && <EditorToolbar editor={editor} />}
+      {showToolbar && (
+        <EditorToolbar
+          editor={editor}
+          isVault={isVault}
+          onToggleVault={toggleVault}
+        />
+      )}
 
       {/* Editor Content */}
       <div className="p-4">
@@ -335,6 +390,13 @@ export function Editor({ documentId, showToolbar = true }: EditorProps) {
         isOpen={showTimeline}
         onClose={() => setShowTimeline(false)}
         onRestore={handleRestoreSnapshot}
+      />
+
+      {/* Ghost Brain (AI Feedback) */}
+      <GhostBrain
+        editor={editor}
+        documentId={documentId}
+        title={title}
       />
     </div>
   )

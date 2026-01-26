@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useSession } from 'next-auth/react'
 import useSWR from 'swr'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -13,9 +14,6 @@ import {
   TrendingUp,
   Clock
 } from 'lucide-react'
-
-// Dev user ID - replace with actual auth in production
-const DEV_USER_ID = 'dev-user-001'
 
 interface Topic {
   id: string
@@ -151,12 +149,15 @@ function formatRelativeTime(dateString: string): string {
  * KnowledgePage - Main knowledge dashboard with masonry layout
  */
 export default function KnowledgePage() {
-  const [userId, setUserId] = useState<string | null>(null)
+  const { data: session, status } = useSession()
+  const userId = session?.user?.id ?? null
 
+  // Redirect to login if not authenticated
   useEffect(() => {
-    // In production, get userId from auth
-    setUserId(DEV_USER_ID)
-  }, [])
+    if (status === 'unauthenticated') {
+      window.location.href = '/login'
+    }
+  }, [status])
 
   const { data, error, isLoading } = useSWR<{ topics: Topic[] }>(
     userId ? `/api/notes/topics?userId=${userId}` : null,

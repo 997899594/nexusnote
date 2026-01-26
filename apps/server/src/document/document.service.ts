@@ -1,26 +1,40 @@
-import { Injectable } from '@nestjs/common'
-
-// 临时内存存储 - Phase 2 替换为 Drizzle + Postgres
-const documents = new Map<string, { id: string; title: string; createdAt: Date }>()
+import { Injectable, Inject, NotFoundException } from '@nestjs/common'
+import { db } from '../database/database.module'
+import { documents } from '@nexusnote/db'
+import { eq } from 'drizzle-orm'
 
 @Injectable()
 export class DocumentService {
   async findAll() {
-    return Array.from(documents.values())
+    return db.select().from(documents)
   }
 
   async findOne(id: string) {
-    return documents.get(id) || null
+    const result = await db.select()
+      .from(documents)
+      .where(eq(documents.id, id))
+      .limit(1)
+
+    return result[0] || null
   }
 
   async create(title: string) {
-    const id = crypto.randomUUID()
-    const doc = {
-      id,
+    const [doc] = await db.insert(documents).values({
       title,
-      createdAt: new Date(),
-    }
-    documents.set(id, doc)
+    }).returning()
     return doc
+  }
+
+  async update(id: string, data: Partial<{ title: string; isVault: boolean }>) {
+    const [updated] = await db.update(documents)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(documents.id, id))
+      .returning()
+
+    if (!updated) {
+      throw new NotFoundException(`Document with ID ${id} not found`)
+    }
+
+    return updated
   }
 }
