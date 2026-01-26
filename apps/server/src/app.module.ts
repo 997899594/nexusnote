@@ -5,6 +5,7 @@ import { QueueModule } from './queue/queue.module'
 import { RagModule } from './rag/rag.module'
 import { HealthModule } from './health/health.module'
 import { SnapshotModule } from './snapshot/snapshot.module'
+import { NotesModule } from './notes/notes.module'
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { SnapshotModule } from './snapshot/snapshot.module'
     RagModule,
     DocumentModule,
     SnapshotModule,
+    NotesModule,  // Liquid Knowledge System
   ],
   controllers: [],
   providers: [],

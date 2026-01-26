@@ -22,6 +22,13 @@
       "when": 1737641057000,
       "tag": "0002_fix_pgvector_optional",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1769400290278,
+      "tag": "0003_perfect_domino",
+      "breakpoints": true
     }
   ]
 }

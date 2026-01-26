@@ -207,6 +207,59 @@ export const reviewLogs = pgTable("review_logs", {
   reviewedAt: timestamp("reviewed_at").defaultNow(),
 });
 
+// ============================================
+// 液态知识系统 (Liquid Knowledge System)
+// NexusNote 3.1 - 幽灵飞梭 + AI 园艺
+// ============================================
+
+// AI 维护的语义主题簇
+export const topics = pgTable("topics", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id, {
+    onDelete: "cascade",
+  }),
+  name: text("name").notNull(), // AI 生成的主题名
+  embedding: halfvec("embedding"), // 主题的中心向量 (4000维)
+  noteCount: integer("note_count").default(0),
+  lastActiveAt: timestamp("last_active_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  userIdIdx: index("topics_user_id_idx").on(table.userId),
+}));
+
+// 提取的知识片段
+export const extractedNotes = pgTable("extracted_notes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id, {
+    onDelete: "cascade",
+  }),
+  content: text("content").notNull(), // 提取的文本内容
+  embedding: halfvec("embedding"), // 文本向量 (4000维)
+
+  // 来源追溯 (支持两种来源)
+  sourceType: text("source_type").notNull(), // 'document' | 'learning'
+  sourceDocumentId: uuid("source_document_id").references(() => documents.id, {
+    onDelete: "set null",
+  }),
+  sourceChapterId: uuid("source_chapter_id").references(() => learningChapters.id, {
+    onDelete: "set null",
+  }),
+  sourcePosition: jsonb("source_position"), // { from: number, to: number }
+
+  // AI 分类
+  topicId: uuid("topic_id").references(() => topics.id, {
+    onDelete: "set null",
+  }),
+  status: text("status").default("processing"), // 'processing' | 'classified'
+
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  topicIdIdx: index("extracted_notes_topic_id_idx").on(table.topicId),
+  statusIdx: index("extracted_notes_status_idx").on(table.status),
+  userIdIdx: index("extracted_notes_user_id_idx").on(table.userId),
+}));
+
 // 类型导出
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -225,3 +278,9 @@ export type Flashcard = typeof flashcards.$inferSelect;
 export type NewFlashcard = typeof flashcards.$inferInsert;
 export type ReviewLog = typeof reviewLogs.$inferSelect;
 export type NewReviewLog = typeof reviewLogs.$inferInsert;
+
+// Liquid Knowledge types
+export type Topic = typeof topics.$inferSelect;
+export type NewTopic = typeof topics.$inferInsert;
+export type ExtractedNote = typeof extractedNotes.$inferSelect;
+export type NewExtractedNote = typeof extractedNotes.$inferInsert;

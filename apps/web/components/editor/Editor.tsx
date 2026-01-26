@@ -247,7 +247,7 @@ export function Editor({ documentId, showToolbar = true }: EditorProps) {
         <EditorContent editor={editor} />
 
         {/* AI Bubble Menu */}
-        <AIBubbleMenu editor={editor} />
+        <AIBubbleMenu editor={editor} documentId={documentId} />
 
         {/* Table Menu */}
         <TableMenu editor={editor} />

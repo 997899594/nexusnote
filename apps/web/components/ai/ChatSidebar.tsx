@@ -2,16 +2,18 @@
 
 import { useChat } from '@ai-sdk/react'
 import { useRef, useEffect, useState, FormEvent } from 'react'
-import { Send, Square, User, Bot, BookOpen, FileText, Pencil, Copy, FileDown, Sparkles, MessageSquare } from 'lucide-react'
+import { Send, Square, User, Bot, BookOpen, FileText, Pencil, Copy, FileDown, Sparkles, MessageSquare, Lightbulb } from 'lucide-react'
 import { smartConvert, sanitizeHtml } from '@/lib/markdown'
 import { useEditorContext } from '@/contexts/EditorContext'
 import { EditPreviewPanel, parseEditResponse } from './EditPreviewPanel'
 import { AgentChat } from './AgentChat'
+import { KnowledgePanel } from './KnowledgePanel'
+import { useNoteExtractionOptional } from '@/contexts/NoteExtractionContext'
 import type { EditCommand, DocumentBlock } from '@/lib/document-parser'
 // Generative UI Components
 import { FlashcardCreated, SearchResults, ReviewStats, LearningPlan } from './ui'
 
-type SidebarMode = 'chat' | 'agent'
+type SidebarMode = 'chat' | 'agent' | 'knowledge'
 
 interface PendingEditItem {
   command: EditCommand
@@ -79,6 +81,9 @@ export function ChatSidebar() {
   const { messages, status, stop, error, sendMessage } = useChat({
     id: 'chat-sidebar',
   })
+
+  // Note extraction context for Knowledge tab ref
+  const noteExtraction = useNoteExtractionOptional()
 
   const isLoading = status === 'streaming' || status === 'submitted'
 
@@ -301,6 +306,18 @@ export function ChatSidebar() {
           <Sparkles className="w-4 h-4" />
           Agent
         </button>
+        <button
+          ref={noteExtraction?.knowledgeTabRef}
+          onClick={() => setMode('knowledge')}
+          className={`flex-1 px-4 py-2 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
+            mode === 'knowledge'
+              ? 'text-primary border-b-2 border-primary'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <Lightbulb className="w-4 h-4" />
+          Knowledge
+        </button>
       </div>
 
       {/* Agent Mode */}
@@ -313,6 +330,9 @@ export function ChatSidebar() {
           }}
         />
       )}
+
+      {/* Knowledge Mode */}
+      {mode === 'knowledge' && <KnowledgePanel />}
 
       {/* Chat Mode */}
       {mode === 'chat' && (

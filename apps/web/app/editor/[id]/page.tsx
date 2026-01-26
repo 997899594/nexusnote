@@ -3,14 +3,19 @@
 import { Editor } from '@/components/editor/Editor'
 import { ChatSidebar } from '@/components/ai/ChatSidebar'
 import { EditorProvider } from '@/contexts/EditorContext'
-import { useState } from 'react'
+import { NoteExtractionProvider, useNoteExtraction } from '@/contexts/NoteExtractionContext'
+import { useState, useEffect } from 'react'
 import { MessageSquare, X } from 'lucide-react'
+
+// Dev user ID - replace with actual auth in production
+const DEV_USER_ID = 'dev-user-001'
 
 export default function EditorPage({ params }: { params: { id: string } }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
     <EditorProvider>
+    <NoteExtractionProviderWithUser documentId={params.id}>
     <div className="h-screen flex overflow-hidden">
       {/* Main Editor Area */}
       <div className="flex-1 flex flex-col min-w-0">
@@ -54,6 +59,44 @@ export default function EditorPage({ params }: { params: { id: string } }) {
         </aside>
       )}
     </div>
+    </NoteExtractionProviderWithUser>
     </EditorProvider>
   )
+}
+
+/**
+ * Wrapper component to initialize NoteExtractionProvider with userId
+ */
+function NoteExtractionProviderWithUser({
+  children,
+  documentId,
+}: {
+  children: React.ReactNode
+  documentId: string
+}) {
+  return (
+    <NoteExtractionProvider>
+      <NoteExtractionInitializer>
+        {children}
+      </NoteExtractionInitializer>
+    </NoteExtractionProvider>
+  )
+}
+
+/**
+ * Inner component to set userId after provider is mounted
+ */
+function NoteExtractionInitializer({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  const { setUserId } = useNoteExtraction()
+
+  useEffect(() => {
+    // Set dev user ID - replace with actual auth in production
+    setUserId(DEV_USER_ID)
+  }, [setUserId])
+
+  return <>{children}</>
 }

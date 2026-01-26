@@ -4,19 +4,34 @@ import { Editor } from '@tiptap/react'
 import { BubbleMenu } from '@tiptap/react/menus'
 import { useInlineAI, AI_ACTIONS, AIAction } from '@/hooks/useInlineAI'
 import { useState, useEffect, useCallback } from 'react'
-import { Sparkles, Loader2, X, Check, RotateCcw, Brain } from 'lucide-react'
+import { Sparkles, Loader2, X, Check, RotateCcw, Brain, BookmarkPlus } from 'lucide-react'
 import { CreateFlashcardDialog } from '@/components/srs/CreateFlashcardDialog'
+import { useNoteExtractionOptional } from '@/contexts/NoteExtractionContext'
+import { GhostFlight } from './GhostFlight'
+import { AnimatePresence } from 'framer-motion'
 
 interface AIBubbleMenuProps {
   editor: Editor
+  documentId?: string
+  chapterId?: string
 }
 
-export function AIBubbleMenu({ editor }: AIBubbleMenuProps) {
+interface FlyingNote {
+  id: string
+  content: string
+  startRect: DOMRect
+}
+
+export function AIBubbleMenu({ editor, documentId, chapterId }: AIBubbleMenuProps) {
   const [showAI, setShowAI] = useState(false)
   const [showResult, setShowResult] = useState(false)
   const [showFlashcardDialog, setShowFlashcardDialog] = useState(false)
   const [flashcardSelection, setFlashcardSelection] = useState('')
+  const [flyingNotes, setFlyingNotes] = useState<FlyingNote[]>([])
   const { completion, isLoading, runAction, stop, reset } = useInlineAI()
+
+  // Note extraction context (optional - may not be available)
+  const noteExtraction = useNoteExtractionOptional()
 
   // 获取选中的文本
   const getSelectedText = useCallback(() => {
@@ -50,6 +65,50 @@ export function AIBubbleMenu({ editor }: AIBubbleMenuProps) {
     setShowResult(false)
     reset()
   }, [stop, reset])
+
+  // 提取笔记到知识库
+  const handleExtractNote = useCallback(() => {
+    if (!noteExtraction) {
+      console.warn('[AIBubbleMenu] NoteExtraction context not available')
+      return
+    }
+
+    const { from, to } = editor.state.selection
+    if (from === to) return
+
+    const content = editor.state.doc.textBetween(from, to, ' ')
+    if (content.length < 10) {
+      console.warn('[AIBubbleMenu] Selection too short to extract')
+      return
+    }
+
+    // Get the selection rect for animation
+    const selection = window.getSelection()
+    const range = selection?.getRangeAt(0)
+    const rect = range?.getBoundingClientRect()
+
+    if (!rect) return
+
+    // Create flying note for animation
+    const tempId = crypto.randomUUID()
+    setFlyingNotes(prev => [...prev, { id: tempId, content, startRect: rect }])
+
+    // Determine source type
+    const sourceType = chapterId ? 'learning' : 'document'
+
+    // Trigger extraction
+    noteExtraction.extractNote(content, rect, {
+      sourceType,
+      documentId,
+      chapterId,
+      position: { from, to },
+    })
+  }, [editor, noteExtraction, documentId, chapterId])
+
+  // Clear flying note after animation
+  const handleFlightComplete = useCallback((noteId: string) => {
+    setFlyingNotes(prev => prev.filter(n => n.id !== noteId))
+  }, [])
 
   // ESC 关闭
   useEffect(() => {
@@ -123,6 +182,20 @@ export function AIBubbleMenu({ editor }: AIBubbleMenuProps) {
           >
             <Brain className="w-4 h-4" />
           </button>
+
+          {/* 提取到知识库按钮 */}
+          {noteExtraction && (
+            <>
+              <div className="w-px h-6 bg-border mx-1" />
+              <button
+                onClick={handleExtractNote}
+                className="p-2 rounded hover:bg-muted flex items-center gap-1 text-sm text-primary"
+                title="提取到知识库"
+              >
+                <BookmarkPlus className="w-4 h-4" />
+              </button>
+            </>
+          )}
         </div>
 
         {/* AI 操作菜单 */}
@@ -207,6 +280,19 @@ export function AIBubbleMenu({ editor }: AIBubbleMenuProps) {
         onClose={() => setShowFlashcardDialog(false)}
         initialFront={flashcardSelection}
       />
+
+      {/* 幽灵飞梭动画 */}
+      <AnimatePresence>
+        {flyingNotes.map(note => (
+          <GhostFlight
+            key={note.id}
+            id={note.id}
+            content={note.content}
+            startRect={note.startRect}
+            onComplete={() => handleFlightComplete(note.id)}
+          />
+        ))}
+      </AnimatePresence>
     </>
   )
 }
