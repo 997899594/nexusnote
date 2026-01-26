@@ -107,9 +107,8 @@ async function generateTopicName(content: string): Promise<string> {
 
   try {
     const { text } = await generateText({
-      model: openai('gpt-4o-mini'),
+      model: openai('gemini-2.5-flash-preview-05-20'),
       prompt: `基于这段笔记内容，生成一个简短的技术主题名称（不超过6个字，中文）：\n\n${content.slice(0, 500)}`,
-      maxTokens: 20,
     })
     return text.trim().slice(0, 20)
   } catch (err) {
@@ -326,6 +325,7 @@ export class NotesService implements OnModuleInit {
 
         return {
           ...topic,
+          noteCount: topic.noteCount ?? 0,
           recentNotes,
         }
       })
