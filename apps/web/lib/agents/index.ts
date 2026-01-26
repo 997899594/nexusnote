@@ -2,7 +2,6 @@
  * NexusNote Agent System
  *
  * 统一 Agent 基础设施
- * 借鉴 Manus AI: observe → plan → execute → reflect
  */
 
 // Core

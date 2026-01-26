@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from 'react'
 import {
   Bot,
   Play,
-  Pause,
   Square,
   ChevronDown,
   ChevronRight,
@@ -33,7 +32,6 @@ interface AgentPanelProps {
   state: AgentState | null
   events: AgentEvent[]
   isRunning: boolean
-  onPause: () => void
   onResume: (userInput?: string) => void
   onAbort: () => void
 }
@@ -359,7 +357,6 @@ export function AgentPanel({
   state,
   events,
   isRunning,
-  onPause,
   onResume,
   onAbort,
 }: AgentPanelProps) {
@@ -413,21 +410,13 @@ export function AgentPanel({
         {/* Controls */}
         {isRunning && (
           <div className="flex items-center gap-1">
-            {state?.status === 'paused' ? (
+            {state?.status === 'paused' && (
               <button
                 onClick={() => onResume()}
                 className="p-1.5 hover:bg-muted rounded transition-colors"
                 title="Resume"
               >
                 <Play className="w-4 h-4" />
-              </button>
-            ) : (
-              <button
-                onClick={onPause}
-                className="p-1.5 hover:bg-muted rounded transition-colors"
-                title="Pause"
-              >
-                <Pause className="w-4 h-4" />
               </button>
             )}
             <button

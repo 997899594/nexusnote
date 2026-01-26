@@ -142,6 +142,18 @@ export const webSearchModel = provider
 apps/web/
 ├── lib/ai.ts              # 模型配置
 ├── lib/agents/            # Agent 系统
+│   ├── core/              # Agent 核心
+│   │   ├── base-agent.ts  # Agent 基类
+│   │   ├── types.ts       # 类型定义
+│   │   └── agent-runtime.ts # 运行时管理
+│   ├── agents/            # 具体 Agent 实现
+│   │   └── knowledge-agent.ts
+│   └── tools/             # Agent 工具
+│       ├── tool-registry.ts # 工具注册表
+│       ├── editor/        # 编辑器工具
+│       ├── storage/       # 存储工具
+│       └── knowledge/     # 知识工具
+├── app/api/agent/         # Agent API (Function Calling)
 ├── app/api/chat/          # Chat API
 ├── app/api/completion/    # Completion API
 └── app/api/flashcard/     # Flashcard API
@@ -167,6 +179,137 @@ apps/server/
     └── rag.controller.ts  # API 端点
 ```
 
+## Agent 系统架构
+
+### Function Calling 实现
+
+NexusNote 使用 **AI SDK 原生 Function Calling**，而不是手动解析 JSON。
+
+**核心流程：**
+
+```typescript
+// 1. 注册工具到 ToolRegistry
+toolRegistry.register({
+  name: 'searchNotes',
+  description: '搜索笔记',
+  inputSchema: z.object({
+    query: z.string(),
+  }),
+  execute: async (input, context) => {
+    // 工具执行逻辑
+  },
+})
+
+// 2. Agent 调用 /api/agent
+const response = await fetch('/api/agent', {
+  method: 'POST',
+  body: JSON.stringify({
+    system: '你是智能助手...',
+    prompt: '用户目标',
+    tools: ['searchNotes', 'createFlashcards'],
+    maxSteps: 5,
+  }),
+})
+
+// 3. AI SDK 自动处理 Function Calling
+const result = await generateText({
+  model: chatModel,
+  system,
+  prompt,
+  tools: toolRegistry.toAISDKTools(toolNames),
+  stopWhen: stepCountIs(maxSteps),
+})
+
+// 4. 返回结果
+return {
+  text: result.text,           // AI 生成的文本
+  toolCalls: result.toolResults, // 调用的工具列表
+  finishReason: result.finishReason,
+}
+```
+
+**关键特性：**
+
+1. **真正的 Function Calling** - AI 自动决定调用哪些工具
+2. **多步执行** - 使用 `stopWhen: stepCountIs(maxSteps)` 控制步数
+3. **工具注册表** - 统一管理所有工具
+4. **服务端执行** - API Key 不暴露到客户端
+5. **澄清机制** - 最多 2 轮澄清，超过后强制执行
+
+### Agent 生命周期
+
+```
+idle → planning → executing → [paused] → completed/failed
+```
+
+**状态说明：**
+- `idle` - 初始状态
+- `planning` - AI 制定计划（调用 /api/agent）
+- `executing` - 执行步骤
+- `paused` - 等待用户澄清（仅 ask_user 步骤）
+- `completed` - 成功完成
+- `failed` - 执行失败
+
+### 工具系统
+
+**工具定义：**
+
+```typescript
+interface AgentTool<INPUT, OUTPUT> {
+  name: string
+  description: string
+  category: 'storage' | 'editor' | 'knowledge' | 'ai'
+  inputSchema: z.ZodSchema<INPUT>
+  execute: (input: INPUT, context: ToolContext) => Promise<ToolResult<OUTPUT>>
+  requiresConfirmation?: boolean
+  sideEffects?: boolean
+}
+```
+
+**内置工具：**
+
+| 工具名 | 类别 | 功能 |
+|-------|------|------|
+| `readDocument` | storage | 读取文档 |
+| `listDocuments` | storage | 列出文档 |
+| `searchDocumentsLocal` | storage | 本地搜索 |
+| `applyEdit` | editor | 应用编辑 |
+| `getDocumentStructure` | editor | 获取文档结构 |
+| `semanticSearch` | knowledge | 语义搜索（RAG） |
+| `findRelatedNotes` | knowledge | 查找相关笔记 |
+| `createFlashcards` | ai | 创建闪卡 |
+| `getReviewStats` | ai | 获取复习统计 |
+| `createLearningPlan` | ai | 创建学习计划 |
+
+### Human-in-the-Loop
+
+**澄清机制：**
+
+```typescript
+// 配置
+config: {
+  maxClarificationRounds: 2,  // 最多 2 轮澄清
+}
+
+// AI 决策
+if (needsClarification && clarificationCount < maxRounds) {
+  return {
+    steps: [{
+      type: 'ask_user',
+      question: '请问...',
+    }],
+  }
+}
+```
+
+**用户体验：**
+1. Agent 在聊天中提问
+2. 输入框显示黄色边框（等待状态）
+3. 用户在聊天输入框回答
+4. Agent 继续执行
+
+**不使用生成式 UI 输入框** - 所有交互都在聊天流中完成。
+
 ## 数据流示例
 
 ### 场景 1: 用户对话 + RAG
@@ -186,16 +329,15 @@ apps/server/
 ```
 1. 用户输入目标
    ↓
-2. Agent.plan() - 使用 chatModel 制定计划
-   ↓
-3. Agent.execute() - 逐步执行
-   ├─→ 调用工具 (searchNotes)
-   │   └─→ 后端 RAG (embeddingModel)
-   ├─→ 调用工具 (createFlashcards)
-   │   └─→ chatModel 生成闪卡
-   └─→ Agent.reflect() - chatModel 反思
-       ↓
-4. Agent.synthesize() - chatModel 总结结果
+2. Agent.run() - 调用 /api/agent
+   ├─→ 使用 chatModel + Function Calling
+   │   ├─→ AI 自动制定计划
+   │   ├─→ AI 自动调用工具
+   │   └─→ AI 自动生成结果
+   └─→ 返回执行结果
+       ├─→ text: 最终回答
+       ├─→ toolCalls: 调用的工具列表
+       └─→ finishReason: 完成原因
 ```
 
 ### 场景 3: 学习内容生成

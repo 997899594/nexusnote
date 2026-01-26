@@ -2,7 +2,6 @@
  * Agent Core Types
  *
  * 统一 Agent 系统的核心类型定义
- * 借鉴 Manus AI: observe → plan → execute → reflect
  */
 
 import type { DocumentStructure, EditCommand } from '@nexusnote/types'
@@ -20,7 +19,7 @@ export type AgentStatus =
   | 'completed'
   | 'failed'
 
-export type StepType = 'observe' | 'plan' | 'execute' | 'reflect' | 'ask_user'
+export type StepType = 'plan' | 'execute' | 'ask_user'
 
 export type StepStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped' | 'waiting_user'
 
@@ -97,20 +96,10 @@ export interface AgentMemory {
  * Agent 配置
  */
 export interface AgentConfig {
-  /** 最大步骤数 */
-  maxSteps: number
-  /** 最大迭代次数 */
-  maxIterations: number
-  /** 温度参数 */
-  temperature: number
-  /** 是否启用反思 */
-  enableReflection: boolean
-  /** 是否自动应用编辑（用户选择：可配置） */
-  autoApplyEdits: boolean
-  /** 超时时间（毫秒） */
-  timeout: number
-  /** 最大澄清轮数（防止无限循环） */
+  /** 最大澄清轮数 */
   maxClarificationRounds: number
+  /** AI 温度参数 */
+  temperature: number
 }
 
 /**
@@ -212,11 +201,6 @@ export interface AgentDefinition {
 // ============================================
 
 export const DEFAULT_AGENT_CONFIG: AgentConfig = {
-  maxSteps: 20,
-  maxIterations: 10,
+  maxClarificationRounds: 2,
   temperature: 0.7,
-  enableReflection: true,
-  autoApplyEdits: false,  // 默认需要确认
-  timeout: 60000,  // 1 分钟
-  maxClarificationRounds: 2,  // 最多澄清 2 轮
 }

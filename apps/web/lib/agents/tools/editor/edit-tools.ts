@@ -45,16 +45,13 @@ export const applyEdit = defineTool({
       }
     }
 
-    // 返回待确认的编辑命令
-    // 实际应用由 UI 层的 EditorContext 处理
+    // 返回编辑命令（由 UI 层处理）
     return {
       success: true,
-      requiresConfirmation: !context.config.autoApplyEdits,
+      requiresConfirmation: true,
       pendingData: command,
       data: {
-        message: context.config.autoApplyEdits
-          ? 'Edit will be applied automatically'
-          : 'Edit pending confirmation',
+        message: 'Edit pending confirmation',
         command,
       },
     }
@@ -135,7 +132,7 @@ export const applyEdits = defineTool({
 
     return {
       success: true,
-      requiresConfirmation: !context.config.autoApplyEdits,
+      requiresConfirmation: true,
       pendingData: commands,
       data: {
         message: `${commands.length} edits pending`,

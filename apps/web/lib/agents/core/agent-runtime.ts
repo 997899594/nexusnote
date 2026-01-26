@@ -33,8 +33,7 @@ class AgentRuntime {
   getActive() { return this.activeId ? this.agents.get(this.activeId) : null }
   getAllStates(): AgentState[] { return [...this.agents.values()].map(a => a.getState()) }
 
-  pauseActive(reason?: string) { this.getActive()?.pause(reason) }
-  resumeActive() { this.getActive()?.resume() }
+  resumeActive(userInput?: string) { this.getActive()?.resume(userInput) }
   abortActive() { this.getActive()?.abort() }
 
   remove(id: string) {

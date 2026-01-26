@@ -21,7 +21,6 @@ interface UseAgentReturn {
   events: AgentEvent[]
   isRunning: boolean
   run: (input: AgentInput) => Promise<AgentOutput>
-  pause: () => void
   resume: (userInput?: string) => void
   abort: () => void
 }
@@ -68,9 +67,8 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
   }, [type, handleEvent])
 
   // 控制方法
-  const pause = useCallback(() => agentRef.current?.pause(), [])
   const resume = useCallback((userInput?: string) => agentRef.current?.resume(userInput), [])
   const abort = useCallback(() => { agentRef.current?.abort(); setIsRunning(false) }, [])
 
-  return { state, events, isRunning, run, pause, resume, abort }
+  return { state, events, isRunning, run, resume, abort }
 }

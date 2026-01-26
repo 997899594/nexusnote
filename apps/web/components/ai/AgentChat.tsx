@@ -38,7 +38,6 @@ export function AgentChat({
     events,
     isRunning,
     run,
-    pause,
     resume,
     abort,
   } = useAgent({
@@ -49,11 +48,12 @@ export function AgentChat({
       // 监听暂停事件，显示 Agent 的问题
       if (event.type === 'paused') {
         const currentStep = state?.plan?.steps[state.plan.currentStepIndex]
-        if (currentStep?.type === 'ask_user' && currentStep.question) {
+        const question = currentStep?.type === 'ask_user' ? currentStep.question : null
+        if (question) {
           setMessages(prev => [...prev, {
             id: `agent-${Date.now()}`,
-            role: 'agent',
-            content: currentStep.question,
+            role: 'agent' as const,
+            content: question,
             timestamp: Date.now(),
           }])
           setIsWaitingForUser(true)
@@ -188,7 +188,6 @@ export function AgentChat({
               state={state}
               events={events}
               isRunning={isRunning}
-              onPause={pause}
               onResume={() => resume()}
               onAbort={abort}
             />
