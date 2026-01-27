@@ -1,43 +1,34 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import { SessionProvider } from 'next-auth/react'
-import { SessionWatcher } from '@/components/auth/SessionWatcher'
 import { ThemeProvider } from '@/components/layout/ThemeProvider'
-import { Aura } from '@/components/layout/Aura'
-import { AdaptiveDock } from '@/components/layout/AdaptiveDock'
+import { MobileNav } from '@/components/layout/MobileNav'
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'NexusNote - AI 驱动的智慧知识库',
-  description: '本地优先、AI 驱动的次世代智慧知识库',
+    title: 'NexusNote - AI Course Engine',
+    description: 'Pure focus learning driven by AI.',
 }
 
 export default function RootLayout({
-  children,
+    children,
 }: {
-  children: React.ReactNode
+    children: React.ReactNode
 }) {
-  return (
-    <html lang="zh-CN" suppressHydrationWarning>
-      <body className={`${inter.className} antialiased`}>
-        <SessionProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="dark"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <SessionWatcher />
-            <Aura />
-            <AdaptiveDock />
-            <main className="relative min-h-screen">
-              {children}
-            </main>
-          </ThemeProvider>
-        </SessionProvider>
-      </body>
-    </html>
-  )
+    return (
+        <html lang="zh-CN" suppressHydrationWarning>
+            <body className={inter.className}>
+                <SessionProvider>
+                    <ThemeProvider attribute="class" defaultTheme="light">
+                        <main className="min-h-screen bg-white pb-16 md:pb-0">
+                            {children}
+                        </main>
+                        <MobileNav />
+                    </ThemeProvider>
+                </SessionProvider>
+            </body>
+        </html>
+    )
 }

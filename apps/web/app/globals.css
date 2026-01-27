@@ -3,350 +3,92 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    /* Snow Alabaster (Light Theme) */
-    --background: 0 0% 98.5%;
-    --foreground: 240 10% 3.9%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --border: 240 5.9% 90%;
-    --primary: 262.1 83.3% 57.8%;
-    --primary-foreground: 210 20% 98%;
+    :root {
+        --background: 0 0% 100%;
+        --foreground: 240 10% 10%;
+        --muted: 240 5% 96%;
+        --muted-foreground: 240 5% 45%;
+        --border: 240 5% 92%;
+        --primary: 262 80% 50%;
+        --primary-foreground: 0 0% 100%;
 
-    /* Spatial UI Specifics */
-    --glass-background: 0 0% 100% / 0.7;
-    --glass-border: 0 0% 0% / 0.05;
-    --glass-shadow: rgba(0, 0, 0, 0.05);
-    --aura-1: 262 83% 58% / 0.1;
-    --aura-2: 199 89% 48% / 0.1;
-  }
+        --card: 0 0% 100%;
+        --card-foreground: 240 10% 10%;
 
-  .dark {
-    /* Obsidian Deep (Dark Theme) */
-    --background: 240 10% 2.5%;
-    --foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --border: 240 3.7% 15.9%;
-    --primary: 263.4 70% 50.4%;
-    --primary-foreground: 210 20% 98%;
-
-    /* Spatial UI Specifics */
-    --glass-background: 0 0% 0% / 0.4;
-    --glass-border: 0 0% 100% / 0.05;
-    --glass-shadow: rgba(0, 0, 0, 0.8);
-    --aura-1: 262 83% 58% / 0.08;
-    --aura-2: 199 89% 48% / 0.05;
-  }
+        --radius: 1.5rem;
+    }
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
+    * {
+        @apply border-border;
+    }
 
-  body {
-    @apply bg-background text-foreground transition-colors duration-500 overflow-x-hidden;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-  }
+    body {
+        @apply bg-background text-foreground antialiased selection:bg-primary/10;
+        font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    }
 }
-
-/* ============================================ */
-/* Spatial UI Utilities */
-/* ============================================ */
 
 @layer components {
-  .glass-panel {
-    @apply backdrop-blur-xl border-white/5 dark:border-white/10;
-    background-color: hsla(var(--glass-background));
-    box-shadow: 0 4px 24px 0 var(--glass-shadow);
-    will-change: transform, opacity;
-    -webkit-backface-visibility: hidden;
-    backface-visibility: hidden;
-    transform: translateZ(0);
-  }
+    .paper-card {
+        @apply bg-white border border-black/[0.05] rounded-[2rem] transition-all;
+    }
 
-  .aura-bg {
-    @apply fixed inset-0 overflow-hidden pointer-events-none -z-10;
-    perspective: 1000px;
-  }
+    .no-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
 
-  .aura-blob {
-    @apply absolute rounded-full opacity-20;
-    filter: blur(80px);
-    -webkit-filter: blur(80px);
-  }
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+        background: transparent;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background-color: rgba(0, 0, 0, 0.1);
+        border-radius: 20px;
+        border: transparent;
+    }
+
+    .custom-scrollbar:hover::-webkit-scrollbar-thumb {
+        background-color: rgba(0, 0, 0, 0.3);
+    }
 }
 
-@keyframes slow-rotate {
-  from {
-    transform: rotate(0deg) scale(1);
-  }
-
-  50% {
-    transform: rotate(180deg) scale(1.1);
-  }
-
-  to {
-    transform: rotate(360deg) scale(1);
-  }
-}
-
-.animate-slow-rotate {
-  animation: slow-rotate 20s linear infinite;
-}
-
-/* Tiptap Editor Styles */
+/* Tiptap Integration - Manual Minimalist Typography */
 .tiptap {
-  @apply outline-none;
-}
-
-.tiptap p.is-editor-empty:first-child::before {
-  @apply text-muted-foreground pointer-events-none float-left h-0;
-  content: attr(data-placeholder);
+    @apply outline-none max-w-none px-4;
 }
 
 .tiptap h1 {
-  @apply text-3xl font-bold mt-6 mb-4;
+    @apply text-3xl font-bold mt-8 mb-4 tracking-tight;
 }
 
 .tiptap h2 {
-  @apply text-2xl font-bold mt-5 mb-3;
+    @apply text-2xl font-semibold mt-6 mb-3 tracking-tight;
 }
 
 .tiptap h3 {
-  @apply text-xl font-bold mt-4 mb-2;
+    @apply text-xl font-medium mt-4 mb-2;
 }
 
 .tiptap p {
-  @apply my-2;
-}
-
-.tiptap ul,
-.tiptap ol {
-  @apply pl-6 my-2;
+    @apply my-4 leading-relaxed text-black/80;
 }
 
 .tiptap ul {
-  @apply list-disc;
+    @apply list-disc pl-6 my-4 space-y-2;
 }
 
 .tiptap ol {
-  @apply list-decimal;
+    @apply list-decimal pl-6 my-4 space-y-2;
 }
 
-.tiptap code {
-  @apply bg-muted px-1.5 py-0.5 rounded text-sm font-mono;
+.tiptap li {
+    @apply leading-relaxed;
 }
 
-.tiptap pre {
-  @apply bg-muted p-4 rounded-lg my-4 overflow-x-auto;
-}
-
-.tiptap pre code {
-  @apply bg-transparent p-0;
-}
-
-.tiptap blockquote {
-  @apply border-l-4 border-muted pl-4 my-4 italic;
-}
-
-/* Collaboration Cursor */
-.collaboration-cursor__caret {
-  @apply relative ml-[-1px] mr-[-1px] pointer-events-none;
-  border-left: 1px solid;
-  border-right: 1px solid;
-  word-break: normal;
-}
-
-.collaboration-cursor__label {
-  @apply absolute -top-5 left-[-1px] text-xs text-white whitespace-nowrap rounded px-1 py-0.5;
-  font-size: 10px;
-  font-style: normal;
-  font-weight: 600;
-  line-height: normal;
-  user-select: none;
-}
-
-/* ============================================ */
-/* Task List / Checklist */
-/* ============================================ */
-.tiptap ul[data-type="taskList"] {
-  @apply list-none pl-0 my-2;
-}
-
-.tiptap ul[data-type="taskList"] li {
-  @apply flex items-start gap-2 my-1;
-}
-
-.tiptap ul[data-type="taskList"] li>label {
-  @apply flex items-center justify-center mt-0.5;
-}
-
-.tiptap ul[data-type="taskList"] li>label>input[type="checkbox"] {
-  @apply w-4 h-4 rounded border-border cursor-pointer accent-primary;
-}
-
-.tiptap ul[data-type="taskList"] li>div {
-  @apply flex-1 min-w-0;
-}
-
-.tiptap ul[data-type="taskList"] li[data-checked="true"]>div {
-  @apply line-through text-muted-foreground;
-}
-
-/* ============================================ */
-/* Table */
-/* ============================================ */
-.tiptap .editor-table {
-  @apply border-collapse w-full my-4 overflow-hidden rounded-lg;
-}
-
-.tiptap table {
-  @apply border-collapse w-full my-4;
-}
-
-.tiptap table th,
-.tiptap table td {
-  @apply border border-border p-2 min-w-[80px] relative align-top;
-}
-
-.tiptap table th {
-  @apply bg-muted font-semibold text-left;
-}
-
-.tiptap table td {
-  @apply bg-background;
-}
-
-.tiptap table .selectedCell {
-  @apply bg-primary/10;
-}
-
-.tiptap table .selectedCell::after {
-  @apply absolute inset-0 pointer-events-none;
-  content: "";
-  background: hsl(var(--primary) / 0.1);
-}
-
-/* Table resize handle */
-.tiptap .column-resize-handle {
-  @apply absolute top-0 right-[-2px] bottom-[-2px] w-1;
-  background-color: hsl(var(--primary));
-  cursor: col-resize;
-}
-
-.tiptap .tableWrapper {
-  @apply overflow-x-auto my-4;
-}
-
-.tiptap .resize-cursor {
-  cursor: col-resize;
-}
-
-/* ============================================ */
-/* Image */
-/* ============================================ */
-.tiptap .editor-image {
-  @apply max-w-full h-auto my-4 rounded-lg;
-}
-
-.tiptap img {
-  @apply max-w-full h-auto rounded-lg;
-}
-
-.tiptap img.ProseMirror-selectednode {
-  @apply ring-2 ring-primary ring-offset-2;
-}
-
-/* ============================================ */
-/* YouTube / Video Embed */
-/* ============================================ */
-.tiptap .editor-youtube {
-  @apply w-full my-4;
-}
-
-.tiptap div[data-youtube-video] {
-  @apply relative w-full my-4;
-  padding-bottom: 56.25%;
-  /* 16:9 aspect ratio */
-}
-
-.tiptap div[data-youtube-video] iframe {
-  @apply absolute top-0 left-0 w-full h-full rounded-lg;
-}
-
-/* ============================================ */
-/* Dropcursor */
-/* ============================================ */
-.ProseMirror-dropcursor {
-  @apply bg-primary;
-}
-
-/* ============================================ */
-/* Gapcursor */
-/* ============================================ */
-.ProseMirror-gapcursor {
-  @apply relative;
-}
-
-.ProseMirror-gapcursor:after {
-  @apply absolute block w-5 border-t border-foreground;
-  content: "";
-  top: -2px;
-}
-
-/* ============================================ */
-/* Callout */
-/* ============================================ */
-.tiptap .callout {
-  @apply rounded-lg border p-4 my-4;
-}
-
-.tiptap .callout-info {
-  @apply bg-blue-50 border-blue-200;
-}
-
-.tiptap .callout-warning {
-  @apply bg-yellow-50 border-yellow-200;
-}
-
-.tiptap .callout-success {
-  @apply bg-green-50 border-green-200;
-}
-
-.tiptap .callout-error {
-  @apply bg-red-50 border-red-200;
-}
-
-/* Dark mode support */
-.dark .tiptap .callout-info {
-  @apply bg-blue-950/30 border-blue-800;
-}
-
-.dark .tiptap .callout-warning {
-  @apply bg-yellow-950/30 border-yellow-800;
-}
-
-.dark .tiptap .callout-success {
-  @apply bg-green-950/30 border-green-800;
-}
-
-.dark .tiptap .callout-error {
-  @apply bg-red-950/30 border-red-800;
-}
-
-/* ============================================ */
-/* Collapsible / Toggle */
-/* ============================================ */
-.tiptap .collapsible {
-  @apply border rounded-lg my-4 overflow-hidden;
-}
-
-.tiptap .collapsible>div:first-child {
-  @apply bg-muted/50 cursor-pointer select-none;
-}
-
-.tiptap .collapsible>div:last-child {
-  @apply border-t;
+.tiptap p.is-editor-empty:first-child::before {
+    @apply text-muted-foreground pointer-events-none float-left h-0;
+    content: attr(data-placeholder);
 }
