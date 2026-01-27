@@ -1,6 +1,8 @@
 import { API_URL } from '@/lib/config'
 
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 
 /**
  * GET /api/notes/topics?userId=xxx
