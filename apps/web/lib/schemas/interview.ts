@@ -1,5 +1,17 @@
 import { z } from "zod";
 
+// 定义大纲节点的递归结构 (或者简化结构)
+// 这是一个通用的课程大纲结构
+const chapterSchema = z.object({
+  title: z.string(),
+  contentSnippet: z.string().optional(),
+});
+
+const moduleSchema = z.object({
+  title: z.string(),
+  chapters: z.array(chapterSchema),
+});
+
 export const interviewSchema = z.object({
   analysis: z
     .string()
@@ -58,6 +70,14 @@ export const interviewSchema = z.object({
         .optional(),
     })
     .optional(),
+  // ✅ 新增：大纲修订字段
+  revisedOutline: z
+    .object({
+      title: z.string(),
+      modules: z.array(moduleSchema),
+    })
+    .optional()
+    .describe("【仅在大纲修订模式下返回】根据用户反馈修改后的完整大纲结构。"),
 });
 
 export type InterviewSchema = z.infer<typeof interviewSchema>;

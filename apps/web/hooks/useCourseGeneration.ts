@@ -12,6 +12,7 @@ import { learningStore } from "@/lib/storage";
 export type Phase =
   | "interview"
   | "synthesis"
+  | "outline_review"
   | "seeding"
   | "growing"
   | "ready"
@@ -26,12 +27,34 @@ interface Config {
   cognitiveStyle?: string;
 }
 
+interface Chapter {
+  title: string;
+  summary?: string;
+  keyPoints?: string[];
+  contentSnippet?: string;
+}
+
+interface Module {
+  title: string;
+  chapters: Chapter[];
+}
+
+interface CourseOutline {
+  title: string;
+  description: string;
+  difficulty: "beginner" | "intermediate" | "advanced";
+  estimatedMinutes: number;
+  modules?: Module[];
+  chapters?: Chapter[];
+}
+
 interface State {
   phase: Phase;
   goal: string;
   config: Config;
   history: { q: string; a: string }[];
   nodes: Node[];
+  outline: CourseOutline | null;
 }
 
 type Action =
@@ -39,6 +62,7 @@ type Action =
   | { type: "UPDATE_CONFIG"; payload: Partial<Config> }
   | { type: "ADD_HISTORY"; payload: { q: string; a: string } }
   | { type: "SET_NODES"; payload: Node[] }
+  | { type: "SET_OUTLINE"; payload: CourseOutline }
   | { type: "TRANSITION"; payload: Phase }
   | {
       type: "UPDATE_NODE_STATUS";
@@ -60,6 +84,7 @@ const initialState: State = {
   },
   history: [],
   nodes: [],
+  outline: null,
 };
 
 function reducer(state: State, action: Action): State {
@@ -72,6 +97,8 @@ function reducer(state: State, action: Action): State {
       return { ...state, history: [...state.history, action.payload] };
     case "SET_NODES":
       return { ...state, nodes: action.payload };
+    case "SET_OUTLINE":
+      return { ...state, outline: action.payload };
     case "TRANSITION":
       return { ...state, phase: action.payload };
     case "UPDATE_NODE_STATUS":
@@ -144,6 +171,48 @@ export function useCourseGeneration(initialGoal: string = "") {
     onFinish: ({ object }) => {
       if (!object) return;
 
+      // 0. Handle Revised Outline (Outline Review Phase)
+      if (object.revisedOutline) {
+        // Update nodes to reflect new outline
+        // Flatten modules to get chapters for visualization
+        const allChapters = object.revisedOutline.modules
+          ? object.revisedOutline.modules.flatMap((m: any) => m.chapters)
+          : [];
+
+        // Adapt new schema to CourseOutline interface
+        const outlinePayload: CourseOutline = {
+          title: object.revisedOutline.title,
+          description: state.outline?.description || "",
+          difficulty: state.outline?.difficulty || "beginner",
+          estimatedMinutes: state.outline?.estimatedMinutes || 0,
+          modules: object.revisedOutline.modules,
+          chapters: allChapters.map((ch: any) => ({
+            title: ch.title,
+            summary: ch.contentSnippet || "",
+            keyPoints: [],
+            contentSnippet: ch.contentSnippet,
+          })),
+        };
+        dispatch({ type: "SET_OUTLINE", payload: outlinePayload });
+
+        const newNodes: Node[] = allChapters.map(
+          (ch: any, i: number): Node => ({
+            id: `node-${i}`,
+            title: ch.title,
+            type: "chapter",
+            x: Math.cos((i / allChapters.length) * Math.PI * 2) * 280,
+            y: Math.sin((i / allChapters.length) * Math.PI * 2) * 280,
+            status: "ready",
+            depth: 1,
+          }),
+        );
+        dispatch({ type: "SET_NODES", payload: newNodes });
+
+        setIsAiThinking(false);
+        setAiResponse(object.feedback || "Outline updated.");
+        return;
+      }
+
       // 1. Update Config
       if (object.configUpdate) {
         dispatch({ type: "UPDATE_CONFIG", payload: object.configUpdate });
@@ -155,14 +224,66 @@ export function useCourseGeneration(initialGoal: string = "") {
       }
 
       // 3. Transition Logic
-      // Removing the 4s delay trap, making it more responsive
-      // But keeping a small delay for reading if needed, or relying on user interaction
-
       setAiResponse("");
       setIsAiThinking(false);
 
       if (object.metaAction === "finish" || object.isComplete) {
-        dispatch({ type: "TRANSITION", payload: "synthesis" });
+        // Fetch initial outline before transitioning to outline_review
+        setIsAiThinking(true);
+        // Use a self-executing async function or call a defined function
+        (async () => {
+          try {
+            const response = await fetch("/api/learn/generate", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                goal: state.goal,
+                ...state.config,
+              }),
+            });
+            const data = await response.json();
+
+            // Adapt generate API response (chapters) to CourseOutline
+            const outlinePayload: CourseOutline = {
+              title: data.title,
+              description: data.description,
+              difficulty: data.difficulty,
+              estimatedMinutes: data.estimatedMinutes,
+              chapters: data.chapters, // Use chapters directly as returned by generate
+              // We can also populate modules if we want to be forward compatible
+              modules: [
+                {
+                  title: "Course Content",
+                  chapters: data.chapters,
+                },
+              ],
+            };
+
+            dispatch({ type: "SET_OUTLINE", payload: outlinePayload });
+
+            // Generate nodes for visualization
+            const newNodes: Node[] = data.chapters.map(
+              (ch: any, i: number): Node => ({
+                id: `node-${i}`,
+                title: ch.title,
+                type: "chapter",
+                x: Math.cos((i / data.chapters.length) * Math.PI * 2) * 280,
+                y: Math.sin((i / data.chapters.length) * Math.PI * 2) * 280,
+                status: "ready",
+                depth: 1,
+              }),
+            );
+            dispatch({ type: "SET_NODES", payload: newNodes });
+
+            dispatch({ type: "TRANSITION", payload: "outline_review" });
+          } catch (error) {
+            console.error("Failed to fetch initial outline:", error);
+            // Fallback to synthesis if generation fails
+            dispatch({ type: "TRANSITION", payload: "synthesis" });
+          } finally {
+            setIsAiThinking(false);
+          }
+        })();
       } else if (object.metaAction === "correction") {
         setCurrentQuestion(object.nextQuestion || "好的，那我们继续。");
       } else {
@@ -196,13 +317,35 @@ export function useCourseGeneration(initialGoal: string = "") {
 
       if (!answer.trim() || isAiThinking) return;
 
+      setUserInput("");
+      setIsAiThinking(true);
+
+      // Special handling for Outline Review Phase
+      if (state.phase === "outline_review") {
+        // Just send the feedback, don't update history in the same way or maybe keep a separate history?
+        // For simplicity, we just send the current input as feedback.
+        submit({
+          goal: state.goal,
+          history: [{ q: "Previous Outline Context", a: answer }], // Simplified history for review
+          currentProfile: state.config,
+          phase: "outline_review",
+          currentOutline: state.outline,
+        });
+        return;
+      }
+
+      // If there was a previous AI response, archive it to history first
+      if (aiResponse && currentQuestion) {
+        // ... history logic
+      }
+
       const currentQ = currentQuestion;
 
-      dispatch({ type: "ADD_HISTORY", payload: { q: currentQ, a: answer } });
-      setUserInput("");
-      setSuggestedUI(null);
-      setIsAiThinking(true);
+      // Clear AI response from UI immediately as we are moving to next turn
       setAiResponse("");
+
+      dispatch({ type: "ADD_HISTORY", payload: { q: currentQ, a: answer } });
+      setSuggestedUI(null);
 
       submit({
         goal: state.goal,
@@ -217,6 +360,8 @@ export function useCourseGeneration(initialGoal: string = "") {
       state.goal,
       state.history,
       state.config,
+      state.phase,
+      state.outline,
       submit,
     ],
   );
@@ -226,15 +371,23 @@ export function useCourseGeneration(initialGoal: string = "") {
     if (state.phase === "synthesis") {
       const generateRealCourse = async () => {
         try {
-          const response = await fetch("/api/learn/generate", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              goal: state.goal,
-              ...state.config,
-            }),
-          });
-          const data = await response.json();
+          let data;
+
+          // If we already have a refined outline, use it!
+          if (state.outline) {
+            data = state.outline;
+          } else {
+            // Fallback: Generate from scratch (should rarely happen if flow is correct)
+            const response = await fetch("/api/learn/generate", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                goal: state.goal,
+                ...state.config,
+              }),
+            });
+            data = await response.json();
+          }
 
           // Persist course
           try {
@@ -244,14 +397,19 @@ export function useCourseGeneration(initialGoal: string = "") {
             console.error("Failed to persist course:", e);
           }
 
-          // Transform to Nodes
-          const newNodes: Node[] = data.chapters.map(
+          // Transform to Nodes (for visualization)
+          // Ensure chapters exist
+          const chapters =
+            data.chapters ||
+            (data.modules ? data.modules.flatMap((m: any) => m.chapters) : []);
+
+          const newNodes: Node[] = chapters.map(
             (ch: any, i: number): Node => ({
               id: `node-${i}`,
               title: ch.title,
               type: "chapter",
-              x: Math.cos((i / data.chapters.length) * Math.PI * 2) * 280,
-              y: Math.sin((i / data.chapters.length) * Math.PI * 2) * 280,
+              x: Math.cos((i / chapters.length) * Math.PI * 2) * 280,
+              y: Math.sin((i / chapters.length) * Math.PI * 2) * 280,
               status: "ready", // Start ready for now, or animate
               depth: 1,
             }),
@@ -312,6 +470,14 @@ export function useCourseGeneration(initialGoal: string = "") {
     }
   }, [state.phase, createdCourseId, router]);
 
+  // Actions for Outline Review
+  const confirmOutline = async (finalOutline: CourseOutline) => {
+    // We update the state with the final outline, then transition to synthesis.
+    // The actual persistence happens in the synthesis phase (generateRealCourse).
+    dispatch({ type: "SET_OUTLINE", payload: finalOutline });
+    dispatch({ type: "TRANSITION", payload: "synthesis" });
+  };
+
   return {
     state,
     ui: {
@@ -326,6 +492,8 @@ export function useCourseGeneration(initialGoal: string = "") {
     },
     actions: {
       handleSendMessage,
+      selectNode: setSelectedNode,
+      confirmOutline,
     },
   };
 }

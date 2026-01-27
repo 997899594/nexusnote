@@ -114,6 +114,14 @@ export function ChatSidebar() {
     try { await navigator.clipboard.writeText(text) } catch (err) { }
   }
 
+  // Helper to extract text content from message parts
+  const getMessageText = (message: typeof messages[0]) => {
+    return message.parts
+      .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
+      .map(p => p.text)
+      .join('')
+  }
+
   const documentContextAgent = editorContext ? {
     id: 'current',
     title: '当前文档',
@@ -199,12 +207,12 @@ export function ChatSidebar() {
                         <div>
                           <p className="whitespace-pre-wrap">{formatMessageText(message.parts.filter(p => p.type === 'text').map((p: any) => p.text).join(''))}</p>
                           <div className="flex items-center gap-3 mt-3 pt-3 border-t border-black/5 dark:border-white/5 opacity-50 hover:opacity-100 transition-opacity">
-                            <button onClick={() => insertToEditor(message.content)} className="flex items-center gap-1 hover:text-violet-500"><FileDown className="w-3 h-3" /> 插入</button>
-                            <button onClick={() => copyToClipboard(message.content)} className="flex items-center gap-1 hover:text-violet-500"><Copy className="w-3 h-3" /> 复制</button>
+                            <button onClick={() => insertToEditor(getMessageText(message))} className="flex items-center gap-1 hover:text-violet-500"><FileDown className="w-3 h-3" /> 插入</button>
+                            <button onClick={() => copyToClipboard(getMessageText(message))} className="flex items-center gap-1 hover:text-violet-500"><Copy className="w-3 h-3" /> 复制</button>
                           </div>
                         </div>
                       ) : (
-                        <p className="whitespace-pre-wrap">{message.content}</p>
+                        <p className="whitespace-pre-wrap">{getMessageText(message)}</p>
                       )}
                     </div>
                   </div>
