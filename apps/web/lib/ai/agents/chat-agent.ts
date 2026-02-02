@@ -35,7 +35,7 @@ export type ChatCallOptions = z.infer<typeof ChatCallOptionsSchema>
 /**
  * 所有 chat 工具的合集
  */
-const chatTools = {
+export const chatTools = {
   ...skills,
   ...editorSkills,
   ...learningSkills,
@@ -45,7 +45,7 @@ const chatTools = {
 /**
  * 根据调用上下文构建 system prompt
  */
-function buildInstructions(options: ChatCallOptions): string {
+export function buildInstructions(options: ChatCallOptions): string {
   const { ragContext, ragSources, documentContext, documentStructure, editMode } = options
 
   let prompt = ''

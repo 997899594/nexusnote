@@ -1,28 +1,44 @@
-import { createAgentUIStreamResponse, smoothStream } from 'ai'
-import { isAIConfigured, getAIProviderInfo } from '@/lib/ai/registry'
-import { chatAgent, webSearchChatAgent, type ChatCallOptions } from '@/lib/ai/agents'
-import { ragService } from '@/lib/ai/rag'
-import { auth } from '@/auth'
+import { streamText, convertToModelMessages } from "ai";
+import {
+  isAIConfigured,
+  getAIProviderInfo,
+  chatModel,
+  webSearchModel,
+} from "@/lib/ai/registry";
+import {
+  chatTools,
+  buildInstructions,
+  type ChatCallOptions,
+} from "@/lib/ai/agents/chat-agent";
+import { ragService } from "@/lib/ai/rag";
+import { auth } from "@/auth";
+import { routeIntent } from "@/lib/ai/router/route";
+import {
+  runInterviewStep,
+  InterviewContext,
+} from "@/lib/ai/agents/interview/machine";
+import { InterviewState } from "@/lib/ai/agents/interview/schema";
 
-export const runtime = 'nodejs'
-export const maxDuration = 60
+export const runtime = "nodejs";
+export const maxDuration = 60;
 
 interface MessagePart {
-  type: string
-  text?: string
-  [key: string]: unknown
+  type: string;
+  text?: string;
+  [key: string]: unknown;
 }
 
 interface ChatMessage {
-  role: string
-  parts?: MessagePart[]
-  [key: string]: unknown
+  role: string;
+  parts?: MessagePart[];
+  content?: string; // Add content support for standard messages
+  [key: string]: unknown;
 }
 
 export async function POST(req: Request) {
-  const session = await auth()
+  const session = await auth();
   if (!session) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const {
@@ -33,33 +49,114 @@ export async function POST(req: Request) {
     documentContext,
     documentStructure,
     editMode = false,
-  } = await req.json()
+    // New params
+    interviewState = "IDLE" as InterviewState,
+    interviewContext = {} as InterviewContext,
+  } = await req.json();
 
   if (!isAIConfigured()) {
-    const info = getAIProviderInfo()
+    const info = getAIProviderInfo();
     return Response.json(
       { error: `AI API key not configured. Provider: ${info.provider}` },
       { status: 500 },
-    )
+    );
   }
 
+  // Extract User Input
+  const lastUserMsg = (messages as ChatMessage[])
+    .filter((m) => m.role === "user")
+    .pop();
+
+  let query = "";
+  if (lastUserMsg?.content) {
+    query = lastUserMsg.content;
+  } else if (lastUserMsg?.parts) {
+    query =
+      lastUserMsg.parts
+        .filter((p) => p.type === "text")
+        .map((p) => p.text)
+        .join("") || "";
+  }
+
+  // =========================================================
+  // ROUTING LOGIC (2026 Architecture)
+  // =========================================================
+
+  let intent = "CHAT";
+
+  // 1. If inside an interview loop, stay in it
+  if (
+    interviewState !== "IDLE" &&
+    interviewState !== "COMPLETED" &&
+    interviewState !== "GENERATING"
+  ) {
+    intent = "INTERVIEW";
+  }
+  // 2. Otherwise, check with Router
+  else if (query) {
+    try {
+      const routing = await routeIntent(
+        query,
+        `Current State: ${interviewState}`,
+      );
+      // If router says INTERVIEW, switch to it
+      if (routing.target === "INTERVIEW") {
+        intent = "INTERVIEW";
+      }
+      // If router says SEARCH, enable web search for Chat Agent
+      if (routing.target === "SEARCH") {
+        // Modify the request effectively
+        // But we handle this via dispatch below
+      }
+    } catch (e) {
+      console.error("Routing failed, defaulting to CHAT", e);
+    }
+  }
+
+  // =========================================================
+  // DISPATCH
+  // =========================================================
+
+  if (intent === "INTERVIEW") {
+    try {
+      const stepResult = await runInterviewStep(
+        interviewState,
+        query,
+        interviewContext,
+      );
+
+      // Return the stream with State headers
+      const response = stepResult.stream;
+      response.headers.set("X-Nexus-Interview-State", stepResult.nextState);
+      response.headers.set(
+        "X-Nexus-Interview-Context",
+        JSON.stringify(stepResult.contextUpdates),
+      );
+      // Mark as standard stream (Hybrid Text + Tools)
+      // response.headers.set("X-Nexus-Stream-Type", "object"); // REMOVED: Back to standard stream
+
+      return response;
+    } catch (err) {
+      console.error("Interview Error:", err);
+      return Response.json(
+        { error: "Interview Logic Failed" },
+        { status: 500 },
+      );
+    }
+  }
+
+  // Default: CHAT AGENT (Legacy + RAG)
+
   // RAG 上下文预获取
-  let ragContext: string | undefined
-  let ragSources: Array<{ documentId: string; title: string }> | undefined
+  let ragContext: string | undefined;
+
+  let ragSources: Array<{ documentId: string; title: string }> | undefined;
 
   if (enableRAG) {
-    const lastUserMsg = (messages as ChatMessage[])
-      .filter((m) => m.role === 'user')
-      .pop()
-    const query = lastUserMsg?.parts
-      ?.filter((p) => p.type === 'text')
-      .map((p) => p.text)
-      .join('') || ''
-
     if (query) {
-      const result = await ragService.search(query, session.user!.id!)
-      ragContext = result.context
-      ragSources = result.sources
+      const result = await ragService.search(query, session.user!.id!);
+      ragContext = result.context;
+      ragSources = result.sources;
     }
   }
 
@@ -72,23 +169,29 @@ export async function POST(req: Request) {
     editMode,
     enableTools,
     enableWebSearch,
-  }
+  };
 
-  // 选择 Agent：启用联网搜索时使用 webSearchChatAgent
-  const selectedAgent = (enableWebSearch && webSearchChatAgent) ? webSearchChatAgent : chatAgent
+  // 选择 Agent：启用联网搜索时使用 webSearchModel
+  const model = enableWebSearch && webSearchModel ? webSearchModel : chatModel;
 
+  // Use Vercel AI SDK v6 streamText
   try {
-    return await createAgentUIStreamResponse({
-      agent: selectedAgent,
-      uiMessages: messages,
-      options: callOptions,
-      experimental_transform: smoothStream({
-        chunking: new Intl.Segmenter('zh-Hans', { granularity: 'word' }),
-      }),
-    })
+    if (!model) {
+      throw new Error("AI model not configured");
+    }
+
+    const result = streamText({
+      model: model,
+      messages: await convertToModelMessages(messages),
+      tools: enableTools ? chatTools : undefined,
+      system: buildInstructions(callOptions),
+      temperature: 0.7, // 🔥 升温，让对话更自然、更有同理心
+    });
+
+    return result.toTextStreamResponse();
   } catch (err) {
-    console.error('[Chat] Agent error:', err)
-    const message = err instanceof Error ? err.message : 'Unknown error'
-    return Response.json({ error: `Chat failed: ${message}` }, { status: 500 })
+    console.error("[Chat] Agent error:", err);
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return Response.json({ error: `Chat failed: ${message}` }, { status: 500 });
   }
 }

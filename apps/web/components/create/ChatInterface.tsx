@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, ArrowRight, Check, Zap } from "lucide-react";
 import { useEffect, useRef } from "react";
-import { UIMessage } from "ai";
+import { UIMessage as Message } from "ai";
 
 interface ToolPart {
   type: string;
@@ -11,22 +11,49 @@ interface ToolPart {
   input?: unknown;
 }
 
-function getMessageText(message: UIMessage): string {
-  return message.parts
-    .filter((p) => p.type === "text")
-    .map((p) => (p as { type: "text"; text: string }).text)
-    .join("");
+function getMessageText(message: Message): string {
+  // Extract text from parts
+  let textContent = "";
+  if (message.parts) {
+    textContent = message.parts
+      .filter((p: any) => p.type === "text")
+      .map((p: any) => p.text)
+      .join("");
+  } else {
+    textContent = (message as any).content || "";
+  }
+  return textContent;
 }
 
-function getToolParts(message: UIMessage): ToolPart[] {
+function getToolParts(message: Message): ToolPart[] {
+  // Extract tool invocations from parts (Vercel AI SDK v6)
+  // Force cast to any to avoid type check issues with UIMessage vs CoreMessage
+  const msg = message as any;
+  if (msg.toolInvocations) {
+    return msg.toolInvocations.map((invocation: any) => ({
+      type: `tool-${invocation.toolName}`,
+      toolCallId: invocation.toolCallId,
+      input: invocation.args,
+    }));
+  }
+
+  if (!message.parts) return [];
+
   return message.parts
-    .filter((p) => p.type.startsWith("tool-"))
-    .map((p) => p as unknown as ToolPart);
+    .filter((p: any) => p.type === "tool-invocation")
+    .map((p: any) => {
+      const invocation = p.toolInvocation;
+      return {
+        type: `tool-${invocation.toolName}`, // Prefix to match existing logic
+        toolCallId: invocation.toolCallId,
+        input: invocation.args,
+      };
+    });
 }
 
 interface ChatInterfaceProps {
   phase: string;
-  messages: UIMessage[];
+  messages: Message[];
   isAiThinking: boolean;
   userInput: string;
   setUserInput: (v: string) => void;
@@ -77,12 +104,17 @@ export function ChatInterface({
   } | null = null;
 
   if (activeMessage) {
+    // 1. Tool Calls (Vercel AI SDK v6 Standard)
     const toolParts = getToolParts(activeMessage);
     const presentOptionsTool = toolParts.find(
       (p) => p.type === "tool-presentOptions",
     );
     if (presentOptionsTool && presentOptionsTool.input) {
-      activeToolOptions = presentOptionsTool.input as any;
+      // Validate input structure
+      const input = presentOptionsTool.input as { options?: string[] };
+      if (Array.isArray(input.options)) {
+        activeToolOptions = { options: input.options };
+      }
     }
   }
 

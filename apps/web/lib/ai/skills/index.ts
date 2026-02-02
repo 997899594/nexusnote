@@ -167,13 +167,6 @@ export const skills = {
 export type SkillName = keyof typeof skills;
 
 // ============================================
-// Re-export interview skills
-// ============================================
-
-export * from "./interview";
-export { interviewSkills } from "./interview";
-
-// ============================================
 // Re-export editor skills
 // ============================================
 

@@ -65,6 +65,11 @@ interface CourseOutline {
   chapters?: Chapter[];
 }
 
+import {
+  InterviewState,
+  InterviewContext,
+} from "@/lib/ai/agents/interview/schema";
+
 interface State {
   phase: Phase;
   goal: string;
@@ -72,6 +77,8 @@ interface State {
   // history removed in favor of useChat messages
   nodes: CourseNode[];
   outline: CourseOutline | null;
+  interviewState: InterviewState;
+  interviewContext: InterviewContext;
 }
 
 type Action =
@@ -83,7 +90,9 @@ type Action =
   | {
       type: "UPDATE_NODE_STATUS";
       payload: { id: string; status: CourseNode["status"] };
-    };
+    }
+  | { type: "SET_INTERVIEW_STATE"; payload: InterviewState }
+  | { type: "UPDATE_INTERVIEW_CONTEXT"; payload: Partial<InterviewContext> };
 
 // --- Reducer ---
 
@@ -100,6 +109,8 @@ const initialState: State = {
   },
   nodes: [],
   outline: null,
+  interviewState: "IDLE",
+  interviewContext: {},
 };
 
 function reducer(state: State, action: Action): State {
@@ -122,6 +133,13 @@ function reducer(state: State, action: Action): State {
             ? { ...n, status: action.payload.status }
             : n,
         ),
+      };
+    case "SET_INTERVIEW_STATE":
+      return { ...state, interviewState: action.payload };
+    case "UPDATE_INTERVIEW_CONTEXT":
+      return {
+        ...state,
+        interviewContext: { ...state.interviewContext, ...action.payload },
       };
     default:
       return state;
@@ -263,7 +281,8 @@ export function useCourseGeneration(initialGoal: string = "") {
     },
   });
 
-  const isAiThinking = status === "submitted" || status === "streaming" || isStarting;
+  const isAiThinking =
+    status === "submitted" || status === "streaming" || isStarting;
 
   // Auto-start interview on mount
   // 只在 goal 存在且消息为空时触发一次
@@ -304,7 +323,14 @@ export function useCourseGeneration(initialGoal: string = "") {
         // 如果失败，error 会显示，或者允许重试
         setIsStarting(false);
       });
-  }, [state.goal, messages.length, sendMessage, state.phase, state.config, state.outline]);
+  }, [
+    state.goal,
+    messages.length,
+    sendMessage,
+    state.phase,
+    state.config,
+    state.outline,
+  ]);
 
   // Handle Send Message - 直接使用 state，无需 ref
   const handleSendMessage = useCallback(

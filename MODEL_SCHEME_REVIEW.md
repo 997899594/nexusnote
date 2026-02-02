@@ -1,108 +1,133 @@
-# NexusNote 2026 AI Architecture Review
+# NexusNote 2026 AI Architecture Standard
 
-## 1. Executive Summary: The "Agentic Workflow" Shift
-
-This document outlines the architectural transformation of NexusNote from a **Prompt-Driven (God-Mode)** system to a **Code-Driven (Agentic Workflow)** system.
-
-### The Problem (Current State)
-
-- **God-Mode Delusion**: Single "Interview Agent" trying to handle conversation, logic, and tool selection simultaneously.
-- **Black Box Tooling**: Relying on LLM probability to call tools correctly.
-- **Unstable UX**: Hallucinations (e.g., replying with single words like "运动"), self-answering, and inconsistent UI rhythm.
-
-### The Solution (2026 Architecture)
-
-- **Architecture**: **Router + FSM (Finite State Machine) + Specialist Agents**.
-- **Philosophy**: **Code controls the flow; AI generates the content.**
-- **Tech Stack**: Next.js 15, Vercel AI SDK v6 (Core/UI), Zod (Schema).
+**Status**: Implemented (Vercel AI SDK v6)  
+**Date**: 2026-02-02  
+**Version**: 2.0 (Code-Driven FSM + Hybrid Streaming)
 
 ---
 
-## 2. Core Architecture Design
+## 1. Core Philosophy: "Code-Driven, Not Prompt-Driven"
 
-### 2.1 The Router (The Brain)
+The architecture has shifted from a fragile "Prompt-Driven" (God Mode) approach to a robust **"Code-Driven Agentic Workflow"**. We no longer rely on a single prompt to manage complex logic. Instead, **Code controls the flow, and AI generates the content.**
 
-A lightweight classifier that directs user intent to the correct specialist.
+### Key Architectural Pillars
 
-- **Model**: `gpt-4o-mini` (Fast, Cheap)
-- **Mechanism**: `generateObject` (Strict JSON)
-- **Output Schema**:
+1.  **Router + FSM Pattern**: Explicit routing and state management prevent hallucinations and "looping" issues.
+2.  **Specialist Agents**: Dedicated agents with optimized configurations (Temperature, Model) for specific tasks.
+3.  **Hybrid Streaming**: Combining `streamText` for speed with `experimental_output` (JSON) for structure.
+4.  **Strict Type Safety**: Full adherence to Vercel AI SDK v6 strict typing (`UIMessage` vs `CoreMessage`).
+
+---
+
+## 2. Temperature Strategy (The "Entropy Control")
+
+Temperature is no longer a global constant. It is a **strategic resource** tuned per-agent and per-step to balance creativity vs. stability.
+
+| Agent          | Temperature   | Role              | Rationale                                                                                                 |
+| :------------- | :------------ | :---------------- | :-------------------------------------------------------------------------------------------------------- |
+| **Router**     | **0.0**       | **The Brain**     | **Absolute Zero**. Classification must be deterministic. Same input = Same output. No creativity allowed. |
+| **Interview**  | **0.2**       | **The Architect** | **Low Entropy**. Structure is priority. Ensures JSON options are valid and logic flow is precise.         |
+| **Editor**     | **0.1 - 0.8** | **The Craftsman** | **Dynamic**. 0.1 for precise grammar fixes; 0.8 for "Make it more creative" requests.                     |
+| **Chat / RAG** | **0.7**       | **The Companion** | **High Entropy**. Natural, empathetic, and varied responses. Avoids robotic repetition.                   |
+
+**Implementation Reference**:
+
+- `lib/ai/router/route.ts`: Hardcoded `temperature: 0`
+- `lib/ai/agents/interview/machine.ts`: `temperature: 0.2` for steps, `0.0` for extraction.
+- `app/api/chat/route.ts`: `temperature: 0.7` for general chat.
+
+---
+
+## 3. Component Architecture
+
+### 3.1 The Router (Intent Classification)
+
+- **Model**: `fastModel` (e.g., gpt-4o-mini)
+- **Method**: `generateText` + `experimental_output` (Schema-based)
+- **Logic**:
+  - Intercepts user query.
+  - Classifies into: `INTERVIEW` (Structured), `CHAT` (Open), `SEARCH` (Live Info), `EDITOR` (Modification).
+  - **Context Aware**: Checks `interviewState` to prevent breaking out of active flows.
+
+### 3.2 The Interview Agent (Finite State Machine)
+
+Replaces "Chat" with a rigid FSM.
+
+- **States**: `IDLE` -> `ASK_GOAL` -> `ASK_BACKGROUND` -> `ASK_TIME` -> `CONFIRM` -> `GENERATING`.
+- **Logic**:
+  - **IDLE Smart Jump**: If user says "I want to learn Python", FSM auto-extracts goal and **skips** to `ASK_BACKGROUND` immediately.
+  - **Output**: Uses `experimental_output` to strictly enforce JSON schema for UI cards (Options, Confirmation).
+  - **Fallback**: `streamText` ensures user sees text immediately even if JSON is complex.
+
+### 3.3 The Chat Agent (Hybrid Streamer)
+
+- **Model**: `chatModel` (e.g., gpt-4o)
+- **Method**: `streamText`
+- **Features**:
+  - **RAG Integration**: Injects retrieved context from `ragService`.
+  - **Tool Calling**: Native Vercel AI SDK tool definitions.
+  - **Web Search**: Dynamic toggle based on Router decision.
+
+---
+
+## 4. Technical Implementation Details (SDK v6)
+
+### 4.1 Message Handling (`UIMessage` vs `CoreMessage`)
+
+Vercel AI SDK v6 enforces a strict separation of concerns. We adhere to this pattern to prevent type errors.
+
+- **Frontend (`UIMessage`)**: Contains `parts` (Text, ToolInvocation, Reason). **No `content` property.**
+- **Backend (`CoreMessage`)**: Pure model input.
+- **Bridge**:
   ```typescript
-  type RouterOutput = {
-    target: "INTERVIEW" | "CHAT" | "SEARCH" | "EDITOR";
-    parameters?: Record<string, any>;
-  };
+  // app/api/chat/route.ts
+  import { convertToCoreMessages } from "ai";
+  // ✅ Correct: Synchronous conversion of UI parts to Model text
+  const coreMessages = convertToCoreMessages(messages);
   ```
 
-### 2.2 Interview Agent (The FSM)
+### 4.2 Frontend Parsing (Hybrid UI)
 
-Replaces the "free-form chat" with a strict State Machine.
+The `ChatInterface` handles the "Hybrid Stream":
 
-**States:**
+1.  **Text Stream**: Rendered as markdown.
+2.  **Partial JSON**:
+    - The FSM outputs structured JSON (e.g., `{ type: "options", options: [...] }`).
+    - **Robust Parsing**: We use a `try-parse` + `regex-fallback` strategy to extract valid JSON even during streaming (Partial JSON).
+    - This allows UI cards to appear _while_ the AI is still typing.
 
-1.  **`IDLE`**: Initial state.
-2.  **`ASK_GOAL`**: Extract user goal -> Transition to `ASK_BACKGROUND`.
-3.  **`ASK_BACKGROUND`**: Generate options based on goal -> Transition to `ASK_TIME`.
-4.  **`ASK_TIME`**: Confirm commitment -> Transition to `GENERATING`.
-5.  **`GENERATING`**: Execute `generateOutline` -> Transition to `review`.
-
-**Logic:**
-
-- **Code** dictates the current state.
-- **AI** is only used to:
-  - Extract entities (e.g., "I want to learn React" -> `goal: "React Development"`).
-  - Generate context-aware options (e.g., "Beginner", "Intermediate").
-  - Polish UI text.
-
-### 2.3 Chat Agent (The Streamer)
-
-Handles open-ended Q&A and RAG.
-
-- **Strategy**: **Stream Text** (Low Latency).
-- **Correction**: unlike Interview Agent (JSON-First), Chat Agent **MUST** stream text to avoid "waiting silence" for long responses.
-- **Tools**: RAG (Retriever), Web Search (Tavily).
-
----
-
-## 3. Implementation Guidelines
-
-### 3.1 JSON-First vs. Stream-First Strategy
-
-| Agent Type     | Strategy                | Reason                                                                           |
-| :------------- | :---------------------- | :------------------------------------------------------------------------------- |
-| **Interview**  | **JSON-First** (Object) | Requires precise UI rendering (Cards, Options). Short text, low latency penalty. |
-| **Router**     | **JSON-First** (Object) | Machine-to-machine communication only.                                           |
-| **Chat / RAG** | **Stream-First** (Text) | Long-form answers. Users need immediate feedback (TTFB).                         |
-
-### 3.2 Code Structure
+### 4.3 Directory Structure
 
 ```
 apps/web/lib/ai/
-├── router/             # Intent Classification
+├── router/             # Intent Router (Temp 0.0)
 │   └── route.ts
 ├── agents/
-│   ├── interview/      # FSM Implementation
-│   │   ├── machine.ts  # State Logic
-│   │   └── prompt.ts   # Targeted Prompts
-│   ├── chat/           # Streaming Chat
-│   └── editor/         # Document Editor
-└── registry.ts         # Model Configuration
+│   ├── interview/      # FSM Logic (Temp 0.2)
+│   │   ├── machine.ts  # State Machine & Extraction
+│   │   └── schema.ts   # Zod Schemas
+│   └── chat-agent.ts   # General Chat Tools
+├── skills/             # Reusable Tools (Quiz, MindMap)
+│   ├── learning.ts
+│   └── web.ts
+└── registry.ts         # Model Provider Config
 ```
 
 ---
 
-## 4. Migration Plan
+## 5. Verification & Quality Assurance
 
-1.  **Phase 1: Router & FSM Setup**
-    - Implement `route.ts` classifier.
-    - Build `interview-machine.ts`.
-2.  **Phase 2: Agent Refactoring**
-    - Strip `interview-agent.ts` of complex logic.
-    - Implement `generateObject` for interview steps.
-3.  **Phase 3: UI Adaptation**
-    - Update `ChatInterface` to handle `RouterOutput`.
-    - Ensure smooth streaming for Chat Agent.
+### 5.1 "No Hallucination" Guarantee
+
+- **Mechanism**: The FSM _cannot_ transition to an invalid state. It _cannot_ ask "What is your goal?" if the goal is already set in the context.
+- **Verification**: User input "My goal is AI" -> System responds "Great, what is your background?" (Skipped redundant question).
+
+### 5.2 "No Waiting" Guarantee
+
+- **Mechanism**: Hybrid Streaming.
+- **Experience**: The user sees the text "I can help with that..." immediately, while the complex JSON options are being generated in the background.
 
 ---
 
-> **Status**: Approved. Proceeding with implementation.
+**Prepared for**: Architecture Review Board  
+**Maintainer**: NexusNote AI Team
