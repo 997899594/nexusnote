@@ -1,25 +1,20 @@
 import { streamText } from 'ai'
-import { chatModel, isAIConfigured } from '@/lib/ai'
+import { chatModel, isAIConfigured } from '@/lib/ai/registry'
 import { auth } from '@/auth'
 
 export const runtime = 'nodejs'
+export const maxDuration = 60 // 文档分析
 
 export async function POST(req: Request) {
     const session = await auth()
     if (!session) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-            status: 401,
-            headers: { 'Content-Type': 'application/json' },
-        })
+        return Response.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { context, documentTitle } = await req.json()
 
     if (!isAIConfigured() || !chatModel) {
-        return new Response(JSON.stringify({ error: 'AI not configured' }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' },
-        })
+        return Response.json({ error: 'AI not configured' }, { status: 500 })
     }
 
     const systemPrompt = `你是 NexusNote 幽灵助手。你正在观察一个用户编写文档 "${documentTitle || '无标题'}"。

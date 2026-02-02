@@ -48,8 +48,8 @@ interface NoteExtractionContextValue {
   clearFlyingNote: (noteId: string) => void
 
   // Ghost flight target refs (for animation targeting)
-  knowledgeTabRef: RefObject<HTMLButtonElement>
-  sidebarToggleRef: RefObject<HTMLButtonElement>
+  knowledgeTabRef: RefObject<HTMLButtonElement | null>
+  sidebarToggleRef: RefObject<HTMLButtonElement | null>
   isSidebarOpen: boolean
   setIsSidebarOpen: (open: boolean) => void
 

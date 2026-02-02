@@ -1,8 +1,9 @@
 import { streamText } from 'ai'
-import { fastModel, isAIConfigured, getAIProviderInfo } from '@/lib/ai'
+import { fastModel, isAIConfigured, getAIProviderInfo } from '@/lib/ai/registry'
 import { auth } from '@/auth'
 
 export const runtime = 'nodejs'
+export const maxDuration = 30 // 写作辅助通常较快
 
 const PROMPTS: Record<string, string> = {
   continue: '请继续写作以下内容，保持风格一致，自然衔接：\n\n',
@@ -19,20 +20,17 @@ const PROMPTS: Record<string, string> = {
 export async function POST(req: Request) {
   const session = await auth()
   if (!session) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
-      headers: { 'Content-Type': 'application/json' },
-    })
+    return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   const { prompt, action, selection } = await req.json()
 
   if (!isAIConfigured() || !fastModel) {
     const info = getAIProviderInfo()
-    return new Response(JSON.stringify({ error: `AI API key not configured. Provider: ${info.provider}` }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    })
+    return Response.json(
+      { error: `AI API key not configured. Provider: ${info.provider}` },
+      { status: 500 },
+    )
   }
 
   const instruction = PROMPTS[action as keyof typeof PROMPTS] || ''
@@ -50,9 +48,6 @@ export async function POST(req: Request) {
   } catch (err) {
     console.error('[Completion] Stream error:', err)
     const message = err instanceof Error ? err.message : 'Unknown error'
-    return new Response(JSON.stringify({ error: `Completion failed: ${message}` }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    })
+    return Response.json({ error: `Completion failed: ${message}` }, { status: 500 })
   }
 }

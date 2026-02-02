@@ -2,10 +2,10 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { BookOpen, Sparkles, Loader2 } from "lucide-react";
-import { Node } from "./types";
+import { CourseNode } from "@/lib/types/course";
 
 interface NexusGraphProps {
-  nodes: Node[];
+  nodes: CourseNode[];
   selectedNode: string | null;
   onNodeClick: (id: string) => void;
   phase: string;
@@ -22,7 +22,9 @@ export function NexusGraph({
   return (
     <div
       className={`relative w-full h-full flex items-center justify-center transition-all duration-1000 ${
-        phase === "interview" || phase === "synthesis"
+        phase === "interview" ||
+        phase === "synthesis" ||
+        phase === "outline_review"
           ? "opacity-40 scale-90 blur-[100px] pointer-events-none"
           : "opacity-100 scale-100 blur-0"
       }`}
@@ -120,7 +122,7 @@ function NexusNode({
   isSelected,
   onClick,
 }: {
-  node: Node;
+  node: CourseNode;
   isSelected: boolean;
   onClick: () => void;
 }) {

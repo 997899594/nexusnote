@@ -1,11 +1,28 @@
-"use client";
-
-import { useReducer, useState, useCallback, useEffect, useRef } from "react";
-import { experimental_useObject as useObject } from "@ai-sdk/react";
-import { interviewSchema } from "@/lib/schemas/interview";
-import { Node } from "@/components/create/types";
+import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport } from "ai";
+import {
+  useState,
+  useReducer,
+  useEffect,
+  useRef,
+  useMemo,
+  useCallback,
+} from "react";
+import { CourseNode } from "@/lib/types/course";
 import { useRouter } from "next/navigation";
 import { learningStore } from "@/lib/storage";
+
+// ============================================
+// Constants
+// ============================================
+
+const PHASE_TRANSITION_DELAYS = {
+  synthesis: 2000,
+  seeding: 2000,
+  growing: 1500,
+  ready: 3000,
+  manifesting: 4000,
+} as const;
 
 // --- Types ---
 
@@ -52,21 +69,20 @@ interface State {
   phase: Phase;
   goal: string;
   config: Config;
-  history: { q: string; a: string }[];
-  nodes: Node[];
+  // history removed in favor of useChat messages
+  nodes: CourseNode[];
   outline: CourseOutline | null;
 }
 
 type Action =
   | { type: "SET_GOAL"; payload: string }
   | { type: "UPDATE_CONFIG"; payload: Partial<Config> }
-  | { type: "ADD_HISTORY"; payload: { q: string; a: string } }
-  | { type: "SET_NODES"; payload: Node[] }
+  | { type: "SET_NODES"; payload: CourseNode[] }
   | { type: "SET_OUTLINE"; payload: CourseOutline }
   | { type: "TRANSITION"; payload: Phase }
   | {
       type: "UPDATE_NODE_STATUS";
-      payload: { id: string; status: Node["status"] };
+      payload: { id: string; status: CourseNode["status"] };
     };
 
 // --- Reducer ---
@@ -82,7 +98,6 @@ const initialState: State = {
     targetOutcome: "",
     cognitiveStyle: "action_oriented",
   },
-  history: [],
   nodes: [],
   outline: null,
 };
@@ -93,8 +108,6 @@ function reducer(state: State, action: Action): State {
       return { ...state, goal: action.payload };
     case "UPDATE_CONFIG":
       return { ...state, config: { ...state.config, ...action.payload } };
-    case "ADD_HISTORY":
-      return { ...state, history: [...state.history, action.payload] };
     case "SET_NODES":
       return { ...state, nodes: action.payload };
     case "SET_OUTLINE":
@@ -123,17 +136,6 @@ export function useCourseGeneration(initialGoal: string = "") {
     goal: initialGoal || initialState.goal,
   });
 
-  // Local UI state (not persisted/core logic)
-  const [userInput, setUserInput] = useState("");
-  const [isAiThinking, setIsAiThinking] = useState(false);
-  const [aiResponse, setAiResponse] = useState("");
-  const [currentQuestion, setCurrentQuestion] = useState("");
-  const [suggestedUI, setSuggestedUI] = useState<{
-    type: "options" | "slider" | "confirmation";
-    title?: string;
-    options?: string[];
-    sliderConfig?: any;
-  } | null>(null);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [createdCourseId, setCreatedCourseId] = useState<string | null>(null);
   const router = useRouter();
@@ -141,229 +143,196 @@ export function useCourseGeneration(initialGoal: string = "") {
   // Prevent double-firing in Strict Mode
   const hasStartedRef = useRef(false);
 
-  // Auto-start interview on mount
+  // 当 initialGoal 改变时，同步到 state 并重置 autostart
   useEffect(() => {
-    // Only trigger if history is empty and we haven't started (currentQuestion is empty)
-    if (
-      !hasStartedRef.current &&
-      state.history.length === 0 &&
-      !currentQuestion &&
-      !isAiThinking
-    ) {
-      hasStartedRef.current = true;
-      setIsAiThinking(true);
-      submit({
-        goal: state.goal,
-        history: [],
-        currentProfile: state.config,
-      });
+    if (initialGoal && initialGoal !== state.goal) {
+      console.log(
+        "[useCourseGeneration] Initial goal changed:",
+        initialGoal,
+        "resetting autostart",
+      );
+      dispatch({ type: "SET_GOAL", payload: initialGoal });
+      hasStartedRef.current = false;
     }
-  }, []); // Run once on mount
+  }, [initialGoal]);
 
-  // AI Interview Logic
-  const {
-    object: aiObject,
-    submit,
-    isLoading: isAiStreaming,
-  } = useObject({
-    api: "/api/learn/interview",
-    schema: interviewSchema,
-    onFinish: ({ object }) => {
-      if (!object) return;
+  // Manual Input State
+  const [input, setInput] = useState("");
 
-      // 0. Handle Revised Outline (Outline Review Phase)
-      if (object.revisedOutline) {
-        // Update nodes to reflect new outline
-        // Flatten modules to get chapters for visualization
-        const allChapters = object.revisedOutline.modules
-          ? object.revisedOutline.modules.flatMap((m: any) => m.chapters)
-          : [];
+  // Phase ref for onToolCall (避免闭包陷阱)
+  const phaseRef = useRef(state.phase);
+  useEffect(() => {
+    phaseRef.current = state.phase;
+  }, [state.phase]);
 
-        // Adapt new schema to CourseOutline interface
-        const outlinePayload: CourseOutline = {
-          title: object.revisedOutline.title,
-          description: state.outline?.description || "",
-          difficulty: state.outline?.difficulty || "beginner",
-          estimatedMinutes: state.outline?.estimatedMinutes || 0,
-          modules: object.revisedOutline.modules,
-          chapters: allChapters.map((ch: any) => ({
-            title: ch.title,
-            summary: ch.contentSnippet || "",
-            keyPoints: [],
-            contentSnippet: ch.contentSnippet,
-          })),
-        };
-        dispatch({ type: "SET_OUTLINE", payload: outlinePayload });
+  // Transport for interview API
+  const transport = useMemo(
+    () => new DefaultChatTransport({ api: "/api/learn/interview" }),
+    [],
+  );
 
-        const newNodes: Node[] = allChapters.map(
-          (ch: any, i: number): Node => ({
-            id: `node-${i}`,
-            title: ch.title,
-            type: "chapter",
-            x: Math.cos((i / allChapters.length) * Math.PI * 2) * 280,
-            y: Math.sin((i / allChapters.length) * Math.PI * 2) * 280,
-            status: "ready",
-            depth: 1,
-          }),
-        );
-        dispatch({ type: "SET_NODES", payload: newNodes });
+  const [error, setError] = useState<string | null>(null);
+  const [isStarting, setIsStarting] = useState(false);
 
-        setIsAiThinking(false);
-        setAiResponse(object.feedback || "Outline updated.");
-        return;
-      }
+  // useChat Integration - SDK v6 使用 transport 配置
+  const { messages, sendMessage, status, regenerate } = useChat({
+    transport,
+    onToolCall: async ({ toolCall }) => {
+      // SDK v6: toolCall 有 type 属性如 'tool-updateProfile'
+      // 提取工具名称
+      const toolType = (toolCall as unknown as { type: string }).type;
+      const toolName = toolType.startsWith("tool-")
+        ? toolType.slice(5)
+        : toolType;
 
-      // 1. Update Config
-      if (object.configUpdate) {
-        dispatch({ type: "UPDATE_CONFIG", payload: object.configUpdate });
-      }
+      // SDK v6: 使用 input 而不是 args
+      const input = (toolCall as unknown as { input?: unknown }).input;
 
-      // 2. Suggestions
-      if (object.suggestedUI) {
-        setSuggestedUI(object.suggestedUI as any);
-      }
-
-      // 3. Transition Logic
-      setAiResponse("");
-      setIsAiThinking(false);
-
-      if (object.metaAction === "finish" || object.isComplete) {
-        // Fetch initial outline before transitioning to outline_review
-        setIsAiThinking(true);
-        // Use a self-executing async function or call a defined function
-        (async () => {
-          try {
-            const response = await fetch("/api/learn/generate", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                goal: state.goal,
-                ...state.config,
-              }),
+      switch (toolName) {
+        case "updateProfile": {
+          if (input) {
+            dispatch({
+              type: "UPDATE_CONFIG",
+              payload: input as Partial<Config>,
             });
-            const data = await response.json();
+          }
+          break;
+        }
 
-            // Adapt generate API response (chapters) to CourseOutline
+        case "updateOutline": {
+          const outlineInput = input as
+            | {
+                title: string;
+                description: string;
+                difficulty: "beginner" | "intermediate" | "advanced";
+                estimatedMinutes: number;
+                modules: Module[];
+                reason: string;
+              }
+            | undefined;
+
+          if (outlineInput) {
+            const allChapters = outlineInput.modules.flatMap((m) => m.chapters);
+
             const outlinePayload: CourseOutline = {
-              title: data.title,
-              description: data.description,
-              difficulty: data.difficulty,
-              estimatedMinutes: data.estimatedMinutes,
-              chapters: data.chapters, // Use chapters directly as returned by generate
-              // We can also populate modules if we want to be forward compatible
-              modules: [
-                {
-                  title: "Course Content",
-                  chapters: data.chapters,
-                },
-              ],
+              title: outlineInput.title,
+              description: outlineInput.description,
+              difficulty: outlineInput.difficulty,
+              estimatedMinutes: outlineInput.estimatedMinutes,
+              modules: outlineInput.modules,
+              chapters: allChapters.map((ch) => ({
+                title: ch.title,
+                summary: ch.contentSnippet || "",
+                keyPoints: [],
+                contentSnippet: ch.contentSnippet,
+              })),
             };
-
             dispatch({ type: "SET_OUTLINE", payload: outlinePayload });
 
-            // Generate nodes for visualization
-            const newNodes: Node[] = data.chapters.map(
-              (ch: any, i: number): Node => ({
+            // 生成可视化节点
+            const newNodes: CourseNode[] = allChapters.map(
+              (ch, i): CourseNode => ({
                 id: `node-${i}`,
                 title: ch.title,
                 type: "chapter",
-                x: Math.cos((i / data.chapters.length) * Math.PI * 2) * 280,
-                y: Math.sin((i / data.chapters.length) * Math.PI * 2) * 280,
+                x: Math.cos((i / allChapters.length) * Math.PI * 2) * 280,
+                y: Math.sin((i / allChapters.length) * Math.PI * 2) * 280,
                 status: "ready",
                 depth: 1,
               }),
             );
             dispatch({ type: "SET_NODES", payload: newNodes });
 
-            dispatch({ type: "TRANSITION", payload: "outline_review" });
-          } catch (error) {
-            console.error("Failed to fetch initial outline:", error);
-            // Fallback to synthesis if generation fails
-            dispatch({ type: "TRANSITION", payload: "synthesis" });
-          } finally {
-            setIsAiThinking(false);
+            // 转换到大纲审核阶段
+            if (phaseRef.current !== "outline_review") {
+              dispatch({ type: "TRANSITION", payload: "outline_review" });
+            }
           }
-        })();
-      } else if (object.metaAction === "correction") {
-        setCurrentQuestion(object.nextQuestion || "好的，那我们继续。");
-      } else {
-        setCurrentQuestion(object.nextQuestion || "");
+          break;
+        }
+
+        case "confirmCourse": {
+          dispatch({ type: "TRANSITION", payload: "synthesis" });
+          break;
+        }
       }
     },
-    onError: (error) => {
-      console.error("Interview error:", error);
-      setAiResponse("我明白了。让我们继续深入探讨...");
-      setTimeout(() => {
-        setAiResponse("");
-        setIsAiThinking(false);
-        // Fallback to synthesis on error for demo purposes
-        dispatch({ type: "TRANSITION", payload: "synthesis" });
-      }, 2000);
+    onError: (err: Error) => {
+      console.error("[useCourseGeneration] Chat error:", err);
+      setError(err.message);
     },
   });
 
-  // Sync streaming feedback
-  useEffect(() => {
-    if (isAiStreaming && aiObject?.feedback) {
-      setAiResponse(aiObject.feedback);
-    }
-  }, [isAiStreaming, aiObject]);
+  const isAiThinking = status === "submitted" || status === "streaming" || isStarting;
 
-  // Handle Send Message
+  // Auto-start interview on mount
+  // 只在 goal 存在且消息为空时触发一次
+  useEffect(() => {
+    // 如果已经有消息、或者没有目标，则跳过
+    if (messages.length > 0 || !state.goal) {
+      return;
+    }
+
+    // 防止 Strict Mode 下的重复执行
+    if (hasStartedRef.current) {
+      return;
+    }
+
+    console.log("[useCourseGeneration] Starting autostart...");
+    hasStartedRef.current = true;
+    setIsStarting(true);
+
+    // 直接调用，不使用 setTimeout
+    sendMessage(
+      { text: `我的目标是：${state.goal}。请开始访谈。` },
+      {
+        body: {
+          goal: state.goal,
+          phase: state.phase,
+          currentProfile: state.config,
+          currentOutline: state.outline,
+        },
+      },
+    )
+      .catch((err) => {
+        console.error("Autostart failed:", err);
+        setError(err.message);
+      })
+      .finally(() => {
+        // 无论成功失败，都结束启动状态
+        // 如果成功，messages.length > 0，Effect 不会再次触发
+        // 如果失败，error 会显示，或者允许重试
+        setIsStarting(false);
+      });
+  }, [state.goal, messages.length, sendMessage, state.phase, state.config, state.outline]);
+
+  // Handle Send Message - 直接使用 state，无需 ref
   const handleSendMessage = useCallback(
     async (e?: React.FormEvent, overrideInput?: string) => {
       if (e) e.preventDefault();
-      const answer = overrideInput || userInput;
 
-      if (!answer.trim() || isAiThinking) return;
+      const text = overrideInput ?? input;
+      if (!text.trim()) return;
 
-      setUserInput("");
-      setIsAiThinking(true);
-
-      // Special handling for Outline Review Phase
-      if (state.phase === "outline_review") {
-        // Just send the feedback, don't update history in the same way or maybe keep a separate history?
-        // For simplicity, we just send the current input as feedback.
-        submit({
-          goal: state.goal,
-          history: [{ q: "Previous Outline Context", a: answer }], // Simplified history for review
-          currentProfile: state.config,
-          phase: "outline_review",
-          currentOutline: state.outline,
-        });
-        return;
+      // 清空输入框（仅当使用 input 时）
+      if (!overrideInput) {
+        setInput("");
       }
 
-      // If there was a previous AI response, archive it to history first
-      if (aiResponse && currentQuestion) {
-        // ... history logic
-      }
-
-      const currentQ = currentQuestion;
-
-      // Clear AI response from UI immediately as we are moving to next turn
-      setAiResponse("");
-
-      dispatch({ type: "ADD_HISTORY", payload: { q: currentQ, a: answer } });
-      setSuggestedUI(null);
-
-      submit({
-        goal: state.goal,
-        history: [...state.history, { q: currentQ, a: answer }],
-        currentProfile: state.config,
-      });
+      // SDK v6: 使用 { text: string } 格式
+      await sendMessage(
+        { text },
+        {
+          body: {
+            goal: state.goal,
+            phase: state.phase,
+            currentProfile: state.config,
+            currentOutline: state.outline,
+          },
+        },
+      );
     },
-    [
-      userInput,
-      isAiThinking,
-      currentQuestion,
-      state.goal,
-      state.history,
-      state.config,
-      state.phase,
-      state.outline,
-      submit,
-    ],
+    [input, sendMessage, state.goal, state.phase, state.config, state.outline],
   );
 
   // Course Generation Logic (The "Backend" Simulation)
@@ -399,12 +368,14 @@ export function useCourseGeneration(initialGoal: string = "") {
 
           // Transform to Nodes (for visualization)
           // Ensure chapters exist
-          const chapters =
+          const chapters: Chapter[] =
             data.chapters ||
-            (data.modules ? data.modules.flatMap((m: any) => m.chapters) : []);
+            (data.modules
+              ? data.modules.flatMap((m: Module) => m.chapters)
+              : []);
 
-          const newNodes: Node[] = chapters.map(
-            (ch: any, i: number): Node => ({
+          const newNodes: CourseNode[] = chapters.map(
+            (ch: Chapter, i: number): CourseNode => ({
               id: `node-${i}`,
               title: ch.title,
               type: "chapter",
@@ -417,16 +388,19 @@ export function useCourseGeneration(initialGoal: string = "") {
 
           dispatch({ type: "SET_NODES", payload: newNodes });
 
-          // Artificial delay for "Synthesis" effect
+          // Transition delay for "Synthesis" effect
           setTimeout(() => {
             dispatch({ type: "TRANSITION", payload: "seeding" });
-          }, 2000);
+          }, PHASE_TRANSITION_DELAYS.synthesis);
         } catch (error) {
-          console.error("Failed to generate course:", error);
-          // Fallback simulation
+          console.error(
+            "[useCourseGeneration] Failed to generate course:",
+            error,
+          );
+          // Fallback: still transition to seeding
           setTimeout(
             () => dispatch({ type: "TRANSITION", payload: "seeding" }),
-            2000,
+            PHASE_TRANSITION_DELAYS.synthesis,
           );
         }
       };
@@ -435,39 +409,45 @@ export function useCourseGeneration(initialGoal: string = "") {
     }
   }, [state.phase, state.goal, state.config]);
 
-  // Seeding -> Growing -> Ready -> Manifesting Chain
+  // Phase transition chain: Seeding -> Growing -> Ready -> Manifesting
   useEffect(() => {
-    if (state.phase === "seeding") {
-      const timer = setTimeout(() => {
-        dispatch({ type: "TRANSITION", payload: "growing" });
-      }, 2000);
-      return () => clearTimeout(timer);
+    let timer: NodeJS.Timeout | undefined;
+
+    switch (state.phase) {
+      case "seeding":
+        timer = setTimeout(() => {
+          dispatch({ type: "TRANSITION", payload: "growing" });
+        }, PHASE_TRANSITION_DELAYS.seeding);
+        break;
+
+      case "growing":
+        timer = setTimeout(() => {
+          dispatch({ type: "TRANSITION", payload: "ready" });
+        }, PHASE_TRANSITION_DELAYS.growing);
+        break;
+
+      case "ready":
+        timer = setTimeout(() => {
+          dispatch({ type: "TRANSITION", payload: "manifesting" });
+        }, PHASE_TRANSITION_DELAYS.ready);
+        break;
+
+      case "manifesting":
+        timer = setTimeout(() => {
+          if (createdCourseId) {
+            router.push(`/editor/${createdCourseId}`);
+          } else {
+            console.error(
+              "[useCourseGeneration] No course ID found, cannot redirect",
+            );
+          }
+        }, PHASE_TRANSITION_DELAYS.manifesting);
+        break;
     }
-    if (state.phase === "growing") {
-      // Simulate nodes popping in (could be handled by internal node state)
-      // For now, just quick transition to ready
-      const timer = setTimeout(() => {
-        dispatch({ type: "TRANSITION", payload: "ready" });
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-    if (state.phase === "ready") {
-      const timer = setTimeout(() => {
-        dispatch({ type: "TRANSITION", payload: "manifesting" });
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-    if (state.phase === "manifesting") {
-      const timer = setTimeout(() => {
-        if (createdCourseId) {
-          router.push(`/editor/${createdCourseId}`);
-        } else {
-          // Fallback or error handling
-          console.error("No course ID found, cannot redirect");
-        }
-      }, 4000);
-      return () => clearTimeout(timer);
-    }
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, [state.phase, createdCourseId, router]);
 
   // Actions for Outline Review
@@ -481,19 +461,19 @@ export function useCourseGeneration(initialGoal: string = "") {
   return {
     state,
     ui: {
-      userInput,
-      setUserInput,
+      userInput: input || "",
+      setUserInput: setInput,
       isAiThinking,
-      aiResponse,
-      currentQuestion,
-      suggestedUI,
       selectedNode,
       setSelectedNode,
+      messages,
+      error,
     },
     actions: {
       handleSendMessage,
       selectNode: setSelectedNode,
       confirmOutline,
+      retry: () => regenerate(),
     },
   };
 }

@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common'
-import { sql } from 'drizzle-orm'
+import { sql } from '@nexusnote/db'
 import IORedis from 'ioredis'
 import { db } from '../database/database.module'
-import { env } from '../config/env.config'
+import { env } from '@nexusnote/config'
 
 export interface HealthCheck {
   status: 'healthy' | 'unhealthy'

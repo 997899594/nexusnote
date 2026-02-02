@@ -1,10 +1,18 @@
-import type { Config } from 'drizzle-kit'
+import * as dotenv from "dotenv";
+import path from "path";
+
+// Manually load .env from monorepo root
+// This is required because drizzle-kit runs in the package context, not app context
+dotenv.config({ path: path.resolve(__dirname, "../../.env") });
+
+import { env } from "@nexusnote/config";
+import type { Config } from "drizzle-kit";
 
 export default {
-  schema: './src/schema.ts',
-  out: './drizzle',
-  dialect: 'postgresql',
+  schema: "./src/schema.ts",
+  out: "./drizzle",
+  dialect: "postgresql",
   dbCredentials: {
-    url: process.env.DATABASE_URL!,
+    url: env.DATABASE_URL,
   },
-} satisfies Config
+} satisfies Config;

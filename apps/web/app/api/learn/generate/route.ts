@@ -1,4 +1,4 @@
-import { generateText } from "ai";
+import { generateObject } from "ai";
 import { z } from "zod";
 import {
   chatModel,
@@ -6,11 +6,12 @@ import {
   isAIConfigured,
   isWebSearchAvailable,
   getAIProviderInfo,
-} from "@/lib/ai";
+} from "@/lib/ai/registry";
+import { auth } from "@/auth";
 
 export const runtime = "nodejs";
+export const maxDuration = 120;
 
-// Course outline schema for validation
 const CourseOutlineSchema = z.object({
   title: z.string(),
   description: z.string(),
@@ -26,6 +27,11 @@ const CourseOutlineSchema = z.object({
 });
 
 export async function POST(req: Request) {
+  const session = await auth();
+  if (!session) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { goal, level, time, priorKnowledge, targetOutcome, cognitiveStyle } =
     await req.json();
 
@@ -45,8 +51,9 @@ export async function POST(req: Request) {
     const model = (webSearchModel ?? chatModel)!;
     const useWebSearch = isWebSearchAvailable();
 
-    const { text } = await generateText({
+    const { object } = await generateObject({
       model,
+      schema: CourseOutlineSchema,
       prompt: `你是一位全领域课程设计大师，擅长将任何复杂技能转化为结构化的学习路径。
 ${useWebSearch ? "你可以联网搜索最新资料，请确保内容是 2025-2026 年最新的。\n" : ""}
 
@@ -69,42 +76,11 @@ ${useWebSearch ? "你可以联网搜索最新资料，请确保内容是 2025-20
    - **Conceptual (概念型)**：侧重原理、历史背景、底层逻辑推导。
    - **Analogy-Based (类比型)**：大量使用生活化比喻。
 
-请设计一个 JSON 格式的课程大纲：
-{
-  "title": "充满吸引力的标题",
-  "description": "结合用户目标 ${targetOutcome} 的定制化简介",
-  "difficulty": "beginner" | "intermediate" | "advanced",
-  "estimatedMinutes": 数字,
-  "chapters": [
-    {
-      "title": "章节标题",
-      "summary": "章节简介 (必须包含针对 ${priorKnowledge} 的类比说明)",
-      "keyPoints": ["要点1", "要点2", "要点3"]
-    }
-  ]
-}
-
-直接输出 JSON，不要任何废话：`,
+请生成一个符合 JSON Schema 的课程大纲。`,
       temperature: 0.8,
     });
 
-    // 提取 JSON（处理可能的 markdown 代码块）
-    let jsonStr = text.trim();
-    if (jsonStr.startsWith("```json")) {
-      jsonStr = jsonStr.slice(7);
-    } else if (jsonStr.startsWith("```")) {
-      jsonStr = jsonStr.slice(3);
-    }
-    if (jsonStr.endsWith("```")) {
-      jsonStr = jsonStr.slice(0, -3);
-    }
-    jsonStr = jsonStr.trim();
-
-    // 解析并验证
-    const parsed = JSON.parse(jsonStr);
-    const outline = CourseOutlineSchema.parse(parsed);
-
-    return Response.json(outline);
+    return Response.json(object);
   } catch (error) {
     console.error("[Learn Generate] Error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { BookOpen, FileText } from "lucide-react";
 import { motion } from "framer-motion";
 import {
@@ -11,7 +12,7 @@ import {
 } from "@/lib/storage";
 import { HeroInput } from "@/components/demo/HeroInput";
 import { RecentAccess } from "@/components/demo/RecentAccess";
-import { OrganicHeader } from "@/components/demo/OrganicHeader";
+import { OrganicHeader } from "@/components/create/OrganicHeader";
 
 // Interface for Notes fetched from API
 interface Note {
@@ -28,13 +29,14 @@ interface CourseWithProgress extends LocalLearningContent {
 
 export default function Home() {
   const router = useRouter();
+  const { data: session } = useSession();
   const [courses, setCourses] = useState<CourseWithProgress[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [session?.user?.id]);
 
   const loadData = async () => {
     setLoading(true);
@@ -57,21 +59,24 @@ export default function Home() {
       setCourses(coursesWithProgress);
 
       // 2. Load Notes (Server-First)
-      const response = await fetch("/api/notes/topics?userId=user-1");
-      if (response.ok) {
-        const data = await response.json();
-        if (data.topics) {
-          const allNotes: Note[] = [];
-          data.topics.forEach((topic: any) => {
-            if (topic.notes) {
-              allNotes.push(...topic.notes);
-            }
-          });
-          allNotes.sort(
-            (a, b) =>
-              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-          );
-          setNotes(allNotes);
+      const userId = session?.user?.id;
+      if (userId) {
+        const response = await fetch(`/api/notes/topics?userId=${encodeURIComponent(userId)}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.topics) {
+            const allNotes: Note[] = [];
+            data.topics.forEach((topic: any) => {
+              if (topic.notes) {
+                allNotes.push(...topic.notes);
+              }
+            });
+            allNotes.sort(
+              (a, b) =>
+                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+            );
+            setNotes(allNotes);
+          }
         }
       }
     } catch (error) {

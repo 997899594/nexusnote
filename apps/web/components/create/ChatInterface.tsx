@@ -1,43 +1,90 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, ArrowRight, Check, Zap, Sparkles } from "lucide-react";
+import { Loader2, ArrowRight, Check, Zap } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { UIMessage } from "ai";
+
+interface ToolPart {
+  type: string;
+  toolCallId: string;
+  input?: unknown;
+}
+
+function getMessageText(message: UIMessage): string {
+  return message.parts
+    .filter((p) => p.type === "text")
+    .map((p) => (p as { type: "text"; text: string }).text)
+    .join("");
+}
+
+function getToolParts(message: UIMessage): ToolPart[] {
+  return message.parts
+    .filter((p) => p.type.startsWith("tool-"))
+    .map((p) => p as unknown as ToolPart);
+}
 
 interface ChatInterfaceProps {
   phase: string;
-  history: { q: string; a: string }[];
-  aiResponse: string;
-  currentQuestion: string;
-  suggestedUI: any;
+  messages: UIMessage[];
   isAiThinking: boolean;
   userInput: string;
   setUserInput: (v: string) => void;
   onSendMessage: (e?: React.FormEvent, override?: string) => void;
   goal: string;
   config: any;
+  error?: string | null;
+  onRetry?: () => void;
 }
 
 export function ChatInterface({
   phase,
-  history,
-  aiResponse,
-  currentQuestion,
-  suggestedUI,
+  messages,
   isAiThinking,
   userInput,
   setUserInput,
   onSendMessage,
   goal,
   config,
+  error,
+  onRetry,
 }: ChatInterfaceProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Split messages into history and active interaction
+  // If the last message is from assistant, it's the "Active Interaction"
+  // Everything else is history
+  const lastMessage = messages[messages.length - 1];
+  const isLastAssistant = lastMessage?.role === "assistant";
+
+  const historyMessages = isLastAssistant ? messages.slice(0, -1) : messages;
+  const activeMessage = isLastAssistant ? lastMessage : null;
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [history, aiResponse, currentQuestion]);
+  }, [messages, isAiThinking]);
+
+  if (phase !== "interview" && phase !== "synthesis") {
+    return null;
+  }
+
+  // Extract tool options from the active message
+  let activeToolOptions: {
+    options?: string[];
+    optionGroups?: Array<{ title: string; options: string[] }>;
+  } | null = null;
+
+  if (activeMessage) {
+    const toolParts = getToolParts(activeMessage);
+    const presentOptionsTool = toolParts.find(
+      (p) => p.type === "tool-presentOptions",
+    );
+    if (presentOptionsTool && presentOptionsTool.input) {
+      activeToolOptions = presentOptionsTool.input as any;
+    }
+  }
 
   return (
     <AnimatePresence mode="wait">
@@ -55,110 +102,174 @@ export function ChatInterface({
               ref={scrollRef}
               className="flex-1 overflow-y-auto space-y-6 mb-6 scroll-smooth py-6 pr-4 md:pr-6 custom-scrollbar"
             >
-              {history.map((item, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="space-y-4"
-                >
-                  <div className="flex justify-start">
-                    <div className="bg-black/5 px-6 py-3 rounded-[24px] max-w-[85%] text-left">
-                      <p className="text-sm md:text-base font-medium text-black/60 leading-relaxed">
-                        {item.q}
+              {error ? (
+                <div className="flex flex-col items-center justify-center h-full gap-4 text-red-500">
+                  <p>出错了: {error}</p>
+                  <button
+                    onClick={onRetry}
+                    className="bg-black text-white px-4 py-2 rounded hover:bg-black/80 transition-colors"
+                  >
+                    重试
+                  </button>
+                </div>
+              ) : messages.length === 0 ? (
+                /* Empty State */
+                <div className="flex flex-col items-center justify-center h-full gap-4 text-black/40">
+                  {isAiThinking ? (
+                    <>
+                      <Loader2 className="w-8 h-8 animate-spin" />
+                      <p className="text-sm font-medium">
+                        等待AI响应中... 目标: {goal}
                       </p>
-                    </div>
-                  </div>
-                  <div className="flex justify-end">
-                    <div className="bg-black px-6 py-3 rounded-[24px] max-w-[85%] text-right shadow-lg shadow-black/10">
-                      <p className="text-sm md:text-base font-bold text-white leading-relaxed">
-                        {item.a}
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm font-medium">
+                        准备开始... 目标: {goal}
                       </p>
-                    </div>
+                      <button
+                        onClick={() =>
+                          onSendMessage(
+                            undefined,
+                            `我的目标是：${goal}。请开始访谈。`,
+                          )
+                        }
+                        className="mt-4 px-6 py-2 bg-black text-white rounded-full text-sm font-medium hover:scale-105 active:scale-95 transition-all shadow-lg shadow-black/10"
+                      >
+                        手动开始
+                      </button>
+                    </>
+                  )}
+                </div>
+              ) : (
+                /* Message Loop */
+                <>
+                  {historyMessages.map((m) => {
+                    const text = getMessageText(m);
+                    // Skip empty text messages if they only have tool calls (unless we want to show something)
+                    if (!text && m.role === "assistant") return null;
+
+                    const isUser = m.role === "user";
+
+                    return (
+                      <motion.div
+                        key={m.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="space-y-4"
+                      >
+                        {isUser ? (
+                          /* User Message (Right, Black) */
+                          <div className="flex justify-end">
+                            <div className="bg-black px-6 py-3 rounded-[24px] max-w-[85%] text-right shadow-lg shadow-black/10">
+                              <p className="text-sm md:text-base font-bold text-white leading-relaxed">
+                                {text}
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          /* Assistant History Message (Left, Gray) */
+                          <div className="flex justify-start">
+                            <div className="bg-black/5 px-6 py-3 rounded-[24px] max-w-[85%] text-left">
+                              <p className="text-sm md:text-base font-medium text-black/60 leading-relaxed">
+                                {text}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </motion.div>
+                    );
+                  })}
+
+                  {/* Current Active Interaction (Latest Assistant Message) */}
+                  <div className="pt-2">
+                    <AnimatePresence mode="wait">
+                      {activeMessage && (
+                        <motion.div
+                          key="active-ai-reply"
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          className="flex justify-start"
+                        >
+                          <div className="bg-black/5 px-6 py-4 rounded-[32px] max-w-[90%] text-left border border-black/[0.03]">
+                            <p className="text-lg md:text-xl font-bold tracking-tight text-black italic leading-snug">
+                              {getMessageText(activeMessage)}
+                            </p>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
-                </motion.div>
-              ))}
 
-              {/* Current Active Interaction */}
-              <div className="pt-2">
-                <AnimatePresence mode="wait">
-                  {/* Streaming AI Response */}
-                  {aiResponse && (
-                    <motion.div
-                      key="ai-reply"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="flex justify-start mb-6"
-                    >
-                      <div className="bg-black/5 px-6 py-4 rounded-[32px] max-w-[90%] text-left border border-black/[0.03]">
-                        <p className="text-lg md:text-xl font-bold tracking-tight text-black italic leading-snug">
-                          "{aiResponse}"
-                        </p>
-                      </div>
-                    </motion.div>
-                  )}
-
-                  {/* Next Question (Only show when not thinking/streaming, OR if we have a question) */}
-                  {/* Actually, we want to hide the OLD question when AI is thinking about the NEW one */}
-                  {/* But wait, 'currentQuestion' is updated at onFinish. So during streaming, currentQuestion is the OLD one? */}
-                  {/* No, we should probably hide currentQuestion when isAiThinking is true, until the new one arrives? */}
-                  {/* Strategy: When user submits, isAiThinking=true. We hide the old question. */}
-                  {/* We show 'aiResponse' streaming in. */}
-                  {/* When finish, isAiThinking=false, we update currentQuestion. */}
-                  
-                  {!isAiThinking && currentQuestion && (
-                    <motion.div
-                      key="ai-question"
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      className="flex flex-col items-start w-full space-y-6"
-                    >
-                      <h2 className="text-2xl md:text-4xl font-black text-black leading-tight tracking-tight max-w-[90%]">
-                        {currentQuestion}
-                      </h2>
-                    </motion.div>
-                  )}
-                  
-                  {/* Loading State for Question */}
-                  {isAiThinking && !aiResponse && (
-                     <motion.div
-                      key="loading"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="flex items-center space-x-2 text-black/30"
-                    >
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      <span className="text-sm font-medium">Thinking...</span>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+                  {/* Waiting Indicator */}
+                  {isAiThinking &&
+                    messages.length > 0 &&
+                    messages[messages.length - 1].role !== "assistant" && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="flex justify-start pt-4"
+                      >
+                        <div className="bg-white shadow-xl shadow-black/5 px-8 py-6 rounded-[32px] max-w-[95%] text-left border border-black/[0.02]">
+                          <div className="flex items-center gap-3">
+                            <div className="w-1.5 h-1.5 rounded-full bg-black/20 animate-pulse" />
+                            <p className="text-black/20 font-bold uppercase text-[10px] tracking-[0.2em]">
+                              WAITING FOR RESPONSE
+                            </p>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                </>
+              )}
             </div>
 
-            {/* Hybrid UI / Shortcuts (Generative UI) */}
+            {/* Hybrid UI / Shortcuts (Generative UI) - Fixed at Bottom */}
             <AnimatePresence>
-              {suggestedUI &&
-                suggestedUI.type === "options" &&
-                suggestedUI.options &&
-                !isAiThinking && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    className="mb-6 flex flex-wrap gap-3 justify-end px-4"
-                  >
-                    {suggestedUI.options.map((option: string) => (
-                      <button
-                        key={option}
-                        onClick={() => onSendMessage(undefined, option)}
-                        className="bg-white/80 backdrop-blur-md border border-black/5 px-6 py-3 rounded-full text-sm font-medium hover:bg-black hover:text-white transition-all shadow-lg shadow-black/5 hover:scale-105 active:scale-95"
-                      >
-                        {option}
-                      </button>
-                    ))}
-                  </motion.div>
-                )}
+              {activeToolOptions && !isAiThinking && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  className="mb-6 px-4 flex flex-col items-end gap-4"
+                >
+                  {/* Handle Option Groups */}
+                  {activeToolOptions.optionGroups ? (
+                    activeToolOptions.optionGroups.map((group, idx) => (
+                      <div key={idx} className="flex flex-col items-end gap-2">
+                        <div className="text-xs font-semibold text-black/50 uppercase tracking-wider mr-1">
+                          {group.title}
+                        </div>
+                        <div className="flex flex-wrap gap-3 justify-end">
+                          {group.options.map((option) => (
+                            <button
+                              key={option}
+                              onClick={() => onSendMessage(undefined, option)}
+                              className="bg-white/80 backdrop-blur-md border border-black/5 px-6 py-3 rounded-full text-sm font-medium hover:bg-black hover:text-white transition-all shadow-lg shadow-black/5 hover:scale-105 active:scale-95"
+                            >
+                              {option}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))
+                  ) : activeToolOptions.options ? (
+                    /* Handle Flat Options */
+                    <div className="flex flex-wrap gap-3 justify-end">
+                      {activeToolOptions.options.map((option) => (
+                        <button
+                          key={option}
+                          onClick={() => onSendMessage(undefined, option)}
+                          className="bg-white/80 backdrop-blur-md border border-black/5 px-6 py-3 rounded-full text-sm font-medium hover:bg-black hover:text-white transition-all shadow-lg shadow-black/5 hover:scale-105 active:scale-95"
+                        >
+                          {option}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </motion.div>
+              )}
             </AnimatePresence>
 
             {/* Input Area */}
@@ -169,7 +280,7 @@ export function ChatInterface({
               <div className="relative flex-1 group">
                 <input
                   type="text"
-                  value={userInput}
+                  value={userInput || ""}
                   onChange={(e) => setUserInput(e.target.value)}
                   placeholder="Type your answer..."
                   className="w-full bg-white/50 backdrop-blur-xl border border-black/5 rounded-full px-8 py-5 text-lg font-medium text-black placeholder:text-black/20 focus:outline-none focus:ring-2 focus:ring-black/5 focus:bg-white transition-all shadow-lg shadow-black/[0.02]"
@@ -179,7 +290,7 @@ export function ChatInterface({
               </div>
               <button
                 type="submit"
-                disabled={!userInput.trim() || isAiThinking}
+                disabled={!(userInput || "").trim() || isAiThinking}
                 className="w-16 h-16 rounded-full bg-black flex items-center justify-center text-white disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95 transition-all shadow-xl shadow-black/10"
               >
                 {isAiThinking ? (

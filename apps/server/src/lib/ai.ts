@@ -6,7 +6,7 @@
  */
 
 import { createOpenAI, type OpenAIProvider } from '@ai-sdk/openai'
-import { env, config } from '../config/env.config'
+import { env, defaults } from '@nexusnote/config'
 
 // ============================================
 // 模型配置 (从验证过的 env 读取)
@@ -128,5 +128,5 @@ export function logAIConfig(): void {
   console.log('[AI] Pro Model:', AI_MODEL_PRO)
   console.log('[AI] Web Search Model:', AI_MODEL_WEB_SEARCH)
   console.log('[AI] Embedding Model:', EMBEDDING_MODEL)
-  console.log('[AI] Embedding Dimensions:', config.embedding.dimensions)
+  console.log('[AI] Embedding Dimensions:', defaults.embedding.dimensions)
 }

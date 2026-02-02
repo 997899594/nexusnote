@@ -1,7 +1,9 @@
 import { generateText } from 'ai'
-import { fastModel, isAIConfigured, getAIProviderInfo } from '@/lib/ai'
+import { fastModel, isAIConfigured, getAIProviderInfo } from '@/lib/ai/registry'
+import { auth } from '@/auth'
 
 export const runtime = 'nodejs'
+export const maxDuration = 30
 
 const SYSTEM_PROMPT = `你是一个间隔重复学习(SRS)卡片生成助手。用户会提供一个问题或概念，你需要生成一个简洁、准确的答案。
 
@@ -12,21 +14,23 @@ const SYSTEM_PROMPT = `你是一个间隔重复学习(SRS)卡片生成助手。�
 4. 避免冗余信息`
 
 export async function POST(req: Request) {
+  const session = await auth()
+  if (!session) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const { question, context } = await req.json()
 
   if (!question) {
-    return new Response(JSON.stringify({ error: 'Question is required' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    })
+    return Response.json({ error: 'Question is required' }, { status: 400 })
   }
 
   if (!isAIConfigured() || !fastModel) {
     const info = getAIProviderInfo()
-    return new Response(JSON.stringify({ error: `AI API key not configured. Provider: ${info.provider}` }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    })
+    return Response.json(
+      { error: `AI API key not configured. Provider: ${info.provider}` },
+      { status: 500 },
+    )
   }
 
   const userPrompt = context
@@ -42,16 +46,10 @@ export async function POST(req: Request) {
       temperature: 0.5,
     })
 
-    return new Response(JSON.stringify({ answer: result.text.trim() }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    })
+    return Response.json({ answer: result.text.trim() })
   } catch (err) {
     console.error('[Flashcard Generate] Error:', err)
     const message = err instanceof Error ? err.message : 'Unknown error'
-    return new Response(JSON.stringify({ error: `Generation failed: ${message}` }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    })
+    return Response.json({ error: `Generation failed: ${message}` }, { status: 500 })
   }
 }

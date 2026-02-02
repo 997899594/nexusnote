@@ -1,23 +1,18 @@
-import { API_URL } from '@/lib/config'
+import { clientEnv } from '@nexusnote/config'
+
+const API_URL = clientEnv.NEXT_PUBLIC_API_URL
 
 export const runtime = 'nodejs'
 
-/**
- * GET /api/notes/topics/:topicId/notes
- * Proxy to backend notes service to get all notes in a topic
- */
 export async function GET(
   req: Request,
-  { params }: { params: { topicId: string } }
+  { params }: { params: Promise<{ topicId: string }> }
 ) {
   try {
-    const { topicId } = params
+    const { topicId } = await params
 
     if (!topicId) {
-      return new Response(JSON.stringify({ error: 'topicId is required', notes: [] }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      })
+      return Response.json({ error: 'topicId is required', notes: [] }, { status: 400 })
     }
 
     const response = await fetch(`${API_URL}/notes/topics/${encodeURIComponent(topicId)}/notes`, {
@@ -28,23 +23,14 @@ export async function GET(
     if (!response.ok) {
       const error = await response.text()
       console.error('[Notes API] Get topic notes failed:', error)
-      return new Response(JSON.stringify({ error: 'Failed to fetch notes', notes: [] }), {
-        status: response.status,
-        headers: { 'Content-Type': 'application/json' },
-      })
+      return Response.json({ error: 'Failed to fetch notes', notes: [] }, { status: response.status })
     }
 
     const data = await response.json()
-    return new Response(JSON.stringify(data), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    })
+    return Response.json(data)
   } catch (err) {
     console.error('[Notes API] Get topic notes error:', err)
     const message = err instanceof Error ? err.message : 'Unknown error'
-    return new Response(JSON.stringify({ error: message, notes: [] }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    })
+    return Response.json({ error: message, notes: [] }, { status: 500 })
   }
 }

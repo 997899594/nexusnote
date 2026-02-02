@@ -1,10 +1,10 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Node } from "./types";
+import { CourseNode } from "@/lib/types/course";
 
 interface AmbientBackgroundProps {
-  nodes: Node[];
+  nodes: CourseNode[];
   isThinking: boolean;
   phase: string;
   progress: number;

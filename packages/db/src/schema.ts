@@ -1,3 +1,4 @@
+import { env } from "@nexusnote/config";
 import {
   pgTable,
   uuid,
@@ -22,7 +23,7 @@ const bytea = customType<{ data: Buffer }>({
 //
 // ⚠️ Drizzle bug: customType 会给类型名加引号导致迁移失败
 // 生成迁移后需手动修复：sed -i 's/"halfvec(4000)"/halfvec(4000)/g' drizzle/*.sql
-const EMBEDDING_DIMENSIONS = process.env.EMBEDDING_DIMENSIONS || "4000";
+const EMBEDDING_DIMENSIONS = env.EMBEDDING_DIMENSIONS || 4000;
 
 export const halfvec = customType<{ data: number[] }>({
   dataType() {
@@ -159,41 +160,45 @@ export const learningHighlights = pgTable("learning_highlights", {
 // ============================================
 
 // 闪卡表
-export const flashcards = pgTable("flashcards", {
-  id: uuid("id").primaryKey().defaultRandom(),
+export const flashcards = pgTable(
+  "flashcards",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
 
-  // 来源关联（二选一）
-  highlightId: uuid("highlight_id").references(() => learningHighlights.id, {
-    onDelete: "cascade",
+    // 来源关联（二选一）
+    highlightId: uuid("highlight_id").references(() => learningHighlights.id, {
+      onDelete: "cascade",
+    }),
+    documentId: uuid("document_id").references(() => documents.id, {
+      onDelete: "cascade",
+    }),
+
+    // 卡片内容
+    front: text("front").notNull(), // 问题/提示
+    back: text("back").notNull(), // 答案
+    context: text("context"), // 上下文（来源段落）
+    tags: jsonb("tags"), // JSON array
+
+    // FSRS-5 核心参数
+    state: integer("state").notNull().default(0), // 0=New, 1=Learning, 2=Review, 3=Relearning
+    due: timestamp("due").notNull().defaultNow(), // 下次复习时间
+    stability: integer("stability").notNull().default(0), // 记忆稳定性（天数 * 100，整数存储）
+    difficulty: integer("difficulty").notNull().default(50), // 难度 0-100
+    elapsedDays: integer("elapsed_days").notNull().default(0), // 距上次复习天数
+    scheduledDays: integer("scheduled_days").notNull().default(0), // 计划间隔天数
+    reps: integer("reps").notNull().default(0), // 成功复习次数
+    lapses: integer("lapses").notNull().default(0), // 遗忘次数
+
+    // 元数据
+    suspended: timestamp("suspended"), // 暂停时间（null=活跃）
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => ({
+    dueIdx: index("flashcards_due_idx").on(table.due),
+    stateIdx: index("flashcards_state_idx").on(table.state),
   }),
-  documentId: uuid("document_id").references(() => documents.id, {
-    onDelete: "cascade",
-  }),
-
-  // 卡片内容
-  front: text("front").notNull(), // 问题/提示
-  back: text("back").notNull(), // 答案
-  context: text("context"), // 上下文（来源段落）
-  tags: jsonb("tags"), // JSON array
-
-  // FSRS-5 核心参数
-  state: integer("state").notNull().default(0), // 0=New, 1=Learning, 2=Review, 3=Relearning
-  due: timestamp("due").notNull().defaultNow(), // 下次复习时间
-  stability: integer("stability").notNull().default(0), // 记忆稳定性（天数 * 100，整数存储）
-  difficulty: integer("difficulty").notNull().default(50), // 难度 0-100
-  elapsedDays: integer("elapsed_days").notNull().default(0), // 距上次复习天数
-  scheduledDays: integer("scheduled_days").notNull().default(0), // 计划间隔天数
-  reps: integer("reps").notNull().default(0), // 成功复习次数
-  lapses: integer("lapses").notNull().default(0), // 遗忘次数
-
-  // 元数据
-  suspended: timestamp("suspended"), // 暂停时间（null=活跃）
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-}, (table) => ({
-  dueIdx: index("flashcards_due_idx").on(table.due),
-  stateIdx: index("flashcards_state_idx").on(table.state),
-}));
+);
 
 // 复习记录表（用于 FSRS 参数优化和学习分析）
 export const reviewLogs = pgTable("review_logs", {
@@ -218,52 +223,66 @@ export const reviewLogs = pgTable("review_logs", {
 // ============================================
 
 // AI 维护的语义主题簇
-export const topics = pgTable("topics", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id").references(() => users.id, {
-    onDelete: "cascade",
+export const topics = pgTable(
+  "topics",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").references(() => users.id, {
+      onDelete: "cascade",
+    }),
+    name: text("name").notNull(), // AI 生成的主题名
+    embedding: halfvec("embedding"), // 主题的中心向量 (4000维)
+    noteCount: integer("note_count").default(0),
+    lastActiveAt: timestamp("last_active_at").defaultNow(),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => ({
+    userIdIdx: index("topics_user_id_idx").on(table.userId),
   }),
-  name: text("name").notNull(), // AI 生成的主题名
-  embedding: halfvec("embedding"), // 主题的中心向量 (4000维)
-  noteCount: integer("note_count").default(0),
-  lastActiveAt: timestamp("last_active_at").defaultNow(),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-}, (table) => ({
-  userIdIdx: index("topics_user_id_idx").on(table.userId),
-}));
+);
 
 // 提取的知识片段
-export const extractedNotes = pgTable("extracted_notes", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id").references(() => users.id, {
-    onDelete: "cascade",
-  }),
-  content: text("content").notNull(), // 提取的文本内容
-  embedding: halfvec("embedding"), // 文本向量 (4000维)
+export const extractedNotes = pgTable(
+  "extracted_notes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").references(() => users.id, {
+      onDelete: "cascade",
+    }),
+    content: text("content").notNull(), // 提取的文本内容
+    embedding: halfvec("embedding"), // 文本向量 (4000维)
 
-  // 来源追溯 (支持两种来源)
-  sourceType: text("source_type").notNull(), // 'document' | 'learning'
-  sourceDocumentId: uuid("source_document_id").references(() => documents.id, {
-    onDelete: "set null",
-  }),
-  sourceChapterId: uuid("source_chapter_id").references(() => learningChapters.id, {
-    onDelete: "set null",
-  }),
-  sourcePosition: jsonb("source_position"), // { from: number, to: number }
+    // 来源追溯 (支持两种来源)
+    sourceType: text("source_type").notNull(), // 'document' | 'learning'
+    sourceDocumentId: uuid("source_document_id").references(
+      () => documents.id,
+      {
+        onDelete: "set null",
+      },
+    ),
+    sourceChapterId: uuid("source_chapter_id").references(
+      () => learningChapters.id,
+      {
+        onDelete: "set null",
+      },
+    ),
+    sourcePosition: jsonb("source_position"), // { from: number, to: number }
 
-  // AI 分类
-  topicId: uuid("topic_id").references(() => topics.id, {
-    onDelete: "set null",
-  }),
-  status: text("status").default("processing"), // 'processing' | 'classified'
+    // AI 分类
+    topicId: uuid("topic_id").references(() => topics.id, {
+      onDelete: "set null",
+    }),
+    status: text("status").default("processing"), // 'processing' | 'classified'
 
-  createdAt: timestamp("created_at").defaultNow(),
-}, (table) => ({
-  topicIdIdx: index("extracted_notes_topic_id_idx").on(table.topicId),
-  statusIdx: index("extracted_notes_status_idx").on(table.status),
-  userIdIdx: index("extracted_notes_user_id_idx").on(table.userId),
-}));
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => ({
+    topicIdIdx: index("extracted_notes_topic_id_idx").on(table.topicId),
+    statusIdx: index("extracted_notes_status_idx").on(table.status),
+    userIdIdx: index("extracted_notes_user_id_idx").on(table.userId),
+  }),
+);
 
 // 类型导出
 export type User = typeof users.$inferSelect;

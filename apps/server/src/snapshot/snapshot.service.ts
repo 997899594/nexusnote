@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { eq, desc, and, gte, lte, inArray, InferSelectModel } from 'drizzle-orm'
+import { eq, desc, and, gte, lte, inArray, type InferSelectModel } from '@nexusnote/db'
 import { documentSnapshots, documents } from '@nexusnote/db'
 import { db } from '../database/database.module'
 

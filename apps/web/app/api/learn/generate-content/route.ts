@@ -1,9 +1,16 @@
 import { streamText } from 'ai'
-import { courseModel, isAIConfigured, getAIProviderInfo } from '@/lib/ai'
+import { courseModel, isAIConfigured, getAIProviderInfo } from '@/lib/ai/registry'
+import { auth } from '@/auth'
 
 export const runtime = 'nodejs'
+export const maxDuration = 180
 
 export async function POST(req: Request) {
+  const session = await auth()
+  if (!session) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const {
     courseTitle,
     chapterTitle,

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { Plus, StickyNote, Clock, CheckCircle, Zap } from 'lucide-react'
 import { AppSidebar } from '../layout/AppSidebar'
 import { ProCourseCard, ProNoteRow, CommandBar } from './HubComponents'
@@ -22,6 +23,7 @@ interface CourseWithProgress extends LocalLearningContent {
 
 export function HubContainer() {
     const router = useRouter()
+    const { data: session } = useSession()
     const [courses, setCourses] = useState<CourseWithProgress[]>([])
     const [notes, setNotes] = useState<Note[]>([])
     const [loading, setLoading] = useState(true)
@@ -35,7 +37,7 @@ export function HubContainer() {
 
     useEffect(() => {
         loadData()
-    }, [])
+    }, [session?.user?.id])
 
     const loadData = async () => {
         setLoading(true)
@@ -62,20 +64,23 @@ export function HubContainer() {
             setCourses(coursesWithProgress)
 
             // 2. Load Notes (Server-First)
-            const response = await fetch('/api/notes/topics?userId=user-1')
+            const userId = session?.user?.id
             let fetchedNotesCount = 0
-            if (response.ok) {
-                const data = await response.json()
-                if (data.topics) {
-                    const allNotes: Note[] = []
-                    data.topics.forEach((topic: any) => {
-                        if (topic.notes) {
-                            allNotes.push(...topic.notes)
-                        }
-                    })
-                    allNotes.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                    setNotes(allNotes.slice(0, 5)) // Take top 5 for dense list
-                    fetchedNotesCount = allNotes.length
+            if (userId) {
+                const response = await fetch(`/api/notes/topics?userId=${encodeURIComponent(userId)}`)
+                if (response.ok) {
+                    const data = await response.json()
+                    if (data.topics) {
+                        const allNotes: Note[] = []
+                        data.topics.forEach((topic: any) => {
+                            if (topic.notes) {
+                                allNotes.push(...topic.notes)
+                            }
+                        })
+                        allNotes.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                        setNotes(allNotes.slice(0, 5)) // Take top 5 for dense list
+                        fetchedNotesCount = allNotes.length
+                    }
                 }
             }
 

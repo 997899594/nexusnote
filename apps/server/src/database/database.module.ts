@@ -1,16 +1,13 @@
 import { Module, Global, OnModuleInit } from '@nestjs/common'
-import { drizzle } from 'drizzle-orm/postgres-js'
-import * as postgres from 'postgres'
-import * as schema from '@nexusnote/db'
-import { env } from '../config/env.config'
+import { db, sql } from '@nexusnote/db'
 
-const client = postgres(env.DATABASE_URL)
-export const db = drizzle(client, { schema })
+// Re-export db for use in other modules
+export { db }
 
 // Initialize pgvector extension
 async function initializeDatabase() {
   try {
-    await client`CREATE EXTENSION IF NOT EXISTS vector`
+    await db.execute(sql`CREATE EXTENSION IF NOT EXISTS vector`)
     console.log('[Database] pgvector extension ready')
   } catch (error: unknown) {
     // Ignore if already exists or no permission (non-superuser)

@@ -1,13 +1,13 @@
 import { Server } from '@hocuspocus/server'
 import { Database } from '@hocuspocus/extension-database'
 import { Redis } from '@hocuspocus/extension-redis'
-import { eq } from 'drizzle-orm'
+import { eq } from '@nexusnote/db'
 import * as Y from 'yjs'
 import IORedis from 'ioredis'
 import { addRagIndexJob } from '../queue/queue.module'
 import { documents } from '@nexusnote/db'
 import { db } from '../database/database.module'
-import { env } from '../config/env.config'
+import { env } from '@nexusnote/config'
 import { AuthService } from '../auth/auth.service'
 
 // Auth service instance for JWT verification

@@ -1,7 +1,5 @@
 {
-  "id": "ca2aa44f-71cb-4279-ba72-882aa9cd50d4",
-  "prevId": "00000000-0000-0000-0000-000000000000",
-  "version": "6",
+  "version": "7",
   "dialect": "postgresql",
   "tables": {
     "public.document_chunks": {
@@ -52,19 +50,22 @@
         "document_chunks_document_id_documents_id_fk": {
           "name": "document_chunks_document_id_documents_id_fk",
           "tableFrom": "document_chunks",
-          "tableTo": "documents",
           "columnsFrom": [
             "document_id"
           ],
+          "tableTo": "documents",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "policies": {},
+      "isRLSEnabled": false,
+      "checkConstraints": {}
     },
     "public.document_snapshots": {
       "name": "document_snapshots",
@@ -143,19 +144,22 @@
         "document_snapshots_document_id_documents_id_fk": {
           "name": "document_snapshots_document_id_documents_id_fk",
           "tableFrom": "document_snapshots",
-          "tableTo": "documents",
           "columnsFrom": [
             "document_id"
           ],
+          "tableTo": "documents",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "policies": {},
+      "isRLSEnabled": false,
+      "checkConstraints": {}
     },
     "public.documents": {
       "name": "documents",
@@ -213,19 +217,22 @@
         "documents_workspace_id_workspaces_id_fk": {
           "name": "documents_workspace_id_workspaces_id_fk",
           "tableFrom": "documents",
-          "tableTo": "workspaces",
           "columnsFrom": [
             "workspace_id"
           ],
+          "tableTo": "workspaces",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "policies": {},
+      "isRLSEnabled": false,
+      "checkConstraints": {}
     },
     "public.learning_chapters": {
       "name": "learning_chapters",
@@ -287,32 +294,35 @@
         "learning_chapters_content_id_learning_contents_id_fk": {
           "name": "learning_chapters_content_id_learning_contents_id_fk",
           "tableFrom": "learning_chapters",
-          "tableTo": "learning_contents",
           "columnsFrom": [
             "content_id"
           ],
+          "tableTo": "learning_contents",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "learning_chapters_document_id_documents_id_fk": {
           "name": "learning_chapters_document_id_documents_id_fk",
           "tableFrom": "learning_chapters",
-          "tableTo": "documents",
           "columnsFrom": [
             "document_id"
           ],
+          "tableTo": "documents",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "policies": {},
+      "isRLSEnabled": false,
+      "checkConstraints": {}
     },
     "public.learning_contents": {
       "name": "learning_contents",
@@ -406,7 +416,10 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "policies": {},
+      "isRLSEnabled": false,
+      "checkConstraints": {}
     },
     "public.learning_highlights": {
       "name": "learning_highlights",
@@ -463,19 +476,22 @@
         "learning_highlights_chapter_id_learning_chapters_id_fk": {
           "name": "learning_highlights_chapter_id_learning_chapters_id_fk",
           "tableFrom": "learning_highlights",
-          "tableTo": "learning_chapters",
           "columnsFrom": [
             "chapter_id"
           ],
+          "tableTo": "learning_chapters",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "policies": {},
+      "isRLSEnabled": false,
+      "checkConstraints": {}
     },
     "public.learning_progress": {
       "name": "learning_progress",
@@ -547,19 +563,22 @@
         "learning_progress_content_id_learning_contents_id_fk": {
           "name": "learning_progress_content_id_learning_contents_id_fk",
           "tableFrom": "learning_progress",
-          "tableTo": "learning_contents",
           "columnsFrom": [
             "content_id"
           ],
+          "tableTo": "learning_contents",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "policies": {},
+      "isRLSEnabled": false,
+      "checkConstraints": {}
     },
     "public.users": {
       "name": "users",
@@ -611,12 +630,15 @@
       "uniqueConstraints": {
         "users_email_unique": {
           "name": "users_email_unique",
-          "nullsNotDistinct": false,
           "columns": [
             "email"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
-      }
+      },
+      "policies": {},
+      "isRLSEnabled": false,
+      "checkConstraints": {}
     },
     "public.workspaces": {
       "name": "workspaces",
@@ -661,26 +683,35 @@
         "workspaces_owner_id_users_id_fk": {
           "name": "workspaces_owner_id_users_id_fk",
           "tableFrom": "workspaces",
-          "tableTo": "users",
           "columnsFrom": [
             "owner_id"
           ],
+          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "policies": {},
+      "isRLSEnabled": false,
+      "checkConstraints": {}
     }
   },
   "enums": {},
   "schemas": {},
   "_meta": {
-    "columns": {},
     "schemas": {},
-    "tables": {}
-  }
+    "tables": {},
+    "columns": {}
+  },
+  "id": "ca2aa44f-71cb-4279-ba72-882aa9cd50d4",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "sequences": {},
+  "policies": {},
+  "views": {},
+  "roles": {}
 }

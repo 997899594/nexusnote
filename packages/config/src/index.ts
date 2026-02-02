@@ -5,7 +5,7 @@
  * Single source of truth for all configuration values.
  */
 
-import { z } from 'zod'
+import { z } from "zod";
 
 // ============================================
 // Default Values
@@ -14,9 +14,9 @@ import { z } from 'zod'
 export const defaults = {
   // JWT Authentication
   jwt: {
-    secret: 'nexusnote-dev-secret-change-in-production',
-    expiresIn: '7d',
-    issuer: 'nexusnote',
+    secret: "nexusnote-dev-secret-change-in-production",
+    expiresIn: "7d",
+    issuer: "nexusnote",
   },
 
   // RAG Pipeline
@@ -31,26 +31,26 @@ export const defaults = {
 
   // Embedding
   embedding: {
-    model: 'Qwen/Qwen3-Embedding-8B',
+    model: "Qwen/Qwen3-Embedding-8B",
     dimensions: 4000,
   },
 
   // Reranker
   reranker: {
-    model: 'Qwen/Qwen3-Reranker-8B',
+    model: "Qwen/Qwen3-Reranker-8B",
     enabled: false,
   },
 
   // AI Models (2026 Modern Stack - Gemini 3)
   ai: {
     // 通用模型 - Gemini 3 Flash (速度快、成本低、推理强)
-    model: 'gemini-3-flash-preview',
+    model: "gemini-3-flash-preview",
     // Pro 模型 - Gemini 3 Pro (复杂任务)
-    modelPro: 'gemini-3-pro-preview',
+    modelPro: "gemini-3-pro-preview",
     // 联网搜索模型
-    modelWebSearch: 'gemini-3-flash-preview-web-search',
+    modelWebSearch: "gemini-3-flash-preview-web-search",
     // 302.ai 为首选 Provider
-    baseURL: 'https://api.302.ai/v1',
+    baseURL: "https://api.302.ai/v1",
   },
 
   // Notes / Liquid Knowledge
@@ -68,22 +68,22 @@ export const defaults = {
   server: {
     port: 3001,
     hocuspocusPort: 1234,
-    corsOrigin: 'http://localhost:3000',
+    corsOrigin: "http://localhost:3000",
   },
 
   // Database
   database: {
-    url: 'postgresql://postgres:postgres@localhost:5433/nexusnote',
+    // No default URL - must come from env
   },
 
   // Redis
   redis: {
-    url: 'redis://localhost:6380',
+    // No default URL - must come from env
   },
 
   // Collaboration
   collaboration: {
-    wsUrl: 'ws://localhost:1234',
+    wsUrl: "ws://localhost:1234",
   },
 
   // Queue
@@ -92,7 +92,7 @@ export const defaults = {
     ragMaxRetries: 3,
     ragBackoffDelay: 1000,
   },
-} as const
+} as const;
 
 // ============================================
 // Zod Schemas
@@ -103,26 +103,32 @@ export const defaults = {
  */
 export const serverEnvSchema = z.object({
   // Database
-  DATABASE_URL: z.string().url().default(defaults.database.url),
+  DATABASE_URL: z.string().url().describe("PostgreSQL Connection String"),
 
   // Redis
-  REDIS_URL: z.string().default(defaults.redis.url),
+  REDIS_URL: z.string().describe("Redis Connection String"),
 
   // Server
   PORT: z.coerce.number().int().positive().default(defaults.server.port),
   CORS_ORIGIN: z.string().default(defaults.server.corsOrigin),
-  HOCUSPOCUS_PORT: z.coerce.number().int().positive().default(defaults.server.hocuspocusPort),
+  HOCUSPOCUS_PORT: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(defaults.server.hocuspocusPort),
 
   // JWT Authentication
   JWT_SECRET: z.string().default(defaults.jwt.secret),
   JWT_EXPIRES_IN: z.string().default(defaults.jwt.expiresIn),
   JWT_ISSUER: z.string().default(defaults.jwt.issuer),
+  AUTH_SECRET: z.string().default(defaults.jwt.secret), // NextAuth Secret
 
   // AI Provider Keys
   AI_302_API_KEY: z.string().optional(),
   DEEPSEEK_API_KEY: z.string().optional(),
   SILICONFLOW_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
+  TAVILY_API_KEY: z.string().optional(),
 
   // AI Models (2026 Modern Stack - Gemini 3 优先)
   AI_MODEL: z.string().default(defaults.ai.model),
@@ -130,43 +136,89 @@ export const serverEnvSchema = z.object({
   AI_MODEL_WEB_SEARCH: z.string().default(defaults.ai.modelWebSearch),
 
   // Notes / Liquid Knowledge
-  NOTES_TOPIC_THRESHOLD: z.coerce.number().min(0).max(1).default(defaults.notes.topicThreshold),
+  NOTES_TOPIC_THRESHOLD: z.coerce
+    .number()
+    .min(0)
+    .max(1)
+    .default(defaults.notes.topicThreshold),
 
   // Embedding
   EMBEDDING_MODEL: z.string().default(defaults.embedding.model),
-  EMBEDDING_DIMENSIONS: z.coerce.number().int().positive().max(8192).default(defaults.embedding.dimensions),
+  EMBEDDING_DIMENSIONS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(8192)
+    .default(defaults.embedding.dimensions),
 
   // Reranker
   RERANKER_MODEL: z.string().default(defaults.reranker.model),
-  RERANKER_ENABLED: z.string().default('false').transform(v => v === 'true'),
+  RERANKER_ENABLED: z
+    .string()
+    .default("false")
+    .transform((v) => v === "true"),
 
   // RAG
   RAG_TIMEOUT: z.coerce.number().int().positive().default(defaults.rag.timeout),
   RAG_RETRIES: z.coerce.number().int().min(0).default(defaults.rag.retries),
-  RAG_SIMILARITY_THRESHOLD: z.coerce.number().min(0).max(1).default(defaults.rag.similarityThreshold),
-  RAG_CHUNK_SIZE: z.coerce.number().int().positive().default(defaults.rag.chunkSize),
-  RAG_CHUNK_OVERLAP: z.coerce.number().int().min(0).default(defaults.rag.chunkOverlap),
+  RAG_SIMILARITY_THRESHOLD: z.coerce
+    .number()
+    .min(0)
+    .max(1)
+    .default(defaults.rag.similarityThreshold),
+  RAG_CHUNK_SIZE: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(defaults.rag.chunkSize),
+  RAG_CHUNK_OVERLAP: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .default(defaults.rag.chunkOverlap),
 
   // Snapshot
-  SNAPSHOT_INTERVAL_MS: z.coerce.number().int().positive().default(defaults.snapshot.intervalMs),
-  SNAPSHOT_MAX_PER_DOC: z.coerce.number().int().positive().default(defaults.snapshot.maxPerDocument),
+  SNAPSHOT_INTERVAL_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(defaults.snapshot.intervalMs),
+  SNAPSHOT_MAX_PER_DOC: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(defaults.snapshot.maxPerDocument),
 
   // Queue
-  QUEUE_RAG_CONCURRENCY: z.coerce.number().int().positive().default(defaults.queue.ragConcurrency),
-  QUEUE_RAG_MAX_RETRIES: z.coerce.number().int().min(0).default(defaults.queue.ragMaxRetries),
-  QUEUE_RAG_BACKOFF_DELAY: z.coerce.number().int().positive().default(defaults.queue.ragBackoffDelay),
+  QUEUE_RAG_CONCURRENCY: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(defaults.queue.ragConcurrency),
+  QUEUE_RAG_MAX_RETRIES: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .default(defaults.queue.ragMaxRetries),
+  QUEUE_RAG_BACKOFF_DELAY: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(defaults.queue.ragBackoffDelay),
 
   // Environment
-  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-})
+  NODE_ENV: z
+    .enum(["development", "production", "test"])
+    .default("development"),
+});
 
-export type ServerEnv = z.infer<typeof serverEnvSchema>
+export type ServerEnv = z.infer<typeof serverEnvSchema>;
 
 /**
  * Client environment schema (NEXT_PUBLIC_ variables)
  */
 export const clientEnvSchema = z.object({
-  NEXT_PUBLIC_API_URL: z.string().default('http://localhost:3001'),
+  NEXT_PUBLIC_API_URL: z.string().default("http://localhost:3001"),
   NEXT_PUBLIC_COLLAB_URL: z.string().default(defaults.collaboration.wsUrl),
 
   // Client-side AI keys (optional, for direct API calls)
@@ -182,10 +234,19 @@ export const clientEnvSchema = z.object({
 
   // Embedding (client may need for dimensions)
   EMBEDDING_MODEL: z.string().default(defaults.embedding.model),
-  EMBEDDING_DIMENSIONS: z.coerce.number().int().positive().default(defaults.embedding.dimensions),
-})
+  EMBEDDING_DIMENSIONS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(defaults.embedding.dimensions),
 
-export type ClientEnv = z.infer<typeof clientEnvSchema>
+  // Environment
+  NODE_ENV: z
+    .enum(["development", "production", "test"])
+    .default("development"),
+});
+
+export type ClientEnv = z.infer<typeof clientEnvSchema>;
 
 // ============================================
 // Parse Functions
@@ -194,112 +255,95 @@ export type ClientEnv = z.infer<typeof clientEnvSchema>
 /**
  * Parse and validate server environment
  */
-export function parseServerEnv(env: NodeJS.ProcessEnv = process.env): ServerEnv {
-  const result = serverEnvSchema.safeParse(env)
+export function parseServerEnv(
+  env: NodeJS.ProcessEnv = process.env,
+): ServerEnv {
+  // Read from process.env for server-side
+  const merged = { ...process.env, ...env };
+
+  const result = serverEnvSchema.safeParse(merged);
 
   if (!result.success) {
-    console.error('❌ Server environment validation failed:')
+    console.error("❌ Server environment validation failed:");
     for (const issue of result.error.issues) {
-      console.error(`  - ${issue.path.join('.')}: ${issue.message}`)
+      console.error(`  - ${issue.path.join(".")}: ${issue.message}`);
     }
-    throw new Error('Invalid server environment configuration')
+    throw new Error("Invalid server environment configuration");
   }
 
-  return result.data
+  return result.data;
 }
 
 /**
  * Parse and validate client environment
  */
-export function parseClientEnv(env: Record<string, string | undefined> = {}): ClientEnv {
+export function parseClientEnv(
+  env: Record<string, string | undefined> = {},
+): ClientEnv {
   // In browser, read from process.env (Next.js injects NEXT_PUBLIC_ vars)
-  const merged = typeof window !== 'undefined'
-    ? { ...process.env, ...env }
-    : env
+  // CRITICAL: We MUST explicitly access process.env properties for Next.js to replace them at build time.
+  // Destructuring {...process.env} returns an empty object in the browser.
+  const processEnv = {
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+    NEXT_PUBLIC_COLLAB_URL: process.env.NEXT_PUBLIC_COLLAB_URL,
+    NODE_ENV: process.env.NODE_ENV,
+  };
 
-  const result = clientEnvSchema.safeParse(merged)
+  const merged =
+    typeof window !== "undefined"
+      ? { ...processEnv, ...env }
+      : { ...processEnv, ...env }; // Same for now, can be optimized
+
+  const result = clientEnvSchema.safeParse(merged);
 
   if (!result.success) {
-    console.error('❌ Client environment validation failed:')
+    console.error("❌ Client environment validation failed:");
     for (const issue of result.error.issues) {
-      console.error(`  - ${issue.path.join('.')}: ${issue.message}`)
+      console.error(`  - ${issue.path.join(".")}: ${issue.message}`);
     }
-    throw new Error('Invalid client environment configuration')
+    throw new Error("Invalid client environment configuration");
   }
 
-  return result.data
+  return result.data;
 }
 
-// ============================================
-// Runtime Config Builder
-// ============================================
+export const env = new Proxy({} as ServerEnv, {
+  get(target, prop) {
+    if (typeof prop !== "string") return undefined;
 
-export interface RuntimeConfig {
-  rag: {
-    timeout: number
-    retries: number
-    similarityThreshold: number
-    chunkSize: number
-    chunkOverlap: number
-    topK: number
-  }
-  embedding: {
-    model: string
-    dimensions: number
-  }
-  reranker: {
-    model: string
-    enabled: boolean
-  }
-  snapshot: {
-    intervalMs: number
-    maxPerDocument: number
-  }
-  queue: {
-    ragConcurrency: number
-    ragMaxRetries: number
-    ragBackoffDelay: number
-  }
-  notes: {
-    topicThreshold: number
-  }
-}
+    // Ignore React internal props and Promise props to avoid noise
+    if (
+      prop === "$$typeof" ||
+      prop === "then" ||
+      prop === "toJSON" ||
+      prop.startsWith("constructor")
+    ) {
+      return undefined;
+    }
 
-/**
- * Build runtime config from environment
- */
-export function buildRuntimeConfig(env: ServerEnv): RuntimeConfig {
-  return {
-    rag: {
-      timeout: env.RAG_TIMEOUT,
-      retries: env.RAG_RETRIES,
-      similarityThreshold: env.RAG_SIMILARITY_THRESHOLD,
-      chunkSize: env.RAG_CHUNK_SIZE,
-      chunkOverlap: env.RAG_CHUNK_OVERLAP,
-      topK: defaults.rag.topK,
-    },
-    embedding: {
-      model: env.EMBEDDING_MODEL,
-      dimensions: env.EMBEDDING_DIMENSIONS,
-    },
-    reranker: {
-      model: env.RERANKER_MODEL,
-      enabled: env.RERANKER_ENABLED,
-    },
-    snapshot: {
-      intervalMs: env.SNAPSHOT_INTERVAL_MS,
-      maxPerDocument: env.SNAPSHOT_MAX_PER_DOC,
-    },
-    queue: {
-      ragConcurrency: env.QUEUE_RAG_CONCURRENCY,
-      ragMaxRetries: env.QUEUE_RAG_MAX_RETRIES,
-      ragBackoffDelay: env.QUEUE_RAG_BACKOFF_DELAY,
-    },
-    notes: {
-      topicThreshold: env.NOTES_TOPIC_THRESHOLD,
-    },
-  }
-}
+    // Prevent access on client side
+    if (typeof window !== "undefined") {
+      console.warn(
+        `[config] Detected client-side access to server env var: ${prop}`,
+      );
+      return undefined;
+    }
+
+    // Lazy initialization on first access
+    const parsed = parseServerEnv(process.env);
+    return Reflect.get(parsed, prop);
+  },
+});
+
+// Parse client environment (safe to call in browser as it reads from process.env populated by build)
+// Also using proxy for consistency, although client env vars are typically injected at build time
+export const clientEnv = new Proxy({} as ClientEnv, {
+  get(target, prop) {
+    if (typeof prop !== "string") return undefined;
+    const parsed = parseClientEnv();
+    return Reflect.get(parsed, prop);
+  },
+});
 
 // ============================================
 // Logging
@@ -309,24 +353,26 @@ export function buildRuntimeConfig(env: ServerEnv): RuntimeConfig {
  * Log server config (hiding sensitive values)
  */
 export function logServerConfig(env: ServerEnv): void {
-  const maskSecret = (val: string | undefined) => val ? '***' : '(not set)'
+  const maskSecret = (val: string | undefined) => (val ? "***" : "(not set)");
 
-  console.log('[Config] Server environment validated:')
-  console.log(`  NODE_ENV: ${env.NODE_ENV}`)
-  console.log(`  PORT: ${env.PORT}`)
-  console.log(`  HOCUSPOCUS_PORT: ${env.HOCUSPOCUS_PORT}`)
-  console.log(`  DATABASE_URL: ${env.DATABASE_URL.replace(/\/\/[^@]+@/, '//***@')}`)
-  console.log(`  REDIS_URL: ${env.REDIS_URL}`)
-  console.log(`  AI_302_API_KEY: ${maskSecret(env.AI_302_API_KEY)}`)
-  console.log(`  AI_MODEL: ${env.AI_MODEL}`)
-  console.log(`  AI_MODEL_PRO: ${env.AI_MODEL_PRO}`)
-  console.log(`  AI_MODEL_WEB_SEARCH: ${env.AI_MODEL_WEB_SEARCH}`)
-  console.log(`  EMBEDDING_MODEL: ${env.EMBEDDING_MODEL}`)
-  console.log(`  EMBEDDING_DIMENSIONS: ${env.EMBEDDING_DIMENSIONS}`)
+  console.log("[Config] Server environment validated:");
+  console.log(`  NODE_ENV: ${env.NODE_ENV}`);
+  console.log(`  PORT: ${env.PORT}`);
+  console.log(`  HOCUSPOCUS_PORT: ${env.HOCUSPOCUS_PORT}`);
+  console.log(
+    `  DATABASE_URL: ${env.DATABASE_URL.replace(/\/\/[^@]+@/, "//***@")}`,
+  );
+  console.log(`  REDIS_URL: ${env.REDIS_URL}`);
+  console.log(`  AI_302_API_KEY: ${maskSecret(env.AI_302_API_KEY)}`);
+  console.log(`  AI_MODEL: ${env.AI_MODEL}`);
+  console.log(`  AI_MODEL_PRO: ${env.AI_MODEL_PRO}`);
+  console.log(`  AI_MODEL_WEB_SEARCH: ${env.AI_MODEL_WEB_SEARCH}`);
+  console.log(`  EMBEDDING_MODEL: ${env.EMBEDDING_MODEL}`);
+  console.log(`  EMBEDDING_DIMENSIONS: ${env.EMBEDDING_DIMENSIONS}`);
 }
 
 // ============================================
 // Re-exports for convenience
 // ============================================
 
-export { z } from 'zod'
+export { z } from "zod";

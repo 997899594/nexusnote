@@ -1,11 +1,9 @@
-import { API_URL } from '@/lib/config'
+import { clientEnv } from '@nexusnote/config'
+
+const API_URL = clientEnv.NEXT_PUBLIC_API_URL
 
 export const runtime = 'nodejs'
 
-/**
- * POST /api/notes/extract
- * Proxy to backend notes extraction service
- */
 export async function POST(req: Request) {
   try {
     const body = await req.json()
@@ -19,23 +17,14 @@ export async function POST(req: Request) {
     if (!response.ok) {
       const error = await response.text()
       console.error('[Notes API] Extract failed:', error)
-      return new Response(JSON.stringify({ error: 'Extract failed' }), {
-        status: response.status,
-        headers: { 'Content-Type': 'application/json' },
-      })
+      return Response.json({ error: 'Extract failed' }, { status: response.status })
     }
 
     const data = await response.json()
-    return new Response(JSON.stringify(data), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    })
+    return Response.json(data)
   } catch (err) {
     console.error('[Notes API] Extract error:', err)
     const message = err instanceof Error ? err.message : 'Unknown error'
-    return new Response(JSON.stringify({ error: message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    })
+    return Response.json({ error: message }, { status: 500 })
   }
 }

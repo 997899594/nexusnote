@@ -16,8 +16,9 @@
 import { drizzle } from 'drizzle-orm/postgres-js'
 import { migrate } from 'drizzle-orm/postgres-js/migrator'
 import postgres from 'postgres'
+import { env } from '@nexusnote/config'
 
-const DATABASE_URL = process.env.DATABASE_URL
+const DATABASE_URL = env.DATABASE_URL
 
 if (!DATABASE_URL) {
   console.error('❌ DATABASE_URL environment variable is not set')

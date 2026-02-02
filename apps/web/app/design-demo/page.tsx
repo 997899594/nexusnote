@@ -2,7 +2,7 @@
 
 import { HeroInput } from "@/components/demo/HeroInput";
 import { RecentAccess } from "@/components/demo/RecentAccess";
-import { OrganicHeader } from "@/components/demo/OrganicHeader";
+import { OrganicHeader } from "@/components/create/OrganicHeader";
 import { motion } from "framer-motion";
 
 export default function DesignDemoPage() {

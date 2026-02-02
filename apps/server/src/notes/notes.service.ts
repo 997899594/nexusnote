@@ -1,11 +1,11 @@
 import { Injectable, OnModuleInit } from '@nestjs/common'
 import { Worker, Job, Queue } from 'bullmq'
 import IORedis from 'ioredis'
-import { eq, sql } from 'drizzle-orm'
+import { eq, sql } from '@nexusnote/db'
 import { embed, generateText } from 'ai'
 import { topics, extractedNotes } from '@nexusnote/db'
 import { db } from '../database/database.module'
-import { env, config } from '../config/env.config'
+import { env, defaults } from '@nexusnote/config'
 import { getFastModel, getEmbeddingModel, AI_MODEL, isAIConfigured } from '../lib/ai'
 
 // ============================================
@@ -74,11 +74,11 @@ async function embedText(text: string): Promise<number[]> {
         model: getEmbeddingModel(),
         value: text,
       })
-      return embedding.slice(0, config.embedding.dimensions)
+      return embedding.slice(0, defaults.embedding.dimensions)
     },
     {
-      retries: config.rag.retries,
-      delay: config.queue.ragBackoffDelay,
+      retries: defaults.rag.retries,
+      delay: defaults.queue.ragBackoffDelay,
       name: 'NoteEmbed',
     }
   )
@@ -113,10 +113,7 @@ export class NotesService implements OnModuleInit {
   private queue: Queue | null = null
   private processingNotes = new Set<string>()
 
-  // 从配置读取阈值
-  private get topicThreshold() {
-    return config.notes.topicThreshold
-  }
+  private readonly topicThreshold = env.NOTES_TOPIC_THRESHOLD || defaults.notes.topicThreshold
 
   async onModuleInit() {
     console.log('[Notes] Liquid Knowledge System - NexusNote 3.1')

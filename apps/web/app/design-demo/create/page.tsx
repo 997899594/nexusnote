@@ -1,24 +1,22 @@
 "use client";
 
 import { useCourseGeneration } from "@/hooks/useCourseGeneration";
-import { AmbientBackground } from "@/components/demo/AmbientBackground";
-import { NexusGraph } from "@/components/demo/NexusGraph";
-import { ChatInterface } from "@/components/demo/ChatInterface";
-import { ManifestingOverlay } from "@/components/demo/ManifestingOverlay";
-import { OrganicHeader } from "@/components/demo/OrganicHeader";
+import { AmbientBackground } from "@/components/create/AmbientBackground";
+import { NexusGraph } from "@/components/create/NexusGraph";
+import { ChatInterface } from "@/components/demo/ChatInterface.design";
+import { ManifestingOverlay } from "@/components/create/ManifestingOverlay";
+import { OrganicHeader } from "@/components/create/OrganicHeader";
 
 export default function DesignCreatePage() {
   const { state, ui, actions } = useCourseGeneration();
-  const { phase, goal, config, history, nodes } = state;
+  const { phase, goal, config, nodes } = state;
   const {
     userInput,
     setUserInput,
     isAiThinking,
-    aiResponse,
-    currentQuestion,
-    suggestedUI,
     selectedNode,
     setSelectedNode,
+    messages,
   } = ui;
   const { handleSendMessage } = actions;
 
@@ -29,7 +27,7 @@ export default function DesignCreatePage() {
         nodes={nodes}
         isThinking={isAiThinking}
         phase={phase}
-        progress={Math.min(history.length / 4, 1)}
+        progress={Math.min(messages.length / 4, 1)}
       />
 
       {/* Header */}
@@ -37,12 +35,13 @@ export default function DesignCreatePage() {
 
       <main className="relative z-10 w-full h-screen flex items-center justify-center">
         {/* Chat Interface (Interview & Synthesis Phase) */}
+        {/* Note: demo/ChatInterface uses legacy API, providing compatibility values */}
         <ChatInterface
           phase={phase}
-          history={history}
-          aiResponse={aiResponse}
-          currentQuestion={currentQuestion}
-          suggestedUI={suggestedUI}
+          history={[]}
+          aiResponse=""
+          currentQuestion=""
+          suggestedUI={null}
           isAiThinking={isAiThinking}
           userInput={userInput}
           setUserInput={setUserInput}

@@ -11,7 +11,7 @@ import {
   type DocumentStructure,
   type DocumentBlock,
   type EditCommand,
-} from '@/lib/document-parser'
+} from '@/lib/editor/document-parser'
 
 interface EditorContextValue {
   editor: Editor | null

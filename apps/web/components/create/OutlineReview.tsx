@@ -2,18 +2,36 @@
 
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
-import { ArrowRight, Clock, Gauge, GripVertical, Sparkles, MessageSquare } from "lucide-react";
+import {
+  ArrowRight,
+  Clock,
+  Gauge,
+  GripVertical,
+  Sparkles,
+  MessageSquare,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { UIMessage } from "ai";
 
 interface CourseOutline {
   title: string;
   description: string;
   difficulty: "beginner" | "intermediate" | "advanced";
   estimatedMinutes: number;
+  modules?: {
+    title: string;
+    chapters: {
+      title: string;
+      summary?: string;
+      keyPoints?: string[];
+      contentSnippet?: string;
+    }[];
+  }[];
   chapters?: {
     title: string;
     summary?: string;
     keyPoints?: string[];
+    contentSnippet?: string;
   }[];
 }
 
@@ -22,10 +40,16 @@ interface OutlineReviewProps {
   onConfirm: (outline: CourseOutline) => void;
   onRefine: (feedback: string) => void;
   isThinking: boolean;
-  aiResponse: string;
+  messages: UIMessage[];
 }
 
-export function OutlineReview({ outline: initialOutline, onConfirm, onRefine, isThinking, aiResponse }: OutlineReviewProps) {
+export function OutlineReview({
+  outline: initialOutline,
+  onConfirm,
+  onRefine,
+  isThinking,
+  messages,
+}: OutlineReviewProps) {
   const [outline, setOutline] = useState(initialOutline);
   const [refineInput, setRefineInput] = useState("");
 
@@ -34,8 +58,25 @@ export function OutlineReview({ outline: initialOutline, onConfirm, onRefine, is
     setOutline(initialOutline);
   }, [initialOutline]);
 
+  // Extract latest AI message for the sidebar - SDK v6 uses parts instead of content
+  const getMessageText = (message: UIMessage): string => {
+    return message.parts
+      .filter((p) => p.type === "text")
+      .map((p) => (p as { type: "text"; text: string }).text)
+      .join("");
+  };
+
+  const latestAiMessage = (() => {
+    const assistantMessages = messages.filter((m) => m.role === "assistant");
+    const lastMessage = assistantMessages[assistantMessages.length - 1];
+    return lastMessage ? getMessageText(lastMessage) : "";
+  })();
+
+  // 获取 chapters（从 modules 或直接从 chapters）
+  const chapters = outline.chapters ?? outline.modules?.flatMap((m) => m.chapters) ?? [];
+
   const handleChapterTitleChange = (index: number, newTitle: string) => {
-    const newChapters = [...(outline.chapters || [])];
+    const newChapters = [...chapters];
     newChapters[index] = { ...newChapters[index], title: newTitle };
     setOutline({ ...outline, chapters: newChapters });
   };
@@ -69,7 +110,7 @@ export function OutlineReview({ outline: initialOutline, onConfirm, onRefine, is
                   Course Outline
                 </span>
                 <span className="text-black/40 text-xs font-medium uppercase tracking-wider flex items-center gap-1">
-                   {outline.chapters?.length || 0} Chapters
+                  {chapters.length} Chapters
                 </span>
               </div>
               <input
@@ -82,7 +123,7 @@ export function OutlineReview({ outline: initialOutline, onConfirm, onRefine, is
                 {outline.description}
               </p>
             </div>
-            
+
             <div className="flex gap-4 items-center">
               <div className="flex flex-col items-end gap-1">
                 <div className="flex items-center gap-2 text-sm font-medium text-black/60">
@@ -101,7 +142,7 @@ export function OutlineReview({ outline: initialOutline, onConfirm, onRefine, is
         {/* Chapters List */}
         <div className="p-8 max-h-[50vh] overflow-y-auto custom-scrollbar">
           <div className="space-y-4">
-            {(outline.chapters || []).map((chapter, index) => (
+            {chapters.map((chapter, index) => (
               <motion.div
                 key={index}
                 initial={{ opacity: 0, x: -10 }}
@@ -115,19 +156,26 @@ export function OutlineReview({ outline: initialOutline, onConfirm, onRefine, is
                 <div className="flex-1 space-y-1">
                   <input
                     value={chapter.title}
-                    onChange={(e) => handleChapterTitleChange(index, e.target.value)}
+                    onChange={(e) =>
+                      handleChapterTitleChange(index, e.target.value)
+                    }
                     className="w-full bg-transparent font-bold text-lg text-black focus:outline-none focus:underline decoration-black/20 underline-offset-4"
                   />
                   <p className="text-sm text-black/50 leading-relaxed">
                     {chapter.summary}
                   </p>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {(chapter.keyPoints || []).slice(0, 3).map((kp, kpi) => (
-                      <span key={kpi} className="text-[10px] font-medium px-2 py-0.5 bg-black/5 rounded-full text-black/60">
-                        {kp}
-                      </span>
-                    ))}
-                  </div>
+                  {chapter.keyPoints && chapter.keyPoints.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {chapter.keyPoints.slice(0, 3).map((kp, kpi) => (
+                        <span
+                          key={kpi}
+                          className="text-[10px] font-medium px-2 py-0.5 bg-black/5 rounded-full text-black/60"
+                        >
+                          {kp}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="opacity-0 group-hover:opacity-100 flex items-center text-black/20 cursor-grab active:cursor-grabbing">
                   <GripVertical className="w-5 h-5" />
@@ -144,9 +192,9 @@ export function OutlineReview({ outline: initialOutline, onConfirm, onRefine, is
               * Click text to edit manually
             </p>
           </div>
-          <Button 
+          <Button
             onClick={() => onConfirm(outline)}
-            size="lg" 
+            size="lg"
             className="rounded-full bg-black text-white hover:bg-black/80 px-8 text-lg font-bold shadow-xl shadow-black/10 group"
           >
             Start Learning
@@ -159,19 +207,22 @@ export function OutlineReview({ outline: initialOutline, onConfirm, onRefine, is
       <div className="w-80 bg-white/90 backdrop-blur-xl border border-black/5 rounded-[32px] shadow-xl p-6 flex flex-col gap-4 self-stretch">
         <div className="flex items-center gap-2 text-black/60">
           <Sparkles className="w-5 h-5" />
-          <h3 className="font-bold text-sm uppercase tracking-wider">AI Assistant</h3>
+          <h3 className="font-bold text-sm uppercase tracking-wider">
+            AI Assistant
+          </h3>
         </div>
-        
+
         <div className="flex-1 overflow-y-auto min-h-[100px] text-sm text-black/70 space-y-4">
-           {aiResponse ? (
-             <div className="bg-black/5 p-4 rounded-2xl rounded-tl-none">
-               {aiResponse}
-             </div>
-           ) : (
-             <div className="text-black/30 italic text-center mt-10">
-               "Ask me to adjust the difficulty, add topics, or change the structure."
-             </div>
-           )}
+          {latestAiMessage ? (
+            <div className="bg-black/5 p-4 rounded-2xl rounded-tl-none">
+              {latestAiMessage}
+            </div>
+          ) : (
+            <div className="text-black/30 italic text-center mt-10">
+              "Ask me to adjust the difficulty, add topics, or change the
+              structure."
+            </div>
+          )}
         </div>
 
         <form onSubmit={handleRefineSubmit} className="relative">
@@ -182,7 +233,7 @@ export function OutlineReview({ outline: initialOutline, onConfirm, onRefine, is
             placeholder={isThinking ? "Thinking..." : "e.g. Make it harder..."}
             className="w-full bg-black/[0.03] border border-black/5 rounded-2xl px-4 py-3 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-black/5 disabled:opacity-50"
           />
-          <button 
+          <button
             type="submit"
             disabled={!refineInput.trim() || isThinking}
             className="absolute right-2 top-2 p-1.5 bg-black text-white rounded-xl hover:bg-black/80 disabled:opacity-0 transition-all"

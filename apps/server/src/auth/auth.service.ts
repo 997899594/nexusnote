@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import * as jwt from 'jsonwebtoken'
-import { env } from '../config/env.config'
+import { env, defaults } from '@nexusnote/config'
 
 /**
  * JWT Payload structure

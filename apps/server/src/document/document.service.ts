@@ -1,7 +1,7 @@
 import { Injectable, Inject, NotFoundException } from '@nestjs/common'
 import { db } from '../database/database.module'
 import { documents } from '@nexusnote/db'
-import { eq } from 'drizzle-orm'
+import { eq } from '@nexusnote/db'
 
 @Injectable()
 export class DocumentService {

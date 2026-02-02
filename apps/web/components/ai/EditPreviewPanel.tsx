@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Check, X, Eye, EyeOff } from 'lucide-react'
-import type { EditCommand } from '@/lib/document-parser'
+import type { EditCommand } from '@/lib/editor/document-parser'
 
 interface EditPreviewPanelProps {
   originalContent: string
@@ -147,61 +147,6 @@ export function EditPreviewPanel({
       </div>
     </div>
   )
-}
-
-/**
- * 从 AI 响应中解析编辑命令（支持多个编辑块）
- */
-export function parseEditResponse(response: string): {
-  editCommands: EditCommand[]
-  explanation: string
-} {
-  const editCommands: EditCommand[] = []
-
-  // 匹配所有编辑块
-  const editBlockRegex = /<<<EDIT_START>>>([\s\S]*?)<<<EDIT_END>>>/g
-  let match
-
-  while ((match = editBlockRegex.exec(response)) !== null) {
-    const editBlock = match[1]
-    const targetMatch = editBlock.match(/TARGET:\s*([^\n]+)/)
-    const actionMatch = editBlock.match(/ACTION:\s*([^\n]+)/)
-    const contentMatch = editBlock.match(/CONTENT:\s*\n([\s\S]*?)$/)
-
-    if (targetMatch && actionMatch) {
-      const targetId = targetMatch[1].trim()
-      const action = actionMatch[1].trim() as EditCommand['action']
-      const newContent = contentMatch ? contentMatch[1].trim() : undefined
-
-      editCommands.push({
-        action,
-        targetId,
-        newContent,
-      })
-    }
-  }
-
-  // 提取解释部分（最后一个编辑块之后的内容）
-  const lastEditEnd = response.lastIndexOf('<<<EDIT_END>>>')
-  const afterEditEnd = lastEditEnd >= 0 ? response.slice(lastEditEnd + 14) : response
-  const explanation = afterEditEnd.replace(/^\s*\n*解释[：:]\s*/g, '').trim()
-
-  return {
-    editCommands,
-    explanation,
-  }
-}
-
-// 保持向后兼容的单命令版本
-export function parseEditResponseSingle(response: string): {
-  editCommand: EditCommand | null
-  explanation: string
-} {
-  const { editCommands, explanation } = parseEditResponse(response)
-  return {
-    editCommand: editCommands[0] || null,
-    explanation,
-  }
 }
 
 export default EditPreviewPanel

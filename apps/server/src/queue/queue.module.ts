@@ -1,46 +1,48 @@
-import { Module, Global, OnModuleInit, OnModuleDestroy } from '@nestjs/common'
-import { Queue, Worker, Job } from 'bullmq'
-import IORedis from 'ioredis'
-import { env } from '../config/env.config'
-
-// Redis 连接
-const connection = new IORedis(env.REDIS_URL, {
-  maxRetriesPerRequest: null,
-})
-
-// RAG 索引队列
-export const ragQueue = new Queue('rag-index', { connection: connection as any })
+import { Module, Global } from '@nestjs/common'
+import { BullModule } from '@nestjs/bullmq'
+import { env, defaults } from '@nexusnote/config'
+import { Queue } from 'bullmq'
 
 export interface RagIndexJob {
   documentId: string
   plainText: string
 }
 
+// Standalone queue instance for non-DI usage (e.g. Hocuspocus)
+export const ragQueue = new Queue('rag-processing', {
+  connection: {
+    url: env.REDIS_URL,
+  },
+})
+
 @Global()
 @Module({
-  providers: [
-    {
-      provide: 'RAG_QUEUE',
-      useValue: ragQueue,
-    },
-    {
-      provide: 'REDIS_CONNECTION',
-      useValue: connection,
-    },
+  imports: [
+    BullModule.forRoot({
+      connection: {
+        url: env.REDIS_URL,
+      },
+    }),
+    BullModule.registerQueue({
+      name: 'rag-processing',
+      defaultJobOptions: {
+        attempts: env.QUEUE_RAG_MAX_RETRIES || defaults.queue.ragMaxRetries,
+        backoff: {
+          type: 'exponential',
+          delay: env.QUEUE_RAG_BACKOFF_DELAY || defaults.queue.ragBackoffDelay,
+        },
+        removeOnComplete: true,
+      },
+    }),
   ],
-  exports: ['RAG_QUEUE', 'REDIS_CONNECTION'],
+  exports: [BullModule],
 })
-export class QueueModule implements OnModuleDestroy {
-  async onModuleDestroy() {
-    await ragQueue.close()
-    await connection.quit()
-  }
-}
+export class QueueModule {}
 
-// 添加任务到队列的辅助函数
+// Helper function to add jobs to the queue
 export async function addRagIndexJob(data: RagIndexJob) {
   await ragQueue.add('index-document', data, {
-    // 去重：同一文档只保留最新的任务
+    // Deduplication: keep only the latest job for the same document
     jobId: `rag-${data.documentId}`,
     removeOnComplete: true,
     removeOnFail: 100,
