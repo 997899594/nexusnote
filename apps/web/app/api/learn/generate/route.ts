@@ -1,4 +1,4 @@
-import { generateObject } from "ai";
+import { generateText, Output } from "ai";
 import { z } from "zod";
 import {
   chatModel,
@@ -8,6 +8,7 @@ import {
   getAIProviderInfo,
 } from "@/lib/ai/registry";
 import { auth } from "@/auth";
+import { createTelemetryConfig } from "@/lib/ai/langfuse";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -51,9 +52,12 @@ export async function POST(req: Request) {
     const model = (webSearchModel ?? chatModel)!;
     const useWebSearch = isWebSearchAvailable();
 
-    const { object } = await generateObject({
+    // ✅ AI SDK v6 推荐方式：generateText + Output.object（而非 generateObject）
+    const result = await generateText({
       model,
-      schema: CourseOutlineSchema,
+      output: Output.object({
+        schema: CourseOutlineSchema,
+      }),
       prompt: `你是一位全领域课程设计大师，擅长将任何复杂技能转化为结构化的学习路径。
 ${useWebSearch ? "你可以联网搜索最新资料，请确保内容是 2025-2026 年最新的。\n" : ""}
 
@@ -68,7 +72,7 @@ ${useWebSearch ? "你可以联网搜索最新资料，请确保内容是 2025-20
 【课程设计指令】
 1. **类比教学 (Analogy-First)**：
    - 必须利用用户的 ${priorKnowledge?.join(", ")} 背景来解释 ${goal} 中的新概念。
-   - *例如：如果是程序员学做菜，就把“备菜”类比为“初始化变量”。*
+   - *例如：如果是程序员学做菜，就把"备菜"类比为"初始化变量"。*
 2. **目标倒推 (Outcome-Based)**：
    - 所有章节必须直接服务于 ${targetOutcome}。不要讲无关的废话。
 3. **风格适配 (Cognitive Fit)**：
@@ -78,9 +82,24 @@ ${useWebSearch ? "你可以联网搜索最新资料，请确保内容是 2025-20
 
 请生成一个符合 JSON Schema 的课程大纲。`,
       temperature: 0.8,
+      // AI SDK v6 Native Features
+      maxRetries: 3,
+      onFinish: ({ usage }) => {
+        if (usage?.totalTokens) {
+          const cost = (usage.totalTokens / 1000000) * 0.5;
+          console.log(`[Course Outline] Goal: ${goal}, Tokens: ${usage.totalTokens}, Cost: $${cost.toFixed(4)}`);
+        }
+      },
+      // Langfuse Observability
+      experimental_telemetry: createTelemetryConfig('course-outline-generator', {
+        goal,
+        level: level || 'beginner',
+        useWebSearch,
+        userId: session.user?.id || 'anonymous',
+      }),
     });
 
-    return Response.json(object);
+    return Response.json(result.experimental_output);
   } catch (error) {
     console.error("[Learn Generate] Error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";

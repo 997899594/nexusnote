@@ -60,10 +60,15 @@ export function OutlineReview({
 
   // Extract latest AI message for the sidebar - SDK v6 uses parts instead of content
   const getMessageText = (message: UIMessage): string => {
-    return message.parts
-      .filter((p) => p.type === "text")
-      .map((p) => (p as { type: "text"; text: string }).text)
-      .join("");
+    // 优先尝试处理 parts (SDK v6)
+    if (message.parts) {
+      return message.parts
+        .filter((p) => p.type === "text")
+        .map((p) => (p as { type: "text"; text: string }).text)
+        .join("");
+    }
+    // 回退到 content (兼容旧格式或手动构建的消息)
+    return (message as any).content || "";
   };
 
   const latestAiMessage = (() => {

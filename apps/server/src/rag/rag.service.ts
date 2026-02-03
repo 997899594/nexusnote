@@ -8,6 +8,10 @@ import { documents, documentChunks } from "@nexusnote/db";
 import type { RagIndexJob } from "@nexusnote/types";
 import { db } from "../database/database.module";
 import { env, defaults } from "@nexusnote/config";
+import { rewriteQuery } from "./query-rewriter";
+import { compressContext, shouldCompress } from "./context-compressor";
+import { hybridSearch, shouldUseHybridSearch } from "./hybrid-search";
+import { logRerankingStats } from "./reranker-validator";
 
 // ============================================
 // AI SDK 6.x Embedding Provider
@@ -331,33 +335,67 @@ export class RagService implements OnModuleInit {
   ): Promise<
     Array<{ content: string; documentId: string; similarity: number }>
   > {
-    // Step 1: Vector retrieval (recall more candidates for reranker)
-    const embedding = await embedText(query);
+    // Step 0: Query Rewriting (optional, controlled by env)
+    let effectiveQuery = query;
+    if (env.QUERY_REWRITING_ENABLED) {
+      try {
+        effectiveQuery = await rewriteQuery(query);
+      } catch (err) {
+        console.warn('[RAG] Query rewriting failed, using original:', err);
+        effectiveQuery = query;
+      }
+    }
+
+    // Step 1: Retrieve candidates (Vector or Hybrid Search)
+    const embedding = await embedText(effectiveQuery);
     if (embedding.length === 0) return [];
 
-    const embeddingStr = `[${embedding.join(",")}]`;
     const candidateCount = env.RERANKER_ENABLED ? topK * 4 : topK;
-
-    // Join with documents and workspaces to filter by ownerId
-    const candidates = (await db.execute(sql`
-      SELECT c.content, c.document_id as "documentId",
-             1 - (c.embedding <=> ${embeddingStr}::halfvec) as similarity
-      FROM document_chunks c
-      JOIN documents d ON c.document_id = d.id
-      JOIN workspaces w ON d.workspace_id = w.id
-      WHERE c.embedding IS NOT NULL 
-        AND w.owner_id = ${userId}::uuid
-      ORDER BY c.embedding <=> ${embeddingStr}::halfvec
-      LIMIT ${candidateCount}
-    `)) as unknown as Array<{
+    let candidates: Array<{
       content: string;
       documentId: string;
       similarity: number;
-    }>;
+    }> = [];
+
+    // Choose search strategy
+    const useHybrid = env.HYBRID_SEARCH_ENABLED && shouldUseHybridSearch(effectiveQuery);
+
+    if (useHybrid) {
+      console.log(`[RAG] Using hybrid search (vector + full-text)`);
+      candidates = await hybridSearch(
+        effectiveQuery,
+        embedding,
+        userId,
+        candidateCount,
+        { vectorWeight: 0.7, candidatesPerMethod: candidateCount },
+      );
+    } else {
+      // Standard vector retrieval
+      const embeddingStr = `[${embedding.join(",")}]`;
+
+      candidates = (await db.execute(sql`
+        SELECT c.content, c.document_id as "documentId",
+               1 - (c.embedding <=> ${embeddingStr}::halfvec) as similarity
+        FROM document_chunks c
+        JOIN documents d ON c.document_id = d.id
+        JOIN workspaces w ON d.workspace_id = w.id
+        WHERE c.embedding IS NOT NULL
+          AND w.owner_id = ${userId}::uuid
+        ORDER BY c.embedding <=> ${embeddingStr}::halfvec
+        LIMIT ${candidateCount}
+      `)) as unknown as Array<{
+        content: string;
+        documentId: string;
+        similarity: number;
+      }>;
+    }
 
     if (candidates.length === 0) return [];
 
     // Step 2: Reranker reordering
+    let results = candidates.slice(0, topK);
+    const beforeReranking = [...results]; // 保存 Reranking 前的结果
+
     if (env.RERANKER_ENABLED && candidates.length > 1) {
       console.log(
         `[RAG] Reranking ${candidates.length} candidates with ${env.RERANKER_MODEL}`,
@@ -368,7 +406,7 @@ export class RagService implements OnModuleInit {
         topK,
       );
 
-      const reranked = rerankResults
+      results = rerankResults
         .sort((a, b) => b.relevance_score - a.relevance_score)
         .slice(0, topK)
         .map((r) => ({
@@ -376,10 +414,24 @@ export class RagService implements OnModuleInit {
           similarity: r.relevance_score,
         }));
 
-      return reranked;
+      // 记录 Reranking 统计
+      logRerankingStats(beforeReranking, results);
     }
 
-    return candidates.slice(0, topK);
+    // Step 3: Context Compression (optional)
+    if (env.CONTEXT_COMPRESSION_ENABLED && shouldCompress(results, 1000)) {
+      console.log(`[RAG] Compressing ${results.length} results`);
+      try {
+        results = await compressContext(effectiveQuery, results, {
+          strategy: 'auto',
+          targetTokens: 500,
+        });
+      } catch (err) {
+        console.warn('[RAG] Context compression failed, using original:', err);
+      }
+    }
+
+    return results;
   }
 
   async getDocumentTitle(documentId: string): Promise<string> {

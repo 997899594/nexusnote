@@ -1,6 +1,7 @@
 import { streamText } from 'ai'
 import { chatModel, isAIConfigured } from '@/lib/ai/registry'
 import { auth } from '@/auth'
+import { createTelemetryConfig } from '@/lib/ai/langfuse'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60 // 文档分析
@@ -40,6 +41,19 @@ ${context}
         prompt: "根据上下文判断是否需要幽灵评论。如果需要，请输出建议内容。如果不需要，请输出空字符串。",
         maxOutputTokens: 100,
         temperature: 0.8,
+        // AI SDK v6 Native Features (2026)
+        maxRetries: 3,
+        onFinish: ({ usage, finishReason }) => {
+          if (usage?.totalTokens) {
+            const cost = (usage.totalTokens / 1000000) * 0.1;
+            console.log(`[Ghost] Tokens: ${usage.totalTokens}, Cost: $${cost.toFixed(4)}, Reason: ${finishReason}`);
+          }
+        },
+        // Langfuse Observability (2026)
+        experimental_telemetry: createTelemetryConfig('ghost-assistant', {
+          documentTitle: documentTitle || 'untitled',
+          userId: session.user?.id || 'anonymous',
+        }),
     })
 
     return result.toTextStreamResponse()

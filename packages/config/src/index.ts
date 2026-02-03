@@ -130,6 +130,10 @@ export const serverEnvSchema = z.object({
   OPENAI_API_KEY: z.string().optional(),
   TAVILY_API_KEY: z.string().optional(),
 
+  // AI Observability (2026 Modern Stack - Langfuse)
+  LANGFUSE_PUBLIC_KEY: z.string().optional(),
+  LANGFUSE_SECRET_KEY: z.string().optional(),
+
   // AI Models (2026 Modern Stack - Gemini 3 优先)
   AI_MODEL: z.string().default(defaults.ai.model),
   AI_MODEL_PRO: z.string().default(defaults.ai.modelPro),
@@ -176,6 +180,21 @@ export const serverEnvSchema = z.object({
     .int()
     .min(0)
     .default(defaults.rag.chunkOverlap),
+
+  // RAG Advanced Features (2026 Optimizations)
+  QUERY_REWRITING_ENABLED: z
+    .string()
+    .default("false")
+    .transform((v) => v === "true"),
+  HYBRID_SEARCH_ENABLED: z
+    .string()
+    .default("false")
+    .transform((v) => v === "true"),
+  CONTEXT_COMPRESSION_ENABLED: z
+    .string()
+    .default("false")
+    .transform((v) => v === "true"),
+  AI_FAST_MODEL: z.string().optional().describe("Fast model for query rewriting"),
 
   // Snapshot
   SNAPSHOT_INTERVAL_MS: z.coerce
@@ -226,6 +245,10 @@ export const clientEnvSchema = z.object({
   AI_302_API_KEY: z.string().optional(),
   SILICONFLOW_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
+
+  // AI Observability (2026 Modern Stack - Langfuse)
+  LANGFUSE_PUBLIC_KEY: z.string().optional(),
+  LANGFUSE_SECRET_KEY: z.string().optional(),
 
   // AI Models
   AI_MODEL: z.string().default(defaults.ai.model),

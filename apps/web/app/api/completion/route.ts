@@ -1,6 +1,7 @@
 import { streamText } from 'ai'
 import { fastModel, isAIConfigured, getAIProviderInfo } from '@/lib/ai/registry'
 import { auth } from '@/auth'
+import { createTelemetryConfig } from '@/lib/ai/langfuse'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30 // 写作辅助通常较快
@@ -42,6 +43,19 @@ export async function POST(req: Request) {
       prompt: fullPrompt,
       maxOutputTokens: 2048,
       temperature: 0.7,
+      // AI SDK v6 Native Features (2026)
+      maxRetries: 3,
+      onFinish: ({ usage, finishReason }) => {
+        if (usage?.totalTokens) {
+          const cost = (usage.totalTokens / 1000000) * 0.1;
+          console.log(`[Completion] Action: ${action}, Tokens: ${usage.totalTokens}, Cost: $${cost.toFixed(4)}, Reason: ${finishReason}`);
+        }
+      },
+      // Langfuse Observability (2026)
+      experimental_telemetry: createTelemetryConfig('editor-completion', {
+        action: action as string,
+        userId: session.user?.id || 'anonymous',
+      }),
     })
 
     return result.toTextStreamResponse()

@@ -1,6 +1,7 @@
 import { streamText } from 'ai'
 import { courseModel, isAIConfigured, getAIProviderInfo } from '@/lib/ai/registry'
 import { auth } from '@/auth'
+import { createTelemetryConfig } from '@/lib/ai/langfuse'
 
 export const runtime = 'nodejs'
 export const maxDuration = 180
@@ -90,6 +91,22 @@ export async function POST(req: Request) {
 
 请用中文撰写完整的章节内容：`,
       temperature: 0.7,
+      // AI SDK v6 Native Features (2026)
+      maxRetries: 3,
+      onFinish: ({ usage, finishReason }) => {
+        if (usage?.totalTokens) {
+          const cost = (usage.totalTokens / 1000000) * 0.5;
+          console.log(`[Course Content] Chapter: ${chapterTitle}, Tokens: ${usage.totalTokens}, Cost: $${cost.toFixed(4)}, Reason: ${finishReason}`);
+        }
+      },
+      // Langfuse Observability (2026)
+      experimental_telemetry: createTelemetryConfig('course-content-generator', {
+        courseTitle,
+        chapterTitle,
+        chapterIndex,
+        difficulty: difficulty as string,
+        userId: session.user?.id || 'anonymous',
+      }),
     })
 
     return result.toTextStreamResponse()

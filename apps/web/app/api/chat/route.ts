@@ -13,11 +13,8 @@ import {
 import { ragService } from "@/lib/ai/rag";
 import { auth } from "@/auth";
 import { routeIntent } from "@/lib/ai/router/route";
-import {
-  runInterviewStep,
-  InterviewContext,
-} from "@/lib/ai/agents/interview/machine";
-import { InterviewState } from "@/lib/ai/agents/interview/schema";
+import { createInterviewAgent } from "@/lib/ai/agents/interview/agent";
+import { createTelemetryConfig } from "@/lib/ai/langfuse";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -49,9 +46,6 @@ export async function POST(req: Request) {
     documentContext,
     documentStructure,
     editMode = false,
-    // New params
-    interviewState = "IDLE" as InterviewState,
-    interviewContext = {} as InterviewContext,
   } = await req.json();
 
   if (!isAIConfigured()) {
@@ -81,71 +75,28 @@ export async function POST(req: Request) {
   // =========================================================
   // ROUTING LOGIC (2026 Architecture)
   // =========================================================
-
+  //
+  // Note: Interview now has a dedicated API endpoint at /api/learn/interview
+  // This chat route focuses on general conversation and RAG-based assistance
+  //
+  // Optional: If you want automatic interview triggering from chat, uncomment below
+  /*
   let intent = "CHAT";
-
-  // 1. If inside an interview loop, stay in it
-  if (
-    interviewState !== "IDLE" &&
-    interviewState !== "COMPLETED" &&
-    interviewState !== "GENERATING"
-  ) {
-    intent = "INTERVIEW";
-  }
-  // 2. Otherwise, check with Router
-  else if (query) {
+  if (query) {
     try {
-      const routing = await routeIntent(
-        query,
-        `Current State: ${interviewState}`,
-      );
-      // If router says INTERVIEW, switch to it
+      const routing = await routeIntent(query, "");
       if (routing.target === "INTERVIEW") {
-        intent = "INTERVIEW";
-      }
-      // If router says SEARCH, enable web search for Chat Agent
-      if (routing.target === "SEARCH") {
-        // Modify the request effectively
-        // But we handle this via dispatch below
+        const agent = createInterviewAgent({});
+        const result = await agent.stream({ messages });
+        return result.toUIMessageStreamResponse();
       }
     } catch (e) {
       console.error("Routing failed, defaulting to CHAT", e);
     }
   }
+  */
 
-  // =========================================================
-  // DISPATCH
-  // =========================================================
-
-  if (intent === "INTERVIEW") {
-    try {
-      const stepResult = await runInterviewStep(
-        interviewState,
-        query,
-        interviewContext,
-      );
-
-      // Return the stream with State headers
-      const response = stepResult.stream;
-      response.headers.set("X-Nexus-Interview-State", stepResult.nextState);
-      response.headers.set(
-        "X-Nexus-Interview-Context",
-        JSON.stringify(stepResult.contextUpdates),
-      );
-      // Mark as standard stream (Hybrid Text + Tools)
-      // response.headers.set("X-Nexus-Stream-Type", "object"); // REMOVED: Back to standard stream
-
-      return response;
-    } catch (err) {
-      console.error("Interview Error:", err);
-      return Response.json(
-        { error: "Interview Logic Failed" },
-        { status: 500 },
-      );
-    }
-  }
-
-  // Default: CHAT AGENT (Legacy + RAG)
+  // Default: CHAT AGENT (RAG-powered conversation)
 
   // RAG 上下文预获取
   let ragContext: string | undefined;
@@ -180,18 +131,35 @@ export async function POST(req: Request) {
       throw new Error("AI model not configured");
     }
 
+    // AI SDK v6 streamText with Langfuse Telemetry
     const result = streamText({
-      model: model,
+      model: model!,
       messages: await convertToModelMessages(messages),
       tools: enableTools ? chatTools : undefined,
       system: buildInstructions(callOptions),
       temperature: 0.7, // 🔥 升温，让对话更自然、更有同理心
+      // AI SDK v6 Native Features (2026)
+      maxRetries: 3,
+      onFinish: ({ usage, finishReason, toolCalls }) => {
+        if (usage?.totalTokens) {
+          const cost = (usage.totalTokens / 1000000) * 0.1;
+          console.log(
+            `[Chat] Tokens: ${usage.totalTokens}, Cost: $${cost.toFixed(4)}, Tools: ${toolCalls?.length || 0}, Reason: ${finishReason}`,
+          );
+        }
+      },
+      // Langfuse Observability (2026)
+      experimental_telemetry: createTelemetryConfig("chat-agent", {
+        userId: session.user?.id || "anonymous",
+        enableRAG: enableRAG,
+        enableTools: enableTools,
+        enableWebSearch: enableWebSearch,
+      }),
     });
 
-    return result.toTextStreamResponse();
+    return result.toUIMessageStreamResponse();
   } catch (err) {
     console.error("[Chat] Agent error:", err);
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return Response.json({ error: `Chat failed: ${message}` }, { status: 500 });
+    return Response.json({ error: "AI 响应失败，请重试" }, { status: 500 });
   }
 }

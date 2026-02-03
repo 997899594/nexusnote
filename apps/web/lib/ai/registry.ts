@@ -198,6 +198,7 @@ export function initializeRegistry(): AIRegistry {
   const selectedProvider = providersWithKeys[0] as ProviderConfig;
 
   // 3. 创建 OpenAI 兼容实例
+  // Note: AI SDK v6 已有 maxRetries 自动重试，无需 Helicone Gateway
   const openai = createOpenAI({
     baseURL: selectedProvider.baseURL,
     apiKey: selectedProvider.apiKey,

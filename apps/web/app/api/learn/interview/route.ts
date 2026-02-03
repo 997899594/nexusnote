@@ -1,50 +1,53 @@
+import { runInterview } from "@/lib/ai/agents/interview/agent";
+import { isAIConfigured, getAIProviderInfo } from "@/lib/ai/registry";
+import { auth } from "@/auth";
+import { convertToModelMessages } from "ai";
 
-import { runInterviewStep } from '@/lib/ai/agents/interview/machine';
-import { isAIConfigured, getAIProviderInfo } from '@/lib/ai/registry';
-import { auth } from '@/auth';
-
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 export const maxDuration = 60;
+
+/**
+ * Modern Interview API (2026) - Agentic Workflow
+ *
+ * 架构：
+ * - ✅ streamText with Tools
+ * - ✅ Multi-step reasoning (AI decides when to call tools)
+ * - ✅ Standard Data Stream Protocol (supports text + tool calls)
+ */
 
 export async function POST(req: Request) {
   const session = await auth();
   if (!session) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { messages, interviewState, interviewContext } = await req.json();
+  const { messages, interviewContext = {} } = await req.json();
 
   if (!isAIConfigured()) {
     const info = getAIProviderInfo();
     return Response.json(
       { error: `AI API key not configured. Provider: ${info.provider}` },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
-  const input = messages && messages.length > 0 ? messages[messages.length - 1].content : '';
-  const currentState = interviewState || 'IDLE';
-  const currentContext = interviewContext || {};
-
   try {
-    const result = await runInterviewStep(currentState, input, currentContext);
-    
-    const response = result.stream;
-    
-    // Set headers for client-side state management
-    response.headers.set('X-Nexus-Interview-State', result.nextState);
-    
-    if (Object.keys(result.contextUpdates).length > 0) {
-      // Ensure context updates are JSON stringified and safe for headers
-      response.headers.set('X-Nexus-Interview-Context', JSON.stringify(result.contextUpdates));
-    }
-    
-    return response;
+    // Run interview agent (streamText + Tools)
+    // IMPORTANT: Convert UI messages to ModelMessages for AI SDK v6
+    const coreMessages = await convertToModelMessages(messages);
+    const result = await runInterview(coreMessages, interviewContext);
+
+    // Return standard data stream (supports text parts and tool call parts)
+    // IMPORTANT: .toDataStreamResponse() is the standard for useChat + Tools
+    return result.toUIMessageStreamResponse();
   } catch (error) {
-    console.error('Interview API Error:', error);
+    console.error("[Interview API] Error:", error);
     return Response.json(
-      { error: 'Failed to generate interview response' },
-      { status: 500 }
+      {
+        error: "Failed to generate interview response",
+        details: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 },
     );
   }
 }
