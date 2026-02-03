@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, ArrowRight, Check, Zap } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { UIMessage as Message } from "ai";
-import { useTypewriter } from "@/hooks/useTypewriter";
+import { MessageResponse } from "@/components/ai-elements/message";
 
 interface ToolPart {
   type: string;
@@ -65,17 +65,6 @@ interface ChatInterfaceProps {
   onRetry?: () => void;
 }
 
-// Blinking cursor component
-function BlinkingCursor() {
-  return (
-    <motion.span
-      animate={{ opacity: [1, 0, 1] }}
-      transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }}
-      className="inline-block w-0.5 h-5 bg-black ml-1 align-middle"
-      aria-hidden="true"
-    />
-  );
-}
 
 export function ChatInterface({
   phase,
@@ -100,12 +89,8 @@ export function ChatInterface({
   const historyMessages = isLastAssistant ? messages.slice(0, -1) : messages;
   const activeMessage = isLastAssistant ? lastMessage : null;
 
-  // Typewriter effect for the active AI message
+  // Get the active AI message text
   const activeMessageText = activeMessage ? getMessageText(activeMessage) : "";
-  const { displayedText, isTyping, skip } = useTypewriter(activeMessageText, {
-    speed: 30,
-    startImmediately: true,
-  });
 
   // Input focus state for enhanced animation
   const [isFocused, setIsFocused] = useState(false);
@@ -250,15 +235,13 @@ export function ChatInterface({
                   {/* Current Active Interaction (Latest Assistant Message) */}
                   <div className="pt-2">
                     <AnimatePresence mode="wait">
-                      {activeMessage && displayedText && (
+                      {activeMessage && activeMessageText && (
                         <motion.div
                           key="active-ai-reply"
                           initial={{ opacity: 0, scale: 0.95 }}
                           animate={{ opacity: 1, scale: 1 }}
                           exit={{ opacity: 0, scale: 0.95 }}
                           className="flex justify-start relative"
-                          onClick={isTyping ? skip : undefined}
-                          style={{ cursor: isTyping ? "pointer" : "default" }}
                         >
                           {/* Spotlight Background - Breathing Effect */}
                           <motion.div
@@ -279,20 +262,9 @@ export function ChatInterface({
 
                           {/* Message Content */}
                           <div className="relative bg-white shadow-2xl px-6 py-4 rounded-[32px] max-w-[90%] text-left border-2 border-amber-200/50">
-                            <p className="text-lg md:text-xl font-bold tracking-tight text-black italic leading-snug">
-                              {displayedText}
-                              {isTyping && <BlinkingCursor />}
-                            </p>
-                            {/* Skip hint */}
-                            {isTyping && (
-                              <motion.span
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 0.4 }}
-                                className="absolute -bottom-6 right-2 text-[10px] text-black/30 uppercase tracking-wider"
-                              >
-                                点击跳过
-                              </motion.span>
-                            )}
+                            <div className="text-lg md:text-xl font-bold tracking-tight text-black italic leading-snug">
+                              <MessageResponse>{activeMessageText}</MessageResponse>
+                            </div>
                           </div>
                         </motion.div>
                       )}
