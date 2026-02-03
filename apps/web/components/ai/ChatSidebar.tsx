@@ -71,7 +71,7 @@ export function ChatSidebar() {
   const editorContext = useEditorContext();
 
   const chatTransport = useMemo(
-    () => new DefaultChatTransport({ api: "/api/chat" }),
+    () => new DefaultChatTransport({ api: "/api/ai" }),
     [],
   );
 

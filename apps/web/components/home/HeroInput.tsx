@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, useMemo } from 'react'
-import { Paperclip, Mic, Image as ImageIcon, FileText, ArrowUp, Command, Sparkles, X } from 'lucide-react'
+import { Paperclip, Mic, Image as ImageIcon, FileText, ArrowUp, Command, Sparkles } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -22,7 +22,7 @@ export function HeroInput() {
   const [commandQuery, setCommandQuery] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [isGenerating, setIsGenerating] = useState(false)
-  
+
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -30,7 +30,6 @@ export function HeroInput() {
     if (!goal.trim() || isGenerating) return
     setIsGenerating(true)
     try {
-      // Redirect to the existing generation page with the goal
       router.push(`/create?goal=${encodeURIComponent(goal)}`)
     } catch (error) {
       console.error('Generation failed:', error)
@@ -40,33 +39,32 @@ export function HeroInput() {
 
   // Command Options
   const commands: CommandOption[] = useMemo(() => [
-      { 
-          id: 'new_note', 
-          label: 'New Note', 
-          icon: FileText, 
-          shortcut: 'N', 
+      {
+          id: 'new_note',
+          label: 'New Note',
+          icon: FileText,
+          shortcut: 'N',
           action: () => {
-              // Assuming we have a new note route
               console.log('New Note')
-          } 
+          }
       },
-      { 
-          id: 'gen_course', 
-          label: 'Generate Course', 
-          icon: Command, 
-          shortcut: 'G', 
+      {
+          id: 'gen_course',
+          label: 'Generate Course',
+          icon: Command,
+          shortcut: 'G',
           action: () => {
               if (value) handleGenerate(value)
-          } 
+          }
       },
-      { 
-          id: 'ask_ai', 
-          label: 'Ask AI Assistant', 
-          icon: Sparkles, 
-          shortcut: 'A', 
+      {
+          id: 'ask_ai',
+          label: 'Ask AI Assistant',
+          icon: Sparkles,
+          shortcut: 'A',
           action: () => {
               console.log('Ask AI')
-          } 
+          }
       },
   ], [value])
 
@@ -142,7 +140,7 @@ export function HeroInput() {
 
   return (
     <div className="w-full max-w-3xl mx-auto relative z-30 font-sans group">
-      
+
       <AnimatePresence>
             {showCommandMenu && (
                 <motion.div
@@ -158,14 +156,14 @@ export function HeroInput() {
                             {filteredCommands.length} matches
                         </span>
                     </div>
-                    
+
                     {filteredCommands.length > 0 ? (
                         filteredCommands.map((cmd, index) => (
-                            <CommandItem 
+                            <CommandItem
                                 key={cmd.id}
-                                icon={cmd.icon} 
-                                label={cmd.label} 
-                                shortcut={cmd.shortcut} 
+                                icon={cmd.icon}
+                                label={cmd.label}
+                                shortcut={cmd.shortcut}
                                 isSelected={index === selectedIndex}
                                 onClick={() => executeCommand(cmd)}
                             />
@@ -179,7 +177,7 @@ export function HeroInput() {
             )}
         </AnimatePresence>
 
-      <div 
+      <div
         ref={containerRef}
         className={cn(
             "relative bg-white rounded-[24px] shadow-[0_8px_40px_rgba(0,0,0,0.12)] border border-black/[0.04] overflow-hidden transition-all duration-300",
@@ -187,7 +185,7 @@ export function HeroInput() {
         )}
       >
         <div className="flex flex-col min-h-[160px] p-6">
-          
+
           <textarea
             ref={textareaRef}
             value={value}
@@ -217,7 +215,7 @@ export function HeroInput() {
                         <>Use <kbd className="font-mono bg-black/5 px-1.5 py-0.5 rounded text-black/50">/</kbd> for commands</>
                     )}
                 </span>
-                <button 
+                <button
                     disabled={!value || isGenerating}
                     onClick={handleSubmit}
                     className="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center hover:bg-black/80 disabled:opacity-30 disabled:hover:bg-black transition-all shadow-md active:scale-95"
@@ -247,12 +245,12 @@ function IconButton({ icon: Icon }: any) {
 
 function CommandItem({ icon: Icon, label, shortcut, isSelected, onClick }: any) {
     return (
-        <button 
+        <button
             onClick={onClick}
             className={cn(
                 "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-200",
-                isSelected 
-                    ? "bg-black/5 text-black scale-[1.02] shadow-sm" 
+                isSelected
+                    ? "bg-black/5 text-black scale-[1.02] shadow-sm"
                     : "text-black/60 hover:bg-black/[0.02]"
             )}
         >

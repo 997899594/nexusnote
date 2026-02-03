@@ -28,7 +28,7 @@ interface CreatePageContentProps {
 
 function CreatePageContent({ initialGoal }: CreatePageContentProps) {
   const { state, ui, actions } = useCourseGeneration(initialGoal);
-  const { phase, goal, config, nodes, outline } = state;
+  const { phase, goal, context, nodes, outline } = state;
   const {
     userInput,
     setUserInput,
@@ -64,7 +64,7 @@ function CreatePageContent({ initialGoal }: CreatePageContentProps) {
             setUserInput={setUserInput}
             onSendMessage={handleSendMessage}
             goal={goal}
-            config={config}
+            context={context}
             error={error}
             onRetry={retry}
           />

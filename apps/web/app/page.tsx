@@ -10,9 +10,9 @@ import {
   LocalLearningContent,
   LocalLearningProgress,
 } from "@/lib/storage";
-import { HeroInput } from "@/components/demo/HeroInput";
-import { RecentAccess } from "@/components/demo/RecentAccess";
 import { OrganicHeader } from "@/components/create/OrganicHeader";
+import { HeroInput } from "@/components/home/HeroInput";
+import { RecentAccess } from "@/components/home/RecentAccess";
 
 // Interface for Notes fetched from API
 interface Note {
@@ -99,7 +99,14 @@ export default function Home() {
   };
 
   const recentItems = useMemo(() => {
-    const items = [
+    const items: Array<{
+      id: string;
+      title: string;
+      type: "course" | "note";
+      date: string;
+      icon?: React.ReactNode;
+      onClick?: () => void;
+    }> = [
       ...courses.map((c) => ({
         id: c.id,
         title: c.title,
@@ -122,8 +129,7 @@ export default function Home() {
       })),
     ];
 
-    // Sort combined items by date (heuristic: just take top 6 from interleaved or re-sort)
-    // For now, let's just take the first few of each or sort them if possible
+    // Return top 6 items
     return items.slice(0, 6);
   }, [courses, notes, router]);
 

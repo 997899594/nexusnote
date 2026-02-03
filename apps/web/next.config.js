@@ -27,6 +27,8 @@ const nextConfig = {
 
   // Headers for security
   async headers() {
+    const isDev = process.env.NODE_ENV === "development";
+
     return [
       {
         source: "/:path*",
@@ -42,6 +44,13 @@ const nextConfig = {
           {
             key: "Referrer-Policy",
             value: "strict-origin-when-cross-origin",
+          },
+          // CSP - 开发模式下放宽限制
+          {
+            key: "Content-Security-Policy",
+            value: isDev
+              ? "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' ws: wss: http: https:;"
+              : "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https:;",
           },
         ],
       },

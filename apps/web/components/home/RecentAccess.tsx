@@ -16,30 +16,8 @@ interface RecentAccessProps {
 }
 
 export const RecentAccess = ({ items, loading }: RecentAccessProps) => {
-  // Demo items if none provided
-  const displayItems = items || [
-    {
-      id: "1",
-      title: "Quantum Mechanics Fundamentals",
-      type: "course",
-      date: "2 hours ago",
-      icon: <BookOpen className="w-5 h-5" />,
-    },
-    {
-      id: "2",
-      title: "Neural Networks Architecture",
-      type: "note",
-      date: "Yesterday",
-      icon: <FileText className="w-5 h-5" />,
-    },
-    {
-      id: "3",
-      title: "Advanced React Patterns",
-      type: "course",
-      date: "3 days ago",
-      icon: <BookOpen className="w-5 h-5" />,
-    },
-  ];
+  // If no items provided, show empty state instead of demo data
+  const displayItems = items || [];
 
   return (
     <div className="w-full">

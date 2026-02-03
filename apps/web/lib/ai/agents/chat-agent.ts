@@ -9,10 +9,10 @@
 import { ToolLoopAgent, InferAgentUIMessage, smoothStream, stepCountIs } from 'ai'
 import { z } from 'zod'
 import { chatModel, webSearchModel } from '@/lib/ai/registry'
-import { skills } from '@/lib/ai/skills'
-import { editorSkills } from '@/lib/ai/skills/editor'
-import { learningSkills } from '@/lib/ai/skills/learning'
-import { webSearchSkills } from '@/lib/ai/skills/web'
+import { skills } from '@/lib/ai/tools/chat'
+import { editorSkills } from '@/lib/ai/tools/chat/editor'
+import { learningSkills } from '@/lib/ai/tools/chat/learning'
+import { webSearchSkills } from '@/lib/ai/tools/chat/web'
 
 /**
  * 调用选项：路由层传入的动态上下文

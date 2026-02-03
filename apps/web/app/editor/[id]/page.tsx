@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, use } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Book, Edit3, Split, Sparkles, X, Layout } from 'lucide-react'
 import { Editor } from '@/components/editor/Editor'
@@ -13,7 +13,8 @@ import { useSession } from 'next-auth/react'
 
 type ViewMode = 'read' | 'dual' | 'notes'
 
-export default function EditorPage({ params }: { params: { id: string } }) {
+export default function EditorPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = use(params);
     const [sidebarOpen, setSidebarOpen] = useState(false)
     const [viewMode, setViewMode] = useState<ViewMode>('dual')
     const [title, setTitle] = useState('开始内化...')
@@ -21,7 +22,7 @@ export default function EditorPage({ params }: { params: { id: string } }) {
 
     return (
         <EditorProvider>
-            <NoteExtractionProviderWithUser documentId={params.id}>
+            <NoteExtractionProviderWithUser documentId={id}>
                 <div className="h-screen bg-white overflow-hidden selection:bg-violet-500/10 flex">
                     {/* 0. App Shell Navigation */}
                     <AppSidebar />
@@ -81,7 +82,7 @@ export default function EditorPage({ params }: { params: { id: string } }) {
                                 >
                                     <div className="max-w-3xl mx-auto p-12 lg:p-24 pb-96">
                                         <Editor
-                                            documentId={params.id}
+                                            documentId={id}
                                             title={title}
                                             setTitle={setTitle}
                                         />

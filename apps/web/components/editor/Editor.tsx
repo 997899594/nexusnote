@@ -100,7 +100,12 @@ export function Editor({
     } catch (err) {}
   };
 
-  const ydoc = useMemo(() => new Y.Doc(), []);
+  const ydoc = useMemo(() => {
+    const doc = new Y.Doc();
+    // Initialize the fragment that Tiptap Collaboration will use
+    doc.getXmlFragment('default');
+    return doc;
+  }, []);
 
   const currentUser = useMemo(() => {
     if (session?.user) {
@@ -119,7 +124,7 @@ export function Editor({
   }, [session]);
 
   const provider = useMemo(() => {
-    return new HocuspocusProvider({
+    const p = new HocuspocusProvider({
       url: COLLAB_URL,
       name: documentId,
       document: ydoc,
@@ -131,6 +136,7 @@ export function Editor({
         setStatus("disconnected");
       },
     });
+    return p;
   }, [documentId, ydoc, session]);
 
   useEffect(() => {
@@ -159,34 +165,37 @@ export function Editor({
     };
   }, [documentId, ydoc]);
 
-  const editor = useEditor({
-    immediatelyRender: false,
-    extensions: [
-      StarterKit,
-      Placeholder.configure({ placeholder: "开始记笔记..." }),
-      Collaboration.configure({ document: ydoc }),
-      CollaborationCursor.configure({ provider, user: currentUser }),
-      SlashCommand,
-      Dropcursor.configure({ color: "hsl(var(--primary))", width: 2 }),
-      Gapcursor,
-      TaskList,
-      TaskItem.configure({ nested: true }),
-      Table.configure({ resizable: true }),
-      TableRow,
-      TableCell,
-      TableHeader,
-      Image.configure({ allowBase64: true }),
-      Youtube.configure({}),
-      Callout,
-      Collapsible,
-    ],
-    editorProps: {
-      attributes: {
-        class:
-          "tiptap prose prose-sm sm:prose lg:prose-neutral dark:prose-invert max-w-none focus:outline-none min-h-[70vh] pb-64 leading-relaxed",
+  const editor = useEditor(
+    {
+      immediatelyRender: false,
+      extensions: [
+        StarterKit,
+        Placeholder.configure({ placeholder: "开始记笔记..." }),
+        Collaboration.configure({ document: ydoc }),
+        CollaborationCursor.configure({ provider, user: currentUser }),
+        SlashCommand,
+        Dropcursor.configure({ color: "hsl(var(--primary))", width: 2 }),
+        Gapcursor,
+        TaskList,
+        TaskItem.configure({ nested: true }),
+        Table.configure({ resizable: true }),
+        TableRow,
+        TableCell,
+        TableHeader,
+        Image.configure({ allowBase64: true }),
+        Youtube.configure({}),
+        Callout,
+        Collapsible,
+      ],
+      editorProps: {
+        attributes: {
+          class:
+            "tiptap prose prose-sm sm:prose lg:prose-neutral dark:prose-invert max-w-none focus:outline-none min-h-[70vh] pb-64 leading-relaxed",
+        },
       },
     },
-  });
+    [ydoc, provider, currentUser]
+  );
 
   useEffect(() => {
     if (editorContext && editor) editorContext.setEditor(editor);

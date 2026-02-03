@@ -11,6 +11,7 @@ import {
 import { CourseNode } from "@/lib/types/course";
 import { useRouter } from "next/navigation";
 import { learningStore } from "@/lib/storage";
+import type { InterviewContext, InterviewAgentMessage } from "@/lib/ai/agents/interview/agent";
 
 // ============================================
 // Constants
@@ -37,15 +38,6 @@ export type Phase =
   | "ready"
   | "manifesting";
 
-interface Config {
-  level: string;
-  levelDescription?: string;
-  time: string;
-  priorKnowledge?: string[];
-  targetOutcome?: string;
-  cognitiveStyle?: string;
-}
-
 interface Chapter {
   title: string;
   summary?: string;
@@ -70,14 +62,14 @@ interface CourseOutline {
 interface State {
   phase: Phase;
   goal: string;
-  config: Config;
+  context: InterviewContext; // Use shared InterviewContext type
   nodes: CourseNode[];
   outline: CourseOutline | null;
 }
 
 type Action =
   | { type: "SET_GOAL"; payload: string }
-  | { type: "UPDATE_CONFIG"; payload: Partial<Config> }
+  | { type: "UPDATE_CONTEXT"; payload: Partial<InterviewContext> }
   | { type: "SET_NODES"; payload: CourseNode[] }
   | { type: "SET_OUTLINE"; payload: CourseOutline }
   | { type: "TRANSITION"; payload: Phase }
@@ -92,12 +84,11 @@ type Action =
 const initialState: State = {
   phase: "interview",
   goal: "",
-  config: {
-    level: "",
-    levelDescription: "",
-    time: "",
-    priorKnowledge: [],
-    targetOutcome: "",
+  context: {
+    goal: undefined,
+    background: undefined,
+    time: undefined,
+    targetOutcome: undefined,
     cognitiveStyle: "action_oriented",
   },
   nodes: [],
@@ -107,9 +98,13 @@ const initialState: State = {
 function reducer(state: State, action: Action): State {
   switch (action.type) {
     case "SET_GOAL":
-      return { ...state, goal: action.payload };
-    case "UPDATE_CONFIG":
-      return { ...state, config: { ...state.config, ...action.payload } };
+      return {
+        ...state,
+        goal: action.payload,
+        context: { ...state.context, goal: action.payload }
+      };
+    case "UPDATE_CONTEXT":
+      return { ...state, context: { ...state.context, ...action.payload } };
     case "SET_NODES":
       return { ...state, nodes: action.payload };
     case "SET_OUTLINE":
@@ -167,11 +162,11 @@ export function useCourseGeneration(initialGoal: string = "") {
   // - status instead of isLoading
 
   const chatTransport = useMemo(
-    () => new DefaultChatTransport({ api: "/api/learn/interview" }),
+    () => new DefaultChatTransport({ api: "/api/ai" }),
     [],
   );
 
-  const { messages, sendMessage, setMessages, status, error, reload } = useChat(
+  const { messages, sendMessage, setMessages, status, error, regenerate } = useChat<InterviewAgentMessage>(
     {
       transport: chatTransport,
     },
@@ -192,19 +187,18 @@ export function useCourseGeneration(initialGoal: string = "") {
       const lastMessage = messages[messages.length - 1];
       // Only resume if the LAST message was from the user (waiting for AI reply)
       if (lastMessage.role === "user") {
-        console.log("[useCourseGeneration] Resuming chat from history...");
-        // Ensure we pass the current interview context when reloading
-        reload({
+        regenerate({
           body: {
-            interviewContext: {
-              goal: state.goal,
-              ...state.config,
+            context: {
+              explicitIntent: 'INTERVIEW',
+              interviewContext: state.context,
+              isInInterview: true,
             },
           },
         });
       }
     }
-  }, [status, messages, reload, state.goal, state.config]);
+  }, [status, messages, regenerate, state.context]);
 
   useEffect(() => {
     if (!messages || messages.length === 0) return;
@@ -222,26 +216,18 @@ export function useCourseGeneration(initialGoal: string = "") {
       // Since we want to update the form, args are enough.
 
       if (toolInvocation.toolName === "updateProfile") {
-        const args = toolInvocation.args as any;
-        const updates: Partial<Config> & { goal?: string } = {};
+        const args = toolInvocation.args as Partial<InterviewContext>;
 
-        if (args.goal) updates.goal = args.goal;
-        if (args.background) updates.priorKnowledge = [args.background];
-        if (args.time) updates.time = args.time;
+        if (Object.keys(args).length > 0) {
+          console.log("[Tool Sync] updateProfile:", args);
 
-        if (Object.keys(updates).length > 0) {
-          console.log("[Tool Sync] updateProfile:", updates);
-          if (updates.goal)
-            dispatch({ type: "SET_GOAL", payload: updates.goal });
-
-          const configUpdates: Partial<Config> = {};
-          if (updates.priorKnowledge)
-            configUpdates.priorKnowledge = updates.priorKnowledge;
-          if (updates.time) configUpdates.time = updates.time;
-
-          if (Object.keys(configUpdates).length > 0) {
-            dispatch({ type: "UPDATE_CONFIG", payload: configUpdates });
+          // Update goal separately if provided
+          if (args.goal) {
+            dispatch({ type: "SET_GOAL", payload: args.goal });
           }
+
+          // Update context with all fields
+          dispatch({ type: "UPDATE_CONTEXT", payload: args });
         }
         processedToolCallIds.current.add(toolInvocation.toolCallId);
       }
@@ -344,9 +330,10 @@ export function useCourseGeneration(initialGoal: string = "") {
 
   // Auto-start
   useEffect(() => {
-    if (messages.length > 0 || !state.goal || hasStartedRef.current) return;
+    if (messages.length > 0 || !state.goal || hasStartedRef.current) {
+      return;
+    }
 
-    console.log("[useCourseGeneration] Starting autostart...");
     hasStartedRef.current = true;
     setIsStarting(true);
 
@@ -357,16 +344,17 @@ export function useCourseGeneration(initialGoal: string = "") {
       },
       {
         body: {
-          interviewContext: {
-            goal: state.goal,
-            ...state.config,
+          context: {
+            explicitIntent: 'INTERVIEW',
+            interviewContext: state.context,
+            isInInterview: true,
           },
         },
       },
     );
 
     setIsStarting(false);
-  }, [state.goal, messages.length, sendMessage, state.config]);
+  }, [state.goal, messages.length, sendMessage, state.context]);
 
   // Handle Send Message
   const handleSendMessage = useCallback(
@@ -383,15 +371,16 @@ export function useCourseGeneration(initialGoal: string = "") {
         },
         {
           body: {
-            interviewContext: {
-              goal: state.goal,
-              ...state.config,
+            context: {
+              explicitIntent: 'INTERVIEW',
+              interviewContext: state.context,
+              isInInterview: true,
             },
           },
         },
       );
     },
-    [input, state.goal, state.config, sendMessage],
+    [input, state.context, sendMessage],
   );
 
   // Course Generation Logic (The "Backend" Simulation) - Unchanged
@@ -408,7 +397,10 @@ export function useCourseGeneration(initialGoal: string = "") {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 goal: state.goal,
-                ...state.config,
+                background: state.context.background,
+                time: state.context.time,
+                targetOutcome: state.context.targetOutcome,
+                cognitiveStyle: state.context.cognitiveStyle,
               }),
             });
             data = await response.json();
@@ -457,7 +449,7 @@ export function useCourseGeneration(initialGoal: string = "") {
       };
       generateRealCourse();
     }
-  }, [state.phase, state.goal, state.config]);
+  }, [state.phase, state.goal, state.context]);
 
   // Phase transition chain - Unchanged
   useEffect(() => {

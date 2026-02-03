@@ -2,9 +2,10 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, ArrowRight, Check, Zap } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { UIMessage as Message } from "ai";
-import { MessageResponse } from "@/components/ai-elements/message";
+import { MessageResponse } from "@/components/ai/Message";
+import type { InterviewContext } from "@/lib/ai/agents/interview/agent";
 
 interface ToolPart {
   type: string;
@@ -30,26 +31,55 @@ function getToolParts(message: Message): ToolPart[] {
   // Extract tool invocations from parts (Vercel AI SDK v6)
   // Force cast to any to avoid type check issues with UIMessage vs CoreMessage
   const msg = message as any;
+
   if (msg.toolInvocations) {
-    return msg.toolInvocations.map((invocation: any) => ({
-      type: `tool-${invocation.toolName}`,
-      toolCallId: invocation.toolCallId,
-      input: invocation.args,
-    }));
+    return msg.toolInvocations.map((invocation: any) => {
+      // Try both 'args' and 'input' as possible field names
+      const input = invocation.args || invocation.input;
+      return {
+        type: `tool-${invocation.toolName}`,
+        toolCallId: invocation.toolCallId,
+        input: input,
+      };
+    });
   }
 
   if (!message.parts) return [];
 
-  return message.parts
-    .filter((p: any) => p.type === "tool-invocation")
+  // Check for tool parts - Agent UI format uses "tool-{toolName}" as type
+  const toolParts = message.parts
+    .filter((p: any) => {
+      const type = p.type || '';
+      return type.startsWith('tool-') || type === 'tool-invocation' || type === 'tool-call';
+    })
     .map((p: any) => {
-      const invocation = p.toolInvocation;
-      return {
-        type: `tool-${invocation.toolName}`, // Prefix to match existing logic
-        toolCallId: invocation.toolCallId,
-        input: invocation.args,
-      };
+      // Agent UI format: { type: "tool-presentOptions", input: {...}, output: {...} }
+      if (p.type?.startsWith('tool-')) {
+        return {
+          type: p.type,
+          toolCallId: p.toolCallId,
+          input: p.input,
+        };
+      }
+      // Legacy formats
+      if (p.type === "tool-call") {
+        return {
+          type: `tool-${p.toolName}`,
+          toolCallId: p.toolCallId,
+          input: p.args,
+        };
+      } else {
+        const invocation = p.toolInvocation;
+        return {
+          type: `tool-${invocation.toolName}`,
+          toolCallId: invocation.toolCallId,
+          input: invocation.args || invocation.input,
+        };
+      }
     });
+
+  console.log('[getToolParts] Extracted tool parts:', toolParts);
+  return toolParts;
 }
 
 interface ChatInterfaceProps {
@@ -60,7 +90,7 @@ interface ChatInterfaceProps {
   setUserInput: (v: string) => void;
   onSendMessage: (e?: React.FormEvent, override?: string) => void;
   goal: string;
-  config: any;
+  context: InterviewContext;
   error?: string | null;
   onRetry?: () => void;
 }
@@ -74,7 +104,7 @@ export function ChatInterface({
   setUserInput,
   onSendMessage,
   goal,
-  config,
+  context,
   error,
   onRetry,
 }: ChatInterfaceProps) {
@@ -91,10 +121,6 @@ export function ChatInterface({
 
   // Get the active AI message text
   const activeMessageText = activeMessage ? getMessageText(activeMessage) : "";
-
-  // Input focus state for enhanced animation
-  const [isFocused, setIsFocused] = useState(false);
-  const charCount = (userInput || "").length;
 
   // Enhanced send message with vibration feedback
   const handleSendWithFeedback = (e?: React.FormEvent, override?: string) => {
@@ -122,16 +148,35 @@ export function ChatInterface({
   } | null = null;
 
   if (activeMessage) {
+    console.log('[ChatInterface] Active message full:', JSON.stringify(activeMessage, null, 2));
+
     // 1. Tool Calls (Vercel AI SDK v6 Standard)
     const toolParts = getToolParts(activeMessage);
     const presentOptionsTool = toolParts.find(
       (p) => p.type === "tool-presentOptions",
     );
+
     if (presentOptionsTool && presentOptionsTool.input) {
       // Validate input structure
-      const input = presentOptionsTool.input as { options?: string[] };
+      const input = presentOptionsTool.input as { options?: string[] | string };
+      let options: string[] | undefined;
+
+      // Handle both array and JSON string formats
       if (Array.isArray(input.options)) {
-        activeToolOptions = { options: input.options };
+        options = input.options;
+      } else if (typeof input.options === 'string') {
+        try {
+          const parsed = JSON.parse(input.options);
+          if (Array.isArray(parsed)) {
+            options = parsed;
+          }
+        } catch (e) {
+          console.error('[ChatInterface] Failed to parse options:', e);
+        }
+      }
+
+      if (options && options.length > 0) {
+        activeToolOptions = { options };
       }
     }
   }
@@ -171,11 +216,17 @@ export function ChatInterface({
                       <p className="text-sm font-medium">
                         等待AI响应中... 目标: {goal}
                       </p>
+                      <p className="text-xs text-black/20">
+                        (自动启动中，请稍候...)
+                      </p>
                     </>
                   ) : (
                     <>
                       <p className="text-sm font-medium">
                         准备开始... 目标: {goal}
+                      </p>
+                      <p className="text-xs text-black/20 mb-2">
+                        (如果没有自动启动，请点击下方按钮)
                       </p>
                       <button
                         onClick={() =>
@@ -209,20 +260,21 @@ export function ChatInterface({
                         animate={{ opacity: 1, y: 0 }}
                         className="space-y-4"
                       >
-                        {isUser ? (
-                          /* User Message (Right, Black) */
-                          <div className="flex justify-end">
-                            <div className="bg-black px-6 py-3 rounded-[24px] max-w-[85%] text-right shadow-lg shadow-black/10">
-                              <p className="text-sm md:text-base font-bold text-white leading-relaxed">
-                                {text}
-                              </p>
-                            </div>
-                          </div>
-                        ) : (
+                        {!isUser && (
                           /* Assistant History Message (Left, Gray) */
                           <div className="flex justify-start">
                             <div className="bg-black/5 px-6 py-3 rounded-[24px] max-w-[85%] text-left">
                               <p className="text-sm md:text-base font-medium text-black/60 leading-relaxed">
+                                {text}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                        {isUser && (
+                          /* User Message (Right, Black) */
+                          <div className="flex justify-end">
+                            <div className="bg-black px-6 py-3 rounded-[24px] max-w-[85%] text-right shadow-lg shadow-black/10">
+                              <p className="text-sm md:text-base font-bold text-white leading-relaxed">
                                 {text}
                               </p>
                             </div>
@@ -238,31 +290,13 @@ export function ChatInterface({
                       {activeMessage && activeMessageText && (
                         <motion.div
                           key="active-ai-reply"
-                          initial={{ opacity: 0, scale: 0.95 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.95 }}
-                          className="flex justify-start relative"
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          className="flex justify-start"
                         >
-                          {/* Spotlight Background - Breathing Effect */}
-                          <motion.div
-                            className="absolute inset-0 -m-8 rounded-[48px] pointer-events-none"
-                            style={{
-                              background:
-                                "radial-gradient(circle at 30% 30%, rgba(251, 191, 36, 0.08) 0%, transparent 70%)",
-                            }}
-                            animate={{
-                              opacity: [0.4, 0.7, 0.4],
-                            }}
-                            transition={{
-                              repeat: Infinity,
-                              duration: 3,
-                              ease: "easeInOut",
-                            }}
-                          />
-
-                          {/* Message Content */}
-                          <div className="relative bg-white shadow-2xl px-6 py-4 rounded-[32px] max-w-[90%] text-left border-2 border-amber-200/50">
-                            <div className="text-lg md:text-xl font-bold tracking-tight text-black italic leading-snug">
+                          <div className="bg-white shadow-xl shadow-black/5 px-8 py-6 rounded-[32px] max-w-[95%] text-left border border-black/[0.02]">
+                            <div className="text-lg md:text-xl font-bold tracking-tight text-black leading-snug">
                               <MessageResponse>{activeMessageText}</MessageResponse>
                             </div>
                           </div>
@@ -350,53 +384,28 @@ export function ChatInterface({
               onSubmit={handleSendWithFeedback}
               className="relative flex items-center gap-4"
             >
-              <motion.div
-                className="relative flex-1 group"
-                animate={{
-                  scale: isFocused ? 1.01 : 1,
-                }}
-                transition={{ type: "spring", damping: 20, stiffness: 300 }}
-              >
+              <div className="relative flex-1 group">
                 <input
                   type="text"
                   value={userInput || ""}
                   onChange={(e) => setUserInput(e.target.value)}
-                  onFocus={() => setIsFocused(true)}
-                  onBlur={() => setIsFocused(false)}
                   placeholder="Type your answer..."
-                  className="w-full bg-white/50 backdrop-blur-xl border border-black/5 rounded-full px-8 py-5 text-lg font-medium text-black placeholder:text-black/20 focus:outline-none focus:ring-2 focus:ring-black/10 focus:bg-white transition-all shadow-lg shadow-black/[0.02]"
+                  className="w-full bg-white/50 backdrop-blur-xl border border-black/5 rounded-full px-8 py-5 text-lg font-medium text-black placeholder:text-black/20 focus:outline-none focus:ring-2 focus:ring-black/5 focus:bg-white transition-all shadow-lg shadow-black/[0.02]"
                   autoFocus
                 />
                 <div className="absolute inset-0 rounded-full bg-gradient-to-r from-transparent via-white/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-
-                {/* Character counter */}
-                <AnimatePresence>
-                  {charCount > 0 && isFocused && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 10 }}
-                      className="absolute -bottom-6 right-4 text-xs text-black/30"
-                    >
-                      {charCount} 字符
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
-
-              <motion.button
+              </div>
+              <button
                 type="submit"
                 disabled={!(userInput || "").trim() || isAiThinking}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="w-16 h-16 rounded-full bg-black flex items-center justify-center text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-xl shadow-black/10"
+                className="w-16 h-16 rounded-full bg-black flex items-center justify-center text-white disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95 transition-all shadow-xl shadow-black/10"
               >
                 {isAiThinking ? (
                   <Loader2 className="w-6 h-6 animate-spin" />
                 ) : (
                   <ArrowRight className="w-6 h-6" />
                 )}
-              </motion.button>
+              </button>
             </form>
           </div>
         </motion.div>
@@ -437,7 +446,7 @@ export function ChatInterface({
                 </div>
 
                 {/* Level Description - The AI's Detective Conclusion */}
-                {config.levelDescription && (
+                {context.levelDescription && (
                   <div className="flex items-start gap-3">
                     <div className="w-1.5 h-1.5 rounded-full bg-black mt-1.5" />
                     <div className="flex-1">
@@ -445,26 +454,26 @@ export function ChatInterface({
                         深度评估：
                       </p>
                       <p className="text-sm font-bold text-black italic leading-relaxed">
-                        "{config.levelDescription}"
+                        "{context.levelDescription}"
                       </p>
                     </div>
                   </div>
                 )}
 
-                {!config.levelDescription && config.level && (
+                {!context.levelDescription && context.level && (
                   <div className="flex items-center gap-3">
                     <div className="w-1.5 h-1.5 rounded-full bg-black" />
                     <p className="text-sm font-medium text-black/60">
-                      深度：{config.level}
+                      深度：{context.level}
                     </p>
                   </div>
                 )}
 
-                {config.targetOutcome && (
+                {context.targetOutcome && (
                   <div className="flex items-center gap-3">
                     <div className="w-1.5 h-1.5 rounded-full bg-black" />
                     <p className="text-sm font-medium text-black/60">
-                      预期成果：{config.targetOutcome}
+                      预期成果：{context.targetOutcome}
                     </p>
                   </div>
                 )}
