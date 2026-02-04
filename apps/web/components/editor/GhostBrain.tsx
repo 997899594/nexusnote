@@ -33,6 +33,7 @@ export function GhostBrain({ editor, documentId, title }: GhostBrainProps) {
         const timer = setInterval(async () => {
             const now = Date.now()
             if (now - lastChangeTime.current > INACTIVITY_THRESHOLD && isActive.current && now - lastAnalysisTime.current > ANALYSIS_COOLDOWN && !isThinking && !comment) {
+                if (!editor.state) return
                 const { from } = editor.state.selection
                 const context = editor.getText().slice(Math.max(0, from - 500), from + 500)
                 if (context.trim().length < 50) return

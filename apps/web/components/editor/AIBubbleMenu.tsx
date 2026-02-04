@@ -35,6 +35,7 @@ export function AIBubbleMenu({ editor, documentId, chapterId }: AIBubbleMenuProp
 
   // 获取选中的文本
   const getSelectedText = useCallback(() => {
+    if (!editor.state) return ''
     const { from, to } = editor.state.selection
     return editor.state.doc.textBetween(from, to, ' ')
   }, [editor])
@@ -70,6 +71,11 @@ export function AIBubbleMenu({ editor, documentId, chapterId }: AIBubbleMenuProp
   const handleExtractNote = useCallback(() => {
     if (!noteExtraction) {
       console.warn('[AIBubbleMenu] NoteExtraction context not available')
+      return
+    }
+
+    if (!editor.state) {
+      console.warn('[AIBubbleMenu] Editor state not available')
       return
     }
 

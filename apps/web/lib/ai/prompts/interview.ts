@@ -45,24 +45,19 @@ function injectTaskByPhase(context: InterviewContext): string {
 
   // Phase 1: 收集目标
   if (!hasGoal) {
-    //     return `缺: 学习目标
-    // 说明后，必须调用 presentOptions 提供选项。
-    // 例: "Python不错！你想往哪个方向？[然后调用 presentOptions]"`;
-    return `你的目的是收集用户的学习目标，必须调用 presentOptions 提供选项。
+    return `了解用户真实的学习目标，必须调用 presentOptions 提供选项。
 例: "Python不错！你想往哪个方向？[然后调用 presentOptions]"`;
   }
 
   // Phase 2: 收集背景
   if (!hasBackground) {
-    return `缺: 学习背景（针对 ${context.goal}）
-说明后，必须调用 presentOptions 提供选项。
+    return `了解用户的相关背景（针对 ${context.goal}），必须调用 presentOptions 提供选项。
 例: "明白了！你之前有接触过吗？[然后调用 presentOptions]"`;
   }
 
   // Phase 3: 收集时间
   if (!hasTime) {
-    return `缺: 可用时间
-说明后，必须调用 presentOptions 提供选项。
+    return `了解用户的可用时间（针对 ${context.goal}），必须调用 presentOptions 提供选项。
 例: "每周能花多少时间？[然后调用 presentOptions]"`;
   }
 

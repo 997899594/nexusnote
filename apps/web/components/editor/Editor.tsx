@@ -24,8 +24,6 @@ import { IndexeddbPersistence } from "y-indexeddb";
 import { HocuspocusProvider } from "@hocuspocus/provider";
 import { getRandomColor, getRandomUserName } from "@/lib/editor/collaboration";
 import { getAuthToken } from "@/lib/auth-helpers";
-
-const COLLAB_URL = clientEnv.NEXT_PUBLIC_COLLAB_URL;
 import { Wifi, WifiOff, Users, History, Lock, Edit3 } from "lucide-react";
 import { EditorToolbar } from "./EditorToolbar";
 import { AIBubbleMenu } from "./AIBubbleMenu";
@@ -41,6 +39,8 @@ import {
 } from "@/components/timeline";
 import { snapshotStore, DocumentSnapshot } from "@/lib/storage";
 import { motion, AnimatePresence } from "framer-motion";
+
+const COLLAB_URL = clientEnv.NEXT_PUBLIC_COLLAB_URL;
 
 interface EditorProps {
   documentId: string;
