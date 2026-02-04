@@ -284,8 +284,8 @@ export function Editor({
       {/* Content */}
       <div className="relative z-10">
         <EditorContent editor={editor} />
-        <AIBubbleMenu editor={editor} documentId={documentId} />
-        <TableMenu editor={editor} />
+        {editor && <AIBubbleMenu editor={editor} documentId={documentId} />}
+        {editor && <TableMenu editor={editor} />}
       </div>
 
       {/* Timeline Toggle */}

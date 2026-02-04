@@ -75,6 +75,7 @@ export const interviewAgent = new ToolLoopAgent({
         instructions,
         temperature: 0.8,
         toolChoice: { type: 'tool', toolName: 'generateOutline' },
+        stopWhen: stepCountIs(1), // 调用工具后立即停止，不再输出文本
       };
     }
 

@@ -8,7 +8,7 @@
  * 3. 单维度锁定 - 每次只解决一个问题，防止 AI 抢跑
  */
 
-import { EDGE_CASE_HANDLERS } from './edge-cases';
+import { EDGE_CASE_HANDLERS } from "./edge-cases";
 
 export interface InterviewContext {
   goal?: string;
@@ -26,7 +26,7 @@ export interface InterviewContext {
  */
 export function buildInterviewPrompt(context: InterviewContext): string {
   // 基础人设（不变部分）
-  const BASE_PERSONA = `你是 NexusNote 课程顾问，帮助用户规划学习路径。`;
+  const BASE_PERSONA = `课程导师。温暖专业。收集目标、背景、时间，生成课程。对话为主，选项为辅。`;
 
   // 动态任务注入（根据数据缺口）
   const TASK = injectTaskByPhase(context);
@@ -39,73 +39,34 @@ export function buildInterviewPrompt(context: InterviewContext): string {
  * 这是"隐式状态机"的核心实现
  */
 function injectTaskByPhase(context: InterviewContext): string {
-  // 阶段检测
   const hasGoal = Boolean(context.goal);
   const hasBackground = Boolean(context.background);
   const hasTime = Boolean(context.time);
 
-  // 进度展示
-  const progress = `
-## 📊 当前收集进度
-
-${hasGoal ? '✅' : '⏳'} **学习目标**${hasGoal ? `: ${context.goal}` : '（待确认）'}
-${hasBackground ? '✅' : '⏳'} **学习背景**${hasBackground ? `: ${context.background}` : '（待确认）'}
-${hasTime ? '✅' : '⏳'} **可用时间**${hasTime ? `: ${context.time}` : '（待确认）'}
-  `.trim();
-
   // Phase 1: 收集目标
   if (!hasGoal) {
-    return `
-${progress}
-
-当前任务：了解用户的学习目标。
-
-与用户简短对话后，调用 presentOptions 工具展示选项。例如用户说"我想学编程"，你可以：
-
-1. 回复文字："很好！编程领域很广阔，让我帮您明确方向。"
-2. 调用工具：presentOptions({question: "选择方向", options: ["Web开发", "移动开发", "数据科学", "AI开发"], targetField: "goal"})
-    `.trim();
+    //     return `缺: 学习目标
+    // 说明后，必须调用 presentOptions 提供选项。
+    // 例: "Python不错！你想往哪个方向？[然后调用 presentOptions]"`;
+    return `你的目的是收集用户的学习目标，必须调用 presentOptions 提供选项。
+例: "Python不错！你想往哪个方向？[然后调用 presentOptions]"`;
   }
 
   // Phase 2: 收集背景
   if (!hasBackground) {
-    return `
-${progress}
-
-当前任务：了解用户的学习背景（针对 ${context.goal}）。
-
-与用户对话，然后调用 presentOptions。例如：
-
-1. 回复文字："明白了，${context.goal}。您目前的水平如何？"
-2. 调用工具：presentOptions({question: "您的水平", options: ["零基础", "有基础", "有经验", "专业级"], targetField: "background"})
-    `.trim();
+    return `缺: 学习背景（针对 ${context.goal}）
+说明后，必须调用 presentOptions 提供选项。
+例: "明白了！你之前有接触过吗？[然后调用 presentOptions]"`;
   }
 
   // Phase 3: 收集时间
   if (!hasTime) {
-    return `
-${progress}
-
-当前任务：了解用户的时间投入。
-
-与用户对话，然后调用 presentOptions。例如：
-
-1. 回复文字："好的！您每周能投入多少时间学习？"
-2. 调用工具：presentOptions({question: "每周学习时间", options: ["每周5小时", "每周10小时", "每周20+小时", "全职学习"], targetField: "time", allowSkip: true})
-    `.trim();
+    return `缺: 可用时间
+说明后，必须调用 presentOptions 提供选项。
+例: "每周能花多少时间？[然后调用 presentOptions]"`;
   }
 
   // Phase 4: 信息完整，准备生成
-  return `
-${progress}
-
-当前任务：确认信息并生成课程大纲。
-
-基于收集的信息（${context.goal}・${context.background}・${context.time}），向用户确认是否生成大纲。
-
-1. 回复文字："完美！我们已经了解了您的情况。"
-2. 调用工具：presentOptions({question: "准备好了吗？", options: ["生成课程大纲", "修改需求"], targetField: "general"})
-
-如果用户选择"生成课程大纲"，调用 generateOutline 工具生成完整方案。
-  `.trim();
+  return `信息已齐: 目标=${context.goal}, 背景=${context.background}, 时间=${context.time}
+直接调用 generateOutline 生成课程大纲。`;
 }

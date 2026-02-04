@@ -203,17 +203,17 @@ export function useCourseGeneration(initialGoal: string = "") {
   useEffect(() => {
     if (!messages || messages.length === 0) return;
 
-    const lastMessage = messages[messages.length - 1] as any;
-    if (!lastMessage.parts) return;
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage.role !== 'assistant' || !lastMessage.parts) return;
 
     console.log('[Tool Sync] Checking message parts');
 
     // AI SDK v6 Agent UI: 工具在 message.parts，格式 {type: 'tool-xxx', input: {...}}
     const generateOutlinePart = lastMessage.parts.find(
-      (p: any) => p.type === 'tool-generateOutline'
+      (p) => p.type === 'tool-generateOutline' && p.state === 'output-available'
     );
 
-    if (!generateOutlinePart) return;
+    if (!generateOutlinePart || generateOutlinePart.type !== 'tool-generateOutline') return;
     if (processedToolCallIds.current.has(generateOutlinePart.toolCallId)) return;
 
     console.log('[Tool Sync] Found generateOutline');
