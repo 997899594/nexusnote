@@ -204,88 +204,62 @@ export function useCourseGeneration(initialGoal: string = "") {
     if (!messages || messages.length === 0) return;
 
     const lastMessage = messages[messages.length - 1] as any;
-    if (!lastMessage.toolInvocations) return;
+    if (!lastMessage.parts) return;
 
-    lastMessage.toolInvocations.forEach((toolInvocation: any) => {
-      // Only process if we haven't processed this tool call yet
-      if (processedToolCallIds.current.has(toolInvocation.toolCallId)) return;
+    console.log('[Tool Sync] Checking message parts');
 
-      // Only process if we have the args (it's a call)
-      // Note: In server-side execution, we get the result eventually.
-      // But we can update UI optimistically or when args are ready.
-      // Since we want to update the form, args are enough.
+    // AI SDK v6 Agent UI: 工具在 message.parts，格式 {type: 'tool-xxx', input: {...}}
+    const generateOutlinePart = lastMessage.parts.find(
+      (p: any) => p.type === 'tool-generateOutline'
+    );
 
-      if (toolInvocation.toolName === "updateProfile") {
-        const args = toolInvocation.args as Partial<InterviewContext>;
+    if (!generateOutlinePart) return;
+    if (processedToolCallIds.current.has(generateOutlinePart.toolCallId)) return;
 
-        if (Object.keys(args).length > 0) {
-          console.log("[Tool Sync] updateProfile:", args);
+    console.log('[Tool Sync] Found generateOutline');
 
-          // Update goal separately if provided
-          if (args.goal) {
-            dispatch({ type: "SET_GOAL", payload: args.goal });
-          }
+    const outline = generateOutlinePart.input;
+    if (!outline.title || !outline.modules) {
+      console.log('[Tool Sync] Invalid outline data');
+      return;
+    }
 
-          // Update context with all fields
-          dispatch({ type: "UPDATE_CONTEXT", payload: args });
-        }
-        processedToolCallIds.current.add(toolInvocation.toolCallId);
-      }
+    console.log('[Tool Sync] Processing outline:', outline.title);
 
-      if (toolInvocation.toolName === "generateOutline") {
-        // Wait for the full outline to be available?
-        // Ideally wait for 'result' state if server executes it, but args should be fine if complete.
-        // However, large JSON might stream.
-        // Safer to wait until the tool invocation is complete (has result) or check if args are valid.
-        // But 'state' property might be specific to client-side tools.
-        // Let's assume args are usable when they appear, but for safety we might want to wait for the next message or check 'state'.
-        // In AI SDK, toolInvocations are updated as tokens stream.
-        // We should probably wait for the tool call to be "done" or parse carefully.
-        // But for now, let's trust the args are valid JSON once parsed.
+    const outlinePayload: CourseOutline = {
+      title: outline.title,
+      description: outline.description,
+      difficulty: outline.difficulty,
+      estimatedMinutes: outline.estimatedMinutes,
+      modules: outline.modules,
+      chapters: outline.modules
+        .flatMap((m: any) => m.chapters)
+        .map((ch: any) => ({
+          title: ch.title,
+          contentSnippet: ch.contentSnippet,
+          summary: ch.contentSnippet || "",
+        })),
+    };
 
-        // Better: Wait for the tool invocation to have a result (server finished execution)
-        // OR simply update when we have valid data.
+    dispatch({ type: "SET_OUTLINE", payload: outlinePayload });
 
-        // Simple check: if we have the fields we need
-        const outline = toolInvocation.args as any;
-        if (outline && outline.title && outline.modules) {
-          console.log("[Tool Sync] generateOutline:", outline);
+    const allChapters = outlinePayload.chapters;
+    const newNodes: CourseNode[] = allChapters.map((ch, i) => ({
+      id: `node-${i}`,
+      title: ch.title,
+      type: "chapter",
+      x: Math.cos((i / allChapters.length) * Math.PI * 2) * 280,
+      y: Math.sin((i / allChapters.length) * Math.PI * 2) * 280,
+      status: "ready",
+      depth: 1,
+    }));
 
-          const outlinePayload: CourseOutline = {
-            title: outline.title,
-            description: outline.description,
-            difficulty: outline.difficulty,
-            estimatedMinutes: outline.estimatedMinutes,
-            modules: outline.modules,
-            chapters: outline.modules
-              .flatMap((m: any) => m.chapters || [])
-              .map((ch: any) => ({
-                title: ch.title,
-                contentSnippet: ch.contentSnippet,
-                summary: ch.contentSnippet || "",
-              })),
-          };
+    dispatch({ type: "SET_NODES", payload: newNodes });
+    dispatch({ type: "TRANSITION", payload: "outline_review" });
 
-          if (state.phase === "interview") {
-            dispatch({ type: "SET_OUTLINE", payload: outlinePayload });
+    processedToolCallIds.current.add(generateOutlinePart.toolCallId);
 
-            const allChapters = outlinePayload.chapters || [];
-            const newNodes: CourseNode[] = allChapters.map((ch, i) => ({
-              id: `node-${i}`,
-              title: ch.title,
-              type: "chapter",
-              x: Math.cos((i / allChapters.length) * Math.PI * 2) * 280,
-              y: Math.sin((i / allChapters.length) * Math.PI * 2) * 280,
-              status: "ready",
-              depth: 1,
-            }));
-            dispatch({ type: "SET_NODES", payload: newNodes });
-            dispatch({ type: "TRANSITION", payload: "outline_review" });
-          }
-          processedToolCallIds.current.add(toolInvocation.toolCallId);
-        }
-      }
-    });
+    console.log('[Tool Sync] Transitioned to outline_review');
   }, [messages, state.phase]);
 
   // Persistence: Load
@@ -358,12 +332,27 @@ export function useCourseGeneration(initialGoal: string = "") {
 
   // Handle Send Message
   const handleSendMessage = useCallback(
-    async (e?: React.FormEvent, overrideInput?: string) => {
+    async (e?: React.FormEvent, overrideInput?: string, contextUpdate?: Partial<InterviewContext>) => {
       if (e) e.preventDefault();
       const text = overrideInput ?? input;
       if (!text.trim()) return;
 
       if (!overrideInput) setInput("");
+
+      // 如果提供了 contextUpdate，计算最新 context（同步）
+      const finalContext = contextUpdate
+        ? { ...state.context, ...contextUpdate }
+        : state.context;
+
+      console.log('[handleSendMessage] Sending message:', text);
+      console.log('[handleSendMessage] contextUpdate:', contextUpdate);
+      console.log('[handleSendMessage] state.context:', state.context);
+      console.log('[handleSendMessage] finalContext (will be sent):', finalContext);
+
+      // 同步更新本地 state（React 可能延迟，但我们不依赖它）
+      if (contextUpdate) {
+        dispatch({ type: 'UPDATE_CONTEXT', payload: contextUpdate });
+      }
 
       sendMessage(
         {
@@ -373,7 +362,7 @@ export function useCourseGeneration(initialGoal: string = "") {
           body: {
             context: {
               explicitIntent: 'INTERVIEW',
-              interviewContext: state.context,
+              interviewContext: finalContext, // ← 保证使用计算出的最新值
               isInInterview: true,
             },
           },

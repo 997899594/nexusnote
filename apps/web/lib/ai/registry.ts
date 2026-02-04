@@ -10,7 +10,13 @@
 
 import { createOpenAI } from "@ai-sdk/openai";
 import { clientEnv, env, defaults } from "@nexusnote/config";
-import { LanguageModel, EmbeddingModel } from "ai";
+import {
+  LanguageModel,
+  EmbeddingModel,
+  wrapLanguageModel,
+  extractReasoningMiddleware,
+  addToolInputExamplesMiddleware,
+} from "ai";
 
 // ============================================
 // 类型定义
@@ -215,12 +221,42 @@ export function initializeRegistry(): AIRegistry {
   const embeddingModelId =
     clientEnv.EMBEDDING_MODEL || "Qwen/Qwen3-Embedding-8B";
 
+  // 5. 创建基础模型
+  const baseChatModel = openai.chat(chatModelId);
+  const baseProModel = openai.chat(proModelId);
+
+  // 6. 应用中间件增强模型
+  const enhancedChatModel = wrapLanguageModel({
+    model: baseChatModel,
+    middleware: [
+      extractReasoningMiddleware({
+        tagName: 'thinking',
+        separator: '\n\n---\n\n',
+        startWithReasoning: false,
+      }),
+      addToolInputExamplesMiddleware({
+        prefix: '示例调用：',
+      }),
+    ],
+  });
+
+  const enhancedProModel = wrapLanguageModel({
+    model: baseProModel,
+    middleware: [
+      extractReasoningMiddleware({
+        tagName: 'thinking',
+        separator: '\n\n---\n\n',
+        startWithReasoning: false,
+      }),
+    ],
+  });
+
   return {
-    chatModel: openai.chat(chatModelId),
-    courseModel: openai.chat(proModelId),
-    agentModel: openai.chat(chatModelId), // Agent 使用 chat 模型的工具能力
+    chatModel: enhancedChatModel,
+    courseModel: enhancedProModel,
+    agentModel: enhancedChatModel,
     webSearchModel: webSearchModelId ? openai.chat(webSearchModelId) : null,
-    fastModel: openai.chat(chatModelId),
+    fastModel: enhancedChatModel,
     embeddingModel: openai.embedding(embeddingModelId),
     provider: selectedProvider,
     models: MODEL_DEFINITIONS,

@@ -16,7 +16,7 @@ import { routeIntent } from '@/lib/ai/router/route';
 import { interviewAgent } from '@/lib/ai/agents/interview/agent';
 import { chatAgent, webSearchChatAgent } from '@/lib/ai/agents/chat-agent';
 import { ragService } from '@/lib/ai/rag';
-import { createAgentUIStreamResponse } from 'ai';
+import { createAgentUIStreamResponse, smoothStream } from 'ai';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -116,6 +116,11 @@ export async function POST(req: Request) {
             agent: interviewAgent,
             uiMessages: messages,
             options: context.interviewContext || {},
+            maxSteps: 10,
+            experimental_transform: smoothStream({
+              delayInMs: 30,
+              chunking: new Intl.Segmenter('zh-CN', { granularity: 'grapheme' }),
+            }),
             onError: (error) => {
               console.error('[AI Gateway] Stream error:', error);
             },
@@ -145,6 +150,11 @@ export async function POST(req: Request) {
             enableWebSearch: true,
             enableTools: true,
           },
+          maxSteps: 10,
+          experimental_transform: smoothStream({
+            delayInMs: 30,
+            chunking: new Intl.Segmenter('zh-CN', { granularity: 'grapheme' }),
+          }),
         });
       }
 
@@ -160,6 +170,11 @@ export async function POST(req: Request) {
             editMode: true,
             enableTools: true,
           },
+          maxSteps: 10,
+          experimental_transform: smoothStream({
+            delayInMs: 30,
+            chunking: new Intl.Segmenter('zh-CN', { granularity: 'grapheme' }),
+          }),
         });
       }
 
@@ -194,6 +209,11 @@ export async function POST(req: Request) {
             enableTools: context.enableTools,
             enableWebSearch: context.enableWebSearch,
           },
+          maxSteps: 10,
+          experimental_transform: smoothStream({
+            delayInMs: 30,
+            chunking: new Intl.Segmenter('zh-CN', { granularity: 'grapheme' }),
+          }),
         });
       }
     }

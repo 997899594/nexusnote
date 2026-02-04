@@ -63,13 +63,26 @@ export const interviewAgent = new ToolLoopAgent({
     const hasGoal = Boolean(callOptions.goal);
     const hasBackground = Boolean(callOptions.background);
     const hasTime = Boolean(callOptions.time);
+    const hasAllInfo = hasGoal && hasBackground && hasTime;
 
-    console.log('[Interview Agent] Phase detection:', { hasGoal, hasBackground, hasTime });
+    console.log('[Interview Agent] Phase detection:', { hasGoal, hasBackground, hasTime, hasAllInfo });
 
+    // Phase 4: 信息收集完毕，强制调用 generateOutline
+    if (hasAllInfo) {
+      console.log('[Interview Agent] ✅ All info collected, FORCING generateOutline');
+      return {
+        ...rest,
+        instructions,
+        temperature: 0.8,
+        toolChoice: { type: 'tool', toolName: 'generateOutline' },
+      };
+    }
+
+    // Phase 1-3: AI 自由调用 presentOptions
     return {
       ...rest,
       instructions,
-      temperature: 0.7, // 平衡温度
+      temperature: 0.7,
     };
   },
 });

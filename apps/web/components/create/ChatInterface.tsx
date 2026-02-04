@@ -3,83 +3,17 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, ArrowRight, Check, Zap } from "lucide-react";
 import { useEffect, useRef } from "react";
-import { UIMessage as Message } from "ai";
+import { UIMessage as Message, isTextUIPart, isToolUIPart, isReasoningUIPart, getToolName } from "ai";
 import { MessageResponse } from "@/components/ai/Message";
 import type { InterviewContext } from "@/lib/ai/agents/interview/agent";
 
-interface ToolPart {
-  type: string;
-  toolCallId: string;
-  input?: unknown;
-}
-
 function getMessageText(message: Message): string {
-  // Extract text from parts
-  let textContent = "";
-  if (message.parts) {
-    textContent = message.parts
-      .filter((p: any) => p.type === "text")
-      .map((p: any) => p.text)
-      .join("");
-  } else {
-    textContent = (message as any).content || "";
-  }
-  return textContent;
-}
+  if (!message.parts) return "";
 
-function getToolParts(message: Message): ToolPart[] {
-  // Extract tool invocations from parts (Vercel AI SDK v6)
-  // Force cast to any to avoid type check issues with UIMessage vs CoreMessage
-  const msg = message as any;
-
-  if (msg.toolInvocations) {
-    return msg.toolInvocations.map((invocation: any) => {
-      // Try both 'args' and 'input' as possible field names
-      const input = invocation.args || invocation.input;
-      return {
-        type: `tool-${invocation.toolName}`,
-        toolCallId: invocation.toolCallId,
-        input: input,
-      };
-    });
-  }
-
-  if (!message.parts) return [];
-
-  // Check for tool parts - Agent UI format uses "tool-{toolName}" as type
-  const toolParts = message.parts
-    .filter((p: any) => {
-      const type = p.type || '';
-      return type.startsWith('tool-') || type === 'tool-invocation' || type === 'tool-call';
-    })
-    .map((p: any) => {
-      // Agent UI format: { type: "tool-presentOptions", input: {...}, output: {...} }
-      if (p.type?.startsWith('tool-')) {
-        return {
-          type: p.type,
-          toolCallId: p.toolCallId,
-          input: p.input,
-        };
-      }
-      // Legacy formats
-      if (p.type === "tool-call") {
-        return {
-          type: `tool-${p.toolName}`,
-          toolCallId: p.toolCallId,
-          input: p.args,
-        };
-      } else {
-        const invocation = p.toolInvocation;
-        return {
-          type: `tool-${invocation.toolName}`,
-          toolCallId: invocation.toolCallId,
-          input: invocation.args || invocation.input,
-        };
-      }
-    });
-
-  console.log('[getToolParts] Extracted tool parts:', toolParts);
-  return toolParts;
+  return message.parts
+    .filter(isTextUIPart)
+    .map(p => p.text)
+    .join("");
 }
 
 interface ChatInterfaceProps {
@@ -88,7 +22,7 @@ interface ChatInterfaceProps {
   isAiThinking: boolean;
   userInput: string;
   setUserInput: (v: string) => void;
-  onSendMessage: (e?: React.FormEvent, override?: string) => void;
+  onSendMessage: (e?: React.FormEvent, override?: string, contextUpdate?: Partial<InterviewContext>) => void;
   goal: string;
   context: InterviewContext;
   error?: string | null;
@@ -123,12 +57,12 @@ export function ChatInterface({
   const activeMessageText = activeMessage ? getMessageText(activeMessage) : "";
 
   // Enhanced send message with vibration feedback
-  const handleSendWithFeedback = (e?: React.FormEvent, override?: string) => {
+  const handleSendWithFeedback = (e?: React.FormEvent, override?: string, contextUpdate?: Partial<InterviewContext>) => {
     // Vibration feedback on mobile
     if (typeof navigator !== "undefined" && navigator.vibrate) {
       navigator.vibrate(50);
     }
-    onSendMessage(e, override);
+    onSendMessage(e, override, contextUpdate);
   };
 
   useEffect(() => {
@@ -144,39 +78,28 @@ export function ChatInterface({
   // Extract tool options from the active message
   let activeToolOptions: {
     options?: string[];
-    optionGroups?: Array<{ title: string; options: string[] }>;
+    targetField?: string;
   } | null = null;
 
-  if (activeMessage) {
-    console.log('[ChatInterface] Active message full:', JSON.stringify(activeMessage, null, 2));
-
-    // 1. Tool Calls (Vercel AI SDK v6 Standard)
-    const toolParts = getToolParts(activeMessage);
-    const presentOptionsTool = toolParts.find(
-      (p) => p.type === "tool-presentOptions",
+  if (activeMessage?.parts) {
+    const presentOptionsPart = activeMessage.parts.find(
+      part => isToolUIPart(part) && getToolName(part) === 'presentOptions'
     );
 
-    if (presentOptionsTool && presentOptionsTool.input) {
-      // Validate input structure
-      const input = presentOptionsTool.input as { options?: string[] | string };
-      let options: string[] | undefined;
+    if (presentOptionsPart && isToolUIPart(presentOptionsPart)) {
+      // 只在 input 完整到达时才处理（不处理流式传输中的部分数据）
+      if (presentOptionsPart.state === 'input-available' || presentOptionsPart.state === 'output-available') {
+        const input = presentOptionsPart.input as {
+          options: string[];
+          targetField: string;
+        };
 
-      // Handle both array and JSON string formats
-      if (Array.isArray(input.options)) {
-        options = input.options;
-      } else if (typeof input.options === 'string') {
-        try {
-          const parsed = JSON.parse(input.options);
-          if (Array.isArray(parsed)) {
-            options = parsed;
-          }
-        } catch (e) {
-          console.error('[ChatInterface] Failed to parse options:', e);
+        if (Array.isArray(input.options) && input.options.length > 0) {
+          activeToolOptions = {
+            options: input.options,
+            targetField: input.targetField,
+          };
         }
-      }
-
-      if (options && options.length > 0) {
-        activeToolOptions = { options };
       }
     }
   }
@@ -247,11 +170,11 @@ export function ChatInterface({
                 <>
                   {historyMessages.map((m, i) => {
                     const text = getMessageText(m);
-                    // Skip empty text messages if they only have tool calls (unless we want to show something)
-                    if (!text && m.role === "assistant") return null;
-
                     const isUser = m.role === "user";
                     const messageKey = m.id || `msg-${i}`;
+
+                    // Skip empty assistant messages
+                    if (!text && !isUser) return null;
 
                     return (
                       <motion.div
@@ -293,13 +216,33 @@ export function ChatInterface({
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -10 }}
-                          className="flex justify-start"
+                          className="space-y-4"
                         >
-                          <div className="bg-white shadow-xl shadow-black/5 px-8 py-6 rounded-[32px] max-w-[95%] text-left border border-black/[0.02]">
-                            <div className="text-lg md:text-xl font-bold tracking-tight text-black leading-snug">
-                              <MessageResponse>{activeMessageText}</MessageResponse>
+                          <div className="flex justify-start">
+                            <div className="bg-white shadow-xl shadow-black/5 px-8 py-6 rounded-[32px] max-w-[95%] text-left border border-black/[0.02]">
+                              <div className="text-lg md:text-xl font-bold tracking-tight text-black leading-snug">
+                                <MessageResponse>{activeMessageText}</MessageResponse>
+                              </div>
                             </div>
                           </div>
+
+                          {/* Reasoning Section */}
+                          {activeMessage.parts && activeMessage.parts.some(isReasoningUIPart) && (
+                            <div className="flex justify-start">
+                              <details className="bg-black/[0.02] px-6 py-4 rounded-[24px] max-w-[95%] border border-black/[0.05]">
+                                <summary className="cursor-pointer text-sm font-medium text-black/40 hover:text-black/60 transition-colors">
+                                  💭 查看 AI 思考过程
+                                </summary>
+                                <div className="mt-4 text-sm text-black/60 leading-relaxed whitespace-pre-wrap">
+                                  {activeMessage.parts
+                                    .filter(isReasoningUIPart)
+                                    .map((p, i) => (
+                                      <div key={i}>{p.text}</div>
+                                    ))}
+                                </div>
+                              </details>
+                            </div>
+                          )}
                         </motion.div>
                       )}
                     </AnimatePresence>
@@ -330,51 +273,29 @@ export function ChatInterface({
 
             {/* Hybrid UI / Shortcuts (Generative UI) - Fixed at Bottom */}
             <AnimatePresence>
-              {activeToolOptions && !isAiThinking && (
+              {activeToolOptions?.options && !isAiThinking && (
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 10 }}
-                  className="mb-6 px-4 flex flex-col items-end gap-4"
+                  className="mb-6 px-4 flex flex-wrap gap-3 justify-end"
                 >
-                  {/* Handle Option Groups */}
-                  {activeToolOptions.optionGroups ? (
-                    activeToolOptions.optionGroups.map((group, idx) => (
-                      <div key={idx} className="flex flex-col items-end gap-2">
-                        <div className="text-xs font-semibold text-black/50 uppercase tracking-wider mr-1">
-                          {group.title}
-                        </div>
-                        <div className="flex flex-wrap gap-3 justify-end">
-                          {group.options.map((option) => (
-                            <button
-                              key={option}
-                              onClick={() =>
-                                handleSendWithFeedback(undefined, option)
-                              }
-                              className="bg-white/80 backdrop-blur-md border border-black/5 px-6 py-3 rounded-full text-sm font-medium hover:bg-black hover:text-white transition-all shadow-lg shadow-black/5 hover:scale-105 active:scale-95"
-                            >
-                              {option}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ))
-                  ) : activeToolOptions.options ? (
-                    /* Handle Flat Options */
-                    <div className="flex flex-wrap gap-3 justify-end">
-                      {activeToolOptions.options.map((option) => (
-                        <button
-                          key={option}
-                          onClick={() =>
-                            handleSendWithFeedback(undefined, option)
-                          }
-                          className="bg-white/80 backdrop-blur-md border border-black/5 px-6 py-3 rounded-full text-sm font-medium hover:bg-black hover:text-white transition-all shadow-lg shadow-black/5 hover:scale-105 active:scale-95"
-                        >
-                          {option}
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
+                  {activeToolOptions.options.map((option) => {
+                    const targetField = activeToolOptions.targetField;
+                    const contextUpdate = targetField && targetField !== 'general'
+                      ? { [targetField]: option }
+                      : undefined;
+
+                    return (
+                      <button
+                        key={option}
+                        onClick={() => handleSendWithFeedback(undefined, option, contextUpdate)}
+                        className="bg-white/80 backdrop-blur-md border border-black/5 px-6 py-3 rounded-full text-sm font-medium hover:bg-black hover:text-white transition-all shadow-lg shadow-black/5 hover:scale-105 active:scale-95"
+                      >
+                        {option}
+                      </button>
+                    );
+                  })}
                 </motion.div>
               )}
             </AnimatePresence>

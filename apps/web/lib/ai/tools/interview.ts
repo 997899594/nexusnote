@@ -19,14 +19,8 @@ import { z } from 'zod';
  * 严格限制：必须在生成一段引导性的自然语言回复之后调用
  */
 export const presentOptionsTool = tool({
-  description: `向用户展示可点击的选项卡片。在询问用户具体问题后调用此工具。
+  description: `向用户展示可点击的选项卡片。在询问用户具体问题后调用此工具。`,
 
-示例调用：
-presentOptions({
-  question: "选择方向",
-  options: ["Web开发", "数据科学", "AI开发", "移动开发"],
-  targetField: "goal"
-})`,
   inputSchema: z.object({
     question: z.string()
       .describe('卡片标题，5-10个字。例如："选择方向"、"您的水平"'),
@@ -45,59 +39,30 @@ presentOptions({
     multiSelect: z.boolean().optional()
       .describe('是否多选，可选'),
   }),
+
+  inputExamples: [
+    {
+      question: "选择方向",
+      options: ["Web开发", "数据科学", "AI开发", "移动开发"],
+      targetField: "goal"
+    },
+    {
+      question: "您的水平",
+      options: ["零基础", "有基础", "有经验", "专业级"],
+      targetField: "background"
+    },
+    {
+      question: "每周学习时间",
+      options: ["每周5小时", "每周10小时", "每周20+小时", "全职学习"],
+      targetField: "time"
+    },
+  ],
+
   execute: async () => ({ status: 'ui_rendered' }),
 });
 
-/**
- * updateProfile - 静默状态更新
- *
- * 语义：我听懂了用户的意图，请更新后台数据
- * 调用时机：当从对话中识别到 goal/background/time 信息时
- * 机会主义：如果用户一次性提到多个维度，可以一次性更新多个字段
- */
-const updateProfileSchema = z.object({
-  updates: z.object({
-    goal: z.string().optional()
-      .describe('学习目标，如"Python编程"、"AI入门"、"Web全栈开发"'),
-    background: z.string().optional()
-      .describe('学习背景/水平，如"零基础"、"有编程经验"、"熟练开发者"'),
-    time: z.string().optional()
-      .describe('可用时间/学习深度，如"每周5小时"、"全职学习"、"快速入门"'),
-  }).describe('需要更新的字段（至少提供一个）'),
-
-  reasoning: z.string()
-    .describe('提取该值的简短理由，用于调试和日志分析。例如："用户明确说了想学Python"'),
-});
-
-export const updateProfileTool = tool({
-  description: `更新用户的学习档案信息。当从对话中识别到目标、背景或时间信息时调用。`,
-  inputSchema: updateProfileSchema,
-  execute: async (params: z.infer<typeof updateProfileSchema>) => {
-    // 客户端工具：由前端处理实际更新
-    console.log('[updateProfile]', params);
-    return { status: 'updated', ...params };
-  },
-});
-
-/**
- * resetField - 状态重置
- *
- * 语义：用户觉得自己选错了/说错了，请求回滚
- * 调用时机：用户明确表示要修改之前的选择时
- */
-const resetFieldSchema = z.object({
-  field: z.enum(['goal', 'background', 'time', 'all'])
-    .describe('需要清空的字段。选择 "all" 将重置所有字段，重新开始访谈。'),
-});
-
-export const resetFieldTool = tool({
-  description: `重置用户之前的选择。当用户明确表示要修改之前的选择时调用。`,
-  inputSchema: resetFieldSchema,
-  execute: async (params: z.infer<typeof resetFieldSchema>) => {
-    console.log('[resetField]', params);
-    return { status: 'reset', ...params };
-  },
-});
+// updateProfile 和 resetField 工具已删除
+// 状态管理由前端负责，AI 只负责生成内容
 
 /**
  * generateOutline - 生成课程大纲
@@ -152,11 +117,14 @@ export const generateOutlineTool = tool({
 
 /**
  * 导出所有 Interview 工具的集合
+ *
+ * 职责分离原则：
+ * - presentOptions: AI 生成选项供用户选择
+ * - generateOutline: AI 生成课程大纲
+ * - 状态管理由前端负责，不需要 updateProfile
  */
 export const interviewTools = {
   presentOptions: presentOptionsTool,
-  updateProfile: updateProfileTool,
-  resetField: resetFieldTool,
   generateOutline: generateOutlineTool,
 };
 
