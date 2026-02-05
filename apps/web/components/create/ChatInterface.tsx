@@ -366,30 +366,6 @@ export function ChatInterface({
                   </p>
                 </div>
 
-                {/* Level Description - The AI's Detective Conclusion */}
-                {context.levelDescription && (
-                  <div className="flex items-start gap-3">
-                    <div className="w-1.5 h-1.5 rounded-full bg-black mt-1.5" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-black/60 mb-1">
-                        深度评估：
-                      </p>
-                      <p className="text-sm font-bold text-black italic leading-relaxed">
-                        "{context.levelDescription}"
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {!context.levelDescription && context.level && (
-                  <div className="flex items-center gap-3">
-                    <div className="w-1.5 h-1.5 rounded-full bg-black" />
-                    <p className="text-sm font-medium text-black/60">
-                      深度：{context.level}
-                    </p>
-                  </div>
-                )}
-
                 {context.targetOutcome && (
                   <div className="flex items-center gap-3">
                     <div className="w-1.5 h-1.5 rounded-full bg-black" />

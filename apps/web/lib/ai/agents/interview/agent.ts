@@ -9,27 +9,27 @@
  * 4. 可观测性 - 集成 Langfuse 追踪
  */
 
-import { ToolLoopAgent, InferAgentUIMessage, stepCountIs } from 'ai';
-import { z } from 'zod';
-import { chatModel } from '@/lib/ai/registry';
-import { interviewTools } from '@/lib/ai/tools/interview';
-import { buildInterviewPrompt, type InterviewContext } from '@/lib/ai/prompts/interview';
+import { ToolLoopAgent, InferAgentUIMessage, stepCountIs } from "ai";
+import { string, z } from "zod";
+import { chatModel } from "@/lib/ai/registry";
+import { interviewTools } from "@/lib/ai/tools/interview";
+import { buildInterviewPrompt } from "@/lib/ai/prompts/interview";
 
 /**
- * 调用选项 Schema
- * 这会被验证并传递给 prepareCall
+ * Interview Context Schema - 统一的维度定义
+ * Phase 1: Goal (学什么)
+ * Phase 2: Background (基础如何)
+ * Phase 3: TargetOutcome (为了什么)
+ * Phase 4: CognitiveStyle (怎么学)
  */
-const InterviewCallOptionsSchema = z.object({
+export const InterviewContextSchema = z.object({
   goal: z.string().optional(),
   background: z.string().optional(),
-  time: z.string().optional(),
   targetOutcome: z.string().optional(),
   cognitiveStyle: z.string().optional(),
-  level: z.string().optional(),
-  levelDescription: z.string().optional(),
 });
 
-export type InterviewCallOptions = z.infer<typeof InterviewCallOptionsSchema>;
+export type InterviewContext = z.infer<typeof InterviewContextSchema>;
 
 /**
  * Interview Agent 定义
@@ -37,44 +37,62 @@ export type InterviewCallOptions = z.infer<typeof InterviewCallOptionsSchema>;
  * 与 Chat Agent 保持一致的架构模式
  */
 export const interviewAgent = new ToolLoopAgent({
-  id: 'nexusnote-interview',
+  id: "nexusnote-interview",
   model: chatModel!,
   tools: interviewTools,
   maxOutputTokens: 4096,
-  callOptionsSchema: InterviewCallOptionsSchema,
+  callOptionsSchema: InterviewContextSchema,
 
   /**
    * prepareCall: 核心逻辑
    * 在每次 AI 调用前，动态构建 instructions
    */
   prepareCall: ({ options, ...rest }) => {
-    const callOptions = (options ?? {}) as InterviewCallOptions;
+    const callOptions = (options ?? {}) as InterviewContext;
 
-    console.log('[Interview Agent] prepareCall called with options:', callOptions);
+    console.log(
+      "[Interview Agent] prepareCall called with options:",
+      callOptions,
+    );
 
     // L1: 动态构建 System Prompt
     // 这里是"代码控流"的关键：根据数据缺口注入不同的指令
     const instructions = buildInterviewPrompt(callOptions);
 
-    console.log('[Interview Agent] Generated instructions (first 500 chars):', instructions.slice(0, 500));
-    console.log('[Interview Agent] Tools available:', Object.keys(interviewTools));
+    console.log(
+      "[Interview Agent] Generated instructions (first 500 chars):",
+      instructions.slice(0, 500),
+    );
+    console.log(
+      "[Interview Agent] Tools available:",
+      Object.keys(interviewTools),
+    );
 
     // 检测当前阶段
     const hasGoal = Boolean(callOptions.goal);
     const hasBackground = Boolean(callOptions.background);
-    const hasTime = Boolean(callOptions.time);
-    const hasAllInfo = hasGoal && hasBackground && hasTime;
+    const hasTargetOutcome = Boolean(callOptions.targetOutcome);
+    const hasCognitiveStyle = Boolean(callOptions.cognitiveStyle);
+    const hasAllInfo = hasGoal && hasBackground && hasTargetOutcome && hasCognitiveStyle;
 
-    console.log('[Interview Agent] Phase detection:', { hasGoal, hasBackground, hasTime, hasAllInfo });
+    console.log("[Interview Agent] Phase detection:", {
+      hasGoal,
+      hasBackground,
+      hasTargetOutcome,
+      hasCognitiveStyle,
+      hasAllInfo,
+    });
 
     // Phase 4: 信息收集完毕，强制调用 generateOutline
     if (hasAllInfo) {
-      console.log('[Interview Agent] ✅ All info collected, FORCING generateOutline');
+      console.log(
+        "[Interview Agent] ✅ All info collected, FORCING generateOutline",
+      );
       return {
         ...rest,
         instructions,
         temperature: 0.8,
-        toolChoice: { type: 'tool', toolName: 'generateOutline' },
+        toolChoice: { type: "tool", toolName: "generateOutline" },
         stopWhen: stepCountIs(1), // 调用工具后立即停止，不再输出文本
       };
     }
@@ -100,6 +118,11 @@ export const interviewAgent = new ToolLoopAgent({
 export type InterviewAgentMessage = InferAgentUIMessage<typeof interviewAgent>;
 
 /**
- * 重新导出 Context 类型供外部使用
+ * 导出 Context 类型供外部使用
+ *
+ * 使用方式：
+ * ```typescript
+ * import type { InterviewContext } from '@/lib/ai/agents/interview/agent'
+ * ```
  */
-export type { InterviewContext } from '@/lib/ai/prompts/interview';
+// InterviewContext 已在上方导出

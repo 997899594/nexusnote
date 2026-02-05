@@ -2,4 +2,4 @@
 export { chatAgent, webSearchChatAgent, type ChatAgentMessage, type ChatCallOptions } from './chat-agent'
 
 // Interview Agent - 课程规划访谈
-export { interviewAgent, type InterviewAgentMessage, type InterviewCallOptions } from './interview/agent'
+export { interviewAgent, type InterviewAgentMessage, type InterviewContext } from './interview/agent'

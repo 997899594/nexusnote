@@ -11,7 +11,7 @@ import {
 import { CourseNode } from "@/lib/types/course";
 import { useRouter } from "next/navigation";
 import { learningStore } from "@/lib/storage";
-import type { InterviewContext, InterviewAgentMessage } from "@/lib/ai/agents/interview/agent";
+import type { InterviewAgentMessage, InterviewContext } from "@/lib/ai/agents/interview/agent";
 
 // ============================================
 // Constants
@@ -87,9 +87,8 @@ const initialState: State = {
   context: {
     goal: undefined,
     background: undefined,
-    time: undefined,
     targetOutcome: undefined,
-    cognitiveStyle: "action_oriented",
+    cognitiveStyle: undefined,
   },
   nodes: [],
   outline: null,
@@ -101,7 +100,7 @@ function reducer(state: State, action: Action): State {
       return {
         ...state,
         goal: action.payload,
-        context: { ...state.context, goal: action.payload }
+        context: { ...state.context, goal: action.payload },
       };
     case "UPDATE_CONTEXT":
       return { ...state, context: { ...state.context, ...action.payload } };
@@ -166,11 +165,10 @@ export function useCourseGeneration(initialGoal: string = "") {
     [],
   );
 
-  const { messages, sendMessage, setMessages, status, error, regenerate } = useChat<InterviewAgentMessage>(
-    {
+  const { messages, sendMessage, setMessages, status, error, regenerate } =
+    useChat<InterviewAgentMessage>({
       transport: chatTransport,
-    },
-  );
+    });
 
   // Calculate isLoading from status
   const isLoading = status === "streaming" || status === "submitted";
@@ -190,7 +188,7 @@ export function useCourseGeneration(initialGoal: string = "") {
         regenerate({
           body: {
             context: {
-              explicitIntent: 'INTERVIEW',
+              explicitIntent: "INTERVIEW",
               interviewContext: state.context,
               isInInterview: true,
             },
@@ -204,27 +202,33 @@ export function useCourseGeneration(initialGoal: string = "") {
     if (!messages || messages.length === 0) return;
 
     const lastMessage = messages[messages.length - 1];
-    if (lastMessage.role !== 'assistant' || !lastMessage.parts) return;
+    if (lastMessage.role !== "assistant" || !lastMessage.parts) return;
 
-    console.log('[Tool Sync] Checking message parts');
+    console.log("[Tool Sync] Checking message parts");
 
     // AI SDK v6 Agent UI: 工具在 message.parts，格式 {type: 'tool-xxx', input: {...}}
     const generateOutlinePart = lastMessage.parts.find(
-      (p) => p.type === 'tool-generateOutline' && p.state === 'output-available'
+      (p) =>
+        p.type === "tool-generateOutline" && p.state === "output-available",
     );
 
-    if (!generateOutlinePart || generateOutlinePart.type !== 'tool-generateOutline') return;
-    if (processedToolCallIds.current.has(generateOutlinePart.toolCallId)) return;
+    if (
+      !generateOutlinePart ||
+      generateOutlinePart.type !== "tool-generateOutline"
+    )
+      return;
+    if (processedToolCallIds.current.has(generateOutlinePart.toolCallId))
+      return;
 
-    console.log('[Tool Sync] Found generateOutline');
+    console.log("[Tool Sync] Found generateOutline");
 
     const outline = generateOutlinePart.input;
     if (!outline.title || !outline.modules) {
-      console.log('[Tool Sync] Invalid outline data');
+      console.log("[Tool Sync] Invalid outline data");
       return;
     }
 
-    console.log('[Tool Sync] Processing outline:', outline.title);
+    console.log("[Tool Sync] Processing outline:", outline.title);
 
     const outlinePayload: CourseOutline = {
       title: outline.title,
@@ -243,7 +247,7 @@ export function useCourseGeneration(initialGoal: string = "") {
 
     dispatch({ type: "SET_OUTLINE", payload: outlinePayload });
 
-    const allChapters = outlinePayload.chapters;
+    const allChapters = outlinePayload.chapters!;
     const newNodes: CourseNode[] = allChapters.map((ch, i) => ({
       id: `node-${i}`,
       title: ch.title,
@@ -259,7 +263,7 @@ export function useCourseGeneration(initialGoal: string = "") {
 
     processedToolCallIds.current.add(generateOutlinePart.toolCallId);
 
-    console.log('[Tool Sync] Transitioned to outline_review');
+    console.log("[Tool Sync] Transitioned to outline_review");
   }, [messages, state.phase]);
 
   // Persistence: Load
@@ -319,7 +323,7 @@ export function useCourseGeneration(initialGoal: string = "") {
       {
         body: {
           context: {
-            explicitIntent: 'INTERVIEW',
+            explicitIntent: "INTERVIEW",
             interviewContext: state.context,
             isInInterview: true,
           },
@@ -332,7 +336,11 @@ export function useCourseGeneration(initialGoal: string = "") {
 
   // Handle Send Message
   const handleSendMessage = useCallback(
-    async (e?: React.FormEvent, overrideInput?: string, contextUpdate?: Partial<InterviewContext>) => {
+    async (
+      e?: React.FormEvent,
+      overrideInput?: string,
+      contextUpdate?: Partial<InterviewContext>,
+    ) => {
       if (e) e.preventDefault();
       const text = overrideInput ?? input;
       if (!text.trim()) return;
@@ -344,14 +352,17 @@ export function useCourseGeneration(initialGoal: string = "") {
         ? { ...state.context, ...contextUpdate }
         : state.context;
 
-      console.log('[handleSendMessage] Sending message:', text);
-      console.log('[handleSendMessage] contextUpdate:', contextUpdate);
-      console.log('[handleSendMessage] state.context:', state.context);
-      console.log('[handleSendMessage] finalContext (will be sent):', finalContext);
+      console.log("[handleSendMessage] Sending message:", text);
+      console.log("[handleSendMessage] contextUpdate:", contextUpdate);
+      console.log("[handleSendMessage] state.context:", state.context);
+      console.log(
+        "[handleSendMessage] finalContext (will be sent):",
+        finalContext,
+      );
 
       // 同步更新本地 state（React 可能延迟，但我们不依赖它）
       if (contextUpdate) {
-        dispatch({ type: 'UPDATE_CONTEXT', payload: contextUpdate });
+        dispatch({ type: "UPDATE_CONTEXT", payload: contextUpdate });
       }
 
       sendMessage(
@@ -361,7 +372,7 @@ export function useCourseGeneration(initialGoal: string = "") {
         {
           body: {
             context: {
-              explicitIntent: 'INTERVIEW',
+              explicitIntent: "INTERVIEW",
               interviewContext: finalContext, // ← 保证使用计算出的最新值
               isInInterview: true,
             },
@@ -377,23 +388,12 @@ export function useCourseGeneration(initialGoal: string = "") {
     if (state.phase === "synthesis") {
       const generateRealCourse = async () => {
         try {
-          let data;
-          if (state.outline) {
-            data = state.outline;
-          } else {
-            const response = await fetch("/api/learn/generate", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                goal: state.goal,
-                background: state.context.background,
-                time: state.context.time,
-                targetOutcome: state.context.targetOutcome,
-                cognitiveStyle: state.context.cognitiveStyle,
-              }),
-            });
-            data = await response.json();
+          if (!state.outline) {
+            console.error("No outline available for course generation");
+            return;
           }
+
+          const data = state.outline;
 
           try {
             const course = await learningStore.createFromOutline(data);

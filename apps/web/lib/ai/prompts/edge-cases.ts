@@ -71,22 +71,15 @@ export const EDGE_CASE_HANDLERS = `
 ### 5. 用户提供了额外信息（机会主义提取）
 **场景**: 用户在回答一个问题时，顺带提供了其他维度的信息
 **示例**:
-- 当前在问 goal，用户说："我想学 Python，我是零基础，每周能学5小时"
+- 当前在问 goal，用户说："我想学 Python，我是零基础，想做爬虫项目"
 
 **处理方式**:
-1. ✅ **机会主义提取**：立即调用 updateProfile 记录所有识别到的信息
+1. ✅ **机会主义提取**：立即调用 presentOptions 记录所有识别到的信息
 2. 不要重复询问已经提供的信息
 3. 直接跳到下一个缺失字段
 
 **示例**:
-\`\`\`
-updateProfile({
-  updates: { goal: "Python", background: "零基础", time: "每周5小时" },
-  reasoning: "用户一次性提供了完整信息",
-  confidence: 0.95
-})
-\`\`\`
-然后直接进入生成阶段。
+用户提供了 goal 和 background，以及 targetOutcome，直接跳到收集 cognitiveStyle。
 
 ---
 

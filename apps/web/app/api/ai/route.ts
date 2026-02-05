@@ -31,7 +31,8 @@ interface RequestBody {
     interviewContext?: {
       goal?: string;
       background?: string;
-      time?: string;
+      targetOutcome?: string;
+      cognitiveStyle?: string;
     };
 
     // Chat 上下文

@@ -30,8 +30,8 @@ export const presentOptionsTool = tool({
       .max(4)
       .describe('选项列表，必须提供2-4个字符串'),
 
-    targetField: z.enum(['goal', 'background', 'time', 'general'])
-      .describe('问题类型：goal=学习目标, background=背景水平, time=时间投入, general=通用'),
+    targetField: z.enum(['goal', 'background', 'targetOutcome', 'cognitiveStyle', 'general'])
+      .describe('问题类型：goal=学习目标, background=背景水平, targetOutcome=预期成果, cognitiveStyle=学习风格, general=通用'),
 
     allowSkip: z.boolean().optional()
       .describe('是否允许跳过，可选'),
@@ -52,9 +52,14 @@ export const presentOptionsTool = tool({
       targetField: "background"
     },
     {
-      question: "每周学习时间",
-      options: ["每周5小时", "每周10小时", "每周20+小时", "全职学习"],
-      targetField: "time"
+      question: "你想学到什么程度？",
+      options: ["完成个人项目", "找到工作", "系统掌握", "解决特定问题"],
+      targetField: "targetOutcome"
+    },
+    {
+      question: "你更喜欢哪种学习方式？",
+      options: ["看代码实战", "理解原理", "举例说明"],
+      targetField: "cognitiveStyle"
     },
   ],
 
@@ -68,7 +73,7 @@ export const presentOptionsTool = tool({
  * generateOutline - 生成课程大纲
  *
  * 语义：信息收集完毕，生成个性化课程
- * 调用时机：仅在收集完所有必需信息（goal, background, time）后调用
+ * 调用时机：仅在收集完所有必需信息（goal, background, targetOutcome, cognitiveStyle）后调用
  */
 const generateOutlineSchema = z.object({
   title: z.string()
@@ -82,7 +87,7 @@ const generateOutlineSchema = z.object({
 
   estimatedMinutes: z.number()
     .min(30)
-    .describe('预估学习时长（分钟），基于用户的 time 预算合理估算'),
+    .describe('预估学习时长（分钟），基于学习难度和深度合理估算'),
 
   modules: z.array(
     z.object({
@@ -98,16 +103,16 @@ const generateOutlineSchema = z.object({
       ),
     })
   )
-    .min(3, "至少需要3个模块")
-    .max(8, "最多8个模块，避免课程过于庞大")
-    .describe('课程模块列表，每个模块包含多个章节'),
+    .min(2, "最少2个模块")
+    .max(20, "最多20个模块")
+    .describe('课程模块列表。模块数量应根据 targetOutcome 的复杂度动态调整'),
 
   reason: z.string()
-    .describe('为什么这样设计课程结构？基于用户的背景和目标说明设计理念（2-3句话）。'),
+    .describe('为什么这样设计课程结构？基于用户的目标、背景和学习风格说明设计理念。'),
 });
 
 export const generateOutlineTool = tool({
-  description: `生成个性化课程大纲。仅在收集完所有必需信息（goal, background, time）后调用。`,
+  description: `生成个性化课程大纲。仅在收集完所有必需信息（goal, background, targetOutcome, cognitiveStyle）后调用。模块数量应根据 targetOutcome 的复杂度灵活调整。`,
   inputSchema: generateOutlineSchema,
   execute: async (params: z.infer<typeof generateOutlineSchema>) => {
     console.log('[generateOutline]', params.title);
