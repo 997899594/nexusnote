@@ -66,9 +66,6 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Install PM2 globally for process management
-RUN npm install -g pm2
-
 # Create non-root user
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
@@ -80,7 +77,6 @@ RUN mkdir -p /app/logs && chown -R nextjs:nodejs /app/logs
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/hocuspocus.js ./apps/web/
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/worker.js ./apps/web/
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/ecosystem.config.js ./apps/web/
 
 # Conditional copy for static assets and public folder
 RUN --mount=from=builder,source=/app/apps/web,target=/tmp/web \
@@ -99,6 +95,6 @@ EXPOSE 3002 1234
 ENV PORT=3002
 ENV HOSTNAME="0.0.0.0"
 
-# Start all services with PM2
-CMD ["pm2-runtime", "start", "apps/web/ecosystem.config.js"]
+# Start application
+CMD ["node", "apps/web/server.js"]
 

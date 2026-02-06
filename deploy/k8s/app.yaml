@@ -1,58 +1,50 @@
+# ============================================
+# 1. ConfigMap - 共享配置
+# ============================================
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: nexusnote-config
   namespace: nexusnote
 data:
-  # 服务器配置
   PORT: "3002"
   HOCUSPOCUS_PORT: "1234"
-
-  # JWT 配置 (非敏感部分)
   JWT_EXPIRES_IN: "7d"
   JWT_ISSUER: "nexusnote"
-
-  # AI 模型配置 (默认值)
   AI_MODEL: "gemini-3-flash-preview"
   AI_MODEL_PRO: "gemini-3-pro-preview"
   AI_MODEL_WEB_SEARCH: "gemini-3-flash-preview-web-search"
-
-  # Embedding & Reranker
   EMBEDDING_MODEL: "Qwen/Qwen3-Embedding-8B"
   EMBEDDING_DIMENSIONS: "4000"
   RERANKER_MODEL: "Qwen/Qwen3-Reranker-8B"
 ---
+# ============================================
+# 2. Web 服务 (Next.js API & Frontend)
+# ============================================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: nexusnote-app
+  name: nexusnote-web
   namespace: nexusnote
 spec:
   replicas: 1
-  revisionHistoryLimit: 3
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 0
   selector:
     matchLabels:
-      app: nexusnote
+      app: nexusnote-web
   template:
     metadata:
       labels:
-        app: nexusnote
+        app: nexusnote-web
     spec:
       imagePullSecrets:
         - name: ghcr-secret
       containers:
         - name: app
           image: IMAGE_PLACEHOLDER
+          command: ["node", "apps/web/server.js"]
           ports:
             - containerPort: 3002
               name: http
-            - containerPort: 1234
-              name: collab
           envFrom:
             - secretRef:
                 name: nexusnote-secrets
@@ -62,24 +54,102 @@ spec:
             httpGet:
               path: /api/health
               port: 3002
-            initialDelaySeconds: 60
+            initialDelaySeconds: 45
             periodSeconds: 20
-            timeoutSeconds: 5
           readinessProbe:
             httpGet:
               path: /api/health
               port: 3002
-            initialDelaySeconds: 30
+            initialDelaySeconds: 20
             periodSeconds: 10
-            timeoutSeconds: 5
           resources:
             limits:
               cpu: "1"
-              memory: "2Gi"
+              memory: "1Gi"
             requests:
+              cpu: "200m"
+              memory: "256Mi"
+---
+# ============================================
+# 3. Collaboration 服务 (Hocuspocus WebSocket)
+# ============================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nexusnote-collab
+  namespace: nexusnote
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nexusnote-collab
+  template:
+    metadata:
+      labels:
+        app: nexusnote-collab
+    spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+        - name: app
+          image: IMAGE_PLACEHOLDER
+          command: ["node", "apps/web/hocuspocus.js"]
+          ports:
+            - containerPort: 1234
+              name: collab
+          envFrom:
+            - secretRef:
+                name: nexusnote-secrets
+            - configMapRef:
+                name: nexusnote-config
+          resources:
+            limits:
               cpu: "500m"
               memory: "512Mi"
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
 ---
+# ============================================
+# 4. Worker 服务 (BullMQ RAG Processor)
+# ============================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nexusnote-worker
+  namespace: nexusnote
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nexusnote-worker
+  template:
+    metadata:
+      labels:
+        app: nexusnote-worker
+    spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+        - name: app
+          image: IMAGE_PLACEHOLDER
+          command: ["node", "apps/web/worker.js"]
+          envFrom:
+            - secretRef:
+                name: nexusnote-secrets
+            - configMapRef:
+                name: nexusnote-config
+          resources:
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+---
+# ============================================
+# 5. 集群内部 Service 定义
+# ============================================
 apiVersion: v1
 kind: Service
 metadata:
@@ -87,11 +157,21 @@ metadata:
   namespace: nexusnote
 spec:
   selector:
-    app: nexusnote
+    app: nexusnote-web
   ports:
     - name: http
       port: 80
       targetPort: 3002
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nexusnote-collab-service
+  namespace: nexusnote
+spec:
+  selector:
+    app: nexusnote-collab
+  ports:
     - name: collab
       port: 1234
       targetPort: 1234
