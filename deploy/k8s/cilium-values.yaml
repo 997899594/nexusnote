@@ -1,0 +1,54 @@
+# Cilium Helm Values for K3s with Gateway API
+# 2026 Modern Architecture Standard - Latest Version
+
+# 1. 核心网络配置 (K3s 优化 + 全 BPF 模式)
+k8sServiceHost: 10.2.0.15
+k8sServicePort: 6443
+kubeProxyReplacement: true
+
+# 2. Gateway API 支持
+gatewayAPI:
+  enabled: true
+  hostNetwork:
+    enabled: true
+
+# 3. 负载均衡与 IPAM 配置
+ipam:
+  mode: "kubernetes"
+loadBalancer:
+  l2:
+    enabled: false # 云环境关闭 L2
+externalIPs:
+  enabled: true
+
+# 4. 镜像仓库配置 (应对网络环境，使用 Quay 镜像)
+image:
+  repository: "quay.io/cilium/cilium"
+  tag: "v1.19.0"
+  pullPolicy: "IfNotPresent"
+
+operator:
+  replicas: 1
+  image:
+    repository: "quay.io/cilium/operator"
+    tag: "v1.19.0"
+    pullPolicy: "IfNotPresent"
+
+# 4. 资源限制与性能优化
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1024Mi
+  requests:
+    cpu: 100m
+    memory: 512Mi
+
+# 5. 其他组件
+envoy:
+  enabled: true
+  # 注意：Envoy 镜像通常随 Cilium 版本更新，1.19.0 建议使用其配套版本
+  # 如果不指定，Cilium 会自动选择合适的默认镜像
+
+# 禁用不需要的特性以节省资源
+hubble:
+  enabled: false

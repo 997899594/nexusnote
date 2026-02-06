@@ -9,21 +9,21 @@ spec:
   gatewayClassName: cilium
   listeners:
     - name: http
-      protocol: HTTP
       port: 80
+      protocol: HTTP
       allowedRoutes:
         namespaces:
           from: Same
     - name: https
-      protocol: HTTPS
       port: 443
-      allowedRoutes:
-        namespaces:
-          from: Same
+      protocol: HTTPS
       tls:
         mode: Terminate
         certificateRefs:
           - name: nexusnote-tls
+      allowedRoutes:
+        namespaces:
+          from: Same
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -34,9 +34,6 @@ spec:
   parentRefs:
     - name: nexusnote-gateway
       sectionName: http
-  hostnames:
-    - "juanie.art"
-    - "www.juanie.art"
   rules:
     - filters:
         - type: RequestRedirect
@@ -54,15 +51,15 @@ spec:
     - name: nexusnote-gateway
       sectionName: https
   hostnames:
-    - "juanie.art"
-    - "www.juanie.art"
+    - "juanie.art" # 匹配用户实际使用的域名
+    - "nexusnote.cn"
   rules:
     - matches:
         - path:
             type: PathPrefix
             value: /collab
       backendRefs:
-        - name: nexusnote-service
+        - name: nexusnote-collab-service
           port: 1234
     - matches:
         - path:

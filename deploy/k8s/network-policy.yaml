@@ -1,0 +1,63 @@
+# ============================================
+# 2026 零信任安全策略 - Cilium Network Policies
+# ============================================
+apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-db-access
+  namespace: nexusnote
+spec:
+  endpointSelector:
+    matchLabels:
+      app: postgres
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            app: nexusnote-web
+        - matchLabels:
+            app: nexusnote-worker
+        - matchLabels:
+            app: nexusnote-collab
+      toPorts:
+        - ports:
+            - port: "5432"
+              protocol: TCP
+---
+apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-redis-access
+  namespace: nexusnote
+spec:
+  endpointSelector:
+    matchLabels:
+      app: redis
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            app: nexusnote-web
+        - matchLabels:
+            app: nexusnote-worker
+        - matchLabels:
+            app: nexusnote-collab
+      toPorts:
+        - ports:
+            - port: "6379"
+              protocol: TCP
+---
+apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-gateway-to-services
+  namespace: nexusnote
+spec:
+  endpointSelector:
+    matchLabels:
+      app: nexusnote-web
+  ingress:
+    - fromEntities:
+        - world # 允许外部流量进入 Web (由 Gateway API 代理)
+      toPorts:
+        - ports:
+            - port: "3002"
+              protocol: TCP
