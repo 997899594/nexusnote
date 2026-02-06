@@ -13,6 +13,7 @@ NexusNote 现在是一个完整的 Next.js Fullstack 应用，在单一 Docker �
 ## 本地开发
 
 ### 前置要求
+
 - Node.js 20+
 - PostgreSQL 16+ (with pgvector)
 - Redis 7+
@@ -78,42 +79,42 @@ LANGFUSE_PUBLIC_KEY=
 LANGFUSE_SECRET_KEY=
 ```
 
-## Docker 部署
+## 生产环境部署 (K3s 专属)
 
-### 构建和运行
+在 2026 年，NexusNote 生产环境**仅支持 K3s** 部署，不再支持原生的 Docker Compose。
 
-```bash
-# 构建镜像
-docker build -f apps/web/Dockerfile -t nexusnote:latest .
+### 1. 为什么强制使用 K3s？
 
-# 运行容器
-docker run -d \
-  --name nexusnote \
-  -p 3002:3002 \
-  -p 1234:1234 \
-  -e DATABASE_URL=postgresql://... \
-  -e REDIS_URL=redis://... \
-  -e AI_302_API_KEY=... \
-  nexusnote:latest
-```
+- **eBPF 网络**：通过 Cilium 提供极致的性能。
+- **现代化路由**：使用 Gateway API 替代陈旧的 Ingress/Nginx。
+- **自动化运维**：原生支持滚动更新、健康检查和自动扩缩容。
 
-### 使用 docker-compose
+### 2. 配置 GitHub Environment
 
-```bash
-# 创建 .env 文件
-cp .env.example .env
+1. 在 GitHub 仓库进入 `Settings` -> `Environments`。
+2. 创建一个名为 `production` 的环境。
+3. 在该环境下配置 `SERVER_IP`、`SSH_PRIVATE_KEY` 等 Secrets。
 
-# 启动所有服务
-docker-compose up -d
+### 3. 一键部署
 
-# 查看日志
-docker-compose logs -f app
+推送代码到 `main` 分支，GitHub Actions 会自动执行以下流程：
 
-# 停止服务
-docker-compose down
-```
+1. **同步配置**：将 `.env` 转换为 Kubernetes `Secret`。
+2. **应用资源**：应用 `deploy/k8s/` 中的 Gateway、HTTPRoute 和 App 配置。
+3. **滚动更新**：执行 `rollout restart` 确保服务不中断。
 
-## 处理流程
+### 4. 域名与 TLS 配置 (真正现代化)
+
+在 2026 年，使用 IP 访问仅用于初始测试。正式环境必须使用域名：
+
+1. **DNS 解析**：将你的域名（如 `nexusnote.yourdomain.com`）通过 A 记录解析到腾讯云 IP `49.232.237.136`。
+2. **更新配置**：
+   - 修改 `deploy/k8s/gateway.yaml` 中的 `hostname` 为你的域名。
+   - 修改 `deploy/k8s/httproute.yaml` 中的 `hostnames` 为你的域名。
+3. **自动证书**：
+   - 集群需安装 `cert-manager`。
+   - Gateway API 会自动触发证书申请，并将证书存入 `nexusnote-tls` Secret 中。
+   - 实现全自动的 HTTPS 续期。
 
 ### 文档协作编辑流程
 

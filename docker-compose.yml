@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # ============================================
@@ -16,7 +16,7 @@ services:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./packages/db/migrations:/docker-entrypoint-initdb.d:ro
+      - ./packages/db/drizzle:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -39,7 +39,7 @@ services:
       retries: 5
 
   # ============================================
-  # NexusNote Fullstack Application (Next.js + Hocuspocus + BullMQ)
+  # NexusNote Application (Local Dev/Test)
   # ============================================
   app:
     build:
@@ -104,8 +104,8 @@ services:
       LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY}
 
     ports:
-      - "3002:3002"  # Next.js API Gateway
-      - "1234:1234"  # Hocuspocus WebSocket
+      - "3002:3002" # Next.js API Gateway
+      - "1234:1234" # Hocuspocus WebSocket
     depends_on:
       postgres:
         condition: service_healthy
@@ -117,25 +117,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-
-  # ============================================
-  # Nginx 反向代理 + HTTPS (可选)
-  # ============================================
-  nginx:
-    image: nginx:alpine
-    container_name: nexusnote-nginx
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./deploy/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./deploy/certbot/conf:/etc/letsencrypt:ro
-      - ./deploy/certbot/www:/var/www/certbot:ro
-    depends_on:
-      - app
-    profiles:
-      - production
 
 volumes:
   postgres_data:

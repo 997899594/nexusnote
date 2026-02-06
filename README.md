@@ -6,12 +6,11 @@
 
 *Build your second brain with cutting-edge AI technology*
 
-[![Deploy](https://img.shields.io/badge/Deploy-Render-46E3B7?logo=render)](https://render.com)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-3178C6?logo=typescript)](https://www.typescriptlang.org/)
 [![AI SDK](https://img.shields.io/badge/AI_SDK-6.0-000000?logo=vercel)](https://sdk.vercel.ai/)
 
-[Demo](https://nexusnote-web.onrender.com) · [Documentation](./docs) · [Report Bug](https://github.com/yourusername/nexusnote/issues)
+[Documentation](./docs) · [Deployment Guide](./DEPLOYMENT.md) · [Report Bug](https://github.com/yourusername/nexusnote/issues)
 
 </div>
 

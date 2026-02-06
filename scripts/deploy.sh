@@ -1,82 +1,90 @@
 #!/bin/bash
+
+# NexusNote 自动化部署脚本 (2026 Modern Stack)
+# 支持环境: Local Development, Production (VPS/Tencent Cloud)
+# 服务器: 49.232.237.136
+# 域名: www.juanie.art
+
 set -e
 
-# NexusNote Deployment Script
-# Usage: ./scripts/deploy.sh [dev|prod]
+# 颜色定义
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+RED='\033[0;31m'
+NC='\033[0m'
 
-ENV=${1:-dev}
 PROJECT_ROOT=$(dirname "$(dirname "$(readlink -f "$0")")")
-
-echo "=========================================="
-echo "NexusNote Deployment - $ENV"
-echo "=========================================="
-
 cd "$PROJECT_ROOT"
 
-# Check required environment variables for production
-if [ "$ENV" = "prod" ]; then
-    if [ -z "$OPENAI_API_KEY" ]; then
-        echo "Error: OPENAI_API_KEY is required for production"
-        exit 1
-    fi
-    if [ -z "$POSTGRES_PASSWORD" ]; then
-        echo "Error: POSTGRES_PASSWORD is required for production"
-        exit 1
-    fi
-    if [ -z "$JWT_SECRET" ]; then
-        echo "Error: JWT_SECRET is required for production"
-        exit 1
+echo -e "${BLUE}==== NexusNote 部署脚本启动 ====${NC}"
+
+# 1. 检查基础环境
+if ! command -v docker &> /dev/null; then
+    echo -e "${RED}错误: 未安装 Docker。${NC}"
+    exit 1
+fi
+
+# 2. 准备环境变量
+if [ ! -f .env ]; then
+    echo -e "${BLUE}正在从 .env.example 创建 .env 文件...${NC}"
+    cp .env.example .env
+    
+    # 生成随机密钥
+    AUTH_SECRET=$(openssl rand -base64 32)
+    JWT_SECRET=$(openssl rand -base64 32)
+    
+    # 使用 Python 进行跨平台替换 (macOS/Linux sed 差异较大)
+    python3 -c "
+import sys
+content = open('.env').read()
+content = content.replace('your-random-32-char-auth-secret-change-in-production', '$AUTH_SECRET')
+content = content.replace('your-random-32-char-secret-key-change-in-production', '$JWT_SECRET')
+open('.env', 'w').write(content)
+"
+    
+    # 设置域名相关的环境变量
+    echo "PUBLIC_API_URL=https://www.juanie.art/api" >> .env
+    echo "PUBLIC_COLLAB_URL=wss://www.juanie.art/collab" >> .env
+    
+    echo -e "${GREEN}已生成 .env 文件。请手动编辑并填入 AI API Key (AI_302_API_KEY 等)。${NC}"
+    echo -e "${BLUE}命令: nano .env${NC}"
+    
+    # 如果是交互式终端，则退出引导用户修改；否则继续尝试启动
+    if [ -t 0 ]; then
+        exit 0
     fi
 fi
 
-# Development deployment
-if [ "$ENV" = "dev" ]; then
-    echo "[1/3] Starting database services..."
-    docker compose up -d postgres redis
+# 3. 执行部署操作 (K3s 现代化流程)
+echo -e "${BLUE}正在执行 K3s 现代化部署流程...${NC}"
 
-    echo "[2/3] Waiting for services to be healthy..."
-    sleep 5
+# 1. 确保命名空间存在
+kubectl create namespace nexusnote --dry-run=client -o yaml | kubectl apply -f -
 
-    echo "[3/3] Running database migrations..."
-    docker exec -i nexusnote-db psql -U postgres -d nexusnote < packages/db/migrations/001_init.sql 2>/dev/null || true
-
-    echo ""
-    echo "=========================================="
-    echo "Development environment ready!"
-    echo "=========================================="
-    echo ""
-    echo "Run 'pnpm dev' to start the application"
-    echo ""
-    echo "Services:"
-    echo "  - PostgreSQL: localhost:5432"
-    echo "  - Redis: localhost:6379"
-    echo ""
+# 2. 更新 Secret
+if [ -f .env ]; then
+    kubectl create secret generic nexusnote-secrets --from-env-file=.env -n nexusnote --dry-run=client -o yaml | kubectl apply -f -
+else
+    echo -e "${RED}错误: 未找到 .env 文件。${NC}"
+    exit 1
 fi
 
-# Production deployment
-if [ "$ENV" = "prod" ]; then
-    echo "[1/4] Building Docker images..."
-    docker compose -f docker-compose.prod.yml build
+# 3. 应用 Kubernetes 配置
+echo -e "${BLUE}应用 Gateway API 和 App 配置...${NC}"
+kubectl apply -f deploy/k8s/gateway.yaml
+kubectl apply -f deploy/k8s/redirect.yaml
+kubectl apply -f deploy/k8s/app.yaml
+kubectl apply -f deploy/k8s/httproute.yaml
 
-    echo "[2/4] Starting services..."
-    docker compose -f docker-compose.prod.yml up -d
+# 4. 滚动更新
+echo -e "${BLUE}执行滚动更新...${NC}"
+kubectl rollout restart deployment/nexusnote-app -n nexusnote
+kubectl rollout status deployment/nexusnote-app -n nexusnote
 
-    echo "[3/4] Waiting for services to be healthy..."
-    sleep 10
+echo -e "${GREEN}==== K3s 部署完成！ ====${NC}"
+echo -e "${BLUE}资源状态:${NC}"
+kubectl get pods,svc,gateway,httproute -n nexusnote
 
-    echo "[4/4] Running database migrations..."
-    docker exec -i nexusnote-db psql -U postgres -d nexusnote < packages/db/migrations/001_init.sql 2>/dev/null || true
-
-    echo ""
-    echo "=========================================="
-    echo "Production deployment complete!"
-    echo "=========================================="
-    echo ""
-    echo "Services:"
-    echo "  - Web: http://localhost:3000"
-    echo "  - API: http://localhost:3001"
-    echo "  - Collab: ws://localhost:1234"
-    echo ""
-    echo "Health check: curl http://localhost:3001/health"
-    echo ""
-fi
+echo -e "\n${BLUE}后续步骤:${NC}"
+echo -e "1. 查看应用日志: kubectl logs -f deployment/nexusnote-app -n nexusnote"
+echo -e "2. 检查网关状态: kubectl get gateway -n nexusnote"

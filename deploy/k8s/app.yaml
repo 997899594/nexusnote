@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nexusnote-app
+  namespace: nexusnote
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nexusnote
+  template:
+    metadata:
+      labels:
+        app: nexusnote
+    spec:
+      containers:
+      - name: app
+        image: your-registry/nexusnote:latest
+        ports:
+        - containerPort: 3002
+          name: http
+        - containerPort: 1234
+          name: collab
+        envFrom:
+        - secretRef:
+            name: nexusnote-secrets
+        - configMapRef:
+            name: nexusnote-config
+        healthCheck:
+          httpGet:
+            path: /api/health
+            port: 3002
+        resources:
+          limits:
+            cpu: "1"
+            memory: "1Gi"
+          requests:
+            cpu: "500m"
+            memory: "512Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nexusnote-service
+  namespace: nexusnote
+spec:
+  selector:
+    app: nexusnote
+  ports:
+  - name: http
+    port: 80
+    targetPort: 3002
+  - name: collab
+    port: 1234
+    targetPort: 1234
