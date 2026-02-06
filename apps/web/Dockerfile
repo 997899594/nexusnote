@@ -71,9 +71,6 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # Install PM2 globally for process management
 RUN npm install -g pm2
 
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
-
 # Create non-root user
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
@@ -103,9 +100,6 @@ EXPOSE 3002 1234
 
 ENV PORT=3002
 ENV HOSTNAME="0.0.0.0"
-
-# Use dumb-init to handle signals properly
-ENTRYPOINT ["/usr/bin/dumb-init", "--"]
 
 # Start all services with PM2
 CMD ["pm2-runtime", "start", "apps/web/ecosystem.config.js"]
