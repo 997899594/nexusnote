@@ -53,9 +53,10 @@ RUN pnpm --filter @nexusnote/ui build
 RUN pnpm --filter @nexusnote/web build
 
 # Compile auxiliary servers (Hocuspocus and Worker)
-RUN npx esbuild apps/web/src/server/hocuspocus.ts --bundle --platform=node --outfile=apps/web/hocuspocus.js \
+# Output files will be generated at apps/web/hocuspocus.js and apps/web/worker.js relative to WORKDIR /app
+RUN pnpm --filter @nexusnote/web exec esbuild src/server/hocuspocus.ts --bundle --platform=node --outfile=hocuspocus.js \
     --external:ioredis --external:bullmq --external:@hocuspocus/* --external:yjs
-RUN npx esbuild apps/web/src/queue/worker.ts --bundle --platform=node --outfile=apps/web/worker.js \
+RUN pnpm --filter @nexusnote/web exec esbuild src/queue/worker.ts --bundle --platform=node --outfile=worker.js \
     --external:ioredis --external:bullmq --external:zod --external:drizzle-orm
 
 # ============================================
