@@ -70,11 +70,13 @@ else
 fi
 
 # 3. 应用 Kubernetes 配置
-echo -e "${BLUE}应用 Gateway API 和 App 配置...${NC}"
-kubectl apply -f deploy/k8s/gateway.yaml
-kubectl apply -f deploy/k8s/redirect.yaml
-kubectl apply -f deploy/k8s/app.yaml
-kubectl apply -f deploy/k8s/httproute.yaml
+echo -e "${BLUE}应用基础架构、有状态服务和应用配置...${NC}"
+kubectl apply -f deploy/k8s/infrastructure.yaml
+kubectl apply -f deploy/k8s/stateful.yaml
+
+# 处理 app.yaml 中的镜像占位符
+IMAGE_TAG=${1:-"williambridges/juanie:latest"}
+sed "s|IMAGE_PLACEHOLDER|$IMAGE_TAG|g" deploy/k8s/app.yaml | kubectl apply -f -
 
 # 4. 滚动更新
 echo -e "${BLUE}执行滚动更新...${NC}"
