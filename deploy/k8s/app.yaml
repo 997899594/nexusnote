@@ -44,7 +44,7 @@ spec:
         app: nexusnote
     spec:
       imagePullSecrets:
-        - name: tcr-io-secret
+        - name: dockerhub-secret
       containers:
         - name: app
           image: IMAGE_PLACEHOLDER
