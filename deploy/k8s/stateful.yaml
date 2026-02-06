@@ -80,14 +80,15 @@ spec:
       targetPort: 5432
 ---
 # ============================================
-# 3. Redis 缓存服务
+# 3. Redis 缓存服务 (StatefulSet 确保数据挂载稳定)
 # ============================================
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: nexusnote-redis
   namespace: nexusnote
 spec:
+  serviceName: "nexusnote-redis"
   replicas: 1
   selector:
     matchLabels:

@@ -132,5 +132,7 @@ jobs:
             # 2. 应用配置 (无需写磁盘)
             echo "$K8S_CONFIGS" | kubectl apply -f -
 
-            # 3. 滚动更新状态检查
-            kubectl rollout status deployment/nexusnote-app -n nexusnote
+            # 3. 滚动更新状态检查 (设置 5 分钟超时)
+            kubectl rollout status deployment/nexusnote-app -n nexusnote --timeout=300s
+            kubectl rollout status statefulset/nexusnote-db -n nexusnote --timeout=300s
+            kubectl rollout status statefulset/nexusnote-redis -n nexusnote --timeout=300s
