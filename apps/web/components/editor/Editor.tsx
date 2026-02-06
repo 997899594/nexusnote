@@ -430,7 +430,7 @@ export function Editor({
   }
 
   // 用 key 强制完全重新挂载，避免状态不一致
-  const editorKey = `${documentId}-${provider.url}`;
+  const editorKey = `${documentId}-${COLLAB_URL}`;
 
   return (
     <EditorInner
