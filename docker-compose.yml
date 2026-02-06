@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   # ============================================
   # Database Services
@@ -37,55 +39,84 @@ services:
       retries: 5
 
   # ============================================
-  # Application Services (生产部署用)
+  # NexusNote Fullstack Application (Next.js + Hocuspocus + BullMQ)
   # ============================================
-  server:
+  app:
     build:
       context: .
-      dockerfile: apps/server/Dockerfile
-    container_name: nexusnote-server
+      dockerfile: apps/web/Dockerfile
+    container_name: nexusnote-app
     restart: unless-stopped
     environment:
+      # Node Environment
       NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: 1
+
+      # Database & Cache
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/nexusnote
       REDIS_URL: redis://redis:6379
-      # AI 配置
-      AI_PROVIDER: ${AI_PROVIDER:-302ai}
-      AI_API_KEY: ${AI_API_KEY}
-      AI_BASE_URL: ${AI_BASE_URL:-https://api.302.ai/v1}
-      AI_CHAT_MODEL: ${AI_CHAT_MODEL:-gpt-4o-mini}
-      AI_EMBEDDING_MODEL: ${AI_EMBEDDING_MODEL:-text-embedding-3-small}
+
+      # Server Configuration
+      PORT: 3002
+      HOSTNAME: 0.0.0.0
+      HOCUSPOCUS_PORT: 1234
+
+      # Next.js Public URLs
+      NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:3002/api}
+      NEXT_PUBLIC_COLLAB_URL: ${PUBLIC_COLLAB_URL:-ws://localhost:1234}
+
+      # Authentication
+      AUTH_SECRET: ${AUTH_SECRET:-your-secret-change-in-production}
+      JWT_SECRET: ${JWT_SECRET:-your-jwt-secret-change-in-production}
+      JWT_EXPIRES_IN: 7d
+      JWT_ISSUER: nexusnote
+
+      # AI Model Configuration
+      AI_MODEL: ${AI_MODEL:-gemini-3-flash-preview}
+      AI_MODEL_PRO: ${AI_MODEL_PRO:-gemini-3-pro-preview}
+      AI_MODEL_WEB_SEARCH: ${AI_MODEL_WEB_SEARCH:-gemini-3-flash-preview-web-search}
+
+      # Embedding Configuration
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-Qwen/Qwen3-Embedding-8B}
+      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-4000}
+
+      # RAG Configuration
+      RAG_CHUNK_SIZE: 500
+      RAG_CHUNK_OVERLAP: 50
+      RAG_TIMEOUT: 5000
+      RAG_RETRIES: 2
+      RAG_SIMILARITY_THRESHOLD: 0.3
+
+      # Queue Configuration
+      QUEUE_RAG_CONCURRENCY: 3
+      QUEUE_RAG_MAX_RETRIES: 3
+      QUEUE_RAG_BACKOFF_DELAY: 1000
+
+      # AI Provider API Keys (set in .env)
+      AI_302_API_KEY: ${AI_302_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
+      SILICONFLOW_API_KEY: ${SILICONFLOW_API_KEY}
+      TAVILY_API_KEY: ${TAVILY_API_KEY}
+
+      # Observability (Langfuse)
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY}
+
     ports:
-      - "3001:3001"
-      - "1234:1234"
+      - "3002:3002"  # Next.js API Gateway
+      - "1234:1234"  # Hocuspocus WebSocket
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-    profiles:
-      - production
-
-  web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-    container_name: nexusnote-web
-    restart: unless-stopped
-    environment:
-      NODE_ENV: production
-      NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:3001}
-      NEXT_PUBLIC_COLLAB_URL: ${PUBLIC_COLLAB_URL:-ws://localhost:1234}
-      AI_PROVIDER: ${AI_PROVIDER:-302ai}
-      AI_API_KEY: ${AI_API_KEY}
-      AI_BASE_URL: ${AI_BASE_URL:-https://api.302.ai/v1}
-      AI_CHAT_MODEL: ${AI_CHAT_MODEL:-gpt-4o-mini}
-    ports:
-      - "3000:3000"
-    depends_on:
-      - server
-    profiles:
-      - production
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   # ============================================
   # Nginx 反向代理 + HTTPS (可选)
@@ -102,8 +133,7 @@ services:
       - ./deploy/certbot/conf:/etc/letsencrypt:ro
       - ./deploy/certbot/www:/var/www/certbot:ro
     depends_on:
-      - web
-      - server
+      - app
     profiles:
       - production
 

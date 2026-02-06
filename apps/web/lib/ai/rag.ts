@@ -6,9 +6,11 @@
  * - 自动重试
  * - 相似度过滤
  * - 结果格式化
+ * - 批量嵌入生成（embedMany）
  */
 
 import { clientEnv, defaults } from "@nexusnote/config";
+import { embedMany, cosineSimilarity } from "ai";
 
 // ============================================
 // Types
@@ -179,6 +181,51 @@ export class RAGService {
   ): Promise<RAGSearchResult[]> {
     const { results } = await this.search(query, userId, topK);
     return results;
+  }
+
+  /**
+   * 批量生成嵌入向量（使用 AI SDK v6 embedMany）
+   *
+   * 相比逐个调用 embed，embedMany 支持：
+   * - 并行处理（maxParallelCalls）
+   * - 更好的性能
+   * - 单次 API 调用处理多个文本
+   *
+   * @param texts 要嵌入的文本列表
+   * @param model 嵌入模型
+   * @returns 嵌入向量数组
+   */
+  async generateEmbeddings(
+    texts: string[],
+    model: any,  // 应该是 LanguageModel，但避免导入复杂的类型
+  ): Promise<number[][]> {
+    if (!texts || texts.length === 0) {
+      return [];
+    }
+
+    try {
+      const { embeddings } = await embedMany({
+        model,
+        values: texts,
+        maxParallelCalls: 5,  // 最多5个并行请求，避免 API 限流
+      });
+
+      return embeddings;
+    } catch (error) {
+      console.error("[RAG] Failed to generate embeddings:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * 计算两个向量的余弦相似度
+   *
+   * @param embedding1 第一个向量
+   * @param embedding2 第二个向量
+   * @returns 相似度（0-1）
+   */
+  calculateSimilarity(embedding1: number[], embedding2: number[]): number {
+    return cosineSimilarity(embedding1, embedding2);
   }
 
   /**

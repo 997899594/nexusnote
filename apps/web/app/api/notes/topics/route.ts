@@ -1,44 +1,41 @@
-import { clientEnv } from "@nexusnote/config";
+/**
+ * Topics API - Fullstack Implementation
+ *
+ * 直接查询数据库获取用户的语义主题
+ * 不再代理外部 API_URL，完全本地处理
+ */
 
-const API_URL = clientEnv.NEXT_PUBLIC_API_URL;
+import { auth } from "@/auth";
+import { db, topics, eq } from "@nexusnote/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   try {
-    const { searchParams } = new URL(req.url);
-    const userId = searchParams.get("userId");
-
-    if (!userId) {
+    // 认证检查：使用 session 而非 query params
+    const session = await auth();
+    if (!session?.user?.id) {
       return Response.json(
-        { error: "userId is required", topics: [] },
-        { status: 400 },
+        { error: "Unauthorized", topics: [] },
+        { status: 401 }
       );
     }
 
-    const response = await fetch(
-      `${API_URL}/notes/topics?userId=${encodeURIComponent(userId)}`,
-      {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-      },
-    );
+    // 直接从数据库查询用户的主题
+    const userTopics = await db
+      .select()
+      .from(topics)
+      .where(eq(topics.userId, session.user.id))
+      .orderBy(topics.createdAt);
 
-    if (!response.ok) {
-      const error = await response.text();
-      console.error("[Notes API] Get topics failed:", error);
-      return Response.json(
-        { error: "Failed to fetch topics", topics: [] },
-        { status: response.status },
-      );
-    }
-
-    const data = await response.json();
-    return Response.json(data);
+    return Response.json(userTopics);
   } catch (err) {
-    console.error("[Notes API] Get topics error:", err);
+    console.error("[Topics API] Error:", err);
     const message = err instanceof Error ? err.message : "Unknown error";
-    return Response.json({ error: message, topics: [] }, { status: 500 });
+    return Response.json(
+      { error: message, topics: [] },
+      { status: 500 }
+    );
   }
 }

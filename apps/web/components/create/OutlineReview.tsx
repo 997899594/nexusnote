@@ -6,9 +6,7 @@ import {
   ArrowRight,
   Clock,
   Gauge,
-  GripVertical,
   Sparkles,
-  MessageSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UIMessage } from "ai";
@@ -60,14 +58,12 @@ export function OutlineReview({
 
   // Extract latest AI message for the sidebar - SDK v6 uses parts instead of content
   const getMessageText = (message: UIMessage): string => {
-    // 优先尝试处理 parts (SDK v6)
     if (message.parts) {
       return message.parts
         .filter((p) => p.type === "text")
         .map((p) => (p as { type: "text"; text: string }).text)
         .join("");
     }
-    // 回退到 content (兼容旧格式或手动构建的消息)
     return (message as any).content || "";
   };
 
@@ -79,16 +75,6 @@ export function OutlineReview({
 
   // 获取 chapters（从 modules 或直接从 chapters）
   const chapters = outline.chapters ?? outline.modules?.flatMap((m) => m.chapters) ?? [];
-
-  const handleChapterTitleChange = (index: number, newTitle: string) => {
-    const newChapters = [...chapters];
-    newChapters[index] = { ...newChapters[index], title: newTitle };
-    setOutline({ ...outline, chapters: newChapters });
-  };
-
-  const handleTitleChange = (newTitle: string) => {
-    setOutline({ ...outline, title: newTitle });
-  };
 
   const handleRefineSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,12 +104,9 @@ export function OutlineReview({
                   {chapters.length} Chapters
                 </span>
               </div>
-              <input
-                value={outline.title}
-                onChange={(e) => handleTitleChange(e.target.value)}
-                className="text-3xl md:text-4xl font-black text-black bg-transparent border-none focus:ring-0 p-0 w-full placeholder:text-black/20"
-                placeholder="Course Title"
-              />
+              <h1 className="text-3xl md:text-4xl font-black text-black">
+                {outline.title}
+              </h1>
               <p className="text-black/60 text-lg leading-relaxed max-w-2xl">
                 {outline.description}
               </p>
@@ -159,16 +142,14 @@ export function OutlineReview({
                   {index + 1}
                 </div>
                 <div className="flex-1 space-y-1">
-                  <input
-                    value={chapter.title}
-                    onChange={(e) =>
-                      handleChapterTitleChange(index, e.target.value)
-                    }
-                    className="w-full bg-transparent font-bold text-lg text-black focus:outline-none focus:underline decoration-black/20 underline-offset-4"
-                  />
-                  <p className="text-sm text-black/50 leading-relaxed">
-                    {chapter.summary}
-                  </p>
+                  <h3 className="font-bold text-lg text-black">
+                    {chapter.title}
+                  </h3>
+                  {(chapter.summary || chapter.contentSnippet) && (
+                    <p className="text-sm text-black/50 leading-relaxed">
+                      {chapter.summary || chapter.contentSnippet}
+                    </p>
+                  )}
                   {chapter.keyPoints && chapter.keyPoints.length > 0 && (
                     <div className="flex flex-wrap gap-2 mt-2">
                       {chapter.keyPoints.slice(0, 3).map((kp, kpi) => (
@@ -182,21 +163,13 @@ export function OutlineReview({
                     </div>
                   )}
                 </div>
-                <div className="opacity-0 group-hover:opacity-100 flex items-center text-black/20 cursor-grab active:cursor-grabbing">
-                  <GripVertical className="w-5 h-5" />
-                </div>
               </motion.div>
             ))}
           </div>
         </div>
 
         {/* Footer Actions */}
-        <div className="p-6 bg-black/5 border-t border-black/5 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <p className="text-xs text-black/40 font-medium px-2">
-              * Click text to edit manually
-            </p>
-          </div>
+        <div className="p-6 bg-black/5 border-t border-black/5 flex justify-end items-center">
           <Button
             onClick={() => onConfirm(outline)}
             size="lg"

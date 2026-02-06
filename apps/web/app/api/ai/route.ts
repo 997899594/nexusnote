@@ -15,8 +15,10 @@ import { isAIConfigured, getAIProviderInfo } from "@/lib/ai/registry";
 import { routeIntent } from "@/lib/ai/router/route";
 import { interviewAgent } from "@/lib/ai/agents/interview/agent";
 import { chatAgent, webSearchChatAgent } from "@/lib/ai/agents/chat-agent";
+import { courseGenerationAgent } from "@/lib/ai/agents/course-generation/agent";
 import { ragService } from "@/lib/ai/rag";
-import { createAgentUIStreamResponse, smoothStream } from "ai";
+import { checkRateLimit, createRateLimitResponse, trackAIUsage } from "@/lib/ai/rate-limit";
+import { createAgentUIStreamResponse, smoothStream, pruneMessages, convertToModelMessages } from "ai";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -25,7 +27,7 @@ interface RequestBody {
   messages: any[];
   context?: {
     // 显式意图（绕过 Router）
-    explicitIntent?: "INTERVIEW" | "CHAT" | "EDITOR" | "SEARCH";
+    explicitIntent?: "INTERVIEW" | "CHAT" | "EDITOR" | "SEARCH" | "COURSE_GENERATION";
 
     // Interview 上下文
     interviewContext?: {
@@ -33,6 +35,22 @@ interface RequestBody {
       background?: string;
       targetOutcome?: string;
       cognitiveStyle?: string;
+    };
+
+    // Course Generation 上下文
+    courseGenerationContext?: {
+      courseId?: string;
+      userId?: string;
+      goal?: string;
+      background?: string;
+      targetOutcome?: string;
+      cognitiveStyle?: string;
+      outlineTitle?: string;
+      moduleCount?: number;
+      totalChapters?: number;
+      currentModuleIndex?: number;
+      currentChapterIndex?: number;
+      chaptersGenerated?: number;
     };
 
     // Chat 上下文
@@ -53,11 +71,17 @@ interface RequestBody {
 export async function POST(req: Request) {
   // 1. 认证检查
   const session = await auth();
-  if (!session) {
+  if (!session?.user?.id) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // 2. AI 配置检查
+  // 2. 速率限制检查
+  const rateLimitResult = await checkRateLimit(session.user.id);
+  if (!rateLimitResult.allowed) {
+    return createRateLimitResponse(rateLimitResult.resetAt);
+  }
+
+  // 4. AI 配置检查
   if (!isAIConfigured()) {
     const info = getAIProviderInfo();
     return Response.json(
@@ -65,9 +89,8 @@ export async function POST(req: Request) {
       { status: 500 },
     );
   }
-  console.log("-----> HIT DEBUGGER POINT <-----");
-  console.log("Request Body:", await req.clone().json());
-  // 3. 解析请求
+
+  // 5. 解析请求
   const body: RequestBody = await req.json();
   const { messages, context = {} } = body;
 
@@ -84,7 +107,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    // 4. L0: 路由决策
+    // 6. L0: 路由决策
     let intent = context.explicitIntent;
 
     if (!intent && userInput) {
@@ -105,13 +128,20 @@ export async function POST(req: Request) {
       });
     }
 
-    // 5. L2: Agent 调度
+    // 7. L2: Agent 调度
     switch (intent) {
       case "INTERVIEW": {
         console.log("[AI Gateway] Dispatching to Interview Agent");
+
+        // Interview Agent options - 加入 userId（用于保存课程画像）
+        const interviewOptions = {
+          ...context.interviewContext,
+          userId: session.user?.id,  // 用户 ID（后续保存课程画像时使用）
+        };
+
         console.log(
           "[AI Gateway] Interview context:",
-          JSON.stringify(context.interviewContext),
+          JSON.stringify(interviewOptions),
         );
         console.log(
           "[AI Gateway] Interview Agent tools:",
@@ -123,7 +153,7 @@ export async function POST(req: Request) {
           const response = createAgentUIStreamResponse({
             agent: interviewAgent,
             uiMessages: messages,
-            options: context.interviewContext || {},
+            options: interviewOptions,
             // maxSteps 参数不被支持，已移除
             experimental_transform: smoothStream({
               delayInMs: 30,
@@ -189,9 +219,74 @@ export async function POST(req: Request) {
         });
       }
 
+      case "COURSE_GENERATION": {
+        console.log("[AI Gateway] Dispatching to Course Generation Agent");
+
+        const courseGenerationOptions = {
+          ...context.courseGenerationContext,
+          courseId: context.courseGenerationContext?.courseId || "",
+          userId: context.courseGenerationContext?.userId || session.user?.id || "",
+          goal: context.courseGenerationContext?.goal || "",
+          background: context.courseGenerationContext?.background || "",
+          targetOutcome: context.courseGenerationContext?.targetOutcome || "",
+          cognitiveStyle: context.courseGenerationContext?.cognitiveStyle || "",
+          outlineTitle: context.courseGenerationContext?.outlineTitle || "",
+          moduleCount: context.courseGenerationContext?.moduleCount || 0,
+          totalChapters: context.courseGenerationContext?.totalChapters || 0,
+          currentModuleIndex: context.courseGenerationContext?.currentModuleIndex || 0,
+          currentChapterIndex: context.courseGenerationContext?.currentChapterIndex || 0,
+          chaptersGenerated: context.courseGenerationContext?.chaptersGenerated || 0,
+        };
+
+        console.log(
+          "[AI Gateway] Course Generation context:",
+          JSON.stringify(courseGenerationOptions),
+        );
+
+        try {
+          const response = createAgentUIStreamResponse({
+            agent: courseGenerationAgent,
+            uiMessages: messages,
+            options: courseGenerationOptions,
+            experimental_transform: smoothStream({
+              delayInMs: 30,
+              chunking: new Intl.Segmenter("zh-CN", {
+                granularity: "grapheme",
+              }),
+            }),
+            onError: (error) => {
+              console.error("[AI Gateway] Course Generation error:", error);
+              return "课程生成失败，请重试。";
+            },
+          });
+          return response;
+        } catch (error) {
+          console.error("[AI Gateway] Failed to create course generation response:", error);
+          return Response.json(
+            {
+              error: "课程生成失败",
+              details: error instanceof Error ? error.message : String(error),
+            },
+            { status: 500 },
+          );
+        }
+      }
+
       case "CHAT":
       default: {
         console.log("[AI Gateway] Dispatching to Chat Agent");
+
+        // 优化：使用 pruneMessages 修剪历史消息，节省 token
+        // - 移除推理过程（Chat 对话不需要显示）
+        // - 只保留最近 3 条消息的工具调用记录
+        // - 删除空消息
+        const modelMessages = await convertToModelMessages(messages);
+        const optimizedMessages = pruneMessages({
+          messages: modelMessages,
+          reasoning: "none",  // Chat 不需要显示推理，移除以节省 token
+          toolCalls: "before-last-3-messages",  // 只保留最近 3 条的工具调用
+          emptyMessages: "remove",
+        });
 
         // RAG 预检索
         let ragContext: string | undefined;
@@ -216,7 +311,7 @@ export async function POST(req: Request) {
 
         return createAgentUIStreamResponse({
           agent,
-          uiMessages: messages,
+          uiMessages: optimizedMessages,  // 使用优化后的消息
           options: {
             ragContext,
             ragSources,

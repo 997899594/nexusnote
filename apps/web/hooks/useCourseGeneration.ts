@@ -11,6 +11,7 @@ import {
 import { CourseNode } from "@/lib/types/course";
 import { useRouter } from "next/navigation";
 import { learningStore } from "@/lib/storage";
+import type { CourseOutline as StoreCourseOutline } from "@/lib/storage/learning-store";
 import type { InterviewAgentMessage, InterviewContext } from "@/lib/ai/agents/interview/agent";
 
 // ============================================
@@ -396,7 +397,23 @@ export function useCourseGeneration(initialGoal: string = "") {
           const data = state.outline;
 
           try {
-            const course = await learningStore.createFromOutline(data);
+            // 从 modules 或 chapters 中提取章节，转换为 learningStore 要求的格式
+            const allChapters: Chapter[] = data.chapters
+              || (data.modules ? data.modules.flatMap((m) => m.chapters) : []);
+
+            const storeOutline: StoreCourseOutline = {
+              title: data.title,
+              description: data.description,
+              difficulty: data.difficulty,
+              estimatedMinutes: data.estimatedMinutes,
+              chapters: allChapters.map((ch) => ({
+                title: ch.title,
+                summary: ch.summary || ch.contentSnippet || "",
+                keyPoints: ch.keyPoints || [],
+              })),
+            };
+
+            const course = await learningStore.createFromOutline(storeOutline);
             setCreatedCourseId(course.id);
           } catch (e) {
             console.error("Failed to persist course:", e);

@@ -9,7 +9,8 @@ import { OrganicHeader } from "@/components/create/OrganicHeader";
 import { OutlineReview } from "@/components/create/OutlineReview";
 
 import { useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useSession } from "next-auth/react";
 
 export default function CreatePageClient() {
   const searchParams = useSearchParams();
@@ -39,6 +40,66 @@ function CreatePageContent({ initialGoal }: CreatePageContentProps) {
     error,
   } = ui;
   const { handleSendMessage, confirmOutline, retry } = actions;
+  const { data: session } = useSession();
+
+  // Track course profile save
+  const [courseId, setCourseId] = useState<string | null>(null);
+  const profileSaveInitiatedRef = useRef(false);
+
+  // When outline is generated, save the course profile
+  useEffect(() => {
+    if (
+      outline &&
+      context.goal &&
+      context.background &&
+      context.targetOutcome &&
+      context.cognitiveStyle &&
+      session?.user?.id &&
+      !profileSaveInitiatedRef.current
+    ) {
+      profileSaveInitiatedRef.current = true;
+
+      const saveProfile = async () => {
+        try {
+          const userId = session.user?.id;
+          if (!userId) return;
+
+          const outlineData = {
+            title: outline.title,
+            description: outline.description,
+            difficulty: outline.difficulty,
+            estimatedMinutes: outline.estimatedMinutes,
+            modules: outline.modules || [],
+            reason: "",
+          };
+
+          const res = await fetch("/api/courses/profile", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              goal: context.goal!,
+              background: context.background!,
+              targetOutcome: context.targetOutcome!,
+              cognitiveStyle: context.cognitiveStyle!,
+              outlineData,
+              designReason: outline.description || "",
+            }),
+          });
+
+          if (!res.ok) throw new Error("Failed to save course profile");
+          const data = await res.json();
+          const id = data.courseId;
+
+          console.log("[CreatePageContent] Course profile saved:", id);
+          setCourseId(id);
+        } catch (err) {
+          console.error("[CreatePageContent] Failed to save course profile:", err);
+        }
+      };
+
+      saveProfile();
+    }
+  }, [outline, context, session?.user?.id]);
 
   return (
     <div className="min-h-screen bg-[#FDFDFD] relative overflow-hidden font-sans selection:bg-black/10 selection:text-black">
@@ -53,9 +114,9 @@ function CreatePageContent({ initialGoal }: CreatePageContentProps) {
       {/* Header */}
       <OrganicHeader />
 
-      <main className="relative z-10 w-full h-screen flex items-center justify-center">
-        {/* Chat Interface (Interview & Synthesis Phase) */}
-        {(phase === "interview" || phase === "synthesis") && (
+      <main className="relative z-10 w-full h-screen flex items-center justify-center overflow-hidden">
+        {/* Phase 1: Interview - Full screen chat */}
+        {(phase === "interview" || phase === "synthesis") && !outline && (
           <ChatInterface
             phase={phase}
             messages={messages}
@@ -70,7 +131,7 @@ function CreatePageContent({ initialGoal }: CreatePageContentProps) {
           />
         )}
 
-        {/* Outline Review Phase */}
+        {/* Phase 2: Outline Review - Show after generateOutline */}
         {phase === "outline_review" && outline && (
           <div className="absolute inset-0 z-[150] flex items-center justify-center p-6 bg-white/50 backdrop-blur-sm">
             <OutlineReview
@@ -84,13 +145,15 @@ function CreatePageContent({ initialGoal }: CreatePageContentProps) {
         )}
 
         {/* Graph Visualization (Seeding, Growing, Ready Phases) */}
-        <NexusGraph
-          nodes={nodes}
-          selectedNode={selectedNode}
-          onNodeClick={setSelectedNode}
-          phase={phase}
-          goal={goal}
-        />
+        {(phase === "seeding" || phase === "growing" || phase === "ready") && (
+          <NexusGraph
+            nodes={nodes}
+            selectedNode={selectedNode}
+            onNodeClick={setSelectedNode}
+            phase={phase}
+            goal={goal}
+          />
+        )}
       </main>
 
       {/* Final Overlay */}

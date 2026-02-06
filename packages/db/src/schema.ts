@@ -141,6 +141,84 @@ export const learningProgress = pgTable("learning_progress", {
   masteryLevel: integer("mastery_level").default(0), // 0-100
 });
 
+// ============================================
+// AI 生成课程 (AI-Generated Courses)
+// Interview Agent 的课程配置文件
+// ============================================
+
+// 课程用户画像表 - 保存 Interview Agent 收集的用户信息和生成的课程大纲
+export const courseProfiles = pgTable(
+  "course_profiles",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").references(() => users.id, {
+      onDelete: "cascade",
+    }),
+    courseId: uuid("course_id").notNull().unique(), // 唯一课程 ID
+
+    // 用户画像维度（Interview Agent 收集）
+    goal: text("goal").notNull(), // 学什么
+    background: text("background").notNull(), // 基础水平
+    targetOutcome: text("target_outcome").notNull(), // 预期成果
+    cognitiveStyle: text("cognitive_style").notNull(), // 学习风格
+
+    // 课程元数据（generateOutline 工具生成）
+    title: text("title").notNull(),
+    description: text("description"),
+    difficulty: text("difficulty").notNull().default("intermediate"), // beginner | intermediate | advanced
+    estimatedMinutes: integer("estimated_minutes").notNull(),
+
+    // 完整的大纲数据（JSON 格式，Tiptap 渲染）
+    outlineData: jsonb("outline_data").notNull(), // 完整大纲结构
+    outlineMarkdown: text("outline_markdown"), // Markdown 格式的大纲（用于流式渲染）
+
+    // 生成理由（说明为什么这样设计课程）
+    designReason: text("design_reason"),
+
+    // 课程生成进度
+    currentChapter: integer("current_chapter").default(1),
+    currentSection: integer("current_section").default(1),
+    isCompleted: boolean("is_completed").default(false),
+
+    // 元数据
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => ({
+    userIdIdx: index("course_profiles_user_id_idx").on(table.userId),
+    courseIdIdx: index("course_profiles_course_id_idx").on(table.courseId),
+  }),
+);
+
+// 课程章节内容表 - 存储生成的课程具体内容
+export const courseChapters = pgTable(
+  "course_chapters",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    courseId: uuid("course_id").references(() => courseProfiles.courseId, {
+      onDelete: "cascade",
+    }),
+    chapterIndex: integer("chapter_index").notNull(),
+    sectionIndex: integer("section_index").notNull(),
+
+    // 章节元数据
+    title: text("title").notNull(),
+    contentMarkdown: text("content_markdown").notNull(), // Markdown 格式的内容（用于 Tiptap 渲染）
+
+    // 生成状态
+    isGenerated: boolean("is_generated").default(true),
+    generatedAt: timestamp("generated_at").defaultNow(),
+
+    // 元数据
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => ({
+    courseIdIdx: index("course_chapters_course_id_idx").on(table.courseId),
+    chapterIdx: index("course_chapters_chapter_idx").on(table.chapterIndex),
+  }),
+);
+
 // 学习笔记/标注（关联到章节）
 export const learningHighlights = pgTable("learning_highlights", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -284,6 +362,46 @@ export const extractedNotes = pgTable(
   }),
 );
 
+// ============================================
+// AI 使用量追踪 (AI Usage Tracking)
+// ============================================
+
+// AI 调用记录表 - 用于成本追踪和速率限制分析
+export const aiUsage = pgTable(
+  "ai_usage",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").references(() => users.id, {
+      onDelete: "cascade",
+    }),
+
+    // 调用信息
+    endpoint: text("endpoint").notNull(), // '/api/ai', '/api/completion', etc.
+    intent: text("intent"), // 'CHAT', 'INTERVIEW', 'EDITOR', etc.
+    model: text("model").notNull(), // 'gemini-3-flash-preview', etc.
+
+    // Token 使用量
+    inputTokens: integer("input_tokens").notNull().default(0),
+    outputTokens: integer("output_tokens").notNull().default(0),
+    totalTokens: integer("total_tokens").notNull().default(0),
+
+    // 成本（美分）
+    costCents: integer("cost_cents").notNull().default(0),
+
+    // 请求元数据
+    durationMs: integer("duration_ms"), // 请求耗时
+    success: boolean("success").notNull().default(true),
+    errorMessage: text("error_message"),
+
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => ({
+    userIdIdx: index("ai_usage_user_id_idx").on(table.userId),
+    endpointIdx: index("ai_usage_endpoint_idx").on(table.endpoint),
+    createdAtIdx: index("ai_usage_created_at_idx").on(table.createdAt),
+  }),
+);
+
 // 类型导出
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -308,3 +426,7 @@ export type Topic = typeof topics.$inferSelect;
 export type NewTopic = typeof topics.$inferInsert;
 export type ExtractedNote = typeof extractedNotes.$inferSelect;
 export type NewExtractedNote = typeof extractedNotes.$inferInsert;
+
+// AI Usage types
+export type AIUsage = typeof aiUsage.$inferSelect;
+export type NewAIUsage = typeof aiUsage.$inferInsert;

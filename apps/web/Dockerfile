@@ -15,6 +15,8 @@ COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY apps/web/package.json ./apps/web/
 COPY packages/ui/package.json ./packages/ui/
 COPY packages/db/package.json ./packages/db/
+COPY packages/config/package.json ./packages/config/
+COPY packages/types/package.json ./packages/types/
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile --prod=false
@@ -32,6 +34,8 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
 COPY --from=deps /app/packages/ui/node_modules ./packages/ui/node_modules
 COPY --from=deps /app/packages/db/node_modules ./packages/db/node_modules
+COPY --from=deps /app/packages/config/node_modules ./packages/config/node_modules
+COPY --from=deps /app/packages/types/node_modules ./packages/types/node_modules
 
 # Copy source code
 COPY . .
@@ -40,7 +44,11 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
-# Build the app
+# Build all packages
+RUN pnpm --filter @nexusnote/types build
+RUN pnpm --filter @nexusnote/config build
+RUN pnpm --filter @nexusnote/db build
+RUN pnpm --filter @nexusnote/ui build
 RUN pnpm --filter @nexusnote/web build
 
 # ============================================
@@ -52,20 +60,41 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Install PM2 globally for process management
+RUN npm install -g pm2 tsx
+
+# Install dumb-init for proper signal handling
+RUN apk add --no-cache dumb-init
+
 # Create non-root user
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy built application
+# Create logs directory
+RUN mkdir -p /app/logs && chown -R nextjs:nodejs /app/logs
+
+# Copy built application and all dependencies
 COPY --from=builder /app/apps/web/public ./apps/web/public
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/src ./apps/web/src
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/ecosystem.config.js ./apps/web/
+COPY --from=builder /app/node_modules ./node_modules
+
+# Copy package.json for PM2
+COPY --chown=nextjs:nodejs package.json .
+COPY --chown=nextjs:nodejs apps/web/package.json ./apps/web/
 
 USER nextjs
 
-EXPOSE 3000
+EXPOSE 3002 1234
 
-ENV PORT=3000
+ENV PORT=3002
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["node", "apps/web/server.js"]
+# Use dumb-init to handle signals properly
+ENTRYPOINT ["/sbin/dumb-init", "--"]
+
+# Start all services with PM2
+CMD ["pm2-runtime", "start", "apps/web/ecosystem.config.js", "--no-daemon"]
+

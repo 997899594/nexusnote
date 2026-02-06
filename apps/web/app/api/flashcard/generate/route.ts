@@ -1,6 +1,7 @@
 import { generateText } from 'ai'
 import { fastModel, isAIConfigured, getAIProviderInfo } from '@/lib/ai/registry'
 import { auth } from '@/auth'
+import { checkRateLimit, createRateLimitResponse } from '@/lib/ai/rate-limit'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -15,8 +16,14 @@ const SYSTEM_PROMPT = `你是一个间隔重复学习(SRS)卡片生成助手。�
 
 export async function POST(req: Request) {
   const session = await auth()
-  if (!session) {
+  if (!session?.user?.id) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // 速率限制
+  const rateLimitResult = await checkRateLimit(session.user.id)
+  if (!rateLimitResult.allowed) {
+    return createRateLimitResponse(rateLimitResult.resetAt)
   }
 
   const { question, context } = await req.json()

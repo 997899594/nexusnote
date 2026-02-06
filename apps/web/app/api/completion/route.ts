@@ -2,6 +2,7 @@ import { streamText } from 'ai'
 import { fastModel, isAIConfigured, getAIProviderInfo } from '@/lib/ai/registry'
 import { auth } from '@/auth'
 import { createTelemetryConfig } from '@/lib/ai/langfuse'
+import { checkRateLimit, createRateLimitResponse } from '@/lib/ai/rate-limit'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30 // 写作辅助通常较快
@@ -20,8 +21,14 @@ const PROMPTS: Record<string, string> = {
 
 export async function POST(req: Request) {
   const session = await auth()
-  if (!session) {
+  if (!session?.user?.id) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // 速率限制
+  const rateLimitResult = await checkRateLimit(session.user.id)
+  if (!rateLimitResult.allowed) {
+    return createRateLimitResponse(rateLimitResult.resetAt)
   }
 
   const { prompt, action, selection } = await req.json()

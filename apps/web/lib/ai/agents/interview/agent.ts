@@ -9,7 +9,7 @@
  * 4. 可观测性 - 集成 Langfuse 追踪
  */
 
-import { ToolLoopAgent, InferAgentUIMessage, stepCountIs } from "ai";
+import { ToolLoopAgent, InferAgentUIMessage, stepCountIs, hasToolCall } from "ai";
 import { string, z } from "zod";
 import { chatModel } from "@/lib/ai/registry";
 import { interviewTools } from "@/lib/ai/tools/interview";
@@ -21,12 +21,19 @@ import { buildInterviewPrompt } from "@/lib/ai/prompts/interview";
  * Phase 2: Background (基础如何)
  * Phase 3: TargetOutcome (为了什么)
  * Phase 4: CognitiveStyle (怎么学)
+ *
+ * 扩展：支持课程画像持久化，便于后续 Agent 或页面访问
  */
 export const InterviewContextSchema = z.object({
-  goal: z.string().optional(),
-  background: z.string().optional(),
-  targetOutcome: z.string().optional(),
-  cognitiveStyle: z.string().optional(),
+  // 用户信息维度
+  goal: z.string().optional().describe("学习目标"),
+  background: z.string().optional().describe("学习背景/水平"),
+  targetOutcome: z.string().optional().describe("预期成果"),
+  cognitiveStyle: z.string().optional().describe("学习风格"),
+
+  // 课程画像存储（生成大纲后填充）
+  courseId: z.string().optional().describe("生成的课程 ID"),
+  userId: z.string().optional().describe("用户 ID（从 session 获取）"),
 });
 
 export type InterviewContext = z.infer<typeof InterviewContextSchema>;
@@ -35,10 +42,18 @@ export type InterviewContext = z.infer<typeof InterviewContextSchema>;
  * Interview Agent 定义
  *
  * 与 Chat Agent 保持一致的架构模式
+ * 集成 extractReasoningMiddleware 显示 AI 的思考过程
+ */
+
+/**
+ * Interview Agent 定义
+ *
+ * chatModel 已在 registry 中通过 wrapLanguageModel 应用了推理中间件
+ * 无需再次包装，直接使用即可
  */
 export const interviewAgent = new ToolLoopAgent({
   id: "nexusnote-interview",
-  model: chatModel!,
+  model: chatModel!,  // 已包含 extractReasoningMiddleware
   tools: interviewTools,
   maxOutputTokens: 4096,
   callOptionsSchema: InterviewContextSchema,
@@ -88,20 +103,32 @@ export const interviewAgent = new ToolLoopAgent({
       console.log(
         "[Interview Agent] ✅ All info collected, FORCING generateOutline",
       );
+      console.log(
+        "[Interview Agent] User Profile Summary:",
+        JSON.stringify({
+          goal: callOptions.goal,
+          background: callOptions.background,
+          targetOutcome: callOptions.targetOutcome,
+          cognitiveStyle: callOptions.cognitiveStyle,
+        }, null, 2),
+      );
       return {
         ...rest,
         instructions,
         temperature: 0.8,
         toolChoice: { type: "tool", toolName: "generateOutline" },
-        stopWhen: stepCountIs(1), // 调用工具后立即停止，不再输出文本
+        stopWhen: stepCountIs(1), // 调用工具后立即停止
       };
     }
 
-    // Phase 1-3: AI 自由调用 presentOptions
+    // Phase 1-3: AI 输出文本 + 调用 presentOptions 后停止
+    // hasToolCall 是 AI SDK 的代码级约束，比 prompt 稳定
+    // 配合 prompt 约束 + 前端兜底，确保每次工具调用前有文字
     return {
       ...rest,
       instructions,
       temperature: 0.7,
+      stopWhen: hasToolCall("presentOptions"),
     };
   },
 });

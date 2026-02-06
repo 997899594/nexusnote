@@ -10,6 +10,7 @@
 
 import { tool } from 'ai';
 import { z } from 'zod';
+import { saveCourseProfile } from '@/lib/ai/profile/course-profile';
 
 /**
  * presentOptions - 展示 UI 交互卡片
@@ -39,29 +40,6 @@ export const presentOptionsTool = tool({
     multiSelect: z.boolean().optional()
       .describe('是否多选，可选'),
   }),
-
-  inputExamples: [
-    {
-      question: "选择方向",
-      options: ["Web开发", "数据科学", "AI开发", "移动开发"],
-      targetField: "goal"
-    },
-    {
-      question: "您的水平",
-      options: ["零基础", "有基础", "有经验", "专业级"],
-      targetField: "background"
-    },
-    {
-      question: "你想学到什么程度？",
-      options: ["完成个人项目", "找到工作", "系统掌握", "解决特定问题"],
-      targetField: "targetOutcome"
-    },
-    {
-      question: "你更喜欢哪种学习方式？",
-      options: ["看代码实战", "理解原理", "举例说明"],
-      targetField: "cognitiveStyle"
-    },
-  ],
 
   execute: async () => ({ status: 'ui_rendered' }),
 });
@@ -115,8 +93,17 @@ export const generateOutlineTool = tool({
   description: `生成个性化课程大纲。仅在收集完所有必需信息（goal, background, targetOutcome, cognitiveStyle）后调用。模块数量应根据 targetOutcome 的复杂度灵活调整。`,
   inputSchema: generateOutlineSchema,
   execute: async (params: z.infer<typeof generateOutlineSchema>) => {
-    console.log('[generateOutline]', params.title);
-    return { status: 'outline_generated', ...params };
+    console.log('[generateOutline] 开始生成大纲:', params.title);
+
+    // ⚠️ 注意：userId 和完整的用户信息需要从调用上下文中获取
+    // 这会在 /api/ai 或 /app/create 中传递
+    // 当前这里无法直接访问，会由前端在收到 outline 后调用 saveCourseProfile
+
+    return {
+      status: 'outline_generated',
+      ...params,
+      // 返回 outline 数据，前端会用 courseId 和用户信息保存到数据库
+    };
   },
 });
 

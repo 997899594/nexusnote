@@ -75,36 +75,64 @@ User Query → Embedding → Cosine Similarity → Reranker → Top Results
 
 ## 🏗️ Architecture
 
+### Modern Fullstack Design (2026)
+
+NexusNote now uses a **single Next.js fullstack application** deployed in a Docker container:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Docker Container                         │
+│                                                               │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │  PM2 Process Manager                                 │   │
+│  │  ├── Next.js API Gateway (port 3002)                │   │
+│  │  ├── Hocuspocus WebSocket Server (port 1234)        │   │
+│  │  └── BullMQ RAG Indexing Worker                     │   │
+│  └──────────────────────────────────────────────────────┘   │
+│                           ↓                                   │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │  Shared Resources                                    │   │
+│  │  ├── PostgreSQL 16 + pgvector                       │   │
+│  │  └── Redis 7 (BullMQ queue + distributed locks)    │   │
+│  └──────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+```
+
 ### Tech Stack
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
-| **Frontend** | Next.js 14, React 18 | Server-side rendering, routing |
+| **Framework** | Next.js 16 | Unified fullstack framework |
 | **Editor** | TiptapV3, Yjs | Rich text editing, CRDT sync |
-| **Backend** | NestJS, Hocuspocus | REST API, WebSocket server |
+| **Realtime** | Hocuspocus | WebSocket collaboration server |
 | **Database** | PostgreSQL 16, pgvector | Relational data, vector search |
-| **Cache** | Redis, BullMQ | Queue management, async jobs |
+| **Queue** | BullMQ, Redis | Async job processing, locks |
 | **AI** | Vercel AI SDK 6.x | Unified AI interface |
 | **ORM** | Drizzle | Type-safe SQL queries |
-| **Monorepo** | Turborepo, pnpm | Build orchestration, workspace |
+| **Monorepo** | Turborepo, pnpm | Build orchestration |
+| **Deployment** | Docker, PM2 | Container orchestration |
+
+### Why This Architecture?
+
+✅ **Simplified Deployment** - Single container instead of multiple services
+✅ **Better Performance** - No inter-service network latency
+✅ **Cost Efficient** - Lower cloud infrastructure costs
+✅ **Easier Maintenance** - Centralized logging, monitoring
+✅ **Self-Hosted Ready** - Perfect for VPS/self-managed servers
 
 ### AI Model Strategy
 
 ```typescript
-// Chat & Reasoning
-DeepSeek-V3 → $1/M tokens, 128K context
+// Chat & Reasoning (2026 Options)
+Gemini 3 Flash/Pro → Google AI Studio (free tier)
+DeepSeek V3 → $1/M tokens (best value)
 
 // Embedding (4000D vectors)
-Qwen3-Embedding-8B → 302.ai, MRL truncation
+Qwen3-Embedding-8B → 302.ai or SiliconFlow
 
 // Reranking (optional)
 Qwen3-Reranker-8B → Two-stage retrieval
 ```
-
-**Why this combo?**
-- DeepSeek: Best price/performance for reasoning
-- Qwen3: SOTA Chinese+English embeddings
-- 302.ai: One API for multiple models
 
 ---
 
@@ -112,9 +140,9 @@ Qwen3-Reranker-8B → Two-stage retrieval
 
 ### Prerequisites
 
-- Node.js >= 18
+- Node.js >= 20
 - pnpm >= 8
-- Docker (for local development)
+- Docker (for database services)
 
 ### Local Development
 
@@ -127,67 +155,85 @@ cd nexusnote
 pnpm install
 
 # 3. Start database services
-docker compose up -d
+docker compose up -d postgres redis
 
 # 4. Configure environment
-cp .env.example .env
-# Edit .env and add your API keys:
-# - DEEPSEEK_API_KEY
-# - AI_302_API_KEY
+cp .env.example .env.local
+# Edit .env.local and add your API keys:
+# - AI_302_API_KEY (or OPENAI_API_KEY, DEEPSEEK_API_KEY, etc.)
+# - DATABASE_URL (if not using docker)
+# - REDIS_URL (if not using docker)
 
 # 5. Run database migrations
-pnpm --filter @nexusnote/db migrate
+cd apps/web
+pnpm exec drizzle-kit push
 
-# 6. Start development servers
+# 6. Start all services (choose one method)
+
+# Option A: Separate processes (best for debugging)
+# Terminal 1:
 pnpm dev
+
+# Terminal 2:
+npm run queue:worker
+
+# Terminal 3:
+npm run hocuspocus
+
+# Option B: PM2 single command (production-like)
+npm install -g pm2
+npm run pm2:start
+npm run pm2:logs
 ```
 
 ### Access Services
 
-| Service | URL | Description |
-|---------|-----|-------------|
-| 🌐 Web App | http://localhost:3000 | Next.js frontend |
-| 🔌 API Server | http://localhost:3001 | NestJS backend |
-| 🔄 Collaboration | ws://localhost:1234 | Hocuspocus WebSocket |
-| 🗄️ PostgreSQL | localhost:5433 | Database |
-| 📮 Redis | localhost:6380 | Queue & cache |
+| Service | URL | Port | Description |
+|---------|-----|------|-------------|
+| 🌐 Web App | http://localhost:3002 | 3002 | Next.js frontend + API |
+| 🔄 Collaboration | ws://localhost:1234 | 1234 | Hocuspocus WebSocket |
+| 🗄️ PostgreSQL | localhost:5433 | 5433 | Database |
+| 📮 Redis | localhost:6380 | 6380 | Queue & cache |
 
 ---
 
 ## 🌍 Production Deployment
 
-### Deploy to Render (Free Tier)
+### Docker Deployment (Recommended)
 
-1. **Fork this repository**
+NexusNote is designed for **self-hosted Docker deployment**:
 
-2. **Create Upstash Redis** (free)
-   - Sign up at [upstash.com](https://upstash.com)
-   - Create database, copy Redis URL
+```bash
+# 1. Clone and configure
+git clone <repo>
+cd nexusnote
+cp .env.example .env
 
-3. **Connect to Render**
-   - Import repository
-   - Render auto-detects `render.yaml`
+# 2. Edit .env with your API keys and domain
 
-4. **Configure Environment Variables**
+# 3. Build Docker image
+docker build -f apps/web/Dockerfile -t nexusnote:latest .
 
-   **nexusnote-server:**
-   ```bash
-   DEEPSEEK_API_KEY=sk-xxx
-   AI_302_API_KEY=sk-xxx
-   REDIS_URL=rediss://default:xxx@xxx.upstash.io:6379
-   JWT_SECRET=your-secret-key
-   ```
+# 4. Deploy with docker-compose
+docker-compose up -d
 
-   **nexusnote-web:**
-   ```bash
-   DEEPSEEK_API_KEY=sk-xxx
-   AI_302_API_KEY=sk-xxx
-   NEXT_PUBLIC_COLLAB_URL=wss://nexusnote-server.onrender.com
-   ```
+# 5. Access your app
+# - Web: http://your-domain:3002
+# - Collaboration WS: ws://your-domain:1234
+```
 
-5. **Deploy!** 🎉
+### Deployment Checklist
 
-See [DEPLOY.md](./deploy/DEPLOY.md) for detailed instructions.
+- [ ] Set strong `AUTH_SECRET` and `JWT_SECRET` (use `openssl rand -base64 32`)
+- [ ] Configure AI provider API keys (302.ai, OpenAI, DeepSeek, etc.)
+- [ ] Set `NODE_ENV=production`
+- [ ] Configure `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_COLLAB_URL` to your domain
+- [ ] Enable HTTPS with reverse proxy (nginx/Caddy)
+- [ ] Set up regular PostgreSQL backups
+- [ ] Configure monitoring and logging
+- [ ] Set up SSL certificates (Let's Encrypt)
+
+For detailed deployment instructions, see [DEPLOYMENT.md](./DEPLOYMENT.md)
 
 ---
 
@@ -196,56 +242,46 @@ See [DEPLOY.md](./deploy/DEPLOY.md) for detailed instructions.
 ```
 nexusnote/
 ├── apps/
-│   ├── web/                          # Next.js Frontend
-│   │   ├── app/
-│   │   │   ├── api/chat/             # AI chat with RAG
-│   │   │   ├── api/learn/            # Learning module APIs
-│   │   │   ├── editor/[id]/          # Document editor
-│   │   │   └── learn/[contentId]/    # Learning interface
-│   │   ├── components/
-│   │   │   ├── editor/               # Tiptap editor + extensions
-│   │   │   ├── ai/                   # Chat sidebar, agent panel
-│   │   │   ├── srs/                  # Flashcard review
-│   │   │   └── timeline/             # Version history
-│   │   └── lib/
-│   │       ├── agents/               # Agent system
-│   │       ├── storage/              # IndexedDB stores
-│   │       └── ai.ts                 # AI SDK config
-│   │
-│   └── server/                       # NestJS Backend
-│       └── src/
-│           ├── auth/                 # JWT authentication
-│           ├── document/             # Document CRUD
-│           ├── rag/                  # RAG service + worker
-│           ├── snapshot/             # Timeline snapshots
-│           ├── collaboration/        # Hocuspocus server
-│           └── queue/                # BullMQ configuration
+│   └── web/                          # Next.js Fullstack App
+│       ├── app/
+│       │   ├── api/
+│       │   │   ├── ai/               # Unified AI Gateway
+│       │   │   ├── auth/             # Authentication
+│       │   │   └── ...
+│       │   ├── editor/[id]/          # Document editor
+│       │   └── learn/                # Learning module
+│       ├── src/
+│       │   ├── server/
+│       │   │   ├── hocuspocus.ts     # WebSocket collaboration
+│       │   │   └── ...
+│       │   ├── queue/
+│       │   │   ├── worker.ts         # BullMQ RAG worker
+│       │   │   └── utils/
+│       │   ├── lib/
+│       │   │   ├── ai/               # AI utilities (types only)
+│       │   │   ├── storage/          # IndexedDB stores
+│       │   │   └── ...
+│       │   └── components/
+│       ├── ecosystem.config.js       # PM2 configuration
+│       ├── Dockerfile                # Multi-stage Docker build
+│       └── server.ts                 # Custom Next.js server
 │
 ├── packages/
 │   ├── db/                           # Database Layer
-│   │   ├── src/
-│   │   │   ├── schema.ts             # Drizzle schema
-│   │   │   └── fsrs.ts               # FSRS-5 algorithm
+│   │   ├── src/schema.ts             # Drizzle schema
 │   │   └── drizzle/                  # SQL migrations
-│   │
 │   ├── config/                       # Shared Configuration
-│   │   └── src/index.ts              # Environment validation
-│   │
 │   ├── types/                        # Shared TypeScript Types
 │   └── ui/                           # Shared UI Components
 │
 ├── docs/
 │   ├── PRD.md                        # Product requirements
 │   ├── TRD.md                        # Technical requirements
-│   └── AI_ARCHITECTURE.md            # AI system design
+│   └── AI.md                         # AI system details
 │
-├── deploy/
-│   ├── DEPLOY.md                     # Deployment guide
-│   └── nginx.conf                    # Nginx configuration
-│
+├── DEPLOYMENT.md                     # Complete deployment guide
+├── docker-compose.yml                # Docker Compose config
 ├── .env.example                      # Environment template
-├── docker-compose.yml                # Local development
-├── render.yaml                       # Render deployment config
 └── turbo.json                        # Turborepo configuration
 ```
 
@@ -253,47 +289,30 @@ nexusnote/
 
 ## 🔧 Configuration
 
-### Environment Variables
+See [.env.example](./.env.example) for complete configuration options.
 
-#### Required (Both Server & Web)
-```bash
-# AI Provider
-AI_PROVIDER=deepseek                  # deepseek | 302ai | siliconflow
-DEEPSEEK_API_KEY=sk-xxx               # DeepSeek API key
-AI_302_API_KEY=sk-xxx                 # 302.ai API key (for embedding)
+### Essential Variables
 
-# Embedding
-EMBEDDING_MODEL=Qwen/Qwen3-Embedding-8B
-EMBEDDING_DIMENSIONS=4000
-
-# Reranker (optional)
-RERANKER_ENABLED=true
-RERANKER_MODEL=Qwen/Qwen3-Reranker-8B
-```
-
-#### Server Only
 ```bash
 # Database
 DATABASE_URL=postgresql://user:pass@host:5432/nexusnote
 
 # Redis
-REDIS_URL=redis://localhost:6380
+REDIS_URL=redis://localhost:6379
+
+# AI Provider (choose one or more)
+AI_302_API_KEY=sk-xxx              # Recommended
+OPENAI_API_KEY=sk-xxx              # Alternative
+DEEPSEEK_API_KEY=sk-xxx            # Alternative
 
 # Authentication
-JWT_SECRET=your-secret-key
+AUTH_SECRET=<random-32-chars>       # openssl rand -base64 32
+JWT_SECRET=<random-32-chars>
 
-# CORS
-CORS_ORIGIN=http://localhost:3000
-```
-
-#### Web Only
-```bash
-# API Endpoints
-NEXT_PUBLIC_API_URL=http://localhost:3001
+# Public URLs
+NEXT_PUBLIC_API_URL=http://localhost:3002/api
 NEXT_PUBLIC_COLLAB_URL=ws://localhost:1234
 ```
-
-See [.env.example](./.env.example) for complete configuration.
 
 ---
 

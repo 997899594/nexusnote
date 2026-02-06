@@ -17,14 +17,14 @@ import { TaskItem } from "@tiptap/extension-task-item";
 import { Dropcursor } from "@tiptap/extension-dropcursor";
 import { Gapcursor } from "@tiptap/extension-gapcursor";
 import { useSession } from "next-auth/react";
-import { useMemo, useEffect, useState, useCallback } from "react";
+import { useMemo, useEffect, useState, useCallback, Component, type ReactNode } from "react";
 import { useEditorContext } from "@/contexts/EditorContext";
 import * as Y from "yjs";
 import { IndexeddbPersistence } from "y-indexeddb";
 import { HocuspocusProvider } from "@hocuspocus/provider";
 import { getRandomColor, getRandomUserName } from "@/lib/editor/collaboration";
 import { getAuthToken } from "@/lib/auth-helpers";
-import { Wifi, WifiOff, Users, History, Lock, Edit3 } from "lucide-react";
+import { Wifi, WifiOff, Users, History, Lock, Edit3, RefreshCw } from "lucide-react";
 import { EditorToolbar } from "./EditorToolbar";
 import { AIBubbleMenu } from "./AIBubbleMenu";
 import { TableMenu } from "./TableMenu";
@@ -35,10 +35,56 @@ import { Collapsible } from "./extensions/collapsible";
 import {
   TimelinePanel,
   useTimeline,
-  useAIEditSnapshot,
 } from "@/components/timeline";
 import { snapshotStore, DocumentSnapshot } from "@/lib/storage";
-import { motion, AnimatePresence } from "framer-motion";
+
+/**
+ * Error Boundary for Editor - 捕获编辑器初始化错误并提供恢复选项
+ */
+interface EditorErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class EditorErrorBoundary extends Component<
+  { children: ReactNode; onRetry: () => void },
+  EditorErrorBoundaryState
+> {
+  constructor(props: { children: ReactNode; onRetry: () => void }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): EditorErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("[Editor] Error caught by boundary:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 text-muted-foreground">
+          <p className="text-sm">编辑器加载失败</p>
+          <button
+            onClick={() => {
+              this.setState({ hasError: false, error: null });
+              this.props.onRetry();
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:opacity-90"
+          >
+            <RefreshCw className="w-4 h-4" />
+            重新加载
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 const COLLAB_URL = clientEnv.NEXT_PUBLIC_COLLAB_URL;
 
@@ -53,37 +99,35 @@ interface EditorProps {
 
 type ConnectionStatus = "connecting" | "connected" | "disconnected";
 
-export function Editor({
+/**
+ * 内部 Editor 组件 - 只有当 provider 就绪时才渲染
+ * 这样可以避免 useEditor 依赖项变化导致的重建问题
+ */
+function EditorInner({
   documentId,
-  showToolbar = true,
-  isVault = false,
+  ydoc,
+  provider,
+  currentUser,
+  showToolbar,
+  isVault,
   setIsVault,
-  title = "无标题文档",
-  setTitle,
-}: EditorProps) {
-  const { data: session } = useSession();
-  const [status, setStatus] = useState<ConnectionStatus>("connecting");
-  const [collaborators, setCollaborators] = useState<
-    Array<{ name: string; color: string }>
-  >([]);
-  const [showTimeline, setShowTimeline] = useState(false);
+  title,
+  status,
+  collaborators,
+}: {
+  documentId: string;
+  ydoc: Y.Doc;
+  provider: HocuspocusProvider;
+  currentUser: { id: string; name: string; color: string; image?: string | null };
+  showToolbar: boolean;
+  isVault: boolean;
+  setIsVault?: (v: boolean) => void;
+  title: string;
+  status: ConnectionStatus;
+  collaborators: Array<{ name: string; color: string }>;
+}) {
   const editorContext = useEditorContext();
-
-  useEffect(() => {
-    const fetchMetadata = async () => {
-      try {
-        const res = await fetch(
-          `${clientEnv.NEXT_PUBLIC_API_URL}/documents/${documentId}`,
-        );
-        if (res.ok) {
-          const doc = await res.json();
-          setIsVault?.(doc.isVault || false);
-          setTitle?.(doc.title || "无标题文档");
-        }
-      } catch (err) {}
-    };
-    fetchMetadata();
-  }, [documentId, setIsVault, setTitle]);
+  const [showTimeline, setShowTimeline] = useState(false);
 
   const toggleVault = async () => {
     const nextValue = !isVault;
@@ -100,93 +144,35 @@ export function Editor({
     } catch (err) {}
   };
 
-  const ydoc = useMemo(() => {
-    const doc = new Y.Doc();
-    // Initialize the fragment that Tiptap Collaboration will use
-    doc.getXmlFragment('default');
-    return doc;
-  }, []);
+  // Extensions 稳定化 - 只在 provider 和 ydoc 不变时保持稳定
+  const extensions = useMemo(
+    () => [
+      StarterKit,
+      Placeholder.configure({ placeholder: "开始记笔记..." }),
+      Collaboration.configure({ document: ydoc }),
+      CollaborationCursor.configure({ provider, user: currentUser }),
+      SlashCommand,
+      Dropcursor.configure({ color: "hsl(var(--primary))", width: 2 }),
+      Gapcursor,
+      TaskList,
+      TaskItem.configure({ nested: true }),
+      Table.configure({ resizable: true }),
+      TableRow,
+      TableCell,
+      TableHeader,
+      Image.configure({ allowBase64: true }),
+      Youtube.configure({}),
+      Callout,
+      Collapsible,
+    ],
+    [ydoc, provider, currentUser]
+  );
 
-  const currentUser = useMemo(() => {
-    if (session?.user) {
-      return {
-        id: session.user.id || `u-${Math.random()}`,
-        name: session.user.name || "Anonymous",
-        color: getRandomColor(),
-        image: session.user.image,
-      };
-    }
-    return {
-      id: `u-${Math.random()}`,
-      name: getRandomUserName(),
-      color: getRandomColor(),
-    };
-  }, [session]);
-
-  const provider = useMemo(() => {
-    const p = new HocuspocusProvider({
-      url: COLLAB_URL,
-      name: documentId,
-      document: ydoc,
-      token: (session as any)?.accessToken || getAuthToken(),
-      onConnect() {
-        setStatus("connected");
-      },
-      onDisconnect() {
-        setStatus("disconnected");
-      },
-    });
-    return p;
-  }, [documentId, ydoc, session]);
-
-  useEffect(() => {
-    if (!currentUser) return;
-    provider.setAwarenessField("user", currentUser);
-    const updateCollaborators = () => {
-      const states = provider.awareness?.getStates();
-      if (!states) return;
-      const users: any[] = [];
-      states.forEach((state, cli) => {
-        if (cli !== provider.awareness?.clientID && state.user)
-          users.push(state.user);
-      });
-      setCollaborators(users);
-    };
-    provider.awareness?.on("change", updateCollaborators);
-    return () => {
-      provider.awareness?.off("change", updateCollaborators);
-    };
-  }, [provider, currentUser]);
-
-  useEffect(() => {
-    const persistence = new IndexeddbPersistence(documentId, ydoc);
-    return () => {
-      persistence.destroy();
-    };
-  }, [documentId, ydoc]);
-
+  // Editor - 使用稳定的配置
   const editor = useEditor(
     {
       immediatelyRender: false,
-      extensions: [
-        StarterKit,
-        Placeholder.configure({ placeholder: "开始记笔记..." }),
-        Collaboration.configure({ document: ydoc }),
-        CollaborationCursor.configure({ provider, user: currentUser }),
-        SlashCommand,
-        Dropcursor.configure({ color: "hsl(var(--primary))", width: 2 }),
-        Gapcursor,
-        TaskList,
-        TaskItem.configure({ nested: true }),
-        Table.configure({ resizable: true }),
-        TableRow,
-        TableCell,
-        TableHeader,
-        Image.configure({ allowBase64: true }),
-        Youtube.configure({}),
-        Callout,
-        Collapsible,
-      ],
+      extensions,
       editorProps: {
         attributes: {
           class:
@@ -194,9 +180,10 @@ export function Editor({
         },
       },
     },
-    [ydoc, provider, currentUser]
+    [extensions]
   );
 
+  // Sync editor to context
   useEffect(() => {
     if (editorContext && editor) editorContext.setEditor(editor);
     return () => {
@@ -204,6 +191,7 @@ export function Editor({
     };
   }, [editor, editorContext]);
 
+  // Timeline
   const { stats } = useTimeline({ documentId, ydoc, enabled: true });
   const handleRestoreSnapshot = useCallback(
     async (s: DocumentSnapshot) => {
@@ -213,13 +201,15 @@ export function Editor({
     [ydoc],
   );
 
-  if (!editor)
+  // Loading state
+  if (!editor || !editor.state) {
     return (
       <div className="animate-pulse space-y-4">
         <div className="h-10 bg-muted rounded-xl w-1/4" />
         <div className="h-64 bg-muted rounded-2xl w-full" />
       </div>
     );
+  }
 
   return (
     <div className="relative flex flex-col">
@@ -284,8 +274,8 @@ export function Editor({
       {/* Content */}
       <div className="relative z-10">
         <EditorContent editor={editor} />
-        {editor && <AIBubbleMenu editor={editor} documentId={documentId} />}
-        {editor && <TableMenu editor={editor} />}
+        <AIBubbleMenu editor={editor} documentId={documentId} />
+        <TableMenu editor={editor} />
       </div>
 
       {/* Timeline Toggle */}
@@ -308,5 +298,153 @@ export function Editor({
 
       <GhostBrain editor={editor} documentId={documentId} title={title} />
     </div>
+  );
+}
+
+/**
+ * 外层 Editor 组件 - 负责初始化 ydoc、provider 等基础设施
+ */
+export function Editor({
+  documentId,
+  showToolbar = true,
+  isVault = false,
+  setIsVault,
+  title = "无标题文档",
+  setTitle,
+}: EditorProps) {
+  const { data: session } = useSession();
+  const [status, setStatus] = useState<ConnectionStatus>("connecting");
+  const [collaborators, setCollaborators] = useState<
+    Array<{ name: string; color: string }>
+  >([]);
+  const [provider, setProvider] = useState<HocuspocusProvider | null>(null);
+  const [isProviderSynced, setIsProviderSynced] = useState(false);
+
+  // Fetch document metadata
+  useEffect(() => {
+    const fetchMetadata = async () => {
+      try {
+        const res = await fetch(
+          `${clientEnv.NEXT_PUBLIC_API_URL}/documents/${documentId}`,
+        );
+        if (res.ok) {
+          const doc = await res.json();
+          setIsVault?.(doc.isVault || false);
+          setTitle?.(doc.title || "无标题文档");
+        }
+      } catch (err) {}
+    };
+    fetchMetadata();
+  }, [documentId, setIsVault, setTitle]);
+
+  // Y.Doc - stable across renders
+  // 注意：不要手动调用 getXmlFragment，让 Collaboration 扩展自己处理
+  const ydoc = useMemo(() => new Y.Doc(), []);
+
+  // Current user - stable across renders (只依赖 session.user.id)
+  const currentUser = useMemo(() => {
+    if (session?.user) {
+      return {
+        id: session.user.id || `u-${Math.random()}`,
+        name: session.user.name || "Anonymous",
+        color: getRandomColor(),
+        image: session.user.image,
+      };
+    }
+    return {
+      id: `u-${Math.random()}`,
+      name: getRandomUserName(),
+      color: getRandomColor(),
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user?.id]);
+
+  // HocuspocusProvider - created in useEffect
+  useEffect(() => {
+    setIsProviderSynced(false);
+
+    const p = new HocuspocusProvider({
+      url: COLLAB_URL,
+      name: documentId,
+      document: ydoc,
+      token: (session as any)?.accessToken || getAuthToken(),
+      onConnect() {
+        setStatus("connected");
+      },
+      onDisconnect() {
+        setStatus("disconnected");
+      },
+      onSynced() {
+        // 确保 provider 完全同步后再标记就绪
+        setIsProviderSynced(true);
+      },
+    });
+    setProvider(p);
+
+    return () => {
+      p.destroy();
+      setProvider(null);
+      setIsProviderSynced(false);
+    };
+  }, [documentId, ydoc, session]);
+
+  // Collaborators awareness
+  useEffect(() => {
+    if (!provider || !currentUser) return;
+
+    provider.setAwarenessField("user", currentUser);
+
+    const updateCollaborators = () => {
+      const states = provider.awareness?.getStates();
+      if (!states) return;
+      const users: any[] = [];
+      states.forEach((state, cli) => {
+        if (cli !== provider.awareness?.clientID && state.user)
+          users.push(state.user);
+      });
+      setCollaborators(users);
+    };
+
+    provider.awareness?.on("change", updateCollaborators);
+    return () => {
+      provider.awareness?.off("change", updateCollaborators);
+    };
+  }, [provider, currentUser]);
+
+  // IndexedDB persistence
+  useEffect(() => {
+    const persistence = new IndexeddbPersistence(documentId, ydoc);
+    return () => {
+      persistence.destroy();
+    };
+  }, [documentId, ydoc]);
+
+  // 等待 provider 就绪且同步完成后再渲染 EditorInner
+  if (!provider || !isProviderSynced) {
+    return (
+      <div className="animate-pulse space-y-4">
+        <div className="h-10 bg-muted rounded-xl w-1/4" />
+        <div className="h-64 bg-muted rounded-2xl w-full" />
+      </div>
+    );
+  }
+
+  // 用 key 强制完全重新挂载，避免状态不一致
+  const editorKey = `${documentId}-${provider.url}`;
+
+  return (
+    <EditorInner
+      key={editorKey}
+      documentId={documentId}
+      ydoc={ydoc}
+      provider={provider}
+      currentUser={currentUser}
+      showToolbar={showToolbar}
+      isVault={isVault}
+      setIsVault={setIsVault}
+      title={title}
+      status={status}
+      collaborators={collaborators}
+    />
   );
 }

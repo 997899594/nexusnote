@@ -2,14 +2,21 @@ import { streamText } from 'ai'
 import { courseModel, isAIConfigured, getAIProviderInfo } from '@/lib/ai/registry'
 import { auth } from '@/auth'
 import { createTelemetryConfig } from '@/lib/ai/langfuse'
+import { checkRateLimit, createRateLimitResponse } from '@/lib/ai/rate-limit'
 
 export const runtime = 'nodejs'
 export const maxDuration = 180
 
 export async function POST(req: Request) {
   const session = await auth()
-  if (!session) {
+  if (!session?.user?.id) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // 速率限制
+  const rateLimitResult = await checkRateLimit(session.user.id)
+  if (!rateLimitResult.allowed) {
+    return createRateLimitResponse(rateLimitResult.resetAt)
   }
 
   const {

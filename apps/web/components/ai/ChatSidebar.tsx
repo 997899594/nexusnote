@@ -1,20 +1,15 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport, isToolUIPart, getToolName } from "ai";
+import { DefaultChatTransport, isToolUIPart, getToolName, isTextUIPart } from "ai";
 import {
-  useRef,
-  useEffect,
   useState,
   FormEvent,
   useMemo,
   useCallback,
+  useEffect,
 } from "react";
 import {
-  Send,
-  Square,
-  User,
-  Bot,
   BookOpen,
   FileText,
   Pencil,
@@ -24,9 +19,12 @@ import {
   Lightbulb,
   Ghost,
   Globe,
+  User,
+  Bot,
 } from "lucide-react";
 import { useEditorContext } from "@/contexts/EditorContext";
 import { KnowledgePanel } from "./KnowledgePanel";
+import { UnifiedChatUI } from "./UnifiedChatUI";
 import type { EditCommand } from "@/lib/editor/document-parser";
 import { motion } from "framer-motion";
 import type { ChatAgentMessage } from "@/lib/ai/agents/chat-agent";
@@ -67,7 +65,6 @@ export function ChatSidebar() {
     new Map(),
   );
   const [appliedEdits, setAppliedEdits] = useState<Set<string>>(new Set());
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const editorContext = useEditorContext();
 
   const chatTransport = useMemo(
@@ -82,10 +79,6 @@ export function ChatSidebar() {
   });
 
   const isLoading = status === "streaming" || status === "submitted";
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
 
   // 处理编辑工具调用 - 从 typed tool parts 提取待确认的编辑
   useEffect(() => {
@@ -237,6 +230,14 @@ export function ChatSidebar() {
     );
   };
 
+  const getMessageText = (message: (typeof messages)[0]): string => {
+    if (!message.parts || message.parts.length === 0) return "";
+    return message.parts
+      .filter(isTextUIPart)
+      .map((p) => p.text)
+      .join("");
+  };
+
   const insertToEditor = (text: string) => {
     if (!editorContext?.editor) return;
     // 直接插入纯文本或简单的Markdown，不使用legacy convert
@@ -247,16 +248,6 @@ export function ChatSidebar() {
     try {
       await navigator.clipboard.writeText(text);
     } catch (err) {}
-  };
-
-  const getMessageText = (message: (typeof messages)[0]) => {
-    if (message.parts) {
-      return message.parts
-        .filter((p): p is { type: "text"; text: string } => p.type === "text")
-        .map((p) => p.text)
-        .join("");
-    }
-    return (message as any).content || "";
   };
 
   // 渲染工具输出结果 UI
@@ -556,9 +547,77 @@ export function ChatSidebar() {
               </div>
             </div>
 
-            {/* Chat Stream */}
-            <div className="flex-1 overflow-y-auto px-4 space-y-6 custom-scrollbar pb-4 min-h-0">
-              {messages.length === 0 && (
+            {/* Unified Chat UI */}
+            <UnifiedChatUI
+              messages={messages}
+              isLoading={isLoading}
+              input={input}
+              onInputChange={setInput}
+              onSubmit={handleSubmit}
+              onStop={stop}
+              variant="chat"
+              placeholder="输入指令..."
+              renderToolOutput={renderToolOutput}
+              renderMessage={(message, text, isUser) => {
+                if (isUser) {
+                  return (
+                    <div className={`flex flex-col items-end`}>
+                      <div className={`flex gap-3 max-w-[92%] flex-row-reverse`}>
+                        <div className={`w-8 h-8 rounded-2xl flex items-center justify-center shrink-0 bg-muted text-muted-foreground`}>
+                          <User className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div
+                            className={`rounded-[1.5rem] px-4 py-3 text-sm leading-relaxed shadow-sm bg-violet-600 text-white rounded-tr-sm`}
+                          >
+                            <p className="whitespace-pre-wrap">{text}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className={`flex flex-col items-start`}>
+                    <div className={`flex gap-3 max-w-[92%]`}>
+                      <div className={`w-8 h-8 rounded-2xl flex items-center justify-center shrink-0 bg-violet-500/20 text-violet-500`}>
+                        <Bot className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div
+                          className={`rounded-[1.5rem] px-4 py-3 text-sm leading-relaxed shadow-sm bg-white dark:bg-neutral-800 border border-black/5 dark:border-white/5 rounded-tl-sm`}
+                        >
+                          <p className="whitespace-pre-wrap">
+                            {text || (isLoading ? "思考中..." : "")}
+                          </p>
+                          {text && (
+                            <div className="flex items-center gap-3 mt-3 pt-3 border-t border-black/5 dark:border-white/5 opacity-50 hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() =>
+                                  insertToEditor(text)
+                                }
+                                className="flex items-center gap-1 hover:text-violet-500"
+                              >
+                                <FileDown className="w-3 h-3" /> 插入
+                              </button>
+                              <button
+                                onClick={() =>
+                                  copyToClipboard(text)
+                                }
+                                className="flex items-center gap-1 hover:text-violet-500"
+                              >
+                                <Copy className="w-3 h-3" /> 复制
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }}
+              renderEmpty={() => (
                 <div className="h-full flex flex-col items-center justify-center text-center px-8 opacity-40">
                   <div className="w-16 h-16 rounded-[2rem] bg-violet-500/10 flex items-center justify-center mb-6">
                     <Ghost className="w-8 h-8 text-violet-500 animate-pulse" />
@@ -569,112 +628,7 @@ export function ChatSidebar() {
                   <p className="text-xs mt-2">试试："帮我总结当前的重点"</p>
                 </div>
               )}
-
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex flex-col ${message.role === "user" ? "items-end" : "items-start"}`}
-                >
-                  <div
-                    className={`flex gap-3 max-w-[92%] ${message.role === "user" ? "flex-row-reverse" : ""}`}
-                  >
-                    <div
-                      className={`w-8 h-8 rounded-2xl flex items-center justify-center shrink-0 ${message.role === "assistant" ? "bg-violet-500/20 text-violet-500" : "bg-muted text-muted-foreground"}`}
-                    >
-                      {message.role === "assistant" ? (
-                        <Bot className="w-4 h-4" />
-                      ) : (
-                        <User className="w-4 h-4" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div
-                        className={`rounded-[1.5rem] px-4 py-3 text-sm leading-relaxed shadow-sm ${
-                          message.role === "user"
-                            ? "bg-violet-600 text-white rounded-tr-sm"
-                            : "bg-white dark:bg-neutral-800 border border-black/5 dark:border-white/5 rounded-tl-sm"
-                        }`}
-                      >
-                        {message.role === "assistant" ? (
-                          <div>
-                            <p className="whitespace-pre-wrap">
-                              {getMessageText(message) ||
-                                (isLoading ? "思考中..." : "")}
-                            </p>
-                            {getMessageText(message) && (
-                              <div className="flex items-center gap-3 mt-3 pt-3 border-t border-black/5 dark:border-white/5 opacity-50 hover:opacity-100 transition-opacity">
-                                <button
-                                  onClick={() =>
-                                    insertToEditor(getMessageText(message))
-                                  }
-                                  className="flex items-center gap-1 hover:text-violet-500"
-                                >
-                                  <FileDown className="w-3 h-3" /> 插入
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    copyToClipboard(getMessageText(message))
-                                  }
-                                  className="flex items-center gap-1 hover:text-violet-500"
-                                >
-                                  <Copy className="w-3 h-3" /> 复制
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <p className="whitespace-pre-wrap">
-                            {getMessageText(message)}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Typed Tool Parts - SDK v6 Agent 模式 */}
-                      {message.role === "assistant" && (
-                        <div className="mt-2 space-y-2">
-                          {message.parts
-                            .filter((p) => isToolUIPart(p))
-                            .map((part) => renderToolPart(part))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Sticky Input Bar */}
-            <div className="p-4 border-t border-black/5 dark:border-white/5 backdrop-blur-3xl shrink-0">
-              <form onSubmit={handleSubmit} className="relative group">
-                <input
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder="输入指令..."
-                  disabled={isLoading}
-                  className="w-full bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 rounded-[1.5rem] pl-5 pr-12 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all placeholder:text-muted-foreground/50"
-                />
-                <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                  {isLoading ? (
-                    <button
-                      type="button"
-                      onClick={stop}
-                      className="w-9 h-9 flex items-center justify-center bg-red-500/10 text-red-500 rounded-full hover:bg-red-500 hover:text-white transition-all"
-                    >
-                      <Square className="w-4 h-4 fill-current" />
-                    </button>
-                  ) : (
-                    <button
-                      type="submit"
-                      disabled={!input.trim()}
-                      className="w-9 h-9 flex items-center justify-center bg-violet-600 text-white rounded-full disabled:opacity-30 disabled:grayscale transition-all shadow-lg shadow-violet-950/20 hover:scale-105 active:scale-95"
-                    >
-                      <Send className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              </form>
-            </div>
+            />
           </>
         )}
       </div>

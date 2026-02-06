@@ -2,6 +2,7 @@ import { streamObject } from 'ai'
 import { chatModel, isAIConfigured } from '@/lib/ai/registry'
 import { z } from 'zod'
 import { auth } from '@/auth'
+import { checkRateLimit, createRateLimitResponse } from '@/lib/ai/rate-limit'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -18,8 +19,14 @@ const DocumentSchema = z.object({
 
 export async function POST(req: Request) {
   const session = await auth()
-  if (!session) {
+  if (!session?.user?.id) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // 速率限制
+  const rateLimitResult = await checkRateLimit(session.user.id)
+  if (!rateLimitResult.allowed) {
+    return createRateLimitResponse(rateLimitResult.resetAt)
   }
 
   const { topic, depth = 'medium' } = await req.json()

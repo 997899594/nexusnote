@@ -10,6 +10,16 @@ export type { DocumentBlock, DocumentStructure, EditCommand }
  * 解析编辑器文档结构
  */
 export function parseDocument(editor: Editor): DocumentStructure {
+  // 安全检查：editor.state 可能在初始化或销毁时为 undefined
+  if (!editor.state) {
+    return {
+      blocks: [],
+      totalBlocks: 0,
+      headings: [],
+      paragraphs: [],
+    }
+  }
+
   const doc = editor.state.doc
   const blocks: DocumentBlock[] = []
   const typeCounters: Record<string, number> = {}
