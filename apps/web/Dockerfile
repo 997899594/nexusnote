@@ -108,5 +108,5 @@ ENV HOSTNAME="0.0.0.0"
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
 
 # Start all services with PM2
-CMD ["pm2-runtime", "start", "apps/web/ecosystem.config.js", "--no-daemon"]
+CMD ["pm2-runtime", "start", "apps/web/ecosystem.config.js"]
 
