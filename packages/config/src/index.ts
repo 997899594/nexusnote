@@ -281,6 +281,12 @@ export type ClientEnv = z.infer<typeof clientEnvSchema>;
 export function parseServerEnv(
   env: NodeJS.ProcessEnv = process.env,
 ): ServerEnv {
+  // Build-time check bypass for Next.js 16
+  if (process.env.SKIP_ENV_VALIDATION === "true" || process.env.NEXT_PHASE === "phase-production-build") {
+    // Return partially valid data for build time
+    return serverEnvSchema.partial().parse({}) as ServerEnv;
+  }
+
   // Read from process.env for server-side
   const merged = { ...process.env, ...env };
 

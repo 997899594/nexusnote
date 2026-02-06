@@ -43,6 +43,7 @@ COPY . .
 # Set environment for build
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+ENV SKIP_ENV_VALIDATION=true
 
 # Build all packages
 RUN pnpm --filter @nexusnote/types build
