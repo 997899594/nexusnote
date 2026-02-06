@@ -50,10 +50,18 @@ spec:
                 name: nexusnote-secrets
             - configMapRef:
                 name: nexusnote-config
-          healthCheck:
+          livenessProbe:
             httpGet:
               path: /api/health
               port: 3002
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3002
+            initialDelaySeconds: 5
+            periodSeconds: 10
           resources:
             limits:
               cpu: "1"

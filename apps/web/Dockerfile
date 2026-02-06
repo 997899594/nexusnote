@@ -52,6 +52,12 @@ RUN pnpm --filter @nexusnote/db build
 RUN pnpm --filter @nexusnote/ui build
 RUN pnpm --filter @nexusnote/web build
 
+# Compile auxiliary servers (Hocuspocus and Worker)
+RUN npx esbuild apps/web/src/server/hocuspocus.ts --bundle --platform=node --outfile=apps/web/hocuspocus.js \
+    --external:ioredis --external:bullmq --external:@hocuspocus/* --external:yjs
+RUN npx esbuild apps/web/src/queue/worker.ts --bundle --platform=node --outfile=apps/web/worker.js \
+    --external:ioredis --external:bullmq --external:zod --external:drizzle-orm
+
 # ============================================
 # Stage 3: Runner
 # ============================================
@@ -62,7 +68,7 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Install PM2 globally for process management
-RUN npm install -g pm2 tsx
+RUN npm install -g pm2
 
 # Install dumb-init for proper signal handling
 RUN apk add --no-cache dumb-init
@@ -76,19 +82,17 @@ RUN mkdir -p /app/logs && chown -R nextjs:nodejs /app/logs
 
 # Copy built application and all dependencies
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/server.ts ./apps/web/
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/hocuspocus.js ./apps/web/
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/worker.js ./apps/web/
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/ecosystem.config.js ./apps/web/
-COPY --from=builder /app/node_modules ./node_modules
 
-# Conditional copy for optional directories (public, static, src)
-# This uses a bind mount to builder stage to check existence before copying
+# Conditional copy for static assets and public folder
 RUN --mount=from=builder,source=/app/apps/web,target=/tmp/web \
     ( [ -d /tmp/web/public ] && cp -r /tmp/web/public ./apps/web/public || true ) && \
     ( [ -d /tmp/web/.next/static ] && mkdir -p ./apps/web/.next && cp -r /tmp/web/.next/static ./apps/web/.next/static || true ) && \
-    ( [ -d /tmp/web/src ] && cp -r /tmp/web/src ./apps/web/src || true ) && \
     chown -R nextjs:nodejs /app/apps/web
 
-# Copy package.json for PM2
+# Copy package.json for metadata
 COPY --chown=nextjs:nodejs package.json .
 COPY --chown=nextjs:nodejs apps/web/package.json ./apps/web/
 

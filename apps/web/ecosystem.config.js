@@ -11,10 +11,9 @@
 module.exports = {
   apps: [
     {
-      // Next.js API 服务器
+      // Next.js API 服务器 (使用 Standalone 输出)
       name: 'next-api',
-      script: './server.ts',
-      interpreter: 'tsx',
+      script: 'apps/web/server.js',
       env: {
         NODE_ENV: 'production',
         PORT: 3002,
@@ -28,10 +27,9 @@ module.exports = {
     },
 
     {
-      // Hocuspocus WebSocket 服务器
+      // Hocuspocus WebSocket 服务器 (使用编译后的 JS)
       name: 'hocuspocus',
-      script: './src/server/hocuspocus.ts',
-      interpreter: 'tsx',
+      script: 'apps/web/hocuspocus.js',
       env: {
         NODE_ENV: 'production',
         PORT: 1234,
@@ -45,10 +43,9 @@ module.exports = {
     },
 
     {
-      // BullMQ RAG 索引 Worker
+      // BullMQ RAG 索引 Worker (使用编译后的 JS)
       name: 'rag-worker',
-      script: './src/queue/worker.ts',
-      interpreter: 'tsx',
+      script: 'apps/web/worker.js',
       env: {
         NODE_ENV: 'production',
       },
