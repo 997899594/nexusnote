@@ -44,7 +44,7 @@ spec:
         app: nexusnote
     spec:
       imagePullSecrets:
-        - name: dockerhub-secret
+        - name: ghcr-secret
       containers:
         - name: app
           image: IMAGE_PLACEHOLDER
@@ -62,21 +62,23 @@ spec:
             httpGet:
               path: /api/health
               port: 3002
-            initialDelaySeconds: 30
+            initialDelaySeconds: 60
             periodSeconds: 20
+            timeoutSeconds: 5
           readinessProbe:
             httpGet:
               path: /api/health
               port: 3002
-            initialDelaySeconds: 10
+            initialDelaySeconds: 30
             periodSeconds: 10
+            timeoutSeconds: 5
           resources:
             limits:
               cpu: "1"
-              memory: "1Gi"
+              memory: "2Gi"
             requests:
-              cpu: "200m"
-              memory: "256Mi"
+              cpu: "500m"
+              memory: "512Mi"
 ---
 apiVersion: v1
 kind: Service

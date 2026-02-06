@@ -14,13 +14,14 @@ module.exports = {
       // Next.js API 服务器 (使用 Standalone 输出)
       name: "next-api",
       script: "server.js",
+      cwd: "/app",
       env: {
         NODE_ENV: "production",
         PORT: 3002,
       },
       instances: 1,
-      exec_mode: "cluster",
-      max_memory_restart: "512M",
+      exec_mode: "fork", // standalone 模式下建议使用 fork，由 K8s 处理扩容
+      max_memory_restart: "1G",
       error_file: "logs/next-api.err.log",
       out_file: "logs/next-api.out.log",
       merge_logs: true,
@@ -30,6 +31,7 @@ module.exports = {
       // Hocuspocus WebSocket 服务器 (使用编译后的 JS)
       name: "hocuspocus",
       script: "apps/web/hocuspocus.js",
+      cwd: "/app",
       env: {
         NODE_ENV: "production",
         PORT: 1234,
@@ -46,6 +48,7 @@ module.exports = {
       // BullMQ RAG 索引 Worker (使用编译后的 JS)
       name: "rag-worker",
       script: "apps/web/worker.js",
+      cwd: "/app",
       env: {
         NODE_ENV: "production",
       },
