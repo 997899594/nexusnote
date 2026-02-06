@@ -43,6 +43,8 @@ spec:
       labels:
         app: nexusnote
     spec:
+      imagePullSecrets:
+        - name: ghcr-io-secret
       containers:
         - name: app
           image: IMAGE_PLACEHOLDER
@@ -60,21 +62,21 @@ spec:
             httpGet:
               path: /api/health
               port: 3002
-            initialDelaySeconds: 15
+            initialDelaySeconds: 30
             periodSeconds: 20
           readinessProbe:
             httpGet:
               path: /api/health
               port: 3002
-            initialDelaySeconds: 5
+            initialDelaySeconds: 10
             periodSeconds: 10
           resources:
             limits:
               cpu: "1"
               memory: "1Gi"
             requests:
-              cpu: "500m"
-              memory: "512Mi"
+              cpu: "200m"
+              memory: "256Mi"
 ---
 apiVersion: v1
 kind: Service

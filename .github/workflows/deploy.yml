@@ -129,7 +129,15 @@ jobs:
             # 1. 确保命名空间存在
             kubectl create namespace nexusnote --dry-run=client -o yaml | kubectl apply -f -
 
-            # 2. 应用配置 (无需写磁盘)
+            # 2. 创建 GHCR 镜像拉取密钥 (如果是私有仓库)
+            kubectl create secret docker-registry ghcr-io-secret \
+              --docker-server=ghcr.io \
+              --docker-username=${{ github.actor }} \
+              --docker-password=${{ secrets.GITHUB_TOKEN }} \
+              --namespace=nexusnote \
+              --dry-run=client -o yaml | kubectl apply -f -
+
+            # 3. 应用配置 (无需写磁盘)
             echo "$K8S_CONFIGS" | kubectl apply -f -
 
             # 3. 滚动更新状态检查 (设置 5 分钟超时)

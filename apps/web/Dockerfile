@@ -105,7 +105,7 @@ ENV PORT=3002
 ENV HOSTNAME="0.0.0.0"
 
 # Use dumb-init to handle signals properly
-ENTRYPOINT ["/sbin/dumb-init", "--"]
+ENTRYPOINT ["/usr/bin/dumb-init", "--"]
 
 # Start all services with PM2
 CMD ["pm2-runtime", "start", "apps/web/ecosystem.config.js", "--no-daemon"]
