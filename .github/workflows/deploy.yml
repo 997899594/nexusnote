@@ -5,23 +5,129 @@ on:
     branches:
       - main
 
+# 2026 权限管理：允许写入 GitHub Packages (GHCR)
+permissions:
+  contents: read
+  packages: write
+
 jobs:
-  deploy:
+  # ============================================
+  # 阶段 1：构建并推送镜像 (Stateless Build)
+  # ============================================
+  build:
     runs-on: ubuntu-latest
-    environment: production # 使用现代化的环境管理逻辑
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Deploy to K3s Cluster via SSH
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=sha,format=long
+            type=ref,event=branch
+            latest
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ============================================
+  # 阶段 2：部署到 K3s 集群 (Stateless Deploy)
+  # ============================================
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Prepare K8s Configs
+        id: prep
+        run: |
+          # 1. 获取镜像标签
+          IMAGE_TAG="ghcr.io/${{ github.repository }}:sha-${{ github.sha }}"
+          IMAGE_TAG=$(echo $IMAGE_TAG | tr '[:upper:]' '[:lower:]')
+
+          # 2. 合并基础配置 (基础设施 + 持久化 + 应用)
+          {
+            cat deploy/k8s/infrastructure.yaml
+            echo "---"
+            cat deploy/k8s/stateful.yaml
+            echo "---"
+            sed "s|IMAGE_PLACEHOLDER|$IMAGE_TAG|g" deploy/k8s/app.yaml
+          } > combined.yaml
+
+          # 3. 动态生成 Secret 定义
+          cat <<EOF >> combined.yaml
+          ---
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: nexusnote-secrets
+            namespace: nexusnote
+          type: Opaque
+          stringData:
+            # 数据库密码
+            POSTGRES_PASSWORD: "${{ secrets.POSTGRES_PASSWORD }}"
+            
+            # 连接地址更新：使用 K3s 内部服务名
+            DATABASE_URL: "postgresql://postgres:${{ secrets.POSTGRES_PASSWORD }}@nexusnote-db:5432/nexusnote"
+            REDIS_URL: "redis://nexusnote-redis:6379"
+            
+            # 其他密钥
+            AUTH_SECRET: "${{ secrets.AUTH_SECRET }}"
+            JWT_SECRET: "${{ secrets.JWT_SECRET }}"
+            AI_PROVIDER: "${{ secrets.AI_PROVIDER }}"
+            AI_302_API_KEY: "${{ secrets.AI_302_API_KEY }}"
+            DEEPSEEK_API_KEY: "${{ secrets.DEEPSEEK_API_KEY }}"
+            OPENAI_API_KEY: "${{ secrets.OPENAI_API_KEY }}"
+            SILICONFLOW_API_KEY: "${{ secrets.SILICONFLOW_API_KEY }}"
+            TAVILY_API_KEY: "${{ secrets.TAVILY_API_KEY }}"
+            LANGFUSE_PUBLIC_KEY: "${{ secrets.LANGFUSE_PUBLIC_KEY }}"
+            LANGFUSE_SECRET_KEY: "${{ secrets.LANGFUSE_SECRET_KEY }}"
+            LANGFUSE_BASE_URL: "${{ secrets.LANGFUSE_BASE_URL }}"
+          EOF
+
+          # 4. 将结果存入环境变量
+          echo "K8S_CONFIGS<<EOF" >> $GITHUB_ENV
+          cat combined.yaml >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Deploy to K3s Cluster
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          K8S_CONFIGS: ${{ env.K8S_CONFIGS }}
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: K8S_CONFIGS
           script: |
-            cd ${{ secrets.TARGET_DIR }}
-            git pull origin main
-            # 统一调用 scripts/deploy.sh，避免逻辑重复
-            chmod +x scripts/deploy.sh
-            ./scripts/deploy.sh
+            # 1. 确保命名空间存在
+            kubectl create namespace nexusnote --dry-run=client -o yaml | kubectl apply -f -
+
+            # 2. 应用配置 (无需写磁盘)
+            echo "$K8S_CONFIGS" | kubectl apply -f -
+
+            # 3. 滚动更新状态检查
+            kubectl rollout status deployment/nexusnote-app -n nexusnote
