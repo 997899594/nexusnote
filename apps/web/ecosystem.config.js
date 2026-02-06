@@ -13,7 +13,7 @@ module.exports = {
     {
       // Next.js API 服务器 (使用 Standalone 输出)
       name: "next-api",
-      script: "server.js",
+      script: "apps/web/server.js",
       env: {
         NODE_ENV: "production",
         PORT: 3002,
