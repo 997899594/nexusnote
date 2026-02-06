@@ -44,7 +44,7 @@ spec:
         app: nexusnote
     spec:
       imagePullSecrets:
-        - name: ghcr-io-secret
+        - name: tcr-io-secret
       containers:
         - name: app
           image: IMAGE_PLACEHOLDER
