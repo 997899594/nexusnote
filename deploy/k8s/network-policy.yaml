@@ -56,7 +56,10 @@ spec:
       app: nexusnote-web
   ingress:
     - fromEntities:
-        - world # 允许外部流量进入 Web (由 Gateway API 代理)
+        - world
+        - host
+        - remote-node
+        - cluster
       toPorts:
         - ports:
             - port: "3002"

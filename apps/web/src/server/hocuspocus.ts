@@ -192,3 +192,11 @@ export async function startHocuspocusServer() {
     throw err;
   }
 }
+
+// 启动服务器
+if (require.main === module || process.env.NODE_ENV === 'production') {
+  startHocuspocusServer().catch((err) => {
+    console.error('[Hocuspocus] Fatal error during startup:', err);
+    process.exit(1);
+  });
+}

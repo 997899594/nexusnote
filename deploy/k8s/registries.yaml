@@ -1,0 +1,11 @@
+# K3s 镜像加速配置 (腾讯云/国内环境推荐)
+# 存放路径: /etc/rancher/k3s/registries.yaml
+mirrors:
+  ghcr.io:
+    endpoint:
+      - "https://ghcr.nju.edu.cn"
+      - "https://ghcr.io"
+  docker.io:
+    endpoint:
+      - "https://docker.nju.edu.cn"
+      - "https://mirror.baidubce.com"
