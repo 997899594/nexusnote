@@ -115,7 +115,7 @@ export default function Home() {
           ? formatTimeAgo(c.progress.lastAccessedAt)
           : "New",
         icon: <BookOpen className="w-5 h-5" />,
-        onClick: () => router.push(`/editor/${c.id}`),
+        onClick: () => router.push(`/learn/${c.id}`),
       })),
       ...notes.map((n) => ({
         id: n.id,

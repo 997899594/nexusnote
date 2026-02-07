@@ -17,8 +17,17 @@ import { interviewAgent } from "@/lib/ai/agents/interview/agent";
 import { chatAgent, webSearchChatAgent } from "@/lib/ai/agents/chat-agent";
 import { courseGenerationAgent } from "@/lib/ai/agents/course-generation/agent";
 import { ragService } from "@/lib/ai/rag";
-import { checkRateLimit, createRateLimitResponse, trackAIUsage } from "@/lib/ai/rate-limit";
-import { createAgentUIStreamResponse, smoothStream, pruneMessages, convertToModelMessages } from "ai";
+import {
+  checkRateLimit,
+  createRateLimitResponse,
+  trackAIUsage,
+} from "@/lib/ai/rate-limit";
+import {
+  createAgentUIStreamResponse,
+  smoothStream,
+  pruneMessages,
+  convertToModelMessages,
+} from "ai";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -27,7 +36,12 @@ interface RequestBody {
   messages: any[];
   context?: {
     // 显式意图（绕过 Router）
-    explicitIntent?: "INTERVIEW" | "CHAT" | "EDITOR" | "SEARCH" | "COURSE_GENERATION";
+    explicitIntent?:
+      | "INTERVIEW"
+      | "CHAT"
+      | "EDITOR"
+      | "SEARCH"
+      | "COURSE_GENERATION";
 
     // Interview 上下文
     interviewContext?: {
@@ -39,13 +53,14 @@ interface RequestBody {
 
     // Course Generation 上下文
     courseGenerationContext?: {
-      courseId?: string;
+      id?: string;
       userId?: string;
       goal?: string;
       background?: string;
       targetOutcome?: string;
       cognitiveStyle?: string;
       outlineTitle?: string;
+      outlineData?: any;
       moduleCount?: number;
       totalChapters?: number;
       currentModuleIndex?: number;
@@ -92,7 +107,11 @@ export async function POST(req: Request) {
 
   // 5. 解析请求
   const body: RequestBody = await req.json();
-  const { messages, context = {} } = body;
+  const { messages, context: rawContext = {} } = body;
+
+  // SDK v6 的 context 可能会嵌套在 options.body 中，或者直接在 root
+  // 这里的解析逻辑需要兼容不同的调用方式
+  const context = (rawContext as any).body?.context || rawContext;
 
   // 提取用户输入（用于路由）
   const lastUserMsg = messages.filter((m: any) => m.role === "user").pop();
@@ -136,7 +155,7 @@ export async function POST(req: Request) {
         // Interview Agent options - 加入 userId（用于保存课程画像）
         const interviewOptions = {
           ...context.interviewContext,
-          userId: session.user?.id,  // 用户 ID（后续保存课程画像时使用）
+          userId: session.user?.id, // 用户 ID（后续保存课程画像时使用）
         };
 
         console.log(
@@ -224,18 +243,24 @@ export async function POST(req: Request) {
 
         const courseGenerationOptions = {
           ...context.courseGenerationContext,
-          courseId: context.courseGenerationContext?.courseId || "",
-          userId: context.courseGenerationContext?.userId || session.user?.id || "",
+          id: context.courseGenerationContext?.id || "",
+          userId:
+            context.courseGenerationContext?.userId || session.user?.id || "",
           goal: context.courseGenerationContext?.goal || "",
           background: context.courseGenerationContext?.background || "",
           targetOutcome: context.courseGenerationContext?.targetOutcome || "",
           cognitiveStyle: context.courseGenerationContext?.cognitiveStyle || "",
           outlineTitle: context.courseGenerationContext?.outlineTitle || "",
+          outlineData:
+            context.courseGenerationContext?.outlineData || undefined,
           moduleCount: context.courseGenerationContext?.moduleCount || 0,
           totalChapters: context.courseGenerationContext?.totalChapters || 0,
-          currentModuleIndex: context.courseGenerationContext?.currentModuleIndex || 0,
-          currentChapterIndex: context.courseGenerationContext?.currentChapterIndex || 0,
-          chaptersGenerated: context.courseGenerationContext?.chaptersGenerated || 0,
+          currentModuleIndex:
+            context.courseGenerationContext?.currentModuleIndex || 0,
+          currentChapterIndex:
+            context.courseGenerationContext?.currentChapterIndex || 0,
+          chaptersGenerated:
+            context.courseGenerationContext?.chaptersGenerated || 0,
         };
 
         console.log(
@@ -261,7 +286,10 @@ export async function POST(req: Request) {
           });
           return response;
         } catch (error) {
-          console.error("[AI Gateway] Failed to create course generation response:", error);
+          console.error(
+            "[AI Gateway] Failed to create course generation response:",
+            error,
+          );
           return Response.json(
             {
               error: "课程生成失败",
@@ -283,8 +311,8 @@ export async function POST(req: Request) {
         const modelMessages = await convertToModelMessages(messages);
         const optimizedMessages = pruneMessages({
           messages: modelMessages,
-          reasoning: "none",  // Chat 不需要显示推理，移除以节省 token
-          toolCalls: "before-last-3-messages",  // 只保留最近 3 条的工具调用
+          reasoning: "none", // Chat 不需要显示推理，移除以节省 token
+          toolCalls: "before-last-3-messages", // 只保留最近 3 条的工具调用
           emptyMessages: "remove",
         });
 
@@ -311,7 +339,7 @@ export async function POST(req: Request) {
 
         return createAgentUIStreamResponse({
           agent,
-          uiMessages: optimizedMessages,  // 使用优化后的消息
+          uiMessages: optimizedMessages, // 使用优化后的消息
           options: {
             ragContext,
             ragSources,

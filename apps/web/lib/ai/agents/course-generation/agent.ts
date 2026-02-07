@@ -16,11 +16,7 @@
  * - AI 的推理过程显示给用户（thinking 标签）
  */
 
-import {
-  ToolLoopAgent,
-  InferAgentUIMessage,
-  stepCountIs,
-} from "ai";
+import { ToolLoopAgent, InferAgentUIMessage, stepCountIs } from "ai";
 import { z } from "zod";
 import { chatModel } from "@/lib/ai/registry";
 import { courseGenerationTools } from "@/lib/ai/tools/course-generation";
@@ -31,7 +27,7 @@ import { buildCourseGenerationPrompt } from "@/lib/ai/prompts/course-generation"
  * 维护生成过程的状态
  */
 export const CourseGenerationContextSchema = z.object({
-  courseId: z.string().uuid().describe("课程 ID"),
+  id: z.string().uuid().describe("课程 ID"),
   userId: z.string().uuid().describe("用户 ID"),
 
   // 课程基本信息
@@ -42,6 +38,7 @@ export const CourseGenerationContextSchema = z.object({
 
   // 大纲信息
   outlineTitle: z.string().describe("课程标题"),
+  outlineData: z.any().optional().describe("完整的课程大纲数据"),
   moduleCount: z.number().describe("总模块数"),
   totalChapters: z.number().describe("总章节数"),
 
@@ -66,7 +63,7 @@ export type CourseGenerationContext = z.infer<
  */
 export const courseGenerationAgent = new ToolLoopAgent({
   id: "nexusnote-course-generation",
-  model: chatModel!,  // 已包含 extractReasoningMiddleware
+  model: chatModel!, // 已包含 extractReasoningMiddleware
   tools: courseGenerationTools,
   maxOutputTokens: 8192,
   callOptionsSchema: CourseGenerationContextSchema,
@@ -79,10 +76,7 @@ export const courseGenerationAgent = new ToolLoopAgent({
   prepareCall: ({ options, ...rest }) => {
     const context = (options ?? {}) as CourseGenerationContext;
 
-    console.log(
-      "[Course Generation Agent] prepareCall with context:",
-      context,
-    );
+    console.log("[Course Generation Agent] prepareCall with context:", context);
 
     // 动态构建 System Prompt
     const instructions = buildCourseGenerationPrompt(context);
@@ -93,8 +87,7 @@ export const courseGenerationAgent = new ToolLoopAgent({
     );
 
     // 检查生成进度
-    const isComplete =
-      context.chaptersGenerated >= context.totalChapters;
+    const isComplete = context.chaptersGenerated >= context.totalChapters;
 
     console.log("[Course Generation Agent] Generation status:", {
       totalChapters: context.totalChapters,
@@ -102,35 +95,36 @@ export const courseGenerationAgent = new ToolLoopAgent({
       isComplete,
     });
 
-    // 当所有章节生成完毕时停止
     if (isComplete) {
       console.log("[Course Generation Agent] ✅ Generation complete");
       return {
         ...rest,
-        instructions,
-        temperature: 0.8,
-        // 停止条件：调用完工具后立即停止
+        instructions:
+          "所有章节已生成完毕。请总结课程亮点，并鼓励学生开始学习。",
         stopWhen: stepCountIs(1),
       };
     }
 
-    // 生成过程中：AI 自由决策是否调用 saveChapterContent
     return {
       ...rest,
       instructions,
-      temperature: 0.8,
+      stopWhen: ({ steps }) => {
+        // 当 AI 调用了保存章节或标记完成的工具后，立即停止
+        const lastStep = steps[steps.length - 1];
+        return (
+          lastStep.toolCalls?.some(
+            (tc: any) =>
+              tc.toolName === "saveChapterContent" ||
+              tc.toolName === "markGenerationComplete",
+          ) ?? false
+        );
+      },
     };
   },
 });
 
 /**
- * 导出类型
- *
- * 使用方式：
- * ```typescript
- * import { type CourseGenerationAgentMessage } from '@/lib/ai/agents/course-generation/agent'
- * const { messages } = useChat<CourseGenerationAgentMessage>({ transport })
- * ```
+ * 导出类型：客户端 useChat 泛型参数
  */
 export type CourseGenerationAgentMessage = InferAgentUIMessage<
   typeof courseGenerationAgent

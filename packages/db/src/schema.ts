@@ -154,7 +154,6 @@ export const courseProfiles = pgTable(
     userId: uuid("user_id").references(() => users.id, {
       onDelete: "cascade",
     }),
-    courseId: uuid("course_id").notNull().unique(), // 唯一课程 ID
 
     // 用户画像维度（Interview Agent 收集）
     goal: text("goal").notNull(), // 学什么
@@ -186,7 +185,6 @@ export const courseProfiles = pgTable(
   },
   (table) => ({
     userIdIdx: index("course_profiles_user_id_idx").on(table.userId),
-    courseIdIdx: index("course_profiles_course_id_idx").on(table.courseId),
   }),
 );
 
@@ -195,7 +193,7 @@ export const courseChapters = pgTable(
   "course_chapters",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    courseId: uuid("course_id").references(() => courseProfiles.courseId, {
+    profileId: uuid("profile_id").references(() => courseProfiles.id, {
       onDelete: "cascade",
     }),
     chapterIndex: integer("chapter_index").notNull(),
@@ -214,7 +212,7 @@ export const courseChapters = pgTable(
     updatedAt: timestamp("updated_at").defaultNow(),
   },
   (table) => ({
-    courseIdIdx: index("course_chapters_course_id_idx").on(table.courseId),
+    profileIdIdx: index("course_chapters_profile_id_idx").on(table.profileId),
     chapterIdx: index("course_chapters_chapter_idx").on(table.chapterIndex),
   }),
 );

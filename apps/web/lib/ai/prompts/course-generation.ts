@@ -13,8 +13,6 @@ import type { CourseGenerationContext } from "@/lib/ai/agents/course-generation/
 export function buildCourseGenerationPrompt(
   context: CourseGenerationContext,
 ): string {
-  const BASE_PERSONA = `你是一位优秀的课程设计师和内容创作者。能够根据学生的学习风格和背景，创作高质量、易理解的课程内容。`;
-
   const LEARNING_PROFILE = `
 【学生背景】
 - 学习目标: ${context.goal}
@@ -23,7 +21,7 @@ export function buildCourseGenerationPrompt(
 - 学习风格: ${context.cognitiveStyle}
 
 【课程信息】
-- 课程 ID: ${context.courseId}
+- 课程 ID: ${context.id}
 - 课程名称: ${context.outlineTitle}
 - 总模块数: ${context.moduleCount}
 - 总章节数: ${context.totalChapters}`;
@@ -34,58 +32,55 @@ export function buildCourseGenerationPrompt(
 - 当前模块: ${context.currentModuleIndex + 1}/${context.moduleCount}
 - 当前章节: ${context.currentChapterIndex + 1}`;
 
+  const BASE_PERSONA = `你是一位顶尖的 AI 课程架构师。你不仅精通文字创作，还擅长利用多模态工具（如插图生成）和高级 Markdown 渲染（如 Mermaid 图表、KaTeX 公式）来构建沉浸式的学习体验。`;
+
+  const REASONING_INSTRUCTIONS = `
+【思考要求】
+在每次回复或调用工具前，请先在 <thinking> 标签内进行深度的思考和规划。
+思考内容应包括：
+1. 当前生成的是哪个章节，其在整体大纲中的位置。
+2. 如何根据学生的背景（${context.background}）和风格（${context.cognitiveStyle}）定制内容。
+3. 哪些概念适合用插图展示，哪些逻辑适合用 Mermaid 图表，哪些公式需要 KaTeX。
+4. 规划接下来的工具调用序列。
+注意：<thinking> 标签内的内容将通过中间件提取并展示在 UI 的“AI 思考过程”区域。`;
+
   const TOOLS_INSTRUCTIONS = `
+【课程大纲】
+${JSON.stringify(context.outlineData, null, 2)}
+
 【工具使用说明】
-当生成完一个章节的内容后，调用 saveChapterContent 工具保存内容，参数包括：
-- courseId: ${context.courseId}
-- chapterIndex: 章节索引（从 0 开始）
-- sectionIndex: 小节索引（从 0 开始）
-- title: 章节标题
-- contentMarkdown: 完整的 Markdown 格式内容（至少 200 字）
+1. **进度检查**：当你开始任务或者不确定当前进度时，请先调用 checkGenerationProgress 工具。
+2. **多模态增强**：
+   - 使用 generateIllustration 工具为核心概念生成高质量的配图。
+   - 在 Markdown 中以 \`![描述](url)\` 格式插入图片。
+   - 建议每个章节至少包含一张有意义的插图。
+3. **内容保存**：生成完章节内容（包含文本、图片、图表）后，调用 saveChapterContent 保存。
+4. **完成标记**：当所有章节生成完毕，调用 markGenerationComplete。
 
-当所有章节都生成完毕后，调用 markGenerationComplete 工具标记完成。`;
+【Markdown 高级渲染】
+请积极使用以下语法增强内容：
+- **图表**：使用 Mermaid 语法，如 \`\`\`mermaid ... \`\`\`
+- **公式**：使用 LaTeX 语法，如 \`$E=mc^2$\` 或 \`$$\sum...$$\`
+- **提示块**：使用 Callout 语法，如 \`> [!INFO] 提示内容\`
 
-  const TASK = buildGenerationTask(context);
+【按需生成模式 (On-Demand Mode)】
+你现在的任务是**仅生成用户当前正在查看的章节**。不要一次性批量生成。
+严格根据 context 中的 currentChapterIndex 确定生成目标。
 
-  return `${BASE_PERSONA}\n\n${LEARNING_PROFILE}\n\n${PROGRESS}\n\n${TOOLS_INSTRUCTIONS}\n\n${TASK}`;
-}
+注意：
+1. 确保章节索引（chapterIndex）和标题与课程大纲严格对应。
+2. 内容质量必须保持在 200 字以上。
+3. 生成并调用 saveChapterContent 保存后，即可停止，等待用户进入下一章。
 
-/**
- * 根据生成进度注入不同的任务指令
- */
-function buildGenerationTask(context: CourseGenerationContext): string {
-  const isFirstChapter = context.chaptersGenerated === 0;
-  const isLastChapter =
-    context.chaptersGenerated >= context.totalChapters - 1;
+参数包括：
+- profileId: ${context.id}
+- chapterIndex: ${context.currentChapterIndex}
+- sectionIndex: 0
+- title: 从大纲中获取的对应标题
+- contentMarkdown: 完整的 Markdown 格式内容（至少 200 字，包含插图和图表）`;
 
-  if (isFirstChapter) {
-    return `【任务】生成第一章节内容。
-要求:
-1. 简短但充满吸引力的开场（100-200字）
-2. 核心概念解释（根据学生背景调整深度）
-3. 实际例子或场景应用
-4. 本章学习成果预告
+  const TASK = `【任务】生成第 ${context.currentChapterIndex + 1} 章节的内容。
+请先进行 <thinking> 思考，然后利用插图和图表丰富内容，最后调用 saveChapterContent。`;
 
-调用 saveChapterContent 工具保存内容。`;
-  }
-
-  if (isLastChapter) {
-    return `【任务】生成最后一章节内容，同时准备总结。
-要求:
-1. 承上启下的过渡
-2. 核心内容讲解
-3. 和前面章节的关联和总结
-4. 学完本章后学生将达成的目标
-
-调用 saveChapterContent 工具保存，然后调用 markGenerationComplete。`;
-  }
-
-  return `【任务】继续生成课程章节内容。
-要求:
-1. 自然承接上一章节
-2. 深入讲解当前章节的核心概念
-3. 结合学生的学习风格提供相关例子或练习
-4. 为下一章节做准备
-
-调用 saveChapterContent 工具保存内容。`;
+  return `${BASE_PERSONA}\n\n${REASONING_INSTRUCTIONS}\n\n${LEARNING_PROFILE}\n\n${PROGRESS}\n\n${TOOLS_INSTRUCTIONS}\n\n${TASK}`;
 }

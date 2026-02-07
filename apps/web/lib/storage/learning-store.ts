@@ -41,8 +41,12 @@ export class LearningStore {
   /**
    * 创建学习内容（从 AI 生成的大纲）
    */
-  async createFromOutline(outline: CourseOutline, type: LearningContentType = 'course'): Promise<LocalLearningContent> {
-    const contentId = uuid()
+  async createFromOutline(
+    outline: CourseOutline,
+    type: LearningContentType = 'course',
+    id?: string
+  ): Promise<LocalLearningContent> {
+    const contentId = id || uuid()
     const now = Date.now()
 
     // 创建学习内容记录

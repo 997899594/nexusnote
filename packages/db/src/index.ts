@@ -11,13 +11,6 @@ const isServer = typeof window === "undefined";
 
 const connectionString = isServer ? env.DATABASE_URL : "";
 
-// Debug Logging
-if (isServer && env.NODE_ENV !== "production") {
-  console.log("--- DB CONNECTION DEBUG ---");
-  console.log("DATABASE_URL:", connectionString);
-  console.log("---------------------------");
-}
-
 // Use a global variable to store the connection in development
 // to prevent multiple connections during hot reloading
 const globalForDb = globalThis as unknown as {

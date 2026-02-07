@@ -1,18 +1,34 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { ReadOnlyOutlineEditor } from "@/components/create/ReadOnlyOutlineEditor";
 import { UnifiedChatUI } from "@/components/ai/UnifiedChatUI";
-import type { InterviewAgentMessage } from "@/lib/ai/agents/interview/agent";
+import { MessageResponse } from "@/components/ai/Message";
+import {
+  QuizResult,
+  MindMapView,
+  SummaryResult,
+  WebSearchResult,
+} from "@/components/ai/ui";
+import type { CourseGenerationAgentMessage } from "@/lib/ai/agents/course-generation/agent";
 import type { OutlineData } from "@/lib/ai/profile/course-profile";
-import { ChevronLeft, Zap } from "lucide-react";
+import {
+  ChevronLeft,
+  MessageSquare,
+  Sparkles,
+  ArrowRight,
+  ArrowLeft,
+  Menu,
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { markdownToHtml } from "@/lib/editor/markdown";
+import { OrganicHeader } from "@/components/create/OrganicHeader";
 
 interface CourseProfile {
   id: string;
   userId: string | null;
-  courseId: string;
   goal: string;
   background: string;
   targetOutcome: string;
@@ -40,11 +56,17 @@ export default function LearnPageClient({
   courseId,
   initialProfile,
 }: LearnPageClientProps) {
-  const [courseProfile, setCourseProfile] = useState<CourseProfile>(initialProfile);
-  const [currentChapterIndex, setCurrentChapterIndex] = useState(0);
+  const [courseProfile] = useState<CourseProfile>(initialProfile);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [currentChapterIndex, setCurrentChapterIndex] = useState(
+    courseProfile.currentChapter || 0,
+  );
   const [chapters, setChapters] = useState<any[]>([]);
   const [isLoadingChapters, setIsLoadingChapters] = useState(true);
   const [isGenerationComplete, setIsGenerationComplete] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isChatOpen, setIsChatOpen] = useState(true);
 
   // Load course chapters initially
   useEffect(() => {
@@ -64,16 +86,71 @@ export default function LearnPageClient({
     loadChapters();
   }, [courseId]);
 
-  // 课程大纲中的总章节数（不需要每次重新计算）
+  // 1. 路由优先：当章节列表加载完成，或 URL 参数变化时，同步当前索引
+  useEffect(() => {
+    const chapterIdFromUrl = searchParams.get("chapterId");
+    if (chapters.length > 0) {
+      if (chapterIdFromUrl) {
+        const index = chapters.findIndex((c) => c.id === chapterIdFromUrl);
+        if (index !== -1) {
+          setCurrentChapterIndex(index);
+        }
+      } else {
+        // 如果 URL 没带 ID，默认选中第一个已生成的章节
+        const firstGenerated = [...chapters].sort(
+          (a, b) => a.chapterIndex - b.chapterIndex,
+        )[0];
+        if (firstGenerated) {
+          setCurrentChapterIndex(firstGenerated.chapterIndex);
+        }
+      }
+    }
+  }, [chapters, searchParams]);
+
+  // 2. 状态同步：当用户切换章节时，静默更新 URL
+  useEffect(() => {
+    const currentChapter = chapters.find(
+      (c) => c.chapterIndex === currentChapterIndex,
+    );
+    if (currentChapter?.id) {
+      const newUrl = `${window.location.pathname}?chapterId=${currentChapter.id}`;
+      // 使用 replaceState 静默更新 URL，不触发页面刷新
+      window.history.replaceState(
+        { ...window.history.state, as: newUrl, url: newUrl },
+        "",
+        newUrl,
+      );
+    }
+  }, [currentChapterIndex, chapters]);
+
+  // 3. 自动聚焦：当新的章节生成且当前处于等待状态时，自动切换
+  useEffect(() => {
+    if (
+      chapters.length > 0 &&
+      !chapters.some((c) => c.chapterIndex === currentChapterIndex)
+    ) {
+      // 如果当前选中的索引还没生成，但已经有其他章节生成了（比如首章预生成完成）
+      const available = chapters.map((c) => c.chapterIndex);
+      if (available.includes(0) && currentChapterIndex === 0) {
+        // 保持在第 0 章，触发重渲染即可
+      }
+    }
+  }, [chapters, currentChapterIndex]);
+
+  // 课程大纲中的总章节数
   const totalChapters = useMemo(() => {
-    return courseProfile.outlineData.modules?.reduce(
-      (sum, m) => sum + (m.chapters?.length || 0),
-      0
-    ) || 0;
+    return (
+      courseProfile.outlineData.modules?.reduce(
+        (sum, m) => sum + (m.chapters?.length || 0),
+        0,
+      ) || 0
+    );
   }, [courseProfile.outlineData.modules]);
 
-  // 定期刷新章节列表（当新章节被生成时）
+  // 定期刷新章节列表
   useEffect(() => {
+    if (isGenerationComplete) return;
+
     const interval = setInterval(async () => {
       try {
         const res = await fetch(`/api/courses/${courseId}/chapters`);
@@ -81,7 +158,6 @@ export default function LearnPageClient({
         const data = await res.json();
         setChapters(data.chapters);
 
-        // 检查是否所有章节都已生成
         if (data.chapters.length >= totalChapters) {
           setIsGenerationComplete(true);
           clearInterval(interval);
@@ -89,186 +165,737 @@ export default function LearnPageClient({
       } catch (err) {
         console.error("[LearnPageClient] Failed to refresh chapters:", err);
       }
-    }, 2000); // 每 2 秒检查一次
+    }, 3000);
 
     return () => clearInterval(interval);
-  }, [courseId, totalChapters]);
+  }, [courseId, totalChapters, isGenerationComplete]);
 
-  // Chat setup for course-specific assistant
+  // Chat setup
   const chatTransport = useMemo(
     () => new DefaultChatTransport({ api: "/api/ai" }),
     [],
   );
 
-  const { messages, sendMessage, status, error } = useChat<InterviewAgentMessage>({
-    transport: chatTransport,
-  });
+  const { messages, sendMessage, status } =
+    useChat<CourseGenerationAgentMessage>({
+      transport: chatTransport,
+    });
 
-  const isLoading = status === "streaming" || status === "submitted";
+  // 架构师重构：按需生成驱动逻辑 (On-Demand Generation)
+  // 当用户选中的章节不存在时，才触发生成
+  useEffect(() => {
+    if (isLoadingChapters || status !== "ready") return;
 
-  // Course outline from profile
+    // 检查当前选中的章节是否已生成
+    const isCurrentChapterGenerated = chapters.some(
+      (c) => c.chapterIndex === currentChapterIndex,
+    );
+
+    // 如果未生成，则触发当前章节的生成
+    if (!isCurrentChapterGenerated) {
+      console.log(
+        `[On-Demand] Triggering generation for selected Chapter ${currentChapterIndex}...`,
+      );
+
+      sendMessage(
+        {
+          text: `请生成第 ${currentChapterIndex + 1} 章的内容。`,
+        },
+        {
+          body: {
+            context: {
+              explicitIntent: "COURSE_GENERATION",
+              courseGenerationContext: {
+                id: courseId,
+                userId: courseProfile.userId,
+                goal: courseProfile.goal,
+                background: courseProfile.background,
+                targetOutcome: courseProfile.targetOutcome,
+                cognitiveStyle: courseProfile.cognitiveStyle,
+                outlineTitle: courseProfile.title,
+                outlineData: courseProfile.outlineData,
+                moduleCount: courseProfile.outlineData.modules?.length || 0,
+                totalChapters: totalChapters,
+                currentChapterIndex: currentChapterIndex, // 精确生成当前选中的章节
+                chaptersGenerated: chapters.length,
+              },
+            },
+          },
+        },
+      );
+    }
+  }, [
+    courseId,
+    isLoadingChapters,
+    currentChapterIndex, // 核心触发点：用户点击切换章节
+    chapters,
+    status,
+    totalChapters,
+    courseProfile,
+    sendMessage,
+  ]);
+
+  const isChatLoading = status === "streaming" || status === "submitted";
   const outline = courseProfile.outlineData;
+  const currentChapter = chapters.find(
+    (c) => c.chapterIndex === currentChapterIndex,
+  );
 
-  // Current chapter content
-  const currentChapter = chapters[currentChapterIndex];
+  // 提取当前章节正在生成的思考过程
+  const currentThinking = useMemo(() => {
+    if (status !== "streaming" && status !== "submitted") return null;
+    const lastMessage = messages[messages.length - 1];
+    return (lastMessage as any)?.reasoning || null;
+  }, [messages, status]);
+
+  // 渲染工具输出结果 UI
+  const renderToolOutput = (
+    toolName: string,
+    output: unknown,
+    _toolCallId: string,
+  ) => {
+    const res = output as Record<string, unknown>;
+    if (!res) return null;
+
+    switch (toolName) {
+      case "generateQuiz":
+        if (res.success && res.quiz) {
+          const quiz = res.quiz as {
+            topic: string;
+            difficulty: string;
+            questions?: any[];
+          };
+          // 如果工具已经返回了题目，直接渲染 QuizResult
+          if (quiz.questions && quiz.questions.length > 0) {
+            return (
+              <QuizResult
+                topic={quiz.topic}
+                difficulty={quiz.difficulty}
+                questions={quiz.questions}
+              />
+            );
+          }
+          // 否则渲染一个提示卡片
+          return (
+            <div className="p-3 bg-violet-50 dark:bg-violet-950/30 rounded-xl border border-violet-200 dark:border-violet-800">
+              <p className="text-xs font-medium text-violet-700 dark:text-violet-300">
+                📝 生成测验：{quiz.topic}
+              </p>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                难度：
+                {quiz.difficulty === "easy"
+                  ? "简单"
+                  : quiz.difficulty === "hard"
+                    ? "困难"
+                    : "中等"}
+              </p>
+            </div>
+          );
+        }
+        break;
+
+      case "mindMap":
+        if (res.success && res.mindMap) {
+          const mm = res.mindMap as {
+            topic: string;
+            nodes?: any[];
+            layout: string;
+          };
+          if (mm.nodes && mm.nodes.length > 0) {
+            return (
+              <div className="h-[400px] w-full">
+                <MindMapView
+                  topic={mm.topic}
+                  nodes={mm.nodes}
+                  layout={mm.layout as any}
+                />
+              </div>
+            );
+          }
+          return (
+            <div className="p-3 bg-indigo-50 dark:bg-indigo-950/30 rounded-xl border border-indigo-200 dark:border-indigo-800">
+              <p className="text-xs font-medium text-indigo-700 dark:text-indigo-300">
+                🧠 思维导图：{mm.topic}
+              </p>
+            </div>
+          );
+        }
+        break;
+
+      case "summarize":
+        if (res.success && res.summary) {
+          const s = res.summary as any;
+          return (
+            <SummaryResult
+              content={s.content || ""}
+              sourceLength={s.sourceLength || 0}
+              style={s.style || "bullet_points"}
+              length={s.length || "medium"}
+            />
+          );
+        }
+        break;
+
+      case "searchWeb":
+        if (res.success) {
+          return (
+            <WebSearchResult
+              query={res.query as string}
+              answer={res.answer as string | undefined}
+              results={(res.results as any[]) || []}
+              searchDepth={(res.searchDepth as any) || "basic"}
+            />
+          );
+        }
+        break;
+    }
+    return null;
+  };
+
+  // Convert markdown to HTML for display
+  const chapterHtml = useMemo(() => {
+    if (!currentChapter?.contentMarkdown) return null;
+    return markdownToHtml(currentChapter.contentMarkdown);
+  }, [currentChapter]);
+
+  // 2026 现代化组件：思考轨迹显示
+  const ThinkingTrail = ({ thinking }: { thinking: string | null }) => {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-12 p-8 bg-gradient-to-br from-black/[0.03] to-transparent border border-black/[0.05] rounded-[2rem] relative overflow-hidden group backdrop-blur-sm"
+      >
+        {/* 动态流动背景 */}
+        <div className="absolute inset-0 opacity-20 pointer-events-none">
+          <motion.div
+            animate={{
+              background: [
+                "radial-gradient(circle at 0% 0%, rgba(0,0,0,0.1) 0%, transparent 50%)",
+                "radial-gradient(circle at 100% 100%, rgba(0,0,0,0.1) 0%, transparent 50%)",
+                "radial-gradient(circle at 0% 0%, rgba(0,0,0,0.1) 0%, transparent 50%)",
+              ],
+            }}
+            transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+            className="w-full h-full"
+          />
+        </div>
+
+        <div className="flex items-center justify-between mb-6 relative z-10">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center shadow-lg shadow-black/20">
+              <Sparkles className="w-4 h-4 text-white animate-pulse" />
+            </div>
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-black block leading-none">
+                AI Cognitive Stream
+              </span>
+              <span className="text-[10px] font-bold text-black/30 uppercase tracking-widest mt-1 block">
+                2026 Fluid Knowledge Engine
+              </span>
+            </div>
+          </div>
+
+          <div className="flex gap-1">
+            {[0, 1, 2].map((i) => (
+              <motion.div
+                key={i}
+                animate={{ scale: [1, 1.2, 1], opacity: [0.4, 1, 0.4] }}
+                transition={{ duration: 2, repeat: Infinity, delay: i * 0.3 }}
+                className="w-1 h-1 bg-black/40 rounded-full"
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className="relative z-10">
+          {thinking ? (
+            <p className="text-base text-black/70 italic leading-relaxed font-medium font-serif">
+              "{thinking}"
+            </p>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <div className="h-4 bg-black/5 rounded-full w-3/4 animate-pulse" />
+              <div className="h-4 bg-black/5 rounded-full w-1/2 animate-pulse" />
+            </div>
+          )}
+        </div>
+      </motion.div>
+    );
+  };
 
   return (
-    <div className="min-h-screen bg-[#FDFDFD] flex flex-col">
-      {/* Header */}
-      <header className="border-b border-gray-200 bg-white sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold text-gray-900">{outline.title}</h1>
-            <p className="text-sm text-gray-600 mt-1">{outline.description}</p>
-          </div>
-          <a
-            href="/create"
-            className="ml-4 px-4 py-2 text-gray-700 hover:text-gray-900 flex items-center gap-2"
-          >
-            <ChevronLeft className="w-4 h-4" />
-            返回
-          </a>
-        </div>
-      </header>
+    <div className="min-h-screen bg-[#FDFDFD] relative overflow-hidden font-sans selection:bg-black/10 selection:text-black flex flex-col">
+      {/* Organic Noise Texture */}
+      <div
+        className="absolute inset-0 z-0 opacity-[0.02] pointer-events-none"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+        }}
+      />
 
-      {/* Main Content */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left: Course Outline */}
-          <div className="lg:col-span-2">
-            <ReadOnlyOutlineEditor outline={outline} />
-          </div>
+      <OrganicHeader />
 
-          {/* Right: Chat Assistant */}
-          <div className="lg:col-span-1 flex flex-col gap-4">
-            {/* Chapter Navigation */}
-            {chapters.length > 0 && (
-              <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">
-                  章节内容 ({chapters.length})
-                </h3>
-                <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {chapters.map((chapter, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setCurrentChapterIndex(idx)}
-                      className={`w-full text-left px-3 py-2 rounded text-sm transition-colors ${
-                        idx === currentChapterIndex
-                          ? "bg-black text-white"
-                          : "bg-gray-100 text-gray-900 hover:bg-gray-200"
-                      }`}
-                    >
-                      <div className="font-medium">{chapter.title}</div>
-                      <div className="text-xs opacity-75 mt-0.5">
-                        Chapter {chapter.chapterIndex} • Section {chapter.sectionIndex}
-                      </div>
-                    </button>
-                  ))}
+      <div className="flex-1 flex relative z-10 pt-16 overflow-hidden">
+        {/* Left Sidebar: Navigation */}
+        <AnimatePresence mode="wait">
+          {isSidebarOpen && (
+            <motion.aside
+              initial={{ x: -300, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -300, opacity: 0 }}
+              className="w-80 border-r border-black/[0.04] bg-white/40 backdrop-blur-2xl flex flex-col z-30"
+            >
+              <div className="p-8 border-b border-black/[0.04]">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-[10px] font-black text-black/30 uppercase tracking-[0.2em]">
+                    Course Syllabus
+                  </h2>
+                  <div className="px-2 py-0.5 rounded bg-black/5 text-[10px] font-bold text-black/40">
+                    2026 EDITION
+                  </div>
                 </div>
 
-                {isLoadingChapters && (
-                  <div className="text-center py-4 text-sm text-gray-500">
-                    加载章节中...
+                <h3 className="text-xl font-black text-black leading-tight mb-6">
+                  {courseProfile.title}
+                </h3>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest mb-1">
+                    <span className="text-black">Overall Progress</span>
+                    <span className="text-black/40">
+                      {Math.round((chapters.length / totalChapters) * 100)}%
+                    </span>
                   </div>
-                )}
+                  <div className="h-1 bg-black/5 rounded-full overflow-hidden">
+                    <motion.div
+                      className="h-full bg-black"
+                      initial={{ width: 0 }}
+                      animate={{
+                        width: `${(chapters.length / totalChapters) * 100}%`,
+                      }}
+                      transition={{ duration: 1, ease: "circOut" }}
+                    />
+                  </div>
+                </div>
               </div>
-            )}
 
-            {/* Course Chat */}
-            <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col">
-              <div className="px-4 py-3 border-b border-gray-200 flex-shrink-0">
-                <h3 className="text-sm font-semibold text-gray-900">学习助手</h3>
-              </div>
+              <nav className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                {outline.modules?.map((module, mIdx) => (
+                  <div key={mIdx} className="mb-10 last:mb-0">
+                    <div className="px-4 mb-4 flex items-center gap-3">
+                      <span className="text-[10px] font-black text-black uppercase tracking-[0.2em]">
+                        {String(mIdx + 1).padStart(2, "0")}
+                      </span>
+                      <h4 className="text-[10px] font-black text-black/20 uppercase tracking-[0.1em] truncate">
+                        {module.title}
+                      </h4>
+                    </div>
 
-              <UnifiedChatUI
-                messages={messages}
-                isLoading={isLoading}
-                input=""
-                onInputChange={() => {}}
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  sendMessage(
-                    { text: "继续" },
-                    {
-                      body: {
-                        context: {
-                          explicitIntent: "CHAT",
-                          enableTools: true,
-                        },
-                      },
-                    }
-                  );
-                }}
-                variant="chat"
-                placeholder="提问关于课程内容的问题..."
-                renderMessage={(message, text) => (
-                  <div className="px-3 py-2 text-xs">
-                    <div className={message.role === "user" ? "text-right" : "text-left"}>
-                      <div
-                        className={`inline-block px-3 py-1 rounded-lg ${
-                          message.role === "user"
-                            ? "bg-black text-white"
-                            : "bg-gray-100 text-gray-900"
-                        }`}
-                      >
-                        {text}
-                      </div>
+                    <div className="space-y-1">
+                      {module.chapters.map((chapter, cIdx) => {
+                        const chapterGlobalIdx =
+                          outline
+                            .modules!.slice(0, mIdx)
+                            .reduce((sum, m) => sum + m.chapters.length, 0) +
+                          cIdx;
+
+                        const isGenerated = chapters.some(
+                          (c) => c.chapterIndex === chapterGlobalIdx,
+                        );
+                        const isActive =
+                          currentChapterIndex === chapterGlobalIdx;
+
+                        return (
+                          <button
+                            key={cIdx}
+                            onClick={() =>
+                              setCurrentChapterIndex(chapterGlobalIdx)
+                            }
+                            className={`w-full group flex items-center gap-4 px-4 py-3 rounded-2xl transition-all duration-500 relative ${
+                              isActive
+                                ? "bg-black text-white shadow-2xl shadow-black/20 translate-x-1"
+                                : isGenerated
+                                  ? "hover:bg-black/[0.03] text-black/60 hover:text-black"
+                                  : "opacity-30 grayscale cursor-not-allowed"
+                            }`}
+                          >
+                            <div className="relative flex-shrink-0">
+                              {isGenerated ? (
+                                <div
+                                  className={`w-2 h-2 rounded-full ${isActive ? "bg-white" : "bg-black/20 group-hover:bg-black"}`}
+                                />
+                              ) : (
+                                <div className="w-2 h-2 rounded-full border border-black/10" />
+                              )}
+                            </div>
+
+                            <div className="flex-1 text-left min-w-0">
+                              <div className="text-sm font-bold truncate">
+                                {chapter.title}
+                              </div>
+                            </div>
+
+                            {isActive && (
+                              <motion.div
+                                layoutId="active-indicator"
+                                className="absolute left-0 w-1 h-4 bg-white rounded-full -translate-x-0.5"
+                              />
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
-                )}
-                renderEmpty={() => (
-                  <div className="flex items-center justify-center h-full text-gray-400 text-sm">
-                    有问题？问助手
-                  </div>
-                )}
-              />
-            </div>
+                ))}
+              </nav>
 
-            {/* Current Chapter Preview */}
-            {currentChapter && (
-              <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
-                <h4 className="font-semibold text-gray-900 mb-2 text-sm">
-                  当前章节
-                </h4>
-                <h5 className="font-bold text-gray-900 mb-2">{currentChapter.title}</h5>
-                <div className="prose prose-sm max-w-none text-gray-700">
-                  <p className="text-xs whitespace-pre-wrap line-clamp-4">
-                    {currentChapter.contentMarkdown || "正在生成内容..."}
-                  </p>
-                </div>
-                <button className="mt-4 w-full px-4 py-2 bg-black text-white text-sm font-medium rounded hover:bg-gray-800 transition-colors">
-                  阅读完整内容
+              <div className="p-6 mt-auto">
+                <button
+                  onClick={() => router.push("/create")}
+                  className="flex items-center justify-center gap-3 w-full py-4 rounded-2xl bg-black/5 hover:bg-black text-black/40 hover:text-white text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-500 group"
+                >
+                  <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                  Exit To Lab
                 </button>
               </div>
-            )}
+            </motion.aside>
+          )}
+        </AnimatePresence>
 
-            {/* Course Generation Status */}
-            {!isGenerationComplete && chapters.length < totalChapters && (
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow-sm p-4 border border-blue-200">
-                <div className="flex items-start gap-3">
-                  <Zap className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0 animate-pulse" />
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-blue-900 text-sm">
-                      正在生成课程内容
-                    </h4>
-                    <p className="text-xs text-blue-700 mt-1">
-                      {chapters.length} / {totalChapters} 章节已生成
-                    </p>
-                  </div>
+        {/* Main Content Area */}
+        <main className="flex-1 flex flex-col relative overflow-hidden bg-white">
+          {/* Content Header */}
+          <header className="h-16 border-b border-black/[0.04] flex items-center justify-between px-8 bg-white/80 backdrop-blur-md sticky top-0 z-20">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className="p-2 rounded-lg hover:bg-black/5 text-black/40 hover:text-black transition-colors"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+              <div className="h-4 w-px bg-black/10 mx-2" />
+              <div className="flex flex-col">
+                <div className="text-[10px] font-bold text-black/30 uppercase tracking-widest leading-none mb-1">
+                  正在学习
                 </div>
+                <h1 className="text-sm font-bold text-black truncate max-w-[400px]">
+                  {currentChapter?.title || "等待内容生成..."}
+                </h1>
               </div>
-            )}
+            </div>
 
-            {isGenerationComplete && (
-              <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg shadow-sm p-4 border border-green-200">
-                <p className="font-semibold text-green-900 text-sm">
-                  ✅ 课程生成完毕！现在可以开始学习了。
-                </p>
-              </div>
-            )}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setIsChatOpen(!isChatOpen)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all ${
+                  isChatOpen
+                    ? "bg-black text-white shadow-lg shadow-black/10"
+                    : "bg-black/5 text-black/60 hover:bg-black/10"
+                }`}
+              >
+                <Sparkles
+                  className={`w-3.5 h-3.5 ${isChatOpen ? "animate-pulse" : ""}`}
+                />
+                智能助手
+              </button>
+            </div>
+          </header>
+
+          <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar bg-[#F9F9F9]">
+            <div className="mx-auto max-w-4xl px-12 py-20">
+              <AnimatePresence mode="wait">
+                {isLoadingChapters && chapters.length === 0 ? (
+                  <motion.div
+                    key="loading-state"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="min-h-[60vh] flex flex-col items-center justify-center"
+                  >
+                    <ThinkingTrail thinking={currentThinking} />
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key={currentChapterIndex}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                    className="space-y-16"
+                  >
+                    {!currentChapter ? (
+                      <div className="flex flex-col items-center justify-center py-20 text-center">
+                        <ThinkingTrail thinking={currentThinking} />
+                        <div className="mt-8 space-y-2">
+                          <h3 className="text-2xl font-black text-black tracking-tight">
+                            正在为您编排知识...
+                          </h3>
+                          <p className="text-black/40 text-sm font-medium">
+                            AI 正在构建第 {currentChapterIndex + 1}{" "}
+                            章节的深度内容
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <article className="relative">
+                        {/* 章节标题系统 */}
+                        <div className="mb-20 space-y-8">
+                          <div className="flex items-center gap-4">
+                            <span className="px-3 py-1 rounded-full bg-black text-[10px] font-black text-white uppercase tracking-[0.2em]">
+                              Chapter {currentChapterIndex + 1}
+                            </span>
+                            <div className="h-px flex-1 bg-black/5" />
+                            <span className="text-[10px] font-bold text-black/30 uppercase tracking-widest">
+                              {Math.round(
+                                currentChapter.contentMarkdown.length / 500,
+                              )}{" "}
+                              min read
+                            </span>
+                          </div>
+
+                          <h1 className="text-6xl font-black text-black tracking-tighter leading-[1.1]">
+                            {currentChapter.title}
+                          </h1>
+
+                          <div className="flex items-center gap-6 pt-4">
+                            <div className="flex -space-x-2">
+                              {[0, 1, 2].map((i) => (
+                                <div
+                                  key={i}
+                                  className="w-8 h-8 rounded-full border-2 border-white bg-black/5 overflow-hidden"
+                                >
+                                  <img
+                                    src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${i + 10}`}
+                                    alt="avatar"
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                            <div className="text-[10px] font-bold text-black/40 uppercase tracking-widest">
+                              Jointly Synthesized by{" "}
+                              <span className="text-black">Nexus AI</span> &{" "}
+                              <span className="text-black">You</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 正文内容 - 2026 Fluid Typography */}
+                        <div
+                          className="prose prose-zinc prose-xl max-w-none 
+                            prose-headings:font-black prose-headings:tracking-tighter prose-headings:text-black
+                            prose-p:text-black/80 prose-p:leading-[1.9] prose-p:font-serif prose-p:mb-8
+                            prose-strong:text-black prose-strong:font-black
+                            prose-code:bg-black/5 prose-code:text-black prose-code:px-2 prose-code:py-0.5 prose-code:rounded-lg prose-code:before:content-none prose-code:after:content-none
+                            prose-img:rounded-[2.5rem] prose-img:shadow-[0_40px_80px_-15px_rgba(0,0,0,0.1)] prose-img:my-16
+                            prose-blockquote:border-l-4 prose-blockquote:border-black prose-blockquote:pl-8 prose-blockquote:italic prose-blockquote:text-2xl prose-blockquote:font-serif prose-blockquote:text-black/60
+                            selection:bg-black selection:text-white"
+                          dangerouslySetInnerHTML={{
+                            __html: chapterHtml || "",
+                          }}
+                        />
+
+                        {/* 思考轨迹 (如果仍在生成中) */}
+                        {isChatLoading && (
+                          <div className="mt-16">
+                            <ThinkingTrail thinking={currentThinking} />
+                          </div>
+                        )}
+
+                        {/* 章节导航 - 极简主义设计 */}
+                        <div className="mt-32 pt-16 border-t border-black/[0.05] flex items-center justify-between">
+                          <button
+                            onClick={() =>
+                              currentChapterIndex > 0 &&
+                              setCurrentChapterIndex(currentChapterIndex - 1)
+                            }
+                            disabled={currentChapterIndex === 0}
+                            className="group flex items-center gap-6 disabled:opacity-20"
+                          >
+                            <div className="w-14 h-14 rounded-full border border-black/10 flex items-center justify-center group-hover:bg-black group-hover:text-white transition-all duration-500">
+                              <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                            </div>
+                            <div className="text-left">
+                              <div className="text-[10px] font-black uppercase tracking-widest text-black/30">
+                                Previous
+                              </div>
+                              <div className="text-lg font-bold text-black">
+                                上一章节
+                              </div>
+                            </div>
+                          </button>
+
+                          <div className="hidden md:flex flex-col items-center">
+                            <div className="text-[10px] font-black text-black/20 uppercase tracking-[0.3em] mb-2">
+                              Progress
+                            </div>
+                            <div className="flex gap-1">
+                              {Array.from({ length: totalChapters }).map(
+                                (_, i) => (
+                                  <div
+                                    key={i}
+                                    className={`w-1.5 h-1.5 rounded-full transition-all duration-500 ${
+                                      i === currentChapterIndex
+                                        ? "w-6 bg-black"
+                                        : i < chapters.length
+                                          ? "bg-black/20"
+                                          : "bg-black/5"
+                                    }`}
+                                  />
+                                ),
+                              )}
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() =>
+                              currentChapterIndex < totalChapters - 1 &&
+                              setCurrentChapterIndex(currentChapterIndex + 1)
+                            }
+                            disabled={currentChapterIndex === totalChapters - 1}
+                            className="group flex items-center gap-6 text-right disabled:opacity-20"
+                          >
+                            <div className="text-right">
+                              <div className="text-[10px] font-black uppercase tracking-widest text-black/30">
+                                Next
+                              </div>
+                              <div className="text-lg font-bold text-black">
+                                下一章节
+                              </div>
+                            </div>
+                            <div className="w-14 h-14 rounded-full bg-black text-white flex items-center justify-center shadow-2xl shadow-black/20 group-hover:scale-110 transition-all duration-500">
+                              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                            </div>
+                          </button>
+                        </div>
+                      </article>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
-        </div>
-      </main>
+        </main>
+
+        {/* Right Sidebar: Chat */}
+        <AnimatePresence>
+          {isChatOpen && (
+            <motion.aside
+              initial={{ x: 400, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: 400, opacity: 0 }}
+              className="w-96 border-l border-black/[0.06] bg-white/50 backdrop-blur-xl flex flex-col"
+            >
+              <div className="p-6 border-b border-black/[0.04] flex items-center justify-between">
+                <h2 className="text-sm font-bold text-black flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-black/40" />
+                  智能辅助
+                </h2>
+                <button
+                  onClick={() => setIsChatOpen(false)}
+                  className="p-1.5 rounded-lg hover:bg-black/5 text-black/20 hover:text-black transition-colors"
+                >
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="flex-1 flex flex-col min-h-0">
+                <UnifiedChatUI
+                  messages={messages}
+                  isLoading={isChatLoading}
+                  input=""
+                  onInputChange={() => {}}
+                  renderToolOutput={renderToolOutput}
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    // 在学习页面，如果章节还没生成完，聊天默认走 COURSE_GENERATION
+                    // 如果生成完了，走普通 CHAT
+                    const isGenerating = chapters.length < totalChapters;
+
+                    sendMessage(
+                      { text: "根据当前内容帮我总结一下" },
+                      {
+                        body: {
+                          context: {
+                            explicitIntent: isGenerating
+                              ? "COURSE_GENERATION"
+                              : "CHAT",
+                            enableTools: true,
+                            courseGenerationContext: isGenerating
+                              ? {
+                                  id: courseId,
+                                  userId: courseProfile.userId,
+                                  goal: courseProfile.goal,
+                                  background: courseProfile.background,
+                                  targetOutcome: courseProfile.targetOutcome,
+                                  cognitiveStyle: courseProfile.cognitiveStyle,
+                                  outlineTitle: courseProfile.title,
+                                  outlineData: courseProfile.outlineData,
+                                  moduleCount:
+                                    courseProfile.outlineData.modules?.length ||
+                                    0,
+                                  totalChapters: totalChapters,
+                                  chaptersGenerated: chapters.length,
+                                }
+                              : undefined,
+                          },
+                        },
+                      },
+                    );
+                  }}
+                  variant="chat"
+                  placeholder="针对当前章节提问..."
+                  renderMessage={(message, text) => (
+                    <div
+                      className={`px-4 py-3 ${message.role === "user" ? "bg-black/5" : "bg-white"}`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[10px] font-bold text-black/20 uppercase">
+                          {message.role === "user" ? "You" : "Nexus AI"}
+                        </span>
+                      </div>
+                      <div className="text-sm text-black/80 leading-relaxed prose prose-sm max-w-none">
+                        {text ? (
+                          <MessageResponse>{text}</MessageResponse>
+                        ) : (
+                          <p className="text-black/40 italic">思考中...</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  renderEmpty={() => (
+                    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
+                      <div className="w-12 h-12 rounded-2xl bg-black/5 flex items-center justify-center">
+                        <MessageSquare className="w-6 h-6 text-black/20" />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-bold text-black">
+                          有什么疑问吗？
+                        </p>
+                        <p className="text-xs text-black/40 leading-relaxed">
+                          AI 随时为您解答当前章节的难点，或者帮您生成练习题。
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-1 gap-2 w-full pt-4">
+                        {["核心要点总结", "帮我出几道题", "深入解释一下"].map(
+                          (q) => (
+                            <button
+                              key={q}
+                              className="text-left px-4 py-2.5 rounded-xl bg-black/5 hover:bg-black text-black/60 hover:text-white text-[11px] font-bold transition-all"
+                            >
+                              {q}
+                            </button>
+                          ),
+                        )}
+                      </div>
+                    </div>
+                  )}
+                />
+              </div>
+            </motion.aside>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }

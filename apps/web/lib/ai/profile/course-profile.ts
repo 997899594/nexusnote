@@ -28,17 +28,19 @@ export const OutlineSchema = z.object({
   description: z.string(),
   difficulty: z.enum(["beginner", "intermediate", "advanced"]),
   estimatedMinutes: z.number().min(30),
-  modules: z.array(
-    z.object({
-      title: z.string(),
-      chapters: z.array(
-        z.object({
-          title: z.string(),
-          contentSnippet: z.string().optional(),
-        })
-      ),
-    })
-  ).optional(),
+  modules: z
+    .array(
+      z.object({
+        title: z.string(),
+        chapters: z.array(
+          z.object({
+            title: z.string(),
+            contentSnippet: z.string().optional(),
+          }),
+        ),
+      }),
+    )
+    .optional(),
   reason: z.string().optional(),
 });
 
@@ -49,7 +51,7 @@ export type OutlineData = z.infer<typeof OutlineSchema>;
  */
 export const CourseProfileSchema = z.object({
   userId: z.string().uuid(),
-  courseId: z.string().uuid(),
+  id: z.string().uuid(), // 统一使用 id
   goal: z.string(),
   background: z.string(),
   targetOutcome: z.string(),
@@ -63,28 +65,31 @@ export type CourseProfile = z.infer<typeof CourseProfileSchema>;
 /**
  * 保存课程画像（Interview Agent 调用）
  *
- * 返回：courseId（用于跳转到 /learn/[courseId]）
+ * 返回：id（用于跳转到 /learn/[id]）
  */
 export async function saveCourseProfile({
   userId,
+  id: providedId,
   goal,
   background,
   targetOutcome,
   cognitiveStyle,
   outlineData,
   designReason,
-}: Omit<CourseProfile, "courseId"> & { outlineData: OutlineData }) {
-  // 生成新的 courseId
-  const courseId = crypto.randomUUID();
+}: Partial<Pick<CourseProfile, "id">> &
+  Omit<CourseProfile, "id"> & {
+    outlineData: OutlineData;
+  }) {
+  // 使用提供的 id 或生成新的
+  const id = providedId || crypto.randomUUID();
 
   // 转换大纲为 Markdown 格式（便于流式渲染到 Tiptap）
   const outlineMarkdown = convertOutlineToMarkdown(outlineData);
 
   try {
     await db.insert(courseProfiles).values({
-      id: crypto.randomUUID(),
+      id,
       userId,
-      courseId,
       goal,
       background,
       targetOutcome,
@@ -98,8 +103,8 @@ export async function saveCourseProfile({
       designReason,
     });
 
-    console.log(`[Course Profile] 保存课程画像: ${courseId}`);
-    return courseId;
+    console.log(`[Course Profile] 保存课程画像: ${id}`);
+    return id;
   } catch (error) {
     console.error("[Course Profile] 保存失败:", error);
     throw error;
@@ -113,14 +118,14 @@ export async function saveCourseProfile({
  * - /learn 页面初始化
  * - 后续 Agent 需要用户背景信息时
  */
-export async function getCourseProfile(courseId: string) {
+export async function getCourseProfile(id: string) {
   try {
     const result = await db.query.courseProfiles.findFirst({
-      where: eq(courseProfiles.courseId, courseId),
+      where: eq(courseProfiles.id, id),
     });
 
     if (!result) {
-      throw new Error(`课程不存在: ${courseId}`);
+      throw new Error(`课程不存在: ${id}`);
     }
 
     return {
@@ -139,14 +144,14 @@ export async function getCourseProfile(courseId: string) {
  * 用途：/learn 页面更新当前章节
  */
 export async function updateCourseProgress(
-  courseId: string,
+  id: string,
   {
     currentChapter,
     currentSection,
   }: {
     currentChapter: number;
     currentSection: number;
-  }
+  },
 ) {
   try {
     await db
@@ -156,10 +161,10 @@ export async function updateCourseProgress(
         currentSection,
         updatedAt: new Date(),
       })
-      .where(eq(courseProfiles.courseId, courseId));
+      .where(eq(courseProfiles.id, id));
 
     console.log(
-      `[Course Profile] 更新进度: ${currentChapter}-${currentSection}`
+      `[Course Profile] 更新进度: ${currentChapter}-${currentSection}`,
     );
   } catch (error) {
     console.error("[Course Profile] 更新失败:", error);
@@ -173,13 +178,13 @@ export async function updateCourseProgress(
  * 用途：生成的课程内容流式保存到数据库
  */
 export async function saveCourseChapter({
-  courseId,
+  profileId,
   chapterIndex,
   sectionIndex,
   title,
   contentMarkdown,
 }: {
-  courseId: string;
+  profileId: string;
   chapterIndex: number;
   sectionIndex: number;
   title: string;
@@ -190,9 +195,9 @@ export async function saveCourseChapter({
     const existing = await db.query.courseChapters.findFirst({
       where: (t, { and, eq }) =>
         and(
-          eq(t.courseId, courseId),
+          eq(t.profileId, profileId),
           eq(t.chapterIndex, chapterIndex),
-          eq(t.sectionIndex, sectionIndex)
+          eq(t.sectionIndex, sectionIndex),
         ),
     });
 
@@ -208,7 +213,7 @@ export async function saveCourseChapter({
     } else {
       await db.insert(courseChapters).values({
         id: crypto.randomUUID(),
-        courseId,
+        profileId,
         chapterIndex,
         sectionIndex,
         title,
@@ -216,8 +221,19 @@ export async function saveCourseChapter({
       });
     }
 
+    // 系统级改进：保存章节后，自动同步推进课程主表的进度
+    // 这确保了 profile.currentChapter 始终反映真实的生成进度
+    await db
+      .update(courseProfiles)
+      .set({
+        currentChapter: chapterIndex,
+        currentSection: sectionIndex,
+        updatedAt: new Date(),
+      })
+      .where(eq(courseProfiles.id, profileId));
+
     console.log(
-      `[Course Chapter] 保存内容: Chapter ${chapterIndex} Section ${sectionIndex}`
+      `[Course Chapter] Atomic Save: Profile ${profileId} progressed to ${chapterIndex}-${sectionIndex}`,
     );
   } catch (error) {
     console.error("[Course Chapter] 保存失败:", error);
@@ -230,10 +246,10 @@ export async function saveCourseChapter({
  *
  * 返回：按章节索引排序的内容，用于 Tiptap 渲染
  */
-export async function getCourseChapters(courseId: string) {
+export async function getCourseChapters(profileId: string) {
   try {
     const chapters = await db.query.courseChapters.findMany({
-      where: eq(courseChapters.courseId, courseId),
+      where: eq(courseChapters.profileId, profileId),
       orderBy: (t) => [t.chapterIndex, t.sectionIndex],
     });
 
@@ -248,17 +264,17 @@ export async function getCourseChapters(courseId: string) {
  * 获取特定章节内容
  */
 export async function getCourseChapter(
-  courseId: string,
+  profileId: string,
   chapterIndex: number,
-  sectionIndex: number
+  sectionIndex: number,
 ) {
   try {
     const chapter = await db.query.courseChapters.findFirst({
       where: (t, { and, eq }) =>
         and(
-          eq(t.courseId, courseId),
+          eq(t.profileId, profileId),
           eq(t.chapterIndex, chapterIndex),
-          eq(t.sectionIndex, sectionIndex)
+          eq(t.sectionIndex, sectionIndex),
         ),
     });
 

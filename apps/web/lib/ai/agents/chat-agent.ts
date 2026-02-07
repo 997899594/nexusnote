@@ -6,31 +6,40 @@
  * 导出 InferAgentUIMessage 类型供客户端类型安全渲染
  */
 
-import { ToolLoopAgent, InferAgentUIMessage, smoothStream, stepCountIs } from 'ai'
-import { z } from 'zod'
-import { chatModel, webSearchModel } from '@/lib/ai/registry'
-import { skills } from '@/lib/ai/tools/chat'
-import { editorSkills } from '@/lib/ai/tools/chat/editor'
-import { learningSkills } from '@/lib/ai/tools/chat/learning'
-import { webSearchSkills } from '@/lib/ai/tools/chat/web'
+import {
+  ToolLoopAgent,
+  InferAgentUIMessage,
+  smoothStream,
+  stepCountIs,
+} from "ai";
+import { z } from "zod";
+import { chatModel, webSearchModel } from "@/lib/ai/registry";
+import { skills } from "@/lib/ai/tools/chat";
+import { editorSkills } from "@/lib/ai/tools/chat/editor";
+import { learningSkills } from "@/lib/ai/tools/chat/learning";
+import { webSearchSkills } from "@/lib/ai/tools/chat/web";
 
 /**
  * 调用选项：路由层传入的动态上下文
  */
 const ChatCallOptionsSchema = z.object({
   ragContext: z.string().optional(),
-  ragSources: z.array(z.object({
-    documentId: z.string(),
-    title: z.string(),
-  })).optional(),
+  ragSources: z
+    .array(
+      z.object({
+        documentId: z.string(),
+        title: z.string(),
+      }),
+    )
+    .optional(),
   documentContext: z.string().optional(),
   documentStructure: z.string().optional(),
   editMode: z.boolean().optional(),
   enableTools: z.boolean().optional(),
   enableWebSearch: z.boolean().optional(),
-})
+});
 
-export type ChatCallOptions = z.infer<typeof ChatCallOptionsSchema>
+export type ChatCallOptions = z.infer<typeof ChatCallOptionsSchema>;
 
 /**
  * 所有 chat 工具的合集
@@ -40,15 +49,21 @@ export const chatTools = {
   ...editorSkills,
   ...learningSkills,
   ...webSearchSkills,
-}
+};
 
 /**
  * 根据调用上下文构建 system prompt
  */
 export function buildInstructions(options: ChatCallOptions): string {
-  const { ragContext, ragSources, documentContext, documentStructure, editMode } = options
+  const {
+    ragContext,
+    ragSources,
+    documentContext,
+    documentStructure,
+    editMode,
+  } = options;
 
-  let prompt = ''
+  let prompt = "";
 
   if (documentContext && ragContext) {
     prompt = `你是 NexusNote 知识库助手。
@@ -63,7 +78,7 @@ ${ragContext}
 1. 如果用户问的是当前文档相关的问题，优先基于"当前文档内容"回答
 2. 如果需要补充信息，可以参考"知识库相关内容"
 3. 引用知识库内容时，使用 [1], [2] 等标记
-4. 保持回答简洁、专业`
+4. 保持回答简洁、专业`;
   } else if (documentContext) {
     if (editMode && documentStructure) {
       prompt = `你是 NexusNote 文档编辑助手。
@@ -88,13 +103,13 @@ ${documentContext}
 
 ## 注意
 - 如果用户只是提问而不是请求编辑，正常回答即可
-- 对于复杂的长文本生成，保持流式输出以提供更好的体验`
+- 对于复杂的长文本生成，保持流式输出以提供更好的体验`;
     } else {
       prompt = `你是 NexusNote 知识库助手。当前文档内容如下：
 
 ${documentContext}
 
-请基于上述文档内容回答用户问题。`
+请基于上述文档内容回答用户问题。`;
     }
   } else if (ragContext) {
     prompt = `你是 NexusNote 知识库助手。请根据以下知识库内容回答用户问题。
@@ -104,7 +119,7 @@ ${ragContext}
 
 ## 回答规则
 1. 优先使用知识库中的信息回答
-2. 引用知识库内容时，使用 [1], [2] 等标记`
+2. 引用知识库内容时，使用 [1], [2] 等标记`;
   } else {
     prompt = `你是 NexusNote 的智能助手，帮助用户进行写作、整理知识和学习。
 
@@ -132,21 +147,31 @@ ${ragContext}
 ## 特殊场景处理
 
 - **长内容创作**: 如果用户要求扩写、续写或生成新章节，请务必调用 \`draftContent\` 工具，让前端渲染预览卡片，而不要直接在回复中输出长文本。
-- **信息查询**: 如果知识库中有答案，优先使用知识库。仅在知识库信息不足或用户明确要求最新信息时，才使用 \`searchWeb\`。`
+- **信息查询**: 如果知识库中有答案，优先使用知识库。仅在知识库信息不足或用户明确要求最新信息时，才使用 \`searchWeb\`。
+
+## 联网搜索触发协议（防止幻觉）
+
+当满足以下任一条件时，你应该主动调用 \`searchWeb\` 而不是依赖内置知识：
+1. **时效性敏感**: 涉及 2024 年及以后的事件、软件版本（如 Next.js 15, React 19）、政策法规或新闻。
+2. **确定性怀疑**: 当你需要陈述一个具体的 API 语法、库名、人名、日期或统计数据，但你无法在知识库中找到确切对应时。
+3. **专业名词确认**: 遇到不熟悉的缩写、黑话或新兴技术术语。
+4. **事实冲突**: 当用户的描述与你的内置知识存在冲突时，不要急于纠正用户，先联网核实。
+
+**原则：宁可多搜一次，不可胡编乱造。**`;
   }
 
   if (ragSources && ragSources.length > 0) {
-    prompt += `\n\n---\n参考来源：${ragSources.map(s => s.title).join(', ')}`
+    prompt += `\n\n---\n参考来源：${ragSources.map((s) => s.title).join(", ")}`;
   }
 
-  return prompt
+  return prompt;
 }
 
 /**
  * Chat Agent 定义
  */
 export const chatAgent = new ToolLoopAgent({
-  id: 'nexusnote-chat',
+  id: "nexusnote-chat",
   model: chatModel!,
   tools: chatTools,
   maxOutputTokens: 4096,
@@ -155,25 +180,25 @@ export const chatAgent = new ToolLoopAgent({
 
   // prepareCall: 根据 callOptions 动态调整 instructions 和 activeTools
   prepareCall: ({ options, ...rest }) => {
-    const callOptions = (options ?? {}) as ChatCallOptions
-    const instructions = buildInstructions(callOptions)
+    const callOptions = (options ?? {}) as ChatCallOptions;
+    const instructions = buildInstructions(callOptions);
 
     // 编辑模式：仅启用编辑工具
     // 禁用工具模式：不启用任何工具
-    let activeTools: Array<keyof typeof chatTools> | undefined
+    let activeTools: Array<keyof typeof chatTools> | undefined;
     if (callOptions.editMode) {
-      activeTools = ['editDocument', 'batchEdit', 'draftContent']
+      activeTools = ["editDocument", "batchEdit", "draftContent"];
     } else if (callOptions.enableTools === false) {
-      activeTools = [] // 空数组 = 无工具
+      activeTools = []; // 空数组 = 无工具
     }
 
     return {
       ...rest,
       instructions,
       activeTools,
-    }
+    };
   },
-})
+});
 
 /**
  * Web Search Chat Agent - 使用 302.ai 原生联网搜索模型
@@ -183,27 +208,30 @@ export const chatAgent = new ToolLoopAgent({
  */
 export const webSearchChatAgent = webSearchModel
   ? new ToolLoopAgent({
-      id: 'nexusnote-chat-web',
+      id: "nexusnote-chat-web",
       model: webSearchModel,
       tools: chatTools,
       maxOutputTokens: 4096,
       callOptionsSchema: ChatCallOptionsSchema,
       stopWhen: stepCountIs(3),
       prepareCall: ({ options, ...rest }) => {
-        const callOptions = (options ?? {}) as ChatCallOptions
-        const instructions = buildInstructions({ ...callOptions, enableWebSearch: true })
+        const callOptions = (options ?? {}) as ChatCallOptions;
+        const instructions = buildInstructions({
+          ...callOptions,
+          enableWebSearch: true,
+        });
 
-        let activeTools: Array<keyof typeof chatTools> | undefined
+        let activeTools: Array<keyof typeof chatTools> | undefined;
         if (callOptions.editMode) {
-          activeTools = ['editDocument', 'batchEdit']
+          activeTools = ["editDocument", "batchEdit"];
         } else if (callOptions.enableTools === false) {
-          activeTools = []
+          activeTools = [];
         }
 
-        return { ...rest, instructions, activeTools }
+        return { ...rest, instructions, activeTools };
       },
     })
-  : null
+  : null;
 
 /**
  * 导出类型：客户端 useChat 泛型参数
@@ -216,4 +244,4 @@ export const webSearchChatAgent = webSearchModel
  * // 'tool-editDocument' | 'tool-batchEdit' | 'tool-createFlashcards' | ...
  * ```
  */
-export type ChatAgentMessage = InferAgentUIMessage<typeof chatAgent>
+export type ChatAgentMessage = InferAgentUIMessage<typeof chatAgent>;

@@ -12,7 +12,70 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import { saveCourseChapter } from "@/lib/ai/profile/course-profile";
+import {
+  saveCourseChapter,
+  getCourseChapters,
+} from "@/lib/ai/profile/course-profile";
+import { generateIllustrationTool } from "./multimodal";
+import { generateQuiz, mindMap } from "./chat/learning";
+
+/**
+ * checkGenerationProgress - 检查当前课程的生成进度
+ *
+ * 语义：AI 查询数据库中已有的章节，确定下一步该生成什么
+ * 调用时机：生成任务开始时，或者 AI 需要确认进度时
+ */
+export const checkGenerationProgressTool = tool({
+  description: `查询数据库中已有的章节，返回已生成的章节索引列表。用于确定生成任务的起点或断点续传。`,
+  inputSchema: z.object({
+    profileId: z.string().uuid().describe("课程画像 ID"),
+  }),
+
+  execute: async ({ profileId }) => {
+    console.log(`[checkGenerationProgress] 检查画像 ID: ${profileId}`);
+    try {
+      // 架构师改进：直接从数据库获取最真实的章节列表
+      const chapters = await getCourseChapters(profileId);
+      const generatedIndices = chapters
+        .map((c) => c.chapterIndex)
+        .sort((a, b) => a - b);
+
+      console.log(
+        `[checkGenerationProgress] 已生成章节索引:`,
+        generatedIndices,
+      );
+
+      // 计算下一个需要生成的索引
+      let nextIndex = 0;
+      if (generatedIndices.length > 0) {
+        // 寻找缺失的第一个索引，或者返回最大索引 + 1
+        for (let i = 0; i <= Math.max(...generatedIndices); i++) {
+          if (!generatedIndices.includes(i)) {
+            nextIndex = i;
+            break;
+          }
+        }
+        if (nextIndex === 0 && generatedIndices.includes(0)) {
+          nextIndex = Math.max(...generatedIndices) + 1;
+        }
+      }
+
+      return {
+        status: "success",
+        generatedIndices,
+        count: generatedIndices.length,
+        nextToGenerate: nextIndex,
+        isComplete: false, // 由 Agent 根据总数判断
+      };
+    } catch (error) {
+      console.error("[checkGenerationProgress] 检查失败:", error);
+      return {
+        status: "error",
+        message: "查询进度失败",
+      };
+    }
+  },
+});
 
 /**
  * saveChapterContent - 保存课程章节内容到数据库
@@ -21,7 +84,7 @@ import { saveCourseChapter } from "@/lib/ai/profile/course-profile";
  * 调用时机：每生成完一个章节就调用一次
  */
 const saveChapterContentSchema = z.object({
-  courseId: z.string().uuid().describe("课程 ID"),
+  profileId: z.string().uuid().describe("课程画像 ID"),
   chapterIndex: z.number().describe("章节索引（从 0 开始）"),
   sectionIndex: z.number().describe("小节索引（从 0 开始）"),
   title: z.string().describe("章节标题"),
@@ -39,7 +102,7 @@ export const saveChapterContentTool = tool({
     console.log(
       `[saveChapterContent] 保存章节: Chapter ${params.chapterIndex} Section ${params.sectionIndex}`,
     );
-    console.log(`[saveChapterContent] 课程 ID: ${params.courseId}`);
+    console.log(`[saveChapterContent] 画像 ID: ${params.profileId}`);
     console.log(`[saveChapterContent] 标题: ${params.title}`);
     console.log(
       `[saveChapterContent] 内容长度: ${params.contentMarkdown.length} 字符`,
@@ -48,7 +111,7 @@ export const saveChapterContentTool = tool({
     try {
       // 直接在后端执行保存操作到数据库
       await saveCourseChapter({
-        courseId: params.courseId,
+        profileId: params.profileId,
         chapterIndex: params.chapterIndex,
         sectionIndex: params.sectionIndex,
         title: params.title,
@@ -106,8 +169,12 @@ export const markGenerationCompleteTool = tool({
  * 导出所有 Course Generation 工具的集合
  */
 export const courseGenerationTools = {
+  checkGenerationProgress: checkGenerationProgressTool,
   saveChapterContent: saveChapterContentTool,
   markGenerationComplete: markGenerationCompleteTool,
+  generateIllustration: generateIllustrationTool,
+  generateQuiz: generateQuiz,
+  mindMap: mindMap,
 };
 
 /**

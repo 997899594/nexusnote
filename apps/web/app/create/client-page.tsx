@@ -11,6 +11,7 @@ import { OutlineReview } from "@/components/create/OutlineReview";
 import { useSearchParams } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function CreatePageClient() {
   const searchParams = useSearchParams();
@@ -36,6 +37,7 @@ function CreatePageContent({ initialGoal }: CreatePageContentProps) {
     isAiThinking,
     selectedNode,
     setSelectedNode,
+    createdCourseId,
     messages,
     error,
   } = ui;
@@ -64,6 +66,10 @@ function CreatePageContent({ initialGoal }: CreatePageContentProps) {
           const userId = session.user?.id;
           if (!userId) return;
 
+          // Generate a unified ID early if not already set
+          const unifiedId = courseId || crypto.randomUUID();
+          if (!courseId) setCourseId(unifiedId);
+
           const outlineData = {
             title: outline.title,
             description: outline.description,
@@ -77,6 +83,7 @@ function CreatePageContent({ initialGoal }: CreatePageContentProps) {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
+              id: unifiedId, // Pass the unified ID to backend
               goal: context.goal!,
               background: context.background!,
               targetOutcome: context.targetOutcome!,
@@ -88,12 +95,14 @@ function CreatePageContent({ initialGoal }: CreatePageContentProps) {
 
           if (!res.ok) throw new Error("Failed to save course profile");
           const data = await res.json();
-          const id = data.courseId;
+          const id = data.courseId; // This should be the same as unifiedId
 
           console.log("[CreatePageContent] Course profile saved:", id);
-          setCourseId(id);
         } catch (err) {
-          console.error("[CreatePageContent] Failed to save course profile:", err);
+          console.error(
+            "[CreatePageContent] Failed to save course profile:",
+            err,
+          );
         }
       };
 
@@ -111,8 +120,12 @@ function CreatePageContent({ initialGoal }: CreatePageContentProps) {
         progress={Math.min(messages.length / 8, 1)}
       />
 
-      {/* Header */}
-      <OrganicHeader />
+      {/* Header - Hide or dim when reviewing outline to focus */}
+      <div
+        className={`transition-opacity duration-500 ${phase === "outline_review" || phase === "manifesting" ? "opacity-0 pointer-events-none" : "opacity-100"}`}
+      >
+        <OrganicHeader />
+      </div>
 
       <main className="relative z-10 w-full h-screen flex items-center justify-center overflow-hidden">
         {/* Phase 1: Interview - Full screen chat */}
@@ -132,27 +145,44 @@ function CreatePageContent({ initialGoal }: CreatePageContentProps) {
         )}
 
         {/* Phase 2: Outline Review - Show after generateOutline */}
-        {phase === "outline_review" && outline && (
-          <div className="absolute inset-0 z-[150] flex items-center justify-center p-6 bg-white/50 backdrop-blur-sm">
-            <OutlineReview
-              outline={outline}
-              onConfirm={confirmOutline}
-              onRefine={(feedback) => handleSendMessage(undefined, feedback)}
-              isThinking={isAiThinking}
-              messages={messages}
-            />
-          </div>
-        )}
+        <AnimatePresence>
+          {phase === "outline_review" && outline && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0, scale: 0.95, filter: "blur(10px)" }}
+              transition={{ duration: 0.5 }}
+              className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:p-8 bg-[#FDFDFD]/80 backdrop-blur-xl"
+            >
+              <OutlineReview
+                outline={outline}
+                onConfirm={(finalOutline) =>
+                  confirmOutline(finalOutline, courseId || undefined)
+                }
+                onRefine={(feedback) => handleSendMessage(undefined, feedback)}
+                isThinking={isAiThinking}
+                messages={messages}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Graph Visualization (Seeding, Growing, Ready Phases) */}
         {(phase === "seeding" || phase === "growing" || phase === "ready") && (
-          <NexusGraph
-            nodes={nodes}
-            selectedNode={selectedNode}
-            onNodeClick={setSelectedNode}
-            phase={phase}
-            goal={goal}
-          />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.1, filter: "blur(20px)" }}
+            className="w-full h-full"
+          >
+            <NexusGraph
+              nodes={nodes}
+              selectedNode={selectedNode}
+              onNodeClick={setSelectedNode}
+              phase={phase}
+              goal={goal}
+            />
+          </motion.div>
         )}
       </main>
 

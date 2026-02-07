@@ -230,26 +230,39 @@ export const CommandList = forwardRef<CommandListRef, CommandListProps>(
 
     if (items.length === 0) {
       return (
-        <div className="bg-background border rounded-lg shadow-lg p-2 text-sm text-muted-foreground">
-          No results
+        <div className="bg-white/80 backdrop-blur-3xl border border-black/[0.03] rounded-[24px] shadow-2xl p-4 text-[10px] font-black uppercase tracking-widest text-black/20 ring-1 ring-black/[0.02]">
+          No results found
         </div>
       )
     }
 
     return (
-      <div className="bg-background border rounded-lg shadow-lg p-1 min-w-[200px] max-h-[300px] overflow-auto">
+      <div className="bg-white/80 backdrop-blur-3xl border border-black/[0.03] rounded-[24px] shadow-2xl p-2 min-w-[240px] max-h-[400px] overflow-y-auto custom-scrollbar ring-1 ring-black/[0.02]">
+        <div className="px-3 py-2 mb-1">
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-black/20">Quick Commands</span>
+        </div>
         {items.map((item, index) => (
           <button
             key={item.title}
             onClick={() => selectItem(index)}
-            className={`w-full text-left px-3 py-2 rounded flex items-center gap-3 ${
-              index === selectedIndex ? 'bg-muted' : 'hover:bg-muted/50'
+            className={`w-full text-left px-3 py-2.5 rounded-2xl flex items-center gap-4 transition-all duration-300 group ${
+              index === selectedIndex 
+                ? 'bg-black text-white shadow-xl shadow-black/10 scale-[1.02]' 
+                : 'hover:bg-black/5 text-black/60 hover:text-black'
             }`}
           >
-            <span className="text-muted-foreground">{item.icon}</span>
-            <div>
-              <div className="text-sm font-medium">{item.title}</div>
-              <div className="text-xs text-muted-foreground">{item.description}</div>
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
+              index === selectedIndex ? 'bg-white/10' : 'bg-black/5 group-hover:bg-black/10'
+            }`}>
+              {item.icon}
+            </div>
+            <div className="flex flex-col">
+              <div className="text-[11px] font-black uppercase tracking-widest">{item.title}</div>
+              <div className={`text-[9px] font-medium leading-tight mt-0.5 ${
+                index === selectedIndex ? 'text-white/40' : 'text-black/30'
+              }`}>
+                {item.description}
+              </div>
             </div>
           </button>
         ))}

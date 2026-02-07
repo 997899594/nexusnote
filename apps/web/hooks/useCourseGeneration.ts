@@ -12,18 +12,21 @@ import { CourseNode } from "@/lib/types/course";
 import { useRouter } from "next/navigation";
 import { learningStore } from "@/lib/storage";
 import type { CourseOutline as StoreCourseOutline } from "@/lib/storage/learning-store";
-import type { InterviewAgentMessage, InterviewContext } from "@/lib/ai/agents/interview/agent";
+import type {
+  InterviewAgentMessage,
+  InterviewContext,
+} from "@/lib/ai/agents/interview/agent";
 
 // ============================================
 // Constants
 // ============================================
 
 const PHASE_TRANSITION_DELAYS = {
-  synthesis: 2000,
-  seeding: 2000,
-  growing: 1500,
-  ready: 3000,
-  manifesting: 4000,
+  synthesis: 1500,
+  seeding: 1200,
+  growing: 1000,
+  ready: 1500,
+  manifesting: 2500,
 } as const;
 
 const STORAGE_KEY = "nexusnote-course-gen-v1";
@@ -66,6 +69,7 @@ interface State {
   context: InterviewContext; // Use shared InterviewContext type
   nodes: CourseNode[];
   outline: CourseOutline | null;
+  id?: string; // Unified ID
 }
 
 type Action =
@@ -73,6 +77,7 @@ type Action =
   | { type: "UPDATE_CONTEXT"; payload: Partial<InterviewContext> }
   | { type: "SET_NODES"; payload: CourseNode[] }
   | { type: "SET_OUTLINE"; payload: CourseOutline }
+  | { type: "SET_ID"; payload: string }
   | { type: "TRANSITION"; payload: Phase }
   | { type: "RESTORE"; payload: Partial<State> }
   | {
@@ -109,6 +114,8 @@ function reducer(state: State, action: Action): State {
       return { ...state, nodes: action.payload };
     case "SET_OUTLINE":
       return { ...state, outline: action.payload };
+    case "SET_ID":
+      return { ...state, id: action.payload };
     case "TRANSITION":
       return { ...state, phase: action.payload };
     case "RESTORE":
@@ -398,8 +405,9 @@ export function useCourseGeneration(initialGoal: string = "") {
 
           try {
             // 从 modules 或 chapters 中提取章节，转换为 learningStore 要求的格式
-            const allChapters: Chapter[] = data.chapters
-              || (data.modules ? data.modules.flatMap((m) => m.chapters) : []);
+            const allChapters: Chapter[] =
+              data.chapters ||
+              (data.modules ? data.modules.flatMap((m) => m.chapters) : []);
 
             const storeOutline: StoreCourseOutline = {
               title: data.title,
@@ -413,8 +421,45 @@ export function useCourseGeneration(initialGoal: string = "") {
               })),
             };
 
-            const course = await learningStore.createFromOutline(storeOutline);
+            const course = await learningStore.createFromOutline(
+              storeOutline,
+              "course",
+              state.id,
+            );
             setCreatedCourseId(course.id);
+
+            // 架构师优化：大纲确认后立即触发后台并行生成 (Parallel Seeding)
+            // 无需等待用户跳转到学习页面，提前预热首章节内容
+            // 使用 keepalive: true 确保即使页面跳转，请求也能在后台完成
+            console.log(
+              `[useCourseGeneration] 🚀 启动首章节后台预生成: ${course.id}`,
+            );
+            fetch("/api/ai", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              keepalive: true, // 关键：确保跳转后请求不中断
+              body: JSON.stringify({
+                messages: [{ role: "user", content: "请生成第 1 章的内容。" }],
+                context: {
+                  explicitIntent: "COURSE_GENERATION",
+                  courseGenerationContext: {
+                    id: course.id,
+                    goal: state.context.goal,
+                    background: state.context.background,
+                    targetOutcome: state.context.targetOutcome,
+                    cognitiveStyle: state.context.cognitiveStyle,
+                    outlineTitle: data.title,
+                    outlineData: data,
+                    moduleCount: data.modules?.length || 0,
+                    totalChapters: allChapters.length,
+                    currentChapterIndex: 0,
+                    chaptersGenerated: 0,
+                  },
+                },
+              }),
+            }).catch((err) =>
+              console.error("[useCourseGeneration] 后台生成启动失败:", err),
+            );
           } catch (e) {
             console.error("Failed to persist course:", e);
           }
@@ -479,7 +524,7 @@ export function useCourseGeneration(initialGoal: string = "") {
       case "manifesting":
         timer = setTimeout(() => {
           if (createdCourseId) {
-            router.push(`/editor/${createdCourseId}`);
+            router.push(`/learn/${createdCourseId}`);
           } else {
             console.error(
               "[useCourseGeneration] No course ID found, cannot redirect",
@@ -493,7 +538,10 @@ export function useCourseGeneration(initialGoal: string = "") {
     };
   }, [state.phase, createdCourseId, router]);
 
-  const confirmOutline = async (finalOutline: CourseOutline) => {
+  const confirmOutline = async (finalOutline: CourseOutline, id?: string) => {
+    if (id) {
+      dispatch({ type: "SET_ID", payload: id });
+    }
     dispatch({ type: "SET_OUTLINE", payload: finalOutline });
     dispatch({ type: "TRANSITION", payload: "synthesis" });
   };
@@ -506,6 +554,7 @@ export function useCourseGeneration(initialGoal: string = "") {
       isAiThinking: isLoading || isStarting,
       selectedNode,
       setSelectedNode,
+      createdCourseId,
       messages: messages, // Native useChat messages!
       error: error ? error.message : null,
     },

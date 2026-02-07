@@ -12,37 +12,35 @@ function TopicCard({ topic, onClick }: { topic: Topic; onClick: () => void }) {
   return (
     <motion.div
       layout
-      className="p-3 bg-card border rounded-lg hover:shadow-md transition-shadow cursor-pointer group"
-      whileHover={{ scale: 1.02 }}
+      className="p-5 bg-white/40 backdrop-blur-xl border border-black/[0.03] rounded-[24px] hover:shadow-xl hover:shadow-black/[0.02] transition-all cursor-pointer group relative overflow-hidden"
+      whileHover={{ y: -2 }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
     >
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="font-medium text-sm truncate flex-1">{topic.name}</h3>
-        <div className="flex items-center gap-1">
-          <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+      <div className="flex items-center justify-between mb-3 relative z-10">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-black/5 flex items-center justify-center group-hover:bg-black group-hover:text-white transition-all">
+            <BookOpen className="w-4 h-4" />
+          </div>
+          <h3 className="font-black text-sm tracking-tight truncate max-w-[140px] text-black/80">{topic.name}</h3>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-black bg-black text-white px-2 py-1 rounded-lg shadow-lg shadow-black/10">
             {topic.noteCount}
           </span>
-          <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+          <ChevronRight className="w-4 h-4 text-black/20 group-hover:text-black group-hover:translate-x-1 transition-all" />
         </div>
       </div>
 
       {/* Recent note preview */}
       {topic.recentNotes && topic.recentNotes.length > 0 && (
-        <p className="text-xs text-muted-foreground line-clamp-2">
+        <p className="text-[11px] text-black/40 line-clamp-2 font-medium leading-relaxed relative z-10">
           {topic.recentNotes[0].content}
         </p>
       )}
 
-      {/* Heat bar */}
-      <div className="mt-2 h-1 bg-muted rounded-full overflow-hidden">
-        <motion.div
-          className="h-full bg-primary/60 rounded-full"
-          initial={{ width: 0 }}
-          animate={{ width: `${Math.min(topic.noteCount * 10, 100)}%` }}
-          transition={{ duration: 0.5, ease: 'easeOut' }}
-        />
-      </div>
+      {/* Background Glow */}
+      <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-black/[0.01] rounded-full blur-2xl group-hover:bg-black/[0.03] transition-colors" />
     </motion.div>
   )
 }
@@ -53,20 +51,34 @@ function TopicCard({ topic, onClick }: { topic: Topic; onClick: () => void }) {
 function ProcessingNote({ note }: { note: ExtractedNote }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: -10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.8 }}
-      className="mb-2 p-3 bg-muted/50 border border-dashed rounded-lg"
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      className="mb-4 p-4 bg-emerald-500/[0.03] border border-emerald-500/10 border-dashed rounded-[20px] relative overflow-hidden"
     >
-      <div className="flex items-center gap-2">
-        <Loader2 className="w-4 h-4 animate-spin text-primary" />
-        <span className="text-xs text-muted-foreground">
-          {note.status === 'flying' ? '正在飞行...' : 'AI 分析中...'}
+      <div className="flex items-center gap-3 relative z-10">
+        <div className="relative">
+          <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
+          <motion.div 
+            animate={{ opacity: [0, 1, 0] }}
+            transition={{ duration: 2, repeat: Infinity }}
+            className="absolute inset-0 bg-emerald-500/20 blur-sm rounded-full"
+          />
+        </div>
+        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">
+          {note.status === 'flying' ? 'Transmitting...' : 'AI Synthesizing...'}
         </span>
       </div>
-      <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
-        {note.content}
+      <p className="text-[11px] text-emerald-900/40 mt-2 line-clamp-1 font-medium italic">
+        "{note.content}"
       </p>
+      
+      {/* Scanning effect */}
+      <motion.div 
+        animate={{ x: ['-100%', '200%'] }}
+        transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+        className="absolute inset-y-0 w-20 bg-gradient-to-r from-transparent via-emerald-500/[0.05] to-transparent skew-x-12"
+      />
     </motion.div>
   )
 }
@@ -82,35 +94,48 @@ function TopicDetailPanel({
   onBack: () => void
 }) {
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-white/20">
       {/* Header */}
-      <div className="flex items-center gap-2 p-4 border-b">
+      <div className="flex items-center gap-4 p-6 border-b border-black/[0.02] bg-white/40 backdrop-blur-xl shrink-0">
         <button
           onClick={onBack}
-          className="p-1 hover:bg-muted rounded transition-colors"
+          className="p-2.5 hover:bg-black/5 rounded-2xl transition-all group"
         >
-          <ChevronRight className="w-4 h-4 rotate-180" />
+          <ChevronRight className="w-5 h-5 rotate-180 text-black/20 group-hover:text-black transition-colors" />
         </button>
-        <h2 className="font-semibold text-sm flex-1 truncate">{topic.name}</h2>
-        <span className="text-xs text-muted-foreground">{topic.noteCount} 条笔记</span>
+        <div className="flex flex-col flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-black/20">Topic Detail</span>
+            <span className="w-1 h-1 rounded-full bg-black/10" />
+            <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">{topic.noteCount} Notes</span>
+          </div>
+          <h2 className="font-black text-base text-black tracking-tight truncate mt-0.5">{topic.name}</h2>
+        </div>
       </div>
 
       {/* Notes list */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
         {topic.recentNotes && topic.recentNotes.length > 0 ? (
-          topic.recentNotes.map((note) => (
+          topic.recentNotes.map((note, idx) => (
             <motion.div
               key={note.id}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="p-3 bg-card border rounded-lg"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.05 }}
+              className="p-5 bg-white/60 border border-black/[0.03] rounded-[24px] shadow-sm hover:shadow-md transition-shadow group"
             >
-              <p className="text-sm">{note.content}</p>
+              <div className="flex items-start gap-4">
+                <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-black/10 group-hover:bg-black transition-colors shrink-0" />
+                <p className="text-[13px] leading-relaxed text-black/70 font-medium">{note.content}</p>
+              </div>
             </motion.div>
           ))
         ) : (
-          <div className="text-center text-muted-foreground py-8">
-            <p className="text-sm">暂无笔记</p>
+          <div className="h-full flex flex-col items-center justify-center text-center opacity-30">
+            <div className="w-16 h-16 rounded-[24px] bg-black/[0.02] flex items-center justify-center mb-4">
+              <BookOpen className="w-8 h-8" />
+            </div>
+            <p className="text-xs font-black uppercase tracking-widest">No notes found</p>
           </div>
         )}
       </div>
@@ -128,10 +153,12 @@ export function KnowledgePanel() {
   // Not available
   if (!noteExtraction) {
     return (
-      <div className="flex-1 flex items-center justify-center p-4">
-        <div className="text-center text-muted-foreground">
-          <BookOpen className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p className="text-sm">知识提取功能未启用</p>
+      <div className="flex-1 flex items-center justify-center p-10">
+        <div className="text-center">
+          <div className="w-20 h-20 rounded-[32px] bg-black/[0.02] border border-black/[0.04] flex items-center justify-center mx-auto mb-6">
+            <BookOpen className="w-8 h-8 text-black/10" />
+          </div>
+          <h3 className="text-sm font-black text-black/20 uppercase tracking-[0.2em]">Functionality Offline</h3>
         </div>
       </div>
     )
@@ -151,48 +178,62 @@ export function KnowledgePanel() {
 
   // Main topic list view
   return (
-    <div className="flex-1 overflow-y-auto p-4">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="font-semibold text-sm">知识主题</h2>
-        {isLoading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+    <div className="flex-1 flex flex-col min-h-0 bg-white/20">
+      <div className="p-6 pb-2 flex items-center justify-between shrink-0">
+        <div className="flex flex-col">
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-black/20">Knowledge Base</span>
+          <h2 className="text-sm font-bold text-black mt-1">原子知识库</h2>
+        </div>
+        {isLoading && (
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-black/[0.03] rounded-full">
+            <Loader2 className="w-3 h-3 animate-spin text-black/40" />
+            <span className="text-[9px] font-black uppercase tracking-widest text-black/40">Syncing</span>
+          </div>
+        )}
       </div>
 
-      {/* Processing notes */}
-      <AnimatePresence>
-        {pendingNotes
-          .filter((n) => n.status === 'processing' || n.status === 'flying')
-          .map((note) => (
-            <ProcessingNote key={note.id} note={note} />
-          ))}
-      </AnimatePresence>
-
-      {/* Topics list */}
-      {topics.length > 0 ? (
-        <div className="space-y-3">
-          <AnimatePresence>
-            {topics.map((topic) => (
-              <TopicCard
-                key={topic.id}
-                topic={topic}
-                onClick={() => setSelectedTopic(topic)}
-              />
+      <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+        {/* Processing notes */}
+        <AnimatePresence>
+          {pendingNotes
+            .filter((n) => n.status === 'processing' || n.status === 'flying')
+            .map((note) => (
+              <ProcessingNote key={note.id} note={note} />
             ))}
-          </AnimatePresence>
-        </div>
-      ) : (
-        <div className="text-center text-muted-foreground py-8">
-          <Sparkles className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p className="text-sm">还没有提取任何知识</p>
-          <p className="text-xs mt-2">
-            选中文字并点击
-            <span className="inline-flex items-center mx-1 px-1.5 py-0.5 bg-muted rounded text-foreground">
-              <Sparkles className="w-3 h-3 mr-1" />
-              提取
-            </span>
-            按钮
-          </p>
-        </div>
-      )}
+        </AnimatePresence>
+
+        {/* Topics list */}
+        {topics.length > 0 ? (
+          <div className="grid gap-4">
+            <AnimatePresence>
+              {topics.map((topic, idx) => (
+                <TopicCard
+                  key={topic.id}
+                  topic={topic}
+                  onClick={() => setSelectedTopic(topic)}
+                />
+              ))}
+            </AnimatePresence>
+          </div>
+        ) : (
+          <div className="h-full flex flex-col items-center justify-center text-center max-w-[200px] mx-auto py-20">
+            <div className="relative mb-8">
+              <div className="w-20 h-20 rounded-[32px] bg-black/[0.02] border border-black/[0.04] flex items-center justify-center">
+                <Sparkles className="w-8 h-8 text-black/5" />
+              </div>
+              <motion.div 
+                animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
+                transition={{ duration: 3, repeat: Infinity }}
+                className="absolute inset-0 bg-black/5 blur-xl rounded-full"
+              />
+            </div>
+            <h3 className="text-base font-black text-black mb-2 tracking-tight">空空如也</h3>
+            <p className="text-[11px] text-black/30 font-medium leading-relaxed">
+              在阅读过程中选中精彩段落，点击“提取”将其转化为永久知识。
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

@@ -9,7 +9,12 @@
  * 4. 可观测性 - 集成 Langfuse 追踪
  */
 
-import { ToolLoopAgent, InferAgentUIMessage, stepCountIs, hasToolCall } from "ai";
+import {
+  ToolLoopAgent,
+  InferAgentUIMessage,
+  stepCountIs,
+  hasToolCall,
+} from "ai";
 import { string, z } from "zod";
 import { chatModel } from "@/lib/ai/registry";
 import { interviewTools } from "@/lib/ai/tools/interview";
@@ -53,7 +58,7 @@ export type InterviewContext = z.infer<typeof InterviewContextSchema>;
  */
 export const interviewAgent = new ToolLoopAgent({
   id: "nexusnote-interview",
-  model: chatModel!,  // 已包含 extractReasoningMiddleware
+  model: chatModel!, // 已包含 extractReasoningMiddleware
   tools: interviewTools,
   maxOutputTokens: 4096,
   callOptionsSchema: InterviewContextSchema,
@@ -88,7 +93,8 @@ export const interviewAgent = new ToolLoopAgent({
     const hasBackground = Boolean(callOptions.background);
     const hasTargetOutcome = Boolean(callOptions.targetOutcome);
     const hasCognitiveStyle = Boolean(callOptions.cognitiveStyle);
-    const hasAllInfo = hasGoal && hasBackground && hasTargetOutcome && hasCognitiveStyle;
+    const hasAllInfo =
+      hasGoal && hasBackground && hasTargetOutcome && hasCognitiveStyle;
 
     console.log("[Interview Agent] Phase detection:", {
       hasGoal,
@@ -97,38 +103,42 @@ export const interviewAgent = new ToolLoopAgent({
       hasCognitiveStyle,
       hasAllInfo,
     });
+    console.log(
+      "[Interview Agent] User Profile Summary:",
+      JSON.stringify(
+        {
+          goal: callOptions.goal,
+          background: callOptions.background,
+          targetOutcome: callOptions.targetOutcome,
+          cognitiveStyle: callOptions.cognitiveStyle,
+        },
+        null,
+        2,
+      ),
+    );
 
     // Phase 4: 信息收集完毕，强制调用 generateOutline
     if (hasAllInfo) {
       console.log(
         "[Interview Agent] ✅ All info collected, FORCING generateOutline",
       );
-      console.log(
-        "[Interview Agent] User Profile Summary:",
-        JSON.stringify({
-          goal: callOptions.goal,
-          background: callOptions.background,
-          targetOutcome: callOptions.targetOutcome,
-          cognitiveStyle: callOptions.cognitiveStyle,
-        }, null, 2),
-      );
       return {
         ...rest,
         instructions,
-        temperature: 0.8,
+        temperature: 0.7,
         toolChoice: { type: "tool", toolName: "generateOutline" },
-        stopWhen: stepCountIs(1), // 调用工具后立即停止
+        // 移除 stopWhen，让 AI 完成 generateOutline 的调用输出
       };
     }
 
-    // Phase 1-3: AI 输出文本 + 调用 presentOptions 后停止
-    // hasToolCall 是 AI SDK 的代码级约束，比 prompt 稳定
-    // 配合 prompt 约束 + 前端兜底，确保每次工具调用前有文字
+    // Phase 1-3: AI 输出文本 + 调用 presentOptions
+    // 使用 Schema-First 模式，文字回复通过工具参数传递，解决截断问题
     return {
       ...rest,
       instructions,
       temperature: 0.7,
-      stopWhen: hasToolCall("presentOptions"),
+      // 停止条件：完成第一步（包含工具调用）后立即停止，等待用户交互
+      stopWhen: stepCountIs(1),
     };
   },
 });

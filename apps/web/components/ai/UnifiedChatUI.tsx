@@ -9,6 +9,7 @@ import {
   UIMessage as Message,
 } from "ai";
 import { Send, Square, Loader2, User, Bot } from "lucide-react";
+import { MessageResponse } from "./Message";
 
 /**
  * 通用聊天 UI 组件
@@ -41,12 +42,12 @@ interface UnifiedChatUIProps {
   renderToolOutput?: (
     toolName: string,
     output: unknown,
-    toolCallId: string
+    toolCallId: string,
   ) => ReactNode;
   renderMessage?: (
     message: Message,
     text: string,
-    isUser: boolean
+    isUser: boolean,
   ) => ReactNode;
   renderEmpty?: () => ReactNode;
   renderAfterMessages?: () => ReactNode;
@@ -59,15 +60,30 @@ interface UnifiedChatUIProps {
   showReasoningSection?: boolean;
 }
 
-// 辅助函数：提取消息文本（仅从 parts 中提取）
+// 辅助函数：提取消息文本（支持 TextPart 和 Schema-First ToolPart）
 function getMessageText(message: Message): string {
   if (!message.parts || message.parts.length === 0) return "";
-  return message.parts
+
+  const text = message.parts
     .filter(isTextUIPart)
     .map((p) => p.text)
     .join("");
-}
 
+  // Schema-First: 如果文本部分为空，尝试从工具调用的 replyToUser 参数中提取
+  if (!text) {
+    const toolReply = message.parts
+      .filter(isToolUIPart)
+      .map((p) => {
+        const input = p.input as any;
+        return input?.replyToUser || "";
+      })
+      .filter(Boolean)
+      .join("\n\n");
+    return toolReply;
+  }
+
+  return text;
+}
 
 export function UnifiedChatUI({
   messages,
@@ -99,7 +115,7 @@ export function UnifiedChatUI({
   const defaultRenderMessage = (
     message: Message,
     text: string,
-    isUser: boolean
+    isUser: boolean,
   ) => {
     if (variant === "interview") {
       // Interview 样式
@@ -121,7 +137,9 @@ export function UnifiedChatUI({
     // Chat 样式（带图标和操作按钮）
     return (
       <div className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}>
-        <div className={`flex gap-3 max-w-[92%] ${isUser ? "flex-row-reverse" : ""}`}>
+        <div
+          className={`flex gap-3 max-w-[92%] ${isUser ? "flex-row-reverse" : ""}`}
+        >
           <div
             className={`w-8 h-8 rounded-2xl flex items-center justify-center shrink-0 ${
               message.role === "assistant"
@@ -143,7 +161,15 @@ export function UnifiedChatUI({
                   : "bg-white dark:bg-neutral-800 border border-black/5 dark:border-white/5 rounded-tl-sm"
               }`}
             >
-              <p className="whitespace-pre-wrap">{text || (isLoading ? "思考中..." : "")}</p>
+              {text ? (
+                <MessageResponse className={isUser ? "text-white" : ""}>
+                  {text}
+                </MessageResponse>
+              ) : (
+                isLoading && (
+                  <p className="text-muted-foreground italic">思考中...</p>
+                )
+              )}
             </div>
           </div>
         </div>
@@ -183,10 +209,13 @@ export function UnifiedChatUI({
             {messages.map((message, idx) => {
               const text = getMessageText(message);
               const isUser = message.role === "user";
+              const hasReasoning = message.parts?.some(isReasoningUIPart);
+              const hasToolCalls = message.parts?.some(isToolUIPart);
               const messageKey = message.id || `msg-${idx}`;
 
-              // 跳过空的助手消息
-              if (!text && !isUser) return null;
+              // 如果既没有文本，也不是用户，也没有推理和工具调用，则跳过
+              if (!text && !isUser && !hasReasoning && !hasToolCalls)
+                return null;
 
               return (
                 <div key={messageKey} className="flex flex-col gap-2">
@@ -216,42 +245,51 @@ export function UnifiedChatUI({
                   {/* 工具输出 */}
                   {renderToolOutput && !isUser && message.parts && (
                     <div className="space-y-2">
-                      {message.parts
-                        .filter(isToolUIPart)
-                        .map((part) => {
-                          const toolName = getToolName(part);
-                          const toolCallId = part.toolCallId;
+                      {message.parts.filter(isToolUIPart).map((part) => {
+                        const toolName = getToolName(part);
+                        const toolCallId = part.toolCallId;
 
-                          if (part.state === "output-available") {
-                            return (
-                              <div key={toolCallId} className="mt-3">
-                                {renderToolOutput(toolName, part.output, toolCallId)}
-                              </div>
-                            );
-                          }
+                        if (part.state === "output-available") {
+                          return (
+                            <div key={toolCallId} className="mt-3">
+                              {renderToolOutput(
+                                toolName,
+                                part.output,
+                                toolCallId,
+                              )}
+                            </div>
+                          );
+                        }
 
-                          if (part.state === "input-streaming" || part.state === "input-available") {
-                            return (
-                              <div
-                                key={toolCallId}
-                                className="flex items-center gap-2 text-xs text-muted-foreground py-2"
-                              >
-                                <div className="w-3 h-3 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
-                                正在执行 {toolName}...
-                              </div>
-                            );
-                          }
+                        if (
+                          part.state === "input-streaming" ||
+                          part.state === "input-available"
+                        ) {
+                          return (
+                            <div
+                              key={toolCallId}
+                              className="flex items-center gap-2 text-xs text-muted-foreground py-2"
+                            >
+                              <div className="w-3 h-3 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+                              正在执行 {toolName}...
+                            </div>
+                          );
+                        }
 
-                          if (part.state === "output-error") {
-                            return (
-                              <div key={toolCallId} className="text-xs text-red-500 py-2">
-                                {toolName} 执行失败: {part.errorText || "未知错误"}
-                              </div>
-                            );
-                          }
+                        if (part.state === "output-error") {
+                          return (
+                            <div
+                              key={toolCallId}
+                              className="text-xs text-red-500 py-2"
+                            >
+                              {toolName} 执行失败:{" "}
+                              {part.errorText || "未知错误"}
+                            </div>
+                          );
+                        }
 
-                          return null;
-                        })}
+                        return null;
+                      })}
                     </div>
                   )}
                 </div>

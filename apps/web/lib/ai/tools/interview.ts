@@ -8,9 +8,10 @@
  * 3. 支持前端类型安全和自动补全
  */
 
-import { tool } from 'ai';
-import { z } from 'zod';
-import { saveCourseProfile } from '@/lib/ai/profile/course-profile';
+import { tool } from "ai";
+import { z } from "zod";
+import { saveCourseProfile } from "@/lib/ai/profile/course-profile";
+import { searchWeb } from "./chat/web";
 
 /**
  * presentOptions - 展示 UI 交互卡片
@@ -23,25 +24,38 @@ export const presentOptionsTool = tool({
   description: `向用户展示可点击的选项卡片。在询问用户具体问题后调用此工具。`,
 
   inputSchema: z.object({
-    question: z.string()
+    replyToUser: z
+      .string()
+      .describe("在显示选项卡片之前，对用户说的话（回复用户并引出问题）。"),
+
+    question: z
+      .string()
       .describe('卡片标题，5-10个字。例如："选择方向"、"您的水平"'),
 
-    options: z.array(z.string())
+    options: z
+      .array(z.string())
       .min(2)
       .max(4)
-      .describe('选项列表，必须提供2-4个字符串'),
+      .describe("选项列表，必须提供2-4个字符串"),
 
-    targetField: z.enum(['goal', 'background', 'targetOutcome', 'cognitiveStyle', 'general'])
-      .describe('问题类型：goal=学习目标, background=背景水平, targetOutcome=预期成果, cognitiveStyle=学习风格, general=通用'),
+    targetField: z
+      .enum([
+        "goal",
+        "background",
+        "targetOutcome",
+        "cognitiveStyle",
+        "general",
+      ])
+      .describe(
+        "问题类型：goal=学习目标, background=背景水平, targetOutcome=预期成果, cognitiveStyle=学习风格, general=通用",
+      ),
 
-    allowSkip: z.boolean().optional()
-      .describe('是否允许跳过，可选'),
+    allowSkip: z.boolean().optional().describe("是否允许跳过，可选"),
 
-    multiSelect: z.boolean().optional()
-      .describe('是否多选，可选'),
+    multiSelect: z.boolean().optional().describe("是否多选，可选"),
   }),
 
-  execute: async () => ({ status: 'ui_rendered' }),
+  execute: async () => ({ status: "ui_rendered" }),
 });
 
 // updateProfile 和 resetField 工具已删除
@@ -54,53 +68,63 @@ export const presentOptionsTool = tool({
  * 调用时机：仅在收集完所有必需信息（goal, background, targetOutcome, cognitiveStyle）后调用
  */
 const generateOutlineSchema = z.object({
-  title: z.string()
-    .describe('课程标题。例如："Python Web开发入门"'),
+  replyToUser: z
+    .string()
+    .describe("在展示大纲之前，对用户说的总结和鼓励的话。"),
 
-  description: z.string()
-    .describe('课程描述（2-3句话），说明这门课程的核心价值和适合人群'),
+  title: z.string().describe('课程标题。例如："Python Web开发入门"'),
 
-  difficulty: z.enum(['beginner', 'intermediate', 'advanced'])
-    .describe('难度级别，基于用户的 background 决定'),
+  description: z
+    .string()
+    .describe("课程描述（2-3句话），说明这门课程的核心价值和适合人群"),
 
-  estimatedMinutes: z.number()
+  difficulty: z
+    .enum(["beginner", "intermediate", "advanced"])
+    .describe("难度级别，基于用户的 background 决定"),
+
+  estimatedMinutes: z
+    .number()
     .min(30)
-    .describe('预估学习时长（分钟），基于学习难度和深度合理估算'),
+    .describe("预估学习时长（分钟），基于学习难度和深度合理估算"),
 
-  modules: z.array(
-    z.object({
-      title: z.string()
-        .describe('模块标题。例如："Python 基础语法"'),
-      chapters: z.array(
-        z.object({
-          title: z.string()
-            .describe('章节标题。例如："变量与数据类型"'),
-          contentSnippet: z.string().optional()
-            .describe('章节简介（可选），1-2句话说明这一章会学什么'),
-        })
-      ),
-    })
-  )
+  modules: z
+    .array(
+      z.object({
+        title: z.string().describe('模块标题。例如："Python 基础语法"'),
+        chapters: z.array(
+          z.object({
+            title: z.string().describe('章节标题。例如："变量与数据类型"'),
+            contentSnippet: z
+              .string()
+              .optional()
+              .describe("章节简介（可选），1-2句话说明这一章会学什么"),
+          }),
+        ),
+      }),
+    )
     .min(2, "最少2个模块")
     .max(20, "最多20个模块")
-    .describe('课程模块列表。模块数量应根据 targetOutcome 的复杂度动态调整'),
+    .describe("课程模块列表。模块数量应根据 targetOutcome 的复杂度动态调整"),
 
-  reason: z.string()
-    .describe('为什么这样设计课程结构？基于用户的目标、背景和学习风格说明设计理念。'),
+  reason: z
+    .string()
+    .describe(
+      "为什么这样设计课程结构？基于用户的目标、背景和学习风格说明设计理念。",
+    ),
 });
 
 export const generateOutlineTool = tool({
   description: `生成个性化课程大纲。仅在收集完所有必需信息（goal, background, targetOutcome, cognitiveStyle）后调用。模块数量应根据 targetOutcome 的复杂度灵活调整。`,
   inputSchema: generateOutlineSchema,
   execute: async (params: z.infer<typeof generateOutlineSchema>) => {
-    console.log('[generateOutline] 开始生成大纲:', params.title);
+    console.log("[generateOutline] 开始生成大纲:", params.title);
 
     // ⚠️ 注意：userId 和完整的用户信息需要从调用上下文中获取
     // 这会在 /api/ai 或 /app/create 中传递
     // 当前这里无法直接访问，会由前端在收到 outline 后调用 saveCourseProfile
 
     return {
-      status: 'outline_generated',
+      status: "outline_generated",
       ...params,
       // 返回 outline 数据，前端会用 courseId 和用户信息保存到数据库
     };
@@ -118,6 +142,7 @@ export const generateOutlineTool = tool({
 export const interviewTools = {
   presentOptions: presentOptionsTool,
   generateOutline: generateOutlineTool,
+  searchWeb,
 };
 
 /**

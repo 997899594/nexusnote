@@ -10,6 +10,7 @@ import type { OutlineData } from "@/lib/ai/profile/course-profile";
 export const runtime = "nodejs";
 
 interface SaveCourseProfileRequest {
+  id?: string;
   goal: string;
   background: string;
   targetOutcome: string;
@@ -28,9 +29,10 @@ export async function POST(req: Request) {
 
     const body: SaveCourseProfileRequest = await req.json();
 
-    // 保存课程画像，返回 courseId
-    const courseId = await saveCourseProfile({
+    // 保存课程画像，返回 id
+    const id = await saveCourseProfile({
       userId: session.user.id,
+      id: body.id,
       goal: body.goal,
       background: body.background,
       targetOutcome: body.targetOutcome,
@@ -39,12 +41,17 @@ export async function POST(req: Request) {
       designReason: body.designReason,
     });
 
-    return Response.json({ courseId });
+    return Response.json({ courseId: id }); // 保持返回 key 为 courseId 以免破坏前端
   } catch (error) {
     console.error("[POST /api/courses/profile]", error);
     return Response.json(
-      { error: error instanceof Error ? error.message : "Failed to save course profile" },
-      { status: 500 }
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to save course profile",
+      },
+      { status: 500 },
     );
   }
 }

@@ -17,14 +17,29 @@ import { TaskItem } from "@tiptap/extension-task-item";
 import { Dropcursor } from "@tiptap/extension-dropcursor";
 import { Gapcursor } from "@tiptap/extension-gapcursor";
 import { useSession } from "next-auth/react";
-import { useMemo, useEffect, useState, useCallback, Component, type ReactNode } from "react";
+import {
+  useMemo,
+  useEffect,
+  useState,
+  useCallback,
+  Component,
+  type ReactNode,
+} from "react";
 import { useEditorContext } from "@/contexts/EditorContext";
 import * as Y from "yjs";
 import { IndexeddbPersistence } from "y-indexeddb";
 import { HocuspocusProvider } from "@hocuspocus/provider";
 import { getRandomColor, getRandomUserName } from "@/lib/editor/collaboration";
 import { getAuthToken } from "@/lib/auth-helpers";
-import { Wifi, WifiOff, Users, History, Lock, Edit3, RefreshCw } from "lucide-react";
+import {
+  Wifi,
+  WifiOff,
+  Users,
+  History,
+  Lock,
+  Edit3,
+  RefreshCw,
+} from "lucide-react";
 import { EditorToolbar } from "./EditorToolbar";
 import { AIBubbleMenu } from "./AIBubbleMenu";
 import { TableMenu } from "./TableMenu";
@@ -32,10 +47,7 @@ import { SlashCommand } from "./SlashCommand";
 import { GhostBrain } from "./GhostBrain";
 import { Callout } from "./extensions/callout";
 import { Collapsible } from "./extensions/collapsible";
-import {
-  TimelinePanel,
-  useTimeline,
-} from "@/components/timeline";
+import { TimelinePanel, useTimeline } from "@/components/timeline";
 import { snapshotStore, DocumentSnapshot } from "@/lib/storage";
 
 /**
@@ -118,7 +130,12 @@ function EditorInner({
   documentId: string;
   ydoc: Y.Doc;
   provider: HocuspocusProvider;
-  currentUser: { id: string; name: string; color: string; image?: string | null };
+  currentUser: {
+    id: string;
+    name: string;
+    color: string;
+    image?: string | null;
+  };
   showToolbar: boolean;
   isVault: boolean;
   setIsVault?: (v: boolean) => void;
@@ -165,7 +182,7 @@ function EditorInner({
       Callout,
       Collapsible,
     ],
-    [ydoc, provider, currentUser]
+    [ydoc, provider, currentUser],
   );
 
   // Editor - 使用稳定的配置
@@ -180,7 +197,7 @@ function EditorInner({
         },
       },
     },
-    [extensions]
+    [extensions],
   );
 
   // Sync editor to context
@@ -213,55 +230,84 @@ function EditorInner({
 
   return (
     <div className="relative flex flex-col">
-      {/* Normalized Header */}
+      {/* Normalized Header - More Exquisite */}
       <div className="mb-12">
-        <div className="flex items-center gap-3 mb-4">
-          <Edit3 className="w-4 h-4 text-muted-foreground/40" />
-          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/30">
-            笔记编辑
-          </span>
-          {isVault && (
-            <div className="px-2 py-0.5 rounded-lg bg-violet-500/10 text-violet-500 text-[10px] font-bold flex items-center gap-1.5 uppercase tracking-wider border border-violet-500/10">
-              <Lock className="w-3 h-3" /> 已加密
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-5">
+            <div className="w-12 h-12 rounded-2xl bg-black flex items-center justify-center text-white shadow-2xl shadow-black/20 group hover:scale-105 transition-transform duration-500">
+              <Edit3 className="w-6 h-6 group-hover:rotate-12 transition-transform" />
             </div>
-          )}
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-black/30 leading-none">
+                  Drafting Note
+                </span>
+                {isVault && (
+                  <div className="px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-600 text-[8px] font-black flex items-center gap-1 uppercase tracking-widest border border-violet-500/5">
+                    <Lock className="w-2.5 h-2.5" /> Private Vault
+                  </div>
+                )}
+              </div>
+              <h1 className="text-3xl font-black tracking-tighter text-black leading-tight">
+                {title}
+              </h1>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            {collaborators.length > 0 && (
+              <div className="flex items-center px-4 py-2 bg-black/[0.02] border border-black/[0.04] rounded-2xl gap-3">
+                <div className="flex items-center -space-x-2">
+                  {collaborators.slice(0, 3).map((u, i) => (
+                    <div
+                      key={i}
+                      className="w-6 h-6 rounded-full border-2 border-white shadow-sm ring-1 ring-black/5"
+                      style={{ backgroundColor: u.color }}
+                      title={u.name}
+                    />
+                  ))}
+                  {collaborators.length > 3 && (
+                    <div className="w-6 h-6 rounded-full bg-white border border-black/5 flex items-center justify-center text-[8px] font-black">
+                      +{collaborators.length - 3}
+                    </div>
+                  )}
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-widest text-black/40">
+                  Collaborating
+                </span>
+              </div>
+            )}
+          </div>
         </div>
 
-        <h1 className="text-3xl font-bold tracking-tight mb-4 text-foreground/90 uppercase">
-          {title}
-        </h1>
-
-        <div className="flex items-center gap-6 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/30">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-8 text-[10px] font-black uppercase tracking-[0.2em]">
+          <div className="flex items-center gap-2.5">
             {status === "connected" ? (
-              <Wifi className="w-3 h-3 text-emerald-500/50" />
-            ) : (
-              <WifiOff className="w-3 h-3 text-rose-500/50" />
-            )}
-            {status === "connected" ? "云端已同步" : "离线模式"}
-          </div>
-          <div>{editor.getText().length} 字符</div>
-          {collaborators.length > 0 && (
-            <div className="flex items-center gap-2">
-              <Users className="w-3 h-3" />
-              <div className="flex items-center -space-x-1.5">
-                {collaborators.slice(0, 3).map((u, i) => (
-                  <div
-                    key={i}
-                    className="w-4 h-4 rounded-full border border-background shadow-sm"
-                    style={{ backgroundColor: u.color }}
-                  />
-                ))}
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/5 rounded-full border border-emerald-500/10">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-emerald-600">Synced Live</span>
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-rose-500/5 rounded-full border border-rose-500/10">
+                <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                <span className="text-rose-600">Offline Mode</span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2.5 text-black/40">
+            <RefreshCw className="w-3.5 h-3.5 opacity-40" />
+            <span>{editor.getText().length} Characters</span>
+          </div>
+
+          <div className="flex-1 h-px bg-black/[0.03]" />
         </div>
       </div>
 
-      {/* Toolbar */}
+      {/* Toolbar - Floating & Glassy */}
       {showToolbar && (
-        <div className="mb-8 sticky top-20 z-40 transition-all">
-          <div className="bg-white/80 dark:bg-black/40 backdrop-blur-3xl p-1 rounded-2xl inline-flex border border-white/10 shadow-sm">
+        <div className="mb-12 sticky top-6 z-40 transition-all flex justify-center">
+          <div className="bg-white/70 backdrop-blur-3xl p-2 rounded-[28px] inline-flex border border-black/[0.03] shadow-2xl shadow-black/5 ring-1 ring-black/[0.02]">
             <EditorToolbar
               editor={editor}
               isVault={isVault}
@@ -271,20 +317,21 @@ function EditorInner({
         </div>
       )}
 
-      {/* Content */}
-      <div className="relative z-10">
+      {/* Content - Pure & Focused */}
+      <div className="relative z-10 max-w-4xl mx-auto w-full">
         <EditorContent editor={editor} />
         <AIBubbleMenu editor={editor} documentId={documentId} />
         <TableMenu editor={editor} />
       </div>
 
-      {/* Timeline Toggle */}
-      <div className="fixed bottom-32 right-12 z-[100]">
+      {/* Timeline Toggle - More Discrete */}
+      <div className="fixed bottom-10 right-10 z-[100]">
         <button
           onClick={() => setShowTimeline(true)}
-          className="w-12 h-12 bg-white/10 dark:bg-black/20 backdrop-blur-3xl rounded-2xl flex items-center justify-center border border-white/10 text-muted-foreground hover:text-primary transition-all hover:scale-105"
+          className="w-14 h-14 bg-white/60 backdrop-blur-3xl rounded-[24px] flex items-center justify-center border border-black/[0.04] text-black/30 hover:text-black hover:bg-white hover:border-black/10 transition-all hover:scale-110 shadow-2xl shadow-black/5 group"
+          title="View Version History"
         >
-          <History className="w-5 h-5" />
+          <History className="w-6 h-6 group-hover:rotate-[-10deg] transition-transform" />
         </button>
       </div>
 
@@ -356,7 +403,7 @@ export function Editor({
       name: getRandomUserName(),
       color: getRandomColor(),
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.user?.id]);
 
   // HocuspocusProvider - created in useEffect

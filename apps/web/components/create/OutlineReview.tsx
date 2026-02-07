@@ -1,12 +1,16 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
 import {
   ArrowRight,
   Clock,
   Gauge,
   Sparkles,
+  CheckCircle2,
+  Brain,
+  MessageCircle,
+  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UIMessage } from "ai";
@@ -51,12 +55,10 @@ export function OutlineReview({
   const [outline, setOutline] = useState(initialOutline);
   const [refineInput, setRefineInput] = useState("");
 
-  // Sync internal state if props change (AI update)
   useEffect(() => {
     setOutline(initialOutline);
   }, [initialOutline]);
 
-  // Extract latest AI message for the sidebar - SDK v6 uses parts instead of content
   const getMessageText = (message: UIMessage): string => {
     if (message.parts) {
       return message.parts
@@ -73,8 +75,8 @@ export function OutlineReview({
     return lastMessage ? getMessageText(lastMessage) : "";
   })();
 
-  // 获取 chapters（从 modules 或直接从 chapters）
-  const chapters = outline.chapters ?? outline.modules?.flatMap((m) => m.chapters) ?? [];
+  const chapters =
+    outline.chapters ?? outline.modules?.flatMap((m) => m.chapters) ?? [];
 
   const handleRefineSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,76 +88,89 @@ export function OutlineReview({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      className="w-full max-w-4xl mx-auto p-4 md:p-0 z-50 relative flex gap-6 items-start"
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.98 }}
+      transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+      className="w-full max-w-5xl mx-auto p-4 md:p-0 z-50 relative flex flex-col md:flex-row gap-8 items-start max-h-[90vh]"
     >
-      <div className="flex-1 bg-white/90 backdrop-blur-xl border border-black/5 rounded-[32px] shadow-2xl overflow-hidden">
-        {/* Header */}
-        <div className="p-8 border-b border-black/5 bg-gradient-to-br from-white to-black/[0.02]">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="space-y-2 flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="bg-black text-white text-xs font-bold px-2 py-1 rounded-full uppercase tracking-wider">
-                  Course Outline
-                </span>
-                <span className="text-black/40 text-xs font-medium uppercase tracking-wider flex items-center gap-1">
-                  {chapters.length} Chapters
-                </span>
-              </div>
-              <h1 className="text-3xl md:text-4xl font-black text-black">
-                {outline.title}
-              </h1>
-              <p className="text-black/60 text-lg leading-relaxed max-w-2xl">
-                {outline.description}
-              </p>
+      {/* Main Outline Card */}
+      <div className="flex-1 bg-white/70 backdrop-blur-2xl border border-black/[0.06] rounded-[40px] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col self-stretch">
+        {/* Header Section */}
+        <div className="p-8 pb-4 relative overflow-hidden">
+          {/* Subtle background glow */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-black/[0.02] blur-3xl rounded-full -mr-20 -mt-20" />
+
+          <div className="relative z-10 space-y-4">
+            <div className="flex items-center gap-3">
+              <span className="bg-black text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-[0.2em]">
+                Manifesting Plan
+              </span>
+              <div className="h-4 w-px bg-black/10" />
+              <span className="text-black/40 text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-1.5">
+                <CheckCircle2 className="w-3 h-3" />
+                {chapters.length} 核心章节
+              </span>
             </div>
 
-            <div className="flex gap-4 items-center">
-              <div className="flex flex-col items-end gap-1">
-                <div className="flex items-center gap-2 text-sm font-medium text-black/60">
-                  <Clock className="w-4 h-4" />
-                  {outline.estimatedMinutes} min
-                </div>
-                <div className="flex items-center gap-2 text-sm font-medium text-black/60 capitalize">
-                  <Gauge className="w-4 h-4" />
-                  {outline.difficulty}
-                </div>
+            <h1 className="text-3xl md:text-4xl font-black text-black tracking-tight leading-tight">
+              {outline.title}
+            </h1>
+
+            <p className="text-black/50 text-base leading-relaxed max-w-2xl font-medium line-clamp-2">
+              {outline.description}
+            </p>
+
+            <div className="flex flex-wrap gap-4 pt-1">
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-black/[0.03] rounded-xl border border-black/[0.03]">
+                <Clock className="w-3.5 h-3.5 text-black/40" />
+                <span className="text-xs font-bold text-black/60">
+                  {outline.estimatedMinutes} 分钟
+                </span>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-black/[0.03] rounded-xl border border-black/[0.03]">
+                <Gauge className="w-3.5 h-3.5 text-black/40" />
+                <span className="text-xs font-bold text-black/60 capitalize">
+                  {outline.difficulty === "beginner"
+                    ? "初级入门"
+                    : outline.difficulty === "intermediate"
+                      ? "中级进阶"
+                      : "高级专家"}
+                </span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Chapters List */}
-        <div className="p-8 max-h-[50vh] overflow-y-auto custom-scrollbar">
-          <div className="space-y-4">
+        <div className="flex-1 p-8 pt-0 overflow-y-auto custom-scrollbar">
+          <div className="space-y-2">
             {chapters.map((chapter, index) => (
               <motion.div
                 key={index}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.05 }}
-                className="group flex gap-4 p-4 rounded-2xl hover:bg-black/[0.02] border border-transparent hover:border-black/5 transition-all"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.04, duration: 0.6 }}
+                className="group p-6 rounded-3xl bg-black/[0.01] hover:bg-black/[0.03] border border-black/[0.03] hover:border-black/[0.08] transition-all duration-500 flex gap-6"
               >
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-black/5 flex items-center justify-center text-sm font-bold text-black/40 group-hover:bg-black group-hover:text-white transition-colors">
-                  {index + 1}
+                <div className="flex-shrink-0 w-12 h-12 rounded-2xl bg-white border border-black/[0.05] shadow-sm flex items-center justify-center text-sm font-black text-black/20 group-hover:bg-black group-hover:text-white group-hover:border-black transition-all duration-500">
+                  {String(index + 1).padStart(2, "0")}
                 </div>
-                <div className="flex-1 space-y-1">
-                  <h3 className="font-bold text-lg text-black">
+                <div className="flex-1 space-y-2">
+                  <h3 className="font-black text-xl text-black tracking-tight group-hover:translate-x-1 transition-transform duration-500">
                     {chapter.title}
                   </h3>
                   {(chapter.summary || chapter.contentSnippet) && (
-                    <p className="text-sm text-black/50 leading-relaxed">
+                    <p className="text-sm text-black/40 leading-relaxed font-medium">
                       {chapter.summary || chapter.contentSnippet}
                     </p>
                   )}
                   {chapter.keyPoints && chapter.keyPoints.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-2">
+                    <div className="flex flex-wrap gap-2 mt-3">
                       {chapter.keyPoints.slice(0, 3).map((kp, kpi) => (
                         <span
                           key={kpi}
-                          className="text-[10px] font-medium px-2 py-0.5 bg-black/5 rounded-full text-black/60"
+                          className="text-[10px] font-black px-2.5 py-1 bg-black/5 rounded-full text-black/40 uppercase tracking-wider"
                         >
                           {kp}
                         </span>
@@ -168,57 +183,88 @@ export function OutlineReview({
           </div>
         </div>
 
-        {/* Footer Actions */}
-        <div className="p-6 bg-black/5 border-t border-black/5 flex justify-end items-center">
+        {/* Action Footer */}
+        <div className="p-8 bg-black/[0.02] border-t border-black/[0.04] flex justify-between items-center">
+          <div className="text-black/30 text-xs font-bold uppercase tracking-widest">
+            准备就绪 • 点击开始深度学习
+          </div>
           <Button
             onClick={() => onConfirm(outline)}
             size="lg"
-            className="rounded-full bg-black text-white hover:bg-black/80 px-8 text-lg font-bold shadow-xl shadow-black/10 group"
+            className="rounded-2xl bg-black text-white hover:bg-zinc-800 px-10 py-7 text-lg font-black shadow-2xl shadow-black/20 group transition-all duration-500"
           >
-            Start Learning
-            <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+            开始生成全文
+            <ArrowRight className="w-6 h-6 ml-3 group-hover:translate-x-2 transition-transform duration-500" />
           </Button>
         </div>
       </div>
 
-      {/* AI Refinement Chat - Sidebar */}
-      <div className="w-80 bg-white/90 backdrop-blur-xl border border-black/5 rounded-[32px] shadow-xl p-6 flex flex-col gap-4 self-stretch">
-        <div className="flex items-center gap-2 text-black/60">
-          <Sparkles className="w-5 h-5" />
-          <h3 className="font-bold text-sm uppercase tracking-wider">
-            AI Assistant
-          </h3>
+      {/* AI Sidepanel */}
+      <div className="w-full md:w-80 flex flex-col gap-4 self-stretch">
+        <div className="flex-1 bg-zinc-900 text-white rounded-[40px] shadow-2xl p-6 flex flex-col gap-4 relative overflow-hidden group">
+          {/* Animated background particles effect */}
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 blur-3xl rounded-full -mr-16 -mt-16 group-hover:bg-white/10 transition-colors duration-700" />
+
+          <div className="flex items-center gap-3 relative z-10">
+            <div className="p-2 bg-white/10 rounded-xl">
+              <Sparkles className="w-3.5 h-3.5 text-white" />
+            </div>
+            <h3 className="font-black text-xs uppercase tracking-widest">
+              AI 调优助手
+            </h3>
+          </div>
+
+          <div className="flex-1 overflow-y-auto text-xs leading-relaxed relative z-10 scrollbar-hide">
+            <AnimatePresence mode="wait">
+              {latestAiMessage ? (
+                <motion.div
+                  key={latestAiMessage}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="space-y-3"
+                >
+                  <div className="text-white/70 font-medium">
+                    {latestAiMessage}
+                  </div>
+                </motion.div>
+              ) : (
+                <div className="text-white/30 font-medium italic mt-2">
+                  "觉得内容太简单？想增加更多实战？直接告诉我。"
+                </div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <form onSubmit={handleRefineSubmit} className="relative z-10">
+            <input
+              value={refineInput}
+              onChange={(e) => setRefineInput(e.target.value)}
+              disabled={isThinking}
+              placeholder={isThinking ? "思考中..." : "输入调整意见..."}
+              className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 pr-10 text-xs text-white placeholder:text-white/20 focus:outline-none focus:ring-1 focus:ring-white/20 transition-all disabled:opacity-50"
+            />
+            <button
+              type="submit"
+              disabled={!refineInput.trim() || isThinking}
+              className="absolute right-2 top-2 p-1.5 bg-white text-black rounded-lg hover:bg-zinc-200 disabled:opacity-0 transition-all duration-300"
+            >
+              <Zap className="w-3.5 h-3.5 fill-current" />
+            </button>
+          </form>
         </div>
 
-        <div className="flex-1 overflow-y-auto min-h-[100px] text-sm text-black/70 space-y-4">
-          {latestAiMessage ? (
-            <div className="bg-black/5 p-4 rounded-2xl rounded-tl-none">
-              {latestAiMessage}
-            </div>
-          ) : (
-            <div className="text-black/30 italic text-center mt-10">
-              "Ask me to adjust the difficulty, add topics, or change the
-              structure."
-            </div>
-          )}
+        {/* Feedback small card */}
+        <div className="bg-white/50 backdrop-blur-xl border border-black/[0.04] rounded-3xl p-5">
+          <div className="flex items-center gap-2 text-black/40">
+            <MessageCircle className="w-3.5 h-3.5" />
+            <span className="text-[10px] font-black uppercase tracking-widest">
+              专家模式已开启
+            </span>
+          </div>
+          <p className="mt-1.5 text-[10px] text-black/50 leading-relaxed font-medium">
+            已根据您的认知风格（{outline.difficulty}）优化。
+          </p>
         </div>
-
-        <form onSubmit={handleRefineSubmit} className="relative">
-          <input
-            value={refineInput}
-            onChange={(e) => setRefineInput(e.target.value)}
-            disabled={isThinking}
-            placeholder={isThinking ? "Thinking..." : "e.g. Make it harder..."}
-            className="w-full bg-black/[0.03] border border-black/5 rounded-2xl px-4 py-3 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-black/5 disabled:opacity-50"
-          />
-          <button
-            type="submit"
-            disabled={!refineInput.trim() || isThinking}
-            className="absolute right-2 top-2 p-1.5 bg-black text-white rounded-xl hover:bg-black/80 disabled:opacity-0 transition-all"
-          >
-            <ArrowRight className="w-3 h-3" />
-          </button>
-        </form>
       </div>
     </motion.div>
   );
