@@ -10,7 +10,9 @@ data:
   NEXT_PUBLIC_APP_URL: "https://juanie.art"
   AUTH_TRUST_HOST: "true"
   NEXTAUTH_URL: "https://juanie.art"
-  JWT_ISSUER: "nexusnote"
+  # OAuth Providers
+  AUTH_GITHUB_ID: "Ov23li5kloVVHQeOSefR"
+  AUTH_GITHUB_SECRET: "3e6be8df8fefb894da3b9bf5c8bc3e23030fb666"
 
 ---
 apiVersion: apps/v1
