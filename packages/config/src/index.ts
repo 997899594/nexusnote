@@ -123,6 +123,10 @@ export const serverEnvSchema = z.object({
   JWT_ISSUER: z.string().default(defaults.jwt.issuer),
   AUTH_SECRET: z.string().default(defaults.jwt.secret), // NextAuth Secret
 
+  // OAuth Providers (NextAuth)
+  AUTH_GITHUB_ID: z.string().optional(),
+  AUTH_GITHUB_SECRET: z.string().optional(),
+
   // AI Provider Keys
   AI_302_API_KEY: z.string().optional(),
   DEEPSEEK_API_KEY: z.string().optional(),
@@ -194,7 +198,10 @@ export const serverEnvSchema = z.object({
     .string()
     .default("false")
     .transform((v) => v === "true"),
-  AI_FAST_MODEL: z.string().optional().describe("Fast model for query rewriting"),
+  AI_FAST_MODEL: z
+    .string()
+    .optional()
+    .describe("Fast model for query rewriting"),
 
   // Snapshot
   SNAPSHOT_INTERVAL_MS: z.coerce
@@ -282,7 +289,10 @@ export function parseServerEnv(
   env: NodeJS.ProcessEnv = process.env,
 ): ServerEnv {
   // Build-time check bypass for Next.js 16
-  if (process.env.SKIP_ENV_VALIDATION === "true" || process.env.NEXT_PHASE === "phase-production-build") {
+  if (
+    process.env.SKIP_ENV_VALIDATION === "true" ||
+    process.env.NEXT_PHASE === "phase-production-build"
+  ) {
     // Return partially valid data for build time
     return serverEnvSchema.partial().parse({}) as ServerEnv;
   }
