@@ -15,10 +15,8 @@ const ENCODED_SECRET = new TextEncoder().encode(JWT_SECRET);
 export const { handlers, signIn, signOut, auth } = NextAuth({
   secret: env.AUTH_SECRET,
   providers: [
-    GitHub({
-      clientId: env.AUTH_GITHUB_ID,
-      clientSecret: env.AUTH_GITHUB_SECRET,
-    }),
+    GitHub,
+    Google,
     // Development Credentials Provider
     Credentials({
       name: "Development Login",
