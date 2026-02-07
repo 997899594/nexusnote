@@ -7,9 +7,9 @@ data:
   NODE_ENV: "production"
   PORT: "3002"
   HOCUSPOCUS_PORT: "3003"
-  NEXT_PUBLIC_APP_URL: "http://juanie.art"
+  NEXT_PUBLIC_APP_URL: "https://juanie.art"
   AUTH_TRUST_HOST: "true"
-  NEXTAUTH_URL: "http://juanie.art"
+  NEXTAUTH_URL: "https://juanie.art"
   JWT_ISSUER: "nexusnote"
 
 ---

@@ -72,9 +72,11 @@ jobs:
           IMAGE_TAG="ghcr.io/${{ github.repository }}:sha-${{ github.sha }}"
           IMAGE_TAG=$(echo $IMAGE_TAG | tr '[:upper:]' '[:lower:]')
 
-          # 2. 合并基础配置 (基础设施 + 持久化 + 应用)
+          # 2. 合并基础配置 (基础设施 + 证书 + 持久化 + 应用)
           {
             cat deploy/k8s/infrastructure.yaml
+            echo "---"
+            cat deploy/k8s/issuer.yaml
             echo "---"
             cat deploy/k8s/stateful.yaml
             echo "---"
@@ -130,11 +132,11 @@ jobs:
             # 1. 确保命名空间存在
             kubectl create namespace nexusnote --dry-run=client -o yaml | kubectl apply -f -
 
-            # 2. 创建 GHCR 镜像拉取密钥 (使用 GitHub Token 自动授权)
+            # 2. 创建 GHCR 镜像拉取密钥 (优先使用用户提供的 997899594)
             kubectl create secret docker-registry ghcr-secret \
               --docker-server=ghcr.io \
-              --docker-username=${{ github.actor }} \
-              --docker-password=${{ secrets.GITHUB_TOKEN }} \
+              --docker-username=997899594 \
+              --docker-password=${{ github.token }} \
               --namespace=nexusnote \
               --dry-run=client -o yaml | kubectl apply -f -
 

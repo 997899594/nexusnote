@@ -3,6 +3,8 @@ kind: Gateway
 metadata:
   name: nexusnote-gateway
   namespace: nexusnote
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
   gatewayClassName: cilium
   listeners:
@@ -13,6 +15,35 @@ spec:
       allowedRoutes:
         namespaces:
           from: All
+    - name: https
+      protocol: HTTPS
+      port: 443
+      hostname: "juanie.art"
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: juanie-art-tls
+      allowedRoutes:
+        namespaces:
+          from: All
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: nexusnote-redirect
+  namespace: nexusnote
+spec:
+  parentRefs:
+    - name: nexusnote-gateway
+      sectionName: http
+  hostnames:
+    - "juanie.art"
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -22,6 +53,7 @@ metadata:
 spec:
   parentRefs:
     - name: nexusnote-gateway
+      sectionName: https
   hostnames:
     - "juanie.art"
   rules:
