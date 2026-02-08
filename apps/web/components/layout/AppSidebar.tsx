@@ -14,7 +14,7 @@ export function AppSidebar() {
         { icon: BookOpen, label: 'Courses', href: '/courses' }, // Placeholder route
         { icon: FileText, label: 'Notes', href: '/notes' },     // Placeholder route
         { icon: Layers, label: 'Resources', href: '/resources' }, // Placeholder route
-    ]
+    ] as const;
 
     return (
         <aside className="hidden md:flex fixed left-0 top-0 h-full w-[240px] bg-zinc-50 border-r border-black/[0.06] flex-col z-50">
@@ -33,7 +33,7 @@ export function AppSidebar() {
                 <div className="px-3 mb-2 text-[10px] font-bold text-black/30 uppercase tracking-widest">Platform</div>
                 {navItems.map((item) => {
                     const isActive = pathname === item.href
-                    const isHighlight = (item as any).highlight
+                    const isHighlight = 'highlight' in item && item.highlight
                     return (
                         <Link
                             key={item.href}

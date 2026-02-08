@@ -54,6 +54,7 @@ export function isLangfuseEnabled(): boolean {
 export function createTelemetryConfig(
   functionId: string,
   metadata?: Record<string, string | number | boolean>,
+  traceId?: string,
 ) {
   if (!isLangfuseEnabled()) {
     return undefined;
@@ -62,6 +63,7 @@ export function createTelemetryConfig(
   return {
     isEnabled: true,
     functionId,
+    traceId, // 2026 架构师建议：显式传递 traceId 以实现链路追踪
     metadata: {
       ...metadata,
       timestamp: new Date().toISOString(),

@@ -11,15 +11,23 @@
  * npm run queue:worker
  */
 
-import { Worker } from 'bullmq';
-import IORedis from 'ioredis';
-import { db, documents, documentChunks, extractedNotes, topics, eq, sql } from '@nexusnote/db';
-import { env } from '@nexusnote/config';
-import { generateEmbeddingsWithSDK } from './utils/embeddings';
-import { embeddingModel, isEmbeddingConfigured } from '@/lib/ai/registry';
+import { Worker } from "bullmq";
+import IORedis from "ioredis";
+import {
+  db,
+  documents,
+  documentChunks,
+  extractedNotes,
+  topics,
+  eq,
+  sql,
+} from "@nexusnote/db";
+import { env } from "@nexusnote/config";
+import { generateEmbeddings } from "./utils/embeddings";
+import { embeddingModel, isEmbeddingConfigured } from "@/lib/ai/registry";
 
 // Redis 连接
-const redis = new IORedis(env.REDIS_URL || 'redis://localhost:6379', {
+const redis = new IORedis(env.REDIS_URL || "redis://localhost:6379", {
   maxRetriesPerRequest: null,
 });
 
@@ -63,9 +71,9 @@ function chunkText(
 /**
  * 处理 RAG 索引任务
  */
-async function processRAGIndexJob(
-  job: { data: { documentId: string; plainText: string } },
-) {
+async function processRAGIndexJob(job: {
+  data: { documentId: string; plainText: string };
+}) {
   const { documentId, plainText } = job.data;
 
   console.log(`[RAG Worker] Processing document: ${documentId}`);
@@ -106,19 +114,21 @@ async function processRAGIndexJob(
     // - 官方推荐的标准方式
 
     if (!isEmbeddingConfigured()) {
-      throw new Error('[RAG Worker] Embedding model not configured');
+      throw new Error("[RAG Worker] Embedding model not configured");
     }
 
-    const embeddings = await generateEmbeddingsWithSDK(chunks, embeddingModel!);
+    const embeddings = await generateEmbeddings(chunks, embeddingModel!);
 
-    console.log(`[RAG Worker] Generated ${embeddings.length} embeddings (using AI SDK v6 embedMany)`);
+    console.log(
+      `[RAG Worker] Generated ${embeddings.length} embeddings (using AI SDK v6 embedMany)`,
+    );
 
     // 5. 批量插入到数据库
     // embeddings 来自 AI SDK v6 embedMany，格式为 number[][]
     const newChunks = chunks.map((content, index) => ({
       documentId,
       content,
-      embedding: embeddings[index],  // AI SDK embedMany 保证每个都有值，无需 || null
+      embedding: embeddings[index], // AI SDK embedMany 保证每个都有值，无需 || null
       chunkIndex: index,
     }));
 
@@ -148,32 +158,35 @@ async function processRAGIndexJob(
  * 启动 RAG Worker
  */
 async function startWorker() {
-  console.log('[RAG Worker] Starting BullMQ worker...');
+  console.log("[RAG Worker] Starting BullMQ worker...");
 
-  const worker = new Worker('rag-index', processRAGIndexJob, {
+  const worker = new Worker("rag-index", processRAGIndexJob, {
     connection: redis,
     concurrency: env.QUEUE_RAG_CONCURRENCY || 3,
     stalledInterval: 5000,
     maxStalledCount: 2,
   });
 
-  worker.on('completed', (job) => {
+  worker.on("completed", (job) => {
     console.log(`[RAG Worker] ✅ Job ${job.id} completed`);
   });
 
-  worker.on('failed', (job, err) => {
-    console.error(`[RAG Worker] ❌ Job ${job?.id} failed:`, err instanceof Error ? err.message : err);
+  worker.on("failed", (job, err) => {
+    console.error(
+      `[RAG Worker] ❌ Job ${job?.id} failed:`,
+      err instanceof Error ? err.message : err,
+    );
   });
 
-  worker.on('error', (err) => {
-    console.error('[RAG Worker] Worker error:', err);
+  worker.on("error", (err) => {
+    console.error("[RAG Worker] Worker error:", err);
   });
 
-  worker.on('stalled', (job) => {
+  worker.on("stalled", (job) => {
     console.warn(`[RAG Worker] ⚠️  Job ${job} stalled`);
   });
 
-  console.log('[RAG Worker] ✅ Worker ready');
+  console.log("[RAG Worker] ✅ Worker ready");
 
   return worker;
 }
@@ -184,24 +197,28 @@ async function startWorker() {
  * 2. 找到最相近的主题（或创建新主题）
  * 3. 更新笔记状态
  */
-async function processNoteClassifyJob(
-  job: { data: { noteId: string; userId: string; content: string } },
-) {
+async function processNoteClassifyJob(job: {
+  data: { noteId: string; userId: string; content: string };
+}) {
   const { noteId, userId, content } = job.data;
 
   console.log(`[Note Classify] Processing note: ${noteId}`);
 
   try {
     if (!isEmbeddingConfigured()) {
-      throw new Error('[Note Classify] Embedding model not configured');
+      throw new Error("[Note Classify] Embedding model not configured");
     }
 
     // 1. 生成嵌入
-    const [embedding] = await generateEmbeddingsWithSDK([content], embeddingModel!);
+    const [embedding] = await generateEmbeddings([content], embeddingModel!);
 
     // 2. 查找最相近的主题（余弦相似度）
     const threshold = env.NOTES_TOPIC_THRESHOLD || 0.25;
-    const similarTopics = await db.execute<{ id: string; name: string; similarity: number }>(sql`
+    const similarTopics = await db.execute<{
+      id: string;
+      name: string;
+      similarity: number;
+    }>(sql`
       SELECT id, name, 1 - (embedding <=> ${JSON.stringify(embedding)}::halfvec) as similarity
       FROM topics
       WHERE user_id = ${userId}
@@ -216,10 +233,13 @@ async function processNoteClassifyJob(
       const bestMatch = similarTopics[0];
       if (bestMatch.similarity >= threshold) {
         topicId = bestMatch.id;
-        console.log(`[Note Classify] Matched topic: ${bestMatch.name} (similarity: ${bestMatch.similarity.toFixed(3)})`);
+        console.log(
+          `[Note Classify] Matched topic: ${bestMatch.name} (similarity: ${bestMatch.similarity.toFixed(3)})`,
+        );
 
         // 更新主题的笔记数量
-        await db.update(topics)
+        await db
+          .update(topics)
           .set({
             noteCount: sql`${topics.noteCount} + 1`,
             lastActiveAt: new Date(),
@@ -232,15 +252,18 @@ async function processNoteClassifyJob(
     // TODO: 可以添加定时任务进行聚类
 
     // 4. 更新笔记
-    await db.update(extractedNotes)
+    await db
+      .update(extractedNotes)
       .set({
         embedding,
         topicId,
-        status: 'classified',
+        status: "classified",
       })
       .where(eq(extractedNotes.id, noteId));
 
-    console.log(`[Note Classify] ✅ Classified note: ${noteId}, topic: ${topicId || 'none'}`);
+    console.log(
+      `[Note Classify] ✅ Classified note: ${noteId}, topic: ${topicId || "none"}`,
+    );
 
     return { success: true, noteId, topicId };
   } catch (err) {
@@ -253,22 +276,25 @@ async function processNoteClassifyJob(
  * 启动笔记分类 Worker
  */
 async function startNoteClassifyWorker() {
-  console.log('[Note Classify] Starting worker...');
+  console.log("[Note Classify] Starting worker...");
 
-  const worker = new Worker('note-classify', processNoteClassifyJob, {
+  const worker = new Worker("note-classify", processNoteClassifyJob, {
     connection: redis,
     concurrency: 2,
   });
 
-  worker.on('completed', (job) => {
+  worker.on("completed", (job) => {
     console.log(`[Note Classify] ✅ Job ${job.id} completed`);
   });
 
-  worker.on('failed', (job, err) => {
-    console.error(`[Note Classify] ❌ Job ${job?.id} failed:`, err instanceof Error ? err.message : err);
+  worker.on("failed", (job, err) => {
+    console.error(
+      `[Note Classify] ❌ Job ${job?.id} failed:`,
+      err instanceof Error ? err.message : err,
+    );
   });
 
-  console.log('[Note Classify] ✅ Worker ready');
+  console.log("[Note Classify] ✅ Worker ready");
 
   return worker;
 }
@@ -280,20 +306,17 @@ async function startAllWorkers() {
 
   // 优雅关闭
   const shutdown = async () => {
-    console.log('[Workers] Shutting down...');
-    await Promise.all([
-      ragWorker?.close(),
-      noteClassifyWorker?.close(),
-    ]);
+    console.log("[Workers] Shutting down...");
+    await Promise.all([ragWorker?.close(), noteClassifyWorker?.close()]);
     await redis.quit();
     process.exit(0);
   };
 
-  process.on('SIGTERM', shutdown);
-  process.on('SIGINT', shutdown);
+  process.on("SIGTERM", shutdown);
+  process.on("SIGINT", shutdown);
 }
 
 startAllWorkers().catch((err) => {
-  console.error('[Workers] Failed to start:', err);
+  console.error("[Workers] Failed to start:", err);
   process.exit(1);
 });

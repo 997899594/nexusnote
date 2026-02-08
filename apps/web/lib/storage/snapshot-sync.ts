@@ -8,7 +8,12 @@
  */
 
 import { localDb, STORES, DocumentSnapshot } from "./local-db";
-import { clientEnv } from "@nexusnote/config";
+import {
+  syncSnapshotsAction,
+  getLatestSnapshotTimestampAction,
+  getDocumentSnapshotsAction,
+  deleteSnapshotAction,
+} from "@/app/actions/snapshot";
 
 interface ServerSnapshot {
   id: string;
@@ -72,17 +77,10 @@ export class SnapshotSync {
       }));
 
       // 批量上传
-      const response = await fetch(
-        `${clientEnv.NEXT_PUBLIC_API_URL}/snapshots/sync`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ snapshots: serverSnapshots }),
-        },
-      );
+      const result = await syncSnapshotsAction({ snapshots: serverSnapshots });
 
-      if (!response.ok) {
-        throw new Error(`Sync failed: ${response.status}`);
+      if (!result.success) {
+        throw new Error(`Sync failed: ${result.error}`);
       }
 
       console.log(
@@ -114,21 +112,23 @@ export class SnapshotSync {
           : 0;
 
       // 获取服务器快照
-      const response = await fetch(
-        `${clientEnv.NEXT_PUBLIC_API_URL}/snapshots/${documentId}`,
-      );
-      if (!response.ok) {
-        throw new Error(`Fetch failed: ${response.status}`);
+      const result = await getDocumentSnapshotsAction({ documentId });
+      if (!result.success) {
+        throw new Error(`Fetch failed: ${result.error}`);
       }
 
-      const { snapshots: serverSnapshots } = (await response.json()) as {
+      if (!result.data) {
+        return 0;
+      }
+
+      const { snapshots: serverSnapshots } = result.data as {
         snapshots: ServerSnapshot[];
       };
 
       // 筛选本地没有的快照
       const localIds = new Set(localSnapshots.map((s) => s.id));
       const newSnapshots = serverSnapshots.filter(
-        (snap) => !localIds.has(snap.id),
+        (snap: ServerSnapshot) => !localIds.has(snap.id),
       );
 
       if (newSnapshots.length === 0) {
@@ -187,13 +187,10 @@ export class SnapshotSync {
     documentId: string,
   ): Promise<number | null> {
     try {
-      const response = await fetch(
-        `${clientEnv.NEXT_PUBLIC_API_URL}/snapshots/${documentId}/latest-timestamp`,
-      );
-      if (!response.ok) return null;
+      const result = await getLatestSnapshotTimestampAction({ documentId });
+      if (!result.success || !result.data) return null;
 
-      const { timestamp } = await response.json();
-      return timestamp;
+      return (result.data as { timestamp: number }).timestamp;
     } catch {
       return null;
     }
@@ -204,11 +201,13 @@ export class SnapshotSync {
    */
   async deleteFromServer(snapshotId: string): Promise<void> {
     try {
-      await fetch(`${clientEnv.NEXT_PUBLIC_API_URL}/snapshots/${snapshotId}`, {
-        method: "DELETE",
-      });
+      const result = await deleteSnapshotAction({ snapshotId });
+      if (!result.success) {
+        throw new Error(`Delete failed: ${result.error}`);
+      }
     } catch (error) {
       console.error("[SnapshotSync] Delete failed:", error);
+      throw error;
     }
   }
 

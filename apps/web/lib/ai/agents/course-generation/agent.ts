@@ -16,11 +16,12 @@
  * - AI 的推理过程显示给用户（thinking 标签）
  */
 
-import { ToolLoopAgent, InferAgentUIMessage, stepCountIs } from "ai";
+import { ToolLoopAgent, InferAgentUIMessage, stepCountIs, type ToolSet } from "ai";
 import { z } from "zod";
 import { chatModel } from "@/lib/ai/registry";
 import { courseGenerationTools } from "@/lib/ai/tools/course-generation";
 import { buildCourseGenerationPrompt } from "@/lib/ai/prompts/course-generation";
+import { OutlineSchema } from "@/lib/ai/profile/course-profile";
 
 /**
  * Course Generation Context Schema
@@ -38,7 +39,7 @@ export const CourseGenerationContextSchema = z.object({
 
   // 大纲信息
   outlineTitle: z.string().describe("课程标题"),
-  outlineData: z.any().optional().describe("完整的课程大纲数据"),
+  outlineData: OutlineSchema.optional().describe("完整的课程大纲数据"),
   moduleCount: z.number().describe("总模块数"),
   totalChapters: z.number().describe("总章节数"),
 
@@ -113,7 +114,7 @@ export const courseGenerationAgent = new ToolLoopAgent({
         const lastStep = steps[steps.length - 1];
         return (
           lastStep.toolCalls?.some(
-            (tc: any) =>
+            (tc) =>
               tc.toolName === "saveChapterContent" ||
               tc.toolName === "markGenerationComplete",
           ) ?? false

@@ -8,12 +8,10 @@
  * @see https://ai-sdk.dev/docs/foundations/tools
  */
 
-import { clientEnv } from "@nexusnote/config";
 import { z } from "zod";
 import { tool } from "ai";
 import { flashcardStore } from "@/lib/storage/flashcard-store";
-
-const API_URL = clientEnv.NEXT_PUBLIC_API_URL;
+import { searchNotesAction } from "@/app/actions/note";
 
 // ============================================
 // Skill Definitions (Tools for AI SDK 6.x)
@@ -23,8 +21,7 @@ const API_URL = clientEnv.NEXT_PUBLIC_API_URL;
  * 创建闪卡 - 从文本内容创建学习卡片
  */
 export const createFlashcards = tool({
-  description:
-    `用于辅助间隔重复记忆 (Spaced Repetition)。适用于：1. 识别到明确的定义、公式或关键事实；2. 用户表达需要"记住"某事。**主动识别可记忆点并提供转换建议。**`,
+  description: `用于辅助间隔重复记忆 (Spaced Repetition)。适用于：1. 识别到明确的定义、公式或关键事实；2. 用户表达需要"记住"某事。**主动识别可记忆点并提供转换建议。**`,
   inputSchema: z.object({
     cards: z
       .array(
@@ -68,40 +65,39 @@ export const searchNotes = tool({
   }),
   execute: async ({ query, limit }) => {
     try {
-      const response = await fetch(
-        `${API_URL}/rag/search?q=${encodeURIComponent(query)}&topK=${limit || 5}`,
-        { method: "GET" },
-      );
+      const result = await searchNotesAction({ query, limit });
 
-      if (!response.ok) {
+      if (!result.success) {
         return {
           success: false,
           query,
           results: [],
-          message: "搜索服务暂不可用",
+          message: result.error || "搜索服务暂不可用",
         };
       }
 
-      const results = (await response.json()) as Array<{
-        content: string;
-        documentId: string;
-        documentTitle: string;
-        similarity: number;
-      }>;
+      const results = result.data;
 
       return {
         success: true,
         query,
-        results: results.map((r) => ({
+        results: (results || []).map((r) => ({
           title: r.documentTitle,
           content:
-            r.content.slice(0, 200) + (r.content.length > 200 ? "..." : ""),
+            (r.content || "").slice(0, 200) +
+            ((r.content || "").length > 200 ? "..." : ""),
           documentId: r.documentId,
-          relevance: Math.round(r.similarity * 100),
+          relevance: Math.round((r.similarity || 0) * 100),
         })),
       };
-    } catch {
-      return { success: false, query, results: [], message: "搜索失败" };
+    } catch (error) {
+      console.error("[Skill: searchNotes] Error:", error);
+      return {
+        success: false,
+        query,
+        results: [],
+        message: "搜索过程中发生错误",
+      };
     }
   },
 });

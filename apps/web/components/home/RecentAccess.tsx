@@ -2,21 +2,19 @@
 
 import { motion } from "framer-motion";
 import { BookOpen, FileText, ArrowUpRight } from "lucide-react";
+import { RecentItemDTO } from "@/lib/actions/types";
 
 interface RecentAccessProps {
-  items?: {
-    id: string;
-    title: string;
-    type: "course" | "note";
-    date: string;
-    icon?: React.ReactNode;
-    onClick?: () => void;
-  }[];
+  items?: RecentItemDTO[];
   loading?: boolean;
+  onItemClick?: (item: RecentItemDTO) => void;
 }
 
-export const RecentAccess = ({ items, loading }: RecentAccessProps) => {
-  // If no items provided, show empty state instead of demo data
+export const RecentAccess = ({
+  items,
+  loading,
+  onItemClick,
+}: RecentAccessProps) => {
   const displayItems = items || [];
 
   return (
@@ -50,7 +48,10 @@ export const RecentAccess = ({ items, loading }: RecentAccessProps) => {
                 }}
                 className="snap-center w-[300px] md:w-auto"
               >
-                <AccessItem {...item} />
+                <AccessItem
+                  item={item}
+                  onClick={() => onItemClick?.(item)}
+                />
               </motion.div>
             ))
           ) : (
@@ -67,18 +68,23 @@ export const RecentAccess = ({ items, loading }: RecentAccessProps) => {
 };
 
 const AccessItem = ({
-  title,
-  type,
-  date,
-  icon,
+  item,
   onClick,
 }: {
-  title: string;
-  type: string;
-  date: string;
-  icon?: React.ReactNode;
+  item: RecentItemDTO;
   onClick?: () => void;
 }) => {
+  const formatTimeAgo = (isoString: string) => {
+    const time = new Date(isoString).getTime();
+    const seconds = Math.floor((Date.now() - time) / 1000);
+    if (seconds < 60) return "Just now";
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
+  };
+
   return (
     <motion.div
       onClick={onClick}
@@ -91,28 +97,23 @@ const AccessItem = ({
       <div className="relative p-8 min-h-[200px] flex flex-col justify-between">
         <div className="flex justify-between items-start">
           <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-black/40 group-hover:text-black transition-colors">
-            {icon ||
-              (type === "course" ? (
-                <BookOpen className="w-5 h-5" />
-              ) : (
-                <FileText className="w-5 h-5" />
-              ))}
+            {item.type === "course" ? (
+              <BookOpen className="w-5 h-5" />
+            ) : (
+              <FileText className="w-5 h-5" />
+            )}
           </div>
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-            <ArrowUpRight className="w-5 h-5 text-black/20" />
+          <div className="w-8 h-8 rounded-full bg-black/5 flex items-center justify-center text-black/20 group-hover:bg-black group-hover:text-white transition-all duration-500">
+            <ArrowUpRight className="w-4 h-4" />
           </div>
         </div>
 
         <div>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-[9px] font-bold text-black/30 uppercase tracking-wider">
-              {type}
-            </span>
-            <span className="w-1 h-1 rounded-full bg-black/10" />
-            <span className="text-[9px] font-medium text-black/20">{date}</span>
-          </div>
-          <h3 className="text-lg font-bold text-black leading-tight tracking-tight">
-            {title}
+          <p className="text-[10px] font-bold text-black/20 uppercase tracking-widest mb-2">
+            {formatTimeAgo(item.updatedAt)}
+          </p>
+          <h3 className="text-lg font-bold text-black/80 group-hover:text-black transition-colors line-clamp-2 leading-tight">
+            {item.title}
           </h3>
         </div>
       </div>

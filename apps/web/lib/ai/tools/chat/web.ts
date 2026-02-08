@@ -13,6 +13,14 @@ import { tool } from "ai";
 // Tavily Search Tool
 // ============================================
 
+interface TavilySearchResult {
+  title: string;
+  url: string;
+  content: string;
+  score: number;
+  published_date?: string;
+}
+
 export const searchWeb = tool({
   description: `用于获取模型训练截止日期之后的最新信息。适用于：1. 事实核查；2. 获取最新技术文档或新闻。**注意：如果知识库中已包含相关信息，优先使用知识库，仅在必要时联网补充。**`,
   inputSchema: z.object({
@@ -85,7 +93,7 @@ export const searchWeb = tool({
         success: true,
         query,
         answer: data.answer || "", // Tavily 生成的答案摘要
-        results: (data.results || []).map((r: any) => ({
+        results: (data.results || []).map((r: TavilySearchResult) => ({
           title: r.title,
           url: r.url,
           content: r.content,

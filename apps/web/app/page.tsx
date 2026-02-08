@@ -13,15 +13,8 @@ import {
 import { OrganicHeader } from "@/components/create/OrganicHeader";
 import { HeroInput } from "@/components/home/HeroInput";
 import { RecentAccess } from "@/components/home/RecentAccess";
-
-// Interface for Notes fetched from API
-interface Note {
-  id: string;
-  title: string;
-  content: string;
-  createdAt: string;
-  tags?: string[];
-}
+import { getNoteTopicsAction } from "@/app/actions/note";
+import { NoteDTO, RecentItemDTO } from "@/lib/actions/types";
 
 interface CourseWithProgress extends LocalLearningContent {
   progress?: LocalLearningProgress;
@@ -31,7 +24,7 @@ export default function Home() {
   const router = useRouter();
   const { data: session } = useSession();
   const [courses, setCourses] = useState<CourseWithProgress[]>([]);
-  const [notes, setNotes] = useState<Note[]>([]);
+  const [notes, setNotes] = useState<NoteDTO[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -61,22 +54,19 @@ export default function Home() {
       // 2. Load Notes (Server-First)
       const userId = session?.user?.id;
       if (userId) {
-        const response = await fetch(`/api/notes/topics?userId=${encodeURIComponent(userId)}`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.topics) {
-            const allNotes: Note[] = [];
-            data.topics.forEach((topic: any) => {
-              if (topic.notes) {
-                allNotes.push(...topic.notes);
-              }
-            });
-            allNotes.sort(
-              (a, b) =>
-                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-            );
-            setNotes(allNotes);
-          }
+        const result = await getNoteTopicsAction();
+        if (result.success && result.data?.topics) {
+          const allNotes: NoteDTO[] = [];
+          result.data.topics.forEach((topic) => {
+            if (topic.notes) {
+              allNotes.push(...topic.notes);
+            }
+          });
+          allNotes.sort(
+            (a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+          );
+          setNotes(allNotes);
         }
       }
     } catch (error) {
@@ -86,52 +76,44 @@ export default function Home() {
     }
   };
 
-  const formatTimeAgo = (timestamp: number | string) => {
-    const time =
-      typeof timestamp === "number" ? timestamp : new Date(timestamp).getTime();
-    const seconds = Math.floor((Date.now() - time) / 1000);
-    if (seconds < 60) return "Just now";
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
-    return `${Math.floor(hours / 24)}d ago`;
-  };
+  const recentItems = useMemo((): RecentItemDTO[] => {
+    const items: RecentItemDTO[] = [];
 
-  const recentItems = useMemo(() => {
-    const items: Array<{
-      id: string;
-      title: string;
-      type: "course" | "note";
-      date: string;
-      icon?: React.ReactNode;
-      onClick?: () => void;
-    }> = [
-      ...courses.map((c) => ({
+    courses.forEach((c) => {
+      items.push({
         id: c.id,
         title: c.title,
-        type: "course" as const,
-        date: c.progress?.lastAccessedAt
-          ? formatTimeAgo(c.progress.lastAccessedAt)
-          : "New",
-        icon: <BookOpen className="w-5 h-5" />,
-        onClick: () => router.push(`/learn/${c.id}`),
-      })),
-      ...notes.map((n) => ({
+        type: "course",
+        updatedAt: new Date(
+          c.progress?.lastAccessedAt || c.createdAt,
+        ).toISOString(),
+      });
+    });
+
+    notes.forEach((n) => {
+      items.push({
         id: n.id,
         title: n.title || "Untitled Note",
-        type: "note" as const,
-        date: formatTimeAgo(n.createdAt),
-        icon: <FileText className="w-5 h-5" />,
-        onClick: () => {
-          /* Navigate to note view if available */
-        },
-      })),
-    ];
+        type: "note",
+        updatedAt: new Date(n.createdAt).toISOString(),
+      });
+    });
 
-    // Return top 6 items
-    return items.slice(0, 6);
-  }, [courses, notes, router]);
+    return items
+      .sort(
+        (a, b) =>
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      )
+      .slice(0, 8);
+  }, [courses, notes]);
+
+  const handleItemClick = (item: RecentItemDTO) => {
+    if (item.type === "course") {
+      router.push(`/course/${item.id}`);
+    } else {
+      router.push(`/note/${item.id}`);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#FDFDFD] relative overflow-hidden font-sans selection:bg-black/10 selection:text-black">
@@ -165,7 +147,11 @@ export default function Home() {
         </div>
 
         <div className="mt-8 md:mt-16 w-full max-w-3xl">
-          <RecentAccess items={recentItems} loading={loading} />
+          <RecentAccess
+            items={recentItems}
+            loading={loading}
+            onItemClick={handleItemClick}
+          />
         </div>
       </main>
 

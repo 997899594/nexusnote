@@ -2,6 +2,7 @@
 
 import { useCompletion } from '@ai-sdk/react'
 import { useCallback } from 'react'
+import { editorCompletionAction } from '@/app/actions/ai'
 
 export type AIAction =
   | 'continue'
@@ -36,6 +37,11 @@ export function useInlineAI() {
     setCompletion,
   } = useCompletion({
     id: 'inline-ai',
+    // 架构师重构：将 fetch 替换为 Server Action
+    fetch: async (url, options) => {
+      const body = JSON.parse(options?.body as string);
+      return (await editorCompletionAction(body)) as Response;
+    },
   })
 
   const runAction = useCallback(async (action: AIAction, selection: string) => {

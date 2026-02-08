@@ -64,7 +64,7 @@ export function OrganicHeader() {
   )
 }
 
-function MobileNavLink({ icon: Icon, label }: any) {
+function MobileNavLink({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
     return (
         <button className="flex items-center gap-4 text-2xl font-semibold text-black/80">
             <Icon className="w-6 h-6 text-black/40" />

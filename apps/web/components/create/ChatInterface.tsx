@@ -2,10 +2,11 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, Check, Zap } from "lucide-react";
-import { UIMessage as Message, isToolUIPart, getToolName } from "ai";
+import { UIMessage as Message } from "ai";
 import { MessageResponse } from "@/components/ai/Message";
 import { UnifiedChatUI } from "@/components/ai/UnifiedChatUI";
 import type { InterviewContext } from "@/lib/ai/agents/interview/agent";
+import { findToolCall } from "@/lib/ai/ui-utils";
 
 interface ChatInterfaceProps {
   phase: string;
@@ -13,14 +14,17 @@ interface ChatInterfaceProps {
   isAiThinking: boolean;
   userInput: string;
   setUserInput: (v: string) => void;
-  onSendMessage: (e?: React.FormEvent, override?: string, contextUpdate?: Partial<InterviewContext>) => void;
+  onSendMessage: (
+    e?: React.FormEvent,
+    override?: string,
+    contextUpdate?: Partial<InterviewContext>,
+  ) => void;
   goal: string;
   context: InterviewContext;
   error?: string | null;
   onRetry?: () => void;
   compact?: boolean;
 }
-
 
 export function ChatInterface({
   phase,
@@ -38,7 +42,11 @@ export function ChatInterface({
   const lastMessage = messages[messages.length - 1];
 
   // Enhanced send message with vibration feedback
-  const handleSendWithFeedback = (e?: React.FormEvent, override?: string, contextUpdate?: Partial<InterviewContext>) => {
+  const handleSendWithFeedback = (
+    e?: React.FormEvent,
+    override?: string,
+    contextUpdate?: Partial<InterviewContext>,
+  ) => {
     // Vibration feedback on mobile
     if (typeof navigator !== "undefined" && navigator.vibrate) {
       navigator.vibrate(50);
@@ -56,24 +64,27 @@ export function ChatInterface({
     targetField?: string;
   } | null = null;
 
-  if (lastMessage?.role === "assistant" && lastMessage.parts) {
-    const presentOptionsPart = lastMessage.parts.find(
-      part => isToolUIPart(part) && getToolName(part) === 'presentOptions'
+  if (lastMessage?.role === "assistant") {
+    const toolCall = findToolCall<{ options: string[]; targetField?: string }>(
+      lastMessage,
+      "presentOptions",
     );
 
-    if (presentOptionsPart && isToolUIPart(presentOptionsPart)) {
-      if (presentOptionsPart.state === 'input-available' || presentOptionsPart.state === 'output-available') {
-        const input = presentOptionsPart.input as {
-          options: string[];
-          targetField: string;
+    if (
+      toolCall &&
+      (toolCall.state === "input-available" ||
+        toolCall.state === "output-available")
+    ) {
+      const input = toolCall.input;
+      if (
+        input?.options &&
+        Array.isArray(input.options) &&
+        input.options.length > 0
+      ) {
+        activeToolOptions = {
+          options: input.options,
+          targetField: input.targetField || "general",
         };
-
-        if (Array.isArray(input.options) && input.options.length > 0) {
-          activeToolOptions = {
-            options: input.options,
-            targetField: input.targetField,
-          };
-        }
       }
     }
   }
@@ -86,9 +97,19 @@ export function ChatInterface({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className={compact ? "flex flex-col h-full" : "absolute inset-0 z-[150] flex flex-col items-center justify-center px-4 md:px-6"}
+          className={
+            compact
+              ? "flex flex-col h-full"
+              : "absolute inset-0 z-[150] flex flex-col items-center justify-center px-4 md:px-6"
+          }
         >
-          <div className={compact ? "flex flex-col h-full w-full" : "max-w-4xl w-full flex flex-col h-[85vh]"}>
+          <div
+            className={
+              compact
+                ? "flex flex-col h-full w-full"
+                : "max-w-4xl w-full flex flex-col h-[85vh]"
+            }
+          >
             <UnifiedChatUI
               messages={messages}
               isLoading={isAiThinking}
@@ -98,43 +119,41 @@ export function ChatInterface({
               variant="interview"
               placeholder="Type your answer..."
               renderMessage={(message, text, isUser) => {
+                if (isUser) {
+                  return (
+                    <div className="flex justify-end">
+                      <div className="bg-black px-6 py-3 rounded-[24px] max-w-[85%]">
+                        <p className="text-sm md:text-base font-bold text-white text-right leading-relaxed">
+                          {text}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
+
                 // 最后一条 assistant 消息使用增强样式
-                const isActive = !isUser && message === lastMessage;
+                const isActive = message === lastMessage;
 
                 return (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="space-y-4 w-full"
-                  >
-                    {!isUser && !isActive && (
-                      <div className="flex justify-start">
-                        <div className="bg-black/5 px-6 py-3 rounded-[24px] max-w-[85%] text-left">
-                          <p className="text-sm md:text-base font-medium text-black/60 leading-relaxed">
-                            {text}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                    {isActive && text && (
-                      <div className="flex justify-start">
-                        <div className="bg-white shadow-xl shadow-black/5 px-8 py-6 rounded-[32px] max-w-[95%] text-left border border-black/[0.02]">
-                          <div className="text-lg md:text-xl font-bold tracking-tight text-black leading-snug">
-                            <MessageResponse>{text}</MessageResponse>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    {isUser && (
-                      <div className="flex justify-end">
-                        <div className="bg-black px-6 py-3 rounded-[24px] max-w-[85%] text-right shadow-lg shadow-black/10">
-                          <p className="text-sm md:text-base font-bold text-white leading-relaxed">
-                            {text}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </motion.div>
+                  <div className="flex justify-start">
+                    <div
+                      className={`${
+                        isActive
+                          ? "bg-white shadow-xl shadow-black/5 px-8 py-6 rounded-[32px] max-w-[95%] border border-black/[0.02]"
+                          : "bg-black/5 px-6 py-3 rounded-[24px] max-w-[85%]"
+                      }`}
+                    >
+                      <MessageResponse
+                        className={`${
+                          isActive
+                            ? "text-lg md:text-xl font-bold tracking-tight text-black leading-snug"
+                            : "text-sm md:text-base font-medium text-black/60 leading-relaxed"
+                        }`}
+                      >
+                        {text}
+                      </MessageResponse>
+                    </div>
+                  </div>
                 );
               }}
               renderEmpty={() => (
@@ -206,14 +225,21 @@ export function ChatInterface({
                     >
                       {activeToolOptions.options.map((option) => {
                         const targetField = activeToolOptions!.targetField;
-                        const contextUpdate = targetField && targetField !== 'general'
-                          ? { [targetField]: option }
-                          : undefined;
+                        const contextUpdate =
+                          targetField && targetField !== "general"
+                            ? { [targetField]: option }
+                            : undefined;
 
                         return (
                           <button
                             key={option}
-                            onClick={() => handleSendWithFeedback(undefined, option, contextUpdate)}
+                            onClick={() =>
+                              handleSendWithFeedback(
+                                undefined,
+                                option,
+                                contextUpdate,
+                              )
+                            }
                             className="bg-white/80 backdrop-blur-md border border-black/5 px-6 py-3 rounded-full text-sm font-medium hover:bg-black hover:text-white transition-all shadow-lg shadow-black/5 hover:scale-105 active:scale-95"
                           >
                             {option}

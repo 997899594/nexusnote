@@ -22,17 +22,25 @@ import {
 import { useNoteExtractionOptional } from "@/contexts/NoteExtractionContext";
 import { GhostFlight } from "@/components/editor/GhostFlight";
 import { markdownToHtml } from "@/lib/editor/markdown";
+import { getDocumentAction } from "@/app/actions/document";
+import { DocumentDTO } from "@/lib/actions/types";
 
 interface MaterialViewerProps {
   title: string;
   documentId?: string;
 }
 
+interface FlyingNote {
+  id: string;
+  content: string;
+  startRect: DOMRect;
+}
+
 export function MaterialViewer({ title, documentId }: MaterialViewerProps) {
   const [activeTab, setActiveTab] = useState<"content" | "details" | "notes">(
     "content",
   );
-  const [flyingNotes, setFlyingNotes] = useState<any[]>([]);
+  const [flyingNotes, setFlyingNotes] = useState<FlyingNote[]>([]);
   const [selection, setSelection] = useState<{
     text: string;
     rect: DOMRect;
@@ -41,7 +49,7 @@ export function MaterialViewer({ title, documentId }: MaterialViewerProps) {
   const noteExtraction = useNoteExtractionOptional();
   const [content, setContent] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
-  const [docInfo, setDocInfo] = useState<any>(null);
+  const [docInfo, setDocInfo] = useState<DocumentDTO | null>(null);
 
   // Fetch document content if documentId is provided
   useEffect(() => {
@@ -51,14 +59,24 @@ export function MaterialViewer({ title, documentId }: MaterialViewerProps) {
     }
     const fetchContent = async () => {
       try {
-        const res = await fetch(`/api/documents/${documentId}`);
-        if (res.ok) {
-          const doc = await res.json();
-          setContent(doc.content || "");
-          setDocInfo(doc);
+        const result = await getDocumentAction(documentId);
+        if (result.success) {
+          const doc = result.data;
+          // 如果是 base64 编码的内容，需要解码
+          const decodedContent = doc.content ? atob(doc.content) : "";
+          setContent(decodedContent);
+          
+          // Convert Date to string for DTO compatibility
+          setDocInfo({
+            ...doc,
+            createdAt: new Date().toISOString(), // Fallback or get from API
+            updatedAt: doc.updatedAt ? doc.updatedAt.toISOString() : null
+          } as DocumentDTO);
+        } else {
+          console.error(`[MaterialViewer] Fetch failed: ${result.error}`);
         }
       } catch (err) {
-        console.error("Failed to fetch document content:", err);
+        console.error("[MaterialViewer] Unexpected error:", err);
       } finally {
         setIsLoading(false);
       }

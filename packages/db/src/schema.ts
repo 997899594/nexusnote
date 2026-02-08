@@ -1,4 +1,5 @@
 import { env } from "@nexusnote/config";
+import { relations } from "drizzle-orm";
 import {
   pgTable,
   uuid,
@@ -428,3 +429,46 @@ export type NewExtractedNote = typeof extractedNotes.$inferInsert;
 // AI Usage types
 export type AIUsage = typeof aiUsage.$inferSelect;
 export type NewAIUsage = typeof aiUsage.$inferInsert;
+
+// ============================================
+// Relations
+// ============================================
+
+export const topicsRelations = relations(topics, ({ many }) => ({
+  notes: many(extractedNotes),
+}));
+
+export const extractedNotesRelations = relations(extractedNotes, ({ one }) => ({
+  topic: one(topics, {
+    fields: [extractedNotes.topicId],
+    references: [topics.id],
+  }),
+  user: one(users, {
+    fields: [extractedNotes.userId],
+    references: [users.id],
+  }),
+}));
+
+export const usersRelations = relations(users, ({ many }) => ({
+  topics: many(topics),
+  extractedNotes: many(extractedNotes),
+  courseProfiles: many(courseProfiles),
+}));
+
+export const courseProfilesRelations = relations(
+  courseProfiles,
+  ({ one, many }) => ({
+    user: one(users, {
+      fields: [courseProfiles.userId],
+      references: [users.id],
+    }),
+    chapters: many(courseChapters),
+  }),
+);
+
+export const courseChaptersRelations = relations(courseChapters, ({ one }) => ({
+  profile: one(courseProfiles, {
+    fields: [courseChapters.profileId],
+    references: [courseProfiles.id],
+  }),
+}));

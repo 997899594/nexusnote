@@ -1,6 +1,7 @@
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { registry } from "../registry";
+import { createTelemetryConfig } from "../langfuse";
 
 // Define the router output schema
 export const RouterSchema = z.object({
@@ -9,7 +10,7 @@ export const RouterSchema = z.object({
     .describe("The target agent to handle the user request."),
   reasoning: z.string().describe("Brief reasoning for the routing decision."),
   parameters: z
-    .record(z.string(), z.any())
+    .record(z.string(), z.unknown())
     .optional()
     .describe("Extracted parameters relevant to the target agent."),
 });
@@ -22,13 +23,14 @@ export type RouterOutput = z.infer<typeof RouterSchema>;
  */
 function fastRoute(input: string, contextStr?: string): RouterOutput | null {
   const normalizedInput = input.trim().toLowerCase();
-  let context: any = {};
+  let context: Record<string, unknown> = {};
   try {
-    if (contextStr) context = JSON.parse(contextStr);
+    if (contextStr) context = JSON.parse(contextStr) as Record<string, unknown>;
   } catch (e) {}
 
   // 1. 明显的访谈启动意图
-  const interviewKeywords = /想学|要学|学习|创建一个|课程|syllabus|learn|tutorial/i;
+  const interviewKeywords =
+    /想学|要学|学习|创建一个|课程|syllabus|learn|tutorial/i;
   if (interviewKeywords.test(normalizedInput) && normalizedInput.length < 50) {
     return {
       target: "INTERVIEW",
@@ -39,7 +41,8 @@ function fastRoute(input: string, contextStr?: string): RouterOutput | null {
   // 2. 访谈延续意图 (基于 Context 的粘滞性)
   if (context.isInInterview) {
     // 如果已经在访谈中，且输入不包含明显的切换意图，则锁定在 INTERVIEW
-    const switchIntentKeywords = /搜索|上网找|查找|修改|search|google|web|edit|change/i;
+    const switchIntentKeywords =
+      /搜索|上网找|查找|修改|search|google|web|edit|change/i;
     if (
       !switchIntentKeywords.test(normalizedInput) &&
       normalizedInput.length < 100
@@ -52,7 +55,8 @@ function fastRoute(input: string, contextStr?: string): RouterOutput | null {
   }
 
   // 3. 基础聊天意图
-  const chatKeywords = /^(你好|hello|hi|你是谁|who are you|早安|午安|晚安)[！!？?.]*$/i;
+  const chatKeywords =
+    /^(你好|hello|hi|你是谁|who are you|早安|午安|晚安)[！!？?.]*$/i;
   if (chatKeywords.test(normalizedInput)) {
     return {
       target: "CHAT",
@@ -66,6 +70,7 @@ function fastRoute(input: string, contextStr?: string): RouterOutput | null {
 export async function routeIntent(
   input: string,
   context?: string,
+  traceId?: string, // 2026 架构师建议：支持外部传入 traceId
 ): Promise<RouterOutput> {
   // 0. P1 Fast-Path: 预拦截逻辑
   const fastResult = fastRoute(input, context);
@@ -85,6 +90,12 @@ export async function routeIntent(
     model,
     temperature: 0, // 🧊 绝对零度，确保分类稳定
     experimental_output: Output.object({ schema: RouterSchema }),
+    // 2026 架构师建议：为路由过程增加可观测性
+    experimental_telemetry: createTelemetryConfig(
+      "intent-router",
+      { input: input.slice(0, 100) },
+      traceId,
+    ),
     system: `
       You are the Central Router for NexusNote, an AI course generator and learning assistant.
       Your job is to CLASSIFY user intent into one of four categories:

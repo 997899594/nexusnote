@@ -10,7 +10,7 @@
  * 注意：工具执行在 API 路由（后端）中，与前端完全解耦
  */
 
-import { tool } from "ai";
+import { tool, type ToolSet } from "ai";
 import { z } from "zod";
 import {
   saveCourseChapter,
@@ -168,7 +168,7 @@ export const markGenerationCompleteTool = tool({
 /**
  * 导出所有 Course Generation 工具的集合
  */
-export const courseGenerationTools = {
+export const courseGenerationTools: ToolSet = {
   checkGenerationProgress: checkGenerationProgressTool,
   saveChapterContent: saveChapterContentTool,
   markGenerationComplete: markGenerationCompleteTool,

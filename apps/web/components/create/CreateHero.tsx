@@ -94,7 +94,7 @@ export function CreateHero({ onGenerate, isGenerating }: CreateHeroProps) {
     )
 }
 
-function InspirationTag({ icon: Icon, label, onClick }: { icon: any, label: string, onClick: () => void }) {
+function InspirationTag({ icon: Icon, label, onClick }: { icon: React.ElementType, label: string, onClick: () => void }) {
     return (
         <button 
             type="button"

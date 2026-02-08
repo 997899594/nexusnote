@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UIMessage } from "ai";
+import { getMessageContent } from "@/lib/ai/ui-utils";
 
 interface CourseOutline {
   title: string;
@@ -59,20 +60,10 @@ export function OutlineReview({
     setOutline(initialOutline);
   }, [initialOutline]);
 
-  const getMessageText = (message: UIMessage): string => {
-    if (message.parts) {
-      return message.parts
-        .filter((p) => p.type === "text")
-        .map((p) => (p as { type: "text"; text: string }).text)
-        .join("");
-    }
-    return (message as any).content || "";
-  };
-
   const latestAiMessage = (() => {
     const assistantMessages = messages.filter((m) => m.role === "assistant");
     const lastMessage = assistantMessages[assistantMessages.length - 1];
-    return lastMessage ? getMessageText(lastMessage) : "";
+    return lastMessage ? getMessageContent(lastMessage) : "";
   })();
 
   const chapters =

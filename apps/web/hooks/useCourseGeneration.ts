@@ -1,21 +1,19 @@
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport } from "ai";
-import {
-  useState,
-  useReducer,
-  useEffect,
-  useRef,
-  useCallback,
-  useMemo,
-} from "react";
+import type { UIMessageChunk } from "ai";
+import { useSession } from "next-auth/react";
+import { aiGatewayAction } from "@/app/actions/ai";
+import { type AIRequest } from "@/lib/ai/gateway/service";
+import { useState, useReducer, useEffect, useRef, useCallback } from "react";
 import { CourseNode } from "@/lib/types/course";
 import { useRouter } from "next/navigation";
 import { learningStore } from "@/lib/storage";
 import type { CourseOutline as StoreCourseOutline } from "@/lib/storage/learning-store";
+import { saveCourseProfileAction } from "@/app/actions/course";
 import type {
   InterviewAgentMessage,
   InterviewContext,
 } from "@/lib/ai/agents/interview/agent";
+import { findToolCall } from "@/lib/ai/ui-utils";
 
 // ============================================
 // Constants
@@ -137,6 +135,7 @@ function reducer(state: State, action: Action): State {
 // --- Hook ---
 
 export function useCourseGeneration(initialGoal: string = "") {
+  const { data: session } = useSession();
   const [state, dispatch] = useReducer(reducer, {
     ...initialState,
     goal: initialGoal || initialState.goal,
@@ -168,15 +167,36 @@ export function useCourseGeneration(initialGoal: string = "") {
   // - Client-side State Sync (via useEffect)
   // - status instead of isLoading
 
-  const chatTransport = useMemo(
-    () => new DefaultChatTransport({ api: "/api/ai" }),
-    [],
-  );
+  const {
+    messages,
+    sendMessage,
+    setMessages,
+    status,
+    error,
+    regenerate,
+    stop,
+  } = useChat<InterviewAgentMessage>({
+    id: "course-generation",
+    transport: {
+      sendMessages: async ({ messages, body }) => {
+        const response = (await aiGatewayAction({
+          messages,
+          context: body as AIRequest["context"],
+        })) as unknown as Response;
 
-  const { messages, sendMessage, setMessages, status, error, regenerate } =
-    useChat<InterviewAgentMessage>({
-      transport: chatTransport,
-    });
+        if (!response.body) {
+          throw new Error("No response body");
+        }
+
+        return response.body as unknown as ReadableStream<
+          UIMessageChunk<InterviewAgentMessage>
+        >;
+      },
+      reconnectToStream: async () => {
+        throw new Error("Reconnection not supported");
+      },
+    },
+  });
 
   // Calculate isLoading from status
   const isLoading = status === "streaming" || status === "submitted";
@@ -195,11 +215,9 @@ export function useCourseGeneration(initialGoal: string = "") {
       if (lastMessage.role === "user") {
         regenerate({
           body: {
-            context: {
-              explicitIntent: "INTERVIEW",
-              interviewContext: state.context,
-              isInInterview: true,
-            },
+            explicitIntent: "INTERVIEW",
+            interviewContext: state.context,
+            isInInterview: true,
           },
         });
       }
@@ -210,69 +228,44 @@ export function useCourseGeneration(initialGoal: string = "") {
     if (!messages || messages.length === 0) return;
 
     const lastMessage = messages[messages.length - 1];
-    if (lastMessage.role !== "assistant" || !lastMessage.parts) return;
+    if (lastMessage.role !== "assistant") return;
 
-    console.log("[Tool Sync] Checking message parts");
-
-    // AI SDK v6 Agent UI: 工具在 message.parts，格式 {type: 'tool-xxx', input: {...}}
-    const generateOutlinePart = lastMessage.parts.find(
-      (p) =>
-        p.type === "tool-generateOutline" && p.state === "output-available",
+    // AI SDK v6 Agent UI: 使用统一工具函数提取大纲生成结果（类型安全）
+    const toolCall = findToolCall<Record<string, unknown>, CourseOutline>(
+      lastMessage,
+      "generateOutline",
     );
 
-    if (
-      !generateOutlinePart ||
-      generateOutlinePart.type !== "tool-generateOutline"
-    )
-      return;
-    if (processedToolCallIds.current.has(generateOutlinePart.toolCallId))
-      return;
+    if (toolCall && toolCall.state === "output-available" && toolCall.output) {
+      const toolCallId = toolCall.toolCallId;
+      if (processedToolCallIds.current.has(toolCallId)) return;
 
-    console.log("[Tool Sync] Found generateOutline");
+      console.log("[Tool Sync] Outline generated, updating state");
+      processedToolCallIds.current.add(toolCallId);
 
-    const outline = generateOutlinePart.input;
-    if (!outline.title || !outline.modules) {
-      console.log("[Tool Sync] Invalid outline data");
-      return;
+      const outlineData = toolCall.output;
+      dispatch({ type: "SET_OUTLINE", payload: outlineData });
+
+      // 同步更新节点数据
+      const chapters =
+        outlineData.chapters ??
+        outlineData.modules?.flatMap((m) => m.chapters) ??
+        [];
+
+      const newNodes: CourseNode[] = chapters.map((ch, i) => ({
+        id: `node-${i}`,
+        title: ch.title,
+        type: "chapter",
+        x: Math.cos((i / chapters.length) * Math.PI * 2) * 280,
+        y: Math.sin((i / chapters.length) * Math.PI * 2) * 280,
+        status: "ready",
+        depth: 1,
+      }));
+
+      dispatch({ type: "SET_NODES", payload: newNodes });
+      dispatch({ type: "TRANSITION", payload: "outline_review" });
     }
-
-    console.log("[Tool Sync] Processing outline:", outline.title);
-
-    const outlinePayload: CourseOutline = {
-      title: outline.title,
-      description: outline.description,
-      difficulty: outline.difficulty,
-      estimatedMinutes: outline.estimatedMinutes,
-      modules: outline.modules,
-      chapters: outline.modules
-        .flatMap((m: any) => m.chapters)
-        .map((ch: any) => ({
-          title: ch.title,
-          contentSnippet: ch.contentSnippet,
-          summary: ch.contentSnippet || "",
-        })),
-    };
-
-    dispatch({ type: "SET_OUTLINE", payload: outlinePayload });
-
-    const allChapters = outlinePayload.chapters!;
-    const newNodes: CourseNode[] = allChapters.map((ch, i) => ({
-      id: `node-${i}`,
-      title: ch.title,
-      type: "chapter",
-      x: Math.cos((i / allChapters.length) * Math.PI * 2) * 280,
-      y: Math.sin((i / allChapters.length) * Math.PI * 2) * 280,
-      status: "ready",
-      depth: 1,
-    }));
-
-    dispatch({ type: "SET_NODES", payload: newNodes });
-    dispatch({ type: "TRANSITION", payload: "outline_review" });
-
-    processedToolCallIds.current.add(generateOutlinePart.toolCallId);
-
-    console.log("[Tool Sync] Transitioned to outline_review");
-  }, [messages, state.phase]);
+  }, [messages]);
 
   // Persistence: Load
   useEffect(() => {
@@ -330,11 +323,9 @@ export function useCourseGeneration(initialGoal: string = "") {
       },
       {
         body: {
-          context: {
-            explicitIntent: "INTERVIEW",
-            interviewContext: state.context,
-            isInInterview: true,
-          },
+          explicitIntent: "INTERVIEW",
+          interviewContext: state.context,
+          isInInterview: true,
         },
       },
     );
@@ -379,11 +370,9 @@ export function useCourseGeneration(initialGoal: string = "") {
         },
         {
           body: {
-            context: {
-              explicitIntent: "INTERVIEW",
-              interviewContext: finalContext, // ← 保证使用计算出的最新值
-              isInInterview: true,
-            },
+            explicitIntent: "INTERVIEW",
+            interviewContext: finalContext, // ← 保证使用计算出的最新值
+            isInInterview: true,
           },
         },
       );
@@ -391,10 +380,19 @@ export function useCourseGeneration(initialGoal: string = "") {
     [input, state.context, sendMessage],
   );
 
-  // Course Generation Logic (The "Backend" Simulation) - Unchanged
+  // Course Generation Logic (The "Backend" Simulation)
+  // 架构师系统级重构：将基于定时器的不确定流转，改为确定性的异步序列流转
+  const transitionProcessedRef = useRef<Record<string, boolean>>({});
+
   useEffect(() => {
-    if (state.phase === "synthesis") {
-      const generateRealCourse = async () => {
+    // 只有在 synthesis 阶段且尚未处理过该阶段时执行
+    if (
+      state.phase === "synthesis" &&
+      !transitionProcessedRef.current["synthesis"]
+    ) {
+      transitionProcessedRef.current["synthesis"] = true;
+
+      const runGenerationFlow = async () => {
         try {
           if (!state.outline) {
             console.error("No outline available for course generation");
@@ -402,133 +400,165 @@ export function useCourseGeneration(initialGoal: string = "") {
           }
 
           const data = state.outline;
+          const unifiedId = state.id || crypto.randomUUID();
 
-          try {
-            // 从 modules 或 chapters 中提取章节，转换为 learningStore 要求的格式
-            const allChapters: Chapter[] =
-              data.chapters ||
-              (data.modules ? data.modules.flatMap((m) => m.chapters) : []);
-
-            const storeOutline: StoreCourseOutline = {
-              title: data.title,
-              description: data.description,
-              difficulty: data.difficulty,
-              estimatedMinutes: data.estimatedMinutes,
-              chapters: allChapters.map((ch) => ({
-                title: ch.title,
-                summary: ch.summary || ch.contentSnippet || "",
-                keyPoints: ch.keyPoints || [],
-              })),
-            };
-
-            const course = await learningStore.createFromOutline(
-              storeOutline,
-              "course",
-              state.id,
-            );
-            setCreatedCourseId(course.id);
-
-            // 架构师优化：大纲确认后立即触发后台并行生成 (Parallel Seeding)
-            // 无需等待用户跳转到学习页面，提前预热首章节内容
-            // 使用 keepalive: true 确保即使页面跳转，请求也能在后台完成
-            console.log(
-              `[useCourseGeneration] 🚀 启动首章节后台预生成: ${course.id}`,
-            );
-            fetch("/api/ai", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              keepalive: true, // 关键：确保跳转后请求不中断
-              body: JSON.stringify({
-                messages: [{ role: "user", content: "请生成第 1 章的内容。" }],
-                context: {
-                  explicitIntent: "COURSE_GENERATION",
-                  courseGenerationContext: {
-                    id: course.id,
-                    goal: state.context.goal,
-                    background: state.context.background,
-                    targetOutcome: state.context.targetOutcome,
-                    cognitiveStyle: state.context.cognitiveStyle,
-                    outlineTitle: data.title,
-                    outlineData: data,
-                    moduleCount: data.modules?.length || 0,
-                    totalChapters: allChapters.length,
-                    currentChapterIndex: 0,
-                    chaptersGenerated: 0,
-                  },
-                },
-              }),
-            }).catch((err) =>
-              console.error("[useCourseGeneration] 后台生成启动失败:", err),
-            );
-          } catch (e) {
-            console.error("Failed to persist course:", e);
+          if (!state.id) {
+            dispatch({ type: "SET_ID", payload: unifiedId });
           }
 
-          const chapters: Chapter[] =
+          // 1. 本地存储同步
+          const allChapters: Chapter[] =
             data.chapters ||
-            (data.modules
-              ? data.modules.flatMap((m: Module) => m.chapters)
-              : []);
+            (data.modules ? data.modules.flatMap((m) => m.chapters) : []);
 
-          const newNodes: CourseNode[] = chapters.map(
+          const storeOutline: StoreCourseOutline = {
+            title: data.title,
+            description: data.description,
+            difficulty: data.difficulty,
+            estimatedMinutes: data.estimatedMinutes,
+            chapters: allChapters.map((ch) => ({
+              title: ch.title,
+              summary: ch.summary || ch.contentSnippet || "",
+              keyPoints: ch.keyPoints || [],
+            })),
+          };
+
+          const course = await learningStore.createFromOutline(
+            storeOutline,
+            "course",
+            unifiedId,
+          );
+          setCreatedCourseId(course.id);
+
+          // 2. 服务端画像同步（使用 Server Action 替代 fetch）
+          console.log(
+            `[useCourseGeneration] 💾 核心画像同步 (Server Action): ${course.id}`,
+          );
+          const result = await saveCourseProfileAction({
+            id: course.id,
+            goal: state.context.goal || "",
+            background: state.context.background || "",
+            targetOutcome: state.context.targetOutcome || "",
+            cognitiveStyle: state.context.cognitiveStyle || "",
+            outlineData: data,
+            designReason: "AI 驱动的个性化学习路径",
+          });
+
+          if (!result.success) {
+            throw new Error(`Critical: ${result.error}`);
+          }
+
+          // 3. 启动后台预生成（非阻塞）
+          console.log(
+            `[useCourseGeneration] 🚀 启动首章节预生成: ${course.id}`,
+          );
+          // 架构师重构：改用 Server Action 触发后台任务，实现全链路类型安全
+          // 注意：此处不再重复调用，逻辑已包含在 synthesis 处理流中
+          console.log(
+            `[useCourseGeneration] 🚀 启动首章节预生成: ${course.id}`,
+          );
+          aiGatewayAction({
+            messages: [
+              {
+                id: `gen-${Date.now()}`,
+                role: "user",
+                parts: [
+                  {
+                    type: "text",
+                    text: "请生成第 1 章的内容。",
+                    state: "done",
+                  },
+                ],
+              },
+            ],
+            context: {
+              explicitIntent: "COURSE_GENERATION",
+              courseGenerationContext: {
+                id: course.id,
+                userId: session?.user?.id || "",
+                goal: state.context.goal || "",
+                background: state.context.background || "",
+                targetOutcome: state.context.targetOutcome || "",
+                cognitiveStyle: state.context.cognitiveStyle || "",
+                outlineTitle: data.title,
+                outlineData: data,
+                moduleCount: data.modules?.length || 0,
+                totalChapters: allChapters.length,
+                currentModuleIndex: 0,
+                currentChapterIndex: 0,
+                chaptersGenerated: 0,
+              },
+            },
+          }).catch((err) =>
+            console.error("[useCourseGeneration] 后台预生成启动失败:", err),
+          );
+
+          // 4. 更新节点状态并进入视觉动画阶段
+          const newNodes: CourseNode[] = allChapters.map(
             (ch: Chapter, i: number): CourseNode => ({
               id: `node-${i}`,
               title: ch.title,
               type: "chapter",
-              x: Math.cos((i / chapters.length) * Math.PI * 2) * 280,
-              y: Math.sin((i / chapters.length) * Math.PI * 2) * 280,
+              x: Math.cos((i / allChapters.length) * Math.PI * 2) * 280,
+              y: Math.sin((i / allChapters.length) * Math.PI * 2) * 280,
               status: "ready",
               depth: 1,
             }),
           );
-
           dispatch({ type: "SET_NODES", payload: newNodes });
 
-          setTimeout(() => {
-            dispatch({ type: "TRANSITION", payload: "seeding" });
-          }, PHASE_TRANSITION_DELAYS.synthesis);
-        } catch (error) {
-          console.error(
-            "[useCourseGeneration] Failed to generate course:",
-            error,
+          // 视觉过渡阶段链式推进
+          await new Promise((r) =>
+            setTimeout(r, PHASE_TRANSITION_DELAYS.synthesis),
           );
+          dispatch({ type: "TRANSITION", payload: "seeding" });
+        } catch (error) {
+          console.error("[useCourseGeneration] 流程中断:", error);
+          // 容错处理：即使出错也尝试进入 seeding 阶段，让视觉流程不卡死
           setTimeout(
             () => dispatch({ type: "TRANSITION", payload: "seeding" }),
-            PHASE_TRANSITION_DELAYS.synthesis,
+            1000,
           );
         }
       };
-      generateRealCourse();
-    }
-  }, [state.phase, state.goal, state.context]);
 
-  // Phase transition chain - Unchanged
+      runGenerationFlow();
+    }
+  }, [state.phase, state.outline, state.id]);
+
+  // Phase transition chain - 视觉层流转
   useEffect(() => {
     let timer: NodeJS.Timeout | undefined;
+
+    // 避免重复处理同一阶段的流转
+    if (transitionProcessedRef.current[state.phase]) return;
+
     switch (state.phase) {
       case "seeding":
+        transitionProcessedRef.current["seeding"] = true;
         timer = setTimeout(() => {
           dispatch({ type: "TRANSITION", payload: "growing" });
         }, PHASE_TRANSITION_DELAYS.seeding);
         break;
       case "growing":
+        transitionProcessedRef.current["growing"] = true;
         timer = setTimeout(() => {
           dispatch({ type: "TRANSITION", payload: "ready" });
         }, PHASE_TRANSITION_DELAYS.growing);
         break;
       case "ready":
+        transitionProcessedRef.current["ready"] = true;
         timer = setTimeout(() => {
           dispatch({ type: "TRANSITION", payload: "manifesting" });
         }, PHASE_TRANSITION_DELAYS.ready);
         break;
       case "manifesting":
+        transitionProcessedRef.current["manifesting"] = true;
         timer = setTimeout(() => {
           if (createdCourseId) {
             router.push(`/learn/${createdCourseId}`);
           } else {
-            console.error(
-              "[useCourseGeneration] No course ID found, cannot redirect",
-            );
+            console.error("[useCourseGeneration] Redirect blocked: No ID");
           }
         }, PHASE_TRANSITION_DELAYS.manifesting);
         break;
@@ -539,8 +569,9 @@ export function useCourseGeneration(initialGoal: string = "") {
   }, [state.phase, createdCourseId, router]);
 
   const confirmOutline = async (finalOutline: CourseOutline, id?: string) => {
-    if (id) {
-      dispatch({ type: "SET_ID", payload: id });
+    const unifiedId = id || state.id || crypto.randomUUID();
+    if (unifiedId !== state.id) {
+      dispatch({ type: "SET_ID", payload: unifiedId });
     }
     dispatch({ type: "SET_OUTLINE", payload: finalOutline });
     dispatch({ type: "TRANSITION", payload: "synthesis" });
@@ -562,8 +593,9 @@ export function useCourseGeneration(initialGoal: string = "") {
       handleSendMessage,
       selectNode: setSelectedNode,
       confirmOutline,
-      retry: () => sendMessage({ text: "继续" }), // Simple retry
+      retry: () => (error ? regenerate() : sendMessage({ text: "继续" })), // 架构师优化：错误时自动重试，正常时手动推进
       sendMessage,
+      stop,
     },
   };
 }

@@ -12,14 +12,14 @@ export function MobileNav() {
         { icon: BookOpen, label: 'Courses', href: '/courses' },
         { icon: Plus, label: 'Create', href: '/create', isCreate: true },
         { icon: FileText, label: 'Notes', href: '/notes' },
-    ]
+    ] as const;
 
     return (
         <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-black/10 z-50 safe-area-inset-bottom">
             <div className="flex items-center justify-around px-2 py-2">
                 {navItems.map((item) => {
                     const isActive = pathname === item.href
-                    const isCreate = (item as any).isCreate
+                    const isCreate = 'isCreate' in item && item.isCreate
 
                     return (
                         <Link

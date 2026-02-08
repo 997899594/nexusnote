@@ -9,8 +9,8 @@
  * - 批量嵌入生成（embedMany）
  */
 
-import { clientEnv, defaults } from "@nexusnote/config";
-import { embedMany, cosineSimilarity } from "ai";
+import { embedMany, cosineSimilarity, type EmbeddingModel } from "ai";
+import { searchNotesAction } from "@/app/actions/note";
 
 // ============================================
 // Types
@@ -52,43 +52,16 @@ export interface RAGServiceOptions {
 // ============================================
 
 export class RAGService {
-  private baseUrl: string;
   private timeout: number;
   private retries: number;
   private similarityThreshold: number;
   private defaultTopK: number;
 
   constructor(options: RAGServiceOptions = {}) {
-    this.baseUrl =
-      options.baseUrl ||
-      clientEnv.NEXT_PUBLIC_API_URL ||
-      "http://localhost:3001";
-    this.timeout = options.timeout || defaults.rag.timeout;
-    this.retries = options.retries || defaults.rag.retries;
-    this.similarityThreshold =
-      options.similarityThreshold || defaults.rag.similarityThreshold;
-    this.defaultTopK = options.defaultTopK || defaults.rag.topK;
-  }
-
-  /**
-   * 带超时的 fetch
-   */
-  private async fetchWithTimeout(
-    url: string,
-    options: RequestInit,
-  ): Promise<Response> {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-
-    try {
-      const response = await fetch(url, {
-        ...options,
-        signal: controller.signal,
-      });
-      return response;
-    } finally {
-      clearTimeout(timeoutId);
-    }
+    this.timeout = options.timeout || 5000;
+    this.retries = options.retries || 2;
+    this.similarityThreshold = options.similarityThreshold || 0.3;
+    this.defaultTopK = options.defaultTopK || 5;
   }
 
   /**
@@ -108,23 +81,22 @@ export class RAGService {
 
     for (let attempt = 0; attempt <= this.retries; attempt++) {
       try {
-        const url = `${this.baseUrl}/rag/search?q=${encodeURIComponent(query)}&topK=${topK}&userId=${userId}`;
+        const result = await searchNotesAction({ query, limit: topK });
 
-        const response = await this.fetchWithTimeout(url, {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-        });
-
-        if (!response.ok) {
+        if (!result.success) {
           console.error(
             `[RAG] Search failed (attempt ${attempt + 1}/${this.retries + 1}):`,
-            response.status,
+            result.error,
           );
           if (attempt < this.retries) continue;
           return emptyResult;
         }
 
-        const results = (await response.json()) as RAGSearchResult[];
+        if (!result.data) {
+          return emptyResult;
+        }
+
+        const results = result.data as RAGSearchResult[];
 
         if (results.length === 0) {
           return emptyResult;
@@ -132,7 +104,7 @@ export class RAGService {
 
         // 过滤低相似度结果
         const relevant = results.filter(
-          (r) => r.similarity > this.similarityThreshold,
+          (r: RAGSearchResult) => r.similarity > this.similarityThreshold,
         );
 
         if (relevant.length === 0) {
@@ -141,18 +113,21 @@ export class RAGService {
 
         // 格式化上下文
         const context = relevant
-          .map((r, i) => `[${i + 1}] ${r.content}`)
-          .join("\n\n---\n\n");
+          .map((r: RAGSearchResult, i: number) => `[${i + 1}] ${r.content}`)
+          .join("\n\n");
 
-        // 去重来源
-        const sources = [
-          ...new Map(
-            relevant.map((r) => [
-              r.documentId,
-              { documentId: r.documentId, title: r.documentTitle },
-            ]),
-          ).values(),
-        ];
+        // 提取来源
+        const sources: RAGSource[] = Array.from(
+          new Set(relevant.map((r: RAGSearchResult) => r.documentId)),
+        ).map((docId) => {
+          const match = relevant.find(
+            (r: RAGSearchResult) => r.documentId === docId,
+          );
+          return {
+            documentId: docId,
+            title: match?.documentTitle || "未知文档",
+          };
+        });
 
         return { context, sources, results: relevant };
       } catch (err) {
@@ -181,65 +156,6 @@ export class RAGService {
   ): Promise<RAGSearchResult[]> {
     const { results } = await this.search(query, userId, topK);
     return results;
-  }
-
-  /**
-   * 批量生成嵌入向量（使用 AI SDK v6 embedMany）
-   *
-   * 相比逐个调用 embed，embedMany 支持：
-   * - 并行处理（maxParallelCalls）
-   * - 更好的性能
-   * - 单次 API 调用处理多个文本
-   *
-   * @param texts 要嵌入的文本列表
-   * @param model 嵌入模型
-   * @returns 嵌入向量数组
-   */
-  async generateEmbeddings(
-    texts: string[],
-    model: any,  // 应该是 LanguageModel，但避免导入复杂的类型
-  ): Promise<number[][]> {
-    if (!texts || texts.length === 0) {
-      return [];
-    }
-
-    try {
-      const { embeddings } = await embedMany({
-        model,
-        values: texts,
-        maxParallelCalls: 5,  // 最多5个并行请求，避免 API 限流
-      });
-
-      return embeddings;
-    } catch (error) {
-      console.error("[RAG] Failed to generate embeddings:", error);
-      throw error;
-    }
-  }
-
-  /**
-   * 计算两个向量的余弦相似度
-   *
-   * @param embedding1 第一个向量
-   * @param embedding2 第二个向量
-   * @returns 相似度（0-1）
-   */
-  calculateSimilarity(embedding1: number[], embedding2: number[]): number {
-    return cosineSimilarity(embedding1, embedding2);
-  }
-
-  /**
-   * 检查 RAG 服务是否可用
-   */
-  async healthCheck(): Promise<boolean> {
-    try {
-      const response = await this.fetchWithTimeout(`${this.baseUrl}/health`, {
-        method: "GET",
-      });
-      return response.ok;
-    } catch {
-      return false;
-    }
   }
 }
 

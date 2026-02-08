@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react'
 import { Editor } from '@tiptap/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Ghost, Sparkles, X, Zap } from 'lucide-react'
+import { ghostAnalyzeAction } from '@/app/actions/ai'
 
 interface GhostBrainProps {
     editor: Editor | null
@@ -40,12 +41,14 @@ export function GhostBrain({ editor, documentId, title }: GhostBrainProps) {
                 setIsThinking(true)
                 lastAnalysisTime.current = now
                 try {
-                    const res = await fetch('/api/ghost/analyze', {
-                        method: 'POST',
-                        body: JSON.stringify({ context, documentTitle: title }),
+                    // 架构师重构：将 fetch 替换为 Server Action
+                    const response = await ghostAnalyzeAction({ 
+                        context, 
+                        documentTitle: title 
                     })
-                    if (res.ok) {
-                        const text = await res.text()
+                    
+                    if (response.ok) {
+                        const text = await response.text()
                         if (text?.trim()) setComment(text.trim())
                     }
                 } catch (err) { } finally { setIsThinking(false) }

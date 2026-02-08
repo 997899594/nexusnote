@@ -25,6 +25,10 @@ import {
   Component,
   type ReactNode,
 } from "react";
+import {
+  getDocumentAction,
+  updateDocumentAction,
+} from "@/app/actions/document";
 import { useEditorContext } from "@/contexts/EditorContext";
 import * as Y from "yjs";
 import { IndexeddbPersistence } from "y-indexeddb";
@@ -149,15 +153,11 @@ function EditorInner({
   const toggleVault = async () => {
     const nextValue = !isVault;
     try {
-      const res = await fetch(
-        `${clientEnv.NEXT_PUBLIC_API_URL}/documents/${documentId}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ isVault: nextValue }),
-        },
-      );
-      if (res.ok) setIsVault?.(nextValue);
+      const result = await updateDocumentAction({
+        documentId,
+        isVault: nextValue,
+      });
+      if (result.success) setIsVault?.(nextValue);
     } catch (err) {}
   };
 
@@ -371,15 +371,18 @@ export function Editor({
   useEffect(() => {
     const fetchMetadata = async () => {
       try {
-        const res = await fetch(
-          `${clientEnv.NEXT_PUBLIC_API_URL}/documents/${documentId}`,
-        );
-        if (res.ok) {
-          const doc = await res.json();
-          setIsVault?.(doc.isVault || false);
-          setTitle?.(doc.title || "无标题文档");
+        const result = await getDocumentAction(documentId);
+        // 2026 架构师标准：使用类型收窄处理标准 ActionResult
+        if (result.success) {
+          const doc = result.data;
+          setIsVault?.(doc.isVault);
+          setTitle?.(doc.title);
+        } else {
+          console.error(`[Editor] Failed to fetch metadata: ${result.error}`);
         }
-      } catch (err) {}
+      } catch (err) {
+        console.error("[Editor] Unexpected error:", err);
+      }
     };
     fetchMetadata();
   }, [documentId, setIsVault, setTitle]);
@@ -414,7 +417,9 @@ export function Editor({
       url: COLLAB_URL,
       name: documentId,
       document: ydoc,
-      token: (session as any)?.accessToken || getAuthToken(),
+      token:
+        (session as { accessToken?: string } | null)?.accessToken ||
+        getAuthToken(),
       onConnect() {
         setStatus("connected");
       },
@@ -444,10 +449,10 @@ export function Editor({
     const updateCollaborators = () => {
       const states = provider.awareness?.getStates();
       if (!states) return;
-      const users: any[] = [];
+      const users: Array<{ name: string; color: string }> = [];
       states.forEach((state, cli) => {
         if (cli !== provider.awareness?.clientID && state.user)
-          users.push(state.user);
+          users.push(state.user as { name: string; color: string });
       });
       setCollaborators(users);
     };

@@ -72,7 +72,7 @@ export class SyncEngine {
     }
 
     // 3. 设置本地持久化（每次更新都保存到 IndexedDB）
-    ydoc.on("update", async (update: Uint8Array, origin: any) => {
+    ydoc.on("update", async (update: Uint8Array, origin: unknown) => {
       // 忽略来自远程的更新（避免重复保存）
       if (origin === "remote") return;
 
@@ -130,7 +130,7 @@ export class SyncEngine {
     });
 
     // 监听来自服务器的更新
-    ydoc.on("update", (update: Uint8Array, origin: any) => {
+    ydoc.on("update", (update: Uint8Array, origin: unknown) => {
       if (origin === provider) {
         // 来自服务器的更新，标记为 remote 并保存
         documentStore.saveFromYDoc(documentId, ydoc);

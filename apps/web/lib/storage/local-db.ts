@@ -81,7 +81,7 @@ export interface SyncState {
 // Metadata store
 export interface LocalMetadata {
   key: string
-  value: any
+  value: unknown
 }
 
 // ============================================

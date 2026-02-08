@@ -46,69 +46,10 @@ function CreatePageContent({ initialGoal }: CreatePageContentProps) {
 
   // Track course profile save
   const [courseId, setCourseId] = useState<string | null>(null);
-  const profileSaveInitiatedRef = useRef(false);
 
-  // When outline is generated, save the course profile
-  useEffect(() => {
-    if (
-      outline &&
-      context.goal &&
-      context.background &&
-      context.targetOutcome &&
-      context.cognitiveStyle &&
-      session?.user?.id &&
-      !profileSaveInitiatedRef.current
-    ) {
-      profileSaveInitiatedRef.current = true;
-
-      const saveProfile = async () => {
-        try {
-          const userId = session.user?.id;
-          if (!userId) return;
-
-          // Generate a unified ID early if not already set
-          const unifiedId = courseId || crypto.randomUUID();
-          if (!courseId) setCourseId(unifiedId);
-
-          const outlineData = {
-            title: outline.title,
-            description: outline.description,
-            difficulty: outline.difficulty,
-            estimatedMinutes: outline.estimatedMinutes,
-            modules: outline.modules || [],
-            reason: "",
-          };
-
-          const res = await fetch("/api/courses/profile", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              id: unifiedId, // Pass the unified ID to backend
-              goal: context.goal!,
-              background: context.background!,
-              targetOutcome: context.targetOutcome!,
-              cognitiveStyle: context.cognitiveStyle!,
-              outlineData,
-              designReason: outline.description || "",
-            }),
-          });
-
-          if (!res.ok) throw new Error("Failed to save course profile");
-          const data = await res.json();
-          const id = data.courseId; // This should be the same as unifiedId
-
-          console.log("[CreatePageContent] Course profile saved:", id);
-        } catch (err) {
-          console.error(
-            "[CreatePageContent] Failed to save course profile:",
-            err,
-          );
-        }
-      };
-
-      saveProfile();
-    }
-  }, [outline, context, session?.user?.id]);
+  // Note: 2026 架构师提示：
+  // 课程保存逻辑已迁移至 useCourseGeneration 内部使用 saveCourseProfileAction
+  // 此处不再需要手写 fetch /api/courses/profile
 
   return (
     <div className="min-h-screen bg-[#FDFDFD] relative overflow-hidden font-sans selection:bg-black/10 selection:text-black">

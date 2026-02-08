@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport } from "ai";
+import type { UIMessageChunk } from "ai";
+import { aiGatewayAction } from "@/app/actions/ai";
+import { type AIRequest } from "@/lib/ai/gateway/service";
 import { UnifiedChatUI } from "@/components/ai/UnifiedChatUI";
 import { MessageResponse } from "@/components/ai/Message";
 import {
@@ -23,46 +25,38 @@ import {
   Menu,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { markdownToHtml } from "@/lib/editor/markdown";
 import { OrganicHeader } from "@/components/create/OrganicHeader";
+import { ContentRenderer } from "@/components/course/content-renderer";
+import {
+  getCourseChaptersAction,
+  updateCourseProgressAction,
+} from "@/app/actions/course";
+import { CourseChapterDTO, CourseProfileDTO } from "@/lib/actions/types";
+import { getMessageContent, getToolCalls } from "@/lib/ai/ui-utils";
 
-interface CourseProfile {
-  id: string;
-  userId: string | null;
-  goal: string;
-  background: string;
-  targetOutcome: string;
-  cognitiveStyle: string;
-  title: string;
-  description: string | null;
-  difficulty: string;
-  estimatedMinutes: number;
-  outlineData: OutlineData;
-  outlineMarkdown: string | null;
-  designReason: string | null;
-  currentChapter: number | null;
-  currentSection: number | null;
-  isCompleted: boolean | null;
-  createdAt: Date | null;
-  updatedAt: Date | null;
-}
+import {
+  QuizOutput,
+  MindMapOutput,
+  SummarizeOutput,
+  WebSearchOutput,
+} from "@/lib/ai/tools/types";
 
 interface LearnPageClientProps {
   courseId: string;
-  initialProfile: CourseProfile;
+  initialProfile: CourseProfileDTO;
 }
 
 export default function LearnPageClient({
   courseId,
   initialProfile,
 }: LearnPageClientProps) {
-  const [courseProfile] = useState<CourseProfile>(initialProfile);
+  const [courseProfile] = useState<CourseProfileDTO>(initialProfile);
   const router = useRouter();
   const searchParams = useSearchParams();
   const [currentChapterIndex, setCurrentChapterIndex] = useState(
-    courseProfile.currentChapter || 0,
+    courseProfile.progress.currentChapter || 0,
   );
-  const [chapters, setChapters] = useState<any[]>([]);
+  const [chapters, setChapters] = useState<CourseChapterDTO[]>([]);
   const [isLoadingChapters, setIsLoadingChapters] = useState(true);
   const [isGenerationComplete, setIsGenerationComplete] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -72,12 +66,20 @@ export default function LearnPageClient({
   useEffect(() => {
     const loadChapters = async () => {
       try {
-        const res = await fetch(`/api/courses/${courseId}/chapters`);
-        if (!res.ok) throw new Error("Failed to fetch chapters");
-        const data = await res.json();
-        setChapters(data.chapters);
+        const result = await getCourseChaptersAction(courseId);
+        if (result.success) {
+          setChapters(result.data.chapters);
+        } else {
+          console.error(
+            "[LearnPageClient] Failed to fetch chapters:",
+            result.error,
+          );
+        }
       } catch (err) {
-        console.error("[LearnPageClient] Failed to load chapters:", err);
+        console.error(
+          "[LearnPageClient] Unexpected error loading chapters:",
+          err,
+        );
       } finally {
         setIsLoadingChapters(false);
       }
@@ -137,30 +139,34 @@ export default function LearnPageClient({
     }
   }, [chapters, currentChapterIndex]);
 
+  const outline = useMemo(
+    () => courseProfile.outlineData as OutlineData,
+    [courseProfile.outlineData],
+  );
+
   // 课程大纲中的总章节数
   const totalChapters = useMemo(() => {
     return (
-      courseProfile.outlineData.modules?.reduce(
-        (sum, m) => sum + (m.chapters?.length || 0),
-        0,
-      ) || 0
+      outline?.modules
+        ?.map((m) => m.chapters.length)
+        .reduce((sum: number, len: number) => sum + len, 0) || 0
     );
-  }, [courseProfile.outlineData.modules]);
+  }, [outline]);
 
-  // 定期刷新章节列表
+  // 定期刷新章节列表 (架构师提示：使用 Server Action 进行轮询，减少对 API 路由的依赖)
   useEffect(() => {
     if (isGenerationComplete) return;
 
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`/api/courses/${courseId}/chapters`);
-        if (!res.ok) throw new Error("Failed to fetch chapters");
-        const data = await res.json();
-        setChapters(data.chapters);
+        const result = await getCourseChaptersAction(courseId);
+        if (result.success) {
+          setChapters(result.data.chapters);
 
-        if (data.chapters.length >= totalChapters) {
-          setIsGenerationComplete(true);
-          clearInterval(interval);
+          if (result.data.chapters.length >= totalChapters) {
+            setIsGenerationComplete(true);
+            clearInterval(interval);
+          }
         }
       } catch (err) {
         console.error("[LearnPageClient] Failed to refresh chapters:", err);
@@ -170,15 +176,47 @@ export default function LearnPageClient({
     return () => clearInterval(interval);
   }, [courseId, totalChapters, isGenerationComplete]);
 
-  // Chat setup
-  const chatTransport = useMemo(
-    () => new DefaultChatTransport({ api: "/api/ai" }),
-    [],
-  );
+  // 进度同步：当用户切换章节时，同步到服务器
+  useEffect(() => {
+    const updateProgress = async () => {
+      try {
+        await updateCourseProgressAction({
+          courseId,
+          currentChapter: currentChapterIndex,
+        });
+      } catch (err) {
+        console.error("[LearnPageClient] Failed to sync progress:", err);
+      }
+    };
 
-  const { messages, sendMessage, status } =
+    if (chapters.length > 0) {
+      updateProgress();
+    }
+  }, [courseId, currentChapterIndex, chapters.length]);
+
+  // Chat setup
+  const { messages, sendMessage, status, stop } =
     useChat<CourseGenerationAgentMessage>({
-      transport: chatTransport,
+      id: `course-${courseId}`,
+      transport: {
+        sendMessages: async ({ messages, body }) => {
+          const response = (await aiGatewayAction({
+            messages,
+            context: body as AIRequest["context"],
+          })) as unknown as Response;
+
+          if (!response.body) {
+            throw new Error("No response body");
+          }
+
+          return response.body as unknown as ReadableStream<
+            UIMessageChunk<CourseGenerationAgentMessage>
+          >;
+        },
+        reconnectToStream: async () => {
+          throw new Error("Reconnection not supported");
+        },
+      },
     });
 
   // 架构师重构：按需生成驱动逻辑 (On-Demand Generation)
@@ -213,8 +251,8 @@ export default function LearnPageClient({
                 targetOutcome: courseProfile.targetOutcome,
                 cognitiveStyle: courseProfile.cognitiveStyle,
                 outlineTitle: courseProfile.title,
-                outlineData: courseProfile.outlineData,
-                moduleCount: courseProfile.outlineData.modules?.length || 0,
+                outlineData: outline,
+                moduleCount: outline.modules?.length || 0,
                 totalChapters: totalChapters,
                 currentChapterIndex: currentChapterIndex, // 精确生成当前选中的章节
                 chaptersGenerated: chapters.length,
@@ -236,7 +274,6 @@ export default function LearnPageClient({
   ]);
 
   const isChatLoading = status === "streaming" || status === "submitted";
-  const outline = courseProfile.outlineData;
   const currentChapter = chapters.find(
     (c) => c.chapterIndex === currentChapterIndex,
   );
@@ -245,7 +282,8 @@ export default function LearnPageClient({
   const currentThinking = useMemo(() => {
     if (status !== "streaming" && status !== "submitted") return null;
     const lastMessage = messages[messages.length - 1];
-    return (lastMessage as any)?.reasoning || null;
+    // @ts-ignore - reasoning is added by extractReasoningMiddleware
+    return lastMessage?.reasoning || null;
   }, [messages, status]);
 
   // 渲染工具输出结果 UI
@@ -254,17 +292,13 @@ export default function LearnPageClient({
     output: unknown,
     _toolCallId: string,
   ) => {
-    const res = output as Record<string, unknown>;
-    if (!res) return null;
+    if (!output) return null;
 
     switch (toolName) {
-      case "generateQuiz":
+      case "quiz": {
+        const res = output as QuizOutput;
         if (res.success && res.quiz) {
-          const quiz = res.quiz as {
-            topic: string;
-            difficulty: string;
-            questions?: any[];
-          };
+          const quiz = res.quiz;
           // 如果工具已经返回了题目，直接渲染 QuizResult
           if (quiz.questions && quiz.questions.length > 0) {
             return (
@@ -293,21 +327,19 @@ export default function LearnPageClient({
           );
         }
         break;
+      }
 
-      case "mindMap":
+      case "mindMap": {
+        const res = output as MindMapOutput;
         if (res.success && res.mindMap) {
-          const mm = res.mindMap as {
-            topic: string;
-            nodes?: any[];
-            layout: string;
-          };
+          const mm = res.mindMap;
           if (mm.nodes && mm.nodes.length > 0) {
             return (
               <div className="h-[400px] w-full">
                 <MindMapView
                   topic={mm.topic}
                   nodes={mm.nodes}
-                  layout={mm.layout as any}
+                  layout={mm.layout}
                 />
               </div>
             );
@@ -321,10 +353,12 @@ export default function LearnPageClient({
           );
         }
         break;
+      }
 
-      case "summarize":
+      case "summarize": {
+        const res = output as SummarizeOutput;
         if (res.success && res.summary) {
-          const s = res.summary as any;
+          const s = res.summary;
           return (
             <SummaryResult
               content={s.content || ""}
@@ -335,28 +369,25 @@ export default function LearnPageClient({
           );
         }
         break;
+      }
 
-      case "searchWeb":
+      case "searchWeb": {
+        const res = output as WebSearchOutput;
         if (res.success) {
           return (
             <WebSearchResult
-              query={res.query as string}
-              answer={res.answer as string | undefined}
-              results={(res.results as any[]) || []}
-              searchDepth={(res.searchDepth as any) || "basic"}
+              query={res.query}
+              answer={res.answer}
+              results={res.results || []}
+              searchDepth={res.searchDepth || "basic"}
             />
           );
         }
         break;
+      }
     }
     return null;
   };
-
-  // Convert markdown to HTML for display
-  const chapterHtml = useMemo(() => {
-    if (!currentChapter?.contentMarkdown) return null;
-    return markdownToHtml(currentChapter.contentMarkdown);
-  }, [currentChapter]);
 
   // 2026 现代化组件：思考轨迹显示
   const ThinkingTrail = ({ thinking }: { thinking: string | null }) => {
@@ -364,59 +395,58 @@ export default function LearnPageClient({
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-12 p-8 bg-gradient-to-br from-black/[0.03] to-transparent border border-black/[0.05] rounded-[2rem] relative overflow-hidden group backdrop-blur-sm"
+        className="mb-12 p-8 bg-gradient-to-br from-black/[0.03] to-transparent border border-black/[0.05] rounded-[2.5rem] relative overflow-hidden group backdrop-blur-md"
       >
         {/* 动态流动背景 */}
-        <div className="absolute inset-0 opacity-20 pointer-events-none">
+        <div className="absolute inset-0 opacity-10 pointer-events-none">
           <motion.div
             animate={{
               background: [
-                "radial-gradient(circle at 0% 0%, rgba(0,0,0,0.1) 0%, transparent 50%)",
-                "radial-gradient(circle at 100% 100%, rgba(0,0,0,0.1) 0%, transparent 50%)",
-                "radial-gradient(circle at 0% 0%, rgba(0,0,0,0.1) 0%, transparent 50%)",
+                "radial-gradient(circle at 20% 20%, rgba(0,0,0,0.1) 0%, transparent 40%)",
+                "radial-gradient(circle at 80% 80%, rgba(0,0,0,0.1) 0%, transparent 40%)",
+                "radial-gradient(circle at 20% 20%, rgba(0,0,0,0.1) 0%, transparent 40%)",
               ],
             }}
-            transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+            transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
             className="w-full h-full"
           />
         </div>
 
-        <div className="flex items-center justify-between mb-6 relative z-10">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center shadow-lg shadow-black/20">
-              <Sparkles className="w-4 h-4 text-white animate-pulse" />
+        <div className="flex items-center justify-between mb-8 relative z-10">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-2xl bg-black flex items-center justify-center shadow-xl shadow-black/10 transform group-hover:rotate-12 transition-transform duration-500">
+              <Sparkles className="w-5 h-5 text-white" />
             </div>
             <div>
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-black block leading-none">
-                AI Cognitive Stream
+              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-black/80 block leading-none mb-1.5">
+                Cognitive Matrix
               </span>
-              <span className="text-[10px] font-bold text-black/30 uppercase tracking-widest mt-1 block">
-                2026 Fluid Knowledge Engine
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold text-black/20 uppercase tracking-widest block">
+                  Fluid Engine 2026
+                </span>
+                <div className="w-1 h-1 rounded-full bg-black/10" />
+                <span className="text-[10px] font-bold text-black/40 uppercase tracking-widest block">
+                  Processing...
+                </span>
+              </div>
             </div>
-          </div>
-
-          <div className="flex gap-1">
-            {[0, 1, 2].map((i) => (
-              <motion.div
-                key={i}
-                animate={{ scale: [1, 1.2, 1], opacity: [0.4, 1, 0.4] }}
-                transition={{ duration: 2, repeat: Infinity, delay: i * 0.3 }}
-                className="w-1 h-1 bg-black/40 rounded-full"
-              />
-            ))}
           </div>
         </div>
 
-        <div className="relative z-10">
+        <div className="relative z-10 pl-2 border-l-2 border-black/5 ml-4">
           {thinking ? (
-            <p className="text-base text-black/70 italic leading-relaxed font-medium font-serif">
-              "{thinking}"
-            </p>
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-lg text-black/80 italic leading-relaxed font-medium font-serif"
+            >
+              {thinking}
+            </motion.p>
           ) : (
-            <div className="flex flex-col gap-2">
-              <div className="h-4 bg-black/5 rounded-full w-3/4 animate-pulse" />
-              <div className="h-4 bg-black/5 rounded-full w-1/2 animate-pulse" />
+            <div className="flex flex-col gap-3">
+              <div className="h-5 bg-black/5 rounded-full w-[85%] animate-pulse" />
+              <div className="h-5 bg-black/5 rounded-full w-[60%] animate-pulse" />
             </div>
           )}
         </div>
@@ -494,24 +524,21 @@ export default function LearnPageClient({
 
                     <div className="space-y-1">
                       {module.chapters.map((chapter, cIdx) => {
-                        const chapterGlobalIdx =
-                          outline
-                            .modules!.slice(0, mIdx)
+                        const globalIdx =
+                          (outline.modules || [])
+                            .slice(0, mIdx)
                             .reduce((sum, m) => sum + m.chapters.length, 0) +
                           cIdx;
 
                         const isGenerated = chapters.some(
-                          (c) => c.chapterIndex === chapterGlobalIdx,
+                          (c) => c.chapterIndex === globalIdx,
                         );
-                        const isActive =
-                          currentChapterIndex === chapterGlobalIdx;
+                        const isActive = currentChapterIndex === globalIdx;
 
                         return (
                           <button
                             key={cIdx}
-                            onClick={() =>
-                              setCurrentChapterIndex(chapterGlobalIdx)
-                            }
+                            onClick={() => setCurrentChapterIndex(globalIdx)}
                             className={`w-full group flex items-center gap-4 px-4 py-3 rounded-2xl transition-all duration-500 relative ${
                               isActive
                                 ? "bg-black text-white shadow-2xl shadow-black/20 translate-x-1"
@@ -681,18 +708,8 @@ export default function LearnPageClient({
                         </div>
 
                         {/* 正文内容 - 2026 Fluid Typography */}
-                        <div
-                          className="prose prose-zinc prose-xl max-w-none 
-                            prose-headings:font-black prose-headings:tracking-tighter prose-headings:text-black
-                            prose-p:text-black/80 prose-p:leading-[1.9] prose-p:font-serif prose-p:mb-8
-                            prose-strong:text-black prose-strong:font-black
-                            prose-code:bg-black/5 prose-code:text-black prose-code:px-2 prose-code:py-0.5 prose-code:rounded-lg prose-code:before:content-none prose-code:after:content-none
-                            prose-img:rounded-[2.5rem] prose-img:shadow-[0_40px_80px_-15px_rgba(0,0,0,0.1)] prose-img:my-16
-                            prose-blockquote:border-l-4 prose-blockquote:border-black prose-blockquote:pl-8 prose-blockquote:italic prose-blockquote:text-2xl prose-blockquote:font-serif prose-blockquote:text-black/60
-                            selection:bg-black selection:text-white"
-                          dangerouslySetInnerHTML={{
-                            __html: chapterHtml || "",
-                          }}
+                        <ContentRenderer
+                          content={currentChapter.contentMarkdown}
                         />
 
                         {/* 思考轨迹 (如果仍在生成中) */}
@@ -752,7 +769,13 @@ export default function LearnPageClient({
                               currentChapterIndex < totalChapters - 1 &&
                               setCurrentChapterIndex(currentChapterIndex + 1)
                             }
-                            disabled={currentChapterIndex === totalChapters - 1}
+                            disabled={
+                              currentChapterIndex === totalChapters - 1 ||
+                              !chapters.some(
+                                (c) =>
+                                  c.chapterIndex === currentChapterIndex + 1,
+                              )
+                            }
                             className="group flex items-center gap-6 text-right disabled:opacity-20"
                           >
                             <div className="text-right">
@@ -805,6 +828,7 @@ export default function LearnPageClient({
                   isLoading={isChatLoading}
                   input=""
                   onInputChange={() => {}}
+                  onStop={stop}
                   renderToolOutput={renderToolOutput}
                   onSubmit={(e) => {
                     e.preventDefault();
@@ -830,10 +854,8 @@ export default function LearnPageClient({
                                   targetOutcome: courseProfile.targetOutcome,
                                   cognitiveStyle: courseProfile.cognitiveStyle,
                                   outlineTitle: courseProfile.title,
-                                  outlineData: courseProfile.outlineData,
-                                  moduleCount:
-                                    courseProfile.outlineData.modules?.length ||
-                                    0,
+                                  outlineData: outline,
+                                  moduleCount: outline.modules?.length || 0,
                                   totalChapters: totalChapters,
                                   chaptersGenerated: chapters.length,
                                 }
@@ -845,24 +867,38 @@ export default function LearnPageClient({
                   }}
                   variant="chat"
                   placeholder="针对当前章节提问..."
-                  renderMessage={(message, text) => (
-                    <div
-                      className={`px-4 py-3 ${message.role === "user" ? "bg-black/5" : "bg-white"}`}
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-[10px] font-bold text-black/20 uppercase">
-                          {message.role === "user" ? "You" : "Nexus AI"}
-                        </span>
+                  renderMessage={(message, _text, isUser) => {
+                    const content = getMessageContent(message);
+                    if (isUser) {
+                      return (
+                        <div className="flex justify-end px-4">
+                          <div className="bg-violet-600 px-5 py-3 rounded-2xl rounded-tr-sm shadow-lg shadow-violet-600/10">
+                            <p className="text-sm font-medium text-white">
+                              {content}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="flex justify-start px-4">
+                        <div className="bg-white dark:bg-neutral-800 border border-black/5 dark:border-white/5 px-6 py-4 rounded-2xl rounded-tl-sm shadow-sm max-w-[90%]">
+                          <MessageResponse
+                            className="text-sm leading-relaxed text-neutral-800 dark:text-neutral-200"
+                            mode={
+                              isChatLoading &&
+                              message.id === messages[messages.length - 1].id
+                                ? "streaming"
+                                : "static"
+                            }
+                          >
+                            {content}
+                          </MessageResponse>
+                        </div>
                       </div>
-                      <div className="text-sm text-black/80 leading-relaxed prose prose-sm max-w-none">
-                        {text ? (
-                          <MessageResponse>{text}</MessageResponse>
-                        ) : (
-                          <p className="text-black/40 italic">思考中...</p>
-                        )}
-                      </div>
-                    </div>
-                  )}
+                    );
+                  }}
                   renderEmpty={() => (
                     <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
                       <div className="w-12 h-12 rounded-2xl bg-black/5 flex items-center justify-center">

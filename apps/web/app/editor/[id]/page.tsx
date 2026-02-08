@@ -13,6 +13,7 @@ import {
   useNoteExtraction,
 } from "@/contexts/NoteExtractionContext";
 import { useSession } from "next-auth/react";
+import { getDocumentAction } from "@/app/actions/document";
 
 type ViewMode = "read" | "dual" | "notes";
 
@@ -26,7 +27,12 @@ export default function EditorPage({
   const [viewMode, setViewMode] = useState<ViewMode>("notes");
   const [title, setTitle] = useState("开始内化...");
   const [materialTitle, setMaterialTitle] = useState("正在加载笔记...");
-  const [docInfo, setDocInfo] = useState<any>(null);
+  const [docInfo, setDocInfo] = useState<{
+    id: string;
+    title: string;
+    isVault: boolean;
+    type?: string;
+  } | null>(null);
 
   const { data: session } = useSession();
 
@@ -34,10 +40,14 @@ export default function EditorPage({
   useEffect(() => {
     const fetchDoc = async () => {
       try {
-        const res = await fetch(`/api/documents/${id}`);
-        if (res.ok) {
-          const doc = await res.json();
-          setDocInfo(doc);
+        const result = await getDocumentAction(id);
+        if (result.success && result.data) {
+          const doc = result.data;
+          setDocInfo({
+            id: doc.id,
+            title: doc.title,
+            isVault: doc.isVault,
+          });
           setMaterialTitle(doc.title || "无标题笔记");
           setTitle(doc.title || "无标题笔记");
         }
@@ -274,7 +284,13 @@ function ChatSidebarWithNoteTarget({ onClose }: { onClose: () => void }) {
   );
 }
 
-function NoteExtractionProviderWithUser({ children, documentId }: any) {
+function NoteExtractionProviderWithUser({
+  children,
+  documentId,
+}: {
+  children: React.ReactNode;
+  documentId: string;
+}) {
   return (
     <NoteExtractionProvider>
       <NoteExtractionInitializer>{children}</NoteExtractionInitializer>
@@ -282,7 +298,11 @@ function NoteExtractionProviderWithUser({ children, documentId }: any) {
   );
 }
 
-function NoteExtractionInitializer({ children }: any) {
+function NoteExtractionInitializer({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const { data: session } = useSession();
   const { setUserId } = useNoteExtraction();
   useEffect(() => {

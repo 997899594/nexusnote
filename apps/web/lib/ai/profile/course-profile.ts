@@ -87,23 +87,43 @@ export async function saveCourseProfile({
   const outlineMarkdown = convertOutlineToMarkdown(outlineData);
 
   try {
-    await db.insert(courseProfiles).values({
-      id,
-      userId,
-      goal,
-      background,
-      targetOutcome,
-      cognitiveStyle,
-      title: outlineData.title,
-      description: outlineData.description,
-      difficulty: outlineData.difficulty,
-      estimatedMinutes: outlineData.estimatedMinutes,
-      outlineData: outlineData as any, // Drizzle jsonb
-      outlineMarkdown,
-      designReason,
-    });
+    // 架构师系统级修复：使用 UPSERT 模式确保幂等性，防止重复提交导致的错误
+    await db
+      .insert(courseProfiles)
+      .values({
+        id,
+        userId,
+        goal,
+        background,
+        targetOutcome,
+        cognitiveStyle,
+        title: outlineData.title,
+        description: outlineData.description,
+        difficulty: outlineData.difficulty,
+        estimatedMinutes: outlineData.estimatedMinutes,
+        outlineData: outlineData as any, // Drizzle jsonb
+        outlineMarkdown,
+        designReason,
+      })
+      .onConflictDoUpdate({
+        target: courseProfiles.id,
+        set: {
+          goal,
+          background,
+          targetOutcome,
+          cognitiveStyle,
+          title: outlineData.title,
+          description: outlineData.description,
+          difficulty: outlineData.difficulty,
+          estimatedMinutes: outlineData.estimatedMinutes,
+          outlineData: outlineData as any,
+          outlineMarkdown,
+          designReason,
+          updatedAt: new Date(),
+        },
+      });
 
-    console.log(`[Course Profile] 保存课程画像: ${id}`);
+    console.log(`[Course Profile] Atomic Upsert Success: ${id}`);
     return id;
   } catch (error) {
     console.error("[Course Profile] 保存失败:", error);

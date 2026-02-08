@@ -1,12 +1,9 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import {
-  DefaultChatTransport,
-  isToolUIPart,
-  getToolName,
-  isTextUIPart,
-} from "ai";
+import type { UIMessageChunk } from "ai";
+import { aiGatewayAction } from "@/app/actions/ai";
+import { type AIRequest } from "@/lib/ai/gateway/service";
 import { useState, FormEvent, useMemo, useCallback, useEffect } from "react";
 import {
   BookOpen,
@@ -30,6 +27,11 @@ import { UnifiedChatUI } from "./UnifiedChatUI";
 import type { EditCommand } from "@/lib/editor/document-parser";
 import { motion } from "framer-motion";
 import type { ChatAgentMessage } from "@/lib/ai/agents/chat-agent";
+import {
+  getToolCalls,
+  findToolCall,
+  getMessageContent,
+} from "@/lib/ai/ui-utils";
 // Generative UI Components
 import {
   FlashcardCreated,
@@ -43,6 +45,20 @@ import {
   SummaryResult,
   WebSearchResult,
 } from "./ui";
+
+import {
+  QuizOutput,
+  MindMapOutput,
+  SummarizeOutput,
+  WebSearchOutput,
+  FlashcardOutput,
+  SearchNotesOutput,
+  ReviewStatsOutput,
+  LearningPlanOutput,
+  EditDocumentOutput,
+  BatchEditOutput,
+  DraftContentOutput,
+} from "@/lib/ai/tools/types";
 
 type SidebarMode = "chat" | "knowledge";
 
@@ -71,15 +87,28 @@ export function ChatSidebar() {
   const editorContext = useEditorContext();
   const noteExtraction = useNoteExtractionOptional();
 
-  const chatTransport = useMemo(
-    () => new DefaultChatTransport({ api: "/api/ai" }),
-    [],
-  );
-
   // SDK v6: 使用 ChatAgentMessage 泛型实现 typed tool parts
-  const { messages, status, stop, sendMessage } = useChat<ChatAgentMessage>({
+  const { messages, sendMessage, status, stop } = useChat<ChatAgentMessage>({
     id: "chat-sidebar",
-    transport: chatTransport,
+    transport: {
+      sendMessages: async ({ messages, body }) => {
+        const response = (await aiGatewayAction({
+          messages,
+          context: body as AIRequest["context"],
+        })) as unknown as Response;
+
+        if (!response.body) {
+          throw new Error("No response body");
+        }
+
+        return response.body as unknown as ReadableStream<
+          UIMessageChunk<ChatAgentMessage>
+        >;
+      },
+      reconnectToStream: async () => {
+        throw new Error("Reconnection not supported");
+      },
+    },
   });
 
   const isLoading = status === "streaming" || status === "submitted";
@@ -93,47 +122,45 @@ export function ChatSidebar() {
     for (const message of messages) {
       if (message.role !== "assistant") continue;
 
-      for (const part of message.parts) {
-        if (!isToolUIPart(part)) continue;
+      // 架构师优化：使用统一的工具调用提取逻辑（类型安全）
+      const toolCalls = getToolCalls(message);
+      for (const tool of toolCalls) {
+        const { name, output, toolCallId, state } = tool;
 
-        const toolName = getToolName(part);
         if (
-          toolName !== "editDocument" &&
-          toolName !== "batchEdit" &&
-          toolName !== "draftContent"
+          name !== "editDocument" &&
+          name !== "batchEdit" &&
+          name !== "draftContent"
         )
           continue;
 
-        const toolCallId = part.toolCallId;
         if (appliedEdits.has(toolCallId)) continue;
 
         // output-available = 工具执行完成
-        if (part.state === "output-available" && part.output) {
-          const output = part.output as Record<string, unknown>;
-
+        if (state === "output-available" && output) {
           // 单个编辑
-          if (output.action && output.targetId) {
+          if (name === "editDocument") {
+            const editOutput = output as EditDocumentOutput;
             const originalContent = getOriginalContent(
               editorContext,
-              output.targetId as string,
-              output.action as string,
+              editOutput.targetId,
+              editOutput.action,
             );
 
             newPendingEdits.set(toolCallId, {
               toolCallId,
-              action: output.action as string,
-              targetId: output.targetId as string,
-              newContent: output.newContent as string | undefined,
+              action: editOutput.action,
+              targetId: editOutput.targetId,
+              newContent: editOutput.newContent,
               originalContent,
-              explanation: (output.explanation as string) || "",
+              explanation: editOutput.explanation || "",
             });
           }
 
           // 批量编辑
-          if (toolName === "batchEdit") {
-            const edits = output.edits as
-              | Array<{ action: string; targetId: string; newContent?: string }>
-              | undefined;
+          if (name === "batchEdit") {
+            const batchOutput = output as BatchEditOutput;
+            const edits = batchOutput.edits;
             if (edits && edits.length > 0) {
               const firstEdit = edits[0];
               const originalContent = getOriginalContent(
@@ -144,26 +171,23 @@ export function ChatSidebar() {
 
               newPendingEdits.set(toolCallId, {
                 toolCallId,
-                action: firstEdit.action,
-                targetId: firstEdit.targetId,
-                newContent: firstEdit.newContent,
-                originalContent,
-                explanation:
-                  (output.explanation as string) ||
-                  `批量编辑 (${edits.length} 处)`,
+                action: "batch",
+                targetId: "multiple",
+                explanation: batchOutput.explanation || "批量修改文档内容",
+                originalContent, // 保存第一个编辑的原始内容用于展示
               });
             }
           }
 
           // 草稿生成
-          if (toolName === "draftContent") {
+          if (name === "draftContent") {
+            const draftOutput = output as DraftContentOutput;
             newPendingEdits.set(toolCallId, {
               toolCallId,
-              action: "insert_after",
-              targetId: (output.targetId as string) || "end-of-document",
-              newContent: output.content as string,
-              originalContent: "",
-              explanation: (output.explanation as string) || "生成草稿",
+              action: "draft",
+              targetId: "new",
+              newContent: draftOutput.content,
+              explanation: draftOutput.explanation || "为您生成了新的草稿",
             });
           }
         }
@@ -219,27 +243,21 @@ export function ChatSidebar() {
       { text },
       {
         body: {
-          enableRAG,
-          enableWebSearch,
-          enableTools: true,
-          documentContext: useDocContext
-            ? editorContext?.getDocumentContent()
-            : undefined,
-          documentStructure: editMode
-            ? JSON.stringify(editorContext?.getDocumentStructure())
-            : undefined,
-          editMode,
+          context: {
+            enableRAG,
+            enableWebSearch,
+            enableTools: true,
+            documentContext: useDocContext
+              ? editorContext?.getDocumentContent()
+              : undefined,
+            documentStructure: editMode
+              ? JSON.stringify(editorContext?.getDocumentStructure())
+              : undefined,
+            editMode,
+          },
         },
       },
     );
-  };
-
-  const getMessageText = (message: (typeof messages)[0]): string => {
-    if (!message.parts || message.parts.length === 0) return "";
-    return message.parts
-      .filter(isTextUIPart)
-      .map((p) => p.text)
-      .join("");
   };
 
   const insertToEditor = (text: string) => {
@@ -260,59 +278,48 @@ export function ChatSidebar() {
     output: unknown,
     toolCallId: string,
   ) => {
-    const res = output as Record<string, unknown>;
-    if (!res) return null;
+    if (!output) return null;
 
     switch (toolName) {
-      case "createFlashcards":
+      case "createFlashcards": {
+        const res = output as FlashcardOutput;
         return res.success && res.cards ? (
-          <FlashcardCreated
-            count={res.count as number}
-            cards={
-              res.cards as Array<{ id: string; front: string; back: string }>
-            }
-          />
+          <FlashcardCreated count={res.count} cards={res.cards} />
         ) : null;
+      }
 
-      case "searchNotes":
+      case "searchNotes": {
+        const res = output as SearchNotesOutput;
         return (
-          <SearchResults
-            query={(res.query as string) || ""}
-            results={
-              (res.results as Array<{
-                title: string;
-                content: string;
-                documentId: string;
-                relevance: number;
-              }>) || []
-            }
-          />
+          <SearchResults query={res.query || ""} results={res.results || []} />
         );
+      }
 
-      case "getReviewStats":
+      case "getReviewStats": {
+        const res = output as ReviewStatsOutput;
         return (
           <ReviewStats
-            totalCards={(res.totalCards as number) ?? 0}
-            dueToday={(res.dueToday as number) ?? 0}
-            newCards={(res.newCards as number) ?? 0}
-            learningCards={(res.learningCards as number) ?? 0}
-            masteredCards={(res.masteredCards as number) ?? 0}
-            retention={(res.retention as number) ?? 0}
-            streak={(res.streak as number) ?? 0}
+            totalCards={res.totalCards ?? 0}
+            dueToday={res.dueToday ?? 0}
+            newCards={res.newCards ?? 0}
+            learningCards={res.learningCards ?? 0}
+            masteredCards={res.masteredCards ?? 0}
+            retention={res.retention ?? 0}
+            streak={res.streak ?? 0}
           />
         );
+      }
 
-      case "createLearningPlan":
+      case "createLearningPlan": {
+        const res = output as LearningPlanOutput;
         return (
           <LearningPlan
-            topic={(res.topic as string) ?? ""}
-            duration={(res.duration as string) ?? ""}
-            level={
-              (res.level as "beginner" | "intermediate" | "advanced") ??
-              "beginner"
-            }
+            topic={res.topic ?? ""}
+            duration={res.duration ?? ""}
+            level={res.level ?? "beginner"}
           />
         );
+      }
 
       case "editDocument":
       case "batchEdit":
@@ -332,14 +339,10 @@ export function ChatSidebar() {
         );
       }
 
-      case "generateQuiz":
-        // Quiz 工具：渲染测验元信息卡片
+      case "generateQuiz": {
+        const res = output as QuizOutput;
         if (res.success && res.quiz) {
-          const quiz = res.quiz as {
-            topic: string;
-            difficulty: string;
-            questionCount: number;
-          };
+          const quiz = res.quiz;
           return (
             <div className="p-3 bg-violet-50 dark:bg-violet-950/30 rounded-xl border border-violet-200 dark:border-violet-800">
               <p className="text-xs font-medium text-violet-700 dark:text-violet-300">
@@ -357,15 +360,12 @@ export function ChatSidebar() {
           );
         }
         return null;
+      }
 
-      case "mindMap":
-        // MindMap 工具：渲染思维导图元信息
+      case "mindMap": {
+        const res = output as MindMapOutput;
         if (res.success && res.mindMap) {
-          const mm = res.mindMap as {
-            topic: string;
-            maxDepth: number;
-            layout: string;
-          };
+          const mm = res.mindMap;
           return (
             <div className="p-3 bg-indigo-50 dark:bg-indigo-950/30 rounded-xl border border-indigo-200 dark:border-indigo-800">
               <p className="text-xs font-medium text-indigo-700 dark:text-indigo-300">
@@ -384,11 +384,12 @@ export function ChatSidebar() {
           );
         }
         return null;
+      }
 
-      case "summarize":
-        // Summary 工具：渲染摘要配置
+      case "summarize": {
+        const res = output as SummarizeOutput;
         if (res.success && res.summary) {
-          const s = res.summary as { targetLength: string; style: string };
+          const s = res.summary;
           return (
             <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl border border-emerald-200 dark:border-emerald-800">
               <p className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
@@ -406,102 +407,28 @@ export function ChatSidebar() {
           );
         }
         return null;
+      }
 
-      case "searchWeb":
-        // Web Search 工具：渲染搜索结果
+      case "searchWeb": {
+        const res = output as WebSearchOutput;
         if (res.success) {
           return (
             <WebSearchResult
-              query={res.query as string}
-              answer={res.answer as string | undefined}
-              results={
-                (res.results as Array<{
-                  title: string;
-                  url: string;
-                  content: string;
-                  score?: number;
-                  publishedDate?: string;
-                }>) || []
-              }
-              searchDepth={(res.searchDepth as "basic" | "advanced") || "basic"}
+              query={res.query}
+              answer={res.answer}
+              results={res.results || []}
+              searchDepth={res.searchDepth || "basic"}
             />
           );
         }
         return (
           <div className="p-3 bg-red-50 dark:bg-red-950/30 rounded-xl border border-red-200 dark:border-red-800">
             <p className="text-xs text-red-600 dark:text-red-400">
-              🔍 搜索失败：{(res.message as string) || "未知错误"}
+              🔍 搜索失败：{res.message || "未知错误"}
             </p>
           </div>
         );
-    }
-
-    return null;
-  };
-
-  // 渲染 typed tool part
-  const renderToolPart = (part: (typeof messages)[0]["parts"][number]) => {
-    if (!isToolUIPart(part)) return null;
-
-    const toolName = getToolName(part);
-    const toolCallId = part.toolCallId;
-
-    // 已应用的编辑
-    if (
-      (toolName === "editDocument" || toolName === "batchEdit") &&
-      appliedEdits.has(toolCallId)
-    ) {
-      return (
-        <div
-          key={toolCallId}
-          className="text-xs text-muted-foreground italic py-2"
-        >
-          ✓ 编辑已应用
-        </div>
-      );
-    }
-
-    // input-streaming / input-available = 执行中
-    if (part.state === "input-streaming" || part.state === "input-available") {
-      if (toolName === "editDocument" || toolName === "batchEdit") {
-        const input =
-          "input" in part && part.state === "input-available"
-            ? part.input
-            : undefined;
-        return (
-          <EditThinking
-            key={toolCallId}
-            action={(input as { action?: string })?.action}
-          />
-        );
       }
-      return (
-        <div
-          key={toolCallId}
-          className="flex items-center gap-2 text-xs text-muted-foreground py-2"
-        >
-          <div className="w-3 h-3 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
-          正在执行 {toolName}...
-        </div>
-      );
-    }
-
-    // output-available = 完成
-    if (part.state === "output-available") {
-      return (
-        <div key={toolCallId} className="mt-3">
-          {renderToolOutput(toolName, part.output, toolCallId)}
-        </div>
-      );
-    }
-
-    // output-error
-    if (part.state === "output-error") {
-      return (
-        <div key={toolCallId} className="text-xs text-red-500 py-2">
-          {toolName} 执行失败: {part.errorText || "未知错误"}
-        </div>
-      );
     }
 
     return null;
@@ -626,109 +553,47 @@ export function ChatSidebar() {
               variant="chat"
               placeholder="与您的笔记深度对话..."
               renderToolOutput={renderToolOutput}
-              renderMessage={(message, text, isUser) => {
+              renderMessage={(message, _text, isUser) => {
+                // 使用架构师标准提取消息文本，处理多模态和 Schema-First 输出
+                const content = getMessageContent(message);
+
                 if (isUser) {
                   return (
-                    <div className="flex flex-col items-end px-8">
-                      <div className="flex gap-4 max-w-[95%] flex-row-reverse">
-                        <div className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 bg-black text-white shadow-lg shadow-black/10">
-                          <User className="w-5 h-5" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="rounded-[28px] rounded-tr-sm px-5 py-4 text-sm leading-relaxed shadow-xl shadow-black/[0.02] bg-black text-white font-medium">
-                            <p className="whitespace-pre-wrap">{text}</p>
-                          </div>
-                        </div>
+                    <div className="flex justify-end mb-4">
+                      <div className="max-w-[85%] bg-neutral-100 dark:bg-neutral-800 rounded-2xl px-4 py-2 text-sm text-neutral-800 dark:text-neutral-200">
+                        {content}
                       </div>
                     </div>
                   );
                 }
 
-                const isExtracted = extractedNotes.has(message.id);
+                // 架构师优化：检查是否有待处理的编辑
+                const toolCalls = getToolCalls(message);
+                const hasPendingEdit = toolCalls.some(
+                  (t) =>
+                    (t.name === "editDocument" ||
+                      t.name === "batchEdit" ||
+                      t.name === "draftContent") &&
+                    pendingEdits.has(t.toolCallId),
+                );
 
                 return (
-                  <div className="flex flex-col items-start px-8">
-                    <div className="flex gap-4 max-w-[95%]">
-                      <div className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 bg-violet-500 text-white shadow-lg shadow-violet-500/20">
-                        <Bot className="w-5 h-5" />
+                  <div className="mb-4">
+                    <div className="flex items-start gap-2 mb-1">
+                      <div className="w-6 h-6 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
+                        <Sparkles className="w-3.5 h-3.5 text-violet-600" />
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="rounded-[28px] rounded-tl-sm px-6 py-5 text-sm leading-relaxed shadow-xl shadow-black/[0.02] bg-white border border-black/[0.03] text-black/80 font-medium relative group/msg">
-                          <p className="whitespace-pre-wrap">
-                            {text || (isLoading ? "正在深思熟虑..." : "")}
-                          </p>
-
-                          {text && (
-                            <div className="flex items-center gap-2 mt-4 pt-4 border-t border-black/[0.03]">
-                              <button
-                                onClick={() => copyToClipboard(text)}
-                                className="p-2 rounded-xl hover:bg-black/5 text-black/20 hover:text-black transition-all"
-                                title="复制内容"
-                              >
-                                <Copy className="w-3.5 h-3.5" />
-                              </button>
-
-                              <button
-                                onClick={() => {
-                                  if (noteExtraction && !isExtracted) {
-                                    noteExtraction.extractNote(
-                                      text,
-                                      new DOMRect(),
-                                      {
-                                        sourceType: "learning",
-                                        position: { from: 0, to: 0 },
-                                      },
-                                    );
-                                    setExtractedNotes((prev) =>
-                                      new Set(prev).add(message.id),
-                                    );
-                                  }
-                                }}
-                                disabled={isExtracted || !noteExtraction}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all ${
-                                  isExtracted
-                                    ? "bg-emerald-50 text-emerald-600"
-                                    : "hover:bg-violet-50 text-black/20 hover:text-violet-600"
-                                }`}
-                                title={
-                                  isExtracted
-                                    ? "已存入原子知识"
-                                    : "存为原子知识"
-                                }
-                              >
-                                {isExtracted ? (
-                                  <>
-                                    <Check className="w-3.5 h-3.5" />
-                                    <span className="text-[10px] font-black uppercase tracking-wider">
-                                      已存入
-                                    </span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Sparkles className="w-3.5 h-3.5" />
-                                    <span className="text-[10px] font-black uppercase tracking-wider">
-                                      存为知识
-                                    </span>
-                                  </>
-                                )}
-                              </button>
-
-                              {editorContext && (
-                                <button
-                                  onClick={() => insertToEditor(text)}
-                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-black/5 text-black/20 hover:text-black transition-all"
-                                  title="插入到编辑器"
-                                >
-                                  <FileDown className="w-3.5 h-3.5" />
-                                  <span className="text-[10px] font-black uppercase tracking-wider">
-                                    插入文档
-                                  </span>
-                                </button>
-                              )}
-                            </div>
-                          )}
+                      <div className="text-[11px] font-medium text-neutral-400 mt-1 uppercase tracking-wider">
+                        Assistant
+                      </div>
+                    </div>
+                    <div className="pl-8">
+                      {/* 如果有待确认的编辑，不重复渲染文本内容，由 renderToolOutput 接管渲染确认卡片 */}
+                      {!hasPendingEdit && (
+                        <div className="text-sm text-neutral-700 dark:text-neutral-300 leading-relaxed prose prose-sm dark:prose-invert max-w-none">
+                          {content || (isLoading ? "正在深思熟虑..." : "")}
                         </div>
-                      </div>
+                      )}
                     </div>
                   </div>
                 );

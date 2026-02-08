@@ -8,7 +8,7 @@
  * 3. 支持前端类型安全和自动补全
  */
 
-import { tool } from "ai";
+import { tool, type ToolSet } from "ai";
 import { z } from "zod";
 import { saveCourseProfile } from "@/lib/ai/profile/course-profile";
 import { searchWeb } from "./chat/web";
@@ -139,7 +139,7 @@ export const generateOutlineTool = tool({
  * - generateOutline: AI 生成课程大纲
  * - 状态管理由前端负责，不需要 updateProfile
  */
-export const interviewTools = {
+export const interviewTools: ToolSet = {
   presentOptions: presentOptionsTool,
   generateOutline: generateOutlineTool,
   searchWeb,

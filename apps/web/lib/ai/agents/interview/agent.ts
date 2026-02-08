@@ -14,6 +14,7 @@ import {
   InferAgentUIMessage,
   stepCountIs,
   hasToolCall,
+  type ToolSet,
 } from "ai";
 import { string, z } from "zod";
 import { chatModel } from "@/lib/ai/registry";
@@ -153,6 +154,7 @@ export const interviewAgent = new ToolLoopAgent({
  * ```
  */
 export type InterviewAgentMessage = InferAgentUIMessage<typeof interviewAgent>;
+export type InterviewTools = typeof interviewTools;
 
 /**
  * 导出 Context 类型供外部使用

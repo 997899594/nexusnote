@@ -1,10 +1,20 @@
-import NextAuth from "next-auth";
+import NextAuth, { type DefaultSession } from "next-auth";
 import { env, clientEnv } from "@nexusnote/config";
 import Credentials from "next-auth/providers/credentials";
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
-import { SignJWT, jwtVerify } from "jose";
+import { SignJWT, jwtVerify, type JWTPayload } from "jose";
 import { db, users, eq } from "@nexusnote/db";
+
+// Extend the session type
+declare module "next-auth" {
+  interface Session {
+    accessToken?: string;
+    user: {
+      id: string;
+    } & DefaultSession["user"];
+  }
+}
 
 // Read JWT settings from env or use defaults to match NestJS
 const JWT_SECRET = env.JWT_SECRET;
@@ -78,7 +88,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
       const now = Math.floor(Date.now() / 1000);
       const expiry = maxAge ?? JWT_EXPIRES_IN;
-      return new SignJWT(token as any)
+      return new SignJWT(token as JWTPayload)
         .setProtectedHeader({ alg: "HS256" })
         .setIssuedAt(now)
         .setIssuer(JWT_ISSUER)
@@ -114,15 +124,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         // Sign a raw JWT for the backend/WebSocket to verify
         const now = Math.floor(Date.now() / 1000);
-        const accessToken = await new SignJWT(token as any)
+        const accessToken = await new SignJWT(token as JWTPayload)
           .setProtectedHeader({ alg: "HS256" })
           .setIssuedAt(now)
           .setIssuer(JWT_ISSUER)
           .setExpirationTime(now + JWT_EXPIRES_IN)
           .sign(ENCODED_SECRET);
 
-        // Expose to client (requires types extension if using Strict TS)
-        (session as any).accessToken = accessToken;
+        // Expose to client
+        session.accessToken = accessToken;
       }
       return session;
     },

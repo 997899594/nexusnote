@@ -107,11 +107,12 @@ async function runMigrations() {
     try {
       await migrationClient`CREATE EXTENSION IF NOT EXISTS vector`
       console.log('[Migrate] CREATE EXTENSION command executed')
-    } catch (createError: any) {
-      console.error('[Migrate] CREATE EXTENSION failed:', createError.message)
-      console.error('[Migrate] Error code:', createError.code)
+    } catch (createError: unknown) {
+      const error = createError as { message?: string; code?: string };
+      console.error('[Migrate] CREATE EXTENSION failed:', error.message)
+      console.error('[Migrate] Error code:', error.code)
       
-      if (createError.code === '42501') {
+      if (error.code === '42501') {
         // Permission denied
         console.error('')
         console.error('╔════════════════════════════════════════════════════════════════╗')

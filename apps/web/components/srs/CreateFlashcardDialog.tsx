@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { X, Sparkles, Loader2, Brain } from 'lucide-react'
 import { flashcardStore } from '@/lib/storage/flashcard-store'
+import { generateFlashcardAction } from '@/app/actions/ai'
 
 interface CreateFlashcardDialogProps {
   isOpen: boolean
@@ -46,18 +47,12 @@ export function CreateFlashcardDialog({
 
     setIsGenerating(true)
     try {
-      const response = await fetch('/api/flashcard/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          question: front,
-          context,
-        }),
+      // 架构师重构：将 fetch 替换为 Server Action
+      const data = await generateFlashcardAction({
+        question: front,
+        context,
       })
 
-      if (!response.ok) throw new Error('Failed to generate')
-
-      const data = await response.json()
       setBack(data.answer || '')
     } catch (error) {
       console.error('Failed to generate answer:', error)

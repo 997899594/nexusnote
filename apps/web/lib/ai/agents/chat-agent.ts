@@ -11,6 +11,7 @@ import {
   InferAgentUIMessage,
   smoothStream,
   stepCountIs,
+  type ToolSet,
 } from "ai";
 import { z } from "zod";
 import { chatModel, webSearchModel } from "@/lib/ai/registry";
@@ -44,7 +45,7 @@ export type ChatCallOptions = z.infer<typeof ChatCallOptionsSchema>;
 /**
  * 所有 chat 工具的合集
  */
-export const chatTools = {
+export const chatTools: ToolSet = {
   ...skills,
   ...editorSkills,
   ...learningSkills,
