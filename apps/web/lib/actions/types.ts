@@ -1,3 +1,5 @@
+import { OutlineData } from "@/lib/ai/profile/course-profile";
+
 /**
  * 2026 架构师标准：标准返回协议 (ActionResult)
  *
@@ -73,7 +75,7 @@ export interface CourseProfileDTO {
   background: string;
   targetOutcome: string;
   cognitiveStyle: string;
-  outlineData: any; // 或者具体的 OutlineData 类型
+  outlineData: OutlineData;
 }
 
 export interface RecentItemDTO {
@@ -92,4 +94,14 @@ export function success<T>(data: T): ActionSuccess<T> {
 
 export function error(message: string, code?: string): ActionError {
   return { success: false, error: message, code };
+}
+
+/**
+ * 2026 架构师标准：序列化辅助函数
+ *
+ * 用途：确保从 Server Component 传递到 Client Component 的数据可序列化
+ * 解决：Next.js 15 的序列化错误 "Only plain objects can be passed to Client Components"
+ */
+export function serializeObject<T>(obj: T): T {
+  return JSON.parse(JSON.stringify(obj)) as T;
 }

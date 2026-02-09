@@ -1,4 +1,4 @@
-import NextAuth, { type DefaultSession } from "next-auth";
+import NextAuth from "next-auth";
 import { env, clientEnv } from "@nexusnote/config";
 import Credentials from "next-auth/providers/credentials";
 import GitHub from "next-auth/providers/github";
@@ -6,14 +6,28 @@ import Google from "next-auth/providers/google";
 import { SignJWT, jwtVerify, type JWTPayload } from "jose";
 import { db, users, eq } from "@nexusnote/db";
 
-// Extend the session type
-declare module "next-auth" {
-  interface Session {
-    accessToken?: string;
-    user: {
-      id: string;
-    } & DefaultSession["user"];
-  }
+// ============================================
+// 类型定义 - 隔离在模块内，不污染全局
+// ============================================
+
+/**
+ * 扩展的用户信息
+ */
+interface ExtendedUser {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+}
+
+/**
+ * 扩展的 Session 类型
+ * 不使用 declare module，避免污染全局类型空间
+ */
+export interface AuthSession {
+  user: ExtendedUser;
+  expires: string;
+  accessToken?: string;
 }
 
 // Read JWT settings from env or use defaults to match NestJS
@@ -116,25 +130,23 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return token;
     },
     async session({ session, token }) {
-      if (token && session.user) {
-        session.user.id = token.sub as string;
-        session.user.name = token.name as string;
-        session.user.email = token.email as string;
-        session.user.image = token.picture as string;
-
+      // 类型断言：将 NextAuth Session 转换为我们的 AuthSession
+      return {
+        ...session,
+        user: {
+          id: token.sub as string,
+          name: token.name as string,
+          email: token.email as string,
+          image: token.picture as string,
+        },
         // Sign a raw JWT for the backend/WebSocket to verify
-        const now = Math.floor(Date.now() / 1000);
-        const accessToken = await new SignJWT(token as JWTPayload)
+        accessToken: await new SignJWT(token as JWTPayload)
           .setProtectedHeader({ alg: "HS256" })
-          .setIssuedAt(now)
+          .setIssuedAt(Math.floor(Date.now() / 1000))
           .setIssuer(JWT_ISSUER)
-          .setExpirationTime(now + JWT_EXPIRES_IN)
-          .sign(ENCODED_SECRET);
-
-        // Expose to client
-        session.accessToken = accessToken;
-      }
-      return session;
+          .setExpirationTime(Math.floor(Date.now() / 1000) + JWT_EXPIRES_IN)
+          .sign(ENCODED_SECRET),
+      } as AuthSession;
     },
   },
   pages: {

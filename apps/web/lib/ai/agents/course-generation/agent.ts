@@ -16,12 +16,34 @@
  * - AI 的推理过程显示给用户（thinking 标签）
  */
 
-import { ToolLoopAgent, InferAgentUIMessage, stepCountIs, type ToolSet } from "ai";
+import {
+  ToolLoopAgent,
+  InferAgentUIMessage,
+  stepCountIs,
+  type ToolSet,
+  type LanguageModel,
+} from "ai";
 import { z } from "zod";
-import { chatModel } from "@/lib/ai/registry";
+import { chatModel, webSearchModel } from "@/lib/ai/registry";
 import { courseGenerationTools } from "@/lib/ai/tools/course-generation";
 import { buildCourseGenerationPrompt } from "@/lib/ai/prompts/course-generation";
-import { OutlineSchema } from "@/lib/ai/profile/course-profile";
+import { OutlineSchema } from "@/lib/ai/types/course";
+
+const courseModel = webSearchModel || chatModel;
+
+/**
+ * 获取课程生成模型，如果未配置则抛出错误
+ * 这个函数在运行时调用，而不是在模块加载时
+ */
+function getCourseModel() {
+  if (!courseModel) {
+    throw new Error(
+      "Course generation agent requires at least one model (webSearchModel or chatModel) to be configured. " +
+      "Please ensure AI_GATEWAY_MODEL or AI_MODEL environment variables are set."
+    );
+  }
+  return courseModel;
+}
 
 /**
  * Course Generation Context Schema
@@ -64,7 +86,7 @@ export type CourseGenerationContext = z.infer<
  */
 export const courseGenerationAgent = new ToolLoopAgent({
   id: "nexusnote-course-generation",
-  model: chatModel!, // 已包含 extractReasoningMiddleware
+  model: courseModel as LanguageModel, // 运行时会检查，构建时使用类型断言
   tools: courseGenerationTools,
   maxOutputTokens: 8192,
   callOptionsSchema: CourseGenerationContextSchema,
@@ -110,14 +132,13 @@ export const courseGenerationAgent = new ToolLoopAgent({
       ...rest,
       instructions,
       stopWhen: ({ steps }) => {
-        // 当 AI 调用了保存章节或标记完成的工具后，立即停止
+        if (!steps || steps.length === 0) return false;
         const lastStep = steps[steps.length - 1];
-        return (
-          lastStep.toolCalls?.some(
-            (tc) =>
-              tc.toolName === "saveChapterContent" ||
-              tc.toolName === "markGenerationComplete",
-          ) ?? false
+        if (!lastStep?.toolCalls) return false;
+        return lastStep.toolCalls.some(
+          (tc) =>
+            tc.toolName === "saveChapterContent" ||
+            tc.toolName === "markGenerationComplete",
         );
       },
     };

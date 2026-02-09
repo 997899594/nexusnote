@@ -18,33 +18,10 @@
 
 import { db, courseProfiles, courseChapters, eq } from "@nexusnote/db";
 import { z } from "zod";
+import { OutlineSchema, type OutlineData } from "@/lib/ai/types/course";
 
-/**
- * 课程大纲数据结构（Interview Agent 生成）
- * Tiptap 可以直接渲染 JSON 或 Markdown
- */
-export const OutlineSchema = z.object({
-  title: z.string(),
-  description: z.string(),
-  difficulty: z.enum(["beginner", "intermediate", "advanced"]),
-  estimatedMinutes: z.number().min(30),
-  modules: z
-    .array(
-      z.object({
-        title: z.string(),
-        chapters: z.array(
-          z.object({
-            title: z.string(),
-            contentSnippet: z.string().optional(),
-          }),
-        ),
-      }),
-    )
-    .optional(),
-  reason: z.string().optional(),
-});
-
-export type OutlineData = z.infer<typeof OutlineSchema>;
+// Re-export for convenience
+export { type OutlineData } from "@/lib/ai/types/course";
 
 /**
  * 课程画像数据结构

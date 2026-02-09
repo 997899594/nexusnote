@@ -1,7 +1,6 @@
 "use server";
 
 import { v4 as uuidv4 } from "uuid";
-import { auth } from "@/auth";
 import {
   isAIConfigured,
   fastModel,
@@ -13,14 +12,14 @@ import { checkRateLimit } from "@/lib/ai/rate-limit";
 import {
   streamText,
   generateText,
-  Output, // 2026 架构师建议：使用 output 模块替代已弃用的 streamObject/generateObject
+  Output,
 } from "ai";
 import {
   AIGatewayService,
   AIRequestSchema,
   type AIRequest,
 } from "@/lib/ai/gateway/service";
-
+import { requireUserId, requireAuthWithRateLimit } from "@/lib/auth/auth-utils";
 import { z } from "zod";
 import { db, extractedNotes } from "@nexusnote/db";
 import { Queue } from "bullmq";
@@ -55,11 +54,7 @@ export async function extractNoteAction(body: {
   sourceChapterId?: string;
   sourcePosition?: string;
 }) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Unauthorized");
-
-  const rateLimitResult = await checkRateLimit(session.user.id);
-  if (!rateLimitResult.allowed) throw new Error("Rate limit exceeded");
+  const { userId } = await requireAuthWithRateLimit(checkRateLimit);
 
   if (!body.content || typeof body.content !== "string") {
     throw new Error("Missing or invalid content");
@@ -69,8 +64,8 @@ export async function extractNoteAction(body: {
   const [note] = await db
     .insert(extractedNotes)
     .values({
-      userId: session.user.id,
-      content: body.content.slice(0, 2000), // 限制长度
+      userId,
+      content: body.content.slice(0, 2000),
       sourceType: body.sourceType || "document",
       sourceDocumentId: body.sourceDocumentId,
       sourceChapterId: body.sourceChapterId,
@@ -82,7 +77,7 @@ export async function extractNoteAction(body: {
   // 2. 异步生成嵌入并分类到主题
   await noteClassifyQueue.add("classify", {
     noteId: note.id,
-    userId: session.user.id,
+    userId,
     content: body.content.slice(0, 2000),
   });
 
@@ -98,16 +93,12 @@ export async function generateFlashcardAction(body: {
   context?: string;
 }) {
   const traceId = uuidv4();
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Unauthorized");
-
-  const rateLimitResult = await checkRateLimit(session.user.id);
-  if (!rateLimitResult.allowed) throw new Error("Rate limit exceeded");
+  const { userId } = await requireAuthWithRateLimit(checkRateLimit);
 
   if (!isAIConfigured() || !fastModel) throw new Error("AI not configured");
 
   const SYSTEM_PROMPT = `你是一个间隔重复学习(SRS)卡片生成助手。用户会提供一个问题或概念，你需要生成一个简洁、准确的答案。
-  
+
   答案要求：
   1. 简洁明了，便于记忆
   2. 直接回答问题核心
@@ -126,7 +117,7 @@ export async function generateFlashcardAction(body: {
     temperature: 0.5,
     experimental_telemetry: createTelemetryConfig(
       "generate-flashcard",
-      { question: body.question.slice(0, 50), userId: session.user.id },
+      { question: body.question.slice(0, 50), userId },
       traceId,
     ),
   });
@@ -144,11 +135,7 @@ export async function editorCompletionAction(body: {
   selection?: string;
 }) {
   const traceId = uuidv4();
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Unauthorized");
-
-  const rateLimitResult = await checkRateLimit(session.user.id);
-  if (!rateLimitResult.allowed) throw new Error("Rate limit exceeded");
+  const { userId } = await requireAuthWithRateLimit(checkRateLimit);
 
   if (!isAIConfigured() || !fastModel) throw new Error("AI not configured");
 
@@ -174,7 +161,7 @@ export async function editorCompletionAction(body: {
     temperature: 0.7,
     experimental_telemetry: createTelemetryConfig(
       "editor-completion",
-      { action: body.action, userId: session.user.id },
+      { action: body.action, userId },
       traceId,
     ),
   });
@@ -191,11 +178,7 @@ export async function ghostAnalyzeAction(body: {
   documentTitle?: string;
 }) {
   const traceId = uuidv4();
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Unauthorized");
-
-  const rateLimitResult = await checkRateLimit(session.user.id);
-  if (!rateLimitResult.allowed) throw new Error("Rate limit exceeded");
+  const { userId } = await requireAuthWithRateLimit(checkRateLimit);
 
   if (!isAIConfigured() || !chatModel) throw new Error("AI not configured");
 
@@ -209,7 +192,7 @@ export async function ghostAnalyzeAction(body: {
 
 你的回复应该：
 1. 非常简短（不超过 30 个字）。
-2. 使用“协作者”或者“伙伴”的语气，而不是助手的语气。
+2. 使用"协作者"或者"伙伴"的语气，而不是助手的语气。
 3. 旨在打破僵局或提供新的视角。
 4. **如果不需要建议，请务必返回空字符串。**
 
@@ -229,7 +212,7 @@ ${body.context}
       "ghost-assistant",
       {
         documentTitle: body.documentTitle || "untitled",
-        userId: session.user.id,
+        userId,
       },
       traceId,
     ),
@@ -247,11 +230,7 @@ export async function generateDocAction(body: {
   depth?: "shallow" | "medium" | "deep";
 }) {
   const traceId = uuidv4();
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Unauthorized");
-
-  const rateLimitResult = await checkRateLimit(session.user.id);
-  if (!rateLimitResult.allowed) throw new Error("Rate limit exceeded");
+  const { userId } = await requireAuthWithRateLimit(checkRateLimit);
 
   if (!isAIConfigured() || !chatModel) throw new Error("AI not configured");
 
@@ -277,11 +256,10 @@ export async function generateDocAction(body: {
     deep: { chapters: 8, detail: "详细" },
   }[validDepth(body.depth || "medium")];
 
-  // 架构师优化：AI SDK v6 中使用 streamText + output.object() 替代 streamObject
   const result = streamText({
     model: chatModel!,
     system: `你是一个技术文档写作专家。根据用户提供的主题生成结构化的文档大纲。
-    
+
     ## 输出要求
     1. 生成 ${depthConfig.chapters} 个主要章节
     2. 每个章节包含标题和简要说明（${depthConfig.detail}）
@@ -292,7 +270,7 @@ export async function generateDocAction(body: {
     }),
     experimental_telemetry: createTelemetryConfig(
       "generate-doc",
-      { topic: body.topic, userId: session.user.id },
+      { topic: body.topic, userId },
       traceId,
     ),
   });
@@ -306,19 +284,24 @@ export async function generateDocAction(body: {
  * 这里的 Action 仅作为非流式任务或旧版代码的桥接
  */
 export async function aiGatewayAction(input: AIRequest): Promise<Response> {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Unauthorized");
+  console.log("[aiGatewayAction] Starting...");
+  console.log("[aiGatewayAction] Input messages:", input.messages?.length);
+  console.log(
+    "[aiGatewayAction] Input context:",
+    JSON.stringify(input.context, null, 2),
+  );
 
-  const rateLimitResult = await checkRateLimit(session.user.id);
-  if (!rateLimitResult.allowed) throw new Error("Rate limit exceeded");
+  const { userId } = await requireAuthWithRateLimit(checkRateLimit);
+
+  console.log("[aiGatewayAction] userId:", userId);
 
   const parseResult = AIRequestSchema.safeParse(input);
   if (!parseResult.success) {
+    console.error("[aiGatewayAction] Schema parse error:", parseResult.error);
     throw new Error(`Invalid request: ${parseResult.error.message}`);
   }
 
-  // 直接调用 Service 层
-  return AIGatewayService.handleRequest(parseResult.data, {
-    userId: session.user.id,
-  });
+  console.log("[aiGatewayAction] Schema parsed successfully");
+
+  return AIGatewayService.handleRequest(parseResult.data, { userId });
 }

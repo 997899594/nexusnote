@@ -176,7 +176,7 @@ export const courseProfiles = pgTable(
     designReason: text("design_reason"),
 
     // 课程生成进度
-    currentChapter: integer("current_chapter").default(1),
+    currentChapter: integer("current_chapter").default(0),
     currentSection: integer("current_section").default(1),
     isCompleted: boolean("is_completed").default(false),
 
@@ -453,6 +453,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   topics: many(topics),
   extractedNotes: many(extractedNotes),
   courseProfiles: many(courseProfiles),
+  workspaces: many(workspaces),
 }));
 
 export const courseProfilesRelations = relations(
@@ -470,5 +471,21 @@ export const courseChaptersRelations = relations(courseChapters, ({ one }) => ({
   profile: one(courseProfiles, {
     fields: [courseChapters.profileId],
     references: [courseProfiles.id],
+  }),
+}));
+
+// Workspace & Documents relations
+export const workspacesRelations = relations(workspaces, ({ one, many }) => ({
+  owner: one(users, {
+    fields: [workspaces.ownerId],
+    references: [users.id],
+  }),
+  documents: many(documents),
+}));
+
+export const documentsRelations = relations(documents, ({ one }) => ({
+  workspace: one(workspaces, {
+    fields: [documents.workspaceId],
+    references: [workspaces.id],
   }),
 }));

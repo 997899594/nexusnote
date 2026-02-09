@@ -15,11 +15,14 @@ import {
   stepCountIs,
   hasToolCall,
   type ToolSet,
+  type LanguageModel,
 } from "ai";
 import { string, z } from "zod";
-import { chatModel } from "@/lib/ai/registry";
+import { chatModel, webSearchModel } from "@/lib/ai/registry";
 import { interviewTools } from "@/lib/ai/tools/interview";
 import { buildInterviewPrompt } from "@/lib/ai/prompts/interview";
+
+const interviewModel = webSearchModel || chatModel;
 
 /**
  * Interview Context Schema - 统一的维度定义
@@ -32,10 +35,10 @@ import { buildInterviewPrompt } from "@/lib/ai/prompts/interview";
  */
 export const InterviewContextSchema = z.object({
   // 用户信息维度
-  goal: z.string().optional().describe("学习目标"),
-  background: z.string().optional().describe("学习背景/水平"),
-  targetOutcome: z.string().optional().describe("预期成果"),
-  cognitiveStyle: z.string().optional().describe("学习风格"),
+  goal: z.string().describe("学习目标"),
+  background: z.string().describe("学习背景/水平"),
+  targetOutcome: z.string().describe("预期成果"),
+  cognitiveStyle: z.string().describe("学习风格"),
 
   // 课程画像存储（生成大纲后填充）
   courseId: z.string().optional().describe("生成的课程 ID"),
@@ -59,7 +62,7 @@ export type InterviewContext = z.infer<typeof InterviewContextSchema>;
  */
 export const interviewAgent = new ToolLoopAgent({
   id: "nexusnote-interview",
-  model: chatModel!, // 已包含 extractReasoningMiddleware
+  model: interviewModel as LanguageModel, // 运行时会检查，构建时使用类型断言
   tools: interviewTools,
   maxOutputTokens: 4096,
   callOptionsSchema: InterviewContextSchema,
@@ -70,22 +73,24 @@ export const interviewAgent = new ToolLoopAgent({
    */
   prepareCall: ({ options, ...rest }) => {
     const callOptions = (options ?? {}) as InterviewContext;
+    const callId = crypto.randomUUID().slice(0, 8);
 
     console.log(
-      "[Interview Agent] prepareCall called with options:",
-      callOptions,
+      `[Interview Agent.${callId}] prepareCall called with options:`,
+      JSON.stringify(callOptions, null, 2),
     );
+    console.log(`[Interview Agent.${callId}] rest keys:`, Object.keys(rest));
 
     // L1: 动态构建 System Prompt
     // 这里是"代码控流"的关键：根据数据缺口注入不同的指令
     const instructions = buildInterviewPrompt(callOptions);
 
     console.log(
-      "[Interview Agent] Generated instructions (first 500 chars):",
+      `[Interview Agent.${callId}] Generated instructions (first 500 chars):`,
       instructions.slice(0, 500),
     );
     console.log(
-      "[Interview Agent] Tools available:",
+      `[Interview Agent.${callId}] Tools available:`,
       Object.keys(interviewTools),
     );
 
@@ -97,7 +102,7 @@ export const interviewAgent = new ToolLoopAgent({
     const hasAllInfo =
       hasGoal && hasBackground && hasTargetOutcome && hasCognitiveStyle;
 
-    console.log("[Interview Agent] Phase detection:", {
+    console.log(`[Interview Agent.${callId}] Phase detection:`, {
       hasGoal,
       hasBackground,
       hasTargetOutcome,
@@ -105,7 +110,7 @@ export const interviewAgent = new ToolLoopAgent({
       hasAllInfo,
     });
     console.log(
-      "[Interview Agent] User Profile Summary:",
+      `[Interview Agent.${callId}] User Profile Summary:`,
       JSON.stringify(
         {
           goal: callOptions.goal,
@@ -121,25 +126,37 @@ export const interviewAgent = new ToolLoopAgent({
     // Phase 4: 信息收集完毕，强制调用 generateOutline
     if (hasAllInfo) {
       console.log(
-        "[Interview Agent] ✅ All info collected, FORCING generateOutline",
+        `[Interview Agent.${callId}] ✅ All info collected, FORCING generateOutline`,
       );
       return {
         ...rest,
         instructions,
         temperature: 0.7,
         toolChoice: { type: "tool", toolName: "generateOutline" },
-        // 移除 stopWhen，让 AI 完成 generateOutline 的调用输出
       };
     }
 
-    // Phase 1-3: AI 输出文本 + 调用 presentOptions
-    // 使用 Schema-First 模式，文字回复通过工具参数传递，解决截断问题
+    // Phase 1-3: 首次消息必须调用 presentOptions
+    const isFirstMessage = !callOptions.goal && !callOptions.background;
+
+    if (isFirstMessage) {
+      console.log(
+        `[Interview Agent.${callId}] 🔄 First message, FORCING presentOptions`,
+      );
+      return {
+        ...rest,
+        instructions,
+        temperature: 0.7,
+        toolChoice: { type: "tool", toolName: "presentOptions" },
+      };
+    }
+
+    console.log(`[Interview Agent.${callId}] 🔄 Continuing conversation`);
     return {
       ...rest,
       instructions,
       temperature: 0.7,
-      // 停止条件：完成第一步（包含工具调用）后立即停止，等待用户交互
-      stopWhen: stepCountIs(1),
+      stopWhen: stepCountIs(3),
     };
   },
 });
@@ -155,13 +172,3 @@ export const interviewAgent = new ToolLoopAgent({
  */
 export type InterviewAgentMessage = InferAgentUIMessage<typeof interviewAgent>;
 export type InterviewTools = typeof interviewTools;
-
-/**
- * 导出 Context 类型供外部使用
- *
- * 使用方式：
- * ```typescript
- * import type { InterviewContext } from '@/lib/ai/agents/interview/agent'
- * ```
- */
-// InterviewContext 已在上方导出

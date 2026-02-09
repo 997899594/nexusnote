@@ -108,7 +108,7 @@ export const getCourseChaptersAction = createSafeAction(
         background: profile.background,
         targetOutcome: profile.targetOutcome,
         cognitiveStyle: profile.cognitiveStyle,
-        outlineData: profile.outlineData,
+        outlineData: profile.outlineData as OutlineData,
       },
     };
   },

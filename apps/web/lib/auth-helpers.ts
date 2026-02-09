@@ -8,10 +8,35 @@
 import { clientEnv } from "@nexusnote/config";
 
 /**
- * Development token for local testing.
- * In production, this should be replaced with actual JWT tokens.
+ * Get the development authentication token from environment.
+ * In production, this returns undefined.
  */
-export const DEV_TOKEN = "dev-token";
+function getDevToken(): string | undefined {
+  if (clientEnv.NODE_ENV !== "development") {
+    return undefined;
+  }
+
+  // Read directly from process.env to avoid type issues
+  const token = process.env.NEXT_PUBLIC_DEV_AUTH_TOKEN;
+  if (!token) {
+    // 在开发环境如果没有配置，给出警告
+    if (typeof window !== "undefined") {
+      console.warn(
+        "[Auth] NEXT_PUBLIC_DEV_AUTH_TOKEN not configured. " +
+        'Set it in .env.local: openssl rand -base64 24'
+      );
+    }
+  }
+  return token;
+}
+
+/**
+ * Check if a token matches the development auth token.
+ */
+export function isDevTokenValid(token: string): boolean {
+  const devToken = getDevToken();
+  return devToken !== undefined && token === devToken;
+}
 
 export function isDevelopment(): boolean {
   return clientEnv.NODE_ENV !== "production";
@@ -19,8 +44,9 @@ export function isDevelopment(): boolean {
 
 /**
  * Get authentication token.
- * In development, returns the last saved session token if available.
- * In production, strictly requires a valid JWT.
+ *
+ * - In development: uses NEXT_PUBLIC_DEV_AUTH_TOKEN if set
+ * - In production: requires a valid JWT from localStorage
  */
 export function getAuthToken(): string {
   if (typeof window === "undefined") return "";
@@ -29,9 +55,10 @@ export function getAuthToken(): string {
   const token = localStorage.getItem("nexusnote_token");
   if (token) return token;
 
-  // 开发环境下回退
-  if (isDevelopment()) {
-    return "dev-token";
+  // 开发环境下回退到环境变量配置的 token
+  const devToken = getDevToken();
+  if (devToken) {
+    return devToken;
   }
 
   return "";

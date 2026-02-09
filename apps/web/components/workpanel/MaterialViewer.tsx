@@ -19,7 +19,7 @@ import {
   User,
   Hash,
 } from "lucide-react";
-import { useNoteExtractionOptional } from "@/contexts/NoteExtractionContext";
+import { useNoteExtractionOptional } from "@/lib/store";
 import { GhostFlight } from "@/components/editor/GhostFlight";
 import { markdownToHtml } from "@/lib/editor/markdown";
 import { getDocumentAction } from "@/app/actions/document";

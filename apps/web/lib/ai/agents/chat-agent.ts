@@ -9,7 +9,6 @@
 import {
   ToolLoopAgent,
   InferAgentUIMessage,
-  smoothStream,
   stepCountIs,
   type ToolSet,
 } from "ai";

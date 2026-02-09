@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
-import type { UIMessageChunk } from "ai";
-import { aiGatewayAction } from "@/app/actions/ai";
-import { type AIRequest } from "@/lib/ai/gateway/service";
+import type { DynamicToolUIPart } from "ai";
+import type { OutlineData } from "@/lib/ai/types/course";
 import { UnifiedChatUI } from "@/components/ai/UnifiedChatUI";
 import { MessageResponse } from "@/components/ai/Message";
 import {
@@ -14,8 +13,13 @@ import {
   SummaryResult,
   WebSearchResult,
 } from "@/components/ai/ui";
-import type { CourseGenerationAgentMessage } from "@/lib/ai/agents/course-generation/agent";
-import type { OutlineData } from "@/lib/ai/profile/course-profile";
+import { OrganicHeader } from "@/components/create/OrganicHeader";
+import { ContentRenderer } from "@/components/course/content-renderer";
+import {
+  getCourseChaptersAction,
+  updateCourseProgressAction,
+} from "@/app/actions/course";
+import { CourseChapterDTO, CourseProfileDTO } from "@/lib/actions/types";
 import {
   ChevronLeft,
   MessageSquare,
@@ -25,21 +29,14 @@ import {
   Menu,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { OrganicHeader } from "@/components/create/OrganicHeader";
-import { ContentRenderer } from "@/components/course/content-renderer";
+import type { CourseGenerationAgentMessage } from "@/lib/ai/agents/course-generation/agent";
 import {
-  getCourseChaptersAction,
-  updateCourseProgressAction,
-} from "@/app/actions/course";
-import { CourseChapterDTO, CourseProfileDTO } from "@/lib/actions/types";
-import { getMessageContent, getToolCalls } from "@/lib/ai/ui-utils";
-
-import {
-  QuizOutput,
   MindMapOutput,
+  QuizOutput,
   SummarizeOutput,
   WebSearchOutput,
 } from "@/lib/ai/tools/types";
+import { getMessageContent } from "@/lib/ai/ui-utils";
 
 interface LearnPageClientProps {
   courseId: string;
@@ -57,35 +54,31 @@ export default function LearnPageClient({
     courseProfile.progress.currentChapter || 0,
   );
   const [chapters, setChapters] = useState<CourseChapterDTO[]>([]);
-  const [isLoadingChapters, setIsLoadingChapters] = useState(true);
   const [isGenerationComplete, setIsGenerationComplete] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isChatOpen, setIsChatOpen] = useState(true);
 
-  // Load course chapters initially
+  // 防止并发生成的 ref
+  const generatingChapterRef = useRef<Set<number>>(new Set());
+  const generationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+
+  // 初始加载已生成的章节
   useEffect(() => {
-    const loadChapters = async () => {
+    const loadInitialChapters = async () => {
       try {
         const result = await getCourseChaptersAction(courseId);
         if (result.success) {
           setChapters(result.data.chapters);
-        } else {
-          console.error(
-            "[LearnPageClient] Failed to fetch chapters:",
-            result.error,
-          );
+          setIsInitialLoading(false);
         }
       } catch (err) {
-        console.error(
-          "[LearnPageClient] Unexpected error loading chapters:",
-          err,
-        );
-      } finally {
-        setIsLoadingChapters(false);
+        console.error("[LearnPageClient] Failed to load chapters:", err);
+        setIsInitialLoading(false);
       }
     };
 
-    loadChapters();
+    loadInitialChapters();
   }, [courseId]);
 
   // 1. 路由优先：当章节列表加载完成，或 URL 参数变化时，同步当前索引
@@ -153,29 +146,6 @@ export default function LearnPageClient({
     );
   }, [outline]);
 
-  // 定期刷新章节列表 (架构师提示：使用 Server Action 进行轮询，减少对 API 路由的依赖)
-  useEffect(() => {
-    if (isGenerationComplete) return;
-
-    const interval = setInterval(async () => {
-      try {
-        const result = await getCourseChaptersAction(courseId);
-        if (result.success) {
-          setChapters(result.data.chapters);
-
-          if (result.data.chapters.length >= totalChapters) {
-            setIsGenerationComplete(true);
-            clearInterval(interval);
-          }
-        }
-      } catch (err) {
-        console.error("[LearnPageClient] Failed to refresh chapters:", err);
-      }
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, [courseId, totalChapters, isGenerationComplete]);
-
   // 进度同步：当用户切换章节时，同步到服务器
   useEffect(() => {
     const updateProgress = async () => {
@@ -195,83 +165,70 @@ export default function LearnPageClient({
   }, [courseId, currentChapterIndex, chapters.length]);
 
   // Chat setup
-  const { messages, sendMessage, status, stop } =
+  const { messages, sendMessage, status, stop, addToolOutput } =
     useChat<CourseGenerationAgentMessage>({
       id: `course-${courseId}`,
-      transport: {
-        sendMessages: async ({ messages, body }) => {
-          const response = (await aiGatewayAction({
-            messages,
-            context: body as AIRequest["context"],
-          })) as unknown as Response;
-
-          if (!response.body) {
-            throw new Error("No response body");
-          }
-
-          return response.body as unknown as ReadableStream<
-            UIMessageChunk<CourseGenerationAgentMessage>
-          >;
-        },
-        reconnectToStream: async () => {
-          throw new Error("Reconnection not supported");
-        },
-      },
     });
 
-  // 架构师重构：按需生成驱动逻辑 (On-Demand Generation)
-  // 当用户选中的章节不存在时，才触发生成
+  // 监听 messages 实时更新 chapters
   useEffect(() => {
-    if (isLoadingChapters || status !== "ready") return;
+    const lastMessage = messages[messages.length - 1];
+    if (!lastMessage) return;
 
-    // 检查当前选中的章节是否已生成
-    const isCurrentChapterGenerated = chapters.some(
-      (c) => c.chapterIndex === currentChapterIndex,
+    // AI SDK v6: tool call parts use 'dynamic-tool' type with 'output-available' state
+    const toolCall = lastMessage.parts?.find(
+      (p): p is DynamicToolUIPart & { state: "output-available" } =>
+        p.type === "dynamic-tool" && p.state === "output-available",
     );
 
-    // 如果未生成，则触发当前章节的生成
-    if (!isCurrentChapterGenerated) {
+    if (toolCall?.toolName === "saveChapterContent") {
+      const output = toolCall.output as {
+        profileId: string;
+        chapterIndex: number;
+        sectionIndex: number;
+        title: string;
+        contentMarkdown: string;
+      };
+
       console.log(
-        `[On-Demand] Triggering generation for selected Chapter ${currentChapterIndex}...`,
+        `[Stream Update] 新章节生成: Chapter ${output.chapterIndex}-${output.sectionIndex}`,
       );
 
-      sendMessage(
-        {
-          text: `请生成第 ${currentChapterIndex + 1} 章的内容。`,
-        },
-        {
-          body: {
-            context: {
-              explicitIntent: "COURSE_GENERATION",
-              courseGenerationContext: {
-                id: courseId,
-                userId: courseProfile.userId,
-                goal: courseProfile.goal,
-                background: courseProfile.background,
-                targetOutcome: courseProfile.targetOutcome,
-                cognitiveStyle: courseProfile.cognitiveStyle,
-                outlineTitle: courseProfile.title,
-                outlineData: outline,
-                moduleCount: outline.modules?.length || 0,
-                totalChapters: totalChapters,
-                currentChapterIndex: currentChapterIndex, // 精确生成当前选中的章节
-                chaptersGenerated: chapters.length,
-              },
-            },
-          },
-        },
+      const isNewChapter = !chapters.some(
+        (c) =>
+          c.chapterIndex === output.chapterIndex &&
+          c.sectionIndex === output.sectionIndex,
       );
+
+      if (isNewChapter) {
+        setChapters((prev) => [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            chapterIndex: output.chapterIndex,
+            sectionIndex: output.sectionIndex,
+            title: output.title,
+            contentMarkdown: output.contentMarkdown,
+            summary: null,
+            keyPoints: null,
+            isCompleted: false,
+            createdAt: new Date().toISOString(),
+          },
+        ]);
+
+        const currentChapterGenerated = chapters.some(
+          (c) => c.chapterIndex === currentChapterIndex,
+        );
+        if (!currentChapterGenerated) {
+          setCurrentChapterIndex(output.chapterIndex);
+        }
+
+        if (chapters.length + 1 >= totalChapters) {
+          setIsGenerationComplete(true);
+        }
+      }
     }
-  }, [
-    courseId,
-    isLoadingChapters,
-    currentChapterIndex, // 核心触发点：用户点击切换章节
-    chapters,
-    status,
-    totalChapters,
-    courseProfile,
-    sendMessage,
-  ]);
+  }, [messages, chapters, currentChapterIndex, totalChapters]);
 
   const isChatLoading = status === "streaming" || status === "submitted";
   const currentChapter = chapters.find(
@@ -285,6 +242,33 @@ export default function LearnPageClient({
     // @ts-ignore - reasoning is added by extractReasoningMiddleware
     return lastMessage?.reasoning || null;
   }, [messages, status]);
+
+  // 预计算章节全局索引，避免每次渲染重复计算
+  const chapterGlobalIndexMap = useMemo(() => {
+    const map = new Map<string, number>(); // key: "mIdx-cIdx" -> globalIdx
+    outline.modules?.forEach((module, mIdx) => {
+      const baseIndex = (outline.modules || [])
+        .slice(0, mIdx)
+        .reduce((sum, m) => sum + m.chapters.length, 0);
+      module.chapters.forEach((_, cIdx) => {
+        const globalIdx = baseIndex + cIdx;
+        map.set(`${mIdx}-${cIdx}`, globalIdx);
+      });
+    });
+    return map;
+  }, [outline]);
+
+  // 获取章节全局索引的辅助函数
+  const getGlobalChapterIndex = useCallback(
+    (mIdx: number, cIdx: number) => {
+      return (
+        (outline.modules || [])
+          .slice(0, mIdx)
+          .reduce((sum, m) => sum + m.chapters.length, 0) + cIdx
+      );
+    },
+    [outline],
+  );
 
   // 渲染工具输出结果 UI
   const renderToolOutput = (
@@ -524,11 +508,8 @@ export default function LearnPageClient({
 
                     <div className="space-y-1">
                       {module.chapters.map((chapter, cIdx) => {
-                        const globalIdx =
-                          (outline.modules || [])
-                            .slice(0, mIdx)
-                            .reduce((sum, m) => sum + m.chapters.length, 0) +
-                          cIdx;
+                        // 使用优化的辅助函数计算全局索引
+                        const globalIdx = getGlobalChapterIndex(mIdx, cIdx);
 
                         const isGenerated = chapters.some(
                           (c) => c.chapterIndex === globalIdx,
@@ -632,169 +613,155 @@ export default function LearnPageClient({
           <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar bg-[#F9F9F9]">
             <div className="mx-auto max-w-4xl px-12 py-20">
               <AnimatePresence mode="wait">
-                {isLoadingChapters && chapters.length === 0 ? (
-                  <motion.div
-                    key="loading-state"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="min-h-[60vh] flex flex-col items-center justify-center"
-                  >
-                    <ThinkingTrail thinking={currentThinking} />
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key={currentChapterIndex}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                    className="space-y-16"
-                  >
-                    {!currentChapter ? (
-                      <div className="flex flex-col items-center justify-center py-20 text-center">
-                        <ThinkingTrail thinking={currentThinking} />
-                        <div className="mt-8 space-y-2">
-                          <h3 className="text-2xl font-black text-black tracking-tight">
-                            正在为您编排知识...
-                          </h3>
-                          <p className="text-black/40 text-sm font-medium">
-                            AI 正在构建第 {currentChapterIndex + 1}{" "}
-                            章节的深度内容
-                          </p>
+                <motion.div
+                  key={currentChapterIndex}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                  className="space-y-16"
+                >
+                  {!currentChapter ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-center">
+                      <ThinkingTrail thinking={currentThinking} />
+                      <div className="mt-8 space-y-2">
+                        <h3 className="text-2xl font-black text-black tracking-tight">
+                          正在为您编排知识...
+                        </h3>
+                        <p className="text-black/40 text-sm font-medium">
+                          AI 正在构建第 {currentChapterIndex + 1} 章节的深度内容
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <article className="relative">
+                      {/* 章节标题系统 */}
+                      <div className="mb-20 space-y-8">
+                        <div className="flex items-center gap-4">
+                          <span className="px-3 py-1 rounded-full bg-black text-[10px] font-black text-white uppercase tracking-[0.2em]">
+                            Chapter {currentChapterIndex + 1}
+                          </span>
+                          <div className="h-px flex-1 bg-black/5" />
+                          <span className="text-[10px] font-bold text-black/30 uppercase tracking-widest">
+                            {Math.round(
+                              currentChapter.contentMarkdown.length / 500,
+                            )}{" "}
+                            min read
+                          </span>
+                        </div>
+
+                        <h1 className="text-6xl font-black text-black tracking-tighter leading-[1.1]">
+                          {currentChapter.title}
+                        </h1>
+
+                        <div className="flex items-center gap-6 pt-4">
+                          <div className="flex -space-x-2">
+                            {[0, 1, 2].map((i) => (
+                              <div
+                                key={i}
+                                className="w-8 h-8 rounded-full border-2 border-white bg-black/5 overflow-hidden"
+                              >
+                                <img
+                                  src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${i + 10}`}
+                                  alt="avatar"
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                          <div className="text-[10px] font-bold text-black/40 uppercase tracking-widest">
+                            Jointly Synthesized by{" "}
+                            <span className="text-black">Nexus AI</span> &{" "}
+                            <span className="text-black">You</span>
+                          </div>
                         </div>
                       </div>
-                    ) : (
-                      <article className="relative">
-                        {/* 章节标题系统 */}
-                        <div className="mb-20 space-y-8">
-                          <div className="flex items-center gap-4">
-                            <span className="px-3 py-1 rounded-full bg-black text-[10px] font-black text-white uppercase tracking-[0.2em]">
-                              Chapter {currentChapterIndex + 1}
-                            </span>
-                            <div className="h-px flex-1 bg-black/5" />
-                            <span className="text-[10px] font-bold text-black/30 uppercase tracking-widest">
-                              {Math.round(
-                                currentChapter.contentMarkdown.length / 500,
-                              )}{" "}
-                              min read
-                            </span>
+
+                      {/* 正文内容 - 2026 Fluid Typography */}
+                      <ContentRenderer
+                        content={currentChapter.contentMarkdown}
+                      />
+
+                      {/* 思考轨迹 (如果仍在生成中) */}
+                      {isChatLoading && (
+                        <div className="mt-16">
+                          <ThinkingTrail thinking={currentThinking} />
+                        </div>
+                      )}
+
+                      {/* 章节导航 - 极简主义设计 */}
+                      <div className="mt-32 pt-16 border-t border-black/[0.05] flex items-center justify-between">
+                        <button
+                          onClick={() =>
+                            currentChapterIndex > 0 &&
+                            setCurrentChapterIndex(currentChapterIndex - 1)
+                          }
+                          disabled={currentChapterIndex === 0}
+                          className="group flex items-center gap-6 disabled:opacity-20"
+                        >
+                          <div className="w-14 h-14 rounded-full border border-black/10 flex items-center justify-center group-hover:bg-black group-hover:text-white transition-all duration-500">
+                            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
                           </div>
+                          <div className="text-left">
+                            <div className="text-[10px] font-black uppercase tracking-widest text-black/30">
+                              Previous
+                            </div>
+                            <div className="text-lg font-bold text-black">
+                              上一章节
+                            </div>
+                          </div>
+                        </button>
 
-                          <h1 className="text-6xl font-black text-black tracking-tighter leading-[1.1]">
-                            {currentChapter.title}
-                          </h1>
-
-                          <div className="flex items-center gap-6 pt-4">
-                            <div className="flex -space-x-2">
-                              {[0, 1, 2].map((i) => (
+                        <div className="hidden md:flex flex-col items-center">
+                          <div className="text-[10px] font-black text-black/20 uppercase tracking-[0.3em] mb-2">
+                            Progress
+                          </div>
+                          <div className="flex gap-1">
+                            {Array.from({ length: totalChapters }).map(
+                              (_, i) => (
                                 <div
                                   key={i}
-                                  className="w-8 h-8 rounded-full border-2 border-white bg-black/5 overflow-hidden"
-                                >
-                                  <img
-                                    src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${i + 10}`}
-                                    alt="avatar"
-                                    className="w-full h-full object-cover"
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                            <div className="text-[10px] font-bold text-black/40 uppercase tracking-widest">
-                              Jointly Synthesized by{" "}
-                              <span className="text-black">Nexus AI</span> &{" "}
-                              <span className="text-black">You</span>
-                            </div>
+                                  className={`w-1.5 h-1.5 rounded-full transition-all duration-500 ${
+                                    i === currentChapterIndex
+                                      ? "w-6 bg-black"
+                                      : i < chapters.length
+                                        ? "bg-black/20"
+                                        : "bg-black/5"
+                                  }`}
+                                />
+                              ),
+                            )}
                           </div>
                         </div>
 
-                        {/* 正文内容 - 2026 Fluid Typography */}
-                        <ContentRenderer
-                          content={currentChapter.contentMarkdown}
-                        />
-
-                        {/* 思考轨迹 (如果仍在生成中) */}
-                        {isChatLoading && (
-                          <div className="mt-16">
-                            <ThinkingTrail thinking={currentThinking} />
-                          </div>
-                        )}
-
-                        {/* 章节导航 - 极简主义设计 */}
-                        <div className="mt-32 pt-16 border-t border-black/[0.05] flex items-center justify-between">
-                          <button
-                            onClick={() =>
-                              currentChapterIndex > 0 &&
-                              setCurrentChapterIndex(currentChapterIndex - 1)
-                            }
-                            disabled={currentChapterIndex === 0}
-                            className="group flex items-center gap-6 disabled:opacity-20"
-                          >
-                            <div className="w-14 h-14 rounded-full border border-black/10 flex items-center justify-center group-hover:bg-black group-hover:text-white transition-all duration-500">
-                              <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                        <button
+                          onClick={() =>
+                            currentChapterIndex < totalChapters - 1 &&
+                            setCurrentChapterIndex(currentChapterIndex + 1)
+                          }
+                          disabled={
+                            currentChapterIndex === totalChapters - 1 ||
+                            !chapters.some(
+                              (c) => c.chapterIndex === currentChapterIndex + 1,
+                            )
+                          }
+                          className="group flex items-center gap-6 text-right disabled:opacity-20"
+                        >
+                          <div className="text-right">
+                            <div className="text-[10px] font-black uppercase tracking-widest text-black/30">
+                              Next
                             </div>
-                            <div className="text-left">
-                              <div className="text-[10px] font-black uppercase tracking-widest text-black/30">
-                                Previous
-                              </div>
-                              <div className="text-lg font-bold text-black">
-                                上一章节
-                              </div>
-                            </div>
-                          </button>
-
-                          <div className="hidden md:flex flex-col items-center">
-                            <div className="text-[10px] font-black text-black/20 uppercase tracking-[0.3em] mb-2">
-                              Progress
-                            </div>
-                            <div className="flex gap-1">
-                              {Array.from({ length: totalChapters }).map(
-                                (_, i) => (
-                                  <div
-                                    key={i}
-                                    className={`w-1.5 h-1.5 rounded-full transition-all duration-500 ${
-                                      i === currentChapterIndex
-                                        ? "w-6 bg-black"
-                                        : i < chapters.length
-                                          ? "bg-black/20"
-                                          : "bg-black/5"
-                                    }`}
-                                  />
-                                ),
-                              )}
+                            <div className="text-lg font-bold text-black">
+                              下一章节
                             </div>
                           </div>
-
-                          <button
-                            onClick={() =>
-                              currentChapterIndex < totalChapters - 1 &&
-                              setCurrentChapterIndex(currentChapterIndex + 1)
-                            }
-                            disabled={
-                              currentChapterIndex === totalChapters - 1 ||
-                              !chapters.some(
-                                (c) =>
-                                  c.chapterIndex === currentChapterIndex + 1,
-                              )
-                            }
-                            className="group flex items-center gap-6 text-right disabled:opacity-20"
-                          >
-                            <div className="text-right">
-                              <div className="text-[10px] font-black uppercase tracking-widest text-black/30">
-                                Next
-                              </div>
-                              <div className="text-lg font-bold text-black">
-                                下一章节
-                              </div>
-                            </div>
-                            <div className="w-14 h-14 rounded-full bg-black text-white flex items-center justify-center shadow-2xl shadow-black/20 group-hover:scale-110 transition-all duration-500">
-                              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                            </div>
-                          </button>
-                        </div>
-                      </article>
-                    )}
-                  </motion.div>
-                )}
+                          <div className="w-14 h-14 rounded-full bg-black text-white flex items-center justify-center shadow-2xl shadow-black/20 group-hover:scale-110 transition-all duration-500">
+                            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                          </div>
+                        </button>
+                      </div>
+                    </article>
+                  )}
+                </motion.div>
               </AnimatePresence>
             </div>
           </div>
@@ -832,35 +799,13 @@ export default function LearnPageClient({
                   renderToolOutput={renderToolOutput}
                   onSubmit={(e) => {
                     e.preventDefault();
-                    // 在学习页面，如果章节还没生成完，聊天默认走 COURSE_GENERATION
-                    // 如果生成完了，走普通 CHAT
-                    const isGenerating = chapters.length < totalChapters;
-
                     sendMessage(
-                      { text: "根据当前内容帮我总结一下" },
+                      {
+                        text: "根据当前内容帮我总结一下",
+                      },
                       {
                         body: {
-                          context: {
-                            explicitIntent: isGenerating
-                              ? "COURSE_GENERATION"
-                              : "CHAT",
-                            enableTools: true,
-                            courseGenerationContext: isGenerating
-                              ? {
-                                  id: courseId,
-                                  userId: courseProfile.userId,
-                                  goal: courseProfile.goal,
-                                  background: courseProfile.background,
-                                  targetOutcome: courseProfile.targetOutcome,
-                                  cognitiveStyle: courseProfile.cognitiveStyle,
-                                  outlineTitle: courseProfile.title,
-                                  outlineData: outline,
-                                  moduleCount: outline.modules?.length || 0,
-                                  totalChapters: totalChapters,
-                                  chaptersGenerated: chapters.length,
-                                }
-                              : undefined,
-                          },
+                          explicitIntent: "COURSE_GENERATION",
                         },
                       },
                     );
@@ -934,4 +879,16 @@ export default function LearnPageClient({
       </div>
     </div>
   );
+
+  // 组件卸载时清理 ref
+  useEffect(() => {
+    return () => {
+      // 清理生成锁定
+      generatingChapterRef.current.clear();
+      // 清理超时定时器
+      if (generationTimeoutRef.current) {
+        clearTimeout(generationTimeoutRef.current);
+      }
+    };
+  }, []);
 }

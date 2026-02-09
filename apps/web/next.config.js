@@ -7,12 +7,27 @@ try {
   console.warn("Failed to load root .env file", e);
 }
 
-const nextConfig = {
+// PWA 配置（2026 最佳实践 - Serwist）
+// 协作应用需要实时数据，只缓存静态资源，不缓存 API
+const withSerwistInit = require("@serwist/next").default;
+
+const withSerwist = withSerwistInit({
+  swSrc: "src/app/sw.ts",
+  swDest: "public/sw.js",
+  cacheOnNavigation: true,
+  disable: process.env.NODE_ENV === "development",
+});
+
+const nextConfig = withSerwist({
   // Enable standalone output for Docker
   output: "standalone",
 
   // Transpile monorepo packages
   transpilePackages: ["@nexusnote/ui", "@nexusnote/db", "@nexusnote/config"],
+
+  // React Compiler - 自动优化 React 组件性能 (2026 最佳实践)
+  // 参考: https://juejin.cn/post/7593541290990747698
+  reactCompiler: true,
 
   // Experimental features
   experimental: {
@@ -70,6 +85,6 @@ const nextConfig = {
     }
     return config;
   },
-};
+});
 
 module.exports = nextConfig;

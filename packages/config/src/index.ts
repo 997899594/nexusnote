@@ -143,6 +143,12 @@ export const serverEnvSchema = z.object({
   AI_MODEL_PRO: z.string().default(defaults.ai.modelPro),
   AI_MODEL_WEB_SEARCH: z.string().default(defaults.ai.modelWebSearch),
 
+  // AI Features
+  AI_ENABLE_WEB_SEARCH: z
+    .string()
+    .default("false")
+    .transform((v) => v === "true"),
+
   // Notes / Liquid Knowledge
   NOTES_TOPIC_THRESHOLD: z.coerce
     .number()
@@ -262,6 +268,12 @@ export const clientEnvSchema = z.object({
   AI_MODEL_PRO: z.string().default(defaults.ai.modelPro),
   AI_MODEL_WEB_SEARCH: z.string().default(defaults.ai.modelWebSearch),
 
+  // AI Features (client can override via user preference)
+  NEXT_PUBLIC_AI_ENABLE_WEB_SEARCH: z
+    .string()
+    .default("false")
+    .transform((v) => v === "true"),
+
   // Embedding (client may need for dimensions)
   EMBEDDING_MODEL: z.string().default(defaults.embedding.model),
   EMBEDDING_DIMENSIONS: z.coerce
@@ -269,6 +281,11 @@ export const clientEnvSchema = z.object({
     .int()
     .positive()
     .default(defaults.embedding.dimensions),
+
+  // Development Authentication Token
+  // 用于开发环境的身份验证（生产环境应使用真实的 OAuth/JWT）
+  // 生成方式: openssl rand -base64 24
+  NEXT_PUBLIC_DEV_AUTH_TOKEN: z.string().optional(),
 
   // Environment
   NODE_ENV: z
@@ -325,6 +342,8 @@ export function parseClientEnv(
   const processEnv = {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
     NEXT_PUBLIC_COLLAB_URL: process.env.NEXT_PUBLIC_COLLAB_URL,
+    NEXT_PUBLIC_DEV_AUTH_TOKEN: process.env.NEXT_PUBLIC_DEV_AUTH_TOKEN,
+    NEXT_PUBLIC_AI_ENABLE_WEB_SEARCH: process.env.NEXT_PUBLIC_AI_ENABLE_WEB_SEARCH ?? "false",
     NODE_ENV: process.env.NODE_ENV,
   };
 
@@ -406,6 +425,7 @@ export function logServerConfig(env: ServerEnv): void {
   console.log(`  AI_MODEL: ${env.AI_MODEL}`);
   console.log(`  AI_MODEL_PRO: ${env.AI_MODEL_PRO}`);
   console.log(`  AI_MODEL_WEB_SEARCH: ${env.AI_MODEL_WEB_SEARCH}`);
+  console.log(`  AI_ENABLE_WEB_SEARCH: ${env.AI_ENABLE_WEB_SEARCH}`);
   console.log(`  EMBEDDING_MODEL: ${env.EMBEDDING_MODEL}`);
   console.log(`  EMBEDDING_DIMENSIONS: ${env.EMBEDDING_DIMENSIONS}`);
 }

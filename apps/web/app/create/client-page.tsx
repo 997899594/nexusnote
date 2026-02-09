@@ -10,10 +10,13 @@ import { OutlineReview } from "@/components/create/OutlineReview";
 
 import { useSearchParams } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
-import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 
-export default function CreatePageClient() {
+interface CreatePageClientProps {
+  userId: string;
+}
+
+export default function CreatePageClient({ userId }: CreatePageClientProps) {
   const searchParams = useSearchParams();
   const goal = searchParams.get("goal")
     ? decodeURIComponent(searchParams.get("goal")!)
@@ -21,15 +24,16 @@ export default function CreatePageClient() {
 
   // 使用 goal 作为 key，当 goal 改变时强制整个组件树重新挂载
   // 这样所有 state、ref、useEffect 都会重新初始化，避免状态残留
-  return <CreatePageContent key={goal} initialGoal={goal} />;
+  return <CreatePageContent key={goal} initialGoal={goal} userId={userId} />;
 }
 
 interface CreatePageContentProps {
   initialGoal: string;
+  userId: string;
 }
 
-function CreatePageContent({ initialGoal }: CreatePageContentProps) {
-  const { state, ui, actions } = useCourseGeneration(initialGoal);
+function CreatePageContent({ initialGoal, userId }: CreatePageContentProps) {
+  const { state, ui, actions } = useCourseGeneration(initialGoal, userId);
   const { phase, goal, context, nodes, outline } = state;
   const {
     userInput,
@@ -42,7 +46,6 @@ function CreatePageContent({ initialGoal }: CreatePageContentProps) {
     error,
   } = ui;
   const { handleSendMessage, confirmOutline, retry } = actions;
-  const { data: session } = useSession();
 
   // Track course profile save
   const [courseId, setCourseId] = useState<string | null>(null);

@@ -1,8 +1,4 @@
 import { useChat } from "@ai-sdk/react";
-import type { UIMessageChunk } from "ai";
-import { useSession } from "next-auth/react";
-import { aiGatewayAction } from "@/app/actions/ai";
-import { type AIRequest } from "@/lib/ai/gateway/service";
 import { useState, useReducer, useEffect, useRef, useCallback } from "react";
 import { CourseNode } from "@/lib/types/course";
 import { useRouter } from "next/navigation";
@@ -14,6 +10,7 @@ import type {
   InterviewContext,
 } from "@/lib/ai/agents/interview/agent";
 import { findToolCall } from "@/lib/ai/ui-utils";
+import type { OutlineData } from "@/lib/ai/profile/course-profile";
 
 // ============================================
 // Constants
@@ -28,6 +25,9 @@ const PHASE_TRANSITION_DELAYS = {
 } as const;
 
 const STORAGE_KEY = "nexusnote-course-gen-v1";
+const STORAGE_KEY_PREFIX = "nexusnote-course-gen-";
+const MAX_MESSAGES_TO_STORE = 50; // 限制存储的消息数量
+const STORAGE_TTL = 24 * 60 * 60 * 1000; // 24小时过期
 
 // --- Types ---
 
@@ -89,10 +89,10 @@ const initialState: State = {
   phase: "interview",
   goal: "",
   context: {
-    goal: undefined,
-    background: undefined,
-    targetOutcome: undefined,
-    cognitiveStyle: undefined,
+    goal: "",
+    background: "",
+    targetOutcome: "",
+    cognitiveStyle: "",
   },
   nodes: [],
   outline: null,
@@ -132,13 +132,63 @@ function reducer(state: State, action: Action): State {
   }
 }
 
+// ============================================
+// Storage Helpers
+// ============================================
+
+/**
+ * 清理过期的存储数据
+ */
+function cleanupExpiredStorage() {
+  try {
+    const now = Date.now();
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith(STORAGE_KEY_PREFIX)) {
+        const data = localStorage.getItem(key);
+        if (data) {
+          const parsed = JSON.parse(data);
+          // 检查是否过期
+          if (parsed.timestamp && now - parsed.timestamp > STORAGE_TTL) {
+            localStorage.removeItem(key);
+            console.log(`[cleanup] Removed expired storage: ${key}`);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error("[cleanup] Failed to cleanup storage:", err);
+  }
+}
+
+/**
+ * 清理当前课程的存储（课程完成后调用）
+ */
+function clearCourseStorage(goal: string) {
+  try {
+    // 清理旧的通用存储键
+    localStorage.removeItem(STORAGE_KEY);
+
+    // 清理特定目标的存储键 (使用 encodeURIComponent 支持中文)
+    const specificKey = `${STORAGE_KEY_PREFIX}${encodeURIComponent(goal)}`;
+    localStorage.removeItem(specificKey);
+
+    console.log("[storage] Cleared course storage for:", goal);
+  } catch (err) {
+    console.error("[storage] Failed to clear storage:", err);
+  }
+}
+
 // --- Hook ---
 
-export function useCourseGeneration(initialGoal: string = "") {
-  const { data: session } = useSession();
+export function useCourseGeneration(initialGoal: string = "", userId: string) {
+  // 2026-02-09 修复：不要把 URL 的 goal 直接设为 context.goal
+  // 用户可能输入任意文字（如测试的 "adad"），AI 需要先分析这是否是有效的学习目标
+  // 初始 context 保持为空，让 AI 通过对话来确认用户的真实意图
   const [state, dispatch] = useReducer(reducer, {
     ...initialState,
     goal: initialGoal || initialState.goal,
+    context: initialState.context, // 不预设 goal，让 AI 分析
   });
 
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
@@ -153,11 +203,11 @@ export function useCourseGeneration(initialGoal: string = "") {
 
   // Sync initial goal
   useEffect(() => {
-    if (initialGoal && initialGoal !== state.goal) {
+    if (initialGoal !== state.goal) {
       dispatch({ type: "SET_GOAL", payload: initialGoal });
       hasStartedRef.current = false;
     }
-  }, [initialGoal]);
+  }, [initialGoal, state.goal]);
 
   // =========================================================
   // 2026 ARCHITECTURE: useChat + Tools
@@ -175,28 +225,7 @@ export function useCourseGeneration(initialGoal: string = "") {
     error,
     regenerate,
     stop,
-  } = useChat<InterviewAgentMessage>({
-    id: "course-generation",
-    transport: {
-      sendMessages: async ({ messages, body }) => {
-        const response = (await aiGatewayAction({
-          messages,
-          context: body as AIRequest["context"],
-        })) as unknown as Response;
-
-        if (!response.body) {
-          throw new Error("No response body");
-        }
-
-        return response.body as unknown as ReadableStream<
-          UIMessageChunk<InterviewAgentMessage>
-        >;
-      },
-      reconnectToStream: async () => {
-        throw new Error("Reconnection not supported");
-      },
-    },
-  });
+  } = useChat<InterviewAgentMessage>();
 
   // Calculate isLoading from status
   const isLoading = status === "streaming" || status === "submitted";
@@ -204,52 +233,39 @@ export function useCourseGeneration(initialGoal: string = "") {
   // Tool Invocation Handler (Sync Server Agent -> Client State)
   const processedToolCallIds = useRef<Set<string>>(new Set());
 
-  // Handle auto-resume if last message is from user (e.g. after refresh)
+  // Auto-resume if last message is from user (e.g. after refresh)
   useEffect(() => {
-    // Only resume if we are ready and NOT currently streaming/submitting
     if (status !== "ready") return;
 
-    if (messages.length > 0) {
-      const lastMessage = messages[messages.length - 1];
-      // Only resume if the LAST message was from the user (waiting for AI reply)
-      if (lastMessage.role === "user") {
-        regenerate({
-          body: {
-            explicitIntent: "INTERVIEW",
-            interviewContext: state.context,
-            isInInterview: true,
-          },
-        });
-      }
+    const lastMessage = messages.at(-1);
+    if (lastMessage?.role === "user") {
+      regenerate({
+        body: {
+          explicitIntent: "INTERVIEW",
+          interviewContext: state.context,
+        },
+      });
     }
   }, [status, messages, regenerate, state.context]);
 
   useEffect(() => {
-    if (!messages || messages.length === 0) return;
+    const lastMessage = messages.at(-1);
+    if (lastMessage?.role !== "assistant") return;
 
-    const lastMessage = messages[messages.length - 1];
-    if (lastMessage.role !== "assistant") return;
-
-    // AI SDK v6 Agent UI: 使用统一工具函数提取大纲生成结果（类型安全）
     const toolCall = findToolCall<Record<string, unknown>, CourseOutline>(
       lastMessage,
       "generateOutline",
     );
 
-    if (toolCall && toolCall.state === "output-available" && toolCall.output) {
-      const toolCallId = toolCall.toolCallId;
-      if (processedToolCallIds.current.has(toolCallId)) return;
+    if (toolCall?.state === "output-available" && toolCall.output) {
+      if (processedToolCallIds.current.has(toolCall.toolCallId)) return;
 
       console.log("[Tool Sync] Outline generated, updating state");
-      processedToolCallIds.current.add(toolCallId);
+      processedToolCallIds.current.add(toolCall.toolCallId);
 
-      const outlineData = toolCall.output;
-      dispatch({ type: "SET_OUTLINE", payload: outlineData });
-
-      // 同步更新节点数据
       const chapters =
-        outlineData.chapters ??
-        outlineData.modules?.flatMap((m) => m.chapters) ??
+        toolCall.output.chapters ??
+        toolCall.output.modules?.flatMap((m) => m.chapters) ??
         [];
 
       const newNodes: CourseNode[] = chapters.map((ch, i) => ({
@@ -262,6 +278,7 @@ export function useCourseGeneration(initialGoal: string = "") {
         depth: 1,
       }));
 
+      dispatch({ type: "SET_OUTLINE", payload: toolCall.output });
       dispatch({ type: "SET_NODES", payload: newNodes });
       dispatch({ type: "TRANSITION", payload: "outline_review" });
     }
@@ -269,34 +286,71 @@ export function useCourseGeneration(initialGoal: string = "") {
 
   // Persistence: Load
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    // 初始化时清理过期数据
+    cleanupExpiredStorage();
+
+    // 使用特定目标的键，避免多个课程互相覆盖 (使用 encodeURIComponent 支持中文)
+    const specificKey = `${STORAGE_KEY_PREFIX}${encodeURIComponent(initialGoal)}`;
+    const saved =
+      localStorage.getItem(specificKey) || localStorage.getItem(STORAGE_KEY);
+
+    if (!saved) return;
+
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.goal === initialGoal && parsed.messages?.length > 0) {
-          console.log("[useCourseGeneration] Restoring state from storage");
-          setMessages(parsed.messages);
-          dispatch({ type: "RESTORE", payload: parsed.state });
-          hasStartedRef.current = true;
-        }
+      const parsed = JSON.parse(saved);
+
+      // 检查是否过期
+      if (parsed.timestamp && Date.now() - parsed.timestamp > STORAGE_TTL) {
+        localStorage.removeItem(specificKey);
+        return;
       }
-    } catch (e) {
-      console.error("Failed to load state", e);
+
+      if (parsed.goal === initialGoal && parsed.messages?.length > 0) {
+        console.log("[useCourseGeneration] Restoring state from storage");
+        // 限制恢复的消息数量
+        const limitedMessages = parsed.messages.slice(-MAX_MESSAGES_TO_STORE);
+        setMessages(limitedMessages);
+        dispatch({ type: "RESTORE", payload: parsed.state });
+        hasStartedRef.current = true;
+      }
+    } catch (err) {
+      console.error("[useCourseGeneration] Failed to parse saved state:", err);
+      // 清理损坏的数据
+      localStorage.removeItem(specificKey);
+      localStorage.removeItem(STORAGE_KEY);
     }
   }, [initialGoal, setMessages]);
 
   // Persistence: Save
   useEffect(() => {
-    if (typeof window === "undefined") return;
     if (!state.goal) return;
 
-    const data = {
+    // 限制存储的消息数量，避免 localStorage 溢出
+    const limitedMessages = messages.slice(-MAX_MESSAGES_TO_STORE);
+
+    const dataToStore = {
       goal: state.goal,
-      state: state,
-      messages: messages,
+      state,
+      messages: limitedMessages,
+      timestamp: Date.now(), // 添加时间戳用于过期检查
     };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+
+    try {
+      // 使用特定目标的键 (使用 encodeURIComponent 支持中文)
+      const specificKey = `${STORAGE_KEY_PREFIX}${encodeURIComponent(state.goal)}`;
+      localStorage.setItem(specificKey, JSON.stringify(dataToStore));
+    } catch (err) {
+      if (err instanceof Error && err.name === "QuotaExceededError") {
+        console.warn(
+          "[useCourseGeneration] Storage quota exceeded, clearing old data...",
+        );
+        // 清理旧数据后重试
+        cleanupExpiredStorage();
+        localStorage.removeItem(STORAGE_KEY);
+      } else {
+        console.error("[useCourseGeneration] Failed to save state:", err);
+      }
+    }
   }, [state, messages]);
 
   // Phase ref
@@ -309,23 +363,17 @@ export function useCourseGeneration(initialGoal: string = "") {
 
   // Auto-start
   useEffect(() => {
-    if (messages.length > 0 || !state.goal || hasStartedRef.current) {
-      return;
-    }
+    if (messages.length > 0 || !state.goal || hasStartedRef.current) return;
 
     hasStartedRef.current = true;
     setIsStarting(true);
 
-    // Initial message to kickstart the AI
     sendMessage(
-      {
-        text: state.goal,
-      },
+      { text: state.goal },
       {
         body: {
           explicitIntent: "INTERVIEW",
           interviewContext: state.context,
-          isInInterview: true,
         },
       },
     );
@@ -340,39 +388,24 @@ export function useCourseGeneration(initialGoal: string = "") {
       overrideInput?: string,
       contextUpdate?: Partial<InterviewContext>,
     ) => {
-      if (e) e.preventDefault();
+      e?.preventDefault();
       const text = overrideInput ?? input;
       if (!text.trim()) return;
 
       if (!overrideInput) setInput("");
+      if (contextUpdate)
+        dispatch({ type: "UPDATE_CONTEXT", payload: contextUpdate });
 
-      // 如果提供了 contextUpdate，计算最新 context（同步）
       const finalContext = contextUpdate
         ? { ...state.context, ...contextUpdate }
         : state.context;
 
-      console.log("[handleSendMessage] Sending message:", text);
-      console.log("[handleSendMessage] contextUpdate:", contextUpdate);
-      console.log("[handleSendMessage] state.context:", state.context);
-      console.log(
-        "[handleSendMessage] finalContext (will be sent):",
-        finalContext,
-      );
-
-      // 同步更新本地 state（React 可能延迟，但我们不依赖它）
-      if (contextUpdate) {
-        dispatch({ type: "UPDATE_CONTEXT", payload: contextUpdate });
-      }
-
       sendMessage(
-        {
-          text: text,
-        },
+        { text },
         {
           body: {
             explicitIntent: "INTERVIEW",
-            interviewContext: finalContext, // ← 保证使用计算出的最新值
-            isInInterview: true,
+            interviewContext: finalContext,
           },
         },
       );
@@ -380,199 +413,161 @@ export function useCourseGeneration(initialGoal: string = "") {
     [input, state.context, sendMessage],
   );
 
-  // Course Generation Logic (The "Backend" Simulation)
-  // 架构师系统级重构：将基于定时器的不确定流转，改为确定性的异步序列流转
+  // Course Generation Logic
   const transitionProcessedRef = useRef<Record<string, boolean>>({});
 
   useEffect(() => {
-    // 只有在 synthesis 阶段且尚未处理过该阶段时执行
     if (
-      state.phase === "synthesis" &&
-      !transitionProcessedRef.current["synthesis"]
-    ) {
-      transitionProcessedRef.current["synthesis"] = true;
+      state.phase !== "synthesis" ||
+      transitionProcessedRef.current["synthesis"]
+    )
+      return;
 
-      const runGenerationFlow = async () => {
-        try {
-          if (!state.outline) {
-            console.error("No outline available for course generation");
-            return;
-          }
+    transitionProcessedRef.current["synthesis"] = true;
 
-          const data = state.outline;
-          const unifiedId = state.id || crypto.randomUUID();
+    const runGenerationFlow = async () => {
+      const data = state.outline!;
+      const unifiedId = state.id || crypto.randomUUID();
+      if (!state.id) dispatch({ type: "SET_ID", payload: unifiedId });
 
-          if (!state.id) {
-            dispatch({ type: "SET_ID", payload: unifiedId });
-          }
+      const allChapters =
+        data.chapters ?? data.modules?.flatMap((m) => m.chapters) ?? [];
 
-          // 1. 本地存储同步
-          const allChapters: Chapter[] =
-            data.chapters ||
-            (data.modules ? data.modules.flatMap((m) => m.chapters) : []);
-
-          const storeOutline: StoreCourseOutline = {
-            title: data.title,
-            description: data.description,
-            difficulty: data.difficulty,
-            estimatedMinutes: data.estimatedMinutes,
-            chapters: allChapters.map((ch) => ({
-              title: ch.title,
-              summary: ch.summary || ch.contentSnippet || "",
-              keyPoints: ch.keyPoints || [],
-            })),
-          };
-
-          const course = await learningStore.createFromOutline(
-            storeOutline,
-            "course",
-            unifiedId,
-          );
-          setCreatedCourseId(course.id);
-
-          // 2. 服务端画像同步（使用 Server Action 替代 fetch）
-          console.log(
-            `[useCourseGeneration] 💾 核心画像同步 (Server Action): ${course.id}`,
-          );
-          const result = await saveCourseProfileAction({
-            id: course.id,
-            goal: state.context.goal || "",
-            background: state.context.background || "",
-            targetOutcome: state.context.targetOutcome || "",
-            cognitiveStyle: state.context.cognitiveStyle || "",
-            outlineData: data,
-            designReason: "AI 驱动的个性化学习路径",
-          });
-
-          if (!result.success) {
-            throw new Error(`Critical: ${result.error}`);
-          }
-
-          // 3. 启动后台预生成（非阻塞）
-          console.log(
-            `[useCourseGeneration] 🚀 启动首章节预生成: ${course.id}`,
-          );
-          // 架构师重构：改用 Server Action 触发后台任务，实现全链路类型安全
-          // 注意：此处不再重复调用，逻辑已包含在 synthesis 处理流中
-          console.log(
-            `[useCourseGeneration] 🚀 启动首章节预生成: ${course.id}`,
-          );
-          aiGatewayAction({
-            messages: [
-              {
-                id: `gen-${Date.now()}`,
-                role: "user",
-                parts: [
-                  {
-                    type: "text",
-                    text: "请生成第 1 章的内容。",
-                    state: "done",
-                  },
-                ],
-              },
-            ],
-            context: {
-              explicitIntent: "COURSE_GENERATION",
-              courseGenerationContext: {
-                id: course.id,
-                userId: session?.user?.id || "",
-                goal: state.context.goal || "",
-                background: state.context.background || "",
-                targetOutcome: state.context.targetOutcome || "",
-                cognitiveStyle: state.context.cognitiveStyle || "",
-                outlineTitle: data.title,
-                outlineData: data,
-                moduleCount: data.modules?.length || 0,
-                totalChapters: allChapters.length,
-                currentModuleIndex: 0,
-                currentChapterIndex: 0,
-                chaptersGenerated: 0,
-              },
-            },
-          }).catch((err) =>
-            console.error("[useCourseGeneration] 后台预生成启动失败:", err),
-          );
-
-          // 4. 更新节点状态并进入视觉动画阶段
-          const newNodes: CourseNode[] = allChapters.map(
-            (ch: Chapter, i: number): CourseNode => ({
-              id: `node-${i}`,
-              title: ch.title,
-              type: "chapter",
-              x: Math.cos((i / allChapters.length) * Math.PI * 2) * 280,
-              y: Math.sin((i / allChapters.length) * Math.PI * 2) * 280,
-              status: "ready",
-              depth: 1,
-            }),
-          );
-          dispatch({ type: "SET_NODES", payload: newNodes });
-
-          // 视觉过渡阶段链式推进
-          await new Promise((r) =>
-            setTimeout(r, PHASE_TRANSITION_DELAYS.synthesis),
-          );
-          dispatch({ type: "TRANSITION", payload: "seeding" });
-        } catch (error) {
-          console.error("[useCourseGeneration] 流程中断:", error);
-          // 容错处理：即使出错也尝试进入 seeding 阶段，让视觉流程不卡死
-          setTimeout(
-            () => dispatch({ type: "TRANSITION", payload: "seeding" }),
-            1000,
-          );
-        }
+      const storeOutline: StoreCourseOutline = {
+        title: data.title,
+        description: data.description,
+        difficulty: data.difficulty,
+        estimatedMinutes: data.estimatedMinutes,
+        chapters: allChapters.map((ch) => ({
+          title: ch.title,
+          summary: ch.summary ?? ch.contentSnippet ?? "",
+          keyPoints: ch.keyPoints ?? [],
+        })),
       };
 
-      runGenerationFlow();
-    }
-  }, [state.phase, state.outline, state.id]);
+      const course = await learningStore.createFromOutline(
+        storeOutline,
+        "course",
+        unifiedId,
+      );
+      setCreatedCourseId(course.id);
 
-  // Phase transition chain - 视觉层流转
+      console.log(`[useCourseGeneration] 💾 Core profile sync: ${course.id}`);
+      const result = await saveCourseProfileAction({
+        id: course.id,
+        goal: state.context.goal,
+        background: state.context.background,
+        targetOutcome: state.context.targetOutcome,
+        cognitiveStyle: state.context.cognitiveStyle,
+        outlineData: data as OutlineData,
+        designReason: "AI 驱动的个性化学习路径",
+      });
+
+      if (!result.success) {
+        throw new Error(`Critical: ${result.error}`);
+      }
+
+      // 启动后台预生成（非阻塞）
+      console.log(
+        `[useCourseGeneration] 🚀 Background generation: ${course.id}`,
+      );
+      fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            {
+              id: `gen-${Date.now()}`,
+              role: "user",
+              parts: [
+                { type: "text", text: "请生成第 1 章的内容。", state: "done" },
+              ],
+            },
+          ],
+          explicitIntent: "COURSE_GENERATION",
+          courseGenerationContext: {
+            id: course.id,
+            userId,
+            goal: state.context.goal,
+            background: state.context.background,
+            targetOutcome: state.context.targetOutcome,
+            cognitiveStyle: state.context.cognitiveStyle,
+            outlineTitle: data.title,
+            outlineData: data,
+            moduleCount: data.modules?.length ?? 0,
+            totalChapters: allChapters.length,
+            currentModuleIndex: 0,
+            currentChapterIndex: 0,
+            chaptersGenerated: 0,
+          },
+        }),
+      });
+
+      const newNodes: CourseNode[] = allChapters.map((ch, i) => ({
+        id: `node-${i}`,
+        title: ch.title,
+        type: "chapter",
+        x: Math.cos((i / allChapters.length) * Math.PI * 2) * 280,
+        y: Math.sin((i / allChapters.length) * Math.PI * 2) * 280,
+        status: "ready",
+        depth: 1,
+      }));
+      dispatch({ type: "SET_NODES", payload: newNodes });
+
+      await new Promise((r) =>
+        setTimeout(r, PHASE_TRANSITION_DELAYS.synthesis),
+      );
+      dispatch({ type: "TRANSITION", payload: "seeding" });
+    };
+
+    runGenerationFlow().catch((err) => {
+      console.error("[useCourseGeneration] Flow interrupted:", err);
+      dispatch({ type: "TRANSITION", payload: "seeding" });
+    });
+  }, [state.phase, state.outline, state.id, state.context, userId]);
+
+  // Phase transition chain
   useEffect(() => {
-    let timer: NodeJS.Timeout | undefined;
-
-    // 避免重复处理同一阶段的流转
     if (transitionProcessedRef.current[state.phase]) return;
 
     switch (state.phase) {
       case "seeding":
         transitionProcessedRef.current["seeding"] = true;
-        timer = setTimeout(() => {
-          dispatch({ type: "TRANSITION", payload: "growing" });
-        }, PHASE_TRANSITION_DELAYS.seeding);
+        setTimeout(
+          () => dispatch({ type: "TRANSITION", payload: "growing" }),
+          PHASE_TRANSITION_DELAYS.seeding,
+        );
         break;
       case "growing":
         transitionProcessedRef.current["growing"] = true;
-        timer = setTimeout(() => {
-          dispatch({ type: "TRANSITION", payload: "ready" });
-        }, PHASE_TRANSITION_DELAYS.growing);
+        setTimeout(
+          () => dispatch({ type: "TRANSITION", payload: "ready" }),
+          PHASE_TRANSITION_DELAYS.growing,
+        );
         break;
       case "ready":
         transitionProcessedRef.current["ready"] = true;
-        timer = setTimeout(() => {
-          dispatch({ type: "TRANSITION", payload: "manifesting" });
-        }, PHASE_TRANSITION_DELAYS.ready);
+        setTimeout(
+          () => dispatch({ type: "TRANSITION", payload: "manifesting" }),
+          PHASE_TRANSITION_DELAYS.ready,
+        );
         break;
       case "manifesting":
         transitionProcessedRef.current["manifesting"] = true;
-        timer = setTimeout(() => {
-          if (createdCourseId) {
-            router.push(`/learn/${createdCourseId}`);
-          } else {
-            console.error("[useCourseGeneration] Redirect blocked: No ID");
-          }
-        }, PHASE_TRANSITION_DELAYS.manifesting);
+        // 课程完成后清理存储
+        clearCourseStorage(state.goal);
+        setTimeout(
+          () => router.push(`/learn/${createdCourseId}`),
+          PHASE_TRANSITION_DELAYS.manifesting,
+        );
         break;
     }
-    return () => {
-      if (timer) clearTimeout(timer);
-    };
-  }, [state.phase, createdCourseId, router]);
+  }, [state.phase, createdCourseId, router, state.goal]);
 
-  const confirmOutline = async (finalOutline: CourseOutline, id?: string) => {
-    const unifiedId = id || state.id || crypto.randomUUID();
-    if (unifiedId !== state.id) {
+  const confirmOutline = (finalOutline: CourseOutline, id?: string) => {
+    const unifiedId = id ?? state.id ?? crypto.randomUUID();
+    if (unifiedId !== state.id)
       dispatch({ type: "SET_ID", payload: unifiedId });
-    }
     dispatch({ type: "SET_OUTLINE", payload: finalOutline });
     dispatch({ type: "TRANSITION", payload: "synthesis" });
   };
@@ -580,20 +575,20 @@ export function useCourseGeneration(initialGoal: string = "") {
   return {
     state,
     ui: {
-      userInput: input || "",
+      userInput: input,
       setUserInput: setInput,
       isAiThinking: isLoading || isStarting,
       selectedNode,
       setSelectedNode,
       createdCourseId,
-      messages: messages, // Native useChat messages!
-      error: error ? error.message : null,
+      messages,
+      error: error?.message,
     },
     actions: {
       handleSendMessage,
       selectNode: setSelectedNode,
       confirmOutline,
-      retry: () => (error ? regenerate() : sendMessage({ text: "继续" })), // 架构师优化：错误时自动重试，正常时手动推进
+      retry: () => (error ? regenerate() : sendMessage({ text: "继续" })),
       sendMessage,
       stop,
     },

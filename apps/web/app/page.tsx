@@ -109,9 +109,11 @@ export default function Home() {
 
   const handleItemClick = (item: RecentItemDTO) => {
     if (item.type === "course") {
-      router.push(`/course/${item.id}`);
+      // 课程跳转到学习页面
+      router.push(`/learn/${item.id}`);
     } else {
-      router.push(`/note/${item.id}`);
+      // 笔记跳转到编辑器页面
+      router.push(`/editor/${item.id}`);
     }
   };
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEditor, EditorContent } from "@tiptap/react";
+import { useEditor as useTiptapEditor, EditorContent } from "@tiptap/react";
 import { clientEnv } from "@nexusnote/config";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -29,7 +29,7 @@ import {
   getDocumentAction,
   updateDocumentAction,
 } from "@/app/actions/document";
-import { useEditorContext } from "@/contexts/EditorContext";
+import { useEditor } from "@/lib/store";
 import * as Y from "yjs";
 import { IndexeddbPersistence } from "y-indexeddb";
 import { HocuspocusProvider } from "@hocuspocus/provider";
@@ -147,7 +147,7 @@ function EditorInner({
   status: ConnectionStatus;
   collaborators: Array<{ name: string; color: string }>;
 }) {
-  const editorContext = useEditorContext();
+  const { setEditor } = useEditor();
   const [showTimeline, setShowTimeline] = useState(false);
 
   const toggleVault = async () => {
@@ -186,7 +186,7 @@ function EditorInner({
   );
 
   // Editor - 使用稳定的配置
-  const editor = useEditor(
+  const editor = useTiptapEditor(
     {
       immediatelyRender: false,
       extensions,
@@ -202,11 +202,11 @@ function EditorInner({
 
   // Sync editor to context
   useEffect(() => {
-    if (editorContext && editor) editorContext.setEditor(editor);
+    if (setEditor && editor) setEditor(editor);
     return () => {
-      if (editorContext) editorContext.setEditor(null);
+      if (setEditor) setEditor(null);
     };
-  }, [editor, editorContext]);
+  }, [editor, setEditor]);
 
   // Timeline
   const { stats } = useTimeline({ documentId, ydoc, enabled: true });

@@ -202,7 +202,12 @@ export function MindMapView({ topic, nodes: inputNodes, layout = 'mindmap' }: Mi
   }, [initialNodes, initialEdges, setNodes, setEdges])
 
   return (
-    <div className="my-3">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: 'spring', bounce: 0.2, duration: 0.5 }}
+      className="my-3"
+    >
       {/* Header */}
       <div className="flex items-center justify-between mb-2 px-1">
         <div className="flex items-center gap-2">
@@ -253,6 +258,6 @@ export function MindMapView({ topic, nodes: inputNodes, layout = 'mindmap' }: Mi
       <p className="text-[10px] text-center text-muted-foreground mt-2">
         💡 拖拽节点 · 滚轮缩放 · 点击展开按钮查看全图
       </p>
-    </div>
+    </motion.div>
   )
 }

@@ -1,5 +1,6 @@
-import { auth } from "@/auth";
-import { ActionResult, success, error } from "./types";
+import { requireUserId } from "@/lib/auth/auth-utils";
+import { success, error, logError, handleActionError } from "@/lib/errors";
+import type { ActionResult } from "@/lib/errors";
 import { z } from "zod";
 
 /**
@@ -21,10 +22,8 @@ export function createSafeAction<T, R>(
 
   return async (payload?: T): Promise<ActionResult<R>> => {
     try {
-      const session = await auth();
-      if (!session?.user?.id) {
-        return error("Unauthorized", "UNAUTHORIZED");
-      }
+      // 使用统一的 auth 工具
+      const userId = await requireUserId();
 
       let validatedPayload = payload as T;
       if (schema && payload !== undefined) {
@@ -38,14 +37,12 @@ export function createSafeAction<T, R>(
         validatedPayload = validation.data;
       }
 
-      const result = await handler(validatedPayload, session.user.id);
+      const result = await handler(validatedPayload, userId);
       return success(result);
     } catch (err) {
-      console.error(`[Action Error: ${name}]`, err);
-      return error(
-        err instanceof Error ? err.message : "An unexpected error occurred",
-        "INTERNAL_ERROR",
-      );
+      // 使用统一的错误日志
+      logError(name, err);
+      return handleActionError(err);
     }
   };
 }

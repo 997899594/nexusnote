@@ -44,7 +44,12 @@ export function SummaryResult({ content, sourceLength, style, length }: SummaryR
   const compressionRatio = Math.round((1 - content.length / sourceLength) * 100)
 
   return (
-    <div className="my-3 p-4 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 rounded-2xl border border-emerald-200/50 dark:border-emerald-800/50">
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ type: 'spring', bounce: 0.3, duration: 0.5 }}
+      className="my-3 p-4 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 rounded-2xl border border-emerald-200/50 dark:border-emerald-800/50"
+    >
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
@@ -108,6 +113,6 @@ export function SummaryResult({ content, sourceLength, style, length }: SummaryR
         <span>·</span>
         <span>摘要 {content.length} 字</span>
       </div>
-    </div>
+    </motion.div>
   )
 }

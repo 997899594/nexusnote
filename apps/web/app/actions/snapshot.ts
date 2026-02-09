@@ -2,8 +2,8 @@
 
 import { db, documentSnapshots, eq, desc, and, inArray } from "@nexusnote/db";
 import { createSafeAction } from "@/lib/actions/action-utils";
+import { verifyDocumentOwnership, AuthError } from "@/lib/auth/auth-utils";
 import { z } from "zod";
-import { auth } from "@/auth";
 
 /**
  * 快照服务器端格式
@@ -28,12 +28,12 @@ type ServerSnapshot = z.infer<typeof ServerSnapshotSchema>;
  */
 export const getLatestSnapshotTimestampAction = createSafeAction(
   z.object({ documentId: z.string().uuid() }),
-  async ({ documentId }) => {
-    const session = await auth();
-    if (!session?.user?.id) throw new Error("Unauthorized");
-
-    // 理论上这里应该验证用户是否有该文档的权限，
-    // 但为了同步性能，假设调用者已在前端层验证
+  async ({ documentId }, userId) => {
+    // 验证文档所有权（通过 workspace）
+    const ownership = await verifyDocumentOwnership(db, documentId, userId);
+    if (!ownership.ownsDocument) {
+      throw new AuthError("Access denied to this document");
+    }
 
     const latest = await db.query.documentSnapshots.findFirst({
       where: eq(documentSnapshots.documentId, documentId),
@@ -51,13 +51,18 @@ export const syncSnapshotsAction = createSafeAction(
   z.object({
     snapshots: z.array(ServerSnapshotSchema),
   }),
-  async ({ snapshots }) => {
-    const session = await auth();
-    if (!session?.user?.id) throw new Error("Unauthorized");
-
+  async ({ snapshots }, userId) => {
     if (snapshots.length === 0) return { count: 0 };
 
-    // 转换并插入
+    // 验证用户对所有文档的所有权（去重以提高性能）
+    const uniqueDocumentIds = [...new Set(snapshots.map((s) => s.documentId))];
+    for (const documentId of uniqueDocumentIds) {
+      const ownership = await verifyDocumentOwnership(db, documentId, userId);
+      if (!ownership.ownsDocument) {
+        throw new AuthError(`Access denied to document: ${documentId}`);
+      }
+    }
+
     const values = snapshots.map((snap) => ({
       id: snap.id,
       documentId: snap.documentId,
@@ -71,7 +76,6 @@ export const syncSnapshotsAction = createSafeAction(
       diffRemoved: snap.diffRemoved,
     }));
 
-    // 使用 onConflictDoNothing 防止重复插入
     await db.insert(documentSnapshots).values(values).onConflictDoNothing();
 
     return { count: snapshots.length };
@@ -83,9 +87,12 @@ export const syncSnapshotsAction = createSafeAction(
  */
 export const getDocumentSnapshotsAction = createSafeAction(
   z.object({ documentId: z.string().uuid() }),
-  async ({ documentId }) => {
-    const session = await auth();
-    if (!session?.user?.id) throw new Error("Unauthorized");
+  async ({ documentId }, userId) => {
+    // 验证文档所有权（通过 workspace）
+    const ownership = await verifyDocumentOwnership(db, documentId, userId);
+    if (!ownership.ownsDocument) {
+      throw new AuthError("Access denied to this document");
+    }
 
     const snaps = await db.query.documentSnapshots.findMany({
       where: eq(documentSnapshots.documentId, documentId),
@@ -114,9 +121,29 @@ export const getDocumentSnapshotsAction = createSafeAction(
  */
 export const deleteSnapshotAction = createSafeAction(
   z.object({ snapshotId: z.string() }),
-  async ({ snapshotId }) => {
-    const session = await auth();
-    if (!session?.user?.id) throw new Error("Unauthorized");
+  async ({ snapshotId }, userId) => {
+    // 首先获取快照以确定关联的文档
+    const snapshot = await db.query.documentSnapshots.findFirst({
+      where: eq(documentSnapshots.id, snapshotId),
+      columns: {
+        id: true,
+        documentId: true,
+      },
+    });
+
+    if (!snapshot) {
+      throw new Error("Snapshot not found");
+    }
+
+    // 验证文档所有权（通过 workspace）
+    const ownership = await verifyDocumentOwnership(
+      db,
+      snapshot.documentId ?? "",
+      userId,
+    );
+    if (!ownership.ownsDocument) {
+      throw new AuthError("Access denied to this snapshot");
+    }
 
     await db
       .delete(documentSnapshots)

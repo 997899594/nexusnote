@@ -10,6 +10,7 @@
 
 import { db, documents, eq } from "@nexusnote/db";
 import { createSafeAction } from "@/lib/actions/action-utils";
+import { verifyDocumentOwnership, AuthError } from "@/lib/auth/auth-utils";
 
 /**
  * 获取单个文档
@@ -25,7 +26,11 @@ export const getDocumentAction = createSafeAction(
       throw new Error("Document not found");
     }
 
-    // TODO: 校验 workspace/user 权限
+    // 验证文档所有权（通过 workspace）
+    const ownership = await verifyDocumentOwnership(db, documentId, userId);
+    if (!ownership.ownsDocument) {
+      throw new AuthError("Access denied to this document");
+    }
 
     return {
       id: doc.id,
@@ -48,7 +53,11 @@ export const updateDocumentAction = createSafeAction(
   ) => {
     const { documentId, ...updates } = payload;
 
-    // TODO: 校验权限
+    // 验证文档所有权（通过 workspace）
+    const ownership = await verifyDocumentOwnership(db, documentId, userId);
+    if (!ownership.ownsDocument) {
+      throw new AuthError("Access denied to this document");
+    }
 
     const [updatedDoc] = await db
       .update(documents)

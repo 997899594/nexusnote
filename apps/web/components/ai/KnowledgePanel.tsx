@@ -1,6 +1,6 @@
 'use client'
 
-import { useNoteExtractionOptional, Topic, ExtractedNote } from '@/contexts/NoteExtractionContext'
+import { useNoteExtractionOptional, Topic, ExtractedNote } from '@/lib/store'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Loader2, BookOpen, ChevronRight, Sparkles } from 'lucide-react'
 import { useState } from 'react'

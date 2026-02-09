@@ -42,6 +42,12 @@ export interface MindMapOutput {
     message: string;
     nodes?: MindMapNode[];
   };
+  // 添加工具生成的节点数据（用于前端渲染）
+  mindmapData?: {
+    topic: string;
+    nodes: MindMapNode[];
+    layout: "radial" | "tree" | "mindmap";
+  };
 }
 
 export interface SummarizeOutput {

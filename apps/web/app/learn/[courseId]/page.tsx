@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { getCourseProfile } from "@/lib/ai/profile/course-profile";
 import LearnPageClient from "./client-page";
-import { CourseProfileDTO } from "@/lib/actions/types";
+import { CourseProfileDTO, serializeObject } from "@/lib/actions/types";
+import { CourseSkeleton } from "@/components/loading/skeletons";
 
 interface LearnPageProps {
   params: Promise<{
@@ -33,24 +34,25 @@ export default async function LearnPage({ params }: LearnPageProps) {
     redirect("/create");
   }
 
-  // 架构师重构：手动映射数据库模型到 DTO，确保服务端组件与客户端组件契约一致
-  const courseProfileDTO: CourseProfileDTO = {
+  // 2026 架构师标准：使用序列化函数确保数据可传递到 Client Component
+  // 移除手动映射，直接使用数据库返回的数据（已经是 JSON 可序列化）
+  const courseProfileDTO: CourseProfileDTO = serializeObject({
     id: profile.id,
     title: profile.title,
     progress: {
       currentChapter: profile.currentChapter || 0,
       currentSection: profile.currentSection || 1,
     },
-    userId: profile.userId || "",
+    userId: profile.userId || session.user.id,
     goal: profile.goal,
     background: profile.background,
     targetOutcome: profile.targetOutcome,
     cognitiveStyle: profile.cognitiveStyle,
     outlineData: profile.outlineData,
-  };
+  });
 
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={<CourseSkeleton />}>
       <LearnPageClient courseId={courseId} initialProfile={courseProfileDTO} />
     </Suspense>
   );

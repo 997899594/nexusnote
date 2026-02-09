@@ -37,6 +37,10 @@ interface UnifiedChatUIProps {
     output: unknown,
     toolCallId: string,
   ) => ReactNode;
+  renderToolLoading?: (
+    toolName: string,
+    toolCallId: string,
+  ) => ReactNode;
   renderMessage?: (
     message: Message,
     text: string,
@@ -61,6 +65,7 @@ export function UnifiedChatUI({
   onSubmit,
   onStop,
   renderToolOutput,
+  renderToolLoading,
   renderMessage,
   renderEmpty,
   renderAfterMessages,
@@ -166,13 +171,13 @@ export function UnifiedChatUI({
           {!isUser && toolCalls.length > 0 && (
             <div className="mt-2 space-y-2 w-full">
               {toolCalls.map((tool) => {
-                const { name, state, output, toolCallId, errorText } = tool;
+                const { toolName, state, output, toolCallId, errorText } = tool;
 
                 // 1. 执行完成且有渲染器
                 if (state === "output-available" && renderToolOutput) {
                   return (
                     <div key={toolCallId}>
-                      {renderToolOutput(name, output, toolCallId)}
+                      {renderToolOutput(toolName, output, toolCallId)}
                     </div>
                   );
                 }
@@ -182,13 +187,21 @@ export function UnifiedChatUI({
                   state === "input-streaming" ||
                   state === "input-available"
                 ) {
+                  // 优先使用自定义骨架屏组件
+                  if (renderToolLoading) {
+                    const loadingComponent = renderToolLoading(toolName, toolCallId);
+                    if (loadingComponent) {
+                      return <div key={toolCallId}>{loadingComponent}</div>;
+                    }
+                  }
+                  // 默认加载指示器
                   return (
                     <div
                       key={toolCallId}
                       className="flex items-center gap-2 text-[11px] text-neutral-400 font-medium py-1 px-2 bg-neutral-50 dark:bg-neutral-900/50 rounded-lg w-fit"
                     >
                       <div className="w-2.5 h-2.5 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
-                      正在运行 {name}...
+                      正在运行 {toolName}...
                     </div>
                   );
                 }
@@ -200,7 +213,7 @@ export function UnifiedChatUI({
                       key={toolCallId}
                       className="text-[11px] text-red-500 bg-red-50 dark:bg-red-900/10 px-3 py-2 rounded-lg border border-red-100 dark:border-red-900/20"
                     >
-                      {name} 执行失败: {errorText || "未知错误"}
+                      {toolName} 执行失败: {errorText || "未知错误"}
                     </div>
                   );
                 }
@@ -244,14 +257,12 @@ export function UnifiedChatUI({
                 const hasToolCalls = message.parts?.some(isToolUIPart);
                 const messageKey = message.id || `msg-${idx}`;
 
-                // 过滤掉完全没有任何内容的中间态消息
-                if (
-                  !text &&
-                  !isUser &&
-                  !hasReasoning &&
-                  !hasToolCalls &&
-                  !isLoading
-                ) {
+                // 2026 修复：更宽松的过滤逻辑，确保有工具调用的消息不会被过滤
+                // 即使工具调用处于 input-streaming/input-available 状态，也要保留消息
+                const hasContent =
+                  text || isUser || hasReasoning || hasToolCalls || isLoading;
+
+                if (!hasContent) {
                   return null;
                 }
 

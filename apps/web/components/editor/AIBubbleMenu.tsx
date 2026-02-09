@@ -14,7 +14,7 @@ import {
   BookmarkPlus,
 } from "lucide-react";
 import { CreateFlashcardDialog } from "@/components/srs/CreateFlashcardDialog";
-import { useNoteExtractionOptional } from "@/contexts/NoteExtractionContext";
+import { useNoteExtractionOptional } from "@/lib/store";
 import { GhostFlight } from "./GhostFlight";
 import { motion, AnimatePresence } from "framer-motion";
 

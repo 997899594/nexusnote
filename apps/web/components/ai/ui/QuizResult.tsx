@@ -55,7 +55,12 @@ export function QuizResult({ topic, difficulty, questions }: QuizResultProps) {
   }
 
   return (
-    <div className="my-3 p-4 bg-gradient-to-br from-violet-50 to-indigo-50 dark:from-violet-950/30 dark:to-indigo-950/30 rounded-2xl border border-violet-200/50 dark:border-violet-800/50">
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ type: 'spring', bounce: 0.3, duration: 0.6 }}
+      className="my-3 p-4 bg-gradient-to-br from-violet-50 to-indigo-50 dark:from-violet-950/30 dark:to-indigo-950/30 rounded-2xl border border-violet-200/50 dark:border-violet-800/50"
+    >
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
@@ -231,6 +236,6 @@ export function QuizResult({ topic, difficulty, questions }: QuizResultProps) {
           </button>
         )}
       </div>
-    </div>
+    </motion.div>
   )
 }

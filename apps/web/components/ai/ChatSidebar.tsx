@@ -2,7 +2,6 @@
 
 import { useChat } from "@ai-sdk/react";
 import type { UIMessageChunk } from "ai";
-import { aiGatewayAction } from "@/app/actions/ai";
 import { type AIRequest } from "@/lib/ai/gateway/service";
 import { useState, FormEvent, useMemo, useCallback, useEffect } from "react";
 import {
@@ -20,8 +19,8 @@ import {
   Sparkles,
   Check,
 } from "lucide-react";
-import { useEditorContext } from "@/contexts/EditorContext";
-import { useNoteExtractionOptional } from "@/contexts/NoteExtractionContext";
+import { useEditor } from "@/lib/store";
+import { useNoteExtractionOptional, useWebSearchToggle } from "@/lib/store";
 import { KnowledgePanel } from "./KnowledgePanel";
 import { UnifiedChatUI } from "./UnifiedChatUI";
 import type { EditCommand } from "@/lib/editor/document-parser";
@@ -44,7 +43,11 @@ import {
   MindMapView,
   SummaryResult,
   WebSearchResult,
+  QuizSkeleton,
+  MindMapSkeleton,
+  SummarySkeleton,
 } from "./ui";
+import type { Question, MindMapNode } from "@/lib/ai/tools/chat/learning";
 
 import {
   QuizOutput,
@@ -75,7 +78,8 @@ interface PendingEdit {
 export function ChatSidebar() {
   const [mode, setMode] = useState<SidebarMode>("chat");
   const [enableRAG, setEnableRAG] = useState(false);
-  const [enableWebSearch, setEnableWebSearch] = useState(false);
+  const { webSearchEnabled, setWebSearchEnabled, toggleWebSearch } =
+    useWebSearchToggle();
   const [useDocContext, setUseDocContext] = useState(true);
   const [editMode, setEditMode] = useState(true);
   const [input, setInput] = useState("");
@@ -84,31 +88,12 @@ export function ChatSidebar() {
   );
   const [appliedEdits, setAppliedEdits] = useState<Set<string>>(new Set());
   const [extractedNotes, setExtractedNotes] = useState<Set<string>>(new Set());
-  const editorContext = useEditorContext();
+  const editorContext = useEditor();
   const noteExtraction = useNoteExtractionOptional();
 
   // SDK v6: 使用 ChatAgentMessage 泛型实现 typed tool parts
   const { messages, sendMessage, status, stop } = useChat<ChatAgentMessage>({
     id: "chat-sidebar",
-    transport: {
-      sendMessages: async ({ messages, body }) => {
-        const response = (await aiGatewayAction({
-          messages,
-          context: body as AIRequest["context"],
-        })) as unknown as Response;
-
-        if (!response.body) {
-          throw new Error("No response body");
-        }
-
-        return response.body as unknown as ReadableStream<
-          UIMessageChunk<ChatAgentMessage>
-        >;
-      },
-      reconnectToStream: async () => {
-        throw new Error("Reconnection not supported");
-      },
-    },
   });
 
   const isLoading = status === "streaming" || status === "submitted";
@@ -125,12 +110,12 @@ export function ChatSidebar() {
       // 架构师优化：使用统一的工具调用提取逻辑（类型安全）
       const toolCalls = getToolCalls(message);
       for (const tool of toolCalls) {
-        const { name, output, toolCallId, state } = tool;
+        const { toolName, output, toolCallId, state } = tool;
 
         if (
-          name !== "editDocument" &&
-          name !== "batchEdit" &&
-          name !== "draftContent"
+          toolName !== "editDocument" &&
+          toolName !== "batchEdit" &&
+          toolName !== "draftContent"
         )
           continue;
 
@@ -139,7 +124,7 @@ export function ChatSidebar() {
         // output-available = 工具执行完成
         if (state === "output-available" && output) {
           // 单个编辑
-          if (name === "editDocument") {
+          if (toolName === "editDocument") {
             const editOutput = output as EditDocumentOutput;
             const originalContent = getOriginalContent(
               editorContext,
@@ -158,7 +143,7 @@ export function ChatSidebar() {
           }
 
           // 批量编辑
-          if (name === "batchEdit") {
+          if (toolName === "batchEdit") {
             const batchOutput = output as BatchEditOutput;
             const edits = batchOutput.edits;
             if (edits && edits.length > 0) {
@@ -180,7 +165,7 @@ export function ChatSidebar() {
           }
 
           // 草稿生成
-          if (name === "draftContent") {
+          if (toolName === "draftContent") {
             const draftOutput = output as DraftContentOutput;
             newPendingEdits.set(toolCallId, {
               toolCallId,
@@ -239,22 +224,18 @@ export function ChatSidebar() {
     const text = input.trim();
     setInput("");
 
+    let explicitIntent: "CHAT" | "EDITOR" | "SEARCH" = "CHAT";
+    if (webSearchEnabled) {
+      explicitIntent = "SEARCH";
+    } else if (editMode) {
+      explicitIntent = "EDITOR";
+    }
+
     await sendMessage(
       { text },
       {
         body: {
-          context: {
-            enableRAG,
-            enableWebSearch,
-            enableTools: true,
-            documentContext: useDocContext
-              ? editorContext?.getDocumentContent()
-              : undefined,
-            documentStructure: editMode
-              ? JSON.stringify(editorContext?.getDocumentStructure())
-              : undefined,
-            editMode,
-          },
+          explicitIntent,
         },
       },
     );
@@ -340,9 +321,22 @@ export function ChatSidebar() {
       }
 
       case "generateQuiz": {
-        const res = output as QuizOutput;
+        const res = output as QuizOutput & {
+          quiz?: { questions?: Question[] };
+        };
         if (res.success && res.quiz) {
           const quiz = res.quiz;
+          // 如果有实际的题目数据，使用 QuizResult 组件
+          if (quiz.questions && quiz.questions.length > 0) {
+            return (
+              <QuizResult
+                topic={quiz.topic}
+                difficulty={quiz.difficulty}
+                questions={quiz.questions}
+              />
+            );
+          }
+          // 否则显示简化版本（保持向后兼容）
           return (
             <div className="p-3 bg-violet-50 dark:bg-violet-950/30 rounded-xl border border-violet-200 dark:border-violet-800">
               <p className="text-xs font-medium text-violet-700 dark:text-violet-300">
@@ -363,9 +357,22 @@ export function ChatSidebar() {
       }
 
       case "mindMap": {
-        const res = output as MindMapOutput;
+        const res = output as MindMapOutput & {
+          mindMap?: { nodes?: MindMapNode[] };
+        };
         if (res.success && res.mindMap) {
           const mm = res.mindMap;
+          // 如果有实际的节点数据，使用 MindMapView 组件
+          if (mm.nodes && mm.nodes.length > 0) {
+            return (
+              <MindMapView
+                topic={mm.topic}
+                nodes={mm.nodes}
+                layout={mm.layout}
+              />
+            );
+          }
+          // 否则显示简化版本（保持向后兼容）
           return (
             <div className="p-3 bg-indigo-50 dark:bg-indigo-950/30 rounded-xl border border-indigo-200 dark:border-indigo-800">
               <p className="text-xs font-medium text-indigo-700 dark:text-indigo-300">
@@ -387,9 +394,23 @@ export function ChatSidebar() {
       }
 
       case "summarize": {
-        const res = output as SummarizeOutput;
+        const res = output as SummarizeOutput & {
+          summary?: { content?: string; length?: string };
+        };
         if (res.success && res.summary) {
           const s = res.summary;
+          // 如果有实际的摘要内容，使用 SummaryResult 组件
+          if (s.content && s.length) {
+            return (
+              <SummaryResult
+                content={s.content}
+                sourceLength={s.sourceLength}
+                style={s.style}
+                length={s.length}
+              />
+            );
+          }
+          // 否则显示简化版本
           return (
             <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl border border-emerald-200 dark:border-emerald-800">
               <p className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
@@ -432,6 +453,20 @@ export function ChatSidebar() {
     }
 
     return null;
+  };
+
+  // 渲染工具加载状态 UI（骨架屏）
+  const renderToolLoading = (toolName: string, _toolCallId: string) => {
+    switch (toolName) {
+      case "generateQuiz":
+        return <QuizSkeleton questionCount={5} />;
+      case "mindMap":
+        return <MindMapSkeleton maxDepth={3} />;
+      case "summarize":
+        return <SummarySkeleton style="bullet_points" length="medium" />;
+      default:
+        return null; // 使用默认加载指示器
+    }
   };
 
   return (
@@ -510,8 +545,8 @@ export function ChatSidebar() {
                   id: "web",
                   label: "联网搜索",
                   icon: Globe,
-                  active: enableWebSearch,
-                  onClick: () => setEnableWebSearch(!enableWebSearch),
+                  active: webSearchEnabled,
+                  onClick: toggleWebSearch,
                 },
               ].map((control) => (
                 <button
@@ -553,6 +588,7 @@ export function ChatSidebar() {
               variant="chat"
               placeholder="与您的笔记深度对话..."
               renderToolOutput={renderToolOutput}
+              renderToolLoading={renderToolLoading}
               renderMessage={(message, _text, isUser) => {
                 // 使用架构师标准提取消息文本，处理多模态和 Schema-First 输出
                 const content = getMessageContent(message);
@@ -571,9 +607,9 @@ export function ChatSidebar() {
                 const toolCalls = getToolCalls(message);
                 const hasPendingEdit = toolCalls.some(
                   (t) =>
-                    (t.name === "editDocument" ||
-                      t.name === "batchEdit" ||
-                      t.name === "draftContent") &&
+                    (t.toolName === "editDocument" ||
+                      t.toolName === "batchEdit" ||
+                      t.toolName === "draftContent") &&
                     pendingEdits.has(t.toolCallId),
                 );
 
