@@ -50,8 +50,6 @@ spec:
       containers:
         - name: app
           image: IMAGE_PLACEHOLDER
-          # 使用 Next.js Standalone 模式启动（无需 full Node.js 环境）
-          command: ["node", ".next/standalone/server.js"]
           ports:
             - containerPort: 3000
               name: http
