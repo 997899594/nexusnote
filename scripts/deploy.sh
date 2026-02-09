@@ -80,8 +80,10 @@ sed "s|IMAGE_PLACEHOLDER|$IMAGE_TAG|g" deploy/k8s/app.yaml | kubectl apply -f -
 
 # 4. 滚动更新
 echo -e "${BLUE}执行滚动更新...${NC}"
-kubectl rollout restart deployment/nexusnote-app -n nexusnote
-kubectl rollout status deployment/nexusnote-app -n nexusnote
+kubectl rollout restart deployment/nexusnote-web -n nexusnote
+kubectl rollout restart deployment/nexusnote-collab -n nexusnote
+kubectl rollout restart deployment/nexusnote-worker -n nexusnote
+kubectl rollout status deployment/nexusnote-web -n nexusnote
 
 echo -e "${GREEN}==== K3s 部署完成！ ====${NC}"
 echo -e "${BLUE}资源状态:${NC}"

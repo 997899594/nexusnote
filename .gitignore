@@ -35,6 +35,9 @@ Thumbs.db
 npm-debug.log*
 pnpm-debug.log*
 
+# Envoy config dump (auto-generated)
+envoy-config.json
+
 # Testing
 coverage
 

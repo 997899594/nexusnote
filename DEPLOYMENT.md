@@ -4,11 +4,11 @@
 
 NexusNote 现在是一个完整的 Next.js Fullstack 应用，在单一 Docker 容器中运行以下组件：
 
-1. **Next.js API Gateway** (端口 3002) - HTTP API 服务
+1. **Next.js API Gateway** (端口 3000) - HTTP API 服务
 2. **Hocuspocus WebSocket** (端口 1234) - 实时协作编辑
 3. **BullMQ Worker** - 后台任务处理（RAG 索引）
 
-所有进程由 PM2 管理，支持故障自动恢复。
+所有进程由 Kubernetes/Docker 管理，支持故障自动恢复。
 
 ## 本地开发
 
@@ -39,20 +39,6 @@ npm run queue:worker
 npm run hocuspocus
 ```
 
-或者使用 PM2 一次启动所有服务：
-
-```bash
-cd apps/web
-npm install -g pm2 tsx
-npm run pm2:start
-
-# 查看日志
-npm run pm2:logs
-
-# 停止所有进程
-npm run pm2:stop
-```
-
 ### 环境变量配置
 
 创建 `apps/web/.env.local`:
@@ -63,7 +49,7 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5432/nexusnote
 REDIS_URL=redis://localhost:6379
 
 # 服务器配置
-PORT=3002
+PORT=3000
 HOCUSPOCUS_PORT=1234
 
 # 认证
@@ -158,23 +144,38 @@ AI 模型使用这些片段生成答案
 
 ## 监控和调试
 
-### PM2 监控
+### Kubernetes 监控
 
 ```bash
-# 查看进程状态
-pm2 status
-
-# 实时监控
-pm2 monit
+# 查看 Pod 状态
+kubectl get pods -n nexusnote
 
 # 查看日志
-pm2 logs next-api        # Next.js API
-pm2 logs hocuspocus      # WebSocket 服务器
-pm2 logs rag-worker      # RAG Worker
+kubectl logs -n nexusnote deployment/nexusnote-web -f
+kubectl logs -n nexusnote deployment/nexusnote-collab -f
+kubectl logs -n nexusnote deployment/nexusnote-worker -f
 
-# 重启进程
-pm2 restart next-api
-pm2 restart all
+# 重启部署
+kubectl rollout restart deployment/nexusnote-web -n nexusnote
+kubectl rollout restart deployment/nexusnote-collab -n nexusnote
+kubectl rollout restart deployment/nexusnote-worker -n nexusnote
+```
+
+### Docker 监控
+
+```bash
+# 查看容器状态
+docker ps
+
+# 查看日志
+docker logs nexusnote-web -f
+docker logs nexusnote-collab -f
+docker logs nexusnote-worker -f
+
+# 重启容器
+docker restart nexusnote-web
+docker restart nexusnote-collab
+docker restart nexusnote-worker
 ```
 
 ### 数据库调试
@@ -210,7 +211,7 @@ DEL bull:rag-index:
 
 ### 并发配置
 
-编辑 `apps/web/ecosystem.config.js` 或环境变量：
+编辑环境变量：
 
 ```env
 # BullMQ Worker 并发数（default: 3）
@@ -248,8 +249,11 @@ RAG_SIMILARITY_THRESHOLD=0.3
 如果任务堆积，检查 Worker 是否正常运行：
 
 ```bash
-# 检查 Worker 日志
-pm2 logs rag-worker
+# Kubernetes
+kubectl logs -n nexusnote deployment/nexusnote-worker -f
+
+# Docker
+docker logs nexusnote-worker -f
 
 # 检查 Redis 连接
 redis-cli ping
@@ -266,8 +270,11 @@ redis-cli
 curl -i -N -H "Connection: Upgrade" -H "Upgrade: websocket" \
   http://localhost:1234/
 
-# 查看日志
-pm2 logs hocuspocus
+# Kubernetes
+kubectl logs -n nexusnote deployment/nexusnote-collab -f
+
+# Docker
+docker logs nexusnote-collab -f
 ```
 
 ### Embedding 失败
@@ -326,7 +333,7 @@ docker cp nexusnote-redis:/data/dump.rdb ./backup.rdb
 - [ ] 启用 HTTPS（使用 nginx 反向代理）
 - [ ] 配置日志收集和监控
 - [ ] 设置定期备份策略
-- [ ] 配置防火墙规则（仅允许 80, 443, 3002）
+- [ ] 配置防火墙规则（仅允许 80, 443, 3000）
 - [ ] 启用 PostgreSQL 自动备份
 - [ ] 配置 Redis 持久化
 - [ ] 设置告警规则

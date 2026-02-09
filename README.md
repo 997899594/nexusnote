@@ -83,8 +83,8 @@ NexusNote now uses a **single Next.js fullstack application** deployed in a Dock
 │                     Docker Container                         │
 │                                                               │
 │  ┌──────────────────────────────────────────────────────┐   │
-│  │  PM2 Process Manager                                 │   │
-│  │  ├── Next.js API Gateway (port 3002)                │   │
+│  │  Next.js Standalone Server                            │   │
+│  │  ├── Next.js API Gateway (port 3000)                │   │
 │  │  ├── Hocuspocus WebSocket Server (port 1234)        │   │
 │  │  └── BullMQ RAG Indexing Worker                     │   │
 │  └──────────────────────────────────────────────────────┘   │
@@ -109,7 +109,7 @@ NexusNote now uses a **single Next.js fullstack application** deployed in a Dock
 | **AI** | Vercel AI SDK 6.x | Unified AI interface |
 | **ORM** | Drizzle | Type-safe SQL queries |
 | **Monorepo** | Turborepo, pnpm | Build orchestration |
-| **Deployment** | Docker, PM2 | Container orchestration |
+| **Deployment** | Docker, Kubernetes | Container orchestration |
 
 ### Why This Architecture?
 
@@ -167,29 +167,23 @@ cp .env.example .env.local
 cd apps/web
 pnpm exec drizzle-kit push
 
-# 6. Start all services (choose one method)
+# 6. Start all services (separate terminals)
 
-# Option A: Separate processes (best for debugging)
-# Terminal 1:
+# Terminal 1 - Next.js:
 pnpm dev
 
-# Terminal 2:
+# Terminal 2 - RAG Worker:
 npm run queue:worker
 
-# Terminal 3:
+# Terminal 3 - Hocuspocus WebSocket:
 npm run hocuspocus
-
-# Option B: PM2 single command (production-like)
-npm install -g pm2
-npm run pm2:start
-npm run pm2:logs
 ```
 
 ### Access Services
 
 | Service | URL | Port | Description |
 |---------|-----|------|-------------|
-| 🌐 Web App | http://localhost:3002 | 3002 | Next.js frontend + API |
+| 🌐 Web App | http://localhost:3000 | 3000 | Next.js frontend + API |
 | 🔄 Collaboration | ws://localhost:1234 | 1234 | Hocuspocus WebSocket |
 | 🗄️ PostgreSQL | localhost:5433 | 5433 | Database |
 | 📮 Redis | localhost:6380 | 6380 | Queue & cache |
@@ -217,7 +211,7 @@ docker build -f apps/web/Dockerfile -t nexusnote:latest .
 docker-compose up -d
 
 # 5. Access your app
-# - Web: http://your-domain:3002
+# - Web: http://your-domain:3000
 # - Collaboration WS: ws://your-domain:1234
 ```
 
@@ -260,10 +254,9 @@ nexusnote/
 │       │   │   ├── ai/               # AI utilities (types only)
 │       │   │   ├── storage/          # IndexedDB stores
 │       │   │   └── ...
-│       │   └── components/
-│       ├── ecosystem.config.js       # PM2 configuration
+│       │       └── components/
 │       ├── Dockerfile                # Multi-stage Docker build
-│       └── server.ts                 # Custom Next.js server
+│       └── next.config.js            # Next.js configuration
 │
 ├── packages/
 │   ├── db/                           # Database Layer
@@ -309,7 +302,7 @@ AUTH_SECRET=<random-32-chars>       # openssl rand -base64 32
 JWT_SECRET=<random-32-chars>
 
 # Public URLs
-NEXT_PUBLIC_API_URL=http://localhost:3002/api
+NEXT_PUBLIC_API_URL=http://localhost:3000/api
 NEXT_PUBLIC_COLLAB_URL=ws://localhost:1234
 ```
 

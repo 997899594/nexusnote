@@ -75,8 +75,8 @@ RUN mkdir -p /app/logs && chown -R nextjs:nodejs /app/logs
 
 # Copy built application and all dependencies
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/hocuspocus.js ./apps/web/
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/worker.js ./apps/web/
+COPY --from=builder --chown=nextjs:nodejs /app/hocuspocus.js ./apps/web/
+COPY --from=builder --chown=nextjs:nodejs /app/worker.js ./apps/web/
 
 # Conditional copy for static assets and public folder
 RUN --mount=from=builder,source=/app/apps/web,target=/tmp/web \
@@ -90,11 +90,11 @@ COPY --chown=nextjs:nodejs apps/web/package.json ./apps/web/
 
 USER nextjs
 
-EXPOSE 3002 1234
+EXPOSE 3000 1234
 
-ENV PORT=3002
+ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
 # Start application
-CMD ["node", "apps/web/server.js"]
+CMD ["node", ".next/standalone/server.js"]
 

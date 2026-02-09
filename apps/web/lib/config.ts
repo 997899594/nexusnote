@@ -22,7 +22,7 @@ const configSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   
   // 业务配置
-  NEXT_PUBLIC_APP_URL: z.string().url().default("http://localhost:3002"),
+  NEXT_PUBLIC_APP_URL: z.string().url().default("http://localhost:3000"),
   
   // K8s 部署特定标识 (可选)
   K8S_POD_NAME: z.string().optional(),

@@ -5,8 +5,8 @@ metadata:
   namespace: nexusnote
 data:
   NODE_ENV: "production"
-  PORT: "3002"
-  HOCUSPOCUS_PORT: "3003"
+  PORT: "3000"
+  HOCUSPOCUS_PORT: "1234"
   NEXT_PUBLIC_APP_URL: "https://juanie.art"
   AUTH_TRUST_HOST: "true"
   NEXTAUTH_URL: "https://juanie.art"
@@ -35,9 +35,9 @@ spec:
       containers:
         - name: app
           image: IMAGE_PLACEHOLDER
-          command: ["node", "apps/web/server.js"]
+          command: ["node", ".next/standalone/server.js"]
           ports:
-            - containerPort: 3002
+            - containerPort: 3000
               name: http
           envFrom:
             - configMapRef:
@@ -75,7 +75,7 @@ spec:
           image: IMAGE_PLACEHOLDER
           command: ["node", "apps/web/hocuspocus.js"]
           ports:
-            - containerPort: 3003
+            - containerPort: 1234
               name: collab
           envFrom:
             - configMapRef:
@@ -137,7 +137,7 @@ spec:
   ports:
     - protocol: TCP
       port: 80
-      targetPort: 3002
+      targetPort: 3000
 ---
 apiVersion: v1
 kind: Service
@@ -149,5 +149,5 @@ spec:
     app: nexusnote-collab
   ports:
     - protocol: TCP
-      port: 3003
-      targetPort: 3003
+      port: 1234
+      targetPort: 1234
