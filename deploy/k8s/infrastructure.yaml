@@ -1,13 +1,26 @@
+# ============================================
+# 基础设施配置 - Gateway / HTTPRoute / 证书
+# ============================================
+
+# ============================================
+# 1. Gateway - API 网关入口
+# ============================================
+# Gateway 是 Kubernetes Gateway API 的核心资源
+# 它监听外部流量（HTTP/HTTPS），并将其路由到集群内的服务
+# Cilium 作为 Gateway 实现，替代了传统的 Ingress Controller
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
   name: nexusnote-gateway
   namespace: nexusnote
   annotations:
+    # 指定使用 Let's Encrypt 签发 TLS 证书
     cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
+  # 使用 Cilium 作为 Gateway 实现
   gatewayClassName: cilium
   listeners:
+    # HTTP 监听器（80 端口）
     - name: http
       protocol: HTTP
       port: 80
@@ -15,18 +28,27 @@ spec:
       allowedRoutes:
         namespaces:
           from: All
+    # HTTPS 监听器（443 端口）
     - name: https
       protocol: HTTPS
       port: 443
       hostname: "juanie.art"
       tls:
+        # 在 Gateway 终止 TLS（解密 HTTPS 流量）
         mode: Terminate
         certificateRefs:
+          # TLS 证书由 cert-manager 自动签发并存储为 Secret
           - name: juanie-art-tls
       allowedRoutes:
         namespaces:
           from: All
+
 ---
+# ============================================
+# 2. HTTPRoute - HTTP 自动跳转 HTTPS
+# ============================================
+# 将所有 HTTP 请求永久重定向到 HTTPS（301 状态码）
+# 这是安全最佳实践，确保所有流量都经过加密
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -34,6 +56,7 @@ metadata:
   namespace: nexusnote
 spec:
   parentRefs:
+    # 绑定到 Gateway 的 HTTP 监听器
     - name: nexusnote-gateway
       sectionName: http
   hostnames:
@@ -44,7 +67,13 @@ spec:
           requestRedirect:
             scheme: https
             statusCode: 301
+
 ---
+# ============================================
+# 3. HTTPRoute - HTTPS 路由规则
+# ============================================
+# 将 HTTPS 请求路由到 nexusnote-service
+# 支持基于路径、头部、权重等高级路由规则
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -52,6 +81,7 @@ metadata:
   namespace: nexusnote
 spec:
   parentRefs:
+    # 绑定到 Gateway 的 HTTPS 监听器
     - name: nexusnote-gateway
       sectionName: https
   hostnames:
@@ -59,8 +89,10 @@ spec:
   rules:
     - matches:
         - path:
+            # 匹配所有路径（前缀匹配）
             type: PathPrefix
             value: /
       backendRefs:
+        # 路由到 Web 服务的 ClusterIP Service
         - name: nexusnote-service
           port: 80

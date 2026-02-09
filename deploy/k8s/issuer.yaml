@@ -1,18 +1,29 @@
+# ============================================
+# Let's Encrypt 证书签发器配置
+# ============================================
+# cert-manager 是 Kubernetes 的证书管理工具，可以自动签发、续期 TLS 证书
+# ClusterIssuer 是集群级别的证书签发器，可以在所有命名空间中使用
+
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
   name: letsencrypt-prod
 spec:
   acme:
-    # 替换为您的邮箱
+    # ACME 协议邮箱，用于接收证书过期提醒
     email: 997899594@qq.com
+    # Let's Encrypt 生产环境 ACME 服务器
     server: https://acme-v02.api.letsencrypt.org/directory
+    # ACME 账户私钥存储位置
     privateKeySecretRef:
       name: letsencrypt-prod-account-key
     solvers:
+      # 使用 HTTP-01 验证方式
+      # cert-manager 会创建临时的 HTTPRoute，Let's Encrypt 访问该域名验证所有权
       - http01:
           gatewayHTTPRoute:
             parentRefs:
+              # 绑定到 Gateway，用于创建验证用的临时路由
               - name: nexusnote-gateway
                 namespace: nexusnote
                 kind: Gateway

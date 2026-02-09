@@ -1,6 +1,15 @@
 # ============================================
 # 2026 零信任安全策略 - Cilium Network Policies
 # ============================================
+# Cilium Network Policy 是比 Kubernetes Network Policy 更强大的网络控制工具
+# 它支持基于标签、IP、端口、协议等多维度的精细访问控制
+# 默认拒绝所有流量，只有明确允许的流量才能通过（零信任模型）
+
+# ============================================
+# 1. 数据库访问策略
+# ============================================
+# 只允许 nexusnote-web、nexusnote-worker、nexusnote-collab 访问 PostgreSQL
+# 其他任何服务都无法访问数据库，提高安全性
 apiVersion: "cilium.io/v2"
 kind: CiliumNetworkPolicy
 metadata:
@@ -8,21 +17,30 @@ metadata:
   namespace: nexusnote
 spec:
   endpointSelector:
+    # 目标：所有带有 app=postgres 标签的 Pod
     matchLabels:
       app: postgres
   ingress:
     - fromEndpoints:
+        # 允许 Web 应用访问数据库
         - matchLabels:
             app: nexusnote-web
+        # 允许 Worker 访问数据库
         - matchLabels:
             app: nexusnote-worker
+        # 允许 Collab 服务访问数据库
         - matchLabels:
             app: nexusnote-collab
       toPorts:
         - ports:
             - port: "5432"
               protocol: TCP
+
 ---
+# ============================================
+# 2. Redis 访问策略
+# ============================================
+# 只允许 nexusnote-web、nexusnote-worker、nexusnote-collab 访问 Redis
 apiVersion: "cilium.io/v2"
 kind: CiliumNetworkPolicy
 metadata:
@@ -30,6 +48,7 @@ metadata:
   namespace: nexusnote
 spec:
   endpointSelector:
+    # 目标：所有带有 app=redis 标签的 Pod
     matchLabels:
       app: redis
   ingress:
@@ -44,7 +63,16 @@ spec:
         - ports:
             - port: "6379"
               protocol: TCP
+
 ---
+# ============================================
+# 3. Gateway 到服务的访问策略
+# ============================================
+# 允许外部流量通过 Gateway 访问 Web 服务的 3000 端口
+# world: 外部流量（互联网）
+# host: 节点自身流量
+# remote-node: 远程节点流量
+# cluster: 集群内部流量
 apiVersion: "cilium.io/v2"
 kind: CiliumNetworkPolicy
 metadata:
@@ -52,10 +80,12 @@ metadata:
   namespace: nexusnote
 spec:
   endpointSelector:
+    # 目标：Web 应用服务
     matchLabels:
       app: nexusnote-web
   ingress:
     - fromEntities:
+        # 允许外部流量访问
         - world
         - host
         - remote-node
