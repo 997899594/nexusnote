@@ -53,7 +53,7 @@ RUN pnpm --filter @nexusnote/ui build
 RUN pnpm --filter @nexusnote/web build
 
 # Compile auxiliary servers (Hocuspocus and Worker)
-# Output files will be generated at apps/web/hocuspocus.js and apps/web/worker.js relative to WORKDIR /app
+# Output files will be generated at /app/apps/web/hocuspocus.js and /app/apps/web/worker.js
 RUN pnpm --filter @nexusnote/web exec esbuild src/server/hocuspocus.ts --bundle --platform=node --outfile=hocuspocus.js
 RUN pnpm --filter @nexusnote/web exec esbuild src/queue/worker.ts --bundle --platform=node --outfile=worker.js
 
@@ -75,8 +75,8 @@ RUN mkdir -p /app/logs && chown -R nextjs:nodejs /app/logs
 
 # Copy built application and all dependencies
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/hocuspocus.js ./apps/web/
-COPY --from=builder --chown=nextjs:nodejs /app/worker.js ./apps/web/
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/hocuspocus.js ./apps/web/
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/worker.js ./apps/web/
 
 # Conditional copy for static assets and public folder
 RUN --mount=from=builder,source=/app/apps/web,target=/tmp/web \
