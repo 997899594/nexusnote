@@ -95,7 +95,7 @@ spec:
       containers:
         - name: app
           image: IMAGE_PLACEHOLDER
-          # 启动 Hocuspocus WebSocket 服务器
+          # 启动 Hocuspocus WebSocket 服务器（使用预编译的 JS）
           command: ["node", "apps/web/hocuspocus.js"]
           ports:
             - containerPort: 1234
@@ -138,7 +138,7 @@ spec:
       containers:
         - name: app
           image: IMAGE_PLACEHOLDER
-          # 启动 BullMQ Worker
+          # 启动 BullMQ Worker（使用预编译的 JS）
           command: ["node", "apps/web/worker.js"]
           envFrom:
             - configMapRef:
