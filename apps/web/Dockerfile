@@ -52,10 +52,30 @@ RUN pnpm --filter @nexusnote/db build
 RUN pnpm --filter @nexusnote/ui build
 RUN pnpm --filter @nexusnote/web build
 
-# Compile auxiliary servers (Hocuspocus and Worker)
-# Output files will be generated at /app/apps/web/hocuspocus.js and /app/apps/web/worker.js
-RUN pnpm --filter @nexusnote/web exec esbuild src/server/hocuspocus.ts --bundle --platform=node --outfile=hocuspocus.js
-RUN pnpm --filter @nexusnote/web exec esbuild src/queue/worker.ts --bundle --platform=node --outfile=worker.js
+# ============================================
+# Build Hocuspocus and Worker
+# ============================================
+# 使用 esbuild 将 TypeScript 编译为 JavaScript
+# --external 标记 workspace 包为外部依赖，运行时从 node_modules 加载
+# --platform=node 确保输出 Node.js 兼容代码
+# --bundle 将所有非外部依赖打包到单个文件中
+RUN pnpm --filter @nexusnote/web exec esbuild src/server/hocuspocus.ts \
+  --bundle \
+  --platform=node \
+  --external:@nexusnote/db \
+  --external:@nexusnote/config \
+  --external:@nexusnote/types \
+  --external:@nexusnote/ui \
+  --outfile=hocuspocus.js
+
+RUN pnpm --filter @nexusnote/web exec esbuild src/queue/worker.ts \
+  --bundle \
+  --platform=node \
+  --external:@nexusnote/db \
+  --external:@nexusnote/config \
+  --external:@nexusnote/types \
+  --external:@nexusnote/ui \
+  --outfile=worker.js
 
 # ============================================
 # Stage 3: Runner
@@ -75,8 +95,21 @@ RUN mkdir -p /app/logs && chown -R nextjs:nodejs /app/logs
 
 # Copy built application and all dependencies
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
+
+# Copy Hocuspocus and Worker compiled files
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/hocuspocus.js ./apps/web/
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/worker.js ./apps/web/
+
+# Copy workspace packages for runtime dependency resolution
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/node_modules ./apps/web/node_modules
+COPY --from=builder --chown=nextjs:nodejs /app/packages/node_modules ./packages/node_modules
+
+# Copy workspace dist files for @nexusnote/* imports
+COPY --from=builder --chown=nextjs:nodejs /app/packages/types/dist ./packages/types/dist
+COPY --from=builder --chown=nextjs:nodejs /app/packages/config/dist ./packages/config/dist
+COPY --from=builder --chown=nextjs:nodejs /app/packages/db/dist ./packages/db/dist
+COPY --from=builder --chown=nextjs:nodejs /app/packages/ui/dist ./packages/ui/dist
 
 # Conditional copy for static assets and public folder
 RUN --mount=from=builder,source=/app/apps/web,target=/tmp/web \
