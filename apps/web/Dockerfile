@@ -131,5 +131,5 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
 # Start application
-CMD ["node", ".next/standalone/server.js"]
+CMD ["node", "server.js"]
 
