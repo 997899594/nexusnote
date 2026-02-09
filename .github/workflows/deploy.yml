@@ -51,6 +51,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
           cache-to: type=gha,mode=max
 
   # ============================================
@@ -131,11 +132,11 @@ jobs:
             # 1. 确保命名空间存在
             kubectl create namespace nexusnote --dry-run=client -o yaml | kubectl apply -f -
 
-            # 2. 创建 GHCR 镜像拉取密钥 (优先使用用户提供的 997899594)
+            # 2. 创建 GHCR 镜像拉取密钥
             kubectl create secret docker-registry ghcr-secret \
               --docker-server=ghcr.io \
-              --docker-username=997899594 \
-              --docker-password=${{ github.token }} \
+              --docker-username=${{ github.actor }} \
+              --docker-password=${{ secrets.GHCR_PAT }} \
               --namespace=nexusnote \
               --dry-run=client -o yaml | kubectl apply -f -
 
