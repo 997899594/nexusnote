@@ -7,7 +7,7 @@ import {
   InterviewContextSchema,
   type InterviewContext,
 } from "@/lib/ai/agents/interview/agent";
-import { chatAgent, webSearchChatAgent } from "@/lib/ai/agents/chat-agent";
+import { chatAgent } from "@/lib/ai/agents/chat-agent";
 import {
   courseGenerationAgent,
   CourseGenerationContextSchema,
@@ -150,7 +150,7 @@ export class AIGatewayService {
 
       case "SEARCH": {
         return createAgentUIStreamResponse({
-          agent: webSearchChatAgent || chatAgent,
+          agent: chatAgent,
           uiMessages: optimizedMessages,
           options: { enableWebSearch: true, enableTools: true },
           experimental_transform: smoothStreamConfig,
@@ -179,12 +179,8 @@ export class AIGatewayService {
           ragContext = ragResult.context;
         }
 
-        const agent = context.enableWebSearch
-          ? webSearchChatAgent || chatAgent
-          : chatAgent;
-
         return createAgentUIStreamResponse({
-          agent,
+          agent: chatAgent,
           uiMessages: optimizedMessages,
           options: {
             ragContext,

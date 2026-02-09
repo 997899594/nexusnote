@@ -20,8 +20,8 @@ export const metadata: Metadata = {
         title: 'NexusNote',
     },
     icons: {
-        icon: '/icon-192.png',
-        apple: '/icon-192.png',
+        icon: '/icon.svg',
+        apple: '/icon.svg',
     },
     viewport: {
         width: 'device-width',

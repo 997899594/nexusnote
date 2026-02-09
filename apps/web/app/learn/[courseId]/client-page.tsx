@@ -6,7 +6,6 @@ import { useChat } from "@ai-sdk/react";
 import type { DynamicToolUIPart } from "ai";
 import type { OutlineData } from "@/lib/ai/types/course";
 import { UnifiedChatUI } from "@/components/ai/UnifiedChatUI";
-import { MessageResponse } from "@/components/ai/Message";
 import {
   QuizResult,
   MindMapView,
@@ -30,6 +29,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { CourseGenerationAgentMessage } from "@/lib/ai/agents/course-generation/agent";
+import type { ChatAgentMessage } from "@/lib/ai/agents/chat-agent";
 import {
   MindMapOutput,
   QuizOutput,
@@ -37,6 +37,7 @@ import {
   WebSearchOutput,
 } from "@/lib/ai/tools/types";
 import { getMessageContent } from "@/lib/ai/ui-utils";
+import { MessageResponse } from "@/components/ai/Message";
 
 interface LearnPageClientProps {
   courseId: string;
@@ -50,63 +51,69 @@ export default function LearnPageClient({
   const [courseProfile] = useState<CourseProfileDTO>(initialProfile);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [currentChapterIndex, setCurrentChapterIndex] = useState(
-    courseProfile.progress.currentChapter || 0,
-  );
+  const [currentChapterId, setCurrentChapterId] = useState<string | null>(null);
   const [chapters, setChapters] = useState<CourseChapterDTO[]>([]);
   const [isGenerationComplete, setIsGenerationComplete] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isChatOpen, setIsChatOpen] = useState(true);
 
   // 防止并发生成的 ref
-  const generatingChapterRef = useRef<Set<number>>(new Set());
+  const generatingChapterRef = useRef<Set<string>>(new Set());
   const generationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
 
-  // 初始加载已生成的章节
-  useEffect(() => {
-    const loadInitialChapters = async () => {
-      try {
-        const result = await getCourseChaptersAction(courseId);
-        if (result.success) {
-          setChapters(result.data.chapters);
-          setIsInitialLoading(false);
-        }
-      } catch (err) {
-        console.error("[LearnPageClient] Failed to load chapters:", err);
+  // 课程生成用的 useChat（不显示在聊天框）
+  const {
+    messages: generationMessages,
+    sendMessage: generateChapter,
+    status: generationStatus,
+  } = useChat<CourseGenerationAgentMessage>({
+    id: `course-generation-${courseId}`,
+  });
+
+  // 加载章节的函数
+  const loadChapters = useCallback(async () => {
+    try {
+      const result = await getCourseChaptersAction(courseId);
+      if (result.success) {
+        setChapters(result.data.chapters);
         setIsInitialLoading(false);
       }
-    };
-
-    loadInitialChapters();
+    } catch (err) {
+      console.error("[LearnPageClient] Failed to load chapters:", err);
+      setIsInitialLoading(false);
+    }
   }, [courseId]);
+
+  // 初始加载已生成的章节
+  useEffect(() => {
+    loadChapters();
+  }, [loadChapters]);
 
   // 1. 路由优先：当章节列表加载完成，或 URL 参数变化时，同步当前索引
   useEffect(() => {
     const chapterIdFromUrl = searchParams.get("chapterId");
     if (chapters.length > 0) {
       if (chapterIdFromUrl) {
-        const index = chapters.findIndex((c) => c.id === chapterIdFromUrl);
-        if (index !== -1) {
-          setCurrentChapterIndex(index);
+        const chapter = chapters.find((c) => c.id === chapterIdFromUrl);
+        if (chapter) {
+          setCurrentChapterId(chapter.id);
         }
-      } else {
-        // 如果 URL 没带 ID，默认选中第一个已生成的章节
+      } else if (!currentChapterId) {
+        // 如果 URL 没带 ID 且当前未选中，默认选中第一个已生成的章节
         const firstGenerated = [...chapters].sort(
           (a, b) => a.chapterIndex - b.chapterIndex,
         )[0];
         if (firstGenerated) {
-          setCurrentChapterIndex(firstGenerated.chapterIndex);
+          setCurrentChapterId(firstGenerated.id);
         }
       }
     }
-  }, [chapters, searchParams]);
+  }, [chapters, searchParams, currentChapterId]);
 
   // 2. 状态同步：当用户切换章节时，静默更新 URL
   useEffect(() => {
-    const currentChapter = chapters.find(
-      (c) => c.chapterIndex === currentChapterIndex,
-    );
+    const currentChapter = chapters.find((c) => c.id === currentChapterId);
     if (currentChapter?.id) {
       const newUrl = `${window.location.pathname}?chapterId=${currentChapter.id}`;
       // 使用 replaceState 静默更新 URL，不触发页面刷新
@@ -116,21 +123,7 @@ export default function LearnPageClient({
         newUrl,
       );
     }
-  }, [currentChapterIndex, chapters]);
-
-  // 3. 自动聚焦：当新的章节生成且当前处于等待状态时，自动切换
-  useEffect(() => {
-    if (
-      chapters.length > 0 &&
-      !chapters.some((c) => c.chapterIndex === currentChapterIndex)
-    ) {
-      // 如果当前选中的索引还没生成，但已经有其他章节生成了（比如首章预生成完成）
-      const available = chapters.map((c) => c.chapterIndex);
-      if (available.includes(0) && currentChapterIndex === 0) {
-        // 保持在第 0 章，触发重渲染即可
-      }
-    }
-  }, [chapters, currentChapterIndex]);
+  }, [currentChapterId, chapters]);
 
   const outline = useMemo(
     () => courseProfile.outlineData as OutlineData,
@@ -148,115 +141,140 @@ export default function LearnPageClient({
 
   // 进度同步：当用户切换章节时，同步到服务器
   useEffect(() => {
-    const updateProgress = async () => {
-      try {
+    const syncProgress = async () => {
+      const currentChapter = chapters.find((c) => c.id === currentChapterId);
+      if (currentChapter) {
         await updateCourseProgressAction({
           courseId,
-          currentChapter: currentChapterIndex,
+          currentChapter: currentChapter.chapterIndex,
         });
-      } catch (err) {
-        console.error("[LearnPageClient] Failed to sync progress:", err);
       }
     };
 
-    if (chapters.length > 0) {
-      updateProgress();
-    }
-  }, [courseId, currentChapterIndex, chapters.length]);
+    syncProgress();
+  }, [courseId, currentChapterId, chapters.length]);
 
-  // Chat setup
-  const { messages, sendMessage, status, stop, addToolOutput } =
-    useChat<CourseGenerationAgentMessage>({
-      id: `course-${courseId}`,
-    });
-
-  // 监听 messages 实时更新 chapters
+  // 监听课程生成消息，重新从数据库加载章节
   useEffect(() => {
-    const lastMessage = messages[messages.length - 1];
+    const lastMessage = generationMessages[generationMessages.length - 1];
     if (!lastMessage) return;
 
-    // AI SDK v6: tool call parts use 'dynamic-tool' type with 'output-available' state
     const toolCall = lastMessage.parts?.find(
-      (p): p is DynamicToolUIPart & { state: "output-available" } =>
-        p.type === "dynamic-tool" && p.state === "output-available",
+      (
+        p,
+      ): p is DynamicToolUIPart & {
+        state: "output-available";
+        toolName: "saveChapterContent";
+        output: { status: string; chapterIndex: number; sectionIndex: number };
+      } =>
+        p.type === "dynamic-tool" &&
+        p.state === "output-available" &&
+        p.toolName === "saveChapterContent",
     );
 
-    if (toolCall?.toolName === "saveChapterContent") {
-      const output = toolCall.output as {
-        profileId: string;
-        chapterIndex: number;
-        sectionIndex: number;
-        title: string;
-        contentMarkdown: string;
-      };
+    if (toolCall) {
+      const { chapterIndex, sectionIndex } = toolCall.output;
 
       console.log(
-        `[Stream Update] 新章节生成: Chapter ${output.chapterIndex}-${output.sectionIndex}`,
+        `[Stream Update] 新章节已保存: Chapter ${chapterIndex}-${sectionIndex}`,
       );
 
-      const isNewChapter = !chapters.some(
-        (c) =>
-          c.chapterIndex === output.chapterIndex &&
-          c.sectionIndex === output.sectionIndex,
-      );
-
-      if (isNewChapter) {
-        setChapters((prev) => [
-          ...prev,
-          {
-            id: crypto.randomUUID(),
-            chapterIndex: output.chapterIndex,
-            sectionIndex: output.sectionIndex,
-            title: output.title,
-            contentMarkdown: output.contentMarkdown,
-            summary: null,
-            keyPoints: null,
-            isCompleted: false,
-            createdAt: new Date().toISOString(),
-          },
-        ]);
-
-        const currentChapterGenerated = chapters.some(
-          (c) => c.chapterIndex === currentChapterIndex,
-        );
-        if (!currentChapterGenerated) {
-          setCurrentChapterIndex(output.chapterIndex);
-        }
-
-        if (chapters.length + 1 >= totalChapters) {
-          setIsGenerationComplete(true);
-        }
-      }
+      // 重新从数据库加载所有章节
+      loadChapters();
     }
-  }, [messages, chapters, currentChapterIndex, totalChapters]);
+  }, [generationMessages, loadChapters]);
 
-  const isChatLoading = status === "streaming" || status === "submitted";
-  const currentChapter = chapters.find(
-    (c) => c.chapterIndex === currentChapterIndex,
-  );
+  // 聊天用的 useChat（右边 Chat）
+  const {
+    messages: chatMessages,
+    sendMessage: chatSend,
+    status: chatStatus,
+  } = useChat<ChatAgentMessage>({
+    id: `course-chat-${courseId}`,
+  });
+
+  const isChatLoading =
+    chatStatus === "streaming" || chatStatus === "submitted";
 
   // 提取当前章节正在生成的思考过程
   const currentThinking = useMemo(() => {
-    if (status !== "streaming" && status !== "submitted") return null;
-    const lastMessage = messages[messages.length - 1];
+    if (generationStatus !== "streaming" && generationStatus !== "submitted")
+      return null;
+    const lastMessage = generationMessages[generationMessages.length - 1];
     // @ts-ignore - reasoning is added by extractReasoningMiddleware
     return lastMessage?.reasoning || null;
-  }, [messages, status]);
+  }, [generationMessages, generationStatus]);
 
-  // 预计算章节全局索引，避免每次渲染重复计算
-  const chapterGlobalIndexMap = useMemo(() => {
-    const map = new Map<string, number>(); // key: "mIdx-cIdx" -> globalIdx
-    outline.modules?.forEach((module, mIdx) => {
-      const baseIndex = (outline.modules || [])
-        .slice(0, mIdx)
-        .reduce((sum, m) => sum + m.chapters.length, 0);
-      module.chapters.forEach((_, cIdx) => {
-        const globalIdx = baseIndex + cIdx;
-        map.set(`${mIdx}-${cIdx}`, globalIdx);
-      });
-    });
-    return map;
-  }, [outline]);
+  // 按需生成驱动逻辑 (On-Demand Generation)
+  // 当用户选中的章节不存在时，触发生成
+  useEffect(() => {
+    if (generationStatus !== "ready") return;
+
+    // 检查当前选中的章节是否已生成
+    const chapterToGenerate: CourseChapterDTO | undefined = chapters.find(
+      (c) => c.id === currentChapterId,
+    );
+
+    // 如果未生成且没有正在生成，则触发当前章节的生成
+    if (
+      chapterToGenerate &&
+      currentChapterId &&
+      !generatingChapterRef.current.has(currentChapterId)
+    ) {
+      console.log(
+        `[On-Demand] Triggering generation for Chapter ${currentChapterId}...`,
+      );
+
+      // 标记为正在生成
+      generatingChapterRef.current.add(currentChapterId);
+
+      // 保存 chapterId 到闭包中
+      const chapterIdToGenerate = currentChapterId;
+
+      generateChapter(
+        {
+          text: `请生成第 ${chapterToGenerate.chapterIndex + 1} 章的内容。`,
+        },
+        {
+          body: {
+            explicitIntent: "COURSE_GENERATION",
+            courseGenerationContext: {
+              id: courseId,
+              userId: courseProfile.userId,
+              goal: courseProfile.goal,
+              background: courseProfile.background,
+              targetOutcome: courseProfile.targetOutcome,
+              cognitiveStyle: courseProfile.cognitiveStyle,
+              outlineTitle: courseProfile.title,
+              outlineData: outline,
+              moduleCount: outline.modules?.length || 0,
+              totalChapters: totalChapters,
+              currentChapterIndex: chapterToGenerate.chapterIndex,
+              chaptersGenerated: chapters.length,
+            },
+          },
+        },
+      );
+
+      // 设置超时清理（防止永久锁定）
+      const timeoutId = setTimeout(() => {
+        if (chapterIdToGenerate) {
+          generatingChapterRef.current.delete(chapterIdToGenerate);
+        }
+      }, 60000); // 60秒后清理锁定
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [
+    courseId,
+    currentChapterId,
+    chapters,
+    generationStatus,
+    totalChapters,
+    courseProfile,
+    generateChapter,
+    outline,
+  ]);
 
   // 获取章节全局索引的辅助函数
   const getGlobalChapterIndex = useCallback(
@@ -269,6 +287,17 @@ export default function LearnPageClient({
     },
     [outline],
   );
+
+  const currentChapter: CourseChapterDTO | undefined = useMemo(
+    () => chapters.find((c) => c.id === currentChapterId),
+    [chapters, currentChapterId],
+  );
+
+  const currentChapterIndex = useMemo(() => {
+    if (!currentChapterId) return 0;
+    const chapter = chapters.find((c) => c.id === currentChapterId);
+    return chapter?.chapterIndex ?? 0;
+  }, [currentChapterId, chapters]);
 
   // 渲染工具输出结果 UI
   const renderToolOutput = (
@@ -511,30 +540,46 @@ export default function LearnPageClient({
                         // 使用优化的辅助函数计算全局索引
                         const globalIdx = getGlobalChapterIndex(mIdx, cIdx);
 
-                        const isGenerated = chapters.some(
+                        // 找到对应的已生成章节（如果存在）
+                        const generatedChapter = chapters.find(
                           (c) => c.chapterIndex === globalIdx,
                         );
-                        const isActive = currentChapterIndex === globalIdx;
+                        const isGenerated = !!generatedChapter;
+                        const isActive =
+                          currentChapterId === generatedChapter?.id;
+                        const isGenerating = generatedChapter
+                          ? generatingChapterRef.current.has(
+                              generatedChapter.id,
+                            )
+                          : false;
 
                         return (
                           <button
                             key={cIdx}
-                            onClick={() => setCurrentChapterIndex(globalIdx)}
+                            onClick={() => {
+                              if (generatedChapter) {
+                                setCurrentChapterId(generatedChapter.id);
+                              }
+                            }}
                             className={`w-full group flex items-center gap-4 px-4 py-3 rounded-2xl transition-all duration-500 relative ${
                               isActive
                                 ? "bg-black text-white shadow-2xl shadow-black/20 translate-x-1"
-                                : isGenerated
-                                  ? "hover:bg-black/[0.03] text-black/60 hover:text-black"
-                                  : "opacity-30 grayscale cursor-not-allowed"
+                                : isGenerating
+                                  ? "bg-violet-50 text-violet-700 animate-pulse"
+                                  : isGenerated
+                                    ? "hover:bg-black/[0.03] text-black/60 hover:text-black"
+                                    : "hover:bg-violet-50 text-neutral-400 hover:text-violet-700"
                             }`}
                           >
                             <div className="relative flex-shrink-0">
-                              {isGenerated ? (
+                              {isGenerating ? (
+                                <div className="w-2 h-2 rounded-full bg-violet-500 animate-ping" />
+                              ) : isGenerated ? (
                                 <div
                                   className={`w-2 h-2 rounded-full ${isActive ? "bg-white" : "bg-black/20 group-hover:bg-black"}`}
                                 />
                               ) : (
-                                <div className="w-2 h-2 rounded-full border border-black/10" />
+                                <div className="w-2 h-2 rounded-full border-2 border-dashed border-neutral-300 group-hover:border-violet-400" />
                               )}
                             </div>
 
@@ -542,6 +587,11 @@ export default function LearnPageClient({
                               <div className="text-sm font-bold truncate">
                                 {chapter.title}
                               </div>
+                              {!isGenerated && !isGenerating && (
+                                <div className="text-[10px] opacity-70 group-hover:opacity-100">
+                                  点击生成
+                                </div>
+                              )}
                             </div>
 
                             {isActive && (
@@ -614,7 +664,7 @@ export default function LearnPageClient({
             <div className="mx-auto max-w-4xl px-12 py-20">
               <AnimatePresence mode="wait">
                 <motion.div
-                  key={currentChapterIndex}
+                  key={currentChapterId || "empty"}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
@@ -638,7 +688,7 @@ export default function LearnPageClient({
                       <div className="mb-20 space-y-8">
                         <div className="flex items-center gap-4">
                           <span className="px-3 py-1 rounded-full bg-black text-[10px] font-black text-white uppercase tracking-[0.2em]">
-                            Chapter {currentChapterIndex + 1}
+                            Chapter {currentChapter.chapterIndex + 1}
                           </span>
                           <div className="h-px flex-1 bg-black/5" />
                           <span className="text-[10px] font-bold text-black/30 uppercase tracking-widest">
@@ -691,11 +741,21 @@ export default function LearnPageClient({
                       {/* 章节导航 - 极简主义设计 */}
                       <div className="mt-32 pt-16 border-t border-black/[0.05] flex items-center justify-between">
                         <button
-                          onClick={() =>
-                            currentChapterIndex > 0 &&
-                            setCurrentChapterIndex(currentChapterIndex - 1)
+                          onClick={() => {
+                            if (currentChapter) {
+                              const prevChapter = chapters.find(
+                                (c) =>
+                                  c.chapterIndex ===
+                                  currentChapter.chapterIndex - 1,
+                              );
+                              if (prevChapter) {
+                                setCurrentChapterId(prevChapter.id);
+                              }
+                            }
+                          }}
+                          disabled={
+                            !currentChapter || currentChapter.chapterIndex === 0
                           }
-                          disabled={currentChapterIndex === 0}
                           className="group flex items-center gap-6 disabled:opacity-20"
                         >
                           <div className="w-14 h-14 rounded-full border border-black/10 flex items-center justify-center group-hover:bg-black group-hover:text-white transition-all duration-500">
@@ -734,12 +794,20 @@ export default function LearnPageClient({
                         </div>
 
                         <button
-                          onClick={() =>
-                            currentChapterIndex < totalChapters - 1 &&
-                            setCurrentChapterIndex(currentChapterIndex + 1)
-                          }
+                          onClick={() => {
+                            if (currentChapter) {
+                              const nextChapter = chapters.find(
+                                (c) =>
+                                  c.chapterIndex ===
+                                  currentChapter.chapterIndex + 1,
+                              );
+                              if (nextChapter) {
+                                setCurrentChapterId(nextChapter.id);
+                              }
+                            }
+                          }}
                           disabled={
-                            currentChapterIndex === totalChapters - 1 ||
+                            !currentChapter ||
                             !chapters.some(
                               (c) => c.chapterIndex === currentChapterIndex + 1,
                             )
@@ -791,21 +859,21 @@ export default function LearnPageClient({
 
               <div className="flex-1 flex flex-col min-h-0">
                 <UnifiedChatUI
-                  messages={messages}
+                  messages={chatMessages}
                   isLoading={isChatLoading}
                   input=""
                   onInputChange={() => {}}
-                  onStop={stop}
+                  onStop={() => {}}
                   renderToolOutput={renderToolOutput}
                   onSubmit={(e) => {
                     e.preventDefault();
-                    sendMessage(
+                    chatSend(
                       {
                         text: "根据当前内容帮我总结一下",
                       },
                       {
                         body: {
-                          explicitIntent: "COURSE_GENERATION",
+                          explicitIntent: "CHAT",
                         },
                       },
                     );
@@ -833,7 +901,8 @@ export default function LearnPageClient({
                             className="text-sm leading-relaxed text-neutral-800 dark:text-neutral-200"
                             mode={
                               isChatLoading &&
-                              message.id === messages[messages.length - 1].id
+                              message.id ===
+                                chatMessages[chatMessages.length - 1].id
                                 ? "streaming"
                                 : "static"
                             }
@@ -879,16 +948,4 @@ export default function LearnPageClient({
       </div>
     </div>
   );
-
-  // 组件卸载时清理 ref
-  useEffect(() => {
-    return () => {
-      // 清理生成锁定
-      generatingChapterRef.current.clear();
-      // 清理超时定时器
-      if (generationTimeoutRef.current) {
-        clearTimeout(generationTimeoutRef.current);
-      }
-    };
-  }, []);
 }

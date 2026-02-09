@@ -1,5 +1,5 @@
 import { interviewAgent } from "@/lib/ai/agents/interview/agent";
-import { chatAgent, webSearchChatAgent } from "@/lib/ai/agents/chat-agent";
+import { chatAgent } from "@/lib/ai/agents/chat-agent";
 import { courseGenerationAgent } from "@/lib/ai/agents/course-generation/agent";
 import { createAgentUIStreamResponse, smoothStream } from "ai";
 import { auth } from "@/auth";
@@ -16,9 +16,19 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { messages, explicitIntent, interviewContext, courseGenerationContext } = body as {
+  const {
+    messages,
+    explicitIntent,
+    interviewContext,
+    courseGenerationContext,
+  } = body as {
     messages: unknown[];
-    explicitIntent?: "INTERVIEW" | "CHAT" | "EDITOR" | "SEARCH" | "COURSE_GENERATION";
+    explicitIntent?:
+      | "INTERVIEW"
+      | "CHAT"
+      | "EDITOR"
+      | "SEARCH"
+      | "COURSE_GENERATION";
     interviewContext?: InterviewContext;
     courseGenerationContext?: Record<string, unknown>;
   };
@@ -53,14 +63,19 @@ export async function POST(request: Request) {
         goal: (courseGenerationContext?.goal as string) ?? "",
         background: (courseGenerationContext?.background as string) ?? "",
         targetOutcome: (courseGenerationContext?.targetOutcome as string) ?? "",
-        cognitiveStyle: (courseGenerationContext?.cognitiveStyle as string) ?? "",
+        cognitiveStyle:
+          (courseGenerationContext?.cognitiveStyle as string) ?? "",
         outlineTitle: (courseGenerationContext?.outlineTitle as string) ?? "",
-        outlineData: courseGenerationContext?.outlineData as CourseGenerationContext["outlineData"],
+        outlineData:
+          courseGenerationContext?.outlineData as CourseGenerationContext["outlineData"],
         moduleCount: (courseGenerationContext?.moduleCount as number) ?? 0,
         totalChapters: (courseGenerationContext?.totalChapters as number) ?? 0,
-        currentModuleIndex: (courseGenerationContext?.currentModuleIndex as number) ?? 0,
-        currentChapterIndex: (courseGenerationContext?.currentChapterIndex as number) ?? 0,
-        chaptersGenerated: (courseGenerationContext?.chaptersGenerated as number) ?? 0,
+        currentModuleIndex:
+          (courseGenerationContext?.currentModuleIndex as number) ?? 0,
+        currentChapterIndex:
+          (courseGenerationContext?.currentChapterIndex as number) ?? 0,
+        chaptersGenerated:
+          (courseGenerationContext?.chaptersGenerated as number) ?? 0,
       };
       return createAgentUIStreamResponse({
         agent: courseGenerationAgent,
@@ -74,7 +89,7 @@ export async function POST(request: Request) {
 
     case "SEARCH": {
       return createAgentUIStreamResponse({
-        agent: webSearchChatAgent || chatAgent,
+        agent: chatAgent,
         uiMessages: messages,
         options: { enableWebSearch: true, enableTools: true },
         experimental_transform: smoothStream({

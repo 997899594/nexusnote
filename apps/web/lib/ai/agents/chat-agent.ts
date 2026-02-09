@@ -185,11 +185,14 @@ export const chatAgent = new ToolLoopAgent({
 
     // 编辑模式：仅启用编辑工具
     // 禁用工具模式：不启用任何工具
+    // 联网搜索模式：启用 searchWeb 工具
     let activeTools: Array<keyof typeof chatTools> | undefined;
     if (callOptions.editMode) {
       activeTools = ["editDocument", "batchEdit", "draftContent"];
     } else if (callOptions.enableTools === false) {
       activeTools = []; // 空数组 = 无工具
+    } else if (callOptions.enableWebSearch) {
+      activeTools = ["searchWeb"];
     }
 
     return {
@@ -199,39 +202,6 @@ export const chatAgent = new ToolLoopAgent({
     };
   },
 });
-
-/**
- * Web Search Chat Agent - 使用 302.ai 原生联网搜索模型
- *
- * 与 chatAgent 共享 tools/options/prepareCall，仅模型不同
- * 模型 gemini-3-flash-preview-web-search 自动联网搜索
- */
-export const webSearchChatAgent = webSearchModel
-  ? new ToolLoopAgent({
-      id: "nexusnote-chat-web",
-      model: webSearchModel,
-      tools: chatTools,
-      maxOutputTokens: 4096,
-      callOptionsSchema: ChatCallOptionsSchema,
-      stopWhen: stepCountIs(3),
-      prepareCall: ({ options, ...rest }) => {
-        const callOptions = (options ?? {}) as ChatCallOptions;
-        const instructions = buildInstructions({
-          ...callOptions,
-          enableWebSearch: true,
-        });
-
-        let activeTools: Array<keyof typeof chatTools> | undefined;
-        if (callOptions.editMode) {
-          activeTools = ["editDocument", "batchEdit"];
-        } else if (callOptions.enableTools === false) {
-          activeTools = [];
-        }
-
-        return { ...rest, instructions, activeTools };
-      },
-    })
-  : null;
 
 /**
  * 导出类型：客户端 useChat 泛型参数
