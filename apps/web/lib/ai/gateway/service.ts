@@ -5,11 +5,13 @@ import { routeIntent } from "@/lib/ai/router/route";
 import {
   interviewAgent,
   InterviewContextSchema,
+  type InterviewContext,
 } from "@/lib/ai/agents/interview/agent";
 import { chatAgent, webSearchChatAgent } from "@/lib/ai/agents/chat-agent";
 import {
   courseGenerationAgent,
   CourseGenerationContextSchema,
+  type CourseGenerationContext,
 } from "@/lib/ai/agents/course-generation/agent";
 import { ragService } from "@/lib/ai/rag";
 import { checkRateLimit } from "@/lib/ai/rate-limit";
@@ -132,7 +134,7 @@ export class AIGatewayService {
         return createAgentUIStreamResponse({
           agent: interviewAgent,
           uiMessages: optimizedMessages,
-          options: { ...(context.interviewContext || {}), userId },
+          options: { ...(context.interviewContext || {}), userId } as InterviewContext,
           experimental_transform: smoothStreamConfig,
         });
       }
@@ -141,7 +143,7 @@ export class AIGatewayService {
         return createAgentUIStreamResponse({
           agent: courseGenerationAgent,
           uiMessages: optimizedMessages,
-          options: { ...(context.courseGenerationContext || {}), userId },
+          options: { ...(context.courseGenerationContext || {}), userId } as CourseGenerationContext,
           experimental_transform: smoothStreamConfig,
         });
       }
