@@ -1,6 +1,12 @@
 # syntax=docker/dockerfile:1
 
 # ============================================
+# Build ARGs - 用于控制缓存失效
+# ============================================
+# 每次架构重大变更时，修改 BUILD_CACHE_BUST 的值（如 v1, v2...）
+ARG BUILD_CACHE_BUST=v2
+
+# ============================================
 # Stage 1: Dependencies
 # ============================================
 FROM node:20-alpine AS deps
@@ -29,6 +35,10 @@ WORKDIR /app
 
 RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
 
+# BUILD_CACHE_BUST ARG 用于在架构变更时强制失效构建缓存
+ARG BUILD_CACHE_BUST
+RUN echo "Cache bust: ${BUILD_CACHE_BUST}" > /tmp/cache_bust
+
 # Copy dependencies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
@@ -55,26 +65,24 @@ RUN pnpm --filter @nexusnote/web build
 # ============================================
 # Build Hocuspocus and Worker
 # ============================================
-# 使用 esbuild 将 TypeScript 编译为 JavaScript
-# --external 标记 workspace 包为外部依赖，运行时从 node_modules 加载
-# --platform=node 确保输出 Node.js 兼容代码
-# --bundle 将所有非外部依赖打包到单个文件中
+# 2026 最佳实践：完全打包，不依赖运行时 node_modules
+# --platform=node: 生成 Node.js 兼容代码
+# --bundle: 将所有依赖打包到单个文件
+# --minify: 压缩代码
+# --tree-shaking: 自动移除未使用的代码
+# --target=node20: 针对 Node.js 20 优化
 RUN pnpm --filter @nexusnote/web exec esbuild src/server/hocuspocus.ts \
   --bundle \
   --platform=node \
-  --external:@nexusnote/db \
-  --external:@nexusnote/config \
-  --external:@nexusnote/types \
-  --external:@nexusnote/ui \
+  --minify \
+  --target=node20 \
   --outfile=hocuspocus.js
 
 RUN pnpm --filter @nexusnote/web exec esbuild src/queue/worker.ts \
   --bundle \
   --platform=node \
-  --external:@nexusnote/db \
-  --external:@nexusnote/config \
-  --external:@nexusnote/types \
-  --external:@nexusnote/ui \
+  --minify \
+  --target=node20 \
   --outfile=worker.js
 
 # ============================================
@@ -96,20 +104,9 @@ RUN mkdir -p /app/logs && chown -R nextjs:nodejs /app/logs
 # Copy built application and all dependencies
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
 
-# Copy Hocuspocus and Worker compiled files
+# Copy Hocuspocus and Worker (完全打包，无需额外依赖)
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/hocuspocus.js ./apps/web/
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/worker.js ./apps/web/
-
-# Copy workspace packages for runtime dependency resolution
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/node_modules ./apps/web/node_modules
-COPY --from=builder --chown=nextjs:nodejs /app/packages/node_modules ./packages/node_modules
-
-# Copy workspace dist files for @nexusnote/* imports
-COPY --from=builder --chown=nextjs:nodejs /app/packages/types/dist ./packages/types/dist
-COPY --from=builder --chown=nextjs:nodejs /app/packages/config/dist ./packages/config/dist
-COPY --from=builder --chown=nextjs:nodejs /app/packages/db/dist ./packages/db/dist
-COPY --from=builder --chown=nextjs:nodejs /app/packages/ui/dist ./packages/ui/dist
 
 # Conditional copy for static assets and public folder
 RUN --mount=from=builder,source=/app/apps/web,target=/tmp/web \
