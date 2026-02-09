@@ -106,11 +106,6 @@ RUN adduser --system --uid 1001 nextjs
 # Create logs directory
 RUN mkdir -p /app/logs && chown -R nextjs:nodejs /app/logs
 
-# Debug: 检查 standalone 输出结构
-RUN --mount=from=builder,source=/app/apps/web/.next,target=/tmp/next \
-    ls -la /tmp/next/ && \
-    ls -la /tmp/next/standalone/ || true
-
 # Copy built application and all dependencies
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
 
@@ -136,5 +131,5 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
 # Start application
-CMD ["node", "server.js"]
+CMD ["node", "apps/web/server.js"]
 
