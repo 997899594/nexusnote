@@ -44,14 +44,18 @@ jobs:
             latest
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+        uses: nick-invision/retry@v2
         with:
-          context: .
-          file: apps/web/Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-to: type=gha,mode=max
+          timeout_minutes: 90
+          max_attempts: 3
+          retry_wait_seconds: 60
+          command: |
+            docker buildx build \
+              --file apps/web/Dockerfile \
+              --cache-to type=gha,mode=max \
+              --push \
+              ${{ steps.meta.outputs.tags }} \
+              .
 
   # ============================================
   # 阶段 2：部署到 K3s 集群 (Stateless Deploy)
