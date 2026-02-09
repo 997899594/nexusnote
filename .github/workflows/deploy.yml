@@ -51,11 +51,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
           cache-to: type=gha,mode=max
-          build-args: |
-            BUILD_CACHE_BUST=v2
-            BUILDKIT_INLINE_CACHE=1
 
   # ============================================
   # 阶段 2：部署到 K3s 集群 (Stateless Deploy)

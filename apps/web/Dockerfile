@@ -4,12 +4,17 @@
 # Build ARGs - 用于控制缓存失效
 # ============================================
 # 每次架构重大变更时，修改 BUILD_CACHE_BUST 的值（如 v1, v2...）
+# ARG 必须在第一个 FROM 之前声明才能影响整个构建的所有层
 ARG BUILD_CACHE_BUST=v2
 
 # ============================================
 # Stage 1: Dependencies
 # ============================================
 FROM node:20-alpine AS deps
+
+# BUILD_CACHE_BUST 用于强制失效缓存层
+ARG BUILD_CACHE_BUST
+RUN echo "Cache bust (deps): ${BUILD_CACHE_BUST}" > /tmp/cache_bust
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
