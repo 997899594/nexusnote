@@ -119,6 +119,9 @@ jobs:
             ls -R
             echo "==============================="
 
+            echo "=== Ensuring Namespace exists ==="
+            kubectl create namespace nexusnote --dry-run=client -o yaml | kubectl apply -f -
+
             echo "=== Creating application secrets ==="
             cat <<EOF > secrets.env
             DATABASE_URL=$DATABASE_URL
