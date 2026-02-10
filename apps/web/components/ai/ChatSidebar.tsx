@@ -31,7 +31,6 @@ import {
   findToolCall,
   getMessageContent,
 } from "@/lib/ai/ui-utils";
-// Generative UI Components
 import {
   FlashcardCreated,
   SearchResults,
@@ -65,7 +64,6 @@ import {
 
 type SidebarMode = "chat" | "knowledge";
 
-// 待确认的编辑操作
 interface PendingEdit {
   toolCallId: string;
   action: string;
@@ -91,14 +89,12 @@ export function ChatSidebar() {
   const editorContext = useEditor();
   const noteExtraction = useNoteExtractionOptional();
 
-  // SDK v6: 使用 ChatAgentMessage 泛型实现 typed tool parts
   const { messages, sendMessage, status, stop } = useChat<ChatAgentMessage>({
     id: "chat-sidebar",
   });
 
   const isLoading = status === "streaming" || status === "submitted";
 
-  // 处理编辑工具调用 - 从 typed tool parts 提取待确认的编辑
   useEffect(() => {
     if (!editorContext) return;
 
@@ -107,7 +103,6 @@ export function ChatSidebar() {
     for (const message of messages) {
       if (message.role !== "assistant") continue;
 
-      // 架构师优化：使用统一的工具调用提取逻辑（类型安全）
       const toolCalls = getToolCalls(message);
       for (const tool of toolCalls) {
         const { toolName, output, toolCallId, state } = tool;
@@ -121,9 +116,7 @@ export function ChatSidebar() {
 
         if (appliedEdits.has(toolCallId)) continue;
 
-        // output-available = 工具执行完成
         if (state === "output-available" && output) {
-          // 单个编辑
           if (toolName === "editDocument") {
             const editOutput = output as EditDocumentOutput;
             const originalContent = getOriginalContent(
@@ -142,7 +135,6 @@ export function ChatSidebar() {
             });
           }
 
-          // 批量编辑
           if (toolName === "batchEdit") {
             const batchOutput = output as BatchEditOutput;
             const edits = batchOutput.edits;
@@ -159,12 +151,11 @@ export function ChatSidebar() {
                 action: "batch",
                 targetId: "multiple",
                 explanation: batchOutput.explanation || "批量修改文档内容",
-                originalContent, // 保存第一个编辑的原始内容用于展示
+                originalContent,
               });
             }
           }
 
-          // 草稿生成
           if (toolName === "draftContent") {
             const draftOutput = output as DraftContentOutput;
             newPendingEdits.set(toolCallId, {
@@ -243,7 +234,6 @@ export function ChatSidebar() {
 
   const insertToEditor = (text: string) => {
     if (!editorContext?.editor) return;
-    // 直接插入纯文本或简单的Markdown，不使用legacy convert
     editorContext.editor.chain().focus().insertContent(text).run();
   };
 
@@ -253,7 +243,6 @@ export function ChatSidebar() {
     } catch (err) {}
   };
 
-  // 渲染工具输出结果 UI
   const renderToolOutput = (
     toolName: string,
     output: unknown,
@@ -326,7 +315,6 @@ export function ChatSidebar() {
         };
         if (res.success && res.quiz) {
           const quiz = res.quiz;
-          // 如果有实际的题目数据，使用 QuizResult 组件
           if (quiz.questions && quiz.questions.length > 0) {
             return (
               <QuizResult
@@ -336,10 +324,9 @@ export function ChatSidebar() {
               />
             );
           }
-          // 否则显示简化版本（保持向后兼容）
           return (
-            <div className="p-3 bg-violet-50 dark:bg-violet-950/30 rounded-xl border border-violet-200 dark:border-violet-800">
-              <p className="text-xs font-medium text-violet-700 dark:text-violet-300">
+            <div className="glass glass-lg p-3 rounded-2xl border-l-4 border-primary/50">
+              <p className="text-xs font-semibold text-primary">
                 📝 生成测验：{quiz.topic}
               </p>
               <p className="text-[10px] text-muted-foreground mt-1">
@@ -362,7 +349,6 @@ export function ChatSidebar() {
         };
         if (res.success && res.mindMap) {
           const mm = res.mindMap;
-          // 如果有实际的节点数据，使用 MindMapView 组件
           if (mm.nodes && mm.nodes.length > 0) {
             return (
               <MindMapView
@@ -372,10 +358,9 @@ export function ChatSidebar() {
               />
             );
           }
-          // 否则显示简化版本（保持向后兼容）
           return (
-            <div className="p-3 bg-indigo-50 dark:bg-indigo-950/30 rounded-xl border border-indigo-200 dark:border-indigo-800">
-              <p className="text-xs font-medium text-indigo-700 dark:text-indigo-300">
+            <div className="glass glass-lg p-3 rounded-2xl border-l-4 border-primary/50">
+              <p className="text-xs font-semibold text-primary">
                 🧠 思维导图：{mm.topic}
               </p>
               <p className="text-[10px] text-muted-foreground mt-1">
@@ -399,7 +384,6 @@ export function ChatSidebar() {
         };
         if (res.success && res.summary) {
           const s = res.summary;
-          // 如果有实际的摘要内容，使用 SummaryResult 组件
           if (s.content && s.length) {
             return (
               <SummaryResult
@@ -410,10 +394,9 @@ export function ChatSidebar() {
               />
             );
           }
-          // 否则显示简化版本
           return (
-            <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl border border-emerald-200 dark:border-emerald-800">
-              <p className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
+            <div className="glass glass-lg p-3 rounded-2xl border-l-4 border-primary/50">
+              <p className="text-xs font-semibold text-primary">
                 📄 生成摘要中...
               </p>
               <p className="text-[10px] text-muted-foreground mt-1">
@@ -443,8 +426,8 @@ export function ChatSidebar() {
           );
         }
         return (
-          <div className="p-3 bg-red-50 dark:bg-red-950/30 rounded-xl border border-red-200 dark:border-red-800">
-            <p className="text-xs text-red-600 dark:text-red-400">
+          <div className="glass glass-lg p-3 rounded-2xl border-l-4 border-destructive/50">
+            <p className="text-xs text-destructive">
               🔍 搜索失败：{res.message || "未知错误"}
             </p>
           </div>
@@ -455,7 +438,6 @@ export function ChatSidebar() {
     return null;
   };
 
-  // 渲染工具加载状态 UI（骨架屏）
   const renderToolLoading = (toolName: string, _toolCallId: string) => {
     switch (toolName) {
       case "generateQuiz":
@@ -465,46 +447,51 @@ export function ChatSidebar() {
       case "summarize":
         return <SummarySkeleton style="bullet_points" length="medium" />;
       default:
-        return null; // 使用默认加载指示器
+        return null;
     }
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-transparent">
-      {/* Mode Tabs */}
-      <div className="flex px-8 pt-8 gap-3 flex-shrink-0 mb-6">
+    <div className="flex-1 flex flex-col min-h-0 bg-transparent" role="region" aria-label="AI 聊天面板">
+      <div className="flex px-4 xs:px-6 md:px-8 pt-6 xs:pt-8 gap-2 xs:gap-3 flex-shrink-0 mb-4 xs:mb-6" role="tablist" aria-label="聊天模式选择">
         {(["chat", "knowledge"] as const).map((m) => (
           <button
             key={m}
             onClick={() => setMode(m)}
-            className={`flex-1 flex items-center justify-center gap-3 py-4 rounded-[24px] text-[11px] font-black uppercase tracking-widest transition-all duration-500 relative overflow-hidden group ${
+            role="tab"
+            aria-selected={mode === m}
+            aria-controls={`${m}-panel`}
+            className={`flex-1 flex items-center justify-center gap-2 xs:gap-3 py-3 xs:py-4 rounded-[20px] xs:rounded-[24px] text-[10px] xs:text-[11px] font-black uppercase tracking-widest transition-all duration-500 relative overflow-hidden group touch-safe min-h-[44px] ${
               mode === m
-                ? "text-black bg-white shadow-2xl shadow-black/5"
-                : "text-black/20 hover:text-black/40 hover:bg-black/[0.02]"
+                ? "bg-surface text-foreground shadow-float"
+                : "text-muted-foreground/40 hover:text-muted-foreground/60 hover:bg-surface/50"
             }`}
           >
             {m === "chat" && (
               <MessageSquare
-                className={`w-4 h-4 transition-transform duration-500 ${
+                className={`w-3.5 h-3.5 xs:w-4 xs:h-4 transition-transform duration-500 ${
                   mode === m ? "scale-110" : "group-hover:scale-110"
                 }`}
               />
             )}
             {m === "knowledge" && (
               <Lightbulb
-                className={`w-4 h-4 transition-transform duration-500 ${
+                className={`w-3.5 h-3.5 xs:w-4 xs:h-4 transition-transform duration-500 ${
                   mode === m ? "scale-110" : "group-hover:scale-110"
                 }`}
               />
             )}
-            <span className="relative z-10">
+            <span className="relative z-10 hidden xs:inline">
               {m === "chat" ? "智能对话" : "原子知识"}
+            </span>
+            <span className="relative z-10 xs:hidden">
+              {m === "chat" ? "对话" : "知识"}
             </span>
 
             {mode === m && (
               <motion.div
                 layoutId="active-sidebar-tab"
-                className="absolute inset-0 bg-gradient-to-br from-violet-500/[0.02] to-emerald-500/[0.02] z-[-1]"
+                className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/[0.02] z-[-1]"
                 transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
               />
             )}
@@ -516,8 +503,7 @@ export function ChatSidebar() {
         {mode === "knowledge" && <KnowledgePanel />}
         {mode === "chat" && (
           <>
-            {/* Context Control - Premium Glass Tile */}
-            <div className="mx-8 mb-6 p-1 rounded-[32px] bg-black/[0.02] border border-black/[0.03] grid grid-cols-2 gap-1">
+            <div className="mx-4 xs:mx-6 md:mx-8 mb-4 xs:mb-6 p-1 rounded-[24px] xs:rounded-[32px] bg-surface/50 border border-border/50 grid grid-cols-2 gap-1" role="group" aria-label="上下文控制">
               {[
                 {
                   id: "doc",
@@ -553,31 +539,32 @@ export function ChatSidebar() {
                   key={control.id}
                   onClick={control.onClick}
                   disabled={control.disabled}
-                  className={`flex flex-col items-center justify-center p-4 rounded-[28px] transition-all duration-500 relative group ${
+                  aria-label={control.label}
+                  aria-pressed={control.active}
+                  className={`flex flex-col items-center justify-center p-3 xs:p-4 rounded-[20px] xs:rounded-[28px] transition-all duration-500 relative group touch-safe min-h-[44px] ${
                     control.active
-                      ? "bg-white shadow-xl shadow-black/[0.02] text-black"
-                      : "text-black/20 hover:text-black/40"
+                      ? "bg-surface shadow-float text-foreground"
+                      : "text-muted-foreground/30 hover:text-muted-foreground/50"
                   } ${control.disabled ? "opacity-20 grayscale cursor-not-allowed" : ""}`}
                 >
                   <control.icon
-                    className={`w-4 h-4 mb-2 transition-transform duration-500 ${
+                    className={`w-3.5 h-3.5 xs:w-4 xs:h-4 mb-1 xs:mb-2 transition-transform duration-500 ${
                       control.active ? "scale-110" : "group-hover:scale-110"
                     }`}
                   />
-                  <span className="text-[9px] font-black uppercase tracking-widest leading-none">
+                  <span className="text-[8px] xs:text-[9px] font-black uppercase tracking-widest leading-none">
                     {control.label}
                   </span>
                   {control.active && (
                     <motion.div
                       layoutId="active-control-dot"
-                      className="absolute top-3 right-3 w-1 h-1 rounded-full bg-emerald-500"
+                      className="absolute top-2 xs:top-3 right-2 xs:right-3 w-1 h-1 rounded-full bg-primary"
                     />
                   )}
                 </button>
               ))}
             </div>
 
-            {/* Unified Chat UI */}
             <UnifiedChatUI
               messages={messages}
               isLoading={isLoading}
@@ -590,20 +577,18 @@ export function ChatSidebar() {
               renderToolOutput={renderToolOutput}
               renderToolLoading={renderToolLoading}
               renderMessage={(message, _text, isUser) => {
-                // 使用架构师标准提取消息文本，处理多模态和 Schema-First 输出
                 const content = getMessageContent(message);
 
                 if (isUser) {
                   return (
                     <div className="flex justify-end mb-4">
-                      <div className="max-w-[85%] bg-neutral-100 dark:bg-neutral-800 rounded-2xl px-4 py-2 text-sm text-neutral-800 dark:text-neutral-200">
+                      <div className="max-w-[85%] bg-surface rounded-2xl px-4 py-2 text-sm text-foreground shadow-glass">
                         {content}
                       </div>
                     </div>
                   );
                 }
 
-                // 架构师优化：检查是否有待处理的编辑
                 const toolCalls = getToolCalls(message);
                 const hasPendingEdit = toolCalls.some(
                   (t) =>
@@ -614,19 +599,18 @@ export function ChatSidebar() {
                 );
 
                 return (
-                  <div className="mb-4">
+                  <div className="mb-4" role="article">
                     <div className="flex items-start gap-2 mb-1">
-                      <div className="w-6 h-6 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
-                        <Sparkles className="w-3.5 h-3.5 text-violet-600" />
+                      <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center" aria-hidden="true">
+                        <Sparkles className="w-3.5 h-3.5 text-primary" />
                       </div>
-                      <div className="text-[11px] font-medium text-neutral-400 mt-1 uppercase tracking-wider">
+                      <div className="text-[11px] font-medium text-muted-foreground mt-1 uppercase tracking-wider">
                         Assistant
                       </div>
                     </div>
                     <div className="pl-8">
-                      {/* 如果有待确认的编辑，不重复渲染文本内容，由 renderToolOutput 接管渲染确认卡片 */}
                       {!hasPendingEdit && (
-                        <div className="text-sm text-neutral-700 dark:text-neutral-300 leading-relaxed prose prose-sm dark:prose-invert max-w-none">
+                        <div className="text-sm text-foreground/80 leading-relaxed prose prose-sm max-w-none">
                           {content || (isLoading ? "正在深思熟虑..." : "")}
                         </div>
                       )}
@@ -635,18 +619,18 @@ export function ChatSidebar() {
                 );
               }}
               renderEmpty={() => (
-                <div className="h-full flex flex-col items-center justify-center text-center px-12 opacity-30">
-                  <div className="w-24 h-24 rounded-[40px] bg-gradient-to-br from-violet-500/10 to-emerald-500/10 flex items-center justify-center mb-8 relative">
-                    <Ghost className="w-10 h-10 text-violet-500 animate-pulse" />
-                    <div className="absolute inset-0 rounded-[40px] border border-black/5 animate-ping [animation-duration:3s]" />
+                <div className="h-full flex flex-col items-center justify-center text-center px-6 xs:px-12 opacity-40" role="status" aria-live="polite">
+                  <div className="w-16 xs:w-20 md:w-24 h-16 xs:h-20 md:h-24 rounded-[32px] xs:rounded-[40px] bg-gradient-to-br from-primary/10 to-primary/[0.02] flex items-center justify-center mb-6 xs:mb-8 relative" aria-hidden="true">
+                    <Ghost className="w-8 h-8 xs:w-10 xs:h-10 text-primary animate-pulse" />
+                    <div className="absolute inset-0 rounded-[32px] xs:rounded-[40px] border border-border/20 animate-ping [animation-duration:3s]" />
                   </div>
-                  <h3 className="text-lg font-black text-black tracking-tight mb-2">
+                  <h3 className="text-sm xs:text-base md:text-lg font-black text-foreground tracking-tight mb-2">
                     准备好深度内化了吗？
                   </h3>
-                  <p className="text-xs font-medium leading-relaxed">
+                  <p className="text-[10px] xs:text-xs font-medium leading-relaxed text-muted-foreground">
                     我可以帮您总结要点、提取知识原子，或者针对当前内容进行辩论。
                   </p>
-                  <div className="grid grid-cols-1 gap-2 w-full mt-8">
+                  <div className="grid grid-cols-1 gap-2 w-full mt-6 xs:mt-8" role="list">
                     {[
                       "总结当前章节核心逻辑",
                       "基于此内容生成 3 个自测题",
@@ -655,7 +639,8 @@ export function ChatSidebar() {
                       <button
                         key={i}
                         onClick={() => setInput(q)}
-                        className="px-4 py-3 rounded-2xl bg-black/5 hover:bg-black hover:text-white transition-all text-[10px] font-black uppercase tracking-widest text-black/40"
+                        className="px-3 xs:px-4 py-3 xs:py-4 rounded-2xl bg-surface/50 hover:bg-primary hover:text-primary-foreground transition-all text-[9px] xs:text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 touch-safe min-h-[44px]"
+                        aria-label={`发送问题：${q}`}
                       >
                         {q}
                       </button>
@@ -684,11 +669,11 @@ function Switch({
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`w-9 h-5 rounded-full transition-all duration-500 p-0.5 relative flex items-center ${active ? "bg-violet-600" : "bg-black/10 dark:bg-white/10"} ${disabled ? "opacity-30 grayscale cursor-not-allowed" : ""}`}
+      className={`w-9 h-5 rounded-full transition-all duration-500 p-0.5 relative flex items-center touch-safe min-h-[20px] ${active ? "bg-primary" : "bg-muted"} ${disabled ? "opacity-30 grayscale cursor-not-allowed" : ""}`}
     >
       <motion.div
         animate={{ x: active ? 16 : 0 }}
-        className="w-4 h-4 rounded-full bg-white shadow-sm"
+        className="w-4 h-4 rounded-full bg-surface shadow-sm"
       />
     </button>
   );

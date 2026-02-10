@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
+import { motion, useMotionValue, PanInfo } from "framer-motion";
 import type { DynamicToolUIPart } from "ai";
 import type { OutlineData } from "@/lib/ai/types/course";
 import { UnifiedChatUI } from "@/components/ai/UnifiedChatUI";
@@ -26,8 +27,10 @@ import {
   ArrowRight,
   ArrowLeft,
   Menu,
+  X,
+  ChevronRight,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import type { CourseGenerationAgentMessage } from "@/lib/ai/agents/course-generation/agent";
 import type { ChatAgentMessage } from "@/lib/ai/agents/chat-agent";
 import {
@@ -38,6 +41,7 @@ import {
 } from "@/lib/ai/tools/types";
 import { getMessageContent } from "@/lib/ai/ui-utils";
 import { MessageResponse } from "@/components/ai/Message";
+import { cn } from "@/lib/utils";
 
 interface LearnPageClientProps {
   courseId: string;
@@ -54,15 +58,44 @@ export default function LearnPageClient({
   const [currentChapterId, setCurrentChapterId] = useState<string | null>(null);
   const [chapters, setChapters] = useState<CourseChapterDTO[]>([]);
   const [isGenerationComplete, setIsGenerationComplete] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isChatOpen, setIsChatOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
-  // 防止并发生成的 ref
+  const leftSidebarX = useMotionValue(0);
+  const rightSidebarX = useMotionValue(0);
+
+  const handleLeftDragEnd = (_: any, info: PanInfo) => {
+    const threshold = 100;
+    if (info.offset.x < -threshold) {
+      setIsSidebarOpen(false);
+    } else {
+      leftSidebarX.set(0);
+    }
+  };
+
+  const handleRightDragEnd = (_: any, info: PanInfo) => {
+    const threshold = 100;
+    if (info.offset.x > threshold) {
+      setIsChatOpen(false);
+    } else {
+      rightSidebarX.set(0);
+    }
+  };
+
+  const closeLeftSidebar = () => {
+    setIsSidebarOpen(false);
+    leftSidebarX.set(0);
+  };
+
+  const closeRightSidebar = () => {
+    setIsChatOpen(false);
+    rightSidebarX.set(0);
+  };
+
   const generatingChapterRef = useRef<Set<string>>(new Set());
   const generationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
 
-  // 课程生成用的 useChat（不显示在聊天框）
   const {
     messages: generationMessages,
     sendMessage: generateChapter,
@@ -71,7 +104,6 @@ export default function LearnPageClient({
     id: `course-generation-${courseId}`,
   });
 
-  // 加载章节的函数
   const loadChapters = useCallback(async () => {
     try {
       const result = await getCourseChaptersAction(courseId);
@@ -85,12 +117,10 @@ export default function LearnPageClient({
     }
   }, [courseId]);
 
-  // 初始加载已生成的章节
   useEffect(() => {
     loadChapters();
   }, [loadChapters]);
 
-  // 1. 路由优先：当章节列表加载完成，或 URL 参数变化时，同步当前索引
   useEffect(() => {
     const chapterIdFromUrl = searchParams.get("chapterId");
     if (chapters.length > 0) {
@@ -100,7 +130,6 @@ export default function LearnPageClient({
           setCurrentChapterId(chapter.id);
         }
       } else if (!currentChapterId) {
-        // 如果 URL 没带 ID 且当前未选中，默认选中第一个已生成的章节
         const firstGenerated = [...chapters].sort(
           (a, b) => a.chapterIndex - b.chapterIndex,
         )[0];
@@ -111,12 +140,10 @@ export default function LearnPageClient({
     }
   }, [chapters, searchParams, currentChapterId]);
 
-  // 2. 状态同步：当用户切换章节时，静默更新 URL
   useEffect(() => {
     const currentChapter = chapters.find((c) => c.id === currentChapterId);
     if (currentChapter?.id) {
       const newUrl = `${window.location.pathname}?chapterId=${currentChapter.id}`;
-      // 使用 replaceState 静默更新 URL，不触发页面刷新
       window.history.replaceState(
         { ...window.history.state, as: newUrl, url: newUrl },
         "",
@@ -130,7 +157,6 @@ export default function LearnPageClient({
     [courseProfile.outlineData],
   );
 
-  // 课程大纲中的总章节数
   const totalChapters = useMemo(() => {
     return (
       outline?.modules
@@ -139,7 +165,6 @@ export default function LearnPageClient({
     );
   }, [outline]);
 
-  // 进度同步：当用户切换章节时，同步到服务器
   useEffect(() => {
     const syncProgress = async () => {
       const currentChapter = chapters.find((c) => c.id === currentChapterId);
@@ -154,7 +179,6 @@ export default function LearnPageClient({
     syncProgress();
   }, [courseId, currentChapterId, chapters.length]);
 
-  // 监听课程生成消息，重新从数据库加载章节
   useEffect(() => {
     const lastMessage = generationMessages[generationMessages.length - 1];
     if (!lastMessage) return;
@@ -174,17 +198,13 @@ export default function LearnPageClient({
 
     if (toolCall) {
       const { chapterIndex, sectionIndex } = toolCall.output;
-
       console.log(
         `[Stream Update] 新章节已保存: Chapter ${chapterIndex}-${sectionIndex}`,
       );
-
-      // 重新从数据库加载所有章节
       loadChapters();
     }
   }, [generationMessages, loadChapters]);
 
-  // 聊天用的 useChat（右边 Chat）
   const {
     messages: chatMessages,
     sendMessage: chatSend,
@@ -196,26 +216,20 @@ export default function LearnPageClient({
   const isChatLoading =
     chatStatus === "streaming" || chatStatus === "submitted";
 
-  // 提取当前章节正在生成的思考过程
   const currentThinking = useMemo(() => {
     if (generationStatus !== "streaming" && generationStatus !== "submitted")
       return null;
     const lastMessage = generationMessages[generationMessages.length - 1];
-    // @ts-ignore - reasoning is added by extractReasoningMiddleware
     return lastMessage?.reasoning || null;
   }, [generationMessages, generationStatus]);
 
-  // 按需生成驱动逻辑 (On-Demand Generation)
-  // 当用户选中的章节不存在时，触发生成
   useEffect(() => {
     if (generationStatus !== "ready") return;
 
-    // 检查当前选中的章节是否已生成
     const chapterToGenerate: CourseChapterDTO | undefined = chapters.find(
       (c) => c.id === currentChapterId,
     );
 
-    // 如果未生成且没有正在生成，则触发当前章节的生成
     if (
       chapterToGenerate &&
       currentChapterId &&
@@ -225,10 +239,8 @@ export default function LearnPageClient({
         `[On-Demand] Triggering generation for Chapter ${currentChapterId}...`,
       );
 
-      // 标记为正在生成
       generatingChapterRef.current.add(currentChapterId);
 
-      // 保存 chapterId 到闭包中
       const chapterIdToGenerate = currentChapterId;
 
       generateChapter(
@@ -256,12 +268,11 @@ export default function LearnPageClient({
         },
       );
 
-      // 设置超时清理（防止永久锁定）
       const timeoutId = setTimeout(() => {
         if (chapterIdToGenerate) {
           generatingChapterRef.current.delete(chapterIdToGenerate);
         }
-      }, 60000); // 60秒后清理锁定
+      }, 60000);
 
       return () => clearTimeout(timeoutId);
     }
@@ -276,7 +287,6 @@ export default function LearnPageClient({
     outline,
   ]);
 
-  // 获取章节全局索引的辅助函数
   const getGlobalChapterIndex = useCallback(
     (mIdx: number, cIdx: number) => {
       return (
@@ -299,7 +309,6 @@ export default function LearnPageClient({
     return chapter?.chapterIndex ?? 0;
   }, [currentChapterId, chapters]);
 
-  // 渲染工具输出结果 UI
   const renderToolOutput = (
     toolName: string,
     output: unknown,
@@ -312,7 +321,6 @@ export default function LearnPageClient({
         const res = output as QuizOutput;
         if (res.success && res.quiz) {
           const quiz = res.quiz;
-          // 如果工具已经返回了题目，直接渲染 QuizResult
           if (quiz.questions && quiz.questions.length > 0) {
             return (
               <QuizResult
@@ -322,13 +330,12 @@ export default function LearnPageClient({
               />
             );
           }
-          // 否则渲染一个提示卡片
           return (
-            <div className="p-3 bg-violet-50 dark:bg-violet-950/30 rounded-xl border border-violet-200 dark:border-violet-800">
-              <p className="text-xs font-medium text-violet-700 dark:text-violet-300">
+            <div className="p-3 bg-primary/10 rounded-xl border border-primary/20">
+              <p className="text-xs font-medium text-primary">
                 📝 生成测验：{quiz.topic}
               </p>
-              <p className="text-[10px] text-muted-foreground mt-1">
+              <p className="text-[10px] text-foreground/60 mt-1">
                 难度：
                 {quiz.difficulty === "easy"
                   ? "简单"
@@ -358,8 +365,8 @@ export default function LearnPageClient({
             );
           }
           return (
-            <div className="p-3 bg-indigo-50 dark:bg-indigo-950/30 rounded-xl border border-indigo-200 dark:border-indigo-800">
-              <p className="text-xs font-medium text-indigo-700 dark:text-indigo-300">
+            <div className="p-3 bg-primary/10 rounded-xl border border-primary/20">
+              <p className="text-xs font-medium text-primary">
                 🧠 思维导图：{mm.topic}
               </p>
             </div>
@@ -402,48 +409,24 @@ export default function LearnPageClient({
     return null;
   };
 
-  // 2026 现代化组件：思考轨迹显示
   const ThinkingTrail = ({ thinking }: { thinking: string | null }) => {
     return (
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-12 p-8 bg-gradient-to-br from-black/[0.03] to-transparent border border-black/[0.05] rounded-[2.5rem] relative overflow-hidden group backdrop-blur-md"
+        className="mb-8 md:mb-12 p-6 md:p-8 bg-gradient-to-br from-primary/5 to-transparent border border-black/5 rounded-2xl md:rounded-[2.5rem] relative overflow-hidden group backdrop-blur-md"
       >
-        {/* 动态流动背景 */}
-        <div className="absolute inset-0 opacity-10 pointer-events-none">
-          <motion.div
-            animate={{
-              background: [
-                "radial-gradient(circle at 20% 20%, rgba(0,0,0,0.1) 0%, transparent 40%)",
-                "radial-gradient(circle at 80% 80%, rgba(0,0,0,0.1) 0%, transparent 40%)",
-                "radial-gradient(circle at 20% 20%, rgba(0,0,0,0.1) 0%, transparent 40%)",
-              ],
-            }}
-            transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-            className="w-full h-full"
-          />
-        </div>
-
-        <div className="flex items-center justify-between mb-8 relative z-10">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-2xl bg-black flex items-center justify-center shadow-xl shadow-black/10 transform group-hover:rotate-12 transition-transform duration-500">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-black/80 block leading-none mb-1.5">
-                Cognitive Matrix
-              </span>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold text-black/20 uppercase tracking-widest block">
-                  Fluid Engine 2026
-                </span>
-                <div className="w-1 h-1 rounded-full bg-black/10" />
-                <span className="text-[10px] font-bold text-black/40 uppercase tracking-widest block">
-                  Processing...
-                </span>
-              </div>
-            </div>
+        <div className="flex items-center gap-3 md:gap-4 mb-6 md:mb-8 relative z-10">
+          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
+            <Sparkles className="w-5 h-5 text-primary-foreground" />
+          </div>
+          <div>
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-foreground/60 block leading-none mb-1">
+              认知矩阵
+            </span>
+            <span className="text-[10px] font-bold text-foreground/30 uppercase tracking-widest block">
+              正在处理...
+            </span>
           </div>
         </div>
 
@@ -452,14 +435,14 @@ export default function LearnPageClient({
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="text-lg text-black/80 italic leading-relaxed font-medium font-serif"
+              className="text-base md:text-lg text-foreground/80 italic leading-relaxed font-medium font-serif"
             >
               {thinking}
             </motion.p>
           ) : (
             <div className="flex flex-col gap-3">
-              <div className="h-5 bg-black/5 rounded-full w-[85%] animate-pulse" />
-              <div className="h-5 bg-black/5 rounded-full w-[60%] animate-pulse" />
+              <div className="h-5 bg-foreground/5 rounded-full w-[85%] animate-pulse" />
+              <div className="h-5 bg-foreground/5 rounded-full w-[60%] animate-pulse" />
             </div>
           )}
         </div>
@@ -468,8 +451,7 @@ export default function LearnPageClient({
   };
 
   return (
-    <div className="min-h-screen bg-[#FDFDFD] relative overflow-hidden font-sans selection:bg-black/10 selection:text-black flex flex-col">
-      {/* Organic Noise Texture */}
+    <div className="min-h-screen bg-background relative overflow-hidden font-sans selection:bg-primary/10 selection:text-foreground flex flex-col">
       <div
         className="absolute inset-0 z-0 opacity-[0.02] pointer-events-none"
         style={{
@@ -480,218 +462,62 @@ export default function LearnPageClient({
       <OrganicHeader />
 
       <div className="flex-1 flex relative z-10 pt-16 overflow-hidden">
-        {/* Left Sidebar: Navigation */}
-        <AnimatePresence mode="wait">
-          {isSidebarOpen && (
-            <motion.aside
-              initial={{ x: -300, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: -300, opacity: 0 }}
-              className="w-80 border-r border-black/[0.04] bg-white/40 backdrop-blur-2xl flex flex-col z-30"
-            >
-              <div className="p-8 border-b border-black/[0.04]">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-[10px] font-black text-black/30 uppercase tracking-[0.2em]">
-                    Course Syllabus
-                  </h2>
-                  <div className="px-2 py-0.5 rounded bg-black/5 text-[10px] font-bold text-black/40">
-                    2026 EDITION
-                  </div>
-                </div>
+        <LeftDrawer
+          isOpen={isSidebarOpen}
+          onClose={closeLeftSidebar}
+          courseProfile={courseProfile}
+          chapters={chapters}
+          totalChapters={totalChapters}
+          currentChapterId={currentChapterId}
+          setCurrentChapterId={setCurrentChapterId}
+          outline={outline}
+          getGlobalChapterIndex={getGlobalChapterIndex}
+          generatingChapterRef={generatingChapterRef}
+          dragX={leftSidebarX}
+          onDragEnd={handleLeftDragEnd}
+        />
 
-                <h3 className="text-xl font-black text-black leading-tight mb-6">
-                  {courseProfile.title}
-                </h3>
+        <main className="flex-1 flex flex-col relative overflow-hidden bg-background">
+          <CourseHeader
+            currentChapter={currentChapter}
+            currentChapterIndex={currentChapterIndex}
+            isSidebarOpen={isSidebarOpen}
+            isChatOpen={isChatOpen}
+            onMenuClick={() => setIsSidebarOpen(true)}
+            onChatClick={() => setIsChatOpen(true)}
+          />
 
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest mb-1">
-                    <span className="text-black">Overall Progress</span>
-                    <span className="text-black/40">
-                      {Math.round((chapters.length / totalChapters) * 100)}%
-                    </span>
-                  </div>
-                  <div className="h-1 bg-black/5 rounded-full overflow-hidden">
-                    <motion.div
-                      className="h-full bg-black"
-                      initial={{ width: 0 }}
-                      animate={{
-                        width: `${(chapters.length / totalChapters) * 100}%`,
-                      }}
-                      transition={{ duration: 1, ease: "circOut" }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <nav className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-                {outline.modules?.map((module, mIdx) => (
-                  <div key={mIdx} className="mb-10 last:mb-0">
-                    <div className="px-4 mb-4 flex items-center gap-3">
-                      <span className="text-[10px] font-black text-black uppercase tracking-[0.2em]">
-                        {String(mIdx + 1).padStart(2, "0")}
-                      </span>
-                      <h4 className="text-[10px] font-black text-black/20 uppercase tracking-[0.1em] truncate">
-                        {module.title}
-                      </h4>
-                    </div>
-
-                    <div className="space-y-1">
-                      {module.chapters.map((chapter, cIdx) => {
-                        // 使用优化的辅助函数计算全局索引
-                        const globalIdx = getGlobalChapterIndex(mIdx, cIdx);
-
-                        // 找到对应的已生成章节（如果存在）
-                        const generatedChapter = chapters.find(
-                          (c) => c.chapterIndex === globalIdx,
-                        );
-                        const isGenerated = !!generatedChapter;
-                        const isActive =
-                          currentChapterId === generatedChapter?.id;
-                        const isGenerating = generatedChapter
-                          ? generatingChapterRef.current.has(
-                              generatedChapter.id,
-                            )
-                          : false;
-
-                        return (
-                          <button
-                            key={cIdx}
-                            onClick={() => {
-                              if (generatedChapter) {
-                                setCurrentChapterId(generatedChapter.id);
-                              }
-                            }}
-                            className={`w-full group flex items-center gap-4 px-4 py-3 rounded-2xl transition-all duration-500 relative ${
-                              isActive
-                                ? "bg-black text-white shadow-2xl shadow-black/20 translate-x-1"
-                                : isGenerating
-                                  ? "bg-violet-50 text-violet-700 animate-pulse"
-                                  : isGenerated
-                                    ? "hover:bg-black/[0.03] text-black/60 hover:text-black"
-                                    : "hover:bg-violet-50 text-neutral-400 hover:text-violet-700"
-                            }`}
-                          >
-                            <div className="relative flex-shrink-0">
-                              {isGenerating ? (
-                                <div className="w-2 h-2 rounded-full bg-violet-500 animate-ping" />
-                              ) : isGenerated ? (
-                                <div
-                                  className={`w-2 h-2 rounded-full ${isActive ? "bg-white" : "bg-black/20 group-hover:bg-black"}`}
-                                />
-                              ) : (
-                                <div className="w-2 h-2 rounded-full border-2 border-dashed border-neutral-300 group-hover:border-violet-400" />
-                              )}
-                            </div>
-
-                            <div className="flex-1 text-left min-w-0">
-                              <div className="text-sm font-bold truncate">
-                                {chapter.title}
-                              </div>
-                              {!isGenerated && !isGenerating && (
-                                <div className="text-[10px] opacity-70 group-hover:opacity-100">
-                                  点击生成
-                                </div>
-                              )}
-                            </div>
-
-                            {isActive && (
-                              <motion.div
-                                layoutId="active-indicator"
-                                className="absolute left-0 w-1 h-4 bg-white rounded-full -translate-x-0.5"
-                              />
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </nav>
-
-              <div className="p-6 mt-auto">
-                <button
-                  onClick={() => router.push("/create")}
-                  className="flex items-center justify-center gap-3 w-full py-4 rounded-2xl bg-black/5 hover:bg-black text-black/40 hover:text-white text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-500 group"
-                >
-                  <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                  Exit To Lab
-                </button>
-              </div>
-            </motion.aside>
-          )}
-        </AnimatePresence>
-
-        {/* Main Content Area */}
-        <main className="flex-1 flex flex-col relative overflow-hidden bg-white">
-          {/* Content Header */}
-          <header className="h-16 border-b border-black/[0.04] flex items-center justify-between px-8 bg-white/80 backdrop-blur-md sticky top-0 z-20">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="p-2 rounded-lg hover:bg-black/5 text-black/40 hover:text-black transition-colors"
-              >
-                <Menu className="w-5 h-5" />
-              </button>
-              <div className="h-4 w-px bg-black/10 mx-2" />
-              <div className="flex flex-col">
-                <div className="text-[10px] font-bold text-black/30 uppercase tracking-widest leading-none mb-1">
-                  正在学习
-                </div>
-                <h1 className="text-sm font-bold text-black truncate max-w-[400px]">
-                  {currentChapter?.title || "等待内容生成..."}
-                </h1>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setIsChatOpen(!isChatOpen)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all ${
-                  isChatOpen
-                    ? "bg-black text-white shadow-lg shadow-black/10"
-                    : "bg-black/5 text-black/60 hover:bg-black/10"
-                }`}
-              >
-                <Sparkles
-                  className={`w-3.5 h-3.5 ${isChatOpen ? "animate-pulse" : ""}`}
-                />
-                智能助手
-              </button>
-            </div>
-          </header>
-
-          <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar bg-[#F9F9F9]">
-            <div className="mx-auto max-w-4xl px-12 py-20">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar bg-surface-50/30">
+            <div className="mx-auto max-w-4xl px-6 md:px-12 py-16 md:py-20 pb-safe-bottom">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={currentChapterId || "empty"}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                  className="space-y-16"
+                  className="space-y-12 md:space-y-16"
                 >
                   {!currentChapter ? (
-                    <div className="flex flex-col items-center justify-center py-20 text-center">
+                    <div className="flex flex-col items-center justify-center py-12 md:py-20 text-center">
                       <ThinkingTrail thinking={currentThinking} />
-                      <div className="mt-8 space-y-2">
-                        <h3 className="text-2xl font-black text-black tracking-tight">
+                      <div className="mt-6 md:mt-8 space-y-2">
+                        <h3 className="text-xl md:text-2xl font-black text-foreground tracking-tight">
                           正在为您编排知识...
                         </h3>
-                        <p className="text-black/40 text-sm font-medium">
+                        <p className="text-foreground/40 text-sm font-medium">
                           AI 正在构建第 {currentChapterIndex + 1} 章节的深度内容
                         </p>
                       </div>
                     </div>
                   ) : (
                     <article className="relative">
-                      {/* 章节标题系统 */}
-                      <div className="mb-20 space-y-8">
-                        <div className="flex items-center gap-4">
-                          <span className="px-3 py-1 rounded-full bg-black text-[10px] font-black text-white uppercase tracking-[0.2em]">
+                      <div className="mb-12 md:mb-20 space-y-6 md:space-y-8">
+                        <div className="flex items-center gap-3 md:gap-4">
+                          <span className="px-3 py-1 rounded-full bg-primary text-[10px] font-black text-primary-foreground uppercase tracking-[0.2em]">
                             Chapter {currentChapter.chapterIndex + 1}
                           </span>
                           <div className="h-px flex-1 bg-black/5" />
-                          <span className="text-[10px] font-bold text-black/30 uppercase tracking-widest">
+                          <span className="text-[10px] font-bold text-foreground/30 uppercase tracking-widest">
                             {Math.round(
                               currentChapter.contentMarkdown.length / 500,
                             )}{" "}
@@ -699,16 +525,16 @@ export default function LearnPageClient({
                           </span>
                         </div>
 
-                        <h1 className="text-6xl font-black text-black tracking-tighter leading-[1.1]">
+                        <h1 className="text-4xl md:text-6xl font-black text-foreground tracking-tighter leading-[1.1]">
                           {currentChapter.title}
                         </h1>
 
-                        <div className="flex items-center gap-6 pt-4">
+                        <div className="flex items-center gap-4 md:gap-6 pt-4">
                           <div className="flex -space-x-2">
                             {[0, 1, 2].map((i) => (
                               <div
                                 key={i}
-                                className="w-8 h-8 rounded-full border-2 border-white bg-black/5 overflow-hidden"
+                                className="w-8 h-8 rounded-full border-2 border-background bg-foreground/5 overflow-hidden"
                               >
                                 <img
                                   src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${i + 10}`}
@@ -718,115 +544,29 @@ export default function LearnPageClient({
                               </div>
                             ))}
                           </div>
-                          <div className="text-[10px] font-bold text-black/40 uppercase tracking-widest">
-                            Jointly Synthesized by{" "}
-                            <span className="text-black">Nexus AI</span> &{" "}
-                            <span className="text-black">You</span>
+                          <div className="text-[10px] font-bold text-foreground/40 uppercase tracking-widest">
+                            由 <span className="text-foreground">Nexus AI</span> 与 <span className="text-foreground">您</span> 共同生成
                           </div>
                         </div>
                       </div>
 
-                      {/* 正文内容 - 2026 Fluid Typography */}
                       <ContentRenderer
                         content={currentChapter.contentMarkdown}
                       />
 
-                      {/* 思考轨迹 (如果仍在生成中) */}
                       {isChatLoading && (
-                        <div className="mt-16">
+                        <div className="mt-12 md:mt-16">
                           <ThinkingTrail thinking={currentThinking} />
                         </div>
                       )}
 
-                      {/* 章节导航 - 极简主义设计 */}
-                      <div className="mt-32 pt-16 border-t border-black/[0.05] flex items-center justify-between">
-                        <button
-                          onClick={() => {
-                            if (currentChapter) {
-                              const prevChapter = chapters.find(
-                                (c) =>
-                                  c.chapterIndex ===
-                                  currentChapter.chapterIndex - 1,
-                              );
-                              if (prevChapter) {
-                                setCurrentChapterId(prevChapter.id);
-                              }
-                            }
-                          }}
-                          disabled={
-                            !currentChapter || currentChapter.chapterIndex === 0
-                          }
-                          className="group flex items-center gap-6 disabled:opacity-20"
-                        >
-                          <div className="w-14 h-14 rounded-full border border-black/10 flex items-center justify-center group-hover:bg-black group-hover:text-white transition-all duration-500">
-                            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-                          </div>
-                          <div className="text-left">
-                            <div className="text-[10px] font-black uppercase tracking-widest text-black/30">
-                              Previous
-                            </div>
-                            <div className="text-lg font-bold text-black">
-                              上一章节
-                            </div>
-                          </div>
-                        </button>
-
-                        <div className="hidden md:flex flex-col items-center">
-                          <div className="text-[10px] font-black text-black/20 uppercase tracking-[0.3em] mb-2">
-                            Progress
-                          </div>
-                          <div className="flex gap-1">
-                            {Array.from({ length: totalChapters }).map(
-                              (_, i) => (
-                                <div
-                                  key={i}
-                                  className={`w-1.5 h-1.5 rounded-full transition-all duration-500 ${
-                                    i === currentChapterIndex
-                                      ? "w-6 bg-black"
-                                      : i < chapters.length
-                                        ? "bg-black/20"
-                                        : "bg-black/5"
-                                  }`}
-                                />
-                              ),
-                            )}
-                          </div>
-                        </div>
-
-                        <button
-                          onClick={() => {
-                            if (currentChapter) {
-                              const nextChapter = chapters.find(
-                                (c) =>
-                                  c.chapterIndex ===
-                                  currentChapter.chapterIndex + 1,
-                              );
-                              if (nextChapter) {
-                                setCurrentChapterId(nextChapter.id);
-                              }
-                            }
-                          }}
-                          disabled={
-                            !currentChapter ||
-                            !chapters.some(
-                              (c) => c.chapterIndex === currentChapterIndex + 1,
-                            )
-                          }
-                          className="group flex items-center gap-6 text-right disabled:opacity-20"
-                        >
-                          <div className="text-right">
-                            <div className="text-[10px] font-black uppercase tracking-widest text-black/30">
-                              Next
-                            </div>
-                            <div className="text-lg font-bold text-black">
-                              下一章节
-                            </div>
-                          </div>
-                          <div className="w-14 h-14 rounded-full bg-black text-white flex items-center justify-center shadow-2xl shadow-black/20 group-hover:scale-110 transition-all duration-500">
-                            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                          </div>
-                        </button>
-                      </div>
+                      <ChapterNavigation
+                        currentChapter={currentChapter}
+                        chapters={chapters}
+                        totalChapters={totalChapters}
+                        currentChapterIndex={currentChapterIndex}
+                        setCurrentChapterId={setCurrentChapterId}
+                      />
                     </article>
                   )}
                 </motion.div>
@@ -835,116 +575,467 @@ export default function LearnPageClient({
           </div>
         </main>
 
-        {/* Right Sidebar: Chat */}
-        <AnimatePresence>
-          {isChatOpen && (
-            <motion.aside
-              initial={{ x: 400, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: 400, opacity: 0 }}
-              className="w-96 border-l border-black/[0.06] bg-white/50 backdrop-blur-xl flex flex-col"
-            >
-              <div className="p-6 border-b border-black/[0.04] flex items-center justify-between">
-                <h2 className="text-sm font-bold text-black flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-black/40" />
-                  智能辅助
-                </h2>
-                <button
-                  onClick={() => setIsChatOpen(false)}
-                  className="p-1.5 rounded-lg hover:bg-black/5 text-black/20 hover:text-black transition-colors"
-                >
-                  <ArrowRight className="w-4 h-4" />
-                </button>
+        <RightDrawer
+          isOpen={isChatOpen}
+          onClose={closeRightSidebar}
+          chatMessages={chatMessages}
+          isChatLoading={isChatLoading}
+          chatSend={chatSend}
+          renderToolOutput={renderToolOutput}
+          dragX={rightSidebarX}
+          onDragEnd={handleRightDragEnd}
+        />
+      </div>
+    </div>
+  );
+}
+
+function LeftDrawer({
+  isOpen,
+  onClose,
+  courseProfile,
+  chapters,
+  totalChapters,
+  currentChapterId,
+  setCurrentChapterId,
+  outline,
+  getGlobalChapterIndex,
+  generatingChapterRef,
+  dragX,
+  onDragEnd,
+}: any) {
+  return (
+    <>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 bg-black/20 backdrop-blur-sm md:hidden"
+          onClick={onClose}
+        />
+      )}
+      <motion.aside
+        drag="x"
+        dragConstraints={{ left: -320, right: 0 }}
+        dragElastic={0.1}
+        dragMomentum={false}
+        style={{ x: dragX }}
+        onDragEnd={onDragEnd}
+        initial={isOpen ? false : { x: -320 }}
+        animate={{ x: isOpen ? 0 : -320 }}
+        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+        className={cn(
+          "fixed left-0 top-0 bottom-0 z-50 bg-surface-50/95 backdrop-blur-xl border-r border-black/5 shadow-glass flex flex-col",
+          "hidden md:flex md:static md:shadow-none md:backdrop-blur-none md:w-80"
+        )}
+      >
+        <div className="p-4 md:p-8 border-b border-black/5 flex items-center justify-between">
+          <h2 className="text-xs font-black text-foreground/30 uppercase tracking-[0.2em] hidden md:block">
+            课程大纲
+          </h2>
+          <h3 className="text-sm font-bold text-foreground truncate flex-1 md:hidden">
+            {courseProfile.title}
+          </h3>
+          <button
+            onClick={onClose}
+            className="md:hidden p-2 rounded-lg hover:bg-black/5 text-foreground/60"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-4 md:p-8 border-b border-black/5 hidden md:block">
+          <h3 className="text-xl font-black text-foreground leading-tight mb-6">
+            {courseProfile.title}
+          </h3>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest mb-1">
+              <span className="text-foreground">整体进度</span>
+              <span className="text-foreground/40">
+                {Math.round((chapters.length / totalChapters) * 100)}%
+              </span>
+            </div>
+            <div className="h-1 bg-black/5 rounded-full overflow-hidden">
+              <motion.div
+                className="h-full bg-primary"
+                initial={{ width: 0 }}
+                animate={{
+                  width: `${(chapters.length / totalChapters) * 100}%`,
+                }}
+                transition={{ duration: 1, ease: "circOut" }}
+              />
+            </div>
+          </div>
+        </div>
+
+        <nav className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+          {outline.modules?.map((module, mIdx) => (
+            <div key={mIdx} className="mb-6 md:mb-10 last:mb-0">
+              <div className="px-4 mb-3 md:mb-4 flex items-center gap-3">
+                <span className="text-[10px] font-black text-foreground uppercase tracking-[0.2em]">
+                  {String(mIdx + 1).padStart(2, "0")}
+                </span>
+                <h4 className="text-[10px] font-black text-foreground/20 uppercase tracking-[0.1em] truncate">
+                  {module.title}
+                </h4>
               </div>
 
-              <div className="flex-1 flex flex-col min-h-0">
-                <UnifiedChatUI
-                  messages={chatMessages}
-                  isLoading={isChatLoading}
-                  input=""
-                  onInputChange={() => {}}
-                  onStop={() => {}}
-                  renderToolOutput={renderToolOutput}
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    chatSend(
-                      {
-                        text: "根据当前内容帮我总结一下",
-                      },
-                      {
-                        body: {
-                          explicitIntent: "CHAT",
-                        },
-                      },
-                    );
-                  }}
-                  variant="chat"
-                  placeholder="针对当前章节提问..."
-                  renderMessage={(message, _text, isUser) => {
-                    const content = getMessageContent(message);
-                    if (isUser) {
-                      return (
-                        <div className="flex justify-end px-4">
-                          <div className="bg-violet-600 px-5 py-3 rounded-2xl rounded-tr-sm shadow-lg shadow-violet-600/10">
-                            <p className="text-sm font-medium text-white">
-                              {content}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    }
+              <div className="space-y-1">
+                {module.chapters.map((chapter, cIdx) => {
+                  const globalIdx = getGlobalChapterIndex(mIdx, cIdx);
+                  const generatedChapter = chapters.find(
+                    (c) => c.chapterIndex === globalIdx,
+                  );
+                  const isGenerated = !!generatedChapter;
+                  const isActive =
+                    currentChapterId === generatedChapter?.id;
+                  const isGenerating = generatedChapter
+                    ? generatingChapterRef.current.has(
+                        generatedChapter.id,
+                      )
+                    : false;
 
-                    return (
-                      <div className="flex justify-start px-4">
-                        <div className="bg-white dark:bg-neutral-800 border border-black/5 dark:border-white/5 px-6 py-4 rounded-2xl rounded-tl-sm shadow-sm max-w-[90%]">
-                          <MessageResponse
-                            className="text-sm leading-relaxed text-neutral-800 dark:text-neutral-200"
-                            mode={
-                              isChatLoading &&
-                              message.id ===
-                                chatMessages[chatMessages.length - 1].id
-                                ? "streaming"
-                                : "static"
-                            }
-                          >
-                            {content}
-                          </MessageResponse>
-                        </div>
-                      </div>
-                    );
-                  }}
-                  renderEmpty={() => (
-                    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
-                      <div className="w-12 h-12 rounded-2xl bg-black/5 flex items-center justify-center">
-                        <MessageSquare className="w-6 h-6 text-black/20" />
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-sm font-bold text-black">
-                          有什么疑问吗？
-                        </p>
-                        <p className="text-xs text-black/40 leading-relaxed">
-                          AI 随时为您解答当前章节的难点，或者帮您生成练习题。
-                        </p>
-                      </div>
-                      <div className="grid grid-cols-1 gap-2 w-full pt-4">
-                        {["核心要点总结", "帮我出几道题", "深入解释一下"].map(
-                          (q) => (
-                            <button
-                              key={q}
-                              className="text-left px-4 py-2.5 rounded-xl bg-black/5 hover:bg-black text-black/60 hover:text-white text-[11px] font-bold transition-all"
-                            >
-                              {q}
-                            </button>
-                          ),
+                  return (
+                    <button
+                      key={cIdx}
+                      onClick={() => {
+                        if (generatedChapter) {
+                          setCurrentChapterId(generatedChapter.id);
+                        }
+                      }}
+                      className={`w-full group flex items-center gap-3 md:gap-4 px-3 md:px-4 py-2.5 md:py-3 rounded-xl md:rounded-2xl transition-all duration-500 relative touch-safe ${
+                        isActive
+                          ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                          : isGenerating
+                            ? "bg-primary/10 text-primary animate-pulse"
+                            : isGenerated
+                              ? "hover:bg-black/5 text-foreground/70 hover:text-foreground"
+                              : "hover:bg-primary/10 text-foreground/40 hover:text-primary"
+                      }`}
+                    >
+                      <div className="relative flex-shrink-0">
+                        {isGenerating ? (
+                          <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-primary animate-ping" />
+                        ) : isGenerated ? (
+                          <div
+                            className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full ${isActive ? "bg-primary-foreground" : "bg-foreground/20 group-hover:bg-foreground"}`}
+                          />
+                        ) : (
+                          <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full border-2 border-dashed border-foreground/20 group-hover:border-primary" />
                         )}
                       </div>
-                    </div>
-                  )}
-                />
+
+                      <div className="flex-1 text-left min-w-0">
+                        <div className="text-xs md:text-sm font-bold truncate">
+                          {chapter.title}
+                        </div>
+                        {!isGenerated && !isGenerating && (
+                          <div className="text-[10px] opacity-70 group-hover:opacity-100">
+                            点击生成
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
-            </motion.aside>
-          )}
-        </AnimatePresence>
+            </div>
+          ))}
+        </nav>
+
+        <div className="p-4 md:p-6 mt-auto border-t border-black/5 hidden md:block">
+          <button
+            onClick={() => window.location.href = "/create"}
+            className="flex items-center justify-center gap-3 w-full py-4 rounded-xl bg-black/5 hover:bg-black text-foreground/40 hover:text-white text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-500 group"
+          >
+            <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+            返回创建页面
+          </button>
+        </div>
+      </motion.aside>
+    </>
+  );
+}
+
+function CourseHeader({
+  currentChapter,
+  currentChapterIndex,
+  isSidebarOpen,
+  isChatOpen,
+  onMenuClick,
+  onChatClick,
+}: any) {
+  return (
+    <header className="h-14 md:h-16 border-b border-black/5 flex items-center justify-between px-4 md:px-8 bg-background/80 backdrop-blur-md sticky top-0 z-20">
+      <div className="flex items-center gap-2 md:gap-4">
+        <button
+          onClick={onMenuClick}
+          className="p-2 rounded-lg hover:bg-black/5 text-foreground/40 hover:text-foreground transition-colors touch-safe"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+        <div className="h-4 w-px bg-black/10 mx-1 md:mx-2" />
+        <div className="flex flex-col min-w-0">
+          <div className="text-[10px] font-bold text-foreground/30 uppercase tracking-widest leading-none mb-0.5">
+            正在学习
+          </div>
+          <h1 className="text-xs md:text-sm font-bold text-foreground truncate max-w-[200px] md:max-w-[400px]">
+            {currentChapter?.title || "等待内容生成..."}
+          </h1>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 md:gap-3">
+        <button
+          onClick={onChatClick}
+          className={`flex items-center gap-2 md:gap-2.5 px-3 md:px-4 py-2 rounded-full text-xs font-bold transition-all touch-safe ${
+            isChatOpen
+              ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+              : "bg-black/5 text-foreground/60 hover:bg-black/10 hover:text-foreground"
+          }`}
+        >
+          <Sparkles
+            className={`w-3.5 h-3.5 ${isChatOpen ? "animate-pulse" : ""}`}
+          />
+          <span className="hidden md:inline">智能助手</span>
+        </button>
+      </div>
+    </header>
+  );
+}
+
+function RightDrawer({
+  isOpen,
+  onClose,
+  chatMessages,
+  isChatLoading,
+  chatSend,
+  renderToolOutput,
+  dragX,
+  onDragEnd,
+}: any) {
+  return (
+    <>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 bg-black/20 backdrop-blur-sm md:hidden"
+          onClick={onClose}
+        />
+      )}
+      <motion.aside
+        drag="x"
+        dragConstraints={{ left: 0, right: 384 }}
+        dragElastic={0.1}
+        dragMomentum={false}
+        style={{ x: dragX }}
+        onDragEnd={onDragEnd}
+        initial={isOpen ? false : { x: 384 }}
+        animate={{ x: isOpen ? 0 : 384 }}
+        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+        className={cn(
+          "fixed right-0 top-0 bottom-0 z-50 bg-surface-50/95 backdrop-blur-xl border-l border-black/5 shadow-glass flex flex-col",
+          "hidden md:flex md:static md:shadow-none md:backdrop-blur-none md:w-96"
+        )}
+      >
+        <div className="p-4 md:p-6 border-b border-black/5 flex items-center justify-between">
+          <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-foreground/40" />
+            智能辅助
+          </h2>
+          <button
+            onClick={onClose}
+            className="md:hidden p-1.5 rounded-lg hover:bg-black/5 text-foreground/20 hover:text-foreground transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="flex-1 flex flex-col min-h-0">
+          <UnifiedChatUI
+            messages={chatMessages}
+            isLoading={isChatLoading}
+            input=""
+            onInputChange={() => {}}
+            onStop={() => {}}
+            renderToolOutput={renderToolOutput}
+            onSubmit={(e: any) => {
+              e.preventDefault();
+              chatSend(
+                {
+                  text: "根据当前内容帮我总结一下",
+                },
+                {
+                  body: {
+                    explicitIntent: "CHAT",
+                  },
+                },
+              );
+            }}
+            variant="chat"
+            placeholder="针对当前章节提问..."
+            renderMessage={(message: any, _text: string, isUser: boolean) => {
+              const content = getMessageContent(message);
+              if (isUser) {
+                return (
+                  <div className="flex justify-end px-4">
+                    <div className="bg-primary px-4 md:px-5 py-3 rounded-2xl rounded-tr-sm shadow-lg shadow-primary/10">
+                      <p className="text-sm font-medium text-primary-foreground">
+                        {content}
+                      </p>
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="flex justify-start px-4">
+                  <div className="bg-background border border-black/5 px-4 md:px-6 py-3 md:py-4 rounded-2xl rounded-tl-sm shadow-sm max-w-[90%]">
+                    <MessageResponse
+                      className="text-sm leading-relaxed text-foreground"
+                      mode={
+                        isChatLoading &&
+                        message.id === chatMessages[chatMessages.length - 1].id
+                          ? "streaming"
+                          : "static"
+                      }
+                    >
+                      {content}
+                    </MessageResponse>
+                  </div>
+                </div>
+              );
+            }}
+            renderEmpty={() => (
+              <div className="flex-1 flex flex-col items-center justify-center p-6 md:p-8 text-center space-y-4">
+                <div className="w-10 md:w-12 h-10 md:h-12 rounded-xl bg-black/5 flex items-center justify-center">
+                  <MessageSquare className="w-5 md:w-6 h-5 md:h-6 text-foreground/20" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-bold text-foreground">
+                    有什么疑问吗？
+                  </p>
+                  <p className="text-xs text-foreground/40 leading-relaxed">
+                    AI 随时为您解答当前章节的难点，或者帮您生成练习题。
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 gap-2 w-full pt-4">
+                  {["核心要点总结", "帮我出几道题", "深入解释一下"].map(
+                    (q) => (
+                      <button
+                        key={q}
+                        className="text-left px-4 py-2.5 rounded-xl bg-black/5 hover:bg-black text-foreground/60 hover:text-white text-xs font-bold transition-all touch-safe"
+                      >
+                        {q}
+                      </button>
+                    ),
+                  )}
+                </div>
+              </div>
+            )}
+          />
+        </div>
+      </motion.aside>
+    </>
+  );
+}
+
+function ChapterNavigation({
+  currentChapter,
+  chapters,
+  totalChapters,
+  currentChapterIndex,
+  setCurrentChapterId,
+}: any) {
+  return (
+    <div className="mt-16 md:mt-32 pt-8 md:pt-16 border-t border-black/5">
+      <div className="flex items-center justify-between gap-4">
+        <button
+          onClick={() => {
+            if (currentChapter) {
+              const prevChapter = chapters.find(
+                (c: any) =>
+                  c.chapterIndex === currentChapter.chapterIndex - 1,
+              );
+              if (prevChapter) {
+                setCurrentChapterId(prevChapter.id);
+              }
+            }
+          }}
+          disabled={
+            !currentChapter || currentChapter.chapterIndex === 0
+          }
+          className="group flex items-center gap-3 md:gap-6 disabled:opacity-20 flex-1 justify-start"
+        >
+          <div className="w-10 h-10 md:w-14 md:h-14 rounded-full border border-black/10 flex items-center justify-center group-hover:bg-foreground group-hover:text-background transition-all duration-500">
+            <ArrowLeft className="w-4 md:w-5 h-4 md:h-5 group-hover:-translate-x-1 transition-transform" />
+          </div>
+          <div className="text-left hidden sm:block">
+            <div className="text-[10px] font-black uppercase tracking-widest text-foreground/30">
+              Previous
+            </div>
+            <div className="text-sm md:text-lg font-bold text-foreground">
+              上一章节
+            </div>
+          </div>
+        </button>
+
+        <div className="hidden md:flex flex-col items-center px-4">
+          <div className="text-[10px] font-black text-foreground/20 uppercase tracking-[0.3em] mb-2">
+            Progress
+          </div>
+          <div className="flex gap-1">
+            {Array.from({ length: totalChapters }).map((_, i) => (
+              <div
+                key={i}
+                className={`w-1.5 h-1.5 rounded-full transition-all duration-500 ${
+                  i === currentChapterIndex
+                    ? "w-6 bg-primary"
+                    : i < chapters.length
+                      ? "bg-foreground/20"
+                      : "bg-foreground/5"
+                }`}
+              />
+            ))}
+          </div>
+        </div>
+
+        <button
+          onClick={() => {
+            if (currentChapter) {
+              const nextChapter = chapters.find(
+                (c: any) =>
+                  c.chapterIndex === currentChapter.chapterIndex + 1,
+              );
+              if (nextChapter) {
+                setCurrentChapterId(nextChapter.id);
+              }
+            }
+          }}
+          disabled={
+            !currentChapter ||
+            !chapters.some(
+              (c: any) => c.chapterIndex === currentChapterIndex + 1,
+            )
+          }
+          className="group flex items-center gap-3 md:gap-6 text-right disabled:opacity-20 flex-1 justify-end"
+        >
+          <div className="text-right hidden sm:block">
+            <div className="text-[10px] font-black uppercase tracking-widest text-foreground/30">
+              Next
+            </div>
+            <div className="text-sm md:text-lg font-bold text-foreground">
+              下一章节
+            </div>
+          </div>
+          <div className="w-10 h-10 md:w-14 md:h-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/20 group-hover:scale-110 transition-all duration-500">
+            <ArrowRight className="w-4 md:w-5 h-4 md:h-5 group-hover:translate-x-1 transition-transform" />
+          </div>
+        </button>
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import { SessionProvider } from 'next-auth/react'
 import { ThemeProvider } from '@/components/layout/ThemeProvider'
 import { MobileNav } from '@/components/layout/MobileNav'
+import { AppSidebar } from '@/components/layout/AppSidebar'
 import { PWAProvider } from '@/components/pwa/PWAProvider'
 import { Toaster } from '@/components/ui/Toast'
 import './globals.css'
@@ -26,8 +27,8 @@ export const metadata: Metadata = {
     viewport: {
         width: 'device-width',
         initialScale: 1,
-        maximumScale: 1,
-        userScalable: false,
+        maximumScale: 5,
+        userScalable: true,
     },
 }
 
@@ -42,10 +43,13 @@ export default function RootLayout({
                 <PWAProvider>
                     <SessionProvider>
                         <ThemeProvider attribute="class" defaultTheme="light">
-                            <main className="min-h-screen bg-white pb-16 md:pb-0">
-                                {children}
-                            </main>
-                            <MobileNav />
+                            <div className="flex h-screen bg-background">
+                                <AppSidebar />
+                                <main className="flex-1 min-h-screen pb-safe-bottom md:pb-0">
+                                    {children}
+                                </main>
+                                <MobileNav />
+                            </div>
                             <Toaster />
                         </ThemeProvider>
                     </SessionProvider>
