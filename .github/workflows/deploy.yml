@@ -142,12 +142,12 @@ jobs:
               --dry-run=client -o yaml | kubectl apply -f -
 
             echo "=== Deploying with Helm ==="
-            if [ -d "./chart" ]; then
-              HELM_CHART="./chart"
-            elif [ -d "../chart" ]; then
-              HELM_CHART="../chart"
-            else
-              echo "Error: Cannot find chart directory. see 'ls -R' above."
+            HELM_CHART="./deploy/k8s/chart"
+
+            echo "Using chart at: $HELM_CHART"
+
+            if [ ! -f "$HELM_CHART/Chart.yaml" ]; then
+              echo "::error::Chart.yaml not found in $HELM_CHART!"
               exit 1
             fi
 
