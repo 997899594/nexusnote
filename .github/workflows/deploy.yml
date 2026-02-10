@@ -58,7 +58,15 @@ jobs:
             type=gha,mode=max
             type=registry,ref=ghcr.io/${{ github.repository }}:buildcache,mode=max
 
-      # 上传 K8s 配置文件为 Artifact
+      # 下载 External Secrets Operator Helm Chart
+      - name: Download ESO Helm Chart
+        run: |
+          mkdir -p deploy/k8s/charts
+          helm repo add external-secrets https://charts.external-secrets.io
+          helm repo update
+          helm pull external-secrets/external-secrets --version 0.10.0 --destination deploy/k8s/charts/
+
+      # 上传 K8s 配置文件为 Artifact（包含 Helm Chart）
       - name: Upload K8s Configs
         uses: actions/upload-artifact@v4
         with:
@@ -102,21 +110,31 @@ jobs:
             set -e
             export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 
-            # 进入配置目录
-            cd /tmp/nexusnote-deploy/deploy/k8s
+            # 自动定位配置目录（兼容不同的 scp 行为）
+            CONFIG_DIR=$(find /tmp/nexusnote-deploy -type d -name "k8s" | head -n 1)
+            if [ -z "$CONFIG_DIR" ]; then
+              # 兜底：如果找不到 k8s 目录，可能就在根目录
+              CONFIG_DIR="/tmp/nexusnote-deploy"
+            fi
+            echo "Config directory: $CONFIG_DIR"
+            cd "$CONFIG_DIR"
 
-            # 1. 安装 External Secrets Operator (如果尚未安装)
-            echo "=== Installing External Secrets Operator ==="
-            helm repo add external-secrets https://charts.external-secrets.io || true
-            helm repo update
-            helm upgrade --install external-secrets external-secrets/external-secrets \
-              -n external-secrets \
-              --create-namespace \
-              --version 0.10.0 \
-              --set installCRDs=true \
-              --wait --timeout 10m || {
-              echo "Warning: ESO installation failed, continuing anyway..."
-              }
+            # 1. 安装 External Secrets Operator (离线安装模式)
+            echo "=== Installing External Secrets Operator (Offline) ==="
+            if ! helm status external-secrets -n external-secrets >/dev/null 2>&1; then
+              echo "ESO not installed, installing from local chart..."
+              CHART_FILE=$(ls charts/external-secrets-*.tgz)
+              helm upgrade --install external-secrets "$CHART_FILE" \
+                -n external-secrets \
+                --create-namespace \
+                --set installCRDs=true \
+                --wait --timeout 10m || {
+                echo "ERROR: ESO installation failed"
+                exit 1
+                }
+            else
+              echo "ESO already installed, skipping..."
+            fi
 
             # 2. 创建 GHCR 镜像拉取密钥
             echo "=== Creating GHCR secret ==="
