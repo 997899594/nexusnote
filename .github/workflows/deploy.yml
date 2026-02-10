@@ -121,22 +121,19 @@ jobs:
             set -e
             export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 
-            # 自动定位配置目录（兼容不同的 scp 行为）
-            CONFIG_DIR=$(find /tmp/nexusnote-deploy -type d -name "k8s" | head -n 1)
-            if [ -z "$CONFIG_DIR" ]; then
-              # 兜底：如果找不到 k8s 目录，可能就在根目录
-              CONFIG_DIR="/tmp/nexusnote-deploy"
-            fi
-            echo "Config directory: $CONFIG_DIR"
-            cd "$CONFIG_DIR"
+            # 清理旧 chart 文件（只保留最新版本）
+            find /tmp/nexusnote-deploy -name "external-secrets-*.tgz" ! -name "external-secrets-2.0.0.tgz" -delete || true
+
+            # 进入配置目录
+            cd /tmp/nexusnote-deploy/deploy/k8s
 
             # 1. 安装 External Secrets Operator (离线安装模式)
             echo "=== Installing External Secrets Operator (Offline) ==="
-            CHART_FILE=$(ls charts/external-secrets-*.tgz)
-            helm upgrade --install external-secrets "$CHART_FILE" \
+            helm upgrade --install external-secrets charts/external-secrets-2.0.0.tgz \
               -n external-secrets \
               --create-namespace \
               --set installCRDs=true \
+              --force \
               --wait --timeout 10m || {
               echo "ERROR: ESO installation failed"
               exit 1
