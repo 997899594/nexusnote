@@ -90,9 +90,8 @@ jobs:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "deploy-artifacts/*"
+          source: "deploy-artifacts"
           target: "/tmp/nexusnote-deploy"
-          strip_components: 1
 
       - name: Deploy to K3s Cluster
         uses: appleboy/ssh-action@v1.0.3
@@ -113,11 +112,13 @@ jobs:
           script: |
             set -e
             export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
-            
-            # 进入目录
-            cd /tmp/nexusnote-deploy
 
-            # 1. 创建 Secrets
+            cd /tmp/nexusnote-deploy/deploy-artifacts
+
+            echo "=== Debug: Directory Layout ==="
+            ls -R
+            echo "==============================="
+
             echo "=== Creating application secrets ==="
             cat <<EOF > secrets.env
             DATABASE_URL=$DATABASE_URL
@@ -125,14 +126,13 @@ jobs:
             OAUTH_GOOGLE_SECRET=$OAUTH_GOOGLE_SECRET
             NEXTAUTH_SECRET=$NEXTAUTH_SECRET
             EOF
-            
+
             kubectl create secret generic nexusnote-secrets \
               --namespace=nexusnote \
               --from-env-file=secrets.env \
               --dry-run=client -o yaml | kubectl apply -f -
             rm -f secrets.env
 
-            # 2. 创建 Docker Secret
             echo "=== Creating GHCR secret ==="
             kubectl create secret docker-registry ghcr-secret \
               --docker-server=ghcr.io \
@@ -141,16 +141,31 @@ jobs:
               --namespace=nexusnote \
               --dry-run=client -o yaml | kubectl apply -f -
 
-            # 3. Helm 部署
             echo "=== Deploying with Helm ==="
-            # 现在 ./chart 肯定存在了
-            helm upgrade --install nexusnote ./chart \
+            if [ -d "./chart" ]; then
+              HELM_CHART="./chart"
+            elif [ -d "../chart" ]; then
+              HELM_CHART="../chart"
+            else
+              echo "Error: Cannot find chart directory. see 'ls -R' above."
+              exit 1
+            fi
+
+            echo "Using chart at: $HELM_CHART"
+
+            helm upgrade --install nexusnote $HELM_CHART \
               --namespace nexusnote \
               --create-namespace \
               --set image.tag="sha-$IMAGE_SHA" \
               --set image.repository="ghcr.io/$REPO_NAME" \
-              --values ./chart/values-prod.yaml \
+              --values $HELM_CHART/values-prod.yaml \
               --atomic \
               --wait --timeout 10m
 
+            echo "=== Deployment Health Check ==="
+            kubectl rollout status deployment/nexusnote-web -n nexusnote
+            kubectl rollout status deployment/nexusnote-collab -n nexusnote
+
+            echo "=== Cleanup ==="
+            rm -rf /tmp/nexusnote-deploy
             echo "SUCCESS"
