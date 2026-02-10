@@ -39,7 +39,6 @@ spec:
   parentRefs:
     - name: nexusnote-gateway
       namespace: {{ .Values.namespace }}
-      group: gateway.networking.k8s.io/v1
       kind: Gateway
   hostnames:
     - juanie.art
