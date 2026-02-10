@@ -96,3 +96,29 @@ spec:
         # 路由到 Web 服务的 ClusterIP Service
         - name: nexusnote-service
           port: 80
+
+---
+# ============================================
+# 4. LoadBalancer Service - 暴露 Gateway 端口
+# ============================================
+# 将 Gateway 的 80/443 端口暴露到集群外部
+# k3s 使用 klipper-lb 自动绑定宿主机 IP
+apiVersion: v1
+kind: Service
+metadata:
+  name: nexusnote-gateway-lb
+  namespace: nexusnote
+spec:
+  type: LoadBalancer
+  selector:
+    # Cilium Gateway Pod 的标签
+    app.kubernetes.io/name: cilium
+  ports:
+    - port: 80
+      targetPort: 80
+      name: http
+      protocol: TCP
+    - port: 443
+      targetPort: 443
+      name: https
+      protocol: TCP

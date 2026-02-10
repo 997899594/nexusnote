@@ -116,6 +116,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/web/worker.js ./apps/web/
 # Conditional copy for static assets and public folder
 RUN --mount=from=builder,source=/app/apps/web,target=/tmp/web \
     ( [ -d /tmp/web/public ] && cp -r /tmp/web/public ./apps/web/public || true ) && \
+    ( [ -f /tmp/web/public/sw.js ] && echo "sw.js found in public, ensuring it exists" || echo "sw.js not found in public" ) && \
     ( [ -d /tmp/web/.next/static ] && mkdir -p ./apps/web/.next && cp -r /tmp/web/.next/static ./apps/web/.next/static || true ) && \
     chown -R nextjs:nodejs /app/apps/web
 

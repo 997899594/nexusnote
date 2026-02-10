@@ -47,6 +47,25 @@ spec:
       imagePullSecrets:
         # 用于拉取私有镜像（GitHub Container Registry）
         - name: ghcr-secret
+      initContainers:
+        - name: db-migrate
+          image: IMAGE_PLACEHOLDER
+          envFrom:
+            - configMapRef:
+                name: nexusnote-config
+            - secretRef:
+                name: nexusnote-secrets
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Waiting for database..."
+              until pg_isready -h nexusnote-db -p 5432; do
+                sleep 2
+              done
+              echo "Database ready, running migrations..."
+              cd /app/packages/db && npx drizzle-kit migrate || exit 1
+              echo "Migrations completed."
       containers:
         - name: app
           image: IMAGE_PLACEHOLDER

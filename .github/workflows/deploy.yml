@@ -78,6 +78,8 @@ jobs:
             echo "---"
             cat deploy/k8s/issuer.yaml
             echo "---"
+            cat deploy/k8s/certificate.yaml
+            echo "---"
             cat deploy/k8s/stateful.yaml
             echo "---"
             sed "s|IMAGE_PLACEHOLDER|$IMAGE_TAG|g" deploy/k8s/app.yaml

@@ -50,6 +50,13 @@
       "when": 1770435521181,
       "tag": "0006_yielding_onslaught",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1770682077905,
+      "tag": "0007_outstanding_chimera",
+      "breakpoints": true
     }
   ]
 }
