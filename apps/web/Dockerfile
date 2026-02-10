@@ -33,6 +33,14 @@ COPY packages/db/src ./packages/db/src/
 COPY packages/config/src ./packages/config/src/
 COPY packages/types/src ./packages/types/src/
 
+# 复制 TypeScript 配置文件
+COPY tsconfig.json ./
+COPY apps/web/tsconfig.json ./apps/web/
+COPY packages/ui/tsconfig.json ./packages/ui/
+COPY packages/db/tsconfig.json ./packages/db/
+COPY packages/config/tsconfig.json ./packages/config/
+COPY packages/types/tsconfig.json ./packages/types/
+
 # 设置环境变量
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
