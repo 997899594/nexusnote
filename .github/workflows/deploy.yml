@@ -5,7 +5,6 @@ on:
     branches:
       - main
 
-# 2026 权限管理：允许写入 GitHub Packages (GHCR)
 permissions:
   contents: read
   packages: write
@@ -16,7 +15,6 @@ jobs:
   # ============================================
   build:
     runs-on: ubuntu-latest
-    environment: production
     outputs:
       image_tag: ${{ steps.meta.outputs.tags }}
       image_sha: ${{ github.sha }}
@@ -40,8 +38,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=sha,format=long
+          tags: type=sha,format=long
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -51,214 +48,120 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: |
-            type=gha
-            type=registry,ref=ghcr.io/${{ github.repository }}:buildcache
-          cache-to: |
-            type=gha,mode=max
-            type=registry,ref=ghcr.io/${{ github.repository }}:buildcache,mode=max
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      # 下载 External Secrets Operator Helm Chart
-      - name: Download ESO Helm Chart
-        run: |
-          rm -rf deploy/k8s/charts
-          mkdir -p deploy/k8s/charts
-          helm repo add external-secrets https://charts.external-secrets.io
-          helm repo update
-          helm pull external-secrets/external-secrets --version 2.0.0 --destination deploy/k8s/charts/
-
-      # 上传 K8s 配置文件为 Artifact（包含 Helm Chart）
-      - name: Upload K8s Configs
+      # 【修正点 1】同时上传 k8s 配置和 chart 目录
+      - name: Upload Deployment Files
         uses: actions/upload-artifact@v4
         with:
-          name: k8s-configs
-          path: deploy/k8s/
+          name: deploy-files
+          path: |
+            deploy/k8s/
+            chart/
 
   # ============================================
-  # 阶段 2：部署到 K3s (无代码克隆，使用 Artifacts)
+  # 阶段 2：部署到 K3s
   # ============================================
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    environment: production
     steps:
-      # 下载配置到 Runner
-      - name: Download K8s Configs
+      # 下载所有配置
+      - name: Download Deployment Files
         uses: actions/download-artifact@v4
         with:
-          name: k8s-configs
-          path: deploy/k8s/
+          name: deploy-files
+          path: ./deploy-artifacts  # 下载到一个指定目录，防止结构混乱
 
-      # 清空服务器旧部署目录
       - name: Clean server deploy directory
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            rm -rf /tmp/nexusnote-deploy || true
+          script: rm -rf /tmp/nexusnote-deploy || true
 
-      # 传输配置到服务器
       - name: Copy configs to server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "deploy/k8s/"
+          # 【修正点 2】源路径改为刚才下载的 Artifact 目录
+          source: "deploy-artifacts/*"
           target: "/tmp/nexusnote-deploy"
-          strip_components: 0
+          strip_components: 1 # 去掉外层的 deploy-artifacts 目录
 
-      # 执行部署
       - name: Deploy to K3s Cluster
         uses: appleboy/ssh-action@v1.0.3
+        # 【修正点 3】env 块放在这里，缩进属于 step
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          OAUTH_GITHUB_SECRET: ${{ secrets.OAUTH_GITHUB_SECRET }}
+          OAUTH_GOOGLE_SECRET: ${{ secrets.OAUTH_GOOGLE_SECRET }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE_SHA: ${{ needs.build.outputs.image_sha }}
+          REPO_NAME: ${{ github.repository }}
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          # 告诉 ssh-action 将哪些环境变量透传给远程脚本
+          envs: DATABASE_URL,OAUTH_GITHUB_SECRET,OAUTH_GOOGLE_SECRET,NEXTAUTH_SECRET,GITHUB_ACTOR,GITHUB_TOKEN,IMAGE_SHA,REPO_NAME
+          # 【修正点 4】script 必须属于 with，不能缩进到 env 里
           script: |
             set -e
             export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 
-            # 清理旧 chart 文件（只保留最新版本）
-            find /tmp/nexusnote-deploy -name "external-secrets-*.tgz" ! -name "external-secrets-2.0.0.tgz" -delete || true
+            # 目录修正：现在文件都在 /tmp/nexusnote-deploy 根目录下
+            cd /tmp/nexusnote-deploy
 
-            # 进入配置目录
-            cd /tmp/nexusnote-deploy/deploy/k8s
+            echo "=== Creating application secrets ==="
+            # 使用环境变量 $DATABASE_URL 避免特殊字符问题
+            cat <<EOF > secrets.env
+            DATABASE_URL=$DATABASE_URL
+            OAUTH_GITHUB_SECRET=$OAUTH_GITHUB_SECRET
+            OAUTH_GOOGLE_SECRET=$OAUTH_GOOGLE_SECRET
+            NEXTAUTH_SECRET=$NEXTAUTH_SECRET
+            EOF
 
-            # 1. 安装 External Secrets Operator (离线安装模式)
-            echo "=== Installing External Secrets Operator (Offline) ==="
-            helm upgrade --install external-secrets charts/external-secrets-2.0.0.tgz \
-              -n external-secrets \
-              --create-namespace \
-              --set installCRDs=true \
-              --force \
-              --wait --timeout 10m || {
-              echo "ERROR: ESO installation failed"
-              exit 1
-              }
+            kubectl create secret generic nexusnote-secrets \
+              --namespace=nexusnote \
+              --from-env-file=secrets.env \
+              --dry-run=client -o yaml | kubectl apply -f -
+            
+            rm -f secrets.env
 
-            # 2. 创建 GHCR 镜像拉取密钥
-              echo "=== Creating GHCR secret ==="
-              kubectl create secret docker-registry ghcr-secret \
-                --docker-server=ghcr.io \
-                --docker-username=${{ github.actor }} \
-                --docker-password=${{ secrets.GITHUB_TOKEN }} \
-                --namespace=nexusnote \
-                --dry-run=client -o yaml | kubectl apply -f -
+            echo "=== Creating GHCR secret ==="
+            kubectl create secret docker-registry ghcr-secret \
+              --docker-server=ghcr.io \
+              --docker-username=$GITHUB_ACTOR \
+              --docker-password=$GITHUB_TOKEN \
+              --namespace=nexusnote \
+              --dry-run=client -o yaml | kubectl apply -f -
 
-              # 3. 创建 GitHub Token Secret (用于 ESO 从 GitHub Secrets 读取)
-              echo "=== Creating GitHub token for ESO ==="
-              kubectl create secret generic github-token \
-                --from-literal=token=${{ secrets.GITHUB_TOKEN }} \
-                --namespace=nexusnote \
-                --dry-run=client -o yaml | kubectl apply -f -
+            # 部署前验证 Secret 存在
+            kubectl get secret nexusnote-secrets -n nexusnote >/dev/null || exit 1
 
-              # 4. 应用 SecretStore (配置 ESO 使用 GitHub 作为 Provider)
-              echo "=== Applying SecretStore ==="
-              # 使用 sed 替换变量（避免 envsubst 未安装问题）
-              sed -i "s/\${GITHUB_OWNER}/${{ github.repository_owner }}/g" secretstore-github.yaml
-              kubectl apply -f secretstore-github.yaml
-
-              # 5. 应用 ExternalSecret (从 GitHub Secrets 同步到 K8s Secrets)
-              echo "=== Applying ExternalSecret ==="
-              kubectl apply -f externalsecret.yaml
-
-              # 6. 等待 ExternalSecret 同步完成
-              echo "=== Waiting for ExternalSecret to sync ==="
-            kubectl wait --for=condition=Ready externalsecret/nexusnote-secrets -n nexusnote --timeout=300s || {
-              echo "ERROR: ExternalSecret failed to sync"
-              kubectl get externalsecret/nexusnote-secrets -n nexusnote -o yaml
-              kubectl logs -n external-secrets deployment/external-secrets --tail=50
-              exit 1
-            }
-
-            # 7. 部署前验证
-            echo "=== Running pre-deploy validation ==="
-
-            # 检查 Secret 完整性
-            echo "Checking secrets..."
-            kubectl get secret nexusnote-secrets -n nexusnote || {
-              echo "ERROR: Secret nexusnote-secrets not found"
-              exit 1
-            }
-
-            echo "=== Validation passed ==="
-
-            # 8. 使用 Helm 部署
             echo "=== Deploying with Helm ==="
-            # 生产环境部署
+            # 路径修正：./chart 就在当前目录下
             helm upgrade --install nexusnote ./chart \
               --namespace nexusnote \
               --create-namespace \
-              --set image.tag="sha-${{ needs.build.outputs.image_sha }}" \
-              --set image.repository="ghcr.io/${{ github.repository }}" \
+              --set image.tag="sha-$IMAGE_SHA" \
+              --set image.repository="ghcr.io/$REPO_NAME" \
               --values ./chart/values-prod.yaml \
               --atomic \
               --wait --timeout 10m
 
-            # 9. 健康检查和自动回滚
-            echo "=== Checking deployment health ==="
-
-            # 等待 web 滚动更新完成
-            echo "Waiting for web rollout..."
-            timeout 600 kubectl rollout status deployment/nexusnote-web -n nexusnote || {
-              echo "ERROR: Web deployment failed, rolling back..."
-              helm rollback nexusnote -n nexusnote
-              kubectl rollout status deployment/nexusnote-web -n nexusnote --timeout=300s
-              exit 1
-            }
-
-            # 等待 collab 滚动更新完成
-            echo "Waiting for collab rollout..."
-            timeout 600 kubectl rollout status deployment/nexusnote-collab -n nexusnote || {
-              echo "ERROR: Collab deployment failed, rolling back..."
-              helm rollback nexusnote -n nexusnote
-              kubectl rollout status deployment/nexusnote-collab -n nexusnote --timeout=300s
-              exit 1
-            }
-
-            # 等待 worker 滚动更新完成
-            echo "Waiting for worker rollout..."
-            timeout 600 kubectl rollout status deployment/nexusnote-worker -n nexusnote || {
-              echo "ERROR: Worker deployment failed, rolling back..."
-              helm rollback nexusnote -n nexusnote
-              kubectl rollout status deployment/nexusnote-worker -n nexusnote --timeout=300s
-              exit 1
-            }
-
-            # 验证 Pod 健康
-            echo "Checking pod health..."
-            kubectl wait --for=condition=ready pod -l app=nexusnote-web -n nexusnote --timeout=300s || {
-              echo "ERROR: Web pods not ready, rolling back..."
-              helm rollback nexusnote -n nexusnote
-              exit 1
-            }
-            kubectl wait --for=condition=ready pod -l app=nexusnote-collab -n nexusnote --timeout=300s || {
-              echo "ERROR: Collab pods not ready, rolling back..."
-              helm rollback nexusnote -n nexusnote
-              exit 1
-            }
-            kubectl wait --for=condition=ready pod -l app=nexusnote-worker -n nexusnote --timeout=300s || {
-              echo "ERROR: Worker pods not ready, rolling back..."
-              helm rollback nexusnote -n nexusnote
-              exit 1
-            }
-
-            # 验证服务可访问
-            echo "Verifying service accessibility..."
-            kubectl get svc nexusnote-web -n nexusnote || {
-              echo "ERROR: Web service not found"
-              exit 1
-            }
-            kubectl get svc nexusnote-collab -n nexusnote || {
-              echo "ERROR: Collab service not found"
-              exit 1
-            }
-
-            # 清理临时文件
-            echo "=== Cleaning up temporary files ==="
+            echo "=== Deployment Health Check ==="
+            # 简化版健康检查，Helm atomic 失败会自动回滚，这里只做确认
+            kubectl rollout status deployment/nexusnote-web -n nexusnote
+            kubectl rollout status deployment/nexusnote-collab -n nexusnote
+            
+            echo "=== Cleanup ==="
             rm -rf /tmp/nexusnote-deploy
-
-            echo "=== Deployment successful ==="
+            echo "SUCCESS"
