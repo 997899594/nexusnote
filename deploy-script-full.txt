@@ -12,14 +12,13 @@ permissions:
 
 jobs:
   # ============================================
-  # 阶段 1：构建镜像 + 打包配置
+  # 阶段 1：构建并推送镜像 (Stateless Build)
   # ============================================
   build:
     runs-on: ubuntu-latest
     environment: production
     outputs:
       image_tag: ${{ steps.meta.outputs.tags }}
-      image_sha: ${{ github.sha }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -42,6 +41,7 @@ jobs:
           images: ghcr.io/${{ github.repository }}
           tags: |
             type=sha,format=long
+            latest
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -58,40 +58,17 @@ jobs:
             type=gha,mode=max
             type=registry,ref=ghcr.io/${{ github.repository }}:buildcache,mode=max
 
-      # 上传 K8s 配置文件为 Artifact
-      - name: Upload K8s Configs
-        uses: actions/upload-artifact@v4
-        with:
-          name: k8s-configs
-          path: deploy/k8s/
-
   # ============================================
-  # 阶段 2：部署到 K3s (无代码克隆，使用 Artifacts)
+  # 阶段 2：部署到 K3s 集群 (Helm Chart)
   # ============================================
   deploy:
     needs: build
     runs-on: ubuntu-latest
     environment: production
     steps:
-      # 下载配置到 Runner
-      - name: Download K8s Configs
-        uses: actions/download-artifact@v4
-        with:
-          name: k8s-configs
-          path: deploy/k8s/
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      # 传输配置到服务器
-      - name: Copy configs to server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_IP }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "deploy/k8s/"
-          target: "/tmp/nexusnote-deploy"
-          strip_components: 0
-
-      # 执行部署
       - name: Deploy to K3s Cluster
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -100,10 +77,18 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             set -e
-            export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 
-            # 进入配置目录
-            cd /tmp/nexusnote-deploy/deploy/k8s
+            # 0. 确保项目目录存在
+            if [ ! -d "/root/nexusnote" ]; then
+              echo "=== Cloning repository to server ==="
+              git clone https://github.com/${{ github.repository }}.git /root/nexusnote
+            else
+              echo "=== Updating existing repository ==="
+              cd /root/nexusnote && git fetch origin && git reset --hard origin/main
+            fi
+
+            # 切换到项目目录
+            cd /root/nexusnote
 
             # 1. 安装 External Secrets Operator (如果尚未安装)
             echo "=== Installing External Secrets Operator ==="
@@ -137,12 +122,12 @@ jobs:
             # 4. 应用 SecretStore (配置 ESO 使用 GitHub 作为 Provider)
             echo "=== Applying SecretStore ==="
             # 使用 sed 替换变量（避免 envsubst 未安装问题）
-            sed -i "s/\${GITHUB_OWNER}/${{ github.repository_owner }}/g" secretstore-github.yaml
-            kubectl apply -f secretstore-github.yaml
+            sed -i "s/\${GITHUB_OWNER}/${{ github.repository_owner }}/g" deploy/k8s/secretstore-github.yaml
+            kubectl apply -f deploy/k8s/secretstore-github.yaml
 
             # 5. 应用 ExternalSecret (从 GitHub Secrets 同步到 K8s Secrets)
             echo "=== Applying ExternalSecret ==="
-            kubectl apply -f externalsecret.yaml
+            kubectl apply -f deploy/k8s/externalsecret.yaml
 
             # 6. 等待 ExternalSecret 同步完成
             echo "=== Waiting for ExternalSecret to sync ==="
@@ -164,17 +149,17 @@ jobs:
             }
 
             echo "=== Validation passed ==="
+            # 镜像拉取失败会在 kubectl rollout 时自动检测（Pod ImagePullBackOff 状态）
 
             # 8. 使用 Helm 部署
             echo "=== Deploying with Helm ==="
             # 生产环境部署
-            helm upgrade --install nexusnote ./chart \
+            helm upgrade --install nexusnote ./deploy/k8s/chart \
               --namespace nexusnote \
               --create-namespace \
-              --set image.tag="sha-${{ needs.build.outputs.image_sha }}" \
+              --set image.tag="sha-${{ github.sha }}" \
               --set image.repository="ghcr.io/${{ github.repository }}" \
-              --values ./chart/values-prod.yaml \
-              --atomic \
+              --values ./deploy/k8s/chart/values-prod.yaml \
               --wait --timeout 10m
 
             # 9. 健康检查和自动回滚
@@ -235,9 +220,5 @@ jobs:
               echo "ERROR: Collab service not found"
               exit 1
             }
-
-            # 清理临时文件
-            echo "=== Cleaning up temporary files ==="
-            rm -rf /tmp/nexusnote-deploy
 
             echo "=== Deployment successful ==="

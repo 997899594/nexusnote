@@ -1,27 +1,14 @@
 # syntax=docker/dockerfile:1
 
 # ============================================
-# Build ARGs - 用于控制缓存失效
+# Stage 1: Base Layer - 稳定的依赖层
 # ============================================
-# 每次架构重大变更时，修改 BUILD_CACHE_BUST 的值（如 v1, v2...）
-# ARG 必须在第一个 FROM 之前声明才能影响整个构建的所有层
-ARG BUILD_CACHE_BUST=v2
-
-# ============================================
-# Stage 1: Dependencies
-# ============================================
-FROM node:20-alpine AS deps
-
-# BUILD_CACHE_BUST 用于强制失效缓存层
-ARG BUILD_CACHE_BUST
-RUN echo "Cache bust (deps): ${BUILD_CACHE_BUST}" > /tmp/cache_bust
-RUN apk add --no-cache libc6-compat
+FROM node:22-alpine AS base
 WORKDIR /app
 
-# Install pnpm
 RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
 
-# Copy workspace files
+# 复制依赖配置文件
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY apps/web/package.json ./apps/web/
 COPY packages/ui/package.json ./packages/ui/
@@ -29,38 +16,29 @@ COPY packages/db/package.json ./packages/db/
 COPY packages/config/package.json ./packages/config/
 COPY packages/types/package.json ./packages/types/
 
-# Install dependencies
+# 安装依赖（依赖不变时使用缓存）
 RUN pnpm install --frozen-lockfile --prod=false
 
 # ============================================
-# Stage 2: Builder
+# Stage 2: App Layer - 代码变化层
 # ============================================
-FROM node:20-alpine AS builder
-WORKDIR /app
+FROM base AS builder
 
-RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
+# 复制源代码（依赖层已包含 node_modules）
+COPY apps/web/src ./apps/web/src/
+COPY apps/web/public ./apps/web/public/
+COPY apps/web/next.config.js ./apps/web/
+COPY packages/ui/src ./packages/ui/src/
+COPY packages/db/src ./packages/db/src/
+COPY packages/config/src ./packages/config/src/
+COPY packages/types/src ./packages/types/src/
 
-# BUILD_CACHE_BUST ARG 用于在架构变更时强制失效构建缓存
-ARG BUILD_CACHE_BUST
-RUN echo "Cache bust: ${BUILD_CACHE_BUST}" > /tmp/cache_bust
-
-# Copy dependencies from deps stage
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
-COPY --from=deps /app/packages/ui/node_modules ./packages/ui/node_modules
-COPY --from=deps /app/packages/db/node_modules ./packages/db/node_modules
-COPY --from=deps /app/packages/config/node_modules ./packages/config/node_modules
-COPY --from=deps /app/packages/types/node_modules ./packages/types/node_modules
-
-# Copy source code
-COPY . .
-
-# Set environment for build
+# 设置环境变量
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 ENV SKIP_ENV_VALIDATION=true
 
-# Build all packages
+# 构建所有包
 RUN pnpm --filter @nexusnote/types build
 RUN pnpm --filter @nexusnote/config build
 RUN pnpm --filter @nexusnote/db build
@@ -70,12 +48,6 @@ RUN pnpm --filter @nexusnote/web build
 # ============================================
 # Build Hocuspocus and Worker
 # ============================================
-# 2026 最佳实践：完全打包，不依赖运行时 node_modules
-# --platform=node: 生成 Node.js 兼容代码
-# --bundle: 将所有依赖打包到单个文件
-# --minify: 压缩代码
-# --tree-shaking: 自动移除未使用的代码
-# --target=node20: 针对 Node.js 20 优化
 RUN pnpm --filter @nexusnote/web exec esbuild src/server/hocuspocus.ts \
   --bundle \
   --platform=node \
@@ -93,34 +65,31 @@ RUN pnpm --filter @nexusnote/web exec esbuild src/queue/worker.ts \
 # ============================================
 # Stage 3: Runner
 # ============================================
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Create non-root user
+# 创建非 root 用户
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Create logs directory
+# 创建日志目录
 RUN mkdir -p /app/logs && chown -R nextjs:nodejs /app/logs
 
-# Copy built application and all dependencies
+# 复制构建产物
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
 
-# Copy Hocuspocus and Worker (完全打包，无需额外依赖)
+# 复制 Hocuspocus 和 Worker
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/hocuspocus.js ./apps/web/
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/worker.js ./apps/web/
 
-# Conditional copy for static assets and public folder
-RUN --mount=from=builder,source=/app/apps/web,target=/tmp/web \
-    ( [ -d /tmp/web/public ] && cp -r /tmp/web/public ./apps/web/public || true ) && \
-    ( [ -f /tmp/web/public/sw.js ] && echo "sw.js found in public, ensuring it exists" || echo "sw.js not found in public" ) && \
-    ( [ -d /tmp/web/.next/static ] && mkdir -p ./apps/web/.next && cp -r /tmp/web/.next/static ./apps/web/.next/static || true ) && \
-    chown -R nextjs:nodejs /app/apps/web
+# 复制静态资源（明确列出）
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public/
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static/
 
-# Copy package.json for metadata
+# 复制 package.json
 COPY --chown=nextjs:nodejs package.json .
 COPY --chown=nextjs:nodejs apps/web/package.json ./apps/web/
 
@@ -131,6 +100,4 @@ EXPOSE 3000 1234
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Start application
 CMD ["node", "apps/web/server.js"]
-
