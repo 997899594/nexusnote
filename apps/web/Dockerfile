@@ -1,52 +1,49 @@
 # syntax=docker/dockerfile:1
 
 # ============================================
-# Stage 1: Base Layer - 稳定的依赖层
+# Stage 1: Prune - 提取构建所需文件
 # ============================================
-FROM node:22-alpine AS base
+FROM node:22-alpine AS pruner
+WORKDIR /app
+
+# 安装 turbo
+RUN npm install -g turbo@^2.0.0
+
+# 复制项目文件
+COPY . .
+
+# 提取 @nexusnote/web 构建所需的最小文件集
+RUN turbo prune --scope=@nexusnote/web --docker
+
+# ============================================
+# Stage 2: Install - 安装依赖
+# ============================================
+FROM node:22-alpine AS installer
 WORKDIR /app
 
 RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
 
-# 复制依赖配置文件
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
-COPY apps/web/package.json ./apps/web/
-COPY packages/ui/package.json ./packages/ui/
-COPY packages/db/package.json ./packages/db/
-COPY packages/config/package.json ./packages/config/
-COPY packages/types/package.json ./packages/types/
+# 复制 prune 生成的 package.json 集合
+COPY --from=pruner /app/out/json ./
+COPY --from=pruner /app/out/pnpm-lock.yaml ./
 
-# 安装依赖（依赖不变时使用缓存）
+# 安装依赖
 RUN pnpm install --frozen-lockfile --prod=false
 
 # ============================================
-# Stage 2: App Layer - 代码变化层
+# Stage 3: Build - 构建项目
 # ============================================
-FROM base AS builder
+FROM installer AS builder
 
-# 复制源代码（依赖层已包含 node_modules）
-COPY apps/web/src ./apps/web/src/
-COPY apps/web/public ./apps/web/public/
-COPY apps/web/next.config.js ./apps/web/
-COPY packages/ui/src ./packages/ui/src/
-COPY packages/db/src ./packages/db/src/
-COPY packages/config/src ./packages/config/src/
-COPY packages/types/src ./packages/types/src/
-
-# 复制 TypeScript 配置文件
-COPY tsconfig.json ./
-COPY apps/web/tsconfig.json ./apps/web/
-COPY packages/ui/tsconfig.json ./packages/ui/
-COPY packages/db/tsconfig.json ./packages/db/
-COPY packages/config/tsconfig.json ./packages/config/
-COPY packages/types/tsconfig.json ./packages/types/
+# 复制 prune 生成的源码集合（只包含相关 package）
+COPY --from=pruner /app/out/full ./
 
 # 设置环境变量
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 ENV SKIP_ENV_VALIDATION=true
 
-# 构建所有包
+# 构建所有包（按依赖顺序）
 RUN pnpm --filter @nexusnote/types build
 RUN pnpm --filter @nexusnote/config build
 RUN pnpm --filter @nexusnote/db build
@@ -71,7 +68,7 @@ RUN pnpm --filter @nexusnote/web exec esbuild src/queue/worker.ts \
   --outfile=worker.js
 
 # ============================================
-# Stage 3: Runner
+# Stage 4: Runner - 运行时镜像
 # ============================================
 FROM node:22-alpine AS runner
 WORKDIR /app
@@ -93,7 +90,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/hocuspocus.js ./apps/web/
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/worker.js ./apps/web/
 
-# 复制静态资源（明确列出）
+# 复制静态资源
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public/
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static/
 
