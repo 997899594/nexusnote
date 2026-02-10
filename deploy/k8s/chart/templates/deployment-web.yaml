@@ -30,10 +30,6 @@ spec:
             - /bin/sh
             - -c
             - |
-              echo "Waiting for database..."
-              until pg_isready -h {{ .Values.database.host }} -p {{ .Values.database.port }}; do
-                sleep 2
-              done
               echo "Database ready, running migrations..."
               cd /app/packages/db && npx drizzle-kit migrate || exit 1
               echo "Migrations completed."
