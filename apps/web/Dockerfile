@@ -12,8 +12,8 @@ RUN npm install -g turbo@^2.0.0
 # 复制项目文件
 COPY . .
 
-# 提取 @nexusnote/web 构建所需的最小文件集
-RUN turbo prune --scope=@nexusnote/web --docker
+# 提取 @nexusnote/web 和 db 构建所需的最小文件集
+RUN turbo prune --scope=@nexusnote/web --scope=@nexusnote/db --scope=@nexusnote/config --scope=@nexusnote/types --docker
 
 # ============================================
 # Stage 2: Install - 安装依赖
@@ -89,6 +89,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
 # 复制 Hocuspocus 和 Worker
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/hocuspocus.js ./apps/web/
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/worker.js ./apps/web/
+
+# 复制 db 包供迁移使用
+COPY --from=builder --chown=nextjs:nodejs /app/packages/db ./packages/db/
 
 # 复制静态资源
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public/
