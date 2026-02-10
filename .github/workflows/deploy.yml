@@ -64,7 +64,7 @@ jobs:
           mkdir -p deploy/k8s/charts
           helm repo add external-secrets https://charts.external-secrets.io
           helm repo update
-          helm pull external-secrets/external-secrets --version 0.10.0 --destination deploy/k8s/charts/
+          helm pull external-secrets/external-secrets --version 2.0.0 --destination deploy/k8s/charts/
 
       # 上传 K8s 配置文件为 Artifact（包含 Helm Chart）
       - name: Upload K8s Configs
@@ -121,49 +121,44 @@ jobs:
 
             # 1. 安装 External Secrets Operator (离线安装模式)
             echo "=== Installing External Secrets Operator (Offline) ==="
-            if ! helm status external-secrets -n external-secrets >/dev/null 2>&1; then
-              echo "ESO not installed, installing from local chart..."
-              CHART_FILE=$(ls charts/external-secrets-*.tgz)
-              helm upgrade --install external-secrets "$CHART_FILE" \
-                -n external-secrets \
-                --create-namespace \
-                --set installCRDs=true \
-                --wait --timeout 10m || {
-                echo "ERROR: ESO installation failed"
-                exit 1
-                }
-            else
-              echo "ESO already installed, skipping..."
-            fi
+            CHART_FILE=$(ls charts/external-secrets-*.tgz)
+            helm upgrade --install external-secrets "$CHART_FILE" \
+              -n external-secrets \
+              --create-namespace \
+              --set installCRDs=true \
+              --wait --timeout 10m || {
+              echo "ERROR: ESO installation failed"
+              exit 1
+              }
 
             # 2. 创建 GHCR 镜像拉取密钥
-            echo "=== Creating GHCR secret ==="
-            kubectl create secret docker-registry ghcr-secret \
-              --docker-server=ghcr.io \
-              --docker-username=${{ github.actor }} \
-              --docker-password=${{ secrets.GITHUB_TOKEN }} \
-              --namespace=nexusnote \
-              --dry-run=client -o yaml | kubectl apply -f -
+              echo "=== Creating GHCR secret ==="
+              kubectl create secret docker-registry ghcr-secret \
+                --docker-server=ghcr.io \
+                --docker-username=${{ github.actor }} \
+                --docker-password=${{ secrets.GITHUB_TOKEN }} \
+                --namespace=nexusnote \
+                --dry-run=client -o yaml | kubectl apply -f -
 
-            # 3. 创建 GitHub Token Secret (用于 ESO 从 GitHub Secrets 读取)
-            echo "=== Creating GitHub token for ESO ==="
-            kubectl create secret generic github-token \
-              --from-literal=token=${{ secrets.GITHUB_TOKEN }} \
-              --namespace=nexusnote \
-              --dry-run=client -o yaml | kubectl apply -f -
+              # 3. 创建 GitHub Token Secret (用于 ESO 从 GitHub Secrets 读取)
+              echo "=== Creating GitHub token for ESO ==="
+              kubectl create secret generic github-token \
+                --from-literal=token=${{ secrets.GITHUB_TOKEN }} \
+                --namespace=nexusnote \
+                --dry-run=client -o yaml | kubectl apply -f -
 
-            # 4. 应用 SecretStore (配置 ESO 使用 GitHub 作为 Provider)
-            echo "=== Applying SecretStore ==="
-            # 使用 sed 替换变量（避免 envsubst 未安装问题）
-            sed -i "s/\${GITHUB_OWNER}/${{ github.repository_owner }}/g" secretstore-github.yaml
-            kubectl apply -f secretstore-github.yaml
+              # 4. 应用 SecretStore (配置 ESO 使用 GitHub 作为 Provider)
+              echo "=== Applying SecretStore ==="
+              # 使用 sed 替换变量（避免 envsubst 未安装问题）
+              sed -i "s/\${GITHUB_OWNER}/${{ github.repository_owner }}/g" secretstore-github.yaml
+              kubectl apply -f secretstore-github.yaml
 
-            # 5. 应用 ExternalSecret (从 GitHub Secrets 同步到 K8s Secrets)
-            echo "=== Applying ExternalSecret ==="
-            kubectl apply -f externalsecret.yaml
+              # 5. 应用 ExternalSecret (从 GitHub Secrets 同步到 K8s Secrets)
+              echo "=== Applying ExternalSecret ==="
+              kubectl apply -f externalsecret.yaml
 
-            # 6. 等待 ExternalSecret 同步完成
-            echo "=== Waiting for ExternalSecret to sync ==="
+              # 6. 等待 ExternalSecret 同步完成
+              echo "=== Waiting for ExternalSecret to sync ==="
             kubectl wait --for=condition=Ready externalsecret/nexusnote-secrets -n nexusnote --timeout=300s || {
               echo "ERROR: ExternalSecret failed to sync"
               kubectl get externalsecret/nexusnote-secrets -n nexusnote -o yaml
