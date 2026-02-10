@@ -1,0 +1,23 @@
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ .Values.namespace }}-issuer
+  namespace: {{ .Values.namespace }}
+spec:
+  selfSigned: {}
+
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: nexusnote-cert
+  namespace: {{ .Values.namespace }}
+spec:
+  secretName: nexusnote-tls
+  dnsNames:
+    - juanie.art
+  issuerRef:
+    name: {{ .Values.namespace }}-issuer
+    kind: Issuer
+    group: cert-manager.io

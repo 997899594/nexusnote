@@ -1,0 +1,40 @@
+image:
+  repository: ghcr.io/nexusnote/nexusnote
+  pullPolicy: IfNotPresent
+  tag: "sha-${GITHUB_SHA}"
+
+oauth:
+  github:
+    id: "Ov23li5kloVVHQeOSefR"
+
+services:
+  web:
+    name: web
+    replicaCount: 3
+    resources:
+      limits:
+        cpu: "1000m"
+        memory: "1Gi"
+      requests:
+        cpu: "200m"
+        memory: "256Mi"
+  collab:
+    name: collab
+    replicaCount: 3
+    resources:
+      limits:
+        cpu: "1000m"
+        memory: "1Gi"
+      requests:
+        cpu: "200m"
+        memory: "256Mi"
+  worker:
+    name: worker
+    replicaCount: 3
+    resources:
+      limits:
+        cpu: "1000m"
+        memory: "1Gi"
+      requests:
+        cpu: "200m"
+        memory: "256Mi"

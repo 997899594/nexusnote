@@ -6,10 +6,37 @@
     "build": "turbo build",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
+
+    "docker:build": "docker build -t nexusnote:local -f apps/web/Dockerfile .",
+    "docker:build:cache": "docker buildx build --cache-from type=local,src=/tmp/.buildx-cache --cache-to type=local,dest=/tmp/.buildx-cache-new -t nexusnote:local -f apps/web/Dockerfile .",
+    "docker:build:multi": "docker buildx build --platform linux/amd64,linux/arm64 -t nexusnote:multi -f apps/web/Dockerfile .",
+    "docker:bake": "docker buildx bake",
+    "docker:bake:multi": "docker buildx bake multi",
+    "docker:push": "docker push ghcr.io/${GITHUB_REPOSITORY}:latest",
+    "docker:push:sha": "docker push ghcr.io/${GITHUB_REPOSITORY}:sha-${GITHUB_SHA}",
+
+    "k8s:deploy": "./scripts/deploy.sh",
+    "k8s:apply": "helm upgrade --install nexusnote ./deploy/k8s/chart --namespace nexusnote --values ./deploy/k8s/chart/values-dev.yaml",
+    "k8s:apply:prod": "helm upgrade --install nexusnote ./deploy/k8s/chart --namespace nexusnote --values ./deploy/k8s/chart/values-prod.yaml",
+    "k8s:status": "kubectl get pods,svc,gateway,httproute -n nexusnote",
+    "k8s:logs": "kubectl logs -f deployment/nexusnote-web -n nexusnote",
+    "k8s:logs:all": "kubectl logs -f -l app=nexusnote -n nexusnote --all-containers=true",
+    "k8s:helm:history": "helm history nexusnote -n nexusnote",
+    "k8s:helm:rollback": "helm rollback nexusnote -n nexusnote",
+    "k8s:helm:values": "helm get values nexusnote -n nexusnote",
+    "k8s:eso:install": "bash deploy/k8s/eso-install.sh",
+    "k8s:eso:status": "kubectl get externalsecret,secretstore -n nexusnote",
+    "k8s:eso:refresh": "kubectl externalsecret refresh nexusnote-secrets -n nexusnote",
+
     "db:push": "pnpm --filter @nexusnote/db push",
     "db:studio": "pnpm --filter @nexusnote/db studio",
     "db:generate": "pnpm --filter @nexusnote/db generate",
-    "db:migrate": "pnpm --filter @nexusnote/db migrate"
+    "db:migrate": "pnpm --filter @nexusnote/db migrate",
+
+    "test": "turbo test",
+    "test:watch": "turbo test --watch",
+    "test:coverage": "turbo test --coverage",
+    "e2e": "turbo test --filter=*e2e*"
   },
   "devDependencies": {
     "turbo": "^2.0.0",

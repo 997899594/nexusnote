@@ -1,0 +1,16 @@
+apiVersion: v2
+name: nexusnote
+description: NexusNote - AI Course Engine
+type: application
+version: 1.0.0
+appVersion: "0.1.0"
+
+keywords:
+  - nexusnote
+  - ai
+  - education
+  - course
+
+maintainers:
+  - name: NexusNote Team
+    email: team@nexusnote.com

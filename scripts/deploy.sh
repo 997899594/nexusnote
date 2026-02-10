@@ -1,9 +1,7 @@
 #!/bin/bash
 
 # NexusNote 自动化部署脚本 (2026 Modern Stack)
-# 支持环境: Local Development, Production (VPS/Tencent Cloud)
-# 服务器: 49.232.237.136
-# 域名: www.juanie.art
+# 使用 Helm Chart 部署到 K8s
 
 set -e
 
@@ -19,76 +17,67 @@ cd "$PROJECT_ROOT"
 echo -e "${BLUE}==== NexusNote 部署脚本启动 ====${NC}"
 
 # 1. 检查基础环境
-if ! command -v docker &> /dev/null; then
-    echo -e "${RED}错误: 未安装 Docker。${NC}"
+if ! command -v kubectl &> /dev/null; then
+    echo -e "${RED}错误: 未安装 kubectl。${NC}"
     exit 1
 fi
 
-# 2. 准备环境变量
-if [ ! -f .env ]; then
-    echo -e "${BLUE}正在从 .env.example 创建 .env 文件...${NC}"
-    cp .env.example .env
-    
-    # 生成随机密钥
-    AUTH_SECRET=$(openssl rand -base64 32)
-    JWT_SECRET=$(openssl rand -base64 32)
-    
-    # 使用 Python 进行跨平台替换 (macOS/Linux sed 差异较大)
-    python3 -c "
-import sys
-content = open('.env').read()
-content = content.replace('your-random-32-char-auth-secret-change-in-production', '$AUTH_SECRET')
-content = content.replace('your-random-32-char-secret-key-change-in-production', '$JWT_SECRET')
-open('.env', 'w').write(content)
-"
-    
-    # 设置域名相关的环境变量
-    echo "PUBLIC_API_URL=https://www.juanie.art/api" >> .env
-    echo "PUBLIC_COLLAB_URL=wss://www.juanie.art/collab" >> .env
-    
-    echo -e "${GREEN}已生成 .env 文件。请手动编辑并填入 AI API Key (AI_302_API_KEY 等)。${NC}"
-    echo -e "${BLUE}命令: nano .env${NC}"
-    
-    # 如果是交互式终端，则退出引导用户修改；否则继续尝试启动
-    if [ -t 0 ]; then
-        exit 0
-    fi
+if ! command -v helm &> /dev/null; then
+    echo -e "${RED}错误: 未安装 Helm。${NC}"
+    exit 1
 fi
 
-# 3. 执行部署操作 (K3s 现代化流程)
-echo -e "${BLUE}正在执行 K3s 现代化部署流程...${NC}"
+# 2. 确定部署环境
+ENVIRONMENT=${1:-"dev"}
 
-# 1. 确保命名空间存在
-kubectl create namespace nexusnote --dry-run=client -o yaml | kubectl apply -f -
-
-# 2. 更新 Secret
-if [ -f .env ]; then
-    kubectl create secret generic nexusnote-secrets --from-env-file=.env -n nexusnote --dry-run=client -o yaml | kubectl apply -f -
+if [ "$ENVIRONMENT" = "prod" ]; then
+    VALUES_FILE="./deploy/k8s/chart/values-prod.yaml"
+    echo -e "${BLUE}部署环境: 生产环境${NC}"
 else
-    echo -e "${RED}错误: 未找到 .env 文件。${NC}"
-    exit 1
+    VALUES_FILE="./deploy/k8s/chart/values-dev.yaml"
+    echo -e "${BLUE}部署环境: 开发环境${NC}"
 fi
 
-# 3. 应用 Kubernetes 配置
-echo -e "${BLUE}应用基础架构、有状态服务和应用配置...${NC}"
-kubectl apply -f deploy/k8s/infrastructure.yaml
-kubectl apply -f deploy/k8s/stateful.yaml
+# 3. 安装 External Secrets Operator (如果尚未安装)
+echo -e "${BLUE}检查 External Secrets Operator...${NC}"
+helm repo add external-secrets https://charts.external-secrets.io || true
+helm repo update
+helm upgrade --install external-secrets \
+  external-secrets/external-secrets \
+  -n external-secrets \
+  --create-namespace \
+  --version 0.10.0 \
+  --set installCRDs=true \
+  --wait --timeout 10m || true
 
-# 处理 app.yaml 中的镜像占位符
-IMAGE_TAG=${1:-"williambridges/juanie:latest"}
-sed "s|IMAGE_PLACEHOLDER|$IMAGE_TAG|g" deploy/k8s/app.yaml | kubectl apply -f -
+# 4. 应用 ESO 配置
+echo -e "${BLUE}应用 SecretStore 和 ExternalSecret...${NC}"
+kubectl apply -f deploy/k8s/secretstore-github.yaml
+kubectl apply -f deploy/k8s/externalsecret.yaml
 
-# 4. 滚动更新
-echo -e "${BLUE}执行滚动更新...${NC}"
-kubectl rollout restart deployment/nexusnote-web -n nexusnote
-kubectl rollout restart deployment/nexusnote-collab -n nexusnote
-kubectl rollout restart deployment/nexusnote-worker -n nexusnote
-kubectl rollout status deployment/nexusnote-web -n nexusnote
+# 5. 等待 ExternalSecret 同步完成
+echo -e "${BLUE}等待 ExternalSecret 同步...${NC}"
+kubectl wait --for=condition=Ready externalsecret/nexusnote-secrets -n nexusnote --timeout=300s || {
+    echo -e "${RED}ERROR: ExternalSecret 同步失败${NC}"
+    exit 1
+}
 
-echo -e "${GREEN}==== K3s 部署完成！ ====${NC}"
+# 6. 使用 Helm 部署应用
+echo -e "${BLUE}使用 Helm 部署应用...${NC}"
+helm upgrade --install nexusnote ./deploy/k8s/chart \
+  --namespace nexusnote \
+  --create-namespace \
+  --values "$VALUES_FILE" \
+  --wait --timeout 10m
+
+# 7. 显示部署状态
+echo -e "${GREEN}==== 部署完成！ ====${NC}"
 echo -e "${BLUE}资源状态:${NC}"
-kubectl get pods,svc,gateway,httproute -n nexusnote
+kubectl get pods,svc -n nexusnote
 
 echo -e "\n${BLUE}后续步骤:${NC}"
-echo -e "1. 查看应用日志: kubectl logs -f deployment/nexusnote-app -n nexusnote"
-echo -e "2. 检查网关状态: kubectl get gateway -n nexusnote"
+echo -e "1. 查看 Pod 状态: npm run k8s:status"
+echo -e "2. 查看 Web 日志: npm run k8s:logs"
+echo -e "3. 查看 Helm 历史: npm run k8s:helm:history"
+echo -e "4. 回滚部署: npm run k8s:helm:rollback"
+echo -e "5. 查看 ESO 状态: npm run k8s:eso:status"

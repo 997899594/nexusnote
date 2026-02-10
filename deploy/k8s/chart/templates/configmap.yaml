@@ -1,0 +1,20 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nexusnote-config
+  namespace: {{ .Values.namespace }}
+data:
+  NODE_ENV: {{ .Values.env.NODE_ENV | default "production" | quote }}
+  PORT: {{ .Values.env.PORT | default "3000" | quote }}
+  HOCUSPOCUS_PORT: {{ .Values.env.HOCUSPOCUS_PORT | default "1234" | quote }}
+  NEXT_PUBLIC_APP_URL: {{ .Values.env.NEXT_PUBLIC_APP_URL | quote }}
+  AUTH_TRUST_HOST: {{ .Values.env.AUTH_TRUST_HOST | default "true" | quote }}
+  NEXTAUTH_URL: {{ .Values.env.NEXTAUTH_URL | quote }}
+  NEXT_PUBLIC_GITHUB_ID: {{ .Values.oauth.github.id | quote }}
+  DATABASE_HOST: {{ .Values.database.host | quote }}
+  DATABASE_PORT: {{ .Values.database.port | toString | quote }}
+  DATABASE_NAME: {{ .Values.database.name | quote }}
+  DATABASE_USER: {{ .Values.database.user | quote }}
+  REDIS_HOST: {{ .Values.redis.host | quote }}
+  REDIS_PORT: {{ .Values.redis.port | toString | quote }}

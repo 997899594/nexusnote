@@ -1,0 +1,53 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nexusnote-collab
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: nexusnote-collab
+spec:
+  replicas: {{ .Values.services.collab.replicaCount }}
+  selector:
+    matchLabels:
+      app: nexusnote-collab
+  template:
+    metadata:
+      labels:
+        app: nexusnote-collab
+    spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      initContainers:
+        - name: db-migrate
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+          envFrom:
+            - configMapRef:
+                name: nexusnote-config
+            - secretRef:
+                name: nexusnote-secrets
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Waiting for database..."
+              until pg_isready -h {{ .Values.database.host }} -p {{ .Values.database.port }}; do
+                sleep 2
+              done
+              echo "Database ready, running migrations..."
+              cd /app/packages/db && npx drizzle-kit migrate || exit 1
+              echo "Migrations completed."
+      containers:
+        - name: app
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+          command: ["node", "apps/web/hocuspocus.js"]
+          ports:
+            - containerPort: {{ .Values.env.HOCUSPOCUS_PORT | default "1234" }}
+              name: collab
+          envFrom:
+            - configMapRef:
+                name: nexusnote-config
+            - secretRef:
+                name: nexusnote-secrets
+          resources:
+            {{ toYaml .Values.services.collab.resources | nindent 12 }}
