@@ -29,7 +29,7 @@ import { courseGenerationTools } from "@/lib/ai/tools/course-generation";
 import { buildCourseGenerationPrompt } from "@/lib/ai/prompts/course-generation";
 import { OutlineSchema } from "@/lib/ai/types/course";
 
-const courseModel = webSearchModel || chatModel;
+const courseModel = chatModel;
 
 /**
  * 获取课程生成模型，如果未配置则抛出错误

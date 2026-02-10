@@ -22,7 +22,7 @@ import { chatModel, webSearchModel } from "@/lib/ai/registry";
 import { interviewTools } from "@/lib/ai/tools/interview";
 import { buildInterviewPrompt } from "@/lib/ai/prompts/interview";
 
-const interviewModel = webSearchModel || chatModel;
+const interviewModel = chatModel;
 
 /**
  * Interview Context Schema - 统一的维度定义
