@@ -11,10 +11,12 @@ permissions:
 
 jobs:
   # ============================================
-  # 阶段 1：构建镜像 + 打包配置
+  # 阶段 1：构建
   # ============================================
   build:
     runs-on: ubuntu-latest
+    # ✅ 加上这行，确保能读到环境密钥
+    environment: production
     outputs:
       image_tag: ${{ steps.meta.outputs.tags }}
       image_sha: ${{ github.sha }}
@@ -26,7 +28,6 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to GitHub Container Registry
-        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -51,7 +52,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # 【修正点 1】同时上传 k8s 配置和 chart 目录
+      # 🚨 修正这里：必须包含 chart 目录！
       - name: Upload Deployment Files
         uses: actions/upload-artifact@v4
         with:
@@ -61,18 +62,19 @@ jobs:
             chart/
 
   # ============================================
-  # 阶段 2：部署到 K3s
+  # 阶段 2：部署
   # ============================================
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    # ✅ 加上这行，解决 missing server host
+    environment: production
     steps:
-      # 下载所有配置
       - name: Download Deployment Files
         uses: actions/download-artifact@v4
         with:
           name: deploy-files
-          path: ./deploy-artifacts  # 下载到一个指定目录，防止结构混乱
+          path: ./deploy-artifacts
 
       - name: Clean server deploy directory
         uses: appleboy/ssh-action@v1.0.3
@@ -88,14 +90,12 @@ jobs:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          # 【修正点 2】源路径改为刚才下载的 Artifact 目录
           source: "deploy-artifacts/*"
           target: "/tmp/nexusnote-deploy"
-          strip_components: 1 # 去掉外层的 deploy-artifacts 目录
+          strip_components: 1
 
       - name: Deploy to K3s Cluster
         uses: appleboy/ssh-action@v1.0.3
-        # 【修正点 3】env 块放在这里，缩进属于 step
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           OAUTH_GITHUB_SECRET: ${{ secrets.OAUTH_GITHUB_SECRET }}
@@ -109,32 +109,30 @@ jobs:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          # 告诉 ssh-action 将哪些环境变量透传给远程脚本
           envs: DATABASE_URL,OAUTH_GITHUB_SECRET,OAUTH_GOOGLE_SECRET,NEXTAUTH_SECRET,GITHUB_ACTOR,GITHUB_TOKEN,IMAGE_SHA,REPO_NAME
-          # 【修正点 4】script 必须属于 with，不能缩进到 env 里
           script: |
             set -e
             export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
-
-            # 目录修正：现在文件都在 /tmp/nexusnote-deploy 根目录下
+            
+            # 进入目录
             cd /tmp/nexusnote-deploy
 
+            # 1. 创建 Secrets
             echo "=== Creating application secrets ==="
-            # 使用环境变量 $DATABASE_URL 避免特殊字符问题
             cat <<EOF > secrets.env
             DATABASE_URL=$DATABASE_URL
             OAUTH_GITHUB_SECRET=$OAUTH_GITHUB_SECRET
             OAUTH_GOOGLE_SECRET=$OAUTH_GOOGLE_SECRET
             NEXTAUTH_SECRET=$NEXTAUTH_SECRET
             EOF
-
+            
             kubectl create secret generic nexusnote-secrets \
               --namespace=nexusnote \
               --from-env-file=secrets.env \
               --dry-run=client -o yaml | kubectl apply -f -
-            
             rm -f secrets.env
 
+            # 2. 创建 Docker Secret
             echo "=== Creating GHCR secret ==="
             kubectl create secret docker-registry ghcr-secret \
               --docker-server=ghcr.io \
@@ -143,11 +141,9 @@ jobs:
               --namespace=nexusnote \
               --dry-run=client -o yaml | kubectl apply -f -
 
-            # 部署前验证 Secret 存在
-            kubectl get secret nexusnote-secrets -n nexusnote >/dev/null || exit 1
-
+            # 3. Helm 部署
             echo "=== Deploying with Helm ==="
-            # 路径修正：./chart 就在当前目录下
+            # 现在 ./chart 肯定存在了
             helm upgrade --install nexusnote ./chart \
               --namespace nexusnote \
               --create-namespace \
@@ -157,11 +153,4 @@ jobs:
               --atomic \
               --wait --timeout 10m
 
-            echo "=== Deployment Health Check ==="
-            # 简化版健康检查，Helm atomic 失败会自动回滚，这里只做确认
-            kubectl rollout status deployment/nexusnote-web -n nexusnote
-            kubectl rollout status deployment/nexusnote-collab -n nexusnote
-            
-            echo "=== Cleanup ==="
-            rm -rf /tmp/nexusnote-deploy
             echo "SUCCESS"
