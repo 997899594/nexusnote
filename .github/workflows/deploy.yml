@@ -121,7 +121,8 @@ jobs:
 
             # 1. 安装 External Secrets Operator (离线安装模式)
             echo "=== Installing External Secrets Operator (Offline) ==="
-            CHART_FILE=$(ls charts/external-secrets-*.tgz)
+            CHART_FILE=$(ls -t charts/external-secrets-*.tgz | head -n 1)
+            echo "Using chart: $CHART_FILE"
             helm upgrade --install external-secrets "$CHART_FILE" \
               -n external-secrets \
               --create-namespace \
