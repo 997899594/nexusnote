@@ -61,6 +61,7 @@ jobs:
       # 下载 External Secrets Operator Helm Chart
       - name: Download ESO Helm Chart
         run: |
+          rm -rf deploy/k8s/charts
           mkdir -p deploy/k8s/charts
           helm repo add external-secrets https://charts.external-secrets.io
           helm repo update
@@ -121,8 +122,7 @@ jobs:
 
             # 1. 安装 External Secrets Operator (离线安装模式)
             echo "=== Installing External Secrets Operator (Offline) ==="
-            CHART_FILE=$(ls -t charts/external-secrets-*.tgz | head -n 1)
-            echo "Using chart: $CHART_FILE"
+            CHART_FILE=$(ls charts/external-secrets-*.tgz)
             helm upgrade --install external-secrets "$CHART_FILE" \
               -n external-secrets \
               --create-namespace \
