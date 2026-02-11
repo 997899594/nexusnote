@@ -5,6 +5,9 @@ image:
   pullPolicy: IfNotPresent
   tag: "sha-${GITHUB_SHA}"
 
+issuer:
+  email: "admin@juanie.art"
+
 env:
   NODE_ENV: "production"
   PORT: "3000"

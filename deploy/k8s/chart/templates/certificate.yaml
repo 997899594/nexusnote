@@ -5,8 +5,15 @@ metadata:
   name: {{ .Values.namespace }}-issuer
   namespace: {{ .Values.namespace }}
 spec:
-  selfSigned: {}
-
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: {{ .Values.issuer.email | default "admin@juanie.art" }}
+    privateKeySecretRef:
+      name: {{ .Values.namespace }}-issuer-account-key
+    solvers:
+      - http01:
+          ingress:
+            class: cilium
 ---
 apiVersion: cert-manager.io/v1
 kind: Certificate
