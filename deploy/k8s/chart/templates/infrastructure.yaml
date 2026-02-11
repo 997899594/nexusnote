@@ -3,9 +3,10 @@ apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
   name: nexusnote-gateway
-  namespace: {{ .Values.namespace }}
+  namespace: { { .Values.namespace } }
   annotations:
     cert-manager.io/issuer: "{{ .Values.namespace }}-issuer"
+    service.cilium.io/type: LoadBalancer
 spec:
   gatewayClassName: cilium
   listeners:
@@ -28,17 +29,16 @@ spec:
           - name: nexusnote-cert
             group: cert-manager.io
             kind: Certificate
-
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
   name: nexusnote-route
-  namespace: {{ .Values.namespace }}
+  namespace: { { .Values.namespace } }
 spec:
   parentRefs:
     - name: nexusnote-gateway
-      namespace: {{ .Values.namespace }}
+      namespace: { { .Values.namespace } }
       kind: Gateway
   hostnames:
     - juanie.art
@@ -46,15 +46,14 @@ spec:
     - backendRefs:
         - name: nexusnote-service
           port: 3000
-
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: nexusnote-service
-  namespace: {{ .Values.namespace }}
+  namespace: { { .Values.namespace } }
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   selector:
     app: nexusnote-web
   ports:

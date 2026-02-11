@@ -13,7 +13,7 @@ chart/
     ├── configmap.yaml         # 配置映射
     ├── certificate.yaml        # TLS 证书
     ├── metallb-config.yaml    # MetalLB IP 池配置（条件渲染）
-    ├── infrastructure.yaml     # Gateway + HTTPRoute + Service (LoadBalancer)
+    ├── infrastructure.yaml     # Gateway + HTTPRoute + Gateway Service (LoadBalancer) + App Service (ClusterIP)
     ├── deployment-web.yaml     # Web 服务部署
     ├── deployment-collab.yaml # 协作服务部署
     ├── deployment-worker.yaml  # 后台任务部署
@@ -32,9 +32,11 @@ chart/
     ↓
 [Gateway: nexusnote-gateway] (80/443 端口)
     ↓
+[Service: cilium-gateway-nexusnote-gateway] (LoadBalancer - MetalLB 分配外部 IP 10.2.0.15)
+    ↓
 [HTTPRoute: nexusnote-route] (路由规则: juanie.art → nexusnote-service:3000)
     ↓
-[Service: nexusnote-service] (LoadBalancer - MetalLB 分配外部 IP)
+[Service: nexusnote-service] (ClusterIP - 集群内部)
     ↓
 [Deployment: nexusnote-web] (selector: app=nexusnote-web)
     ↓
@@ -328,13 +330,36 @@ kubectl get l2advertisement -n metallb-system
 #### 3. 验证 IP 分配
 
 ```bash
-# 查看 LoadBalancer Service 的外部 IP
-kubectl get svc nexusnote-service -n nexusnote
+# 查看 Gateway Service 的类型（首次部署后通常是 ClusterIP）
+kubectl get svc cilium-gateway-nexusnote-gateway -n nexusnote
+
+# 预期输出（首次部署）：
+# NAME                                TYPE        CLUSTER-IP       PORT(S)
+# cilium-gateway-nexusnote-gateway     ClusterIP   10.43.143.90     80/TCP,443/TCP
+```
+
+#### 4. 首次部署后手动 Patch Gateway Service（必需）
+
+由于 Cilium Gateway Controller 默认创建 ClusterIP Service，需要手动 Patch 为 LoadBalancer：
+
+```bash
+# Patch Gateway Service 为 LoadBalancer
+kubectl patch svc cilium-gateway-nexusnote-gateway -n nexusnote \
+  -p '{"spec":{"type":"LoadBalancer"}}'
+
+# 验证 Service 是否获得外部 IP
+kubectl get svc cilium-gateway-nexusnote-gateway -n nexusnote
 
 # 预期输出：
-# NAME               TYPE           EXTERNAL-IP       PORT(S)
-# nexusnote-service  LoadBalancer   192.168.0.240     3000/TCP
+# NAME                                TYPE           EXTERNAL-IP    PORT(S)
+# cilium-gateway-nexusnote-gateway     LoadBalancer   10.2.0.15     80:xxxx/TCP,443:xxxx/TCP
 ```
+
+**说明**：
+
+- `10.2.0.15` 是服务器的真实内网 IP，由 MetalLB 分配
+- `80:xxxx/TCP,443:xxxx/TCP` 表示 NodePort 映射
+- 只需手动执行一次，后续部署会保持 LoadBalancer 类型
 
 ---
 
@@ -473,7 +498,7 @@ kubectl get ipaddresspool nexusnote-ip-pool -n metallb-system -o yaml
 └─────────────────────────────────────────────────────────┘
                           ↓ DNS 解析
 ┌─────────────────────────────────────────────────────────┐
-│              MetalLB 分配的外部 IP: 192.168.0.240         │
+│              MetalLB 分配的外部 IP: 10.2.0.15           │
 │                                                         │
 │   L2Advertisement 在 eth0 接口宣告 IP                   │
 │   ARP/NDP 协议响应 IP 请求                               │
@@ -483,25 +508,31 @@ kubectl get ipaddresspool nexusnote-ip-pool -n metallb-system -o yaml
 ┌─────────────────────────────────────────────────────────┐
 │                    K3s 集群节点                         │
 │                                                         │
-│   ┌──────────────┐    ┌──────────────┐                 │
-│   │ Cilium CNI   │    │ Kube-proxy   │                 │
-│   │              │←───│              │                 │
-│   └──────────────┘    └──────────────┘                 │
-│          ↓                    ↓                        │
 │   ┌─────────────────────────────────────┐              │
-│   │   Gateway: nexusnote-gateway        │              │
-│   │   (监听 80/443 端口)                │              │
+│   │ Gateway Service (LoadBalancer)    │              │
+│   │ EXTERNAL-IP: 10.2.0.15         │              │
+│   │ 端口: 80, 443                   │              │
 │   └─────────────────────────────────────┘              │
-└─────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────┐
-│              Service: nexusnote-service                  │
-│              (LoadBalancer, 外部 IP: 192.168.0.240)      │
-└─────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────┐
-│              Deployment: nexusnote-web                    │
-│              (3 个 Pod，标签: app=nexusnote-web)          │
+│          ↓                                        │
+│   ┌─────────────────────────────────────┐              │
+│   │ Gateway: nexusnote-gateway        │              │
+│   │ (Cilium Gateway Controller 监听) │             │
+│   └─────────────────────────────────────┘              │
+│          ↓                                        │
+│   ┌─────────────────────────────────────┐              │
+│   │ HTTPRoute: nexusnote-route       │              │
+│   │ juanie.art → nexusnote-service   │              │
+│   └─────────────────────────────────────┘              │
+│          ↓                                        │
+│   ┌─────────────────────────────────────┐              │
+│   │ App Service (ClusterIP)           │              │
+│   │ 内网转发到 Pod                   │              │
+│   └─────────────────────────────────────┘              │
+│          ↓                                        │
+│   ┌─────────────────────────────────────┐              │
+│   │ Pod: nexusnote-web              │              │
+│   │ 应用容器                        │              │
+│   └─────────────────────────────────────┘              │
 └─────────────────────────────────────────────────────────┘
 ```
 
