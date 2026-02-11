@@ -169,17 +169,6 @@ jobs:
             rm -f secrets.env
 
             # --- 后续 Helm 部署逻辑保持不变 ---
-            echo "=== Debug: Checking environment variables ==="
-            echo "CR_PAT length: ${#CR_PAT}"
-            echo "GITHUB_TOKEN length: ${#GITHUB_TOKEN}"
-            echo "GITHUB_ACTOR: $GITHUB_ACTOR"
-            echo "REPO_NAME: $REPO_NAME"
-
-            if [ -z "$CR_PAT" ]; then
-              echo "ERROR: CR_PAT is empty! Please add CR_PAT to GitHub Secrets."
-              exit 1
-            fi
-
             echo "=== Creating GHCR secret ==="
             kubectl create secret docker-registry ghcr-secret \
               --docker-server=ghcr.io \
