@@ -28,6 +28,12 @@ redis:
   host: nexusnote-redis
   port: 6379
 
+metallb:
+  enabled: true
+  # 🟢 修正：使用你的真实内网 IP，单机独占
+  addressRange: "10.2.0.15-10.2.0.15"
+  interface: "eth0"
+
 services:
   web:
     name: web

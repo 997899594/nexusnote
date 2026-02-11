@@ -1,0 +1,23 @@
+{{- if .Values.metallb.enabled }}
+---
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: nexusnote-ip-pool
+  namespace: metallb-system
+spec:
+  addresses:
+    - {{ .Values.metallb.addressRange }}
+  autoAssign: true
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: l2-advertisement
+  namespace: metallb-system
+spec:
+  ipAddressPools:
+    - nexusnote-ip-pool
+  interfaces:
+    - {{ .Values.metallb.interface }}
+{{- end }}

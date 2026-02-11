@@ -184,9 +184,7 @@ jobs:
               --create-namespace \
               --set image.tag="sha-$IMAGE_SHA" \
               --set image.repository="ghcr.io/$REPO_NAME" \
-              --values $HELM_CHART/values-prod.yaml \
-              --atomic \
-              --wait --timeout 10m
+              --values $HELM_CHART/values-prod.yaml
 
             echo "SUCCESS"
             rm -rf /tmp/nexusnote-deploy
