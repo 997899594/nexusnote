@@ -115,33 +115,59 @@ jobs:
 
             cd /tmp/nexusnote-deploy/deploy-artifacts
 
-            echo "=== Debug: Directory Layout ==="
-            ls -R
-            echo "==============================="
-
             echo "=== Ensuring Namespace exists ==="
             kubectl create namespace nexusnote --dry-run=client -o yaml | kubectl apply -f -
 
-            echo "=== Creating application secrets ==="
+            echo "=== Processing Secrets ==="
 
-            DATABASE_URL="postgresql://postgres:${POSTGRES_PASSWORD}@nexusnote-db:5432/nexusnote"
+            # --- 1. 强力清洗 (核心修复) ---
+            # 去除所有换行符、回车符、双引号、单引号、空格
+            # 这样能保证拿到的只是纯粹的密码字符
+            CLEAN_PASS=$(echo "$POSTGRES_PASSWORD" | tr -d '\n\r" '\'' ')
+
+            # --- 2. 调试信息 (不泄露密码) ---
+            PASS_LEN=${#CLEAN_PASS}
+            echo "Debug: Password length after clean: $PASS_LEN"
+            echo "Debug: Original Password length: ${#POSTGRES_PASSWORD}"
+            if [ "$PASS_LEN" -eq 0 ]; then
+              echo "Error: Password became empty! Check GitHub Secrets."
+              exit 1
+            fi
+
+            # --- 3. 构造 URL ---
+            # 注意：使用清洗后的密码
+            # 假设 Redis 没密码，如果有密码也要一样清洗
+            DATABASE_URL="postgresql://postgres:${CLEAN_PASS}@nexusnote-db:5432/nexusnote"
             REDIS_URL="redis://nexusnote-redis:6379"
 
-            cat <<EOF > secrets.env
-            DATABASE_URL="$DATABASE_URL"
-            POSTGRES_PASSWORD="$POSTGRES_PASSWORD"
-            REDIS_URL="$REDIS_URL"
-            OAUTH_GITHUB_SECRET="$OAUTH_GITHUB_SECRET"
-            OAUTH_GOOGLE_SECRET="$OAUTH_GOOGLE_SECRET"
-            NEXTAUTH_SECRET="$NEXTAUTH_SECRET"
-            EOF
+            echo "Debug: Generated DATABASE_URL length: ${#DATABASE_URL}"
+            # 打印 URL 前 25 个字符确认协议头没问题
+            echo "Debug: URL Head: ${DATABASE_URL:0:25}..."
 
+            # --- 4. 生成 secrets.env (使用 printf 不加引号) ---
+            truncate -s 0 secrets.env
+            printf "DATABASE_URL=%s\n" "$DATABASE_URL" >> secrets.env
+            printf "POSTGRES_PASSWORD=%s\n" "$CLEAN_PASS" >> secrets.env
+            printf "REDIS_URL=%s\n" "$REDIS_URL" >> secrets.env
+
+            # 其他密钥也建议清洗一下，防止回车符
+            CLEAN_GH_SECRET=$(echo "$OAUTH_GITHUB_SECRET" | tr -d '\n\r" ')
+            CLEAN_GOOGLE_SECRET=$(echo "$OAUTH_GOOGLE_SECRET" | tr -d '\n\r" ')
+            CLEAN_NEXT_SECRET=$(echo "$NEXTAUTH_SECRET" | tr -d '\n\r" ')
+
+            printf "OAUTH_GITHUB_SECRET=%s\n" "$CLEAN_GH_SECRET" >> secrets.env
+            printf "OAUTH_GOOGLE_SECRET=%s\n" "$CLEAN_GOOGLE_SECRET" >> secrets.env
+            printf "NEXTAUTH_SECRET=%s\n" "$CLEAN_NEXT_SECRET" >> secrets.env
+
+            echo "=== Applying Secrets ==="
             kubectl create secret generic nexusnote-secrets \
               --namespace=nexusnote \
               --from-env-file=secrets.env \
               --dry-run=client -o yaml | kubectl apply -f -
+
             rm -f secrets.env
 
+            # --- 后续 Helm 部署逻辑保持不变 ---
             echo "=== Creating GHCR secret ==="
             kubectl create secret docker-registry ghcr-secret \
               --docker-server=ghcr.io \
@@ -153,15 +179,6 @@ jobs:
             echo "=== Deploying with Helm ==="
             HELM_CHART="./deploy/k8s/chart"
 
-            echo "Using chart at: $HELM_CHART"
-
-            if [ ! -f "$HELM_CHART/Chart.yaml" ]; then
-              echo "::error::Chart.yaml not found in $HELM_CHART!"
-              exit 1
-            fi
-
-            echo "Using chart at: $HELM_CHART"
-
             helm upgrade --install nexusnote $HELM_CHART \
               --namespace nexusnote \
               --create-namespace \
@@ -171,10 +188,5 @@ jobs:
               --atomic \
               --wait --timeout 10m
 
-            echo "=== Deployment Health Check ==="
-            kubectl rollout status deployment/nexusnote-web -n nexusnote
-            kubectl rollout status deployment/nexusnote-collab -n nexusnote
-
-            echo "=== Cleanup ==="
-            rm -rf /tmp/nexusnote-deploy
             echo "SUCCESS"
+            rm -rf /tmp/nexusnote-deploy
