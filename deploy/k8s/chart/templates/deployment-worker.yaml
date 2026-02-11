@@ -18,25 +18,6 @@ spec:
     spec:
       imagePullSecrets:
         - name: ghcr-secret
-      initContainers:
-        - name: db-migrate
-          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
-          envFrom:
-            - configMapRef:
-                name: nexusnote-config
-            - secretRef:
-                name: nexusnote-secrets
-          command:
-            - /bin/sh
-            - -c
-            - |
-              echo "Waiting for database..."
-              until pg_isready -h {{ .Values.database.host }} -p {{ .Values.database.port }}; do
-                sleep 2
-              done
-              echo "Database ready, running migrations..."
-              cd /app/packages/db && npx drizzle-kit migrate || exit 1
-              echo "Migrations completed."
       containers:
         - name: app
           image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
