@@ -98,6 +98,7 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
           OAUTH_GITHUB_SECRET: ${{ secrets.OAUTH_GITHUB_SECRET }}
           OAUTH_GOOGLE_SECRET: ${{ secrets.OAUTH_GOOGLE_SECRET }}
           NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
@@ -109,7 +110,7 @@ jobs:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: DATABASE_URL,POSTGRES_PASSWORD,OAUTH_GITHUB_SECRET,OAUTH_GOOGLE_SECRET,NEXTAUTH_SECRET,GITHUB_ACTOR,GITHUB_TOKEN,IMAGE_SHA,REPO_NAME
+          envs: DATABASE_URL,POSTGRES_PASSWORD,REDIS_PASSWORD,OAUTH_GITHUB_SECRET,OAUTH_GOOGLE_SECRET,NEXTAUTH_SECRET,GITHUB_ACTOR,GITHUB_TOKEN,IMAGE_SHA,REPO_NAME
           script: |
             set -e
             export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
@@ -124,12 +125,16 @@ jobs:
             kubectl create namespace nexusnote --dry-run=client -o yaml | kubectl apply -f -
 
             echo "=== Creating application secrets ==="
+
+            REDIS_URL="redis://nexusnote-redis:6379"
+
             cat <<EOF > secrets.env
-            DATABASE_URL=$DATABASE_URL
-            POSTGRES_PASSWORD=$POSTGRES_PASSWORD
-            OAUTH_GITHUB_SECRET=$OAUTH_GITHUB_SECRET
-            OAUTH_GOOGLE_SECRET=$OAUTH_GOOGLE_SECRET
-            NEXTAUTH_SECRET=$NEXTAUTH_SECRET
+            DATABASE_URL="$DATABASE_URL"
+            POSTGRES_PASSWORD="$POSTGRES_PASSWORD"
+            REDIS_URL="$REDIS_URL"
+            OAUTH_GITHUB_SECRET="$OAUTH_GITHUB_SECRET"
+            OAUTH_GOOGLE_SECRET="$OAUTH_GOOGLE_SECRET"
+            NEXTAUTH_SECRET="$NEXTAUTH_SECRET"
             EOF
 
             kubectl create secret generic nexusnote-secrets \

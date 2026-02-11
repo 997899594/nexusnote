@@ -1,11 +1,32 @@
+namespace: nexusnote
+
 image:
   repository: ghcr.io/nexusnote/nexusnote
   pullPolicy: IfNotPresent
   tag: "sha-${GITHUB_SHA}"
 
+env:
+  NODE_ENV: "production"
+  PORT: "3000"
+  HOCUSPOCUS_PORT: "1234"
+  NEXT_PUBLIC_APP_URL: "https://juanie.art"
+  AUTH_TRUST_HOST: "true"
+  NEXTAUTH_URL: "https://juanie.art"
+
 oauth:
   github:
     id: "Ov23li5kloVVHQeOSefR"
+
+database:
+  host: nexusnote-db
+  port: 5432
+  name: nexusnote
+  user: postgres
+  password: ""
+
+redis:
+  host: nexusnote-redis
+  port: 6379
 
 services:
   web:
