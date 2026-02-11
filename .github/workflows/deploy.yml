@@ -102,13 +102,14 @@ jobs:
           NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CR_PAT: ${{ secrets.CR_PAT }}
           IMAGE_SHA: ${{ needs.build.outputs.image_sha }}
           REPO_NAME: ${{ github.repository }}
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: POSTGRES_PASSWORD,OAUTH_GITHUB_SECRET,OAUTH_GOOGLE_SECRET,NEXTAUTH_SECRET,GITHUB_ACTOR,GITHUB_TOKEN,IMAGE_SHA,REPO_NAME
+          envs: POSTGRES_PASSWORD,OAUTH_GITHUB_SECRET,OAUTH_GOOGLE_SECRET,NEXTAUTH_SECRET,GITHUB_ACTOR,GITHUB_TOKEN,CR_PAT,IMAGE_SHA,REPO_NAME
           script: |
             set -e
             export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
@@ -172,7 +173,7 @@ jobs:
             kubectl create secret docker-registry ghcr-secret \
               --docker-server=ghcr.io \
               --docker-username=$GITHUB_ACTOR \
-              --docker-password=$GITHUB_TOKEN \
+              --docker-password=$CR_PAT \
               --namespace=nexusnote \
               --dry-run=client -o yaml | kubectl apply -f -
 
