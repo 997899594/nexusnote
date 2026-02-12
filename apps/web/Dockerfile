@@ -93,6 +93,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/web/worker.js ./apps/web/
 # 复制 db 包供迁移使用
 COPY --from=builder --chown=nextjs:nodejs /app/packages/db ./packages/db/
 
+# 安装 tsx 用于数据库迁移
+RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
+RUN pnpm add tsx --global
+
 # 复制静态资源
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public/
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static/
