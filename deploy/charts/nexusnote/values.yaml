@@ -20,7 +20,7 @@ namespace: nexusnote
 infisical:
   enabled: true
   # Project Slug（在项目设置页面获取）
-  projectSlug: "nexusnote"
+  projectSlug: "nexusnote-ibqe"
   # 环境名称（dev/staging/prod）
   envSlug: "prod"
   # 同步间隔（秒）

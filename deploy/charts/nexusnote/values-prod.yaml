@@ -20,7 +20,7 @@ issuer:
 # ⚠️ 部署前填写以下配置
 infisical:
   enabled: true
-  projectSlug: "nexusnote"  # 修改为你的 Project Slug
+  projectSlug: "nexusnote-ibqe"
   envSlug: "prod"
   # 生产环境：建议使用外部管理凭证，不要写在这里
   # clientId: ""  # 留空，手动创建 Secret
