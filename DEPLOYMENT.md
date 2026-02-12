@@ -2,22 +2,40 @@
 
 ## 架构概述
 
-NexusNote 现在是一个完整的 Next.js Fullstack 应用，在单一 Docker 容器中运行以下组件：
+NexusNote 是一个完整的 Next.js Fullstack 应用，运行在 K3s 集群中：
 
-1. **Next.js API Gateway** (端口 3000) - HTTP API 服务
-2. **Hocuspocus WebSocket** (端口 1234) - 实时协作编辑
-3. **BullMQ Worker** - 后台任务处理（RAG 索引）
-
-所有进程由 Kubernetes/Docker 管理，支持故障自动恢复。
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Infisical Cloud                          │
+│                   （管理所有 Secrets）                        │
+└─────────────────────────────────────────────────────────────┘
+                          │
+                          │ 自动同步
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      K3s Cluster                             │
+│  ┌─────────────────┐  ┌─────────────────┐                   │
+│  │ ArgoCD          │  │ Infisical       │                   │
+│  │ (GitOps)        │  │ Operator        │                   │
+│  └────────┬────────┘  └────────┬────────┘                   │
+│           │                    │                             │
+│           ▼                    ▼                             │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │  nexusnote-web (Next.js API + HMR)                  │    │
+│  │  nexusnote-collab (Hocuspocus WebSocket)            │    │
+│  │  nexusnote-worker (BullMQ 后台任务)                  │    │
+│  └─────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ## 本地开发
 
 ### 前置要求
 
-- Node.js 20+
+- Node.js 22+
 - PostgreSQL 16+ (with pgvector)
 - Redis 7+
-- pnpm 8+
+- pnpm 9+
 
 ### 快速启动
 
@@ -28,317 +46,127 @@ pnpm install
 # 2. 迁移数据库
 pnpm exec drizzle-kit push
 
-# 3. 启动所有服务（终端1）
+# 3. 启动所有服务
 pnpm dev
-
-# 4. 启动后台 Worker（终端2）
-cd apps/web
-npm run queue:worker
-
-# 5. 启动 Hocuspocus（终端3）
-npm run hocuspocus
 ```
 
 ### 环境变量配置
 
-创建 `apps/web/.env.local`:
+创建 `.env` 文件（参考 `.env.example`）：
 
 ```env
 # 数据库
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/nexusnote
 REDIS_URL=redis://localhost:6379
 
-# 服务器配置
-PORT=3000
-HOCUSPOCUS_PORT=1234
-
 # 认证
-AUTH_SECRET=your-secret-key-change-in-production
-JWT_SECRET=your-jwt-secret
+AUTH_SECRET=your-secret-key-min-32-chars
+JWT_SECRET=your-jwt-secret-min-32-chars
 
-# AI 配置
-AI_MODEL=gemini-3-flash-preview
-AI_302_API_KEY=your-api-key  # 或其他 AI provider
+# AI
+AI_302_API_KEY=your-api-key
 
-# 可选：Langfuse
-LANGFUSE_PUBLIC_KEY=
-LANGFUSE_SECRET_KEY=
+# 可选：OAuth
+AUTH_GITHUB_ID=
+AUTH_GITHUB_SECRET=
 ```
 
-## 生产环境部署 (K3s 专属)
+## 生产环境部署 (K3s + GitOps)
 
-在 2026 年，NexusNote 生产环境**仅支持 K3s** 部署，不再支持原生的 Docker Compose。
+### 架构
 
-### 1. 为什么强制使用 K3s？
+| 组件 | 说明 |
+|------|------|
+| ArgoCD | GitOps 控制器，自动同步 Git 配置到集群 |
+| Infisical Operator | 从 Infisical Cloud 同步 Secrets |
+| Cert-Manager | 自动签发 Let's Encrypt 证书 |
+| Cilium | eBPF 网络层 |
 
-- **eBPF 网络**：通过 Cilium 提供极致的性能。
-- **现代化路由**：使用 Gateway API 替代陈旧的 Ingress/Nginx。
-- **自动化运维**：原生支持滚动更新、健康检查和自动扩缩容。
-
-### 2. 配置 GitHub Environment
-
-1. 在 GitHub 仓库进入 `Settings` -> `Environments`。
-2. 创建一个名为 `production` 的环境。
-3. 在该环境下配置 `SERVER_IP`、`SSH_PRIVATE_KEY` 等 Secrets。
-
-### 3. 一键部署
-
-推送代码到 `main` 分支，GitHub Actions 会自动执行以下流程：
-
-1. **同步配置**：将 `.env` 转换为 Kubernetes `Secret`。
-2. **应用资源**：应用 `deploy/k8s/` 中的 Gateway、HTTPRoute 和 App 配置。
-3. **滚动更新**：执行 `rollout restart` 确保服务不中断。
-
-### 4. 域名与 TLS 配置 (真正现代化)
-
-在 2026 年，使用 IP 访问仅用于初始测试。正式环境必须使用域名：
-
-1. **DNS 解析**：将你的域名（如 `nexusnote.yourdomain.com`）通过 A 记录解析到腾讯云 IP `49.232.237.136`。
-2. **更新配置**：
-   - 修改 `deploy/k8s/gateway.yaml` 中的 `hostname` 为你的域名。
-   - 修改 `deploy/k8s/httproute.yaml` 中的 `hostnames` 为你的域名。
-3. **自动证书**：
-   - 集群需安装 `cert-manager`。
-   - Gateway API 会自动触发证书申请，并将证书存入 `nexusnote-tls` Secret 中。
-   - 实现全自动的 HTTPS 续期。
-
-### 文档协作编辑流程
-
-```
-用户在编辑器中输入
-        ↓
-Hocuspocus WebSocket 接收更新
-        ↓
-提取纯文本 + 获取分布式锁
-        ↓
-更新数据库 plainText 字段
-        ↓
-添加 'rag-index' 任务到 BullMQ
-        ↓
-BullMQ Worker 处理任务
-        ↓
-分块文本（500字符，重叠50字符）
-        ↓
-调用 Embedding API 生成向量
-        ↓
-批量插入 documentChunks 表
-        ↓
-完成索引，文档可用于 RAG 搜索
-```
-
-### 搜索流程
-
-```
-用户发送查询
-        ↓
-AI 网关检查是否启用 RAG
-        ↓
-RAG Service 调用 /rag/search API
-        ↓
-搜索 documentChunks 表（基于向量相似度）
-        ↓
-返回最相关的文档片段
-        ↓
-AI 模型使用这些片段生成答案
-```
-
-## 监控和调试
-
-### Kubernetes 监控
+### 一键初始化
 
 ```bash
-# 查看 Pod 状态
-kubectl get pods -n nexusnote
-
-# 查看日志
-kubectl logs -n nexusnote deployment/nexusnote-web -f
-kubectl logs -n nexusnote deployment/nexusnote-collab -f
-kubectl logs -n nexusnote deployment/nexusnote-worker -f
-
-# 重启部署
-kubectl rollout restart deployment/nexusnote-web -n nexusnote
-kubectl rollout restart deployment/nexusnote-collab -n nexusnote
-kubectl rollout restart deployment/nexusnote-worker -n nexusnote
+# SSH 到服务器，执行：
+curl -sSL https://raw.githubusercontent.com/nexusnote/nexusnote/main/deploy/bootstrap.sh | bash
 ```
 
-### Docker 监控
+### 配置 Infisical
+
+1. 访问 https://app.infisical.com 注册账号
+2. 创建项目 `nexusnote` 并添加 Secrets
+3. 创建 Machine Identity：
+   - 点击右上角头像 → Organization Settings
+   - Access Control → Machine Identities
+   - 或直接访问：`https://app.infisical.com/settings/access/machine-identities`
+4. 配置集群凭证（见 `deploy/README.md`）
+
+详细步骤见 `deploy/config-plan.md`
+
+### 日常操作
+
+| 操作 | 命令 |
+|------|------|
+| 部署代码 | `git push` |
+| 修改配置 | 改 `values-prod.yaml` + `git push` |
+| 修改密码 | Infisical Dashboard（自动同步）|
+
+### 访问 ArgoCD
 
 ```bash
-# 查看容器状态
-docker ps
+kubectl port-forward svc/argocd-server -n argocd 8080:443
+# 打开 https://localhost:8080
 
-# 查看日志
-docker logs nexusnote-web -f
-docker logs nexusnote-collab -f
-docker logs nexusnote-worker -f
-
-# 重启容器
-docker restart nexusnote-web
-docker restart nexusnote-collab
-docker restart nexusnote-worker
+# 获取密码
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d
 ```
 
-### 数据库调试
+## 目录结构
 
-```bash
-# 连接到数据库
-psql postgresql://postgres:postgres@localhost:5432/nexusnote
-
-# 查看文档块
-SELECT id, document_id, chunk_index, content::text FROM document_chunks LIMIT 5;
-
-# 查看文档
-SELECT id, title, plain_text::text FROM documents LIMIT 5;
 ```
-
-### Redis 调试
-
-```bash
-# 连接到 Redis
-redis-cli
-
-# 查看队列
-LLEN bull:rag-index:
-
-# 查看锁
-KEYS lock:rag-index:*
-
-# 清空队列（谨慎！）
-DEL bull:rag-index:
-```
-
-## 性能优化
-
-### 并发配置
-
-编辑环境变量：
-
-```env
-# BullMQ Worker 并发数（default: 3）
-QUEUE_RAG_CONCURRENCY=5
-
-# 重试配置
-QUEUE_RAG_MAX_RETRIES=3
-QUEUE_RAG_BACKOFF_DELAY=1000
-```
-
-### 分块大小调整
-
-```env
-# 文本分块大小（characters）
-RAG_CHUNK_SIZE=500
-
-# 块之间的重叠
-RAG_CHUNK_OVERLAP=50
-```
-
-### RAG 搜索参数
-
-```env
-# 相似度阈值（0-1，higher = more strict）
-RAG_SIMILARITY_THRESHOLD=0.3
-
-# 返回结果数
-# 见代码中的 defaults.rag.topK = 5
+deploy/
+├── bootstrap.sh          # 一键初始化
+├── README.md             # 部署文档
+├── config-plan.md        # 配置系统方案
+├── argocd/               # ArgoCD 配置
+│   ├── root-app.yaml     # GitOps 入口
+│   └── applications/     # 各环境配置
+├── charts/nexusnote/     # Helm Chart
+│   ├── values.yaml       # 默认配置
+│   ├── values-prod.yaml  # 生产环境
+│   └── templates/        # K8s 资源模板
+└── infra/                # 基础设施
+    ├── cert-manager/     # 证书管理
+    ├── metallb/          # 负载均衡
+    └── infisical/        # Secrets 管理
 ```
 
 ## 故障排查
 
-### BullMQ 任务堆积
-
-如果任务堆积，检查 Worker 是否正常运行：
+### 应用无法启动
 
 ```bash
-# Kubernetes
-kubectl logs -n nexusnote deployment/nexusnote-worker -f
+# 检查 Pod 状态
+kubectl get pods -n nexusnote
 
-# Docker
-docker logs nexusnote-worker -f
+# 查看日志
+kubectl logs -n nexusnote -l app=nexusnote-web
 
-# 检查 Redis 连接
-redis-cli ping
-
-# 查看任务队列状态
-redis-cli
-> LLEN bull:rag-index:${prefix}:wait
+# 检查 Secrets
+kubectl get secret nexusnote-secrets -n nexusnote
 ```
 
-### Hocuspocus 连接问题
+### Secret 未同步
 
 ```bash
-# 检查 WebSocket 连接
-curl -i -N -H "Connection: Upgrade" -H "Upgrade: websocket" \
-  http://localhost:1234/
+# 检查 InfisicalSecret 状态
+kubectl get infisicalsecret -n nexusnote
+kubectl describe infisicalsecret nexusnote-secrets -n nexusnote
 
-# Kubernetes
-kubectl logs -n nexusnote deployment/nexusnote-collab -f
-
-# Docker
-docker logs nexusnote-collab -f
+# 检查 Operator 日志
+kubectl logs -n infisical-operator-system -l app=secrets-operator
 ```
 
-### Embedding 失败
+## 参考资料
 
-```bash
-# 检查 Embedding API 连接
-curl -X POST http://api.siliconflow.cn/v1/embeddings \
-  -H "Authorization: Bearer YOUR_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"model":"Qwen/Qwen3-Embedding-8B","input":["test"]}'
-```
-
-## 升级和维护
-
-### 安全更新
-
-```bash
-# 更新依赖
-pnpm update
-
-# 构建新镜像
-docker build -f apps/web/Dockerfile -t nexusnote:latest .
-
-# 重启容器
-docker-compose up -d
-```
-
-### 数据库迁移
-
-```bash
-# 生成新迁移
-pnpm drizzle-kit generate
-
-# 应用迁移
-pnpm drizzle-kit push
-
-# 在 Docker 中
-docker-compose exec app pnpm drizzle-kit push
-```
-
-### 备份
-
-```bash
-# PostgreSQL 备份
-pg_dump postgresql://user:pass@host:5432/nexusnote > backup.sql
-
-# Redis 备份（如果启用了持久化）
-docker-compose exec redis redis-cli BGSAVE
-docker cp nexusnote-redis:/data/dump.rdb ./backup.rdb
-```
-
-## 生产检查清单
-
-- [ ] 修改所有默认密钥（AUTH_SECRET, JWT_SECRET）
-- [ ] 配置 AI 提供商 API 密钥
-- [ ] 启用 HTTPS（使用 nginx 反向代理）
-- [ ] 配置日志收集和监控
-- [ ] 设置定期备份策略
-- [ ] 配置防火墙规则（仅允许 80, 443, 3000）
-- [ ] 启用 PostgreSQL 自动备份
-- [ ] 配置 Redis 持久化
-- [ ] 设置告警规则
-- [ ] 配置 CDN（如适用）
-
-## 联系方式
-
-如有问题，请提交 Issue 或 PR。
+- [ArgoCD 文档](https://argo-cd.readthedocs.io/)
+- [Infisical 文档](https://infisical.com/docs)
+- [K3s 文档](https://docs.k3s.io/)
