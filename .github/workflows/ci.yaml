@@ -1,0 +1,139 @@
+# ===========================================
+# NexusNote CI Pipeline - 2026 GitOps Architecture
+# ===========================================
+# CI 只负责构建，CD 由 ArgoCD + Image Updater 自动处理
+# 不再使用 SSH 部署，不再回写 Git
+
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  packages: write
+  # 如果需要创建 PR 自动更新，需要 write 权限
+  # 但我们使用 Image Updater，不需要这个
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # ============================================
+  # 阶段 1：代码质量检查
+  # ============================================
+  lint:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run linter
+        run: pnpm lint
+
+      - name: Run type check
+        run: pnpm typecheck
+
+      - name: Run tests
+        run: pnpm test
+        continue-on-error: true
+
+  # ============================================
+  # 阶段 2：构建 Docker 镜像
+  # ============================================
+  build:
+    name: Build & Push Docker Image
+    needs: lint
+    runs-on: ubuntu-latest
+    outputs:
+      image-digest: ${{ steps.build.outputs.digest }}
+      image-tag: ${{ steps.meta.outputs.tags }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          # 根据 branch 生成不同的 tag
+          tags: |
+            type=sha,prefix=sha-
+            type=ref,event=branch
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=staging-latest,enable=${{ github.ref == 'refs/heads/develop' }}
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+      - name: Output image info
+        run: |
+          echo "Image Digest: ${{ steps.build.outputs.digest }}"
+          echo "Image Tags: ${{ steps.meta.outputs.tags }}"
+
+  # ============================================
+  # 阶段 3：部署通知（可选）
+  # ============================================
+  # ArgoCD Image Updater 自动检测新镜像并更新部署
+  # 这里只做一个简单的成功通知
+  notify:
+    name: Deployment Status
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    steps:
+      - name: Deployment Info
+        run: |
+          echo "============================================"
+          echo "CI 构建完成！"
+          echo "============================================"
+          echo "镜像: ${{ needs.build.outputs.image-tag }}"
+          echo "分支: ${{ github.ref_name }}"
+          echo ""
+          echo "ArgoCD Image Updater 将自动检测新镜像并更新部署。"
+          echo "查看部署状态: https://argocd.juanie.art"
+          echo "============================================"
