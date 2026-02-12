@@ -33,6 +33,7 @@ spec:
               set -e
               echo "Running database migrations..."
               cd /app/packages/db
+              npm install tsx --no-save
               npx tsx migrate.ts
               echo "Migrations completed."
       containers:
