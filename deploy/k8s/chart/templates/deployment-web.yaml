@@ -34,7 +34,7 @@ spec:
               cd /app/packages/db
               npm install -g drizzle-kit
               echo "Running migrations..."
-              npx drizzle-kit migrate
+              npx drizzle-kit push
               echo "Migrations completed."
       containers:
         - name: app
