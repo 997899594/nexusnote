@@ -16,7 +16,7 @@ metadata:
     # ArgoCD Image Updater 配置
     # ===========================================
     # 监控的镜像列表
-    argocd-image-updater.argoproj.io/image-list: nexusnote=ghcr.io/nexusnote/nexusnote
+    argocd-image-updater.argoproj.io/image-list: nexusnote=ghcr.io/997899594/nexusnote
     # 更新策略：digest（监控镜像 digest 变化）
     argocd-image-updater.argoproj.io/nexusnote.update-strategy: digest
     # GitHub Registry 认证

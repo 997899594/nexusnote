@@ -13,7 +13,7 @@ metadata:
     - resources-finalizer.argocd.argoproj.io
   annotations:
     # ArgoCD Image Updater 配置
-    argocd-image-updater.argoproj.io/image-list: nexusnote=ghcr.io/nexusnote/nexusnote
+    argocd-image-updater.argoproj.io/image-list: nexusnote=ghcr.io/997899594/nexusnote
     argocd-image-updater.argoproj.io/nexusnote.update-strategy: digest
     argocd-image-updater.argoproj.io/nexusnote.pull-secret: secret:argocd/github-registry#dockerconfigjson
 spec:
