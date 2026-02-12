@@ -166,6 +166,12 @@ jobs:
             CLEAN_AUTH_SECRET=$(echo "$AUTH_SECRET" | tr -d '\n\r" ')
             # JWT Secret
             CLEAN_JWT_SECRET=$(echo "$JWT_SECRET" | tr -d '\n\r" ')
+            # 清洗 AI Keys
+            CLEAN_302=$(echo "$AI_302_API_KEY" | tr -d '\n\r" ')
+            CLEAN_DEEPSEEK=$(echo "$DEEPSEEK_API_KEY" | tr -d '\n\r" ')
+            CLEAN_SILICON=$(echo "$SILICONFLOW_API_KEY" | tr -d '\n\r" ')
+            CLEAN_LANGFUSE_PUB=$(echo "$LANGFUSE_PUBLIC_KEY" | tr -d '\n\r" ')
+            CLEAN_LANGFUSE_SEC=$(echo "$LANGFUSE_SECRET_KEY" | tr -d '\n\r" ')
 
             # 写入 secrets.env (变量名与代码一致)
             printf "AUTH_GITHUB_ID=%s\n" "$CLEAN_GH_ID" >> secrets.env
