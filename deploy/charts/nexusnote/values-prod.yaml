@@ -28,29 +28,29 @@ infisical:
 
 services:
   web:
-    replicaCount: 3
+    replicaCount: 1
     resources:
       limits:
-        cpu: 1000m
-        memory: 1Gi
+        cpu: 500m
+        memory: 512Mi
       requests:
-        cpu: 200m
-        memory: 256Mi
+        cpu: 100m
+        memory: 128Mi
   collab:
-    replicaCount: 3
+    replicaCount: 1
     resources:
       limits:
-        cpu: 1000m
-        memory: 1Gi
+        cpu: 500m
+        memory: 512Mi
       requests:
-        cpu: 200m
-        memory: 256Mi
+        cpu: 100m
+        memory: 128Mi
   worker:
-    replicaCount: 3
+    replicaCount: 1
     resources:
       limits:
-        cpu: 1000m
-        memory: 1Gi
+        cpu: 500m
+        memory: 512Mi
       requests:
-        cpu: 200m
-        memory: 256Mi
+        cpu: 100m
+        memory: 128Mi
