@@ -164,15 +164,8 @@ jobs:
             CLEAN_GOOGLE_SECRET=$(echo "$OAUTH_GOOGLE_SECRET" | tr -d '\n\r" ')
             CLEAN_NEXT_SECRET=$(echo "$NEXTAUTH_SECRET" | tr -d '\n\r" ')
 
-            # 清洗 AI API Keys
-            CLEAN_302=$(echo "$AI_302_API_KEY" | tr -d '\n\r" ')
-            CLEAN_DEEPSEEK=$(echo "$DEEPSEEK_API_KEY" | tr -d '\n\r" ')
-            CLEAN_SILICON=$(echo "$SILICONFLOW_API_KEY" | tr -d '\n\r" ')
-            CLEAN_OPENAI=$(echo "$OPENAI_API_KEY" | tr -d '\n\r" ')
-            CLEAN_LANGFUSE_PUB=$(echo "$LANGFUSE_PUBLIC_KEY" | tr -d '\n\r" ')
-            CLEAN_LANGFUSE_SEC=$(echo "$LANGFUSE_SECRET_KEY" | tr -d '\n\r" ')
-
-            printf "OAUTH_GITHUB_SECRET=%s\n" "$CLEAN_GH_SECRET" >> secrets.env
+            # 转换 OAUTH_GITHUB_SECRET 为 AUTH_GITHUB_SECRET (应用需要这个变量名)
+            printf "AUTH_GITHUB_SECRET=%s\n" "$CLEAN_GH_SECRET" >> secrets.env
             printf "OAUTH_GOOGLE_SECRET=%s\n" "$CLEAN_GOOGLE_SECRET" >> secrets.env
             printf "NEXTAUTH_SECRET=%s\n" "$CLEAN_NEXT_SECRET" >> secrets.env
             printf "AI_302_API_KEY=%s\n" "$CLEAN_302" >> secrets.env
