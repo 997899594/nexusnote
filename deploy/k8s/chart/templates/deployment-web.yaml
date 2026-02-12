@@ -30,11 +30,10 @@ spec:
             - /bin/sh
             - -c
             - |
-              echo "Database ready, installing migration tools..."
+              set -e
+              echo "Running database migrations..."
               cd /app/packages/db
-              npm install -g drizzle-kit
-              echo "Running migrations..."
-              npx drizzle-kit push
+              npx tsx migrate.ts
               echo "Migrations completed."
       containers:
         - name: app
