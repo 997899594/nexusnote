@@ -210,28 +210,35 @@ prepare_files() {
     cp "$SCRIPT_DIR/bootstrap.sh" "$TEMP_DIR/"
     cp "$SCRIPT_DIR/argocd/root-app.yaml" "$TEMP_DIR/"
 
-    # 2. 下载 Helm Chart（始终在本地下载）
-    echo -e "${BLUE}   下载 Infisical Operator Helm Chart...${NC}"
-    if [[ -f "$SCRIPT_DIR/secrets-operator.tgz" ]]; then
+    # 2. 下载 ArgoCD Helm Chart
+    echo -e "${BLUE}   下载 ArgoCD Helm Chart...${NC}"
+    if [[ -f "$SCRIPT_DIR/argo-cd-7.7.17.tgz" ]]; then
         echo -e "${GREEN}   使用已缓存的文件${NC}"
-        cp "$SCRIPT_DIR/secrets-operator.tgz" "$TEMP_DIR/"
     else
-        curl -sLo "$TEMP_DIR/secrets-operator.tgz" \
-            "https://dl.cloudsmith.io/public/infisical/helm-charts/helm/charts/secrets-operator-0.10.23.tgz"
-        # 缓存到本地，下次不用重新下载
-        cp "$TEMP_DIR/secrets-operator.tgz" "$SCRIPT_DIR/"
+        curl -sLo "$SCRIPT_DIR/argo-cd-7.7.17.tgz" \
+            "https://github.com/argoproj/argo-helm/releases/download/argo-cd-7.7.17/argo-cd-7.7.17.tgz"
     fi
+    cp "$SCRIPT_DIR/argo-cd-7.7.17.tgz" "$TEMP_DIR/"
 
-    # 3. 下载 ArgoCD manifests（可选，加速国内服务器）
-    echo -e "${BLUE}   下载 ArgoCD manifests...${NC}"
-    if [[ -f "$SCRIPT_DIR/argocd-install.yaml" ]]; then
+    # 3. 下载 Infisical Operator Helm Chart
+    echo -e "${BLUE}   下载 Infisical Operator Helm Chart...${NC}"
+    if [[ -f "$SCRIPT_DIR/secrets-operator-0.10.23.tgz" ]]; then
         echo -e "${GREEN}   使用已缓存的文件${NC}"
-        cp "$SCRIPT_DIR/argocd-install.yaml" "$TEMP_DIR/"
     else
-        curl -sLo "$TEMP_DIR/argocd-install.yaml" \
-            "https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/core-install.yaml"
-        cp "$TEMP_DIR/argocd-install.yaml" "$SCRIPT_DIR/"
+        curl -sLo "$SCRIPT_DIR/secrets-operator-0.10.23.tgz" \
+            "https://dl.cloudsmith.io/public/infisical/helm-charts/helm/charts/secrets-operator-0.10.23.tgz"
     fi
+    cp "$SCRIPT_DIR/secrets-operator-0.10.23.tgz" "$TEMP_DIR/"
+
+    # 4. 下载 Cert-Manager Helm Chart
+    echo -e "${BLUE}   下载 Cert-Manager Helm Chart...${NC}"
+    if [[ -f "$SCRIPT_DIR/cert-manager-v1.15.0.tgz" ]]; then
+        echo -e "${GREEN}   使用已缓存的文件${NC}"
+    else
+        curl -sLo "$SCRIPT_DIR/cert-manager-v1.15.0.tgz" \
+            "https://charts.jetstack.io/charts/cert-manager-v1.15.0.tgz"
+    fi
+    cp "$SCRIPT_DIR/cert-manager-v1.15.0.tgz" "$TEMP_DIR/"
 
     echo -e "${GREEN}✅ 文件准备完成${NC}"
 }
