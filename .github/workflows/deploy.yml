@@ -97,9 +97,10 @@ jobs:
         uses: appleboy/ssh-action@v1.0.3
         env:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-          OAUTH_GITHUB_SECRET: ${{ secrets.OAUTH_GITHUB_SECRET || secrets.AUTH_SECRET }}
-          OAUTH_GOOGLE_SECRET: ${{ secrets.OAUTH_GOOGLE_SECRET || secrets.AUTH_SECRET }}
-          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET || secrets.AUTH_SECRET }}
+          AUTH_GITHUB_ID: ${{ secrets.AUTH_GITHUB_ID }}
+          AUTH_GITHUB_SECRET: ${{ secrets.AUTH_GITHUB_SECRET }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
           AI_302_API_KEY: ${{ secrets.AI_302_API_KEY }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           SILICONFLOW_API_KEY: ${{ secrets.SILICONFLOW_API_KEY }}
@@ -116,7 +117,7 @@ jobs:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: POSTGRES_PASSWORD,OAUTH_GITHUB_SECRET,OAUTH_GOOGLE_SECRET,NEXTAUTH_SECRET,AI_302_API_KEY,DEEPSEEK_API_KEY,SILICONFLOW_API_KEY,LANGFUSE_PUBLIC_KEY,LANGFUSE_SECRET_KEY,LANGFUSE_BASE_URL,AI_PROVIDER,GITHUB_ACTOR,GITHUB_TOKEN,CR_PAT,IMAGE_SHA,REPO_NAME
+          envs: POSTGRES_PASSWORD,AUTH_GITHUB_ID,AUTH_GITHUB_SECRET,AUTH_SECRET,JWT_SECRET,AI_302_API_KEY,DEEPSEEK_API_KEY,SILICONFLOW_API_KEY,LANGFUSE_PUBLIC_KEY,LANGFUSE_SECRET_KEY,LANGFUSE_BASE_URL,AI_PROVIDER,GITHUB_ACTOR,GITHUB_TOKEN,CR_PAT,IMAGE_SHA,REPO_NAME
           script: |
             set -e
             export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
@@ -158,19 +159,23 @@ jobs:
             printf "POSTGRES_PASSWORD=%s\n" "$CLEAN_PASS" >> secrets.env
             printf "REDIS_URL=%s\n" "$REDIS_URL" >> secrets.env
 
-            # 其他密钥也建议清洗一下，防止回车符
-            CLEAN_GH_SECRET=$(echo "$OAUTH_GITHUB_SECRET" | tr -d '\n\r" ')
-            CLEAN_GOOGLE_SECRET=$(echo "$OAUTH_GOOGLE_SECRET" | tr -d '\n\r" ')
-            CLEAN_NEXT_SECRET=$(echo "$NEXTAUTH_SECRET" | tr -d '\n\r" ')
+            # 清洗 GitHub OAuth 密钥
+            CLEAN_GH_ID=$(echo "$AUTH_GITHUB_ID" | tr -d '\n\r" ')
+            CLEAN_GH_SECRET=$(echo "$AUTH_GITHUB_SECRET" | tr -d '\n\r" ')
+            # NextAuth Secret (也写入 NEXTAUTH_SECRET 兼容)
+            CLEAN_AUTH_SECRET=$(echo "$AUTH_SECRET" | tr -d '\n\r" ')
+            # JWT Secret
+            CLEAN_JWT_SECRET=$(echo "$JWT_SECRET" | tr -d '\n\r" ')
 
-            # 转换 OAUTH_GITHUB_SECRET 为 AUTH_GITHUB_SECRET (应用需要这个变量名)
+            # 写入 secrets.env (变量名与代码一致)
+            printf "AUTH_GITHUB_ID=%s\n" "$CLEAN_GH_ID" >> secrets.env
             printf "AUTH_GITHUB_SECRET=%s\n" "$CLEAN_GH_SECRET" >> secrets.env
-            printf "OAUTH_GOOGLE_SECRET=%s\n" "$CLEAN_GOOGLE_SECRET" >> secrets.env
-            printf "NEXTAUTH_SECRET=%s\n" "$CLEAN_NEXT_SECRET" >> secrets.env
+            printf "AUTH_SECRET=%s\n" "$CLEAN_AUTH_SECRET" >> secrets.env
+            printf "NEXTAUTH_SECRET=%s\n" "$CLEAN_AUTH_SECRET" >> secrets.env
+            printf "JWT_SECRET=%s\n" "$CLEAN_JWT_SECRET" >> secrets.env
             printf "AI_302_API_KEY=%s\n" "$CLEAN_302" >> secrets.env
             printf "DEEPSEEK_API_KEY=%s\n" "$CLEAN_DEEPSEEK" >> secrets.env
             printf "SILICONFLOW_API_KEY=%s\n" "$CLEAN_SILICON" >> secrets.env
-            printf "OPENAI_API_KEY=%s\n" "$CLEAN_OPENAI" >> secrets.env
             printf "LANGFUSE_PUBLIC_KEY=%s\n" "$CLEAN_LANGFUSE_PUB" >> secrets.env
             printf "LANGFUSE_SECRET_KEY=%s\n" "$CLEAN_LANGFUSE_SEC" >> secrets.env
             printf "LANGFUSE_BASE_URL=%s\n" "$LANGFUSE_BASE_URL" >> secrets.env
