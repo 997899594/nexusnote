@@ -1,0 +1,26 @@
+# ===========================================
+# NexusNote TLS Certificate
+# ===========================================
+# 使用集群级 ClusterIssuer（在 deploy/infra/cert-manager/ 定义）
+
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: nexusnote-cert
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "nexusnote.labels" . | nindent 4 }}
+spec:
+  secretName: nexusnote-tls
+  dnsNames:
+    - {{ .Values.env.NEXT_PUBLIC_APP_URL | replace "https://" "" }}
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+    group: cert-manager.io
+  # 证书续期配置
+  renewBefore: 360h  # 15 天前续期
+  privateKey:
+    rotationPolicy: Always
+    algorithm: ECDSA
+    size: 256

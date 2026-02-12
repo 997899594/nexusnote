@@ -1,0 +1,99 @@
+# ===========================================
+# NexusNote Gateway Infrastructure
+# ===========================================
+# 使用 Cilium Gateway API + MetalLB LoadBalancer
+
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: nexusnote-gateway
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "nexusnote.labels" . | nindent 4 }}
+  annotations:
+    # 使用集群级 ClusterIssuer（在 deploy/infra/cert-manager/ 中定义）
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    # Cilium LoadBalancer 配置
+    service.cilium.io/type: LoadBalancer
+    loadBalancer_ip: "{{ .Values.loadBalancerIP | default "10.2.0.15" }}"
+spec:
+  gatewayClassName: cilium
+  listeners:
+    # HTTP 监听器（重定向到 HTTPS）
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    # HTTPS 监听器
+    - name: https
+      protocol: HTTPS
+      port: 443
+      hostname: {{ .Values.env.NEXT_PUBLIC_APP_URL | replace "https://" "" | quote }}
+      allowedRoutes:
+        namespaces:
+          from: Same
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: nexusnote-tls
+            kind: Secret
+
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: nexusnote-route
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "nexusnote.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+    - name: nexusnote-gateway
+      namespace: {{ .Values.namespace }}
+      kind: Gateway
+  hostnames:
+    - {{ .Values.env.NEXT_PUBLIC_APP_URL | replace "https://" "" }}
+  rules:
+    # WebSocket 路由（协作服务）
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /collab
+      backendRefs:
+        - name: nexusnote-collab
+          port: {{ .Values.env.HOCUSPOCUS_PORT | default 1234 }}
+    # 主应用路由
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: nexusnote-web
+          port: {{ .Values.env.PORT | default 3000 }}
+
+---
+# HTTP 到 HTTPS 重定向
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: nexusnote-redirect
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "nexusnote.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+    - name: nexusnote-gateway
+      namespace: {{ .Values.namespace }}
+      kind: Gateway
+      sectionName: http
+  hostnames:
+    - {{ .Values.env.NEXT_PUBLIC_APP_URL | replace "https://" "" }}
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301

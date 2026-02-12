@@ -1,0 +1,89 @@
+# ===========================================
+# NexusNote Helm Chart - Default Values
+# ===========================================
+# 敏感信息通过 Infisical Cloud 管理
+# https://app.infisical.com
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/nexusnote/nexusnote
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+namespace: nexusnote
+
+# ===========================================
+# Infisical Secrets 配置
+# ===========================================
+# 在 Infisical Cloud 创建项目后填写
+infisical:
+  enabled: true
+  # Project Slug（在项目设置页面获取）
+  projectSlug: "nexusnote"
+  # 环境名称（dev/staging/prod）
+  envSlug: "prod"
+  # 同步间隔（秒）
+  resyncInterval: 60
+  # Machine Identity 凭证
+  # ⚠️ 生产环境建议使用外部 Secret 管理凭证
+  # 这里仅用于快速启动
+  clientId: ""
+  clientSecret: ""
+  # 凭证 Secret 名称
+  credentialsSecret: "infisical-credentials"
+
+# 公共环境变量（非敏感）
+env:
+  NODE_ENV: "production"
+  PORT: "3000"
+  HOCUSPOCUS_PORT: "1234"
+  NEXT_PUBLIC_APP_URL: "http://localhost:3000"
+  AUTH_TRUST_HOST: "true"
+  NEXTAUTH_URL: "http://localhost:3000"
+
+# 数据库配置（非敏感部分）
+database:
+  host: nexusnote-db
+  port: 5432
+  name: nexusnote
+  user: postgres
+  # 密码通过 Infisical 注入
+
+# Redis 配置
+redis:
+  host: nexusnote-redis
+  port: 6379
+
+# 服务配置
+services:
+  web:
+    name: web
+    replicaCount: 1
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+  collab:
+    name: collab
+    replicaCount: 1
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+  worker:
+    name: worker
+    replicaCount: 1
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi

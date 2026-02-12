@@ -1,0 +1,28 @@
+# ===========================================
+# NexusNote Helm Chart - Staging Values
+# ===========================================
+
+namespace: nexusnote-staging
+
+image:
+  tag: "staging-latest"
+
+env:
+  NODE_ENV: "production"
+  NEXT_PUBLIC_APP_URL: "https://staging.juanie.art"
+  NEXTAUTH_URL: "https://staging.juanie.art"
+
+database:
+  host: nexusnote-db-staging
+  name: nexusnote_staging
+
+redis:
+  host: nexusnote-redis-staging
+
+services:
+  web:
+    replicaCount: 2
+  collab:
+    replicaCount: 2
+  worker:
+    replicaCount: 2

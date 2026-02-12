@@ -1,0 +1,71 @@
+# ===========================================
+# ArgoCD Project - NexusNote
+# ===========================================
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: nexusnote
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: nexusnote
+spec:
+  description: NexusNote - AI Course Engine
+
+  # 允许的源仓库
+  sourceRepos:
+    - https://github.com/997899594/nexusnote
+
+  # 允许的目标命名空间
+  destinations:
+    - namespace: nexusnote-dev
+      server: https://kubernetes.default.svc
+    - namespace: nexusnote-staging
+      server: https://kubernetes.default.svc
+    - namespace: nexusnote
+      server: https://kubernetes.default.svc
+
+  # 允许的集群资源
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+    - group: cert-manager.io
+      kind: ClusterIssuer
+    - group: gateway.networking.k8s.io
+      kind: GatewayClass
+
+  # 允许的命名空间资源
+  namespaceResourceWhitelist:
+    - group: ""
+      kind: ConfigMap
+    - group: ""
+      kind: Secret
+    - group: ""
+      kind: Service
+    - group: ""
+      kind: PersistentVolumeClaim
+    - group: apps
+      kind: Deployment
+    - group: apps
+      kind: StatefulSet
+    - group: cert-manager.io
+      kind: Certificate
+    - group: cert-manager.io
+      kind: Issuer
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+    - group: bitnami.com
+      kind: SealedSecret
+
+  # 同步窗口（可选，用于生产环境保护）
+  # syncWindows:
+  #   - kind: allow
+  #     schedule: '10 1 * * *'
+  #     duration: 1h
+  #     applications:
+  #       - nexusnote-prod

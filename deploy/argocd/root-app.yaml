@@ -1,0 +1,37 @@
+# ===========================================
+# Root Application - GitOps 总开关
+# ===========================================
+# 只需部署这一个文件，ArgoCD 会自动发现并部署 applications/ 下所有应用
+# 这就是 "App of Apps" 模式
+#
+# 前置条件：先执行 bootstrap.sh 配置 Git 凭证
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root-app
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/997899594/nexusnote
+    targetRevision: main
+    path: deploy/argocd/applications
+    directory:
+      recurse: false
+      # 排除自己和 projects 目录
+      exclude: "root-app.yaml|app-of-apps.yaml|projects/*"
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

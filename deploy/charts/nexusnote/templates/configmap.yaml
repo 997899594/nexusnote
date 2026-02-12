@@ -1,20 +1,33 @@
----
+# ===========================================
+# NexusNote ConfigMap (Non-Sensitive)
+# ===========================================
+# 所有敏感信息通过 Sealed Secrets 注入
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: nexusnote-config
   namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "nexusnote.labels" . | nindent 4 }}
 data:
+  # 运行环境
   NODE_ENV: {{ .Values.env.NODE_ENV | default "production" | quote }}
   PORT: {{ .Values.env.PORT | default "3000" | quote }}
   HOCUSPOCUS_PORT: {{ .Values.env.HOCUSPOCUS_PORT | default "1234" | quote }}
+
+  # 客户端配置（非敏感）
   NEXT_PUBLIC_APP_URL: {{ .Values.env.NEXT_PUBLIC_APP_URL | quote }}
+
+  # 认证配置
   AUTH_TRUST_HOST: {{ .Values.env.AUTH_TRUST_HOST | default "true" | quote }}
   NEXTAUTH_URL: {{ .Values.env.NEXTAUTH_URL | quote }}
-  AUTH_GITHUB_ID: {{ .Values.oauth.github.id | quote }}
+
+  # 数据库配置（非敏感部分）
   DATABASE_HOST: {{ .Values.database.host | quote }}
   DATABASE_PORT: {{ .Values.database.port | toString | quote }}
   DATABASE_NAME: {{ .Values.database.name | quote }}
   DATABASE_USER: {{ .Values.database.user | quote }}
+
+  # Redis 配置
   REDIS_HOST: {{ .Values.redis.host | quote }}
   REDIS_PORT: {{ .Values.redis.port | toString | quote }}

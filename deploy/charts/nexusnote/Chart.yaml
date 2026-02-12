@@ -1,8 +1,8 @@
 apiVersion: v2
 name: nexusnote
-description: NexusNote - AI Course Engine
+description: NexusNote - AI Course Engine (2026 GitOps Architecture)
 type: application
-version: 1.0.0
+version: 2.0.0
 appVersion: "0.1.0"
 
 keywords:
@@ -10,6 +10,8 @@ keywords:
   - ai
   - education
   - course
+  - gitops
+  - argocd
 
 maintainers:
   - name: NexusNote Team
