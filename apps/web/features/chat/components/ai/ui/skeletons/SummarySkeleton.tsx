@@ -1,8 +1,3 @@
-/**
- * SummarySkeleton - 摘要生成加载状态
- *
- * 显示正在生成摘要时的骨架屏
- */
 "use client";
 
 import { motion } from "framer-motion";
@@ -15,7 +10,7 @@ interface SummarySkeletonProps {
 
 export function SummarySkeleton({
   style = "bullet_points",
-  length = "medium",
+  length = "medium"
 }: SummarySkeletonProps) {
   const lines = {
     brief: 2,
@@ -27,34 +22,34 @@ export function SummarySkeleton({
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 rounded-3xl p-6 border border-amber-100 dark:border-amber-900/30"
+      className="glass glass-lg rounded-2xl p-4 xs:p-6 border-l-4 border-primary/50"
     >
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20">
-          <FileText className="w-5 h-5 text-white" />
+      <div className="flex items-center gap-3 mb-4 xs:mb-6">
+        <div className="w-8 h-8 xs:w-10 xs:h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-float">
+          <FileText className="w-4 h-4 xs:w-5 xs:h-5 text-primary-foreground" />
         </div>
         <div>
-          <h3 className="font-semibold text-amber-900 dark:text-amber-100">正在生成摘要</h3>
-          <p className="text-xs text-amber-600/70 dark:text-amber-400/70">AI 正在提取关键信息...</p>
+          <h3 className="text-xs xs:text-sm font-semibold text-foreground">
+            正在生成摘要
+          </h3>
+          <p className="text-[10px] xs:text-xs text-muted-foreground">
+            AI 正在提取关键信息...
+          </p>
         </div>
       </div>
 
-      {/* Style Badge */}
-      <div className="mb-4">
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30 text-xs font-medium text-amber-700 dark:text-amber-300">
+      <div className="mb-3 xs:mb-4">
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-[10px] xs:text-xs font-medium text-primary">
           {style === "bullet_points" && "要点列表"}
           {style === "paragraph" && "段落形式"}
           {style === "key_takeaways" && "核心要点"}
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+          <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
         </span>
       </div>
 
-      {/* Content Skeleton */}
-      <div className="bg-white/60 dark:bg-black/20 rounded-xl p-4 border border-amber-100 dark:border-amber-900/20">
+      <div className="glass p-3 xs:p-4 rounded-xl">
         {style === "paragraph" ? (
-          // Paragraph style skeleton
-          <div className="space-y-3">
+          <div className="space-y-2 xs:space-y-3">
             {Array.from({ length: lines }).map((_, i) => (
               <motion.div
                 key={i}
@@ -63,16 +58,15 @@ export function SummarySkeleton({
                 transition={{ delay: i * 0.1 }}
                 className="space-y-2"
               >
-                <div className="h-4 bg-amber-100 dark:bg-amber-900/30 rounded animate-pulse w-full" />
+                <div className="h-3 xs:h-4 skeleton-gradient rounded w-full" />
                 {i < lines - 1 && (
-                  <div className="h-4 bg-amber-100 dark:bg-amber-900/30 rounded animate-pulse w-[80%]" />
+                  <div className="h-3 xs:h-4 skeleton-gradient rounded w-[80%]" />
                 )}
               </motion.div>
             ))}
           </div>
         ) : style === "key_takeaways" ? (
-          // Numbered list skeleton
-          <div className="space-y-3">
+          <div className="space-y-2 xs:space-y-3">
             {Array.from({ length: lines }).map((_, i) => (
               <motion.div
                 key={i}
@@ -81,23 +75,22 @@ export function SummarySkeleton({
                 transition={{ delay: i * 0.1 }}
                 className="flex items-start gap-3"
               >
-                <div className="w-6 h-6 rounded-full bg-amber-200 dark:bg-amber-800/50 flex items-center justify-center shrink-0">
-                  <span className="text-xs font-bold text-amber-600 dark:text-amber-400">
+                <div className="w-5 h-5 xs:w-6 xs:h-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                  <span className="text-[10px] xs:text-xs font-bold text-primary">
                     {i + 1}
                   </span>
                 </div>
                 <div className="flex-1 space-y-2">
-                  <div className="h-4 bg-amber-100 dark:bg-amber-900/30 rounded animate-pulse w-full" />
+                  <div className="h-3 xs:h-4 skeleton-gradient rounded w-full" />
                   {i % 2 === 0 && (
-                    <div className="h-4 bg-amber-100 dark:bg-amber-900/30 rounded animate-pulse w-[60%]" />
+                    <div className="h-3 xs:h-4 skeleton-gradient rounded w-[60%]" />
                   )}
                 </div>
               </motion.div>
             ))}
           </div>
         ) : (
-          // Bullet points skeleton (default)
-          <div className="space-y-3">
+          <div className="space-y-2 xs:space-y-3">
             {Array.from({ length: lines }).map((_, i) => (
               <motion.div
                 key={i}
@@ -106,11 +99,11 @@ export function SummarySkeleton({
                 transition={{ delay: i * 0.1 }}
                 className="flex items-start gap-3"
               >
-                <div className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-2 shrink-0" />
+                <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0" />
                 <div className="flex-1 space-y-2">
-                  <div className="h-4 bg-amber-100 dark:bg-amber-900/30 rounded animate-pulse w-full" />
+                  <div className="h-3 xs:h-4 skeleton-gradient rounded w-full" />
                   {i % 3 === 0 && (
-                    <div className="h-4 bg-amber-100 dark:bg-amber-900/30 rounded animate-pulse w-[70%]" />
+                    <div className="h-3 xs:h-4 skeleton-gradient rounded w-[70%]" />
                   )}
                 </div>
               </motion.div>
@@ -119,18 +112,14 @@ export function SummarySkeleton({
         )}
       </div>
 
-      {/* Source info */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.5 }}
-        className="mt-4 flex items-center gap-2 text-xs text-amber-600/60 dark:text-amber-400/60"
+        className="mt-3 xs:mt-4 flex items-center gap-2 text-[10px] xs:text-xs text-muted-foreground"
       >
-        <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-        <span>
-          正在分析原文并提取 {length === "brief" ? "简要" : length === "detailed" ? "详细" : "适中"}
-          摘要...
-        </span>
+        <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+        <span>正在分析原文并提取 {length === 'brief' ? '简要' : length === 'detailed' ? '详细' : '适中'}摘要...</span>
       </motion.div>
     </motion.div>
   );
