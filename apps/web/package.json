@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "queue:worker": "tsx src/queue/worker.ts",
-    "hocuspocus": "tsx src/server/hocuspocus.ts",
+    "hocuspocus": "echo 'DEPRECATED: 请使用 pnpm --filter @nexusnote/collab dev' && exit 1",
     "lint": "biome check .",
     "typecheck": "tsc --noEmit",
     "pwa:generate-icons": "node scripts/generate-icons.js"
