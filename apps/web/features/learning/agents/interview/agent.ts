@@ -120,6 +120,7 @@ export const interviewAgent = new ToolLoopAgent({
         instructions,
         temperature: 0.7,
         toolChoice: { type: "tool", toolName: "generateOutline" },
+        stopWhen: stepCountIs(1),
       };
     }
 
@@ -133,6 +134,7 @@ export const interviewAgent = new ToolLoopAgent({
         instructions,
         temperature: 0.7,
         toolChoice: { type: "tool", toolName: "presentOptions" },
+        stopWhen: stepCountIs(1),
       };
     }
 
@@ -141,7 +143,7 @@ export const interviewAgent = new ToolLoopAgent({
       ...rest,
       instructions,
       temperature: 0.7,
-      stopWhen: stepCountIs(3),
+      stopWhen: stepCountIs(1),
     };
   },
 });
