@@ -1,8 +1,9 @@
 # ===========================================
-# Database Migration Job - ArgoCD PreSync
+# Database Migration Job - ArgoCD Sync Wave
 # ===========================================
+# 使用 sync-wave: "-1" 确保在 Deployment (wave 0) 之前创建
+# 不使用 PreSync hook，避免失败时阻塞整个同步
 # 使用专用迁移镜像（含完整 drizzle-orm 依赖链）
-# 镜像命名约定: {repository}-migration:{tag}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -11,8 +12,6 @@ metadata:
   labels:
     {{- include "nexusnote.labels" . | nindent 4 }}
   annotations:
-    argocd.argoproj.io/hook: PreSync
-    argocd.argoproj.io/hook-delete-policy: HookSucceeded,HookFailed
     argocd.argoproj.io/sync-wave: "-1"
 spec:
   backoffLimit: 3
