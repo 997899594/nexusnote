@@ -19,6 +19,7 @@
     "@hocuspocus/extension-redis": "^2.15.3",
     "@hocuspocus/provider": "^3.4.4",
     "@hocuspocus/server": "^2.13.0",
+    "@nexusnote/ai-core": "workspace:*",
     "@nexusnote/config": "workspace:*",
     "@nexusnote/db": "workspace:*",
     "@nexusnote/fsrs": "workspace:*",
