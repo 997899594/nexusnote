@@ -1,6 +1,8 @@
 # ===========================================
 # Database Migration Job - ArgoCD PreSync
 # ===========================================
+# 使用专用迁移镜像（含完整 drizzle-orm 依赖链）
+# 镜像命名约定: {repository}-migration:{tag}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -24,7 +26,7 @@ spec:
         runAsGroup: 1001
       initContainers:
         - name: wait-for-secrets
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          image: "{{ .Values.image.repository }}-migration:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command:
             - /bin/sh
@@ -46,16 +48,8 @@ spec:
                 - ALL
       containers:
         - name: db-migrate
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          image: "{{ .Values.image.repository }}-migration:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command:
-            - /bin/sh
-            - -c
-            - |
-              set -e
-              echo "Running database migrations..."
-              drizzle-kit push --config /app/packages/db/drizzle.config.ts
-              echo "Migrations completed."
           envFrom:
             - configMapRef:
                 name: nexusnote-config

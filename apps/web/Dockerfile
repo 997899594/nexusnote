@@ -89,27 +89,6 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/hocuspocus.js ./apps/web/
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/worker.js ./apps/web/
 
-# 复制 db 包供迁移使用（只复制必要文件，避免 node_modules）
-RUN mkdir -p /app/packages/db/src /app/packages/db/drizzle
-COPY --from=builder --chown=nextjs:nodejs /app/packages/db/src/ ./packages/db/src/
-COPY --from=builder --chown=nextjs:nodejs /app/packages/db/drizzle/ ./packages/db/drizzle/
-COPY --from=builder --chown=nextjs:nodejs /app/packages/db/drizzle.config.ts ./packages/db/
-COPY --from=builder --chown=nextjs:nodejs /app/packages/db/package.json ./packages/db/
-
-# 复制 config 包（schema.ts 通过 @nexusnote/config 引用）
-COPY --from=builder --chown=nextjs:nodejs /app/packages/config/dist ./packages/config/dist/
-COPY --from=builder --chown=nextjs:nodejs /app/packages/config/package.json ./packages/config/
-
-# 安装迁移依赖：drizzle-kit push 需要 drizzle-orm + @nexusnote/config (zod)
-RUN npm install -g drizzle-kit@0.30.0 \
-    && mkdir -p /app/node_modules/@nexusnote \
-    && ln -s /app/packages/config /app/node_modules/@nexusnote/config \
-    && cd /tmp && mkdir deps && cd deps && npm init -y > /dev/null 2>&1 \
-    && npm install --no-save drizzle-orm@0.44.0 zod@4 > /dev/null 2>&1 \
-    && cp -r node_modules/drizzle-orm /app/node_modules/ \
-    && cp -r node_modules/zod /app/node_modules/ \
-    && cd / && rm -rf /tmp/deps
-
 # 复制静态资源
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public/
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static/
@@ -127,3 +106,27 @@ ENV HOSTNAME="0.0.0.0"
 
 ENTRYPOINT ["dumb-init", "--"]
 CMD ["node", "apps/web/server.js"]
+
+# ============================================
+# Stage 5: Migration - 数据库迁移专用镜像
+# ============================================
+# builder 阶段已有完整 node_modules（drizzle-orm, @nexusnote/config, zod 等）
+# 直接复用，不需要额外安装任何依赖
+FROM node:22-alpine AS migration
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+RUN addgroup --system --gid 1001 nodejs \
+    && adduser --system --uid 1001 nextjs
+
+# 只复制迁移所需文件：pnpm 依赖树 + db/config 包
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules/
+COPY --from=builder --chown=nextjs:nodejs /app/packages/db ./packages/db/
+COPY --from=builder --chown=nextjs:nodejs /app/packages/config ./packages/config/
+COPY --from=builder --chown=nextjs:nodejs /app/package.json ./
+
+USER nextjs
+
+ENTRYPOINT ["npx", "drizzle-kit"]
+CMD ["push", "--config", "packages/db/drizzle.config.ts"]
