@@ -54,8 +54,7 @@ spec:
             - |
               set -e
               echo "Running database migrations..."
-              cd /app/packages/db
-              npx drizzle-kit push
+              drizzle-kit push --config /app/packages/db/drizzle.config.ts
               echo "Migrations completed."
           envFrom:
             - configMapRef:

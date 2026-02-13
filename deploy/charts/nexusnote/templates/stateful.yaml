@@ -72,15 +72,10 @@ spec:
             limits:
               cpu: "1000m"
               memory: "1Gi"
-  volumeClaimTemplates:
-    - metadata:
-        name: db-data
-      spec:
-        accessModes:
-          - ReadWriteOnce
-        resources:
-          requests:
-            storage: {{ .Values.database.storage | default "10Gi" }}
+      volumes:
+        - name: db-data
+          persistentVolumeClaim:
+            claimName: postgres-pvc
 
 ---
 # PostgreSQL Service
@@ -172,15 +167,10 @@ spec:
             limits:
               cpu: "200m"
               memory: "256Mi"
-  volumeClaimTemplates:
-    - metadata:
-        name: redis-data
-      spec:
-        accessModes:
-          - ReadWriteOnce
-        resources:
-          requests:
-            storage: {{ .Values.redis.storage | default "1Gi" }}
+      volumes:
+        - name: redis-data
+          persistentVolumeClaim:
+            claimName: redis-pvc
 
 ---
 # Redis Service
