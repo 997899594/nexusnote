@@ -19,10 +19,10 @@ import {
   User,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getDocumentAction } from "@/app/actions/document";
-import { GhostFlight } from "@/components/editor/GhostFlight";
+import { getDocumentAction } from "@/features/editor/actions/document";
+import { GhostFlight } from "@/features/editor/components/GhostFlight";
 import type { DocumentDTO } from "@/lib/actions/types";
-import { markdownToHtml } from "@/lib/editor/markdown";
+import { markdownToHtml } from "@/features/editor/core/markdown";
 import { useNoteExtractionOptional } from "@/lib/store";
 
 interface MaterialViewerProps {

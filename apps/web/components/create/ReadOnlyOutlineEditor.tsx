@@ -13,8 +13,8 @@ import { TaskList } from "@tiptap/extension-task-list";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect } from "react";
-import { Callout } from "@/components/editor/extensions/callout";
-import { Collapsible } from "@/components/editor/extensions/collapsible";
+import { Callout } from "@/features/editor/extensions/callout";
+import { Collapsible } from "@/features/editor/extensions/collapsible";
 import type { OutlineData } from "@/lib/ai/profile/course-profile";
 
 interface ReadOnlyOutlineEditorProps {

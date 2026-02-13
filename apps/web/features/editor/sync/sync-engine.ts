@@ -11,9 +11,9 @@
 import { HocuspocusProvider } from "@hocuspocus/provider";
 import { clientEnv } from "@nexusnote/config";
 import * as Y from "yjs";
-import { getAuthToken } from "../auth-helpers";
-import { documentStore } from "./document-store";
-import { snapshotStore } from "./snapshot-store";
+import { getAuthToken } from "@/lib/auth-helpers";
+import { documentStore } from "../stores/document-store";
+import { snapshotStore } from "../stores/snapshot-store";
 
 type SyncStatus = "idle" | "syncing" | "offline" | "error";
 type ConnectionState = "connected" | "connecting" | "disconnected";

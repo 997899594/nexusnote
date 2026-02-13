@@ -4,10 +4,10 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Book, Edit3, Layout, Sparkles, Split, X } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { use, useEffect, useState } from "react";
-import { getDocumentAction } from "@/app/actions/document";
+import { getDocumentAction } from "@/features/editor/actions/document";
 import { ChatSidebar } from "@/components/ai/ChatSidebar";
-import { Editor } from "@/components/editor/Editor";
-import { MaterialViewer } from "@/components/workpanel/MaterialViewer";
+import { Editor } from "@/features/editor/components/Editor";
+import { MaterialViewer } from "@/features/editor/components/workpanel/MaterialViewer";
 import { useNoteExtraction } from "@/lib/store";
 
 type ViewMode = "read" | "dual" | "notes";

@@ -9,7 +9,7 @@
  */
 
 import { v4 as uuid } from "uuid";
-import { documentStore } from "./document-store";
+import { documentStore } from "@/features/editor/stores/document-store";
 import {
   type LearningContentType,
   type LearningDifficulty,

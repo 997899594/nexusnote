@@ -12,7 +12,7 @@ import {
   getDocumentSnapshotsAction,
   getLatestSnapshotTimestampAction,
   syncSnapshotsAction,
-} from "@/app/actions/snapshot";
+} from "@/features/editor/actions/snapshot";
 import { type DocumentSnapshot, localDb, STORES } from "@/features/shared/stores/local-db";
 
 interface ServerSnapshot {

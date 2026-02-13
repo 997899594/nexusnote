@@ -32,7 +32,7 @@ export * from "./atoms/course-generation";
 // ============================================
 // Editor State
 // ============================================
-export * from "./atoms/editor";
+export * from "@/features/editor/atoms/editor";
 // ============================================
 // Note Extraction State
 // ============================================
@@ -42,7 +42,7 @@ export * from "./atoms/note-extraction";
 // ============================================
 export * from "@/features/shared/atoms/ui";
 export * from "./hooks/use-course-generation";
-export * from "./hooks/use-editor";
+export * from "@/features/editor/hooks/use-editor";
 // ============================================
 // Hooks
 // ============================================

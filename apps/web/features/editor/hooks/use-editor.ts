@@ -9,7 +9,7 @@
 
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect } from "react";
-import type { DocumentBlock, DocumentStructure, EditCommand } from "@/lib/editor/document-parser";
+import type { DocumentBlock, DocumentStructure, EditCommand } from "@/features/editor/core/document-parser";
 import {
   documentContentAtom,
   documentJSONAtom,
@@ -58,7 +58,7 @@ export function useEditor() {
     if (!editor) return null;
 
     // 动态导入以避免循环依赖
-    import("@/lib/editor/document-parser").then(({ parseDocument }) => {
+    import("@/features/editor/core/document-parser").then(({ parseDocument }) => {
       return parseDocument(editor);
     });
 

@@ -7,7 +7,7 @@
 
 import type { Editor } from "@tiptap/react";
 import { atom } from "jotai";
-import type { DocumentStructure, EditCommand } from "@/lib/editor/document-parser";
+import type { DocumentStructure, EditCommand } from "@/features/editor/core/document-parser";
 
 // ============================================
 // Atoms
@@ -102,7 +102,7 @@ export const applyEditAtom = atom(null, (get, _set, _command: EditCommand) => {
   if (!editor || !structure) return false;
 
   // 导入 applyEditCommand 函数以避免循环依赖
-  // 在实际使用时从 @/lib/editor/document-parser 导入
+  // 在实际使用时从 @/features/editor/core/document-parser 导入
   return false; // Placeholder
 });
 
@@ -117,6 +117,6 @@ export const applyEditsAtom = atom(null, (get, _set, commands: EditCommand[]) =>
   }
 
   // 导入 applyEditCommands 函数
-  // 在实际使用时从 @/lib/editor/document-parser 导入
+  // 在实际使用时从 @/features/editor/core/document-parser 导入
   return { success: 0, failed: commands.length }; // Placeholder
 });

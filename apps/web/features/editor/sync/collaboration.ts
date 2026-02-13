@@ -2,7 +2,7 @@ import { HocuspocusProvider } from "@hocuspocus/provider";
 import { clientEnv } from "@nexusnote/config";
 import type { CollaborationUser } from "@nexusnote/types";
 import type * as Y from "yjs";
-import { getAuthToken } from "../auth-helpers";
+import { getAuthToken } from "@/lib/auth-helpers";
 
 // Re-export type for backward compatibility
 export type { CollaborationUser };

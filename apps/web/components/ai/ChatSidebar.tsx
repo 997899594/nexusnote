@@ -29,7 +29,7 @@ import type {
   WebSearchOutput,
 } from "@/lib/ai/tools/types";
 import { getMessageContent, getToolCalls } from "@/features/shared/ai/ui-utils";
-import type { EditCommand } from "@/lib/editor/document-parser";
+import type { EditCommand } from "@/features/editor/core/document-parser";
 import { useEditor, useNoteExtractionOptional, useWebSearchToggle } from "@/lib/store";
 import { KnowledgePanel } from "./KnowledgePanel";
 import { UnifiedChatUI } from "./UnifiedChatUI";
