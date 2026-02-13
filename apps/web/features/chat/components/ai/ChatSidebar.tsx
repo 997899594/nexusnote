@@ -13,8 +13,8 @@ import {
   Sparkles,
 } from "lucide-react";
 import { type FormEvent, useCallback, useEffect, useState } from "react";
-import type { ChatAgentMessage } from "@/lib/ai/agents/chat-agent";
-import type { MindMapNode, Question } from "@/lib/ai/tools/chat/learning";
+import type { ChatAgentMessage } from "@/features/chat/agents/chat-agent";
+import type { MindMapNode, Question } from "@/features/chat/tools/chat/learning";
 import type {
   BatchEditOutput,
   DraftContentOutput,

@@ -3,8 +3,8 @@
 import type { UIMessage as Message } from "ai";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, Loader2, Zap } from "lucide-react";
-import { MessageResponse } from "@/components/ai/Message";
-import { UnifiedChatUI } from "@/components/ai/UnifiedChatUI";
+import { MessageResponse } from "@/features/chat/components/ai/Message";
+import { UnifiedChatUI } from "@/features/chat/components/ai/UnifiedChatUI";
 import type { InterviewContext } from "@/features/learning/agents/interview/agent";
 import { findToolCall } from "@/features/shared/ai/ui-utils";
 

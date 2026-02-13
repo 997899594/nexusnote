@@ -6,7 +6,7 @@ import {
 } from "ai";
 import { v4 as uuidv4 } from "uuid";
 import { z } from "zod";
-import { chatAgent } from "@/lib/ai/agents/chat-agent";
+import { chatAgent } from "@/features/chat/agents/chat-agent";
 import {
   type CourseGenerationContext,
   CourseGenerationContextSchema,

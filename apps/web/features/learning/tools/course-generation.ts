@@ -13,7 +13,7 @@
 import { type ToolSet, tool } from "ai";
 import { z } from "zod";
 import { getCourseChapters, saveCourseChapter } from "@/features/learning/agents/course-profile";
-import { generateQuiz, mindMap } from "@/lib/ai/tools/chat/learning";
+import { generateQuiz, mindMap } from "@/features/chat/tools/chat/learning";
 import { generateIllustrationTool } from "./multimodal";
 
 /**

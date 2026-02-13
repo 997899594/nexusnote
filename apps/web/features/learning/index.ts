@@ -17,7 +17,7 @@ export { interviewAgent } from "./agents/interview/agent";
 export { courseGenerationAgent } from "./agents/course-generation/agent";
 
 // Actions
-export { generateCourseAction } from "./actions/course";
+export { saveCourseProfileAction, getCourseChaptersAction } from "./actions/course";
 
 // Hooks
 export { useCourseGeneration } from "./hooks/useCourseGeneration";

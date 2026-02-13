@@ -7,13 +7,13 @@ import { ArrowLeft, ArrowRight, ChevronLeft, Menu, MessageSquare, Sparkles } fro
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getCourseChaptersAction, updateCourseProgressAction } from "@/features/learning/actions/course";
-import { MessageResponse } from "@/components/ai/Message";
-import { UnifiedChatUI } from "@/components/ai/UnifiedChatUI";
-import { MindMapView, QuizResult, SummaryResult, WebSearchResult } from "@/components/ai/ui";
+import { MessageResponse } from "@/features/chat/components/ai/Message";
+import { UnifiedChatUI } from "@/features/chat/components/ai/UnifiedChatUI";
+import { MindMapView, QuizResult, SummaryResult, WebSearchResult } from "@/features/chat/components/ai/ui";
 import { ContentRenderer } from "@/features/learning/components/course/content-renderer";
 import { OrganicHeader } from "@/features/learning/components/create/OrganicHeader";
 import type { CourseChapterDTO, CourseProfileDTO } from "@/lib/actions/types";
-import type { ChatAgentMessage } from "@/lib/ai/agents/chat-agent";
+import type { ChatAgentMessage } from "@/features/chat/agents/chat-agent";
 import type { CourseGenerationAgentMessage } from "@/features/learning/agents/course-generation/agent";
 import type {
   MindMapOutput,

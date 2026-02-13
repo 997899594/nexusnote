@@ -9,10 +9,10 @@
 import { type InferAgentUIMessage, stepCountIs, ToolLoopAgent, type ToolSet } from "ai";
 import { z } from "zod";
 import { registry } from "@/features/shared/ai/registry";
-import { skills } from "@/lib/ai/tools/chat";
-import { editorSkills } from "@/lib/ai/tools/chat/editor";
-import { learningSkills } from "@/lib/ai/tools/chat/learning";
-import { webSearchSkills } from "@/lib/ai/tools/chat/web";
+import { skills } from "@/features/chat/tools/chat";
+import { editorSkills } from "@/features/chat/tools/chat/editor";
+import { learningSkills } from "@/features/chat/tools/chat/learning";
+import { webSearchSkills } from "@/features/chat/tools/chat/web";
 
 /**
  * 调用选项：路由层传入的动态上下文
@@ -197,7 +197,7 @@ export const chatAgent = new ToolLoopAgent({
  *
  * 使用方式：
  * ```
- * import { type ChatAgentMessage } from '@/lib/ai/agents/chat-agent'
+ * import { type ChatAgentMessage } from '@/features/chat/agents/chat-agent'
  * const { messages } = useChat<ChatAgentMessage>({ transport })
  * // message.parts 中的 tool parts 是 typed：
  * // 'tool-editDocument' | 'tool-batchEdit' | 'tool-createFlashcards' | ...

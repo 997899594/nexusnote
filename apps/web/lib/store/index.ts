@@ -22,5 +22,5 @@ export * from "@/features/learning/atoms/note-extraction";
 export * from "@/features/learning/hooks/use-course-generation";
 export * from "@/features/learning/hooks/use-note-extraction";
 
-// chat 领域（待迁移）
-export * from "./hooks/use-web-search-toggle";
+// chat 领域
+export * from "@/features/chat/hooks/use-web-search-toggle";
