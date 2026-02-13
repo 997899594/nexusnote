@@ -5,7 +5,7 @@
 namespace: nexusnote
 
 image:
-  tag: "prod-latest"
+  tag: "latest"
 
 env:
   NODE_ENV: "production"
