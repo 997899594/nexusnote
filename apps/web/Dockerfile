@@ -57,14 +57,14 @@ RUN pnpm --filter @nexusnote/web exec esbuild src/server/hocuspocus.ts \
   --bundle \
   --platform=node \
   --minify \
-  --target=node20 \
+  --target=node22 \
   --outfile=hocuspocus.js
 
 RUN pnpm --filter @nexusnote/web exec esbuild src/queue/worker.ts \
   --bundle \
   --platform=node \
   --minify \
-  --target=node20 \
+  --target=node22 \
   --outfile=worker.js
 
 # ============================================
@@ -76,12 +76,11 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# 创建非 root 用户
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
-
-# 创建日志目录
-RUN mkdir -p /app/logs && chown -R nextjs:nodejs /app/logs
+# 创建非 root 用户 + 安装 dumb-init
+RUN apk add --no-cache dumb-init \
+    && addgroup --system --gid 1001 nodejs \
+    && adduser --system --uid 1001 nextjs \
+    && mkdir -p /app/logs && chown -R nextjs:nodejs /app/logs
 
 # 复制构建产物
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
@@ -97,8 +96,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/packages/db/drizzle/ ./packages/d
 COPY --from=builder --chown=nextjs:nodejs /app/packages/db/drizzle.config.ts ./packages/db/
 COPY --from=builder --chown=nextjs:nodejs /app/packages/db/package.json ./packages/db/
 
-# 安装 drizzle-kit 用于数据库迁移
-RUN npm install -g drizzle-kit
+# 安装 drizzle-kit 用于数据库迁移（锁定版本）
+RUN npm install -g drizzle-kit@0.30.0
 
 # 复制静态资源
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public/
@@ -115,4 +114,5 @@ EXPOSE 3000 1234
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
+ENTRYPOINT ["dumb-init", "--"]
 CMD ["node", "apps/web/server.js"]

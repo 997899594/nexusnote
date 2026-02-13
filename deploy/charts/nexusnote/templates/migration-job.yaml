@@ -1,27 +1,49 @@
 # ===========================================
-# Database Migration Job - Helm Hook
+# Database Migration Job - ArgoCD PreSync
 # ===========================================
-# 在每次部署前执行数据库迁移
-# pre-install: 首次安装时运行
-# pre-upgrade: 每次升级时运行
-# hook-delete-policy: 成功后自动清理
-
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ .Release.Name }}-db-migrate
+  name: nexusnote-db-migrate-{{ .Release.Revision | default "1" }}
   namespace: {{ .Values.namespace }}
   labels:
     {{- include "nexusnote.labels" . | nindent 4 }}
   annotations:
-    "helm.sh/hook": pre-install,pre-upgrade
-    "helm.sh/hook-weight": "-5"
-    "helm.sh/hook-delete-policy": hook-succeeded
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded,HookFailed
+    argocd.argoproj.io/sync-wave: "-1"
 spec:
+  backoffLimit: 3
   ttlSecondsAfterFinished: 300
   template:
     spec:
       restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+      initContainers:
+        - name: wait-for-secrets
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Waiting for secrets to be available..."
+              until [ -n "$DATABASE_URL" ] || [ -n "$POSTGRES_PASSWORD" ]; do
+                echo "Secrets not ready, waiting..."
+                sleep 2
+              done
+              echo "Secrets available."
+          envFrom:
+            - secretRef:
+                name: nexusnote-secrets
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
       containers:
         - name: db-migrate
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -40,6 +62,11 @@ spec:
                 name: nexusnote-config
             - secretRef:
                 name: nexusnote-secrets
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           resources:
             requests:
               cpu: "50m"

@@ -1,7 +1,7 @@
 # ===========================================
 # NexusNote Gateway Infrastructure
 # ===========================================
-# 使用 Cilium Gateway API + MetalLB LoadBalancer
+# 使用 Cilium Gateway API + LB-IPAM
 
 ---
 apiVersion: gateway.networking.k8s.io/v1
@@ -14,9 +14,8 @@ metadata:
   annotations:
     # 使用集群级 ClusterIssuer（在 deploy/infra/cert-manager/ 中定义）
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    # Cilium LoadBalancer 配置
-    service.cilium.io/type: LoadBalancer
-    loadBalancer_ip: "{{ .Values.loadBalancerIP | default "10.2.0.15" }}"
+    # Cilium LB-IPAM 配置
+    io.cilium/lb-ipam-ips: {{ .Values.loadBalancerIP | default "10.2.0.15" | quote }}
 spec:
   gatewayClassName: cilium
   listeners:
@@ -31,7 +30,7 @@ spec:
     - name: https
       protocol: HTTPS
       port: 443
-      hostname: {{ .Values.env.NEXT_PUBLIC_APP_URL | replace "https://" "" | quote }}
+      hostname: {{ include "nexusnote.hostname" . | quote }}
       allowedRoutes:
         namespaces:
           from: Same
@@ -55,7 +54,7 @@ spec:
       namespace: {{ .Values.namespace }}
       kind: Gateway
   hostnames:
-    - {{ .Values.env.NEXT_PUBLIC_APP_URL | replace "https://" "" }}
+    - {{ include "nexusnote.hostname" . | quote }}
   rules:
     # WebSocket 路由（协作服务）
     - matches:
@@ -90,7 +89,7 @@ spec:
       kind: Gateway
       sectionName: http
   hostnames:
-    - {{ .Values.env.NEXT_PUBLIC_APP_URL | replace "https://" "" }}
+    - {{ include "nexusnote.hostname" . | quote }}
   rules:
     - filters:
         - type: RequestRedirect

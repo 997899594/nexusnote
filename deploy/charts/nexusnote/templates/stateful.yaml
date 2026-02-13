@@ -3,40 +3,6 @@
 # ===========================================
 
 ---
-# PostgreSQL PVC
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: postgres-pvc
-  namespace: {{ .Values.namespace }}
-  labels:
-    app: postgres
-    {{- include "nexusnote.labels" . | nindent 4 }}
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: {{ .Values.database.storage | default "5Gi" }}
-
----
-# Redis PVC
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: redis-pvc
-  namespace: {{ .Values.namespace }}
-  labels:
-    app: redis
-    {{- include "nexusnote.labels" . | nindent 4 }}
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: {{ .Values.redis.storage | default "1Gi" }}
-
----
 # PostgreSQL StatefulSet
 apiVersion: apps/v1
 kind: StatefulSet
@@ -59,7 +25,7 @@ spec:
     spec:
       containers:
         - name: postgres
-          image: pgvector/pgvector:pg16
+          image: pgvector/pgvector:0.8.0-pg16
           ports:
             - name: postgres
               containerPort: 5432
@@ -74,6 +40,8 @@ spec:
                 secretKeyRef:
                   name: nexusnote-secrets
                   key: POSTGRES_PASSWORD
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
           volumeMounts:
             - name: db-data
               mountPath: /var/lib/postgresql/data
@@ -99,15 +67,20 @@ spec:
             failureThreshold: 3
           resources:
             requests:
-              cpu: "100m"
-              memory: "256Mi"
-            limits:
               cpu: "500m"
               memory: "512Mi"
-      volumes:
-        - name: db-data
-          persistentVolumeClaim:
-            claimName: postgres-pvc
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+  volumeClaimTemplates:
+    - metadata:
+        name: db-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: {{ .Values.database.storage | default "10Gi" }}
 
 ---
 # PostgreSQL Service
@@ -157,6 +130,14 @@ spec:
             - redis-server
             - --appendonly
             - "yes"
+            - --requirepass
+            - $(REDIS_PASSWORD)
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nexusnote-secrets
+                  key: REDIS_PASSWORD
           ports:
             - name: redis
               containerPort: 6379
@@ -167,8 +148,9 @@ spec:
           livenessProbe:
             exec:
               command:
-                - redis-cli
-                - ping
+                - /bin/sh
+                - -c
+                - redis-cli -a "$REDIS_PASSWORD" ping | grep -q PONG
             initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 5
@@ -176,8 +158,9 @@ spec:
           readinessProbe:
             exec:
               command:
-                - redis-cli
-                - ping
+                - /bin/sh
+                - -c
+                - redis-cli -a "$REDIS_PASSWORD" ping | grep -q PONG
             initialDelaySeconds: 5
             periodSeconds: 5
             timeoutSeconds: 3
@@ -189,10 +172,15 @@ spec:
             limits:
               cpu: "200m"
               memory: "256Mi"
-      volumes:
-        - name: redis-data
-          persistentVolumeClaim:
-            claimName: redis-pvc
+  volumeClaimTemplates:
+    - metadata:
+        name: redis-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: {{ .Values.redis.storage | default "1Gi" }}
 
 ---
 # Redis Service

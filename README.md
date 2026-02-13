@@ -10,40 +10,40 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-3178C6?logo=typescript)](https://www.typescriptlang.org/)
 [![AI SDK](https://img.shields.io/badge/AI_SDK-6.0-000000?logo=vercel)](https://sdk.vercel.ai/)
 
-[Documentation](./docs) · [Deployment Guide](./DEPLOYMENT.md) · [Report Bug](https://github.com/yourusername/nexusnote/issues)
+[Documentation](./docs) · [Deployment Guide](./DEPLOYMENT.md)
 
 </div>
 
 ---
 
-## ✨ What Makes NexusNote Special?
+## What Makes NexusNote Special?
 
 NexusNote isn't just another note-taking app. It's a **knowledge management system** that combines:
 
-- 🤖 **Multi-Model AI Architecture**: DeepSeek for reasoning, Qwen3 for embeddings, intelligent model orchestration
-- 🔍 **Advanced RAG System**: Vector search with pgvector, semantic chunking, and reranking
-- 👥 **Real-time Collaboration**: Notion-like editing experience with Yjs + Hocuspocus
-- 🧠 **Scientific Learning**: FSRS-5 spaced repetition algorithm, AI-generated flashcards
-- 📴 **Offline-First**: IndexedDB sync, works without internet
-- 💰 **Cost-Effective**: $1/million tokens with DeepSeek (100x cheaper than GPT-4)
+- **Multi-Model AI Architecture**: DeepSeek for reasoning, Qwen3 for embeddings, intelligent model orchestration
+- **Advanced RAG System**: Vector search with pgvector, semantic chunking, and reranking
+- **Real-time Collaboration**: Notion-like editing experience with Yjs + Hocuspocus
+- **Scientific Learning**: FSRS-5 spaced repetition algorithm, AI-generated flashcards
+- **Offline-First**: IndexedDB sync, works without internet
+- **Cost-Effective**: $1/million tokens with DeepSeek (100x cheaper than GPT-4)
 
 ---
 
-## 🎯 Key Features
+## Key Features
 
-### 📝 Rich Text Editor
+### Rich Text Editor
 - **Collaborative Editing**: Real-time cursor presence and awareness
 - **Markdown Support**: Write naturally with keyboard shortcuts
 - **Custom Extensions**: Callouts, collapsible sections, tables
 - **Slash Commands**: Quick access to AI features with `/`
 
-### 🤖 AI Assistant
+### AI Assistant
 - **Contextual Chat**: Understands your entire knowledge base
 - **RAG-Powered Search**: Semantic search across all documents
 - **Inline Actions**: Improve, translate, summarize, expand text
 - **Tool Calling**: Create flashcards, search notes, generate learning plans
 
-### 🔍 Vector Search (RAG)
+### Vector Search (RAG)
 ```
 Your Document → Smart Chunking → Qwen3 Embedding (4000D) → pgvector
                                                                 ↓
@@ -52,49 +52,41 @@ User Query → Embedding → Cosine Similarity → Reranker → Top Results
                                         DeepSeek Chat ← Context + Query
 ```
 
-**Features:**
-- Semantic chunking with paragraph awareness
-- Chunk overlap for context preservation
-- Two-stage retrieval with reranking
-- Async indexing with BullMQ queue
-
-### 🎓 Learning System
+### Learning System
 - **FSRS-5 Algorithm**: More accurate than Anki's SM-2
 - **AI Flashcard Generation**: Automatically extract Q&A pairs
 - **Progress Tracking**: Mastery level, review stats, time spent
-- **Structured Learning**: AI-generated chapter breakdowns
 
-### 📊 Timeline & Versioning
+### Timeline & Versioning
 - **Auto Snapshots**: Every 5 minutes during editing
 - **Diff Visualization**: See what changed between versions
 - **One-Click Restore**: Revert to any previous state
-- **Trigger Tracking**: Manual, auto, AI edit, collaboration
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
-### Modern Fullstack Design (2026)
+### Modern Fullstack Design
 
-NexusNote now uses a **single Next.js fullstack application** deployed in a Docker container:
+NexusNote uses a **single Next.js fullstack application** deployed as three Kubernetes workloads from one Docker image:
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     Docker Container                         │
-│                                                               │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │  Next.js Standalone Server                            │   │
-│  │  ├── Next.js API Gateway (port 3000)                │   │
-│  │  ├── Hocuspocus WebSocket Server (port 1234)        │   │
-│  │  └── BullMQ RAG Indexing Worker                     │   │
-│  └──────────────────────────────────────────────────────┘   │
-│                           ↓                                   │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │  Shared Resources                                    │   │
-│  │  ├── PostgreSQL 16 + pgvector                       │   │
-│  │  └── Redis 7 (BullMQ queue + distributed locks)    │   │
-│  └──────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│                        K3s Cluster                                       │
+│                                                                          │
+│  ┌────────────────┐  ┌─────────────────┐  ┌──────────────────┐         │
+│  │  nexusnote-web │  │ nexusnote-collab│  │ nexusnote-worker │         │
+│  │  Next.js API   │  │ Hocuspocus WS   │  │ BullMQ RAG       │         │
+│  │  port 3000     │  │ port 1234       │  │ indexing          │         │
+│  └────────────────┘  └─────────────────┘  └──────────────────┘         │
+│           │                    │                    │                    │
+│  ┌────────┴────────────────────┴────────────────────┘                   │
+│  │                                                                      │
+│  ├── PostgreSQL 16 + pgvector 0.8.0  (10Gi)                           │
+│  └── Redis 7 + password auth          (1Gi)                            │
+│                                                                          │
+│  Cilium Gateway API ── https://juanie.art (Let's Encrypt TLS)          │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Tech Stack
@@ -102,40 +94,34 @@ NexusNote now uses a **single Next.js fullstack application** deployed in a Dock
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
 | **Framework** | Next.js 16 | Unified fullstack framework |
-| **Editor** | TiptapV3, Yjs | Rich text editing, CRDT sync |
+| **Editor** | Tiptap v3, Yjs | Rich text editing, CRDT sync |
 | **Realtime** | Hocuspocus | WebSocket collaboration server |
 | **Database** | PostgreSQL 16, pgvector | Relational data, vector search |
-| **Queue** | BullMQ, Redis | Async job processing, locks |
+| **Queue** | BullMQ, Redis 7 | Async job processing |
 | **AI** | Vercel AI SDK 6.x | Unified AI interface |
 | **ORM** | Drizzle | Type-safe SQL queries |
 | **Monorepo** | Turborepo, pnpm | Build orchestration |
-| **Deployment** | Docker, Kubernetes | Container orchestration |
-
-### Why This Architecture?
-
-✅ **Simplified Deployment** - Single container instead of multiple services
-✅ **Better Performance** - No inter-service network latency
-✅ **Cost Efficient** - Lower cloud infrastructure costs
-✅ **Easier Maintenance** - Centralized logging, monitoring
-✅ **Self-Hosted Ready** - Perfect for VPS/self-managed servers
+| **CI/CD** | GitHub Actions, ArgoCD | Build + GitOps deployment |
+| **Secrets** | Infisical Cloud | Centralized secret management |
+| **TLS** | Cert-Manager, Let's Encrypt | Automatic certificate management |
 
 ### AI Model Strategy
 
-```typescript
-// Chat & Reasoning (2026 Options)
-Gemini 3 Flash/Pro → Google AI Studio (free tier)
-DeepSeek V3 → $1/M tokens (best value)
+```
+Chat & Reasoning:
+  Primary:  Gemini 3 Flash/Pro → Google AI Studio (free tier)
+  Fallback: DeepSeek V3        → $1/M tokens (best value)
 
-// Embedding (4000D vectors)
-Qwen3-Embedding-8B → 302.ai or SiliconFlow
+Embedding (4000D vectors):
+  Qwen3-Embedding-8B → 302.ai or SiliconFlow
 
-// Reranking (optional)
-Qwen3-Reranker-8B → Two-stage retrieval
+Reranking (optional):
+  Qwen3-Reranker-8B → Two-stage retrieval
 ```
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -147,141 +133,109 @@ Qwen3-Reranker-8B → Two-stage retrieval
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/yourusername/nexusnote.git
+git clone https://github.com/997899594/nexusnote.git
 cd nexusnote
 
 # 2. Install dependencies
 pnpm install
 
 # 3. Start database services
-docker compose up -d postgres redis
+docker compose up -d
 
 # 4. Configure environment
-cp .env.example .env.local
-# Edit .env.local and add your API keys:
-# - AI_302_API_KEY (or OPENAI_API_KEY, DEEPSEEK_API_KEY, etc.)
-# - DATABASE_URL (if not using docker)
-# - REDIS_URL (if not using docker)
+cp .env.example .env
+# Edit .env and add your API keys
 
 # 5. Run database migrations
-cd apps/web
-pnpm exec drizzle-kit push
+pnpm db:push
 
-# 6. Start all services (separate terminals)
-
-# Terminal 1 - Next.js:
+# 6. Start all services
 pnpm dev
-
-# Terminal 2 - RAG Worker:
-npm run queue:worker
-
-# Terminal 3 - Hocuspocus WebSocket:
-npm run hocuspocus
 ```
 
 ### Access Services
 
-| Service | URL | Port | Description |
-|---------|-----|------|-------------|
-| 🌐 Web App | http://localhost:3000 | 3000 | Next.js frontend + API |
-| 🔄 Collaboration | ws://localhost:1234 | 1234 | Hocuspocus WebSocket |
-| 🗄️ PostgreSQL | localhost:5433 | 5433 | Database |
-| 📮 Redis | localhost:6380 | 6380 | Queue & cache |
+| Service | URL | Description |
+|---------|-----|-------------|
+| Web App | http://localhost:3000 | Next.js frontend + API |
+| Collaboration | ws://localhost:1234 | Hocuspocus WebSocket |
+| PostgreSQL | localhost:5433 | Database |
+| Redis | localhost:6380 | Queue & cache |
 
 ---
 
-## 🌍 Production Deployment
+## Production Deployment
 
-### Docker Deployment (Recommended)
+NexusNote uses **GitOps** for production deployment:
 
-NexusNote is designed for **self-hosted Docker deployment**:
-
-```bash
-# 1. Clone and configure
-git clone <repo>
-cd nexusnote
-cp .env.example .env
-
-# 2. Edit .env with your API keys and domain
-
-# 3. Build Docker image
-docker build -f apps/web/Dockerfile -t nexusnote:latest .
-
-# 4. Deploy with docker-compose
-docker-compose up -d
-
-# 5. Access your app
-# - Web: http://your-domain:3000
-# - Collaboration WS: ws://your-domain:1234
+```
+git push → GitHub Actions (lint + build) → GHCR → ArgoCD Image Updater → K3s
 ```
 
-### Deployment Checklist
+### One-Click Setup (first time only)
 
-- [ ] Set strong `AUTH_SECRET` and `JWT_SECRET` (use `openssl rand -base64 32`)
-- [ ] Configure AI provider API keys (302.ai, OpenAI, DeepSeek, etc.)
-- [ ] Set `NODE_ENV=production`
-- [ ] Configure `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_COLLAB_URL` to your domain
-- [ ] Enable HTTPS with reverse proxy (nginx/Caddy)
-- [ ] Set up regular PostgreSQL backups
-- [ ] Configure monitoring and logging
-- [ ] Set up SSL certificates (Let's Encrypt)
+```bash
+cd deploy
+cp deploy.env.example deploy.env
+vim deploy.env    # Fill in server IP, tokens, credentials
+./init.sh --config deploy.env
+```
 
-For detailed deployment instructions, see [DEPLOYMENT.md](./DEPLOYMENT.md)
+### Day-to-Day
+
+| Action | How |
+|--------|-----|
+| Deploy code | `git push` (auto) |
+| Update config | Edit `values-prod.yaml` + `git push` |
+| Update secrets | Infisical Dashboard (auto-sync) |
+| View ArgoCD | `kubectl port-forward svc/argocd-server -n argocd 8080:443` |
+
+For detailed deployment instructions, see [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 nexusnote/
 ├── apps/
 │   └── web/                          # Next.js Fullstack App
-│       ├── app/
-│       │   ├── api/
-│       │   │   ├── ai/               # Unified AI Gateway
-│       │   │   ├── auth/             # Authentication
-│       │   │   └── ...
-│       │   ├── editor/[id]/          # Document editor
-│       │   └── learn/                # Learning module
+│       ├── app/                      # App Router (pages + API routes)
 │       ├── src/
-│       │   ├── server/
-│       │   │   ├── hocuspocus.ts     # WebSocket collaboration
-│       │   │   └── ...
-│       │   ├── queue/
-│       │   │   ├── worker.ts         # BullMQ RAG worker
-│       │   │   └── utils/
-│       │   ├── lib/
-│       │   │   ├── ai/               # AI utilities (types only)
-│       │   │   ├── storage/          # IndexedDB stores
-│       │   │   └── ...
-│       │       └── components/
-│       ├── Dockerfile                # Multi-stage Docker build
-│       └── next.config.js            # Next.js configuration
+│       │   ├── server/               # Hocuspocus WebSocket server
+│       │   ├── queue/                # BullMQ RAG worker
+│       │   ├── lib/                  # Utilities, AI, storage
+│       │   └── components/           # React components
+│       └── Dockerfile                # Multi-stage Docker build
 │
 ├── packages/
-│   ├── db/                           # Database Layer
-│   │   ├── src/schema.ts             # Drizzle schema
-│   │   └── drizzle/                  # SQL migrations
-│   ├── config/                       # Shared Configuration
-│   ├── types/                        # Shared TypeScript Types
-│   └── ui/                           # Shared UI Components
+│   ├── db/                           # Drizzle ORM + migrations
+│   ├── config/                       # Shared env config (Zod)
+│   ├── types/                        # Shared TypeScript types
+│   └── ui/                           # Shared UI components
 │
-├── docs/
+├── deploy/
+│   ├── argocd/                       # ArgoCD GitOps config
+│   ├── charts/nexusnote/             # Helm Chart (v2.0.0)
+│   └── infra/                        # Cluster infrastructure
+│
+├── docs/                             # Documentation
 │   ├── PRD.md                        # Product requirements
-│   ├── TRD.md                        # Technical requirements
-│   └── AI.md                         # AI system details
+│   ├── AI.md                         # AI system architecture
+│   └── ARCHITECTURE_2026.md          # Core architecture standards
 │
-├── DEPLOYMENT.md                     # Complete deployment guide
-├── docker-compose.yml                # Docker Compose config
-├── .env.example                      # Environment template
-└── turbo.json                        # Turborepo configuration
+├── .github/workflows/ci.yaml         # CI pipeline
+├── docker-bake.hcl                   # Docker Buildx config
+├── docker-compose.yml                # Local dev services
+├── turbo.json                        # Turborepo config
+└── DEPLOYMENT.md                     # Deployment guide
 ```
 
 ---
 
-## 🔧 Configuration
+## Configuration
 
-See [.env.example](./.env.example) for complete configuration options.
+See [.env.example](./.env.example) for all options.
 
 ### Essential Variables
 
@@ -294,133 +248,66 @@ REDIS_URL=redis://localhost:6379
 
 # AI Provider (choose one or more)
 AI_302_API_KEY=sk-xxx              # Recommended
-OPENAI_API_KEY=sk-xxx              # Alternative
 DEEPSEEK_API_KEY=sk-xxx            # Alternative
 
 # Authentication
 AUTH_SECRET=<random-32-chars>       # openssl rand -base64 32
 JWT_SECRET=<random-32-chars>
-
-# Public URLs
-NEXT_PUBLIC_API_URL=http://localhost:3000/api
-NEXT_PUBLIC_COLLAB_URL=ws://localhost:1234
 ```
 
 ---
 
-## 📚 API Documentation
+## Development
 
-### REST Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/health` | GET | Health check |
-| `/documents` | GET | List documents |
-| `/documents/:id` | GET | Get document |
-| `/documents` | POST | Create document |
-| `/documents/:id` | PATCH | Update document |
-| `/rag/search` | GET | Vector search |
-| `/snapshots/:id` | GET | Get snapshots |
-| `/snapshots/:id/restore` | POST | Restore version |
-
-### AI Endpoints (Next.js API Routes)
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/chat` | POST | AI chat with RAG |
-| `/api/completion` | POST | Text completion |
-| `/api/flashcard/generate` | POST | Generate flashcards |
-| `/api/learn/generate` | POST | Generate learning plan |
-
----
-
-## 🧪 Development
-
-### Run Tests
 ```bash
-pnpm test
-```
+pnpm dev           # Start dev server
+pnpm build         # Production build
+pnpm lint          # Run linter
+pnpm typecheck     # Type check
 
-### Type Check
-```bash
-pnpm typecheck
-```
-
-### Lint
-```bash
-pnpm lint
-```
-
-### Build
-```bash
-pnpm build
-```
-
-### Database Migrations
-```bash
-# Generate migration
-pnpm --filter @nexusnote/db generate
-
-# Run migration
-pnpm --filter @nexusnote/db migrate
+# Database
+pnpm db:push       # Run migrations
+pnpm db:studio     # Open Drizzle Studio
+pnpm db:generate   # Generate migration files
 ```
 
 ---
 
-## 🎓 Learning Resources
+## Documentation
 
-- [AI Architecture](./docs/AI_ARCHITECTURE.md) - How the AI system works
-- [PRD](./docs/PRD.md) - Product requirements and roadmap
-- [TRD](./docs/TRD.md) - Technical design decisions
-- [Deployment Guide](./deploy/DEPLOY.md) - Production deployment
+- [Product Requirements](./docs/PRD.md) - Features and roadmap
+- [AI System](./docs/AI.md) - Multi-model architecture, RAG, Interview FSM
+- [Architecture Standards](./docs/ARCHITECTURE_2026.md) - Core design decisions
+- [Deployment Guide](./DEPLOYMENT.md) - Production deployment
 
 ---
 
-## 🗺️ Roadmap
+## Roadmap
 
-### ✅ Completed
+### Completed
 - [x] Rich text editor with collaboration
 - [x] AI chat with RAG
 - [x] Vector search with pgvector
 - [x] FSRS-5 spaced repetition
 - [x] Timeline & version control
 - [x] Agent system with tool calling
-- [x] Production deployment
+- [x] GitOps production deployment
 
-### 🚧 In Progress
-- [ ] Mobile responsive design
-- [ ] Team collaboration features
-- [ ] Advanced search filters
-
-### 📋 Planned
+### Planned
 - [ ] Knowledge graph visualization
 - [ ] Multi-modal support (images, PDFs)
-- [ ] Browser extension
-- [ ] Mobile app (React Native)
-- [ ] Self-hosted deployment guide
+- [ ] Mobile responsive design
 - [ ] Plugin system
 
 ---
 
-## 🤝 Contributing
-
-Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) first.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
----
-
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - [Tiptap](https://tiptap.dev/) - Headless editor framework
 - [Yjs](https://yjs.dev/) - CRDT for real-time collaboration
@@ -428,21 +315,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [Drizzle ORM](https://orm.drizzle.team/) - Type-safe SQL
 - [pgvector](https://github.com/pgvector/pgvector) - Vector similarity search
 - [FSRS](https://github.com/open-spaced-repetition/fsrs-rs) - Spaced repetition algorithm
-
----
-
-## 💬 Community
-
-- [GitHub Discussions](https://github.com/yourusername/nexusnote/discussions)
-- [Discord](https://discord.gg/nexusnote)
-- [Twitter](https://twitter.com/nexusnote)
-
----
-
-<div align="center">
-
-**Built with ❤️ by developers, for developers**
-
-[⭐ Star us on GitHub](https://github.com/yourusername/nexusnote)
-
-</div>

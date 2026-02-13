@@ -11,6 +11,11 @@ metadata:
     {{- include "nexusnote.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.services.worker.replicaCount }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app: nexusnote-worker
@@ -24,24 +29,42 @@ spec:
       imagePullSecrets:
         {{- toYaml .Values.imagePullSecrets | nindent 8 }}
       {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
       containers:
         - name: app
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["node", "apps/web/worker.js"]
+          command: ["dumb-init", "--", "node", "apps/web/worker.js"]
           envFrom:
             - configMapRef:
                 name: nexusnote-config
             - secretRef:
                 name: nexusnote-secrets
-          # Worker 不需要 http 探针，使用进程存活检测
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          startupProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - "node -e \"const net=require('net');const s=new net.Socket();s.connect(6379,'nexusnote-redis',()=>{s.end();process.exit(0)});s.on('error',()=>process.exit(1));setTimeout(()=>process.exit(1),3000)\""
+            periodSeconds: 5
+            failureThreshold: 10
+            timeoutSeconds: 5
           livenessProbe:
             exec:
               command:
                 - /bin/sh
                 - -c
-                - "pgrep -f 'node apps/web/worker.js' || exit 1"
-            initialDelaySeconds: 30
+                - "node -e \"const net=require('net');const s=new net.Socket();s.connect(6379,'nexusnote-redis',()=>{s.end();process.exit(0)});s.on('error',()=>process.exit(1));setTimeout(()=>process.exit(1),3000)\""
+            initialDelaySeconds: 10
             periodSeconds: 30
             timeoutSeconds: 5
             failureThreshold: 3

@@ -4,8 +4,6 @@
 # 敏感信息通过 Infisical Cloud 管理
 # https://app.infisical.com
 
-replicaCount: 1
-
 image:
   repository: ghcr.io/997899594/nexusnote
   pullPolicy: IfNotPresent
@@ -21,7 +19,7 @@ infisical:
   enabled: true
   # Project Slug（在项目设置页面获取）
   projectSlug: "nexusnote-ibqe"
-  # 环境名称（dev/staging/prod）
+  # 环境名称
   envSlug: "prod"
   # 同步间隔（秒）
   resyncInterval: 60
@@ -48,12 +46,17 @@ database:
   port: 5432
   name: nexusnote
   user: postgres
-  # 密码通过 Infisical 注入
+  storage: "10Gi"
+  backupStorage: "5Gi"
 
 # Redis 配置
 redis:
   host: nexusnote-redis
   port: 6379
+  storage: "1Gi"
+
+# Gateway 负载均衡 IP
+loadBalancerIP: "10.2.0.15"
 
 # 服务配置
 services:

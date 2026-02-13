@@ -1,7 +1,8 @@
 # ===========================================
 # NexusNote CI Pipeline - GitOps Architecture
 # ===========================================
-# CI 只负责构建，CD 由 ArgoCD + Image Updater 自动处理
+# PR → main:     quality-gate (lint + typecheck)
+# Push → main:   quality-gate → build & push (latest)
 
 name: CI
 
@@ -9,7 +10,6 @@ on:
   push:
     branches:
       - main
-      - develop
   pull_request:
     branches:
       - main
@@ -20,19 +20,43 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   # ============================================
-  # 构建并推送 Docker 镜像
+  # Quality Gate - Lint & Type Check
+  # ============================================
+  quality-gate:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Type Check
+        run: pnpm typecheck
+
+  # ============================================
+  # Build & Push Docker Image (only on push to main)
   # ============================================
   build:
     name: Build & Push Docker Image
+    needs: quality-gate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    outputs:
-      image-digest: ${{ steps.build.outputs.digest }}
-      image-tag: ${{ steps.meta.outputs.tags }}
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -47,31 +71,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract Docker metadata
-        id: meta
-        uses: docker/metadata-action@v5
+      - name: Build and push
+        uses: docker/bake-action@v6
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=sha,prefix=sha-
-            type=ref,event=branch
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-            type=raw,value=staging-latest,enable=${{ github.ref == 'refs/heads/develop' }}
-
-      - name: Build and push Docker image
-        id: build
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: apps/web/Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          platforms: linux/amd64
-
-      - name: Output image info
-        run: |
-          echo "Image Digest: ${{ steps.build.outputs.digest }}"
-          echo "Image Tags: ${{ steps.meta.outputs.tags }}"
+          files: docker-bake.hcl
+          targets: default
+          push: true
+          set: |
+            *.cache-from=type=gha
+            *.cache-to=type=gha,mode=max

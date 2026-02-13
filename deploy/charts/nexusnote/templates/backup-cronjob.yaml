@@ -1,0 +1,80 @@
+# ===========================================
+# PostgreSQL Backup CronJob
+# ===========================================
+# 每日 2AM UTC 备份，保留 7 天
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: postgres-backup
+    {{- include "nexusnote.labels" . | nindent 4 }}
+spec:
+  schedule: "0 2 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: backup
+              image: pgvector/pgvector:0.8.0-pg16
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -e
+                  BACKUP_FILE="/backups/nexusnote-$(date +%Y%m%d-%H%M%S).dump.gz"
+                  echo "Starting backup to ${BACKUP_FILE}..."
+                  pg_dump \
+                    -h {{ .Values.database.host }} \
+                    -U {{ .Values.database.user }} \
+                    -d {{ .Values.database.name }} \
+                    --format=custom | gzip > "${BACKUP_FILE}"
+                  echo "Backup completed: ${BACKUP_FILE}"
+
+                  # 清理超过 7 天的备份
+                  find /backups -name "*.dump.gz" -mtime +7 -delete
+                  echo "Old backups cleaned up."
+                  ls -lh /backups/
+              env:
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: nexusnote-secrets
+                      key: POSTGRES_PASSWORD
+              volumeMounts:
+                - name: backup-data
+                  mountPath: /backups
+              resources:
+                requests:
+                  cpu: "100m"
+                  memory: "128Mi"
+                limits:
+                  cpu: "500m"
+                  memory: "512Mi"
+          volumes:
+            - name: backup-data
+              persistentVolumeClaim:
+                claimName: postgres-backup-pvc
+
+---
+# Backup PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-backup-pvc
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: postgres-backup
+    {{- include "nexusnote.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.database.backupStorage | default "5Gi" }}

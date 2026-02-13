@@ -41,7 +41,7 @@ show_help() {
     echo ""
     echo "选项："
     echo "  -c, --config FILE    配置文件路径"
-    echo "  -e, --env ENV        环境 (dev/staging/prod)"
+    echo "  -e, --env ENV        环境 (prod)"
     echo "  -s, --server SERVER  服务器地址 (root@ip)"
     echo "  -y, --yes            跳过确认"
     echo "  -h, --help           显示帮助"
@@ -125,16 +125,8 @@ interactive_input() {
     # 环境
     if [[ -z "$ENVIRONMENT" ]]; then
         echo ""
-        echo "选择部署环境:"
-        echo "  1) dev (开发)"
-        echo "  2) staging (预发布)"
-        echo "  3) prod (生产)"
-        read -p "请选择 [1-3, 默认 3]: " env_choice
-        case $env_choice in
-            1) ENVIRONMENT="dev" ;;
-            2) ENVIRONMENT="staging" ;;
-            *) ENVIRONMENT="prod" ;;
-        esac
+        ENVIRONMENT="prod"
+        echo "部署环境: prod"
     fi
 
     # GitHub Token

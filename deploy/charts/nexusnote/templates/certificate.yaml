@@ -13,7 +13,7 @@ metadata:
 spec:
   secretName: nexusnote-tls
   dnsNames:
-    - {{ .Values.env.NEXT_PUBLIC_APP_URL | replace "https://" "" }}
+    - {{ include "nexusnote.hostname" . | quote }}
   issuerRef:
     name: letsencrypt-prod
     kind: ClusterIssuer

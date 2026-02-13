@@ -19,10 +19,10 @@ metadata:
     argocd-image-updater.argoproj.io/image-list: nexusnote=ghcr.io/997899594/nexusnote
     # 更新策略：digest（监控镜像 digest 变化）
     argocd-image-updater.argoproj.io/nexusnote.update-strategy: digest
+    # 只允许 latest tag
+    argocd-image-updater.argoproj.io/nexusnote.allow-tags: "regexp:^latest$"
     # GitHub Registry 认证
     argocd-image-updater.argoproj.io/nexusnote.pull-secret: secret:argocd/github-registry#dockerconfigjson
-    # 镜像更新的 Git 配置（可选，用于写回 Git）
-    # argocd-image-updater.argoproj.io/git-repository: https://github.com/997899594/nexusnote
 spec:
   project: nexusnote
 

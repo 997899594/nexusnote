@@ -15,12 +15,8 @@ spec:
   sourceRepos:
     - https://github.com/997899594/nexusnote
 
-  # 允许的目标命名空间
+  # 允许的目标命名空间（仅 prod）
   destinations:
-    - namespace: nexusnote-dev
-      server: https://kubernetes.default.svc
-    - namespace: nexusnote-staging
-      server: https://kubernetes.default.svc
     - namespace: nexusnote
       server: https://kubernetes.default.svc
 
@@ -51,6 +47,10 @@ spec:
       kind: Deployment
     - group: apps
       kind: StatefulSet
+    - group: batch
+      kind: Job
+    - group: batch
+      kind: CronJob
     - group: cert-manager.io
       kind: Certificate
     - group: cert-manager.io
@@ -59,13 +59,5 @@ spec:
       kind: Gateway
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
-    - group: bitnami.com
-      kind: SealedSecret
-
-  # 同步窗口（可选，用于生产环境保护）
-  # syncWindows:
-  #   - kind: allow
-  #     schedule: '10 1 * * *'
-  #     duration: 1h
-  #     applications:
-  #       - nexusnote-prod
+    - group: secrets.infisical.com
+      kind: InfisicalSecret

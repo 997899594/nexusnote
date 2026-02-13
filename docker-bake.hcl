@@ -2,12 +2,8 @@
 # Docker BuildKit 构建配置
 # ============================================
 
-variable "IMAGE_TAG" {
-  default = "latest"
-}
-
 variable "REGISTRY" {
-  default = "ghcr.io/nexusnote"
+  default = "ghcr.io/997899594"
 }
 
 # ============================================
@@ -16,7 +12,6 @@ variable "REGISTRY" {
 target "default" {
   dockerfile = "apps/web/Dockerfile"
   tags = [
-    "${REGISTRY}/nexusnote:${IMAGE_TAG}",
     "${REGISTRY}/nexusnote:latest"
   ]
   cache-from = [
@@ -33,17 +28,4 @@ target "default" {
 target "multi" {
   inherits = ["default"]
   platforms = ["linux/amd64", "linux/arm64"]
-}
-
-# 开发构建
-target "dev" {
-  dockerfile = "apps/web/Dockerfile"
-  tags = ["${REGISTRY}/nexusnote:dev"]
-  target = "builder"
-  cache-from = [
-    "type=local,src=/tmp/.buildx-cache"
-  ]
-  cache-to = [
-    "type=local,dest=/tmp/.buildx-cache-new,mode=max"
-  ]
 }

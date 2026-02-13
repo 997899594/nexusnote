@@ -1,56 +1,17 @@
 # ===========================================
 # NexusNote Helm Chart - Production Values
 # ===========================================
+# 仅覆盖与 values.yaml 不同的值
 
 namespace: nexusnote
-
-image:
-  tag: "latest"
 
 env:
   NODE_ENV: "production"
   NEXT_PUBLIC_APP_URL: "https://juanie.art"
   NEXTAUTH_URL: "https://juanie.art"
 
-# 证书配置
-issuer:
-  email: "admin@juanie.art"
-
 # Infisical 配置
-# ⚠️ 部署前填写以下配置
 infisical:
   enabled: true
   projectSlug: "nexusnote-ibqe"
   envSlug: "prod"
-  # 生产环境：建议使用外部管理凭证，不要写在这里
-  # clientId: ""  # 留空，手动创建 Secret
-  # clientSecret: ""  # 留空，手动创建 Secret
-
-services:
-  web:
-    replicaCount: 1
-    resources:
-      limits:
-        cpu: 500m
-        memory: 512Mi
-      requests:
-        cpu: 100m
-        memory: 128Mi
-  collab:
-    replicaCount: 1
-    resources:
-      limits:
-        cpu: 500m
-        memory: 512Mi
-      requests:
-        cpu: 100m
-        memory: 128Mi
-  worker:
-    replicaCount: 1
-    resources:
-      limits:
-        cpu: 500m
-        memory: 512Mi
-      requests:
-        cpu: 100m
-        memory: 128Mi

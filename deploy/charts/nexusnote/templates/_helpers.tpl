@@ -56,12 +56,11 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
-Create the name of the service account to use
+Extract hostname from NEXT_PUBLIC_APP_URL
+Strips https://, http://, trailing slashes, and port numbers
 */}}
-{{- define "nexusnote.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
-{{- default (include "nexusnote.fullname" .) .Values.serviceAccount.name }}
-{{- else }}
-{{- default "default" .Values.serviceAccount.name }}
-{{- end }}
+{{- define "nexusnote.hostname" -}}
+{{- $raw := .Values.env.NEXT_PUBLIC_APP_URL | replace "https://" "" | replace "http://" "" | trimSuffix "/" -}}
+{{- $parts := splitList ":" $raw -}}
+{{- first $parts -}}
 {{- end }}
