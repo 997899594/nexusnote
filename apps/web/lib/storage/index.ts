@@ -1,26 +1,29 @@
 /**
- * NexusNote Local-First Storage
+ * NexusNote Local-First Storage — 按领域重组后的 barrel 导出
  *
- * 本地优先架构的核心模块，提供：
- * - 离线完整可用的文档编辑
- * - Yjs CRDT 自动冲突解决
- * - 时间轴快照和版本恢复
- * - 可选的云端同步
+ * 所有存储模块已迁移到各自领域目录：
+ * - features/editor/stores/ — document-store, snapshot-store
+ * - features/editor/sync/ — sync-engine, snapshot-sync, collaboration
+ * - features/shared/stores/ — local-db
+ * - features/learning/stores/ — flashcard-store, learning-store
  */
 
-export * from "./document-store";
-export { documentStore } from "./document-store";
-export * from "./flashcard-store";
-export { flashcardStore } from "./flashcard-store";
-export * from "./learning-store";
-export { learningStore } from "./learning-store";
-export * from "./local-db";
+// editor 领域
+export * from "@/features/editor/stores/document-store";
+export { documentStore } from "@/features/editor/stores/document-store";
+export * from "@/features/editor/stores/snapshot-store";
+export { snapshotStore } from "@/features/editor/stores/snapshot-store";
+export * from "@/features/editor/sync/snapshot-sync";
+export { snapshotSync } from "@/features/editor/sync/snapshot-sync";
+export * from "@/features/editor/sync/sync-engine";
+export { syncEngine } from "@/features/editor/sync/sync-engine";
 
-// Re-export singletons for convenience
-export { localDb } from "./local-db";
-export * from "./snapshot-store";
-export { snapshotStore } from "./snapshot-store";
-export * from "./snapshot-sync";
-export { snapshotSync } from "./snapshot-sync";
-export * from "./sync-engine";
-export { syncEngine } from "./sync-engine";
+// shared 领域
+export * from "@/features/shared/stores/local-db";
+export { localDb } from "@/features/shared/stores/local-db";
+
+// learning 领域
+export * from "@/features/learning/stores/flashcard-store";
+export { flashcardStore } from "@/features/learning/stores/flashcard-store";
+export * from "@/features/learning/stores/learning-store";
+export { learningStore } from "@/features/learning/stores/learning-store";

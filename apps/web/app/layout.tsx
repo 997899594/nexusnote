@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { SessionProvider } from "next-auth/react";
-import { MobileNav } from "@/components/layout/MobileNav";
-import { ThemeProvider } from "@/components/layout/ThemeProvider";
-import { PWAProvider } from "@/components/pwa/PWAProvider";
-import { Toaster } from "@/components/ui/Toast";
+import { MobileNav } from "@/features/shared/components/layout/MobileNav";
+import { ThemeProvider } from "@/features/shared/components/layout/ThemeProvider";
+import { PWAProvider } from "@/features/shared/components/pwa/PWAProvider";
+import { Toaster } from "@/features/shared/components/ui/Toast";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });

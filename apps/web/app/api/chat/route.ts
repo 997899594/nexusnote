@@ -1,10 +1,10 @@
 import { createAgentUIStreamResponse, smoothStream } from "ai";
 import { auth } from "@/auth";
-import { chatAgent } from "@/lib/ai/agents/chat-agent";
-import type { CourseGenerationContext } from "@/lib/ai/agents/course-generation/agent";
-import { courseGenerationAgent } from "@/lib/ai/agents/course-generation/agent";
-import type { InterviewContext } from "@/lib/ai/agents/interview/agent";
-import { interviewAgent } from "@/lib/ai/agents/interview/agent";
+import { chatAgent } from "@/features/chat/agents/chat-agent";
+import type { CourseGenerationContext } from "@/features/learning/agents/course-generation/agent";
+import { courseGenerationAgent } from "@/features/learning/agents/course-generation/agent";
+import type { InterviewContext } from "@/features/learning/agents/interview/agent";
+import { interviewAgent } from "@/features/learning/agents/interview/agent";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;

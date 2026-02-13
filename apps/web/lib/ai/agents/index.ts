@@ -1,12 +1,17 @@
-// Chat Agent - 通用对话、知识问答、文档编辑
+/**
+ * AI Agents — 按领域重组后的 barrel 导出
+ */
+
+// Chat Agent — 已迁移到 features/chat/agents/
 export {
   type ChatAgentMessage,
   type ChatCallOptions,
   chatAgent,
-} from "./chat-agent";
-// Interview Agent - 课程规划访谈
+} from "@/features/chat/agents/chat-agent";
+
+// Interview Agent — 已迁移到 features/learning/agents/
 export {
   type InterviewAgentMessage,
   type InterviewContext,
   interviewAgent,
-} from "./interview/agent";
+} from "@/features/learning/agents/interview/agent";

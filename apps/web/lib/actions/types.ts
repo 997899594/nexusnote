@@ -1,4 +1,4 @@
-import type { OutlineData } from "@/lib/ai/profile/course-profile";
+import type { OutlineData } from "@/features/learning/agents/course-profile";
 
 /**
  * 2026 架构师标准：标准返回协议 (ActionResult)

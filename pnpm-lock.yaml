@@ -18,6 +18,43 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
+  apps/collab:
+    dependencies:
+      '@hocuspocus/extension-database':
+        specifier: ^2.13.0
+        version: 2.15.3(y-protocols@1.0.7)(yjs@13.6.29)
+      '@hocuspocus/extension-redis':
+        specifier: ^2.15.3
+        version: 2.15.3(y-protocols@1.0.7)(yjs@13.6.29)
+      '@hocuspocus/server':
+        specifier: ^2.13.0
+        version: 2.15.3(y-protocols@1.0.7)(yjs@13.6.29)
+      '@nexusnote/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@nexusnote/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      bullmq:
+        specifier: ^5.67.0
+        version: 5.67.2
+      ioredis:
+        specifier: ^5.3.2
+        version: 5.9.2
+      yjs:
+        specifier: ^13.6.29
+        version: 13.6.29
+    devDependencies:
+      '@types/node':
+        specifier: ^25.2.0
+        version: 25.2.0
+      tsx:
+        specifier: ^4.7.0
+        version: 4.21.0
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   apps/web:
     dependencies:
       '@ai-sdk/openai':
@@ -38,15 +75,24 @@ importers:
       '@hocuspocus/server':
         specifier: ^2.13.0
         version: 2.15.3(y-protocols@1.0.7)(yjs@13.6.29)
+      '@nexusnote/ai-core':
+        specifier: workspace:*
+        version: link:../../packages/ai-core
       '@nexusnote/config':
         specifier: workspace:*
         version: link:../../packages/config
       '@nexusnote/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@nexusnote/fsrs':
+        specifier: workspace:*
+        version: link:../../packages/fsrs
       '@nexusnote/types':
         specifier: workspace:*
         version: link:../../packages/types
+      '@nexusnote/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@radix-ui/react-separator':
         specifier: ^1.1.8
         version: 1.1.8(@types/react-dom@19.2.3)(@types/react@19.2.10)(react-dom@19.2.4)(react@19.2.4)
@@ -213,6 +259,9 @@ importers:
         specifier: ^4.3.6
         version: 4.3.6
     devDependencies:
+      '@ai-sdk/provider':
+        specifier: ^3.0.8
+        version: 3.0.8
       '@types/node':
         specifier: ^25.2.0
         version: 25.2.0
@@ -246,6 +295,25 @@ importers:
       tsx:
         specifier: ^4.7.0
         version: 4.21.0
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  packages/ai-core:
+    dependencies:
+      ai:
+        specifier: ^6.0.67
+        version: 6.0.67(zod@4.3.6)
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
+    devDependencies:
+      '@ai-sdk/provider':
+        specifier: ^3.0.8
+        version: 3.0.8
+      '@types/node':
+        specifier: ^25.2.0
+        version: 25.2.0
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -297,6 +365,12 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
+  packages/fsrs:
+    devDependencies:
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   packages/types:
     devDependencies:
       typescript:
@@ -305,12 +379,24 @@ importers:
 
   packages/ui:
     dependencies:
+      '@radix-ui/react-separator':
+        specifier: ^1.1.8
+        version: 1.1.8(@types/react-dom@19.2.3)(@types/react@19.2.10)(react-dom@19.2.4)(react@19.2.4)
+      '@radix-ui/react-slot':
+        specifier: ^1.2.4
+        version: 1.2.4(@types/react@19.2.10)(react@19.2.4)
+      '@radix-ui/react-tooltip':
+        specifier: ^1.2.8
+        version: 1.2.8(@types/react-dom@19.2.3)(@types/react@19.2.10)(react-dom@19.2.4)(react@19.2.4)
+      class-variance-authority:
+        specifier: ^0.7.1
+        version: 0.7.1
       clsx:
-        specifier: ^2.1.0
+        specifier: ^2.1.1
         version: 2.1.1
       tailwind-merge:
-        specifier: ^2.3.0
-        version: 2.6.0
+        specifier: ^3.4.0
+        version: 3.4.0
     devDependencies:
       '@types/react':
         specifier: ^19.2.10
@@ -365,6 +451,13 @@ packages:
     dependencies:
       json-schema: 0.4.0
     dev: false
+
+  /@ai-sdk/provider@3.0.8:
+    resolution: {integrity: sha512-oGMAgGoQdBXbZqNG0Ze56CHjDZ1IDYOwGYxYjO5KLSlz5HiNQ9udIXsPZ61VWaHGZ5XW/jyjmr6t2xz2jGVwbQ==}
+    engines: {node: '>=18'}
+    dependencies:
+      json-schema: 0.4.0
+    dev: true
 
   /@ai-sdk/react@3.0.69(react@19.2.4)(zod@4.3.6):
     resolution: {integrity: sha512-1qD9iCf7HlLqZGU64yCz5e5H+kX17Dj102KuaOPMWZcAfv5jsezoAHyi1TdI+6vP8haxMNIqerjp1JgsrI+VBA==}
@@ -4772,7 +4865,6 @@ packages:
 
   /json-schema@0.4.0:
     resolution: {integrity: sha512-es94M3nTIfsEPisRafak+HDLfHXnKBhV3vU5eqPcS3flIWqcxJWgXHXiey3YrpaNsanY5ei1VoYEbOzijuq9BA==}
-    dev: false
 
   /katex@0.16.28:
     resolution: {integrity: sha512-YHzO7721WbmAL6Ov1uzN/l5mY5WWWhJBSW+jq4tkfZfsxmo1hu6frS0EOswvjBUnWE6NtjEs48SFn5CQESRLZg==}
@@ -6530,10 +6622,6 @@ packages:
       dequal: 2.0.3
       react: 19.2.4
       use-sync-external-store: 1.6.0(react@19.2.4)
-    dev: false
-
-  /tailwind-merge@2.6.0:
-    resolution: {integrity: sha512-P+Vu1qXfzediirmHOC3xKGAYeZtPcV9g76X+xg2FD4tYgR71ewMA35Y3sCz3zhiN/dwefRpJX0yBcgwi1fXNQA==}
     dev: false
 
   /tailwind-merge@3.4.0:
