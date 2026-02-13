@@ -90,11 +90,15 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/hocuspocus.js ./apps/web/
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/worker.js ./apps/web/
 
-# 复制 db 包供迁移使用
-COPY --from=builder --chown=nextjs:nodejs /app/packages/db ./packages/db/
+# 复制 db 包供迁移使用（只复制必要文件，避免 node_modules）
+RUN mkdir -p /app/packages/db/src /app/packages/db/drizzle
+COPY --from=builder --chown=nextjs:nodejs /app/packages/db/src/ ./packages/db/src/
+COPY --from=builder --chown=nextjs:nodejs /app/packages/db/drizzle/ ./packages/db/drizzle/
+COPY --from=builder --chown=nextjs:nodejs /app/packages/db/drizzle.config.ts ./packages/db/
+COPY --from=builder --chown=nextjs:nodejs /app/packages/db/package.json ./packages/db/
 
-# 安装 tsx 用于数据库迁移
-RUN npm install -g tsx
+# 安装 drizzle-kit 用于数据库迁移
+RUN npm install -g drizzle-kit
 
 # 复制静态资源
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public/

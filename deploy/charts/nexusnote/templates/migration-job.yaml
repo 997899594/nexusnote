@@ -1,0 +1,49 @@
+# ===========================================
+# Database Migration Job - Helm Hook
+# ===========================================
+# 在每次部署前执行数据库迁移
+# pre-install: 首次安装时运行
+# pre-upgrade: 每次升级时运行
+# hook-delete-policy: 成功后自动清理
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-db-migrate
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "nexusnote.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: db-migrate
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              echo "Running database migrations..."
+              cd /app/packages/db
+              npx drizzle-kit push
+              echo "Migrations completed."
+          envFrom:
+            - configMapRef:
+                name: nexusnote-config
+            - secretRef:
+                name: nexusnote-secrets
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "256Mi"
