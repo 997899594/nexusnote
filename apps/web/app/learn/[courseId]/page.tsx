@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { auth } from "@/auth";
-import { CourseSkeleton } from "@/components/loading/skeletons";
+import { CourseSkeleton } from "@/features/shared/components/loading/skeletons";
 import { type CourseProfileDTO, serializeObject } from "@/lib/actions/types";
 import { getCourseProfile } from "@/lib/ai/profile/course-profile";
 import LearnPageClient from "./client-page";

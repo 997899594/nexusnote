@@ -19,7 +19,7 @@ import {
   type LocalLearningProgress,
   localDb,
   STORES,
-} from "./local-db";
+} from "@/features/shared/stores/local-db";
 
 export interface CourseOutline {
   title: string;

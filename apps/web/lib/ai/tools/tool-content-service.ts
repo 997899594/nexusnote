@@ -13,8 +13,8 @@
 
 import { generateText } from "ai";
 import { z } from "zod";
-import { createTelemetryConfig } from "@/lib/ai/langfuse";
-import { registry } from "@/lib/ai/registry";
+import { createTelemetryConfig } from "@/features/shared/ai/langfuse";
+import { registry } from "@/features/shared/ai/registry";
 
 // ============================================
 // Error Handling & Retry Utilities

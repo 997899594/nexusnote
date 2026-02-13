@@ -9,7 +9,7 @@
  */
 
 import * as Y from "yjs";
-import { type DocumentSnapshot, localDb, STORES } from "./local-db";
+import { type DocumentSnapshot, localDb, STORES } from "@/features/shared/stores/local-db";
 
 // 快照配置
 const SNAPSHOT_CONFIG = {

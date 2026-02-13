@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { flashcardStore, Rating, State } from "@/lib/storage/flashcard-store";
-import type { LocalFlashcard, ReviewRating } from "@/lib/storage/local-db";
+import type { LocalFlashcard, ReviewRating } from "@/features/shared/stores/local-db";
 
 interface FlashcardReviewProps {
   cards: LocalFlashcard[];

@@ -7,7 +7,7 @@
  */
 
 import { usePathname } from "next/navigation";
-import { CourseSkeleton, CreatePageSkeleton } from "@/components/loading/skeletons";
+import { CourseSkeleton, CreatePageSkeleton } from "@/features/shared/components/loading/skeletons";
 
 export default function Loading() {
   const pathname = usePathname();

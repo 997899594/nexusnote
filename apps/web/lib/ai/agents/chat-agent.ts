@@ -8,7 +8,7 @@
 
 import { type InferAgentUIMessage, stepCountIs, ToolLoopAgent, type ToolSet } from "ai";
 import { z } from "zod";
-import { registry } from "@/lib/ai/registry";
+import { registry } from "@/features/shared/ai/registry";
 import { skills } from "@/lib/ai/tools/chat";
 import { editorSkills } from "@/lib/ai/tools/chat/editor";
 import { learningSkills } from "@/lib/ai/tools/chat/learning";

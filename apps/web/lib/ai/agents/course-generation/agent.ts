@@ -18,10 +18,10 @@
 
 import { type InferAgentUIMessage, type LanguageModel, stepCountIs, ToolLoopAgent } from "ai";
 import { z } from "zod";
-import { buildCourseGenerationPrompt } from "@/lib/ai/prompts/course-generation";
-import { registry } from "@/lib/ai/registry";
+import { buildCourseGenerationPrompt } from "@/features/shared/ai/prompts/course-generation";
+import { registry } from "@/features/shared/ai/registry";
 import { courseGenerationTools } from "@/lib/ai/tools/course-generation";
-import { OutlineSchema } from "@/lib/ai/types/course";
+import { OutlineSchema } from "@/features/shared/ai/types/course";
 
 const courseModel = registry.courseModel;
 

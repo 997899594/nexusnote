@@ -7,10 +7,10 @@ import { Queue } from "bullmq";
 import IORedis from "ioredis";
 import { v4 as uuidv4 } from "uuid";
 import { z } from "zod";
-import { AIGatewayService, type AIRequest, AIRequestSchema } from "@/lib/ai/gateway/service";
-import { createTelemetryConfig } from "@/lib/ai/langfuse";
-import { checkRateLimit } from "@/lib/ai/rate-limit";
-import { registry, isAIConfigured } from "@/lib/ai/registry";
+import { AIGatewayService, type AIRequest, AIRequestSchema } from "@/features/shared/ai/gateway/service";
+import { createTelemetryConfig } from "@/features/shared/ai/langfuse";
+import { checkRateLimit } from "@/features/shared/ai/rate-limit";
+import { registry, isAIConfigured } from "@/features/shared/ai/registry";
 import { requireAuthWithRateLimit } from "@/lib/auth/auth-utils";
 
 // Redis 连接（复用现有配置）

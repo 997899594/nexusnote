@@ -17,10 +17,10 @@ import {
   InterviewContextSchema,
   interviewAgent,
 } from "@/lib/ai/agents/interview/agent";
-import { ragService } from "@/lib/ai/rag";
-import { isAIConfigured } from "@/lib/ai/registry";
-import { routeIntent } from "@/lib/ai/router/route";
-import { pruneUIMessages } from "@/lib/ai/ui-utils";
+import { ragService } from "@/features/shared/ai/rag";
+import { isAIConfigured } from "@/features/shared/ai/registry";
+import { routeIntent } from "@/features/shared/ai/router/route";
+import { pruneUIMessages } from "@/features/shared/ai/ui-utils";
 
 /**
  * 2026 架构师标准：统一 AI 上下文 Schema

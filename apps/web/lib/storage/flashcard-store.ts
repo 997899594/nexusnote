@@ -15,7 +15,7 @@ import {
   localDb,
   type ReviewRating,
   STORES,
-} from "./local-db";
+} from "@/features/shared/stores/local-db";
 
 // ============================================
 // FSRS-5 算法核心

@@ -14,10 +14,10 @@ export * from "./flashcard-store";
 export { flashcardStore } from "./flashcard-store";
 export * from "./learning-store";
 export { learningStore } from "./learning-store";
-export * from "./local-db";
+export * from "@/features/shared/stores/local-db";
 
 // Re-export singletons for convenience
-export { localDb } from "./local-db";
+export { localDb } from "@/features/shared/stores/local-db";
 export * from "./snapshot-store";
 export { snapshotStore } from "./snapshot-store";
 export * from "./snapshot-sync";

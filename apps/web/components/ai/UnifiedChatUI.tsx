@@ -3,7 +3,7 @@
 import { isReasoningUIPart, isToolUIPart, type UIMessage as Message } from "ai";
 import { Bot, Send, Square, User } from "lucide-react";
 import { type FormEvent, type ReactNode, useEffect, useRef } from "react";
-import { getMessageContent, getReasoningContent, getToolCalls } from "@/lib/ai/ui-utils";
+import { getMessageContent, getReasoningContent, getToolCalls } from "@/features/shared/ai/ui-utils";
 import { MessageResponse } from "./Message";
 
 /**

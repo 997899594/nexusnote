@@ -21,8 +21,8 @@ import type {
   SummarizeOutput,
   WebSearchOutput,
 } from "@/lib/ai/tools/types";
-import type { OutlineData } from "@/lib/ai/types/course";
-import { getMessageContent } from "@/lib/ai/ui-utils";
+import type { OutlineData } from "@/features/shared/ai/types/course";
+import { getMessageContent } from "@/features/shared/ai/ui-utils";
 
 interface LearnPageClientProps {
   courseId: string;

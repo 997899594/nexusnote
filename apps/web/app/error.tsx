@@ -9,7 +9,7 @@
 
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { useEffect } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/features/shared/components/ui/button";
 
 // biome-ignore lint/suspicious/noShadowRestrictedNames: Next.js error boundary convention
 export default function Error({

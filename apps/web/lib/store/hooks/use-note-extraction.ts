@@ -12,7 +12,7 @@ import { useCallback, useEffect, useRef } from "react";
 import useSWR from "swr";
 import { extractNoteAction } from "@/app/actions/ai";
 import { getNoteTopicsAction } from "@/app/actions/note";
-import { userIdAtom } from "../atoms/auth";
+import { userIdAtom } from "@/features/shared/atoms/auth";
 import type { NoteSource, Topic } from "../atoms/note-extraction";
 import {
   hasProcessingNotesAtom,
@@ -21,7 +21,7 @@ import {
   optimisticNotesAtom,
   topicsAtom,
 } from "../atoms/note-extraction";
-import { useToast } from "./use-toast";
+import { useToast } from "@/features/shared/hooks/use-toast";
 
 // ============================================
 // SWR Fetcher

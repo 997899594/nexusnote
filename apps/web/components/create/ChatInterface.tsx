@@ -6,7 +6,7 @@ import { Check, Loader2, Zap } from "lucide-react";
 import { MessageResponse } from "@/components/ai/Message";
 import { UnifiedChatUI } from "@/components/ai/UnifiedChatUI";
 import type { InterviewContext } from "@/lib/ai/agents/interview/agent";
-import { findToolCall } from "@/lib/ai/ui-utils";
+import { findToolCall } from "@/features/shared/ai/ui-utils";
 
 interface ChatInterfaceProps {
   phase: string;

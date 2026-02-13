@@ -23,7 +23,7 @@ export { atomWithReset, atomWithStorage } from "jotai/utils";
 // ============================================
 // Auth State
 // ============================================
-export * from "./atoms/auth";
+export * from "@/features/shared/atoms/auth";
 
 // ============================================
 // Course Generation State
@@ -40,7 +40,7 @@ export * from "./atoms/note-extraction";
 // ============================================
 // UI State
 // ============================================
-export * from "./atoms/ui";
+export * from "@/features/shared/atoms/ui";
 export * from "./hooks/use-course-generation";
 export * from "./hooks/use-editor";
 // ============================================

@@ -18,10 +18,10 @@
 
 import { courseChapters, courseProfiles, db, eq } from "@nexusnote/db";
 import { z } from "zod";
-import { type OutlineData, OutlineSchema } from "@/lib/ai/types/course";
+import { type OutlineData, OutlineSchema } from "@/features/shared/ai/types/course";
 
 // Re-export for convenience
-export type { OutlineData } from "@/lib/ai/types/course";
+export type { OutlineData } from "@/features/shared/ai/types/course";
 
 /**
  * 课程画像数据结构

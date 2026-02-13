@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { type AuthSession, auth } from "@/auth";
-import { CreatePageSkeleton } from "@/components/loading/skeletons";
+import { CreatePageSkeleton } from "@/features/shared/components/loading/skeletons";
 import CreatePageClient from "./client-page";
 
 export default async function CreatePage() {

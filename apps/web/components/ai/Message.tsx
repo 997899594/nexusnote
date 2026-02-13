@@ -9,10 +9,10 @@ import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import type { ComponentProps, HTMLAttributes, ReactElement } from "react";
 import { createContext, memo, useContext, useEffect, useState } from "react";
 import { Streamdown } from "streamdown";
-import { ButtonGroup, ButtonGroupText } from "@/components/ui/ButtonGroup";
-import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
+import { ButtonGroup, ButtonGroupText } from "@/features/shared/components/ui/ButtonGroup";
+import { Button } from "@/features/shared/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/features/shared/components/ui/tooltip";
+import { cn } from "@/features/shared/utils";
 
 export type MessageProps = HTMLAttributes<HTMLDivElement> & {
   from: UIMessage["role"];

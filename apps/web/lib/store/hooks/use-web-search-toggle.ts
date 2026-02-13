@@ -5,7 +5,7 @@
  */
 
 import { useAtom } from "jotai";
-import { enableWebSearchAtom } from "../atoms/ui";
+import { enableWebSearchAtom } from "@/features/shared/atoms/ui";
 
 /**
  * 获取和设置联网搜索状态

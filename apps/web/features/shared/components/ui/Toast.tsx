@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useAtomValue } from "jotai";
 import { AlertCircle, AlertTriangle, CheckCircle, Info, X } from "lucide-react";
-import { type Toast, toastsAtom } from "@/lib/store/atoms/ui";
+import { type Toast, toastsAtom } from "@/features/shared/atoms/ui";
 
 const toastIcons = {
   success: CheckCircle,
@@ -53,7 +53,7 @@ export function Toaster() {
   const toasts = useAtomValue(toastsAtom);
 
   const handleRemove = (_id: string) => {
-    const { toastsAtom: atom } = require("@/lib/store/atoms/ui");
+    const { toastsAtom: atom } = require("@/features/shared/atoms/ui");
     const { setAtom } = require("jotai");
     // This is handled by the auto-remove in useToast, but users can also click to dismiss
     // For manual dismiss, we'd need a setter - keeping it simple for now

@@ -28,7 +28,7 @@ import type {
   SummarizeOutput,
   WebSearchOutput,
 } from "@/lib/ai/tools/types";
-import { getMessageContent, getToolCalls } from "@/lib/ai/ui-utils";
+import { getMessageContent, getToolCalls } from "@/features/shared/ai/ui-utils";
 import type { EditCommand } from "@/lib/editor/document-parser";
 import { useEditor, useNoteExtractionOptional, useWebSearchToggle } from "@/lib/store";
 import { KnowledgePanel } from "./KnowledgePanel";

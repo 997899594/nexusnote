@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/features/shared/utils";
 
 interface CommandOption {
   id: string;

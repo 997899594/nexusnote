@@ -13,7 +13,7 @@ import {
   getLatestSnapshotTimestampAction,
   syncSnapshotsAction,
 } from "@/app/actions/snapshot";
-import { type DocumentSnapshot, localDb, STORES } from "./local-db";
+import { type DocumentSnapshot, localDb, STORES } from "@/features/shared/stores/local-db";
 
 interface ServerSnapshot {
   id: string;

@@ -8,7 +8,7 @@
  */
 
 import * as Y from "yjs";
-import { type LocalDocument, localDb, STORES } from "./local-db";
+import { type LocalDocument, localDb, STORES } from "@/features/shared/stores/local-db";
 
 export class DocumentStore {
   /**

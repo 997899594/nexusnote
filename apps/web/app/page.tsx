@@ -6,8 +6,8 @@ import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getNoteTopicsAction } from "@/app/actions/note";
 import { OrganicHeader } from "@/components/create/OrganicHeader";
-import { HeroInput } from "@/components/home/HeroInput";
-import { RecentAccess } from "@/components/home/RecentAccess";
+import { HeroInput } from "@/features/shared/components/home/HeroInput";
+import { RecentAccess } from "@/features/shared/components/home/RecentAccess";
 import type { NoteDTO, RecentItemDTO } from "@/lib/actions/types";
 import {
   type LocalLearningContent,
