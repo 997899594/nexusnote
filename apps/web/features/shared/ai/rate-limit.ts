@@ -142,10 +142,63 @@ function calculateCost(model: string, inputTokens: number, outputTokens: number)
   return Math.round((inputCost + outputCost) * 100); // 转为整数美分
 }
 
+// ============================================
+// 异步使用量缓冲区（fire-and-forget，批量写入）
+// ============================================
+
+interface UsageRecord {
+  userId: string;
+  endpoint: string;
+  intent?: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  costCents: number;
+  durationMs?: number;
+  success: boolean;
+  errorMessage?: string;
+}
+
+/** 缓冲区配置 */
+const BUFFER_FLUSH_INTERVAL = 5_000; // 5 秒
+const BUFFER_MAX_SIZE = 20; // 满 20 条立即刷新
+
+let usageBuffer: UsageRecord[] = [];
+let flushTimer: ReturnType<typeof setInterval> | null = null;
+
+/** 批量刷新缓冲区到数据库 */
+async function flushUsageBuffer(): Promise<void> {
+  if (usageBuffer.length === 0) return;
+
+  const batch = usageBuffer;
+  usageBuffer = [];
+
+  try {
+    await db.insert(aiUsage).values(batch);
+  } catch (error) {
+    console.error(`[AIUsage] 批量写入失败 (${batch.length} 条):`, error);
+    // 写入失败不重试，避免内存泄漏
+  }
+}
+
+/** 启动定时刷新（惰性初始化） */
+function ensureFlushTimer(): void {
+  if (flushTimer) return;
+  flushTimer = setInterval(() => {
+    void flushUsageBuffer();
+  }, BUFFER_FLUSH_INTERVAL);
+  // 不阻止进程退出
+  if (flushTimer.unref) flushTimer.unref();
+}
+
 /**
- * 记录 AI 使用量
+ * 记录 AI 使用量（异步，fire-and-forget）
+ *
+ * 不阻塞请求路径。记录先写入内存缓冲区，
+ * 定时或缓冲区满时批量 INSERT 到数据库。
  */
-export async function trackAIUsage(params: {
+export function trackAIUsage(params: {
   userId: string;
   endpoint: string;
   intent?: string;
@@ -155,7 +208,7 @@ export async function trackAIUsage(params: {
   durationMs?: number;
   success?: boolean;
   errorMessage?: string;
-}): Promise<void> {
+}): void {
   const {
     userId,
     endpoint,
@@ -171,30 +224,33 @@ export async function trackAIUsage(params: {
   const totalTokens = inputTokens + outputTokens;
   const costCents = calculateCost(model, inputTokens, outputTokens);
 
-  try {
-    await db.insert(aiUsage).values({
-      userId,
-      endpoint,
-      intent,
-      model,
-      inputTokens,
-      outputTokens,
-      totalTokens,
-      costCents,
-      durationMs,
-      success,
-      errorMessage,
-    });
+  // 开发环境打印日志
+  if (env.NODE_ENV === "development") {
+    console.log(
+      `[AIUsage] ${endpoint} | ${model} | ${totalTokens} tokens | $${(costCents / 100).toFixed(4)}`,
+    );
+  }
 
-    // 开发环境打印日志
-    if (env.NODE_ENV === "development") {
-      console.log(
-        `[AIUsage] ${endpoint} | ${model} | ${totalTokens} tokens | $${(costCents / 100).toFixed(4)}`,
-      );
-    }
-  } catch (error) {
-    // 记录失败不应阻塞请求
-    console.error("[AIUsage] Failed to track usage:", error);
+  // 写入缓冲区（零延迟）
+  usageBuffer.push({
+    userId,
+    endpoint,
+    intent,
+    model,
+    inputTokens,
+    outputTokens,
+    totalTokens,
+    costCents,
+    durationMs,
+    success,
+    errorMessage,
+  });
+
+  ensureFlushTimer();
+
+  // 缓冲区满时立即刷新
+  if (usageBuffer.length >= BUFFER_MAX_SIZE) {
+    void flushUsageBuffer();
   }
 }
 
