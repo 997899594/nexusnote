@@ -11,7 +11,7 @@ import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect, useRef } from "react";
 import useSWR from "swr";
 import { extractNoteAction } from "@/app/actions/ai";
-import { getNoteTopicsAction } from "@/app/actions/note";
+import { getNoteTopicsAction } from "@/features/learning/actions/note";
 import { userIdAtom } from "@/features/shared/atoms/auth";
 import type { NoteSource, Topic } from "../atoms/note-extraction";
 import {

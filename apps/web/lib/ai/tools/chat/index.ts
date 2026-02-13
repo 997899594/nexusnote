@@ -10,8 +10,8 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import { searchNotesAction } from "@/app/actions/note";
-import { flashcardStore } from "@/lib/storage/flashcard-store";
+import { searchNotesAction } from "@/features/learning/actions/note";
+import { flashcardStore } from "@/features/learning/stores/flashcard-store";
 
 // ============================================
 // Skill Definitions (Tools for AI SDK 6.x)

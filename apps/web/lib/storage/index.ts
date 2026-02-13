@@ -1,12 +1,11 @@
 /**
- * NexusNote Local-First Storage
+ * NexusNote Local-First Storage — 按领域重组后的 barrel 导出
  *
- * 本地优先架构的核心模块
- * 文件已按领域重组：
- * - editor/stores/ — document-store, snapshot-store
- * - editor/sync/ — sync-engine, snapshot-sync, collaboration
- * - shared/stores/ — local-db
- * - learning/stores/ — flashcard-store, learning-store（待迁移）
+ * 所有存储模块已迁移到各自领域目录：
+ * - features/editor/stores/ — document-store, snapshot-store
+ * - features/editor/sync/ — sync-engine, snapshot-sync, collaboration
+ * - features/shared/stores/ — local-db
+ * - features/learning/stores/ — flashcard-store, learning-store
  */
 
 // editor 领域
@@ -23,8 +22,8 @@ export { syncEngine } from "@/features/editor/sync/sync-engine";
 export * from "@/features/shared/stores/local-db";
 export { localDb } from "@/features/shared/stores/local-db";
 
-// learning 领域（待迁移到 features/learning/stores/）
-export * from "./flashcard-store";
-export { flashcardStore } from "./flashcard-store";
-export * from "./learning-store";
-export { learningStore } from "./learning-store";
+// learning 领域
+export * from "@/features/learning/stores/flashcard-store";
+export { flashcardStore } from "@/features/learning/stores/flashcard-store";
+export * from "@/features/learning/stores/learning-store";
+export { learningStore } from "@/features/learning/stores/learning-store";

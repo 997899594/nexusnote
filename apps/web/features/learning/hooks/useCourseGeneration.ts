@@ -1,12 +1,12 @@
 import { useChat } from "@ai-sdk/react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
-import { saveCourseProfileAction } from "@/app/actions/course";
-import type { InterviewAgentMessage, InterviewContext } from "@/lib/ai/agents/interview/agent";
-import type { OutlineData } from "@/lib/ai/profile/course-profile";
+import { saveCourseProfileAction } from "@/features/learning/actions/course";
+import type { InterviewAgentMessage, InterviewContext } from "@/features/learning/agents/interview/agent";
+import type { OutlineData } from "@/features/learning/agents/course-profile";
 import { findToolCall } from "@/features/shared/ai/ui-utils";
 import { learningStore } from "@/lib/storage";
-import type { CourseOutline as StoreCourseOutline } from "@/lib/storage/learning-store";
+import type { CourseOutline as StoreCourseOutline } from "@/features/learning/stores/learning-store";
 import type { CourseNode } from "@/lib/types/course";
 
 // ============================================

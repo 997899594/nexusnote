@@ -13,7 +13,7 @@ import {
   generateSummaryContent as llmGenerateSummaryContent,
   streamMindMapNodes,
   streamQuizQuestions,
-} from "../tool-content-service";
+} from "@/features/learning/tools/tool-content-service";
 
 // ============================================
 // Types - 类型定义

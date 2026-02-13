@@ -3,13 +3,13 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { AmbientBackground } from "@/components/create/AmbientBackground";
-import { ChatInterface } from "@/components/create/ChatInterface";
-import { ManifestingOverlay } from "@/components/create/ManifestingOverlay";
-import { NexusGraph } from "@/components/create/NexusGraph";
-import { OrganicHeader } from "@/components/create/OrganicHeader";
-import { OutlineReview } from "@/components/create/OutlineReview";
-import { useCourseGeneration } from "@/hooks/useCourseGeneration";
+import { AmbientBackground } from "@/features/learning/components/create/AmbientBackground";
+import { ChatInterface } from "@/features/learning/components/create/ChatInterface";
+import { ManifestingOverlay } from "@/features/learning/components/create/ManifestingOverlay";
+import { NexusGraph } from "@/features/learning/components/create/NexusGraph";
+import { OrganicHeader } from "@/features/learning/components/create/OrganicHeader";
+import { OutlineReview } from "@/features/learning/components/create/OutlineReview";
+import { useCourseGeneration } from "@/features/learning/hooks/useCourseGeneration";
 
 interface CreatePageClientProps {
   userId: string;

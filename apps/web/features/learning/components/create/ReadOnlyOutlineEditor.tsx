@@ -15,7 +15,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { useEffect } from "react";
 import { Callout } from "@/features/editor/extensions/callout";
 import { Collapsible } from "@/features/editor/extensions/collapsible";
-import type { OutlineData } from "@/lib/ai/profile/course-profile";
+import type { OutlineData } from "@/features/learning/agents/course-profile";
 
 interface ReadOnlyOutlineEditorProps {
   outline: OutlineData;

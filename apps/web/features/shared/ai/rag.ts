@@ -9,7 +9,7 @@
  * - 批量嵌入生成（embedMany）
  */
 
-import { searchNotesAction } from "@/app/actions/note";
+import { searchNotesAction } from "@/features/learning/actions/note";
 
 // ============================================
 // Types

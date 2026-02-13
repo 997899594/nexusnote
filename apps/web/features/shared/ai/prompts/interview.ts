@@ -8,7 +8,7 @@
  * 3. 单维度锁定 - 每次只解决一个问题
  */
 
-import type { InterviewContext } from "@/lib/ai/agents/interview/agent";
+import type { InterviewContext } from "@/features/learning/agents/interview/agent";
 
 /**
  * L1: Context Analysis + Prompt Injection

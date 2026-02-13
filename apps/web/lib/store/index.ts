@@ -1,50 +1,26 @@
 /**
- * Jotai Store - 统一状态管理
+ * Jotai Store — 按领域重组后的 barrel 导出
  *
- * 2026 架构师标准：使用 Jotai 作为唯一状态管理方案
- *
- * ## 架构原则
- * 1. 原子化状态 - 每个状态独立管理
- * 2. 组合优于嵌套 - 通过 derived atoms 组合状态
- * 3. 类型安全 - 完整的 TypeScript 支持
- * 4. 持久化支持 - atomWithStorage 用于需要持久化的状态
- *
- * ## 迁移计划
- * - NoteExtractionContext → hooks/use-note-extraction.ts ✅
- * - EditorContext → hooks/use-editor.ts
- * - useCourseGeneration → hooks/use-course-generation.ts
+ * 所有 atoms 和 hooks 已迁移到各自领域目录
  */
 
-// ============================================
-// Re-export commonly used Jotai utilities
-// ============================================
+// Jotai 基础工具
 export { useAtom, useAtomValue, useSetAtom } from "jotai";
 export { atomWithReset, atomWithStorage } from "jotai/utils";
-// ============================================
-// Auth State
-// ============================================
-export * from "@/features/shared/atoms/auth";
 
-// ============================================
-// Course Generation State
-// ============================================
-export * from "./atoms/course-generation";
-// ============================================
-// Editor State
-// ============================================
-export * from "@/features/editor/atoms/editor";
-// ============================================
-// Note Extraction State
-// ============================================
-export * from "./atoms/note-extraction";
-// ============================================
-// UI State
-// ============================================
+// shared 领域
+export * from "@/features/shared/atoms/auth";
 export * from "@/features/shared/atoms/ui";
-export * from "./hooks/use-course-generation";
+
+// editor 领域
+export * from "@/features/editor/atoms/editor";
 export * from "@/features/editor/hooks/use-editor";
-// ============================================
-// Hooks
-// ============================================
-export * from "./hooks/use-note-extraction";
+
+// learning 领域
+export * from "@/features/learning/atoms/course-generation";
+export * from "@/features/learning/atoms/note-extraction";
+export * from "@/features/learning/hooks/use-course-generation";
+export * from "@/features/learning/hooks/use-note-extraction";
+
+// chat 领域（待迁移）
 export * from "./hooks/use-web-search-toggle";

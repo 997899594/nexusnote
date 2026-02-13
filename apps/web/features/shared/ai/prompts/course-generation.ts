@@ -8,7 +8,7 @@
  * - 工具调用由 AI 决策（何时保存章节、何时完成生成）
  */
 
-import type { CourseGenerationContext } from "@/lib/ai/agents/course-generation/agent";
+import type { CourseGenerationContext } from "@/features/learning/agents/course-generation/agent";
 
 export function buildCourseGenerationPrompt(context: CourseGenerationContext): string {
   const LEARNING_PROFILE = `

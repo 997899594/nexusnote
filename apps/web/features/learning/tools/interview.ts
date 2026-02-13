@@ -10,7 +10,7 @@
 
 import { type ToolSet, tool } from "ai";
 import { z } from "zod";
-import { searchWeb } from "./chat/web";
+import { searchWeb } from "@/lib/ai/tools/chat/web";
 
 /**
  * presentOptions - 展示 UI 交互卡片

@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Check, Loader2, Zap } from "lucide-react";
 import { MessageResponse } from "@/components/ai/Message";
 import { UnifiedChatUI } from "@/components/ai/UnifiedChatUI";
-import type { InterviewContext } from "@/lib/ai/agents/interview/agent";
+import type { InterviewContext } from "@/features/learning/agents/interview/agent";
 import { findToolCall } from "@/features/shared/ai/ui-utils";
 
 interface ChatInterfaceProps {

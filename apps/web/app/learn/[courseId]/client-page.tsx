@@ -6,21 +6,21 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, ChevronLeft, Menu, MessageSquare, Sparkles } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getCourseChaptersAction, updateCourseProgressAction } from "@/app/actions/course";
+import { getCourseChaptersAction, updateCourseProgressAction } from "@/features/learning/actions/course";
 import { MessageResponse } from "@/components/ai/Message";
 import { UnifiedChatUI } from "@/components/ai/UnifiedChatUI";
 import { MindMapView, QuizResult, SummaryResult, WebSearchResult } from "@/components/ai/ui";
-import { ContentRenderer } from "@/components/course/content-renderer";
-import { OrganicHeader } from "@/components/create/OrganicHeader";
+import { ContentRenderer } from "@/features/learning/components/course/content-renderer";
+import { OrganicHeader } from "@/features/learning/components/create/OrganicHeader";
 import type { CourseChapterDTO, CourseProfileDTO } from "@/lib/actions/types";
 import type { ChatAgentMessage } from "@/lib/ai/agents/chat-agent";
-import type { CourseGenerationAgentMessage } from "@/lib/ai/agents/course-generation/agent";
+import type { CourseGenerationAgentMessage } from "@/features/learning/agents/course-generation/agent";
 import type {
   MindMapOutput,
   QuizOutput,
   SummarizeOutput,
   WebSearchOutput,
-} from "@/lib/ai/tools/types";
+} from "@/features/learning/tools/types";
 import type { OutlineData } from "@/features/shared/ai/types/course";
 import { getMessageContent } from "@/features/shared/ai/ui-utils";
 

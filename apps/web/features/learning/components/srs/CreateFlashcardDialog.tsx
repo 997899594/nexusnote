@@ -3,7 +3,7 @@
 import { Brain, Loader2, Sparkles, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { generateFlashcardAction } from "@/app/actions/ai";
-import { flashcardStore } from "@/lib/storage/flashcard-store";
+import { flashcardStore } from "@/features/learning/stores/flashcard-store";
 
 interface CreateFlashcardDialogProps {
   isOpen: boolean;

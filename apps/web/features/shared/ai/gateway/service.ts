@@ -11,12 +11,12 @@ import {
   type CourseGenerationContext,
   CourseGenerationContextSchema,
   courseGenerationAgent,
-} from "@/lib/ai/agents/course-generation/agent";
+} from "@/features/learning/agents/course-generation/agent";
 import {
   type InterviewContext,
   InterviewContextSchema,
   interviewAgent,
-} from "@/lib/ai/agents/interview/agent";
+} from "@/features/learning/agents/interview/agent";
 import { ragService } from "@/features/shared/ai/rag";
 import { isAIConfigured } from "@/features/shared/ai/registry";
 import { routeIntent } from "@/features/shared/ai/router/route";

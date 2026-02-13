@@ -18,7 +18,7 @@ import {
   saveCourseProfile as dbSaveProfile,
   updateCourseProgress as dbUpdateProgress,
   type OutlineData,
-} from "@/lib/ai/profile/course-profile";
+} from "@/features/learning/agents/course-profile";
 
 /**
  * 保存课程画像

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { flashcardStore, type ReviewStats } from "@/lib/storage/flashcard-store";
+import { flashcardStore, type ReviewStats } from "@/features/learning/stores/flashcard-store";
 
 interface FlashcardStatsProps {
   onStartReview?: () => void;

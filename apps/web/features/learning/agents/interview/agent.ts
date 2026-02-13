@@ -13,7 +13,7 @@ import { type InferAgentUIMessage, type LanguageModel, stepCountIs, ToolLoopAgen
 import { z } from "zod";
 import { buildInterviewPrompt } from "@/features/shared/ai/prompts/interview";
 import { registry } from "@/features/shared/ai/registry";
-import { interviewTools } from "@/lib/ai/tools/interview";
+import { interviewTools } from "@/features/learning/tools/interview";
 
 const interviewModel = registry.chatModel;
 
@@ -151,7 +151,7 @@ export const interviewAgent = new ToolLoopAgent({
  *
  * 使用方式：
  * ```typescript
- * import { type InterviewAgentMessage } from '@/lib/ai/agents/interview/agent'
+ * import { type InterviewAgentMessage } from '@/features/learning/agents/interview/agent'
  * const { messages } = useChat<InterviewAgentMessage>({ transport })
  * ```
  */

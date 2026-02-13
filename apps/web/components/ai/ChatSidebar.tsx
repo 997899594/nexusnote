@@ -27,7 +27,7 @@ import type {
   SearchNotesOutput,
   SummarizeOutput,
   WebSearchOutput,
-} from "@/lib/ai/tools/types";
+} from "@/features/learning/tools/types";
 import { getMessageContent, getToolCalls } from "@/features/shared/ai/ui-utils";
 import type { EditCommand } from "@/features/editor/core/document-parser";
 import { useEditor, useNoteExtractionOptional, useWebSearchToggle } from "@/lib/store";

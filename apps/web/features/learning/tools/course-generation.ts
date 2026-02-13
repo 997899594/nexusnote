@@ -12,8 +12,8 @@
 
 import { type ToolSet, tool } from "ai";
 import { z } from "zod";
-import { getCourseChapters, saveCourseChapter } from "@/lib/ai/profile/course-profile";
-import { generateQuiz, mindMap } from "./chat/learning";
+import { getCourseChapters, saveCourseChapter } from "@/features/learning/agents/course-profile";
+import { generateQuiz, mindMap } from "@/lib/ai/tools/chat/learning";
 import { generateIllustrationTool } from "./multimodal";
 
 /**
