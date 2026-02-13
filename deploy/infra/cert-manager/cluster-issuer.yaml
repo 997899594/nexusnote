@@ -12,5 +12,8 @@ spec:
       name: letsencrypt-prod
     solvers:
       - http01:
-          ingress:
-            class: cilium
+          gatewayHTTPRoute:
+            parentRefs:
+              - name: nexusnote-gateway
+                namespace: nexusnote
+                kind: Gateway

@@ -27,7 +27,7 @@ spec:
   project: nexusnote
 
   source:
-    repoURL: https://github.com/997899594/nexusnote
+    repoURL: https://gh-proxy.com/https://github.com/997899594/nexusnote
     targetRevision: main
     path: deploy/charts/nexusnote
     helm:
