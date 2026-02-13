@@ -38,6 +38,9 @@ pnpm-debug.log*
 # Envoy config dump (auto-generated)
 envoy-config.json
 
+# Worktrees
+.worktrees
+
 # Testing
 coverage
 
