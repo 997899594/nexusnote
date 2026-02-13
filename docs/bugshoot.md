@@ -108,6 +108,66 @@ Linux 默认不允许非 root 进程绑定 1024 以下的端口。我们之前�
 
 ---
 
+## 6. 2026-02-13 CI/CD 现代化 & Gateway 路由修复
+
+### 6.1 问题清单
+
+本次修复解决了 5 个链式问题，核心是 Cilium Gateway API 的两个 bug 导致整站不可访问。
+
+#### BUG-1: Cilium 1.16 不为无 hostname 的 listener 生成 RDS 路由
+
+**现象**: Gateway 404 on ALL traffic (HTTP + HTTPS)
+**根因**: Cilium 1.16.5 的 Gateway controller 生成 CiliumEnvoyConfig 时，只为有 `hostname` 字段的 listener 创建 Envoy RouteConfiguration。HTTP listener 没有 hostname（wildcard），导致 `listener-insecure` 路由配置缺失，Envoy 的 RDS 请求永远超时。
+**修复**: 给 HTTP listener 显式添加 `hostname: juanie.art`。
+**文件**: `deploy/charts/nexusnote/templates/infrastructure.yaml`
+
+#### BUG-2: Cilium 1.16 不为无 sectionName 的 HTTPRoute 生成 HTTP listener 路由
+
+**现象**: cert-manager ACME HTTP-01 solver 返回 404（或被 redirect 拦截返回 301）
+**根因**: Cilium 1.16.5 对没有 `sectionName` 的 HTTPRoute 只添加到 HTTPS listener 的路由配置中，不添加到 HTTP listener。cert-manager 创建的 solver HTTPRoute 默认无 sectionName，导致 solver 只在 HTTPS 上可达，而 Let's Encrypt 只验证 HTTP。
+**修复**:
+1. ClusterIssuer 的 solver parentRef 添加 `sectionName: http`
+2. `nexusnote-route` 显式绑定 `sectionName: https`（而非默认的 all listeners）
+**文件**: `deploy/infra/cert-manager/cluster-issuer.yaml`, `deploy/charts/nexusnote/templates/infrastructure.yaml`
+
+#### BUG-3: cert-manager 使用 Ingress solver 而非 Gateway API solver
+
+**现象**: ACME HTTP-01 challenge 返回 404，持续 22h 无法完成
+**根因**: ClusterIssuer 配置的是 `ingress.class: cilium`，但 Cilium 作为 Gateway controller 不处理 Ingress 资源。cert-manager 创建的 Ingress 被忽略。
+**修复**: 改为 `gatewayHTTPRoute` solver + 启用 cert-manager feature gate `ExperimentalGatewayAPISupport=true`
+**文件**: `deploy/infra/cert-manager/cluster-issuer.yaml`
+
+#### BUG-4: Drizzle customType 引号 bug 导致 migration 只创建 3/16 表
+
+**现象**: `drizzle-kit push` 只创建了 3 张表（不含 halfvec 列的表），其余静默失败
+**根因**: Drizzle ORM 的 `customType` 将 `dataType()` 返回值包裹在双引号中，生成 `"halfvec(4000)"` 而非 `halfvec(4000)`。PostgreSQL 拒绝带引号的类型名+参数组合。drizzle-kit push exit code 0 即使有错误。
+**修复**: 创建 `packages/db/pre-migrate.mjs`，在 drizzle-kit push 之前用原生 SQL 预创建 pgvector extension 和含 halfvec 列的表。
+**文件**: `packages/db/pre-migrate.mjs`, `deploy/charts/nexusnote/templates/migration-job.yaml`
+
+#### BUG-5: nexusnote-staging 命名空间冲突
+
+**现象**: Envoy 启动报 `duplicate address '0.0.0.0:80,0.0.0.0:443'`
+**根因**: 残留的 `nexusnote-staging` 命名空间中有同名 Gateway，导致 Envoy 监听地址冲突。
+**修复**: 删除 staging 命名空间，从 ArgoCD 项目中移除 staging destination。
+
+### 6.2 架构决策
+
+| 决策 | 选择 | 理由 |
+|------|------|------|
+| HTTP listener hostname | 显式指定 | Cilium 1.16 bug workaround |
+| HTTPRoute sectionName | 显式指定 | Cilium 1.16 bug workaround |
+| ACME solver | gatewayHTTPRoute | Cilium 不处理 Ingress |
+| halfvec migration | pre-migrate.mjs | Drizzle customType bug workaround |
+| ArgoCD repo URL | gh-proxy.com 代理 | 中国大陆访问 GitHub |
+
+### 6.3 最终状态
+
+- `https://juanie.art/` → 200 (Let's Encrypt TLS, 有效期至 2026-05-14)
+- `http://juanie.art/` → 301 → HTTPS
+- 数据库: 16 张表，含 pgvector halfvec(4000) 列
+- CI: PR → lint+typecheck, push main → build+push latest → ArgoCD sync
+
+---
+
 **NexusNote 项目组**
-**资深架构师：Assistant (Powered by Trae)**
-**日期：2026-02-07**
+**日期：2026-02-07 / 2026-02-13**

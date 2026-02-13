@@ -1,6 +1,8 @@
 # ===========================================
-# Database Migration Job - ArgoCD PreSync
+# Database Migration Job - ArgoCD Sync Wave
 # ===========================================
+# sync-wave: "-1" 确保在 Deployment (wave 0) 之前创建
+# 不使用 PreSync hook，避免失败时阻塞整个同步
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -9,8 +11,6 @@ metadata:
   labels:
     {{- include "nexusnote.labels" . | nindent 4 }}
   annotations:
-    argocd.argoproj.io/hook: PreSync
-    argocd.argoproj.io/hook-delete-policy: HookSucceeded,HookFailed
     argocd.argoproj.io/sync-wave: "-1"
 spec:
   backoffLimit: 3
@@ -53,18 +53,12 @@ spec:
             - -c
             - |
               set -e
-              echo "Running Drizzle schema push..."
-              drizzle-kit push --config /app/packages/db/drizzle.config.ts
-              echo "Drizzle push completed."
-
-              echo "Running custom SQL migrations..."
-              for f in /app/packages/db/migrations/*.sql; do
-                if [ -f "$f" ]; then
-                  echo "Executing: $f"
-                  psql "$DATABASE_URL" -f "$f"
-                fi
-              done
-              echo "All migrations completed."
+              cd /app/migration
+              echo "Running pre-migration setup..."
+              node pre-migrate.mjs
+              echo "Running database migrations..."
+              npx drizzle-kit push --config drizzle.config.ts
+              echo "Migrations completed."
           envFrom:
             - configMapRef:
                 name: nexusnote-config

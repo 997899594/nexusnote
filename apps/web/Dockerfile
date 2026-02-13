@@ -68,6 +68,12 @@ RUN pnpm --filter @nexusnote/web exec esbuild src/queue/worker.ts \
   --outfile=worker.js
 
 # ============================================
+# 打包迁移依赖子集（在 builder 阶段完成，利用已有的 pnpm 依赖）
+# pnpm deploy 只导出 @nexusnote/db 及其依赖到独立目录
+# ============================================
+RUN pnpm --filter @nexusnote/db deploy --prod=false /app/migration-bundle
+
+# ============================================
 # Stage 4: Runner - 运行时镜像
 # ============================================
 FROM node:22-alpine AS runner
@@ -89,15 +95,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/hocuspocus.js ./apps/web/
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/worker.js ./apps/web/
 
-# 复制 db 包供迁移使用（只复制必要文件，避免 node_modules）
-RUN mkdir -p /app/packages/db/src /app/packages/db/drizzle
-COPY --from=builder --chown=nextjs:nodejs /app/packages/db/src/ ./packages/db/src/
-COPY --from=builder --chown=nextjs:nodejs /app/packages/db/drizzle/ ./packages/db/drizzle/
-COPY --from=builder --chown=nextjs:nodejs /app/packages/db/drizzle.config.ts ./packages/db/
-COPY --from=builder --chown=nextjs:nodejs /app/packages/db/package.json ./packages/db/
-
-# 安装 drizzle-kit 用于数据库迁移（锁定版本）
-RUN npm install -g drizzle-kit@0.30.0
+# 复制迁移工具（pnpm deploy 打包的 @nexusnote/db 完整依赖子集）
+COPY --from=builder --chown=nextjs:nodejs /app/migration-bundle ./migration/
 
 # 复制静态资源
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public/
