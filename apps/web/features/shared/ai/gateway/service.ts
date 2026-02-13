@@ -1,31 +1,22 @@
-import {
-  convertToModelMessages,
-  createAgentUIStreamResponse,
-  smoothStream,
-  type UIMessage,
-} from "ai";
+/**
+ * AI Gateway Service — 统一 AI 调度入口
+ *
+ * 2026 架构：使用 Pipeline 模式替代 God Method
+ * handleRequest 现在只负责构建初始 context，然后交给 pipeline 处理
+ */
+
+import type { UIMessage } from "ai";
 import { v4 as uuidv4 } from "uuid";
 import { z } from "zod";
-import { chatAgent } from "@/features/chat/agents/chat-agent";
-import {
-  type CourseGenerationContext,
-  CourseGenerationContextSchema,
-  courseGenerationAgent,
-} from "@/features/learning/agents/course-generation/agent";
-import {
-  type InterviewContext,
-  InterviewContextSchema,
-  interviewAgent,
-} from "@/features/learning/agents/interview/agent";
-import { ragService } from "@/features/shared/ai/rag";
-import { isAIConfigured } from "@/features/shared/ai/registry";
-import { routeIntent } from "@/features/shared/ai/router/route";
-import { pruneUIMessages } from "@/features/shared/ai/ui-utils";
+import { CourseGenerationContextSchema } from "@/features/learning/agents/course-generation/agent";
+import { InterviewContextSchema } from "@/features/learning/agents/interview/agent";
+import { defaultPipeline } from "../pipeline";
+import type { PipelineContext } from "../pipeline/types";
 
-/**
- * 2026 架构师标准：统一 AI 上下文 Schema
- * 采用严格的联合类型，确保类型安全，杜绝 passthrough
- */
+// ============================================
+// Schema 定义
+// ============================================
+
 export const AIContextSchema = z.object({
   explicitIntent: z.enum(["INTERVIEW", "CHAT", "EDITOR", "SEARCH", "COURSE_GENERATION"]).optional(),
   interviewContext: InterviewContextSchema.optional(),
@@ -43,15 +34,10 @@ export const AIContextSchema = z.object({
 
 export type AIContext = z.infer<typeof AIContextSchema>;
 
-/**
- * AI 请求负载 Schema
- * 自动处理 useChat 可能发送的扁平化字段，并进行严格类型转换
- */
 export const AIRequestSchema = z.preprocess(
-  (val: any) => {
-    // 架构师技巧：预处理扁平化 body，将其归位到 context 中
-    if (val && typeof val === "object" && !val.context && val.messages) {
-      const { messages, ...rest } = val;
+  (val: unknown) => {
+    if (val && typeof val === "object" && !("context" in val) && "messages" in val) {
+      const { messages, ...rest } = val as Record<string, unknown>;
       return { messages, context: rest };
     }
     return val;
@@ -69,125 +55,22 @@ export interface AIGatewayOptions {
   traceId?: string;
 }
 
-/**
- * AIGatewayService - 系统核心 AI 调度服务
- */
+// ============================================
+// Gateway Service
+// ============================================
+
 export class AIGatewayService {
+  /**
+   * 处理 AI 请求 — 构建初始 context 并交给 pipeline
+   */
   static async handleRequest(input: AIRequest, options: AIGatewayOptions): Promise<Response> {
-    const traceId = options.traceId || uuidv4();
-    const { userId } = options;
+    const initial: PipelineContext = {
+      rawMessages: input.messages,
+      context: input.context || {},
+      userId: options.userId,
+      traceId: options.traceId || uuidv4(),
+    };
 
-    // 1. 验证 AI 配置
-    if (!isAIConfigured()) {
-      throw new Error("AI API key not configured");
-    }
-
-    // 2. 消息提取与优化
-    const { messages, context = {} } = input;
-    const modelMessages = await convertToModelMessages(messages);
-    const lastUserMsg = modelMessages.filter((m) => m.role === "user").pop();
-    let userInput = "";
-
-    if (lastUserMsg && typeof lastUserMsg.content === "string") {
-      userInput = lastUserMsg.content;
-    } else if (lastUserMsg && Array.isArray(lastUserMsg.content)) {
-      userInput = lastUserMsg.content
-        .filter((p) => p.type === "text")
-        .map((p) => (p.type === "text" ? p.text : ""))
-        .join("");
-    }
-
-    const optimizedMessages = pruneUIMessages(messages, {
-      reasoning: "none",
-      toolCalls: "before-last-3-messages",
-      emptyMessages: "remove",
-    });
-
-    // 3. 意图识别 (L0 路由)
-    let intent = context.explicitIntent;
-    if (!intent && userInput) {
-      const routeResult = await routeIntent(
-        userInput,
-        JSON.stringify({
-          isInInterview: context.isInInterview,
-          hasDocumentOpen: context.hasDocumentOpen,
-        }),
-        traceId,
-      );
-      intent = routeResult.target as AIContext["explicitIntent"];
-    }
-
-    // 4. Agent 调度 (L2 路由)
-    const smoothStreamConfig = smoothStream({
-      delayInMs: 20,
-      chunking: new Intl.Segmenter("zh-CN", { granularity: "grapheme" }),
-    });
-
-    switch (intent) {
-      case "INTERVIEW": {
-        return createAgentUIStreamResponse({
-          agent: interviewAgent,
-          uiMessages: optimizedMessages,
-          options: { ...(context.interviewContext || {}), userId } as InterviewContext,
-          experimental_transform: smoothStreamConfig,
-        });
-      }
-
-      case "COURSE_GENERATION": {
-        return createAgentUIStreamResponse({
-          agent: courseGenerationAgent,
-          uiMessages: optimizedMessages,
-          options: {
-            ...(context.courseGenerationContext || {}),
-            userId,
-          } as CourseGenerationContext,
-          experimental_transform: smoothStreamConfig,
-        });
-      }
-
-      case "SEARCH": {
-        return createAgentUIStreamResponse({
-          agent: chatAgent,
-          uiMessages: optimizedMessages,
-          options: { enableWebSearch: true, enableTools: true },
-          experimental_transform: smoothStreamConfig,
-        });
-      }
-
-      case "EDITOR": {
-        return createAgentUIStreamResponse({
-          agent: chatAgent,
-          uiMessages: optimizedMessages,
-          options: {
-            documentContext: context.documentContext,
-            documentStructure: context.documentStructure,
-            editMode: true,
-            enableTools: true,
-          },
-          experimental_transform: smoothStreamConfig,
-        });
-      }
-      default: {
-        let ragContext: string | undefined;
-        if (context.enableRAG && userInput) {
-          const ragResult = await ragService.search(userInput, userId);
-          ragContext = ragResult.context;
-        }
-
-        return createAgentUIStreamResponse({
-          agent: chatAgent,
-          uiMessages: optimizedMessages,
-          options: {
-            ragContext,
-            documentContext: context.documentContext,
-            documentStructure: context.documentStructure,
-            editMode: context.editMode,
-            enableTools: context.enableTools,
-            enableWebSearch: context.enableWebSearch,
-          },
-          experimental_transform: smoothStreamConfig,
-        });
-      }
-    }
+    return defaultPipeline.execute(initial);
   }
 }
