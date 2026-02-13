@@ -7,13 +7,13 @@
  * @see https://langfuse.com/docs/integrations/vercel-ai-sdk
  */
 
-import Langfuse from 'langfuse';
-import { env } from '@nexusnote/config';
+import { env } from "@nexusnote/config";
+import Langfuse from "langfuse";
 
 // 仅在服务端且配置了 API Keys 时初始化
 let langfuseClient: Langfuse | null = null;
 
-if (typeof window === 'undefined') {
+if (typeof window === "undefined") {
   const publicKey = env.LANGFUSE_PUBLIC_KEY;
   const secretKey = env.LANGFUSE_SECRET_KEY;
 
@@ -21,14 +21,14 @@ if (typeof window === 'undefined') {
     langfuseClient = new Langfuse({
       publicKey,
       secretKey,
-      baseUrl: 'https://cloud.langfuse.com',
+      baseUrl: "https://cloud.langfuse.com",
       // 可选：本地开发时可以设置为 false
-      enabled: process.env.NODE_ENV === 'production',
+      enabled: process.env.NODE_ENV === "production",
     });
 
-    console.log('[Langfuse] Observability enabled ✅');
+    console.log("[Langfuse] Observability enabled ✅");
   } else {
-    console.log('[Langfuse] API keys not configured, observability disabled');
+    console.log("[Langfuse] API keys not configured, observability disabled");
   }
 }
 

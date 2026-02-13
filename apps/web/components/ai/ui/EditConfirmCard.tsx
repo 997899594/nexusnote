@@ -1,35 +1,35 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { Check, X, Eye, EyeOff, Loader2 } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { AnimatePresence, motion } from "framer-motion";
+import { Check, Eye, EyeOff, Loader2, X } from "lucide-react";
+import { useState } from "react";
 
 interface EditConfirmCardProps {
-  action: string
-  targetId: string
-  newContent?: string
-  originalContent?: string
-  explanation: string
-  onApply: () => void
-  onDiscard: () => void
-  isPending?: boolean
+  action: string;
+  targetId: string;
+  newContent?: string;
+  originalContent?: string;
+  explanation: string;
+  onApply: () => void;
+  onDiscard: () => void;
+  isPending?: boolean;
 }
 
 const actionLabels: Record<string, string> = {
-  replace: '替换',
-  replace_all: '全文替换',
-  insert_after: '在后插入',
-  insert_before: '在前插入',
-  delete: '删除',
-}
+  replace: "替换",
+  replace_all: "全文替换",
+  insert_after: "在后插入",
+  insert_before: "在前插入",
+  delete: "删除",
+};
 
 const actionColors: Record<string, string> = {
-  replace: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
-  replace_all: 'bg-orange-500/10 text-orange-500 border-orange-500/20',
-  insert_after: 'bg-green-500/10 text-green-500 border-green-500/20',
-  insert_before: 'bg-green-500/10 text-green-500 border-green-500/20',
-  delete: 'bg-red-500/10 text-red-500 border-red-500/20',
-}
+  replace: "bg-blue-500/10 text-blue-500 border-blue-500/20",
+  replace_all: "bg-orange-500/10 text-orange-500 border-orange-500/20",
+  insert_after: "bg-green-500/10 text-green-500 border-green-500/20",
+  insert_before: "bg-green-500/10 text-green-500 border-green-500/20",
+  delete: "bg-red-500/10 text-red-500 border-red-500/20",
+};
 
 export function EditConfirmCard({
   action,
@@ -41,9 +41,9 @@ export function EditConfirmCard({
   onDiscard,
   isPending = false,
 }: EditConfirmCardProps) {
-  const [showDiff, setShowDiff] = useState(true)
-  const isDelete = action === 'delete'
-  const isReplaceAll = action === 'replace_all'
+  const [showDiff, setShowDiff] = useState(true);
+  const isDelete = action === "delete";
+  const isReplaceAll = action === "replace_all";
 
   return (
     <motion.div
@@ -55,20 +55,20 @@ export function EditConfirmCard({
       {/* Header */}
       <div className="px-4 py-3 bg-muted/30 border-b border-black/5 dark:border-white/5 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded-lg border ${actionColors[action] || 'bg-muted'}`}>
+          <span
+            className={`text-[10px] font-bold uppercase px-2 py-1 rounded-lg border ${actionColors[action] || "bg-muted"}`}
+          >
             {actionLabels[action] || action}
           </span>
           {!isReplaceAll && (
-            <span className="text-xs text-muted-foreground font-mono">
-              {targetId}
-            </span>
+            <span className="text-xs text-muted-foreground font-mono">{targetId}</span>
           )}
         </div>
         {!isDelete && newContent && (
           <button
             onClick={() => setShowDiff(!showDiff)}
             className="p-1.5 hover:bg-muted rounded-lg text-muted-foreground transition-colors"
-            title={showDiff ? '隐藏对比' : '显示对比'}
+            title={showDiff ? "隐藏对比" : "显示对比"}
           >
             {showDiff ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
           </button>
@@ -89,7 +89,7 @@ export function EditConfirmCard({
               <div className="text-[10px] font-bold uppercase text-red-500 mb-1">将删除</div>
               <div className="text-sm text-red-700 dark:text-red-300 line-through">
                 {originalContent.slice(0, 200)}
-                {originalContent.length > 200 && '...'}
+                {originalContent.length > 200 && "..."}
               </div>
             </motion.div>
           )}
@@ -107,14 +107,14 @@ export function EditConfirmCard({
                   <div className="text-[10px] font-bold uppercase text-red-500 mb-1">原内容</div>
                   <div className="text-sm text-red-700 dark:text-red-300 line-through">
                     {originalContent.slice(0, 150)}
-                    {originalContent.length > 150 && '...'}
+                    {originalContent.length > 150 && "..."}
                   </div>
                 </div>
               )}
               {newContent && (
                 <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/30 rounded-xl">
                   <div className="text-[10px] font-bold uppercase text-green-500 mb-1">
-                    {isReplaceAll ? '新文档' : '新内容'}
+                    {isReplaceAll ? "新文档" : "新内容"}
                   </div>
                   <div className="text-sm text-green-700 dark:text-green-300">
                     {newContent.slice(0, 300)}
@@ -160,7 +160,7 @@ export function EditConfirmCard({
         </button>
       </div>
     </motion.div>
-  )
+  );
 }
 
 /**
@@ -175,10 +175,10 @@ export function EditThinking({ action }: { action?: string }) {
     >
       <Loader2 className="w-4 h-4 text-violet-500 animate-spin" />
       <span className="text-xs text-violet-500 font-medium">
-        正在分析编辑意图{action ? `（${actionLabels[action] || action}）` : ''}...
+        正在分析编辑意图{action ? `（${actionLabels[action] || action}）` : ""}...
       </span>
     </motion.div>
-  )
+  );
 }
 
-export default EditConfirmCard
+export default EditConfirmCard;

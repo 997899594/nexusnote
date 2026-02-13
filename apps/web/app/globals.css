@@ -3,92 +3,92 @@
 @tailwind utilities;
 
 @layer base {
-    :root {
-        --background: 0 0% 100%;
-        --foreground: 240 10% 10%;
-        --muted: 240 5% 96%;
-        --muted-foreground: 240 5% 45%;
-        --border: 240 5% 92%;
-        --primary: 262 80% 50%;
-        --primary-foreground: 0 0% 100%;
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 10%;
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 5% 45%;
+    --border: 240 5% 92%;
+    --primary: 262 80% 50%;
+    --primary-foreground: 0 0% 100%;
 
-        --card: 0 0% 100%;
-        --card-foreground: 240 10% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 10%;
 
-        --radius: 1.5rem;
-    }
+    --radius: 1.5rem;
+  }
 }
 
 @layer base {
-    * {
-        @apply border-border;
-    }
+  * {
+    @apply border-border;
+  }
 
-    body {
-        @apply bg-background text-foreground antialiased selection:bg-primary/10;
-        font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-    }
+  body {
+    @apply bg-background text-foreground antialiased selection:bg-primary/10;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
 }
 
 @layer components {
-    .paper-card {
-        @apply bg-white border border-black/[0.05] rounded-[2rem] transition-all;
-    }
+  .paper-card {
+    @apply bg-white border border-black/[0.05] rounded-[2rem] transition-all;
+  }
 
-    .no-scrollbar::-webkit-scrollbar {
-        display: none;
-    }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
 
-    .custom-scrollbar::-webkit-scrollbar {
-        width: 6px;
-        background: transparent;
-    }
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    background: transparent;
+  }
 
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-        background-color: rgba(0, 0, 0, 0.1);
-        border-radius: 20px;
-        border: transparent;
-    }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 20px;
+    border: transparent;
+  }
 
-    .custom-scrollbar:hover::-webkit-scrollbar-thumb {
-        background-color: rgba(0, 0, 0, 0.3);
-    }
+  .custom-scrollbar:hover::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.3);
+  }
 }
 
 /* Tiptap Integration - Manual Minimalist Typography */
 .tiptap {
-    @apply outline-none max-w-none px-4;
+  @apply outline-none max-w-none px-4;
 }
 
 .tiptap h1 {
-    @apply text-3xl font-bold mt-8 mb-4 tracking-tight;
+  @apply text-3xl font-bold mt-8 mb-4 tracking-tight;
 }
 
 .tiptap h2 {
-    @apply text-2xl font-semibold mt-6 mb-3 tracking-tight;
+  @apply text-2xl font-semibold mt-6 mb-3 tracking-tight;
 }
 
 .tiptap h3 {
-    @apply text-xl font-medium mt-4 mb-2;
+  @apply text-xl font-medium mt-4 mb-2;
 }
 
 .tiptap p {
-    @apply my-4 leading-relaxed text-black/80;
+  @apply my-4 leading-relaxed text-black/80;
 }
 
 .tiptap ul {
-    @apply list-disc pl-6 my-4 space-y-2;
+  @apply list-disc pl-6 my-4 space-y-2;
 }
 
 .tiptap ol {
-    @apply list-decimal pl-6 my-4 space-y-2;
+  @apply list-decimal pl-6 my-4 space-y-2;
 }
 
 .tiptap li {
-    @apply leading-relaxed;
+  @apply leading-relaxed;
 }
 
 .tiptap p.is-editor-empty:first-child::before {
-    @apply text-muted-foreground pointer-events-none float-left h-0;
-    content: attr(data-placeholder);
+  @apply text-muted-foreground pointer-events-none float-left h-0;
+  content: attr(data-placeholder);
 }

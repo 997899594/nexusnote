@@ -1,22 +1,14 @@
 "use client";
 
-import { Editor } from "@tiptap/react";
+import type { Editor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
-import { useInlineAI, AI_ACTIONS, AIAction } from "@/hooks/useInlineAI";
-import { useState, useEffect, useCallback } from "react";
-import {
-  Sparkles,
-  Loader2,
-  X,
-  Check,
-  RotateCcw,
-  Brain,
-  BookmarkPlus,
-} from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { BookmarkPlus, Brain, Check, Sparkles, X } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { CreateFlashcardDialog } from "@/components/srs/CreateFlashcardDialog";
+import { AI_ACTIONS, type AIAction, useInlineAI } from "@/hooks/useInlineAI";
 import { useNoteExtractionOptional } from "@/lib/store";
 import { GhostFlight } from "./GhostFlight";
-import { motion, AnimatePresence } from "framer-motion";
 
 interface AIBubbleMenuProps {
   editor: Editor;
@@ -30,11 +22,7 @@ interface FlyingNote {
   startRect: DOMRect;
 }
 
-export function AIBubbleMenu({
-  editor,
-  documentId,
-  chapterId,
-}: AIBubbleMenuProps) {
+export function AIBubbleMenu({ editor, documentId, chapterId }: AIBubbleMenuProps) {
   const [showAI, setShowAI] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [showFlashcardDialog, setShowFlashcardDialog] = useState(false);
@@ -109,10 +97,7 @@ export function AIBubbleMenu({
 
     // Create flying note for animation
     const tempId = crypto.randomUUID();
-    setFlyingNotes((prev) => [
-      ...prev,
-      { id: tempId, content, startRect: rect },
-    ]);
+    setFlyingNotes((prev) => [...prev, { id: tempId, content, startRect: rect }]);
 
     // Determine source type
     const sourceType = chapterId ? "learning" : "document";
@@ -154,7 +139,7 @@ export function AIBubbleMenu({
           const { from, to } = state.selection;
           return from !== to && !showResult;
         }}
-        // @ts-ignore - tippyOptions property mismatch in some Tiptap versions
+        // @ts-expect-error - tippyOptions property mismatch in some Tiptap versions
         tippyOptions={{ duration: 300 }}
       >
         <div className="flex items-center gap-0.5 bg-white/70 backdrop-blur-3xl border border-black/[0.03] rounded-[20px] shadow-2xl shadow-black/5 p-1 ring-1 ring-black/[0.02]">
@@ -208,9 +193,7 @@ export function AIBubbleMenu({
             }`}
           >
             <Sparkles className={`w-4 h-4 ${showAI ? "animate-pulse" : ""}`} />
-            <span className="text-[10px] font-black uppercase tracking-widest">
-              Magic AI
-            </span>
+            <span className="text-[10px] font-black uppercase tracking-widest">Magic AI</span>
           </button>
 
           <div className="w-[1px] h-4 bg-black/[0.06] mx-1.5" />
@@ -249,23 +232,20 @@ export function AIBubbleMenu({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             className="absolute top-full left-0 mt-3 bg-white/80 backdrop-blur-3xl border border-black/[0.03] rounded-[24px] shadow-2xl shadow-black/10 p-2 min-w-[200px] z-50 ring-1 ring-black/[0.02]"
           >
-            {(
-              Object.entries(AI_ACTIONS) as [
-                AIAction,
-                { label: string; icon: string },
-              ][]
-            ).map(([action, { label, icon }]) => (
-              <button
-                key={action}
-                onClick={() => handleAction(action)}
-                className="w-full flex items-center gap-3 px-4 py-3 text-[11px] font-black uppercase tracking-widest text-black/60 hover:text-black hover:bg-black/5 rounded-2xl transition-all group"
-              >
-                <span className="text-lg group-hover:scale-125 transition-transform duration-500">
-                  {icon}
-                </span>
-                <span>{label}</span>
-              </button>
-            ))}
+            {(Object.entries(AI_ACTIONS) as [AIAction, { label: string; icon: string }][]).map(
+              ([action, { label, icon }]) => (
+                <button
+                  key={action}
+                  onClick={() => handleAction(action)}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-[11px] font-black uppercase tracking-widest text-black/60 hover:text-black hover:bg-black/5 rounded-2xl transition-all group"
+                >
+                  <span className="text-lg group-hover:scale-125 transition-transform duration-500">
+                    {icon}
+                  </span>
+                  <span>{label}</span>
+                </button>
+              ),
+            )}
           </motion.div>
         )}
       </BubbleMenu>
@@ -294,9 +274,7 @@ export function AIBubbleMenu({
                     <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40 leading-none">
                       AI Insight
                     </span>
-                    <h3 className="text-lg font-black tracking-tight mt-1">
-                      智能处理结果
-                    </h3>
+                    <h3 className="text-lg font-black tracking-tight mt-1">智能处理结果</h3>
                   </div>
                 </div>
                 <button

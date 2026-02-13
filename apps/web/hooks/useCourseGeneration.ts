@@ -1,16 +1,13 @@
 import { useChat } from "@ai-sdk/react";
-import { useState, useReducer, useEffect, useRef, useCallback } from "react";
-import { CourseNode } from "@/lib/types/course";
 import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { saveCourseProfileAction } from "@/app/actions/course";
+import type { InterviewAgentMessage, InterviewContext } from "@/lib/ai/agents/interview/agent";
+import type { OutlineData } from "@/lib/ai/profile/course-profile";
+import { findToolCall } from "@/lib/ai/ui-utils";
 import { learningStore } from "@/lib/storage";
 import type { CourseOutline as StoreCourseOutline } from "@/lib/storage/learning-store";
-import { saveCourseProfileAction } from "@/app/actions/course";
-import type {
-  InterviewAgentMessage,
-  InterviewContext,
-} from "@/lib/ai/agents/interview/agent";
-import { findToolCall } from "@/lib/ai/ui-utils";
-import type { OutlineData } from "@/lib/ai/profile/course-profile";
+import type { CourseNode } from "@/lib/types/course";
 
 // ============================================
 // Constants
@@ -122,9 +119,7 @@ function reducer(state: State, action: Action): State {
       return {
         ...state,
         nodes: state.nodes.map((n) =>
-          n.id === action.payload.id
-            ? { ...n, status: action.payload.status }
-            : n,
+          n.id === action.payload.id ? { ...n, status: action.payload.status } : n,
         ),
       };
     default:
@@ -217,15 +212,8 @@ export function useCourseGeneration(initialGoal: string = "", userId: string) {
   // - Client-side State Sync (via useEffect)
   // - status instead of isLoading
 
-  const {
-    messages,
-    sendMessage,
-    setMessages,
-    status,
-    error,
-    regenerate,
-    stop,
-  } = useChat<InterviewAgentMessage>();
+  const { messages, sendMessage, setMessages, status, error, regenerate, stop } =
+    useChat<InterviewAgentMessage>();
 
   // Calculate isLoading from status
   const isLoading = status === "streaming" || status === "submitted";
@@ -264,9 +252,7 @@ export function useCourseGeneration(initialGoal: string = "", userId: string) {
       processedToolCallIds.current.add(toolCall.toolCallId);
 
       const chapters =
-        toolCall.output.chapters ??
-        toolCall.output.modules?.flatMap((m) => m.chapters) ??
-        [];
+        toolCall.output.chapters ?? toolCall.output.modules?.flatMap((m) => m.chapters) ?? [];
 
       const newNodes: CourseNode[] = chapters.map((ch, i) => ({
         id: `node-${i}`,
@@ -291,8 +277,7 @@ export function useCourseGeneration(initialGoal: string = "", userId: string) {
 
     // 使用特定目标的键，避免多个课程互相覆盖 (使用 encodeURIComponent 支持中文)
     const specificKey = `${STORAGE_KEY_PREFIX}${encodeURIComponent(initialGoal)}`;
-    const saved =
-      localStorage.getItem(specificKey) || localStorage.getItem(STORAGE_KEY);
+    const saved = localStorage.getItem(specificKey) || localStorage.getItem(STORAGE_KEY);
 
     if (!saved) return;
 
@@ -341,9 +326,7 @@ export function useCourseGeneration(initialGoal: string = "", userId: string) {
       localStorage.setItem(specificKey, JSON.stringify(dataToStore));
     } catch (err) {
       if (err instanceof Error && err.name === "QuotaExceededError") {
-        console.warn(
-          "[useCourseGeneration] Storage quota exceeded, clearing old data...",
-        );
+        console.warn("[useCourseGeneration] Storage quota exceeded, clearing old data...");
         // 清理旧数据后重试
         cleanupExpiredStorage();
         localStorage.removeItem(STORAGE_KEY);
@@ -393,12 +376,9 @@ export function useCourseGeneration(initialGoal: string = "", userId: string) {
       if (!text.trim()) return;
 
       if (!overrideInput) setInput("");
-      if (contextUpdate)
-        dispatch({ type: "UPDATE_CONTEXT", payload: contextUpdate });
+      if (contextUpdate) dispatch({ type: "UPDATE_CONTEXT", payload: contextUpdate });
 
-      const finalContext = contextUpdate
-        ? { ...state.context, ...contextUpdate }
-        : state.context;
+      const finalContext = contextUpdate ? { ...state.context, ...contextUpdate } : state.context;
 
       sendMessage(
         { text },
@@ -417,21 +397,16 @@ export function useCourseGeneration(initialGoal: string = "", userId: string) {
   const transitionProcessedRef = useRef<Record<string, boolean>>({});
 
   useEffect(() => {
-    if (
-      state.phase !== "synthesis" ||
-      transitionProcessedRef.current["synthesis"]
-    )
-      return;
+    if (state.phase !== "synthesis" || transitionProcessedRef.current.synthesis) return;
 
-    transitionProcessedRef.current["synthesis"] = true;
+    transitionProcessedRef.current.synthesis = true;
 
     const runGenerationFlow = async () => {
       const data = state.outline!;
       const unifiedId = state.id || crypto.randomUUID();
       if (!state.id) dispatch({ type: "SET_ID", payload: unifiedId });
 
-      const allChapters =
-        data.chapters ?? data.modules?.flatMap((m) => m.chapters) ?? [];
+      const allChapters = data.chapters ?? data.modules?.flatMap((m) => m.chapters) ?? [];
 
       const storeOutline: StoreCourseOutline = {
         title: data.title,
@@ -445,11 +420,7 @@ export function useCourseGeneration(initialGoal: string = "", userId: string) {
         })),
       };
 
-      const course = await learningStore.createFromOutline(
-        storeOutline,
-        "course",
-        unifiedId,
-      );
+      const course = await learningStore.createFromOutline(storeOutline, "course", unifiedId);
       setCreatedCourseId(course.id);
 
       console.log(`[useCourseGeneration] 💾 Core profile sync: ${course.id}`);
@@ -468,9 +439,7 @@ export function useCourseGeneration(initialGoal: string = "", userId: string) {
       }
 
       // 启动后台预生成（非阻塞）
-      console.log(
-        `[useCourseGeneration] 🚀 Background generation: ${course.id}`,
-      );
+      console.log(`[useCourseGeneration] 🚀 Background generation: ${course.id}`);
       fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -479,9 +448,7 @@ export function useCourseGeneration(initialGoal: string = "", userId: string) {
             {
               id: `gen-${Date.now()}`,
               role: "user",
-              parts: [
-                { type: "text", text: "请生成第 1 章的内容。", state: "done" },
-              ],
+              parts: [{ type: "text", text: "请生成第 1 章的内容。", state: "done" }],
             },
           ],
           explicitIntent: "COURSE_GENERATION",
@@ -514,9 +481,7 @@ export function useCourseGeneration(initialGoal: string = "", userId: string) {
       }));
       dispatch({ type: "SET_NODES", payload: newNodes });
 
-      await new Promise((r) =>
-        setTimeout(r, PHASE_TRANSITION_DELAYS.synthesis),
-      );
+      await new Promise((r) => setTimeout(r, PHASE_TRANSITION_DELAYS.synthesis));
       dispatch({ type: "TRANSITION", payload: "seeding" });
     };
 
@@ -532,28 +497,28 @@ export function useCourseGeneration(initialGoal: string = "", userId: string) {
 
     switch (state.phase) {
       case "seeding":
-        transitionProcessedRef.current["seeding"] = true;
+        transitionProcessedRef.current.seeding = true;
         setTimeout(
           () => dispatch({ type: "TRANSITION", payload: "growing" }),
           PHASE_TRANSITION_DELAYS.seeding,
         );
         break;
       case "growing":
-        transitionProcessedRef.current["growing"] = true;
+        transitionProcessedRef.current.growing = true;
         setTimeout(
           () => dispatch({ type: "TRANSITION", payload: "ready" }),
           PHASE_TRANSITION_DELAYS.growing,
         );
         break;
       case "ready":
-        transitionProcessedRef.current["ready"] = true;
+        transitionProcessedRef.current.ready = true;
         setTimeout(
           () => dispatch({ type: "TRANSITION", payload: "manifesting" }),
           PHASE_TRANSITION_DELAYS.ready,
         );
         break;
       case "manifesting":
-        transitionProcessedRef.current["manifesting"] = true;
+        transitionProcessedRef.current.manifesting = true;
         // 课程完成后清理存储
         clearCourseStorage(state.goal);
         setTimeout(
@@ -566,8 +531,7 @@ export function useCourseGeneration(initialGoal: string = "", userId: string) {
 
   const confirmOutline = (finalOutline: CourseOutline, id?: string) => {
     const unifiedId = id ?? state.id ?? crypto.randomUUID();
-    if (unifiedId !== state.id)
-      dispatch({ type: "SET_ID", payload: unifiedId });
+    if (unifiedId !== state.id) dispatch({ type: "SET_ID", payload: unifiedId });
     dispatch({ type: "SET_OUTLINE", payload: finalOutline });
     dispatch({ type: "TRANSITION", payload: "synthesis" });
   };

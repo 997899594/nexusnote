@@ -10,7 +10,7 @@
 
 import { db, documents, eq } from "@nexusnote/db";
 import { createSafeAction } from "@/lib/actions/action-utils";
-import { verifyDocumentOwnership, AuthError } from "@/lib/auth/auth-utils";
+import { AuthError, verifyDocumentOwnership } from "@/lib/auth/auth-utils";
 
 /**
  * 获取单个文档
@@ -47,10 +47,7 @@ export const getDocumentAction = createSafeAction(
  */
 export const updateDocumentAction = createSafeAction(
   "updateDocument",
-  async (
-    payload: { documentId: string; isVault?: boolean; title?: string },
-    userId,
-  ) => {
+  async (payload: { documentId: string; isVault?: boolean; title?: string }, userId) => {
     const { documentId, ...updates } = payload;
 
     // 验证文档所有权（通过 workspace）

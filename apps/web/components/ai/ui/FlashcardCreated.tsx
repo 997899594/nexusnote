@@ -1,15 +1,15 @@
-'use client'
+"use client";
 
-import { Brain, Check, ExternalLink } from 'lucide-react'
-import Link from 'next/link'
+import { Brain, Check, ExternalLink } from "lucide-react";
+import Link from "next/link";
 
 interface FlashcardCreatedProps {
-  count: number
+  count: number;
   cards: Array<{
-    id: string
-    front: string
-    back: string
-  }>
+    id: string;
+    front: string;
+    back: string;
+  }>;
 }
 
 export function FlashcardCreated({ count, cards }: FlashcardCreatedProps) {
@@ -35,9 +35,7 @@ export function FlashcardCreated({ count, cards }: FlashcardCreatedProps) {
           </div>
         ))}
         {cards.length > 3 && (
-          <div className="text-sm text-gray-500 text-center">
-            还有 {cards.length - 3} 张卡片...
-          </div>
+          <div className="text-sm text-gray-500 text-center">还有 {cards.length - 3} 张卡片...</div>
         )}
       </div>
 
@@ -49,5 +47,5 @@ export function FlashcardCreated({ count, cards }: FlashcardCreatedProps) {
         <ExternalLink className="w-3 h-3" />
       </Link>
     </div>
-  )
+  );
 }

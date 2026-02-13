@@ -7,13 +7,13 @@
  * - 增量同步（只传输新快照）
  */
 
-import { localDb, STORES, DocumentSnapshot } from "./local-db";
 import {
-  syncSnapshotsAction,
-  getLatestSnapshotTimestampAction,
-  getDocumentSnapshotsAction,
   deleteSnapshotAction,
+  getDocumentSnapshotsAction,
+  getLatestSnapshotTimestampAction,
+  syncSnapshotsAction,
 } from "@/app/actions/snapshot";
+import { type DocumentSnapshot, localDb, STORES } from "./local-db";
 
 interface ServerSnapshot {
   id: string;
@@ -83,9 +83,7 @@ export class SnapshotSync {
         throw new Error(`Sync failed: ${result.error}`);
       }
 
-      console.log(
-        `[SnapshotSync] Pushed ${newSnapshots.length} snapshots to server`,
-      );
+      console.log(`[SnapshotSync] Pushed ${newSnapshots.length} snapshots to server`);
       return newSnapshots.length;
     } catch (error) {
       console.error("[SnapshotSync] Push failed:", error);
@@ -106,10 +104,8 @@ export class SnapshotSync {
         "documentId",
         documentId,
       );
-      const localLatest =
-        localSnapshots.length > 0
-          ? Math.max(...localSnapshots.map((s) => s.timestamp))
-          : 0;
+      const _localLatest =
+        localSnapshots.length > 0 ? Math.max(...localSnapshots.map((s) => s.timestamp)) : 0;
 
       // 获取服务器快照
       const result = await getDocumentSnapshotsAction({ documentId });
@@ -127,15 +123,10 @@ export class SnapshotSync {
 
       // 筛选本地没有的快照
       const localIds = new Set(localSnapshots.map((s) => s.id));
-      const newSnapshots = serverSnapshots.filter(
-        (snap: ServerSnapshot) => !localIds.has(snap.id),
-      );
+      const newSnapshots = serverSnapshots.filter((snap: ServerSnapshot) => !localIds.has(snap.id));
 
       if (newSnapshots.length === 0) {
-        console.log(
-          "[SnapshotSync] No new snapshots from server for:",
-          documentId,
-        );
+        console.log("[SnapshotSync] No new snapshots from server for:", documentId);
         return 0;
       }
 
@@ -161,9 +152,7 @@ export class SnapshotSync {
         await localDb.put(STORES.SNAPSHOTS, localSnap);
       }
 
-      console.log(
-        `[SnapshotSync] Pulled ${newSnapshots.length} snapshots from server`,
-      );
+      console.log(`[SnapshotSync] Pulled ${newSnapshots.length} snapshots from server`);
       return newSnapshots.length;
     } catch (error) {
       console.error("[SnapshotSync] Pull failed:", error);
@@ -183,9 +172,7 @@ export class SnapshotSync {
   /**
    * 获取服务器最新快照时间戳
    */
-  private async getServerLatestTimestamp(
-    documentId: string,
-  ): Promise<number | null> {
+  private async getServerLatestTimestamp(documentId: string): Promise<number | null> {
     try {
       const result = await getLatestSnapshotTimestampAction({ documentId });
       if (!result.success || !result.data) return null;

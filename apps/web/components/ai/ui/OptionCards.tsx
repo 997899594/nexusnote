@@ -3,21 +3,21 @@
  *
  * 用于 presentOptions 工具，支持多种样式
  */
-'use client'
+"use client";
 
-import { motion } from 'framer-motion'
-import { Check, ChevronRight, Sparkles, Target, BookOpen, Zap, Heart } from 'lucide-react'
+import { motion } from "framer-motion";
+import { BookOpen, Check, ChevronRight, Heart, Sparkles, Target, Zap } from "lucide-react";
 
-export type OptionStyle = 'card' | 'button' | 'chip' | 'icon'
+export type OptionStyle = "card" | "button" | "chip" | "icon";
 
 export interface OptionCardsProps {
-  question?: string
-  options: string[]
-  onSelect: (option: string) => void
-  style?: OptionStyle
-  targetField?: string
-  multiSelect?: boolean
-  compact?: boolean
+  question?: string;
+  options: string[];
+  onSelect: (option: string) => void;
+  style?: OptionStyle;
+  targetField?: string;
+  multiSelect?: boolean;
+  compact?: boolean;
 }
 
 // 目标字段对应的图标
@@ -27,16 +27,16 @@ const fieldIcons: Record<string, React.ComponentType<{ className?: string }>> = 
   targetOutcome: Sparkles,
   cognitiveStyle: Zap,
   general: Heart,
-}
+};
 
 // 目标字段对应的颜色
 const fieldColors: Record<string, string> = {
-  goal: 'bg-violet-500',
-  background: 'bg-blue-500',
-  targetOutcome: 'bg-emerald-500',
-  cognitiveStyle: 'bg-amber-500',
-  general: 'bg-rose-500',
-}
+  goal: "bg-violet-500",
+  background: "bg-blue-500",
+  targetOutcome: "bg-emerald-500",
+  cognitiveStyle: "bg-amber-500",
+  general: "bg-rose-500",
+};
 
 /**
  * 卡片样式选项
@@ -47,16 +47,16 @@ function CardOption({
   icon: Icon,
   delay,
 }: {
-  option: string
-  onClick: () => void
-  icon?: React.ComponentType<{ className?: string }>
-  delay: number
+  option: string;
+  onClick: () => void;
+  icon?: React.ComponentType<{ className?: string }>;
+  delay: number;
 }) {
   return (
     <motion.button
       initial={{ opacity: 0, y: 20, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ delay, type: 'spring', bounce: 0.3 }}
+      transition={{ delay, type: "spring", bounce: 0.3 }}
       whileHover={{ y: -4, scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
@@ -64,17 +64,15 @@ function CardOption({
     >
       <div className="flex items-center justify-between mb-2">
         {Icon && (
-          <div className={`p-2 rounded-xl ${fieldColors[Icon.name] || 'bg-violet-500'} text-white`}>
+          <div className={`p-2 rounded-xl ${fieldColors[Icon.name] || "bg-violet-500"} text-white`}>
             <Icon className="w-4 h-4" />
           </div>
         )}
         <ChevronRight className="w-4 h-4 text-black/20 group-hover:text-black group-hover:translate-x-1 transition-all" />
       </div>
-      <p className="text-sm font-medium text-black text-left leading-snug">
-        {option}
-      </p>
+      <p className="text-sm font-medium text-black text-left leading-snug">{option}</p>
     </motion.button>
-  )
+  );
 }
 
 /**
@@ -85,9 +83,9 @@ function ButtonOption({
   onClick,
   delay,
 }: {
-  option: string
-  onClick: () => void
-  delay: number
+  option: string;
+  onClick: () => void;
+  delay: number;
 }) {
   return (
     <motion.button
@@ -101,7 +99,7 @@ function ButtonOption({
     >
       {option}
     </motion.button>
-  )
+  );
 }
 
 /**
@@ -112,15 +110,15 @@ function IconCardOption({
   onClick,
   delay,
 }: {
-  option: string
-  onClick: () => void
-  delay: number
+  option: string;
+  onClick: () => void;
+  delay: number;
 }) {
   return (
     <motion.button
       initial={{ opacity: 0, rotate: -10 }}
       animate={{ opacity: 1, rotate: 0 }}
-      transition={{ delay, type: 'spring' }}
+      transition={{ delay, type: "spring" }}
       whileHover={{ rotate: 5, scale: 1.1 }}
       whileTap={{ scale: 0.95 }}
       onClick={onClick}
@@ -129,26 +127,24 @@ function IconCardOption({
       <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-500 flex items-center justify-center mb-3 shadow-lg shadow-violet-500/20">
         <Check className="w-6 h-6 text-white" />
       </div>
-      <p className="text-xs font-bold text-black text-center leading-snug">
-        {option}
-      </p>
+      <p className="text-xs font-bold text-black text-center leading-snug">{option}</p>
     </motion.button>
-  )
+  );
 }
 
 export function OptionCards({
   question,
   options,
   onSelect,
-  style = 'card',
-  targetField = 'general',
+  style = "card",
+  targetField = "general",
   multiSelect = false,
   compact = false,
 }: OptionCardsProps) {
-  const Icon = fieldIcons[targetField]
+  const Icon = fieldIcons[targetField];
 
   return (
-    <div className={`space-y-4 ${compact ? '' : 'pb-4'}`}>
+    <div className={`space-y-4 ${compact ? "" : "pb-4"}`}>
       {/* 标题 */}
       {question && (
         <motion.div
@@ -157,9 +153,7 @@ export function OptionCards({
           className="flex items-center gap-2 px-2"
         >
           {Icon && <Icon className="w-4 h-4 text-black/40" />}
-          <h3 className="text-xs font-bold uppercase tracking-widest text-black/40">
-            {question}
-          </h3>
+          <h3 className="text-xs font-bold uppercase tracking-widest text-black/40">{question}</h3>
           <div className="flex-1 h-px bg-black/[0.05]" />
         </motion.div>
       )}
@@ -167,27 +161,49 @@ export function OptionCards({
       {/* 选项容器 */}
       <div
         className={
-          style === 'button'
-            ? 'flex flex-wrap gap-3 justify-end'
-            : style === 'chip'
-              ? 'flex flex-wrap gap-2'
-              : 'grid grid-cols-2 md:grid-cols-4 gap-3'
+          style === "button"
+            ? "flex flex-wrap gap-3 justify-end"
+            : style === "chip"
+              ? "flex flex-wrap gap-2"
+              : "grid grid-cols-2 md:grid-cols-4 gap-3"
         }
       >
         {options.map((option, idx) => {
-          const delay = idx * 0.05
+          const delay = idx * 0.05;
 
-          if (style === 'card') {
-            return <CardOption key={option} option={option} onClick={() => onSelect(option)} icon={Icon} delay={delay} />
+          if (style === "card") {
+            return (
+              <CardOption
+                key={option}
+                option={option}
+                onClick={() => onSelect(option)}
+                icon={Icon}
+                delay={delay}
+              />
+            );
           }
 
-          if (style === 'icon') {
-            return <IconCardOption key={option} option={option} onClick={() => onSelect(option)} delay={delay} />
+          if (style === "icon") {
+            return (
+              <IconCardOption
+                key={option}
+                option={option}
+                onClick={() => onSelect(option)}
+                delay={delay}
+              />
+            );
           }
 
-          return <ButtonOption key={option} option={option} onClick={() => onSelect(option)} delay={delay} />
+          return (
+            <ButtonOption
+              key={option}
+              option={option}
+              onClick={() => onSelect(option)}
+              delay={delay}
+            />
+          );
         })}
       </div>
     </div>
-  )
+  );
 }

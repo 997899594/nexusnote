@@ -8,23 +8,12 @@
  * 2. 提供类型安全的主题和笔记数据获取
  */
 
-import {
-  db,
-  topics,
-  extractedNotes,
-  eq,
-  desc,
-  documentChunks,
-  documents,
-  sql,
-  and,
-} from "@nexusnote/db";
-import { createSafeAction } from "@/lib/actions/action-utils";
-import { z } from "zod";
-import { auth } from "@/auth";
-import { embed } from "ai";
 import { openai } from "@ai-sdk/openai";
-import { TopicDTO, NoteDTO } from "@/lib/actions/types";
+import { db, desc, eq, extractedNotes, sql, topics } from "@nexusnote/db";
+import { embed } from "ai";
+import { z } from "zod";
+import { createSafeAction } from "@/lib/actions/action-utils";
+import type { NoteDTO, TopicDTO } from "@/lib/actions/types";
 
 /**
  * 搜索笔记 - 语义搜索 (RAG)
@@ -99,11 +88,8 @@ export const getNoteTopicsAction = createSafeAction(
             (n): NoteDTO => ({
               id: n.id,
               content: n.content,
-              createdAt: n.createdAt
-                ? n.createdAt.toISOString()
-                : new Date().toISOString(),
-              title:
-                n.content.slice(0, 30) + (n.content.length > 30 ? "..." : ""),
+              createdAt: n.createdAt ? n.createdAt.toISOString() : new Date().toISOString(),
+              title: n.content.slice(0, 30) + (n.content.length > 30 ? "..." : ""),
             }),
           ),
         }),
@@ -119,8 +105,7 @@ export const getTopicNotesAction = createSafeAction(
   "getTopicNotes",
   async (topicId: string, userId) => {
     const notes = await db.query.extractedNotes.findMany({
-      where: (fields, { and, eq }) =>
-        and(eq(fields.topicId, topicId), eq(fields.userId, userId)),
+      where: (fields, { and, eq }) => and(eq(fields.topicId, topicId), eq(fields.userId, userId)),
       orderBy: [desc(extractedNotes.createdAt)],
     });
 

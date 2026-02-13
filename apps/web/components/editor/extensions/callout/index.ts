@@ -1,2 +1,2 @@
-export { Callout, type CalloutOptions, type CalloutType } from './callout'
-export { CalloutComponent } from './CalloutComponent'
+export { CalloutComponent } from "./CalloutComponent";
+export { Callout, type CalloutOptions, type CalloutType } from "./callout";

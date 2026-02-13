@@ -1,48 +1,48 @@
-'use client'
+"use client";
 
-import { NodeViewWrapper, NodeViewContent, NodeViewProps } from '@tiptap/react'
-import { ChevronRight, ChevronDown } from 'lucide-react'
-import { useState, useEffect, useRef } from 'react'
+import { NodeViewContent, type NodeViewProps, NodeViewWrapper } from "@tiptap/react";
+import { ChevronDown, ChevronRight } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 export function CollapsibleComponent({ node, updateAttributes }: NodeViewProps) {
-  const { open, title } = node.attrs
-  const [isEditing, setIsEditing] = useState(false)
-  const [editTitle, setEditTitle] = useState(title)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const { open, title } = node.attrs;
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(title);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
-      inputRef.current.focus()
-      inputRef.current.select()
+      inputRef.current.focus();
+      inputRef.current.select();
     }
-  }, [isEditing])
+  }, [isEditing]);
 
   const toggleOpen = () => {
-    updateAttributes({ open: !open })
-  }
+    updateAttributes({ open: !open });
+  };
 
   const handleTitleClick = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    setIsEditing(true)
-    setEditTitle(title)
-  }
+    e.stopPropagation();
+    setIsEditing(true);
+    setEditTitle(title);
+  };
 
   const handleTitleBlur = () => {
-    setIsEditing(false)
+    setIsEditing(false);
     if (editTitle.trim() && editTitle !== title) {
-      updateAttributes({ title: editTitle.trim() })
+      updateAttributes({ title: editTitle.trim() });
     }
-  }
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      handleTitleBlur()
-    } else if (e.key === 'Escape') {
-      setIsEditing(false)
-      setEditTitle(title)
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleTitleBlur();
+    } else if (e.key === "Escape") {
+      setIsEditing(false);
+      setEditTitle(title);
     }
-  }
+  };
 
   return (
     <NodeViewWrapper className="collapsible border rounded-lg my-2 overflow-hidden">
@@ -52,11 +52,7 @@ export function CollapsibleComponent({ node, updateAttributes }: NodeViewProps) 
         contentEditable={false}
       >
         <span className="text-muted-foreground flex-shrink-0">
-          {open ? (
-            <ChevronDown className="w-4 h-4" />
-          ) : (
-            <ChevronRight className="w-4 h-4" />
-          )}
+          {open ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
         </span>
         {isEditing ? (
           <input
@@ -70,10 +66,7 @@ export function CollapsibleComponent({ node, updateAttributes }: NodeViewProps) 
             className="flex-1 bg-transparent border-none outline-none text-sm font-medium"
           />
         ) : (
-          <span
-            className="flex-1 text-sm font-medium"
-            onClick={handleTitleClick}
-          >
+          <span className="flex-1 text-sm font-medium" onClick={handleTitleClick}>
             {title}
           </span>
         )}
@@ -84,7 +77,7 @@ export function CollapsibleComponent({ node, updateAttributes }: NodeViewProps) 
         </div>
       )}
     </NodeViewWrapper>
-  )
+  );
 }
 
-export default CollapsibleComponent
+export default CollapsibleComponent;

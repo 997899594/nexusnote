@@ -1,28 +1,28 @@
-'use client'
+"use client";
 
-import { BookOpen, Clock, Target, ChevronRight } from 'lucide-react'
+import { BookOpen, ChevronRight, Clock, Target } from "lucide-react";
 
 interface LearningPlanProps {
-  topic: string
-  duration: string
-  level: 'beginner' | 'intermediate' | 'advanced'
+  topic: string;
+  duration: string;
+  level: "beginner" | "intermediate" | "advanced";
   phases?: Array<{
-    name: string
-    tasks: string[]
-  }>
+    name: string;
+    tasks: string[];
+  }>;
 }
 
 const levelLabels = {
-  beginner: '入门',
-  intermediate: '进阶',
-  advanced: '高级',
-}
+  beginner: "入门",
+  intermediate: "进阶",
+  advanced: "高级",
+};
 
 const levelColors = {
-  beginner: 'bg-green-100 text-green-700',
-  intermediate: 'bg-blue-100 text-blue-700',
-  advanced: 'bg-purple-100 text-purple-700',
-}
+  beginner: "bg-green-100 text-green-700",
+  intermediate: "bg-blue-100 text-blue-700",
+  advanced: "bg-purple-100 text-purple-700",
+};
 
 export function LearningPlan({ topic, duration, level, phases }: LearningPlanProps) {
   return (
@@ -77,10 +77,8 @@ export function LearningPlan({ topic, duration, level, phases }: LearningPlanPro
       )}
 
       {(!phases || phases.length === 0) && (
-        <div className="text-sm text-gray-500 italic">
-          正在生成详细计划...
-        </div>
+        <div className="text-sm text-gray-500 italic">正在生成详细计划...</div>
       )}
     </div>
-  )
+  );
 }

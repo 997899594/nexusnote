@@ -1,2 +1,2 @@
-export { Collapsible, type CollapsibleOptions } from './collapsible'
-export { CollapsibleComponent } from './CollapsibleComponent'
+export { CollapsibleComponent } from "./CollapsibleComponent";
+export { Collapsible, type CollapsibleOptions } from "./collapsible";

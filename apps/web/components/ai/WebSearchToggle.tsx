@@ -45,9 +45,7 @@ export function WebSearchToggle({
         title={enabled ? "点击禁用联网搜索" : "点击启用联网搜索"}
       >
         <Globe className="w-4 h-4" strokeWidth={2.5} />
-        <span className="hidden sm:inline">
-          {enabled ? "联网搜索" : "仅本地模型"}
-        </span>
+        <span className="hidden sm:inline">{enabled ? "联网搜索" : "仅本地模型"}</span>
       </button>
     ),
     full: (
@@ -73,9 +71,7 @@ export function WebSearchToggle({
               {enabled ? "联网搜索已启用" : "联网搜索已禁用"}
             </div>
             <div className="text-xs text-neutral-500 dark:text-neutral-400">
-              {enabled
-                ? "AI 可以搜索互联网获取最新信息"
-                : "AI 仅使用内置知识回答问题"}
+              {enabled ? "AI 可以搜索互联网获取最新信息" : "AI 仅使用内置知识回答问题"}
             </div>
           </div>
         </div>
@@ -83,9 +79,7 @@ export function WebSearchToggle({
           type="button"
           onClick={setEnabled}
           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-            enabled
-              ? "bg-violet-500"
-              : "bg-neutral-300 dark:bg-neutral-600"
+            enabled ? "bg-violet-500" : "bg-neutral-300 dark:bg-neutral-600"
           }`}
         >
           <span

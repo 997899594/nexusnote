@@ -1,5 +1,5 @@
 /** @type {import('next').NextConfig} */
-const path = require("path");
+const path = require("node:path");
 // Load .env from monorepo root
 try {
   require("dotenv").config({ path: path.resolve(__dirname, "../../.env") });

@@ -1,16 +1,16 @@
-'use client'
+"use client";
 
-import { Brain, Flame, Target, Calendar, Trophy } from 'lucide-react'
-import Link from 'next/link'
+import { Brain, Flame, Target, Trophy } from "lucide-react";
+import Link from "next/link";
 
 interface ReviewStatsProps {
-  totalCards: number
-  dueToday: number
-  newCards: number
-  learningCards: number
-  masteredCards: number
-  retention: number
-  streak: number
+  totalCards: number;
+  dueToday: number;
+  newCards: number;
+  learningCards: number;
+  masteredCards: number;
+  retention: number;
+  streak: number;
 }
 
 export function ReviewStats({
@@ -78,10 +78,8 @@ export function ReviewStats({
       )}
 
       {dueToday === 0 && (
-        <div className="text-center text-sm text-gray-500 py-2">
-          今日复习已完成，继续保持！
-        </div>
+        <div className="text-center text-sm text-gray-500 py-2">今日复习已完成，继续保持！</div>
       )}
     </div>
-  )
+  );
 }

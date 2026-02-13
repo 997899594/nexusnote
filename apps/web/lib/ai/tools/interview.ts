@@ -8,9 +8,8 @@
  * 3. 支持前端类型安全和自动补全
  */
 
-import { tool, type ToolSet } from "ai";
+import { type ToolSet, tool } from "ai";
 import { z } from "zod";
-import { saveCourseProfile } from "@/lib/ai/profile/course-profile";
 import { searchWeb } from "./chat/web";
 
 /**
@@ -24,28 +23,14 @@ export const presentOptionsTool = tool({
   description: `向用户展示可点击的选项卡片。在询问用户具体问题后调用此工具。`,
 
   inputSchema: z.object({
-    replyToUser: z
-      .string()
-      .describe("在显示选项卡片之前，对用户说的话（回复用户并引出问题）。"),
+    replyToUser: z.string().describe("在显示选项卡片之前，对用户说的话（回复用户并引出问题）。"),
 
-    question: z
-      .string()
-      .describe('卡片标题，5-10个字。例如："选择方向"、"您的水平"'),
+    question: z.string().describe('卡片标题，5-10个字。例如："选择方向"、"您的水平"'),
 
-    options: z
-      .array(z.string())
-      .min(2)
-      .max(4)
-      .describe("选项列表，必须提供2-4个字符串"),
+    options: z.array(z.string()).min(2).max(4).describe("选项列表，必须提供2-4个字符串"),
 
     targetField: z
-      .enum([
-        "goal",
-        "background",
-        "targetOutcome",
-        "cognitiveStyle",
-        "general",
-      ])
+      .enum(["goal", "background", "targetOutcome", "cognitiveStyle", "general"])
       .describe(
         "问题类型：goal=学习目标, background=背景水平, targetOutcome=预期成果, cognitiveStyle=学习风格, general=通用",
       ),
@@ -68,24 +53,17 @@ export const presentOptionsTool = tool({
  * 调用时机：仅在收集完所有必需信息（goal, background, targetOutcome, cognitiveStyle）后调用
  */
 const generateOutlineSchema = z.object({
-  replyToUser: z
-    .string()
-    .describe("在展示大纲之前，对用户说的总结和鼓励的话。"),
+  replyToUser: z.string().describe("在展示大纲之前，对用户说的总结和鼓励的话。"),
 
   title: z.string().describe('课程标题。例如："Python Web开发入门"'),
 
-  description: z
-    .string()
-    .describe("课程描述（2-3句话），说明这门课程的核心价值和适合人群"),
+  description: z.string().describe("课程描述（2-3句话），说明这门课程的核心价值和适合人群"),
 
   difficulty: z
     .enum(["beginner", "intermediate", "advanced"])
     .describe("难度级别，基于用户的 background 决定"),
 
-  estimatedMinutes: z
-    .number()
-    .min(30)
-    .describe("预估学习时长（分钟），基于学习难度和深度合理估算"),
+  estimatedMinutes: z.number().min(30).describe("预估学习时长（分钟），基于学习难度和深度合理估算"),
 
   modules: z
     .array(
@@ -108,9 +86,7 @@ const generateOutlineSchema = z.object({
 
   reason: z
     .string()
-    .describe(
-      "为什么这样设计课程结构？基于用户的目标、背景和学习风格说明设计理念。",
-    ),
+    .describe("为什么这样设计课程结构？基于用户的目标、背景和学习风格说明设计理念。"),
 });
 
 export const generateOutlineTool = tool({

@@ -50,13 +50,9 @@
         "document_chunks_document_id_documents_id_fk": {
           "name": "document_chunks_document_id_documents_id_fk",
           "tableFrom": "document_chunks",
-          "columnsFrom": [
-            "document_id"
-          ],
+          "columnsFrom": ["document_id"],
           "tableTo": "documents",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -144,13 +140,9 @@
         "document_snapshots_document_id_documents_id_fk": {
           "name": "document_snapshots_document_id_documents_id_fk",
           "tableFrom": "document_snapshots",
-          "columnsFrom": [
-            "document_id"
-          ],
+          "columnsFrom": ["document_id"],
           "tableTo": "documents",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -217,13 +209,9 @@
         "documents_workspace_id_workspaces_id_fk": {
           "name": "documents_workspace_id_workspaces_id_fk",
           "tableFrom": "documents",
-          "columnsFrom": [
-            "workspace_id"
-          ],
+          "columnsFrom": ["workspace_id"],
           "tableTo": "workspaces",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -294,26 +282,18 @@
         "learning_chapters_content_id_learning_contents_id_fk": {
           "name": "learning_chapters_content_id_learning_contents_id_fk",
           "tableFrom": "learning_chapters",
-          "columnsFrom": [
-            "content_id"
-          ],
+          "columnsFrom": ["content_id"],
           "tableTo": "learning_contents",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         },
         "learning_chapters_document_id_documents_id_fk": {
           "name": "learning_chapters_document_id_documents_id_fk",
           "tableFrom": "learning_chapters",
-          "columnsFrom": [
-            "document_id"
-          ],
+          "columnsFrom": ["document_id"],
           "tableTo": "documents",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -476,13 +456,9 @@
         "learning_highlights_chapter_id_learning_chapters_id_fk": {
           "name": "learning_highlights_chapter_id_learning_chapters_id_fk",
           "tableFrom": "learning_highlights",
-          "columnsFrom": [
-            "chapter_id"
-          ],
+          "columnsFrom": ["chapter_id"],
           "tableTo": "learning_chapters",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -563,13 +539,9 @@
         "learning_progress_content_id_learning_contents_id_fk": {
           "name": "learning_progress_content_id_learning_contents_id_fk",
           "tableFrom": "learning_progress",
-          "columnsFrom": [
-            "content_id"
-          ],
+          "columnsFrom": ["content_id"],
           "tableTo": "learning_contents",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -630,9 +602,7 @@
       "uniqueConstraints": {
         "users_email_unique": {
           "name": "users_email_unique",
-          "columns": [
-            "email"
-          ],
+          "columns": ["email"],
           "nullsNotDistinct": false
         }
       },
@@ -683,13 +653,9 @@
         "workspaces_owner_id_users_id_fk": {
           "name": "workspaces_owner_id_users_id_fk",
           "tableFrom": "workspaces",
-          "columnsFrom": [
-            "owner_id"
-          ],
+          "columnsFrom": ["owner_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }

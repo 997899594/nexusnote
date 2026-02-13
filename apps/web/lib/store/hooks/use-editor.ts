@@ -7,21 +7,15 @@
 
 "use client";
 
-import { useCallback, useEffect } from "react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import type { Editor } from "@tiptap/react";
-import type {
-  DocumentStructure,
-  DocumentBlock,
-  EditCommand,
-} from "@/lib/editor/document-parser";
+import { useCallback, useEffect } from "react";
+import type { DocumentBlock, DocumentStructure, EditCommand } from "@/lib/editor/document-parser";
 import {
-  editorAtom,
+  documentContentAtom,
   documentJSONAtom,
   documentStructureAtom,
-  documentContentAtom,
   documentSummaryAtom,
-  setEditorAtom,
+  editorAtom,
   highlightBlockAtom,
   selectedBlockIdAtom,
 } from "../atoms/editor";
@@ -37,8 +31,8 @@ import {
  */
 export function useEditor() {
   const [editor, setEditor] = useAtom(editorAtom);
-  const [documentJSON] = useAtom(documentJSONAtom);
-  const [documentStructure] = useAtom(documentStructureAtom);
+  const [_documentJSON] = useAtom(documentJSONAtom);
+  const [_documentStructure] = useAtom(documentStructureAtom);
   const documentContent = useAtomValue(documentContentAtom);
   const documentSummary = useAtomValue(documentSummaryAtom);
   const [selectedBlockId, setSelectedBlockId] = useAtom(selectedBlockIdAtom);
@@ -73,7 +67,11 @@ export function useEditor() {
     const blocks: DocumentBlock[] = [];
 
     doc.descendants((node, pos) => {
-      if (node.type.name === "paragraph" || node.type.name === "heading" || node.type.name === "codeBlock") {
+      if (
+        node.type.name === "paragraph" ||
+        node.type.name === "heading" ||
+        node.type.name === "codeBlock"
+      ) {
         blocks.push({
           id: `block-${pos}`,
           type: node.type.name,
@@ -116,69 +114,77 @@ export function useEditor() {
   /**
    * 解析块引用
    */
-  const resolveBlockRef = useCallback((reference: string): DocumentBlock | null => {
-    if (!editor) return null;
+  const resolveBlockRef = useCallback(
+    (reference: string): DocumentBlock | null => {
+      if (!editor) return null;
 
-    const structure = getDocumentStructure();
-    if (!structure) return null;
+      const structure = getDocumentStructure();
+      if (!structure) return null;
 
-    // 简化实现
-    return structure.blocks.find((b) => b.id === reference) || null;
-  }, [editor, getDocumentStructure]);
+      // 简化实现
+      return structure.blocks.find((b) => b.id === reference) || null;
+    },
+    [editor, getDocumentStructure],
+  );
 
   /**
    * 应用编辑命令
    * TODO: 需要改为 async 或使用同步实现
    */
-  const applyEdit = useCallback((command: EditCommand): boolean => {
-    if (!editor) return false;
+  const applyEdit = useCallback(
+    (_command: EditCommand): boolean => {
+      if (!editor) return false;
 
-    // 简化实现：暂时返回 false
-    // 完整实现需要动态导入 document-parser
-    return false;
-  }, [editor]);
+      // 简化实现：暂时返回 false
+      // 完整实现需要动态导入 document-parser
+      return false;
+    },
+    [editor],
+  );
 
   /**
    * 批量应用编辑命令
    * TODO: 需要改为 async 或使用同步实现
    */
-  const applyEdits = useCallback((commands: EditCommand[]): { success: number; failed: number } => {
-    if (!editor) return { success: 0, failed: commands.length };
+  const applyEdits = useCallback(
+    (commands: EditCommand[]): { success: number; failed: number } => {
+      if (!editor) return { success: 0, failed: commands.length };
 
-    // 简化实现：暂时返回默认值
-    return { success: 0, failed: commands.length };
-  }, [editor]);
+      // 简化实现：暂时返回默认值
+      return { success: 0, failed: commands.length };
+    },
+    [editor],
+  );
 
   /**
    * 高亮指定块
    */
-  const highlightBlock = useCallback((blockId: string) => {
-    setSelectedBlockId(blockId);
+  const highlightBlock = useCallback(
+    (blockId: string) => {
+      setSelectedBlockId(blockId);
 
-    if (!editor) return;
+      if (!editor) return;
 
-    // 获取结构并查找块
-    const doc = editor.state.doc;
-    let targetBlock: { from: number; to: number } | null = null;
+      // 获取结构并查找块
+      const doc = editor.state.doc;
+      let targetBlock: { from: number; to: number } | null = null;
 
-    doc.descendants((node, pos) => {
-      const currentId = `block-${pos}`;
-      if (currentId === blockId && !targetBlock) {
-        targetBlock = {
-          from: pos + 1,
-          to: pos + node.nodeSize - 1,
-        };
+      doc.descendants((node, pos) => {
+        const currentId = `block-${pos}`;
+        if (currentId === blockId && !targetBlock) {
+          targetBlock = {
+            from: pos + 1,
+            to: pos + node.nodeSize - 1,
+          };
+        }
+      });
+
+      if (targetBlock) {
+        editor.chain().focus().setTextSelection(targetBlock).run();
       }
-    });
-
-    if (targetBlock) {
-      editor
-        .chain()
-        .focus()
-        .setTextSelection(targetBlock)
-        .run();
-    }
-  }, [editor, setSelectedBlockId]);
+    },
+    [editor, setSelectedBlockId],
+  );
 
   // 同步 documentJSON 到 atom
   useEffect(() => {
@@ -218,6 +224,7 @@ export function useEditor() {
  */
 export function useEditorOptional() {
   try {
+    // biome-ignore lint/correctness/useHookAtTopLevel: hook is always called, try/catch is for context check
     return useEditor();
   } catch {
     return {

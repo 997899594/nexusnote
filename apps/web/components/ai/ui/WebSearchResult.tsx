@@ -3,24 +3,24 @@
  *
  * 渲染 Tavily searchWeb 工具的搜索结果
  */
-'use client'
+"use client";
 
-import { ExternalLink, Search, Globe, Calendar } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { motion } from "framer-motion";
+import { Calendar, ExternalLink, Globe, Search } from "lucide-react";
 
 interface SearchResult {
-  title: string
-  url: string
-  content: string
-  score?: number
-  publishedDate?: string
+  title: string;
+  url: string;
+  content: string;
+  score?: number;
+  publishedDate?: string;
 }
 
 interface WebSearchResultProps {
-  query: string
-  answer?: string
-  results: SearchResult[]
-  searchDepth: 'basic' | 'advanced'
+  query: string;
+  answer?: string;
+  results: SearchResult[];
+  searchDepth: "basic" | "advanced";
 }
 
 export function WebSearchResult({ query, answer, results, searchDepth }: WebSearchResultProps) {
@@ -37,7 +37,7 @@ export function WebSearchResult({ query, answer, results, searchDepth }: WebSear
             <h3 className="font-semibold text-sm">{query}</h3>
           </div>
           <p className="text-[10px] text-muted-foreground mt-0.5">
-            找到 {results.length} 个结果 · {searchDepth === 'advanced' ? '深度搜索' : '快速搜索'}
+            找到 {results.length} 个结果 · {searchDepth === "advanced" ? "深度搜索" : "快速搜索"}
           </p>
         </div>
       </div>
@@ -75,9 +75,7 @@ export function WebSearchResult({ query, answer, results, searchDepth }: WebSear
               </h4>
               <ExternalLink className="w-3 h-3 text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
-            <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
-              {result.content}
-            </p>
+            <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{result.content}</p>
             <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
               <span className="flex items-center gap-1">
                 <Globe className="w-3 h-3" />
@@ -86,7 +84,7 @@ export function WebSearchResult({ query, answer, results, searchDepth }: WebSear
               {result.publishedDate && (
                 <span className="flex items-center gap-1">
                   <Calendar className="w-3 h-3" />
-                  {new Date(result.publishedDate).toLocaleDateString('zh-CN')}
+                  {new Date(result.publishedDate).toLocaleDateString("zh-CN")}
                 </span>
               )}
               {result.score && (
@@ -100,9 +98,7 @@ export function WebSearchResult({ query, answer, results, searchDepth }: WebSear
       </div>
 
       {/* Footer Tip */}
-      <p className="text-[10px] text-center text-muted-foreground mt-3">
-        💡 点击结果可查看原文
-      </p>
+      <p className="text-[10px] text-center text-muted-foreground mt-3">💡 点击结果可查看原文</p>
     </div>
-  )
+  );
 }

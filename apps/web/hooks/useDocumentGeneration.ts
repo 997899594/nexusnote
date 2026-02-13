@@ -10,7 +10,6 @@
 import { experimental_useObject as useObject } from "@ai-sdk/react";
 import { z } from "zod";
 import { generateDocAction } from "@/app/actions/ai";
-import { type AIRequest } from "@/lib/ai/gateway/service";
 
 export interface Chapter {
   title: string;
@@ -37,16 +36,13 @@ export function useDocumentGeneration() {
     api: "/api/generate-doc",
     schema: DocumentSchema,
     // 架构师重构：将 fetch 替换为 Server Action
-    fetch: async (url, options) => {
+    fetch: async (_url, options) => {
       const body = JSON.parse(options?.body as string);
       return (await generateDocAction(body)) as Response;
     },
   });
 
-  const generate = (options: {
-    topic: string;
-    depth?: "shallow" | "medium" | "deep";
-  }) => {
+  const generate = (options: { topic: string; depth?: "shallow" | "medium" | "deep" }) => {
     clear();
     submit({
       topic: options.topic,

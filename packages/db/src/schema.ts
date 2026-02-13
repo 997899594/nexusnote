@@ -1,15 +1,15 @@
 import { env } from "@nexusnote/config";
 import { relations } from "drizzle-orm";
 import {
-  pgTable,
-  uuid,
-  text,
-  timestamp,
-  integer,
+  boolean,
   customType,
   index,
+  integer,
   jsonb,
-  boolean,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
 } from "drizzle-orm/pg-core";
 
 // 自定义 bytea 类型
@@ -332,18 +332,12 @@ export const extractedNotes = pgTable(
 
     // 来源追溯 (支持两种来源)
     sourceType: text("source_type").notNull(), // 'document' | 'learning'
-    sourceDocumentId: uuid("source_document_id").references(
-      () => documents.id,
-      {
-        onDelete: "set null",
-      },
-    ),
-    sourceChapterId: uuid("source_chapter_id").references(
-      () => learningChapters.id,
-      {
-        onDelete: "set null",
-      },
-    ),
+    sourceDocumentId: uuid("source_document_id").references(() => documents.id, {
+      onDelete: "set null",
+    }),
+    sourceChapterId: uuid("source_chapter_id").references(() => learningChapters.id, {
+      onDelete: "set null",
+    }),
     sourcePosition: jsonb("source_position"), // { from: number, to: number }
 
     // AI 分类
@@ -456,16 +450,13 @@ export const usersRelations = relations(users, ({ many }) => ({
   workspaces: many(workspaces),
 }));
 
-export const courseProfilesRelations = relations(
-  courseProfiles,
-  ({ one, many }) => ({
-    user: one(users, {
-      fields: [courseProfiles.userId],
-      references: [users.id],
-    }),
-    chapters: many(courseChapters),
+export const courseProfilesRelations = relations(courseProfiles, ({ one, many }) => ({
+  user: one(users, {
+    fields: [courseProfiles.userId],
+    references: [users.id],
   }),
-);
+  chapters: many(courseChapters),
+}));
 
 export const courseChaptersRelations = relations(courseChapters, ({ one }) => ({
   profile: one(courseProfiles, {

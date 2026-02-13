@@ -3,62 +3,62 @@
  *
  * 渲染 generateQuiz 工具生成的测验
  */
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { CheckCircle, XCircle, ChevronDown, ChevronUp, Award } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { AnimatePresence, motion } from "framer-motion";
+import { Award, CheckCircle, ChevronDown, ChevronUp, XCircle } from "lucide-react";
+import { useState } from "react";
 
 interface Question {
-  id: number
-  type: 'multiple_choice' | 'true_false' | 'fill_blank'
-  question: string
-  options?: string[]
-  answer: string | number
-  explanation?: string
+  id: number;
+  type: "multiple_choice" | "true_false" | "fill_blank";
+  question: string;
+  options?: string[];
+  answer: string | number;
+  explanation?: string;
 }
 
 interface QuizResultProps {
-  topic: string
-  difficulty: string
-  questions: Question[]
+  topic: string;
+  difficulty: string;
+  questions: Question[];
 }
 
 export function QuizResult({ topic, difficulty, questions }: QuizResultProps) {
-  const [answers, setAnswers] = useState<Record<number, string | number>>({})
-  const [showResults, setShowResults] = useState(false)
-  const [expandedExplanation, setExpandedExplanation] = useState<number | null>(null)
+  const [answers, setAnswers] = useState<Record<number, string | number>>({});
+  const [showResults, setShowResults] = useState(false);
+  const [expandedExplanation, setExpandedExplanation] = useState<number | null>(null);
 
   const handleAnswer = (questionId: number, answer: string | number) => {
-    if (showResults) return
-    setAnswers((prev) => ({ ...prev, [questionId]: answer }))
-  }
+    if (showResults) return;
+    setAnswers((prev) => ({ ...prev, [questionId]: answer }));
+  };
 
   const checkAnswers = () => {
-    setShowResults(true)
-  }
+    setShowResults(true);
+  };
 
   const resetQuiz = () => {
-    setAnswers({})
-    setShowResults(false)
-    setExpandedExplanation(null)
-  }
+    setAnswers({});
+    setShowResults(false);
+    setExpandedExplanation(null);
+  };
 
   const correctCount = questions.filter(
-    (q) => answers[q.id]?.toString().toLowerCase() === q.answer.toString().toLowerCase()
-  ).length
+    (q) => answers[q.id]?.toString().toLowerCase() === q.answer.toString().toLowerCase(),
+  ).length;
 
   const difficultyColors = {
-    easy: 'bg-green-100 text-green-700',
-    medium: 'bg-yellow-100 text-yellow-700',
-    hard: 'bg-red-100 text-red-700',
-  }
+    easy: "bg-green-100 text-green-700",
+    medium: "bg-yellow-100 text-yellow-700",
+    hard: "bg-red-100 text-red-700",
+  };
 
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ type: 'spring', bounce: 0.3, duration: 0.6 }}
+      transition={{ type: "spring", bounce: 0.3, duration: 0.6 }}
       className="my-3 p-4 bg-gradient-to-br from-violet-50 to-indigo-50 dark:from-violet-950/30 dark:to-indigo-950/30 rounded-2xl border border-violet-200/50 dark:border-violet-800/50"
     >
       {/* Header */}
@@ -66,12 +66,12 @@ export function QuizResult({ topic, difficulty, questions }: QuizResultProps) {
         <div>
           <h3 className="font-semibold text-sm">📝 {topic}</h3>
           <div className="flex items-center gap-2 mt-1">
-            <span className={`text-[10px] px-2 py-0.5 rounded-full ${difficultyColors[difficulty as keyof typeof difficultyColors] || difficultyColors.medium}`}>
-              {difficulty === 'easy' ? '简单' : difficulty === 'hard' ? '困难' : '中等'}
+            <span
+              className={`text-[10px] px-2 py-0.5 rounded-full ${difficultyColors[difficulty as keyof typeof difficultyColors] || difficultyColors.medium}`}
+            >
+              {difficulty === "easy" ? "简单" : difficulty === "hard" ? "困难" : "中等"}
             </span>
-            <span className="text-[10px] text-muted-foreground">
-              {questions.length} 题
-            </span>
+            <span className="text-[10px] text-muted-foreground">{questions.length} 题</span>
           </div>
         </div>
         {showResults && (
@@ -103,20 +103,21 @@ export function QuizResult({ topic, difficulty, questions }: QuizResultProps) {
                 {idx + 1}
               </span>
               <p className="text-sm flex-1">{q.question}</p>
-              {showResults && (
-                answers[q.id]?.toString().toLowerCase() === q.answer.toString().toLowerCase()
-                  ? <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
-                  : <XCircle className="w-4 h-4 text-red-500 shrink-0" />
-              )}
+              {showResults &&
+                (answers[q.id]?.toString().toLowerCase() === q.answer.toString().toLowerCase() ? (
+                  <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
+                ) : (
+                  <XCircle className="w-4 h-4 text-red-500 shrink-0" />
+                ))}
             </div>
 
             {/* Multiple Choice */}
-            {q.type === 'multiple_choice' && q.options && (
+            {q.type === "multiple_choice" && q.options && (
               <div className="grid grid-cols-2 gap-2 mt-2">
                 {q.options.map((opt, optIdx) => {
-                  const isSelected = answers[q.id] === optIdx
-                  const isCorrect = showResults && optIdx === q.answer
-                  const isWrong = showResults && isSelected && optIdx !== q.answer
+                  const isSelected = answers[q.id] === optIdx;
+                  const isCorrect = showResults && optIdx === q.answer;
+                  const isWrong = showResults && isSelected && optIdx !== q.answer;
 
                   return (
                     <button
@@ -125,29 +126,29 @@ export function QuizResult({ topic, difficulty, questions }: QuizResultProps) {
                       disabled={showResults}
                       className={`text-left text-xs p-2 rounded-lg border transition-all ${
                         isCorrect
-                          ? 'border-green-500 bg-green-50 dark:bg-green-950/30'
+                          ? "border-green-500 bg-green-50 dark:bg-green-950/30"
                           : isWrong
-                            ? 'border-red-500 bg-red-50 dark:bg-red-950/30'
+                            ? "border-red-500 bg-red-50 dark:bg-red-950/30"
                             : isSelected
-                              ? 'border-violet-500 bg-violet-50 dark:bg-violet-950/30'
-                              : 'border-gray-200 dark:border-gray-700 hover:border-violet-300'
+                              ? "border-violet-500 bg-violet-50 dark:bg-violet-950/30"
+                              : "border-gray-200 dark:border-gray-700 hover:border-violet-300"
                       }`}
                     >
                       <span className="font-medium mr-1">{String.fromCharCode(65 + optIdx)}.</span>
                       {opt}
                     </button>
-                  )
+                  );
                 })}
               </div>
             )}
 
             {/* True/False */}
-            {q.type === 'true_false' && (
+            {q.type === "true_false" && (
               <div className="flex gap-2 mt-2">
-                {['true', 'false'].map((opt) => {
-                  const isSelected = answers[q.id] === opt
-                  const isCorrect = showResults && opt === q.answer
-                  const isWrong = showResults && isSelected && opt !== q.answer
+                {["true", "false"].map((opt) => {
+                  const isSelected = answers[q.id] === opt;
+                  const isCorrect = showResults && opt === q.answer;
+                  const isWrong = showResults && isSelected && opt !== q.answer;
 
                   return (
                     <button
@@ -156,35 +157,35 @@ export function QuizResult({ topic, difficulty, questions }: QuizResultProps) {
                       disabled={showResults}
                       className={`flex-1 text-xs py-2 rounded-lg border transition-all ${
                         isCorrect
-                          ? 'border-green-500 bg-green-50 dark:bg-green-950/30'
+                          ? "border-green-500 bg-green-50 dark:bg-green-950/30"
                           : isWrong
-                            ? 'border-red-500 bg-red-50 dark:bg-red-950/30'
+                            ? "border-red-500 bg-red-50 dark:bg-red-950/30"
                             : isSelected
-                              ? 'border-violet-500 bg-violet-50 dark:bg-violet-950/30'
-                              : 'border-gray-200 dark:border-gray-700 hover:border-violet-300'
+                              ? "border-violet-500 bg-violet-50 dark:bg-violet-950/30"
+                              : "border-gray-200 dark:border-gray-700 hover:border-violet-300"
                       }`}
                     >
-                      {opt === 'true' ? '✓ 正确' : '✗ 错误'}
+                      {opt === "true" ? "✓ 正确" : "✗ 错误"}
                     </button>
-                  )
+                  );
                 })}
               </div>
             )}
 
             {/* Fill Blank */}
-            {q.type === 'fill_blank' && (
+            {q.type === "fill_blank" && (
               <input
                 type="text"
                 placeholder="输入答案..."
-                value={(answers[q.id] as string) || ''}
+                value={(answers[q.id] as string) || ""}
                 onChange={(e) => handleAnswer(q.id, e.target.value)}
                 disabled={showResults}
                 className={`w-full mt-2 text-xs p-2 rounded-lg border ${
                   showResults
                     ? answers[q.id]?.toString().toLowerCase() === q.answer.toString().toLowerCase()
-                      ? 'border-green-500 bg-green-50 dark:bg-green-950/30'
-                      : 'border-red-500 bg-red-50 dark:bg-red-950/30'
-                    : 'border-gray-200 dark:border-gray-700'
+                      ? "border-green-500 bg-green-50 dark:bg-green-950/30"
+                      : "border-red-500 bg-red-50 dark:bg-red-950/30"
+                    : "border-gray-200 dark:border-gray-700"
                 }`}
               />
             )}
@@ -196,14 +197,18 @@ export function QuizResult({ topic, difficulty, questions }: QuizResultProps) {
                   onClick={() => setExpandedExplanation(expandedExplanation === q.id ? null : q.id)}
                   className="text-[10px] text-muted-foreground flex items-center gap-1 hover:text-violet-500"
                 >
-                  {expandedExplanation === q.id ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                  {expandedExplanation === q.id ? (
+                    <ChevronUp className="w-3 h-3" />
+                  ) : (
+                    <ChevronDown className="w-3 h-3" />
+                  )}
                   查看解析
                 </button>
                 <AnimatePresence>
                   {expandedExplanation === q.id && (
                     <motion.p
                       initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
+                      animate={{ height: "auto", opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
                       className="text-xs text-muted-foreground mt-1 pl-2 border-l-2 border-violet-300"
                     >
@@ -237,5 +242,5 @@ export function QuizResult({ topic, difficulty, questions }: QuizResultProps) {
         )}
       </div>
     </motion.div>
-  )
+  );
 }

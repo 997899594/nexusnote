@@ -1,4 +1,4 @@
-import { marked } from 'marked'
+import { marked } from "marked";
 
 // ============================================
 // Markdown 工具函数
@@ -7,19 +7,19 @@ import { marked } from 'marked'
 
 // 配置 marked
 marked.setOptions({
-  breaks: true,      // 换行转 <br>
-  gfm: true,         // GitHub Flavored Markdown
-})
+  breaks: true, // 换行转 <br>
+  gfm: true, // GitHub Flavored Markdown
+});
 
 /**
  * 将 Markdown 转换为 HTML
  */
 export function markdownToHtml(markdown: string): string {
-  if (!markdown) return ''
+  if (!markdown) return "";
 
   // marked.parse 可能返回 Promise，使用 parseInline 或同步方式
-  const html = marked.parse(markdown, { async: false }) as string
-  return html
+  const html = marked.parse(markdown, { async: false }) as string;
+  return html;
 }
 
 /**
@@ -27,49 +27,47 @@ export function markdownToHtml(markdown: string): string {
  */
 export function containsMarkdown(text: string): boolean {
   const markdownPatterns = [
-    /^#{1,6}\s/m,           // 标题 # ## ###
-    /\*\*[^*]+\*\*/,        // 粗体 **text**
-    /\*[^*]+\*/,            // 斜体 *text*
-    /`[^`]+`/,              // 行内代码 `code`
-    /```[\s\S]*?```/,       // 代码块
-    /^\s*[-*+]\s/m,         // 无序列表
-    /^\s*\d+\.\s/m,         // 有序列表
-    /^\s*>\s/m,             // 引用
-    /\[.+\]\(.+\)/,         // 链接 [text](url)
-    /!\[.*\]\(.+\)/,        // 图片 ![alt](url)
-    /^\s*\|.+\|/m,          // 表格
-    /^---+$/m,              // 分隔线
-  ]
+    /^#{1,6}\s/m, // 标题 # ## ###
+    /\*\*[^*]+\*\*/, // 粗体 **text**
+    /\*[^*]+\*/, // 斜体 *text*
+    /`[^`]+`/, // 行内代码 `code`
+    /```[\s\S]*?```/, // 代码块
+    /^\s*[-*+]\s/m, // 无序列表
+    /^\s*\d+\.\s/m, // 有序列表
+    /^\s*>\s/m, // 引用
+    /\[.+\]\(.+\)/, // 链接 [text](url)
+    /!\[.*\]\(.+\)/, // 图片 ![alt](url)
+    /^\s*\|.+\|/m, // 表格
+    /^---+$/m, // 分隔线
+  ];
 
-  return markdownPatterns.some(pattern => pattern.test(text))
+  return markdownPatterns.some((pattern) => pattern.test(text));
 }
 
 /**
  * 智能转换：如果是 Markdown 则转 HTML，否则返回原文
  */
 export function smartConvert(text: string): { html: string; isMarkdown: boolean } {
-  const isMarkdown = containsMarkdown(text)
+  const isMarkdown = containsMarkdown(text);
 
   if (isMarkdown) {
     return {
       html: markdownToHtml(text),
       isMarkdown: true,
-    }
+    };
   }
 
   // 非 Markdown，转换换行为 <br> 或 <p>
-  const paragraphs = text.split(/\n\n+/)
+  const paragraphs = text.split(/\n\n+/);
   if (paragraphs.length > 1) {
-    const html = paragraphs
-      .map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`)
-      .join('')
-    return { html, isMarkdown: false }
+    const html = paragraphs.map((p) => `<p>${p.replace(/\n/g, "<br>")}</p>`).join("");
+    return { html, isMarkdown: false };
   }
 
   return {
-    html: `<p>${text.replace(/\n/g, '<br>')}</p>`,
+    html: `<p>${text.replace(/\n/g, "<br>")}</p>`,
     isMarkdown: false,
-  }
+  };
 }
 
 /**
@@ -77,11 +75,11 @@ export function smartConvert(text: string): { html: string; isMarkdown: boolean 
  */
 export function sanitizeHtml(html: string): string {
   // 移除 script 标签
-  let clean = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+  let clean = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "");
   // 移除 on* 事件属性
-  clean = clean.replace(/\s+on\w+="[^"]*"/gi, '')
-  clean = clean.replace(/\s+on\w+='[^']*'/gi, '')
-  return clean
+  clean = clean.replace(/\s+on\w+="[^"]*"/gi, "");
+  clean = clean.replace(/\s+on\w+='[^']*'/gi, "");
+  return clean;
 }
 
 export default {
@@ -89,4 +87,4 @@ export default {
   containsMarkdown,
   smartConvert,
   sanitizeHtml,
-}
+};

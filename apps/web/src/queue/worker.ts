@@ -11,20 +11,12 @@
  * npm run queue:worker
  */
 
+import { env } from "@nexusnote/config";
+import { db, documentChunks, documents, eq, extractedNotes, sql, topics } from "@nexusnote/db";
 import { Worker } from "bullmq";
 import IORedis from "ioredis";
-import {
-  db,
-  documents,
-  documentChunks,
-  extractedNotes,
-  topics,
-  eq,
-  sql,
-} from "@nexusnote/db";
-import { env } from "@nexusnote/config";
-import { generateEmbeddings } from "./utils/embeddings";
 import { embeddingModel, isEmbeddingConfigured } from "@/lib/ai/registry";
+import { generateEmbeddings } from "./utils/embeddings";
 
 // Redis 连接
 const redis = new IORedis(env.REDIS_URL || "redis://localhost:6379", {
@@ -71,9 +63,7 @@ function chunkText(
 /**
  * 处理 RAG 索引任务
  */
-async function processRAGIndexJob(job: {
-  data: { documentId: string; plainText: string };
-}) {
+async function processRAGIndexJob(job: { data: { documentId: string; plainText: string } }) {
   const { documentId, plainText } = job.data;
 
   console.log(`[RAG Worker] Processing document: ${documentId}`);
@@ -90,9 +80,7 @@ async function processRAGIndexJob(job: {
     }
 
     // 2. 清理旧的 chunks（可选：先删除该文档的所有旧 chunks）
-    await db
-      .delete(documentChunks)
-      .where(eq(documentChunks.documentId, documentId));
+    await db.delete(documentChunks).where(eq(documentChunks.documentId, documentId));
 
     console.log(`[RAG Worker] Cleared old chunks for: ${documentId}`);
 
@@ -139,9 +127,7 @@ async function processRAGIndexJob(job: {
       await db.insert(documentChunks).values(batch).onConflictDoNothing();
     }
 
-    console.log(
-      `[RAG Worker] ✅ Indexed ${chunks.length} chunks for: ${documentId}`,
-    );
+    console.log(`[RAG Worker] ✅ Indexed ${chunks.length} chunks for: ${documentId}`);
 
     return {
       success: true,
@@ -261,9 +247,7 @@ async function processNoteClassifyJob(job: {
       })
       .where(eq(extractedNotes.id, noteId));
 
-    console.log(
-      `[Note Classify] ✅ Classified note: ${noteId}, topic: ${topicId || "none"}`,
-    );
+    console.log(`[Note Classify] ✅ Classified note: ${noteId}, topic: ${topicId || "none"}`);
 
     return { success: true, noteId, topicId };
   } catch (err) {

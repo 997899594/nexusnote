@@ -1,33 +1,27 @@
 "use client";
 
-import { Extension, Range } from "@tiptap/core";
-import { ReactRenderer, Editor } from "@tiptap/react";
+import { Extension, type Range } from "@tiptap/core";
+import { type Editor, ReactRenderer } from "@tiptap/react";
 import Suggestion from "@tiptap/suggestion";
-import tippy, { Instance as TippyInstance } from "tippy.js";
 import {
-  forwardRef,
-  useEffect,
-  useImperativeHandle,
-  useState,
-  useCallback,
-} from "react";
-import {
+  CheckSquare,
+  ChevronRight,
+  Code,
   Heading1,
   Heading2,
   Heading3,
+  Image,
+  Info,
   List,
   ListOrdered,
-  CheckSquare,
-  Quote,
-  Code,
   Minus,
+  Quote,
   Sparkles,
   Table,
-  Image,
   Youtube,
-  Info,
-  ChevronRight,
 } from "lucide-react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from "react";
+import tippy, { type Instance as TippyInstance } from "tippy.js";
 
 interface CommandItem {
   title: string;
@@ -42,12 +36,7 @@ const COMMANDS: CommandItem[] = [
     description: "Large section heading",
     icon: <Heading1 className="w-4 h-4" />,
     command: ({ editor, range }) => {
-      editor
-        .chain()
-        .focus()
-        .deleteRange(range)
-        .setNode("heading", { level: 1 })
-        .run();
+      editor.chain().focus().deleteRange(range).setNode("heading", { level: 1 }).run();
     },
   },
   {
@@ -55,12 +44,7 @@ const COMMANDS: CommandItem[] = [
     description: "Medium section heading",
     icon: <Heading2 className="w-4 h-4" />,
     command: ({ editor, range }) => {
-      editor
-        .chain()
-        .focus()
-        .deleteRange(range)
-        .setNode("heading", { level: 2 })
-        .run();
+      editor.chain().focus().deleteRange(range).setNode("heading", { level: 2 }).run();
     },
   },
   {
@@ -68,12 +52,7 @@ const COMMANDS: CommandItem[] = [
     description: "Small section heading",
     icon: <Heading3 className="w-4 h-4" />,
     command: ({ editor, range }) => {
-      editor
-        .chain()
-        .focus()
-        .deleteRange(range)
-        .setNode("heading", { level: 3 })
-        .run();
+      editor.chain().focus().deleteRange(range).setNode("heading", { level: 3 }).run();
     },
   },
   {
@@ -144,12 +123,7 @@ const COMMANDS: CommandItem[] = [
     command: ({ editor, range }) => {
       const url = window.prompt("Enter YouTube URL:");
       if (url) {
-        editor
-          .chain()
-          .focus()
-          .deleteRange(range)
-          .setYoutubeVideo({ src: url })
-          .run();
+        editor.chain().focus().deleteRange(range).setYoutubeVideo({ src: url }).run();
       }
     },
   },
@@ -231,7 +205,7 @@ export const CommandList = forwardRef<CommandListRef, CommandListProps>(
 
     useEffect(() => {
       setSelectedIndex(0);
-    }, [items]);
+    }, []);
 
     useImperativeHandle(ref, () => ({
       onKeyDown: ({ event }) => {
@@ -281,17 +255,13 @@ export const CommandList = forwardRef<CommandListRef, CommandListProps>(
           >
             <div
               className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
-                index === selectedIndex
-                  ? "bg-white/10"
-                  : "bg-black/5 group-hover:bg-black/10"
+                index === selectedIndex ? "bg-white/10" : "bg-black/5 group-hover:bg-black/10"
               }`}
             >
               {item.icon}
             </div>
             <div className="flex flex-col">
-              <div className="text-[11px] font-black uppercase tracking-widest">
-                {item.title}
-              </div>
+              <div className="text-[11px] font-black uppercase tracking-widest">{item.title}</div>
               <div
                 className={`text-[9px] font-medium leading-tight mt-0.5 ${
                   index === selectedIndex ? "text-white/40" : "text-black/30"
@@ -345,9 +315,7 @@ export const SlashCommand = Extension.create({
         editor: this.editor,
         ...this.options.suggestion,
         items: ({ query }: { query: string }) => {
-          return COMMANDS.filter((item) =>
-            item.title.toLowerCase().includes(query.toLowerCase()),
-          );
+          return COMMANDS.filter((item) => item.title.toLowerCase().includes(query.toLowerCase()));
         },
         render: () => {
           let component: ReactRenderer | null = null;
@@ -389,9 +357,7 @@ export const SlashCommand = Extension.create({
                 return true;
               }
 
-              return (
-                (component?.ref as CommandListRef)?.onKeyDown(props) ?? false
-              );
+              return (component?.ref as CommandListRef)?.onKeyDown(props) ?? false;
             },
 
             onExit() {

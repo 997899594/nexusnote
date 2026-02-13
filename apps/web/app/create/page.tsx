@@ -1,11 +1,11 @@
-import { auth, type AuthSession } from "@/auth";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import CreatePageClient from "./client-page";
+import { type AuthSession, auth } from "@/auth";
 import { CreatePageSkeleton } from "@/components/loading/skeletons";
+import CreatePageClient from "./client-page";
 
 export default async function CreatePage() {
-  const session = await auth() as AuthSession | null;
+  const session = (await auth()) as AuthSession | null;
 
   if (!session?.user?.id) {
     redirect("/login");

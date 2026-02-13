@@ -1,12 +1,12 @@
 // Chat Agent - 通用对话、知识问答、文档编辑
 export {
-  chatAgent,
   type ChatAgentMessage,
   type ChatCallOptions,
+  chatAgent,
 } from "./chat-agent";
 // Interview Agent - 课程规划访谈
 export {
-  interviewAgent,
   type InterviewAgentMessage,
   type InterviewContext,
+  interviewAgent,
 } from "./interview/agent";

@@ -9,7 +9,6 @@
  * - 批量嵌入生成（embedMany）
  */
 
-import { embedMany, cosineSimilarity, type EmbeddingModel } from "ai";
 import { searchNotesAction } from "@/app/actions/note";
 
 // ============================================
@@ -74,7 +73,7 @@ export class RAGService {
    */
   async search(
     query: string,
-    userId: string,
+    _userId: string,
     topK: number = this.defaultTopK,
   ): Promise<RAGContext> {
     const emptyResult: RAGContext = { context: "", sources: [], results: [] };
@@ -120,9 +119,7 @@ export class RAGService {
         const sources: RAGSource[] = Array.from(
           new Set(relevant.map((r: RAGSearchResult) => r.documentId)),
         ).map((docId) => {
-          const match = relevant.find(
-            (r: RAGSearchResult) => r.documentId === docId,
-          );
+          const match = relevant.find((r: RAGSearchResult) => r.documentId === docId);
           return {
             documentId: docId,
             title: match?.documentTitle || "未知文档",
@@ -200,10 +197,7 @@ export function getLastUserMessage(
 /**
  * 构建包含 RAG 上下文的系统提示
  */
-export function buildRAGSystemPrompt(
-  basePrompt: string,
-  ragContext: RAGContext,
-): string {
+export function buildRAGSystemPrompt(basePrompt: string, ragContext: RAGContext): string {
   if (!ragContext.context) {
     return basePrompt;
   }

@@ -1,11 +1,10 @@
 "use client";
 
-import React from "react";
-import { Streamdown } from "streamdown";
-import { mermaid } from "@streamdown/mermaid";
-import { math } from "@streamdown/math";
-import { code } from "@streamdown/code";
 import { cjk } from "@streamdown/cjk";
+import { code } from "@streamdown/code";
+import { math } from "@streamdown/math";
+import { mermaid } from "@streamdown/mermaid";
+import { Streamdown } from "streamdown";
 
 interface ContentRendererProps {
   content: string;
@@ -21,10 +20,7 @@ interface ContentRendererProps {
  * 3. 深度集成 Mermaid (图表), KaTeX (数学), Shiki (代码)
  * 4. 针对中文优化的排版（CJK 扩展）
  */
-export function ContentRenderer({
-  content,
-  className = "",
-}: ContentRendererProps) {
+export function ContentRenderer({ content, className = "" }: ContentRendererProps) {
   if (!content) return null;
 
   return (

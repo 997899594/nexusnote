@@ -1,10 +1,9 @@
+import { env } from "@nexusnote/config";
+import { db, eq, users } from "@nexusnote/db";
+import { type JWTPayload, jwtVerify, SignJWT } from "jose";
 import NextAuth from "next-auth";
-import { env, clientEnv } from "@nexusnote/config";
 import Credentials from "next-auth/providers/credentials";
 import GitHub from "next-auth/providers/github";
-import Google from "next-auth/providers/google";
-import { SignJWT, jwtVerify, type JWTPayload } from "jose";
-import { db, users, eq } from "@nexusnote/db";
 
 // ============================================
 // 类型定义 - 隔离在模块内，不污染全局
@@ -63,11 +62,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const name = (credentials.name as string) || email.split("@")[0];
 
         // Check if user exists
-        const existingUsers = await db
-          .select()
-          .from(users)
-          .where(eq(users.email, email))
-          .limit(1);
+        const existingUsers = await db.select().from(users).where(eq(users.email, email)).limit(1);
         let user = existingUsers[0];
 
         // If not, create one
@@ -114,7 +109,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       try {
         const { payload } = await jwtVerify(token, ENCODED_SECRET);
         return payload;
-      } catch (e) {
+      } catch (_e) {
         return null;
       }
     },

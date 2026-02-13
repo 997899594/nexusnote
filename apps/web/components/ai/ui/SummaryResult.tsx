@@ -3,51 +3,51 @@
  *
  * 渲染 summarize 工具生成的摘要
  */
-'use client'
+"use client";
 
-import { FileText, Copy, Check } from 'lucide-react'
-import { useState } from 'react'
-import { motion } from 'framer-motion'
+import { motion } from "framer-motion";
+import { Check, Copy, FileText } from "lucide-react";
+import { useState } from "react";
 
 interface SummaryResultProps {
-  content: string
-  sourceLength: number
-  style: 'bullet_points' | 'paragraph' | 'key_takeaways'
-  length: 'brief' | 'medium' | 'detailed'
+  content: string;
+  sourceLength: number;
+  style: "bullet_points" | "paragraph" | "key_takeaways";
+  length: "brief" | "medium" | "detailed";
 }
 
 export function SummaryResult({ content, sourceLength, style, length }: SummaryResultProps) {
-  const [copied, setCopied] = useState(false)
+  const [copied, setCopied] = useState(false);
 
   const copyToClipboard = async () => {
     try {
-      await navigator.clipboard.writeText(content)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      await navigator.clipboard.writeText(content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('Failed to copy:', err)
+      console.error("Failed to copy:", err);
     }
-  }
+  };
 
   const lengthLabels = {
-    brief: '简要',
-    medium: '中等',
-    detailed: '详细',
-  }
+    brief: "简要",
+    medium: "中等",
+    detailed: "详细",
+  };
 
   const styleLabels = {
-    bullet_points: '要点列表',
-    paragraph: '段落形式',
-    key_takeaways: '核心要点',
-  }
+    bullet_points: "要点列表",
+    paragraph: "段落形式",
+    key_takeaways: "核心要点",
+  };
 
-  const compressionRatio = Math.round((1 - content.length / sourceLength) * 100)
+  const compressionRatio = Math.round((1 - content.length / sourceLength) * 100);
 
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ type: 'spring', bounce: 0.3, duration: 0.5 }}
+      transition={{ type: "spring", bounce: 0.3, duration: 0.5 }}
       className="my-3 p-4 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 rounded-2xl border border-emerald-200/50 dark:border-emerald-800/50"
     >
       {/* Header */}
@@ -91,16 +91,19 @@ export function SummaryResult({ content, sourceLength, style, length }: SummaryR
       >
         <div
           className={`text-sm leading-relaxed ${
-            style === 'bullet_points' ? 'space-y-2' : 'whitespace-pre-wrap'
+            style === "bullet_points" ? "space-y-2" : "whitespace-pre-wrap"
           }`}
         >
-          {style === 'bullet_points' && content.includes('\n') ? (
-            content.split('\n').filter(line => line.trim()).map((line, idx) => (
-              <div key={idx} className="flex items-start gap-2">
-                <span className="text-emerald-500 mt-1">•</span>
-                <span className="flex-1">{line.replace(/^[•\-\*]\s*/, '')}</span>
-              </div>
-            ))
+          {style === "bullet_points" && content.includes("\n") ? (
+            content
+              .split("\n")
+              .filter((line) => line.trim())
+              .map((line, idx) => (
+                <div key={idx} className="flex items-start gap-2">
+                  <span className="text-emerald-500 mt-1">•</span>
+                  <span className="flex-1">{line.replace(/^[•\-*]\s*/, "")}</span>
+                </div>
+              ))
           ) : (
             <p>{content}</p>
           )}
@@ -114,5 +117,5 @@ export function SummaryResult({ content, sourceLength, style, length }: SummaryR
         <span>摘要 {content.length} 字</span>
       </div>
     </motion.div>
-  )
+  );
 }

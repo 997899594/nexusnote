@@ -3,25 +3,25 @@
  *
  * 显示正在生成思维导图时的骨架屏
  */
-'use client'
+"use client";
 
-import { motion } from 'framer-motion'
-import { Network } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { motion } from "framer-motion";
+import { Network } from "lucide-react";
+import { useEffect, useState } from "react";
 
 interface MindMapSkeletonProps {
-  maxDepth?: number
+  maxDepth?: number;
 }
 
 export function MindMapSkeleton({ maxDepth = 3 }: MindMapSkeletonProps) {
-  const [pulseCount, setPulseCount] = useState(0)
+  const [pulseCount, setPulseCount] = useState(0);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setPulseCount((c) => (c + 1) % 4)
-    }, 800)
-    return () => clearInterval(interval)
-  }, [])
+      setPulseCount((c) => (c + 1) % 4);
+    }, 800);
+    return () => clearInterval(interval);
+  }, []);
 
   // 模拟节点发散动画
   const branches = [
@@ -30,7 +30,7 @@ export function MindMapSkeleton({ maxDepth = 3 }: MindMapSkeletonProps) {
     { angle: 144, delay: 0.2 },
     { angle: 216, delay: 0.3 },
     { angle: 288, delay: 0.4 },
-  ]
+  ];
 
   return (
     <motion.div
@@ -44,9 +44,7 @@ export function MindMapSkeleton({ maxDepth = 3 }: MindMapSkeletonProps) {
           <Network className="w-5 h-5 text-white" />
         </div>
         <div>
-          <h3 className="font-semibold text-emerald-900 dark:text-emerald-100">
-            正在构建思维导图
-          </h3>
+          <h3 className="font-semibold text-emerald-900 dark:text-emerald-100">正在构建思维导图</h3>
           <p className="text-xs text-emerald-600/70 dark:text-emerald-400/70">
             AI 正在分析知识结构...
           </p>
@@ -95,7 +93,7 @@ export function MindMapSkeleton({ maxDepth = 3 }: MindMapSkeletonProps) {
               y1="50%"
               x2="50%"
               y2="50%"
-              stroke={pulseCount > i ? '#10b981' : '#d1fae5'}
+              stroke={pulseCount > i ? "#10b981" : "#d1fae5"}
               strokeWidth="2"
               strokeDasharray="5,5"
               initial={{ pathLength: 0 }}
@@ -125,9 +123,7 @@ export function MindMapSkeleton({ maxDepth = 3 }: MindMapSkeletonProps) {
               animate={{ scale: pulseCount >= i ? 1 : 0.5 }}
               transition={{ duration: 0.2 }}
               className={`w-2 h-2 rounded-full ${
-                pulseCount >= i
-                  ? 'bg-emerald-500'
-                  : 'bg-emerald-200 dark:bg-emerald-800'
+                pulseCount >= i ? "bg-emerald-500" : "bg-emerald-200 dark:bg-emerald-800"
               }`}
             />
           ))}
@@ -137,5 +133,5 @@ export function MindMapSkeleton({ maxDepth = 3 }: MindMapSkeletonProps) {
         </span>
       </div>
     </motion.div>
-  )
+  );
 }

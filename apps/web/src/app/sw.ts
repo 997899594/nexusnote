@@ -1,11 +1,10 @@
-import { defaultCache } from "@serwist/next/worker";
 import {
-  Serwist,
-  type PrecacheEntry,
-  type SerwistGlobalConfig,
   CacheFirst,
-  StaleWhileRevalidate,
   ExpirationPlugin,
+  type PrecacheEntry,
+  Serwist,
+  type SerwistGlobalConfig,
+  StaleWhileRevalidate,
 } from "serwist";
 
 declare global {
@@ -43,7 +42,7 @@ const serwist = new Serwist({
       }),
     },
     {
-      matcher: /^https:\/\/cdn\.vercel\-ai\.com\/.*/i,
+      matcher: /^https:\/\/cdn\.vercel-ai\.com\/.*/i,
       handler: new CacheFirst({
         cacheName: "vercel-ai-sdk-cache",
         plugins: [

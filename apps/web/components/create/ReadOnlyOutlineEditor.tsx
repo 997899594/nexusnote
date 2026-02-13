@@ -1,17 +1,17 @@
 "use client";
 
-import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Placeholder from "@tiptap/extension-placeholder";
-import { TaskList } from "@tiptap/extension-task-list";
-import { TaskItem } from "@tiptap/extension-task-item";
-import { Table } from "@tiptap/extension-table";
-import { TableRow } from "@tiptap/extension-table-row";
-import { TableCell } from "@tiptap/extension-table-cell";
-import { TableHeader } from "@tiptap/extension-table-header";
-import { Image } from "@tiptap/extension-image";
 import { Dropcursor } from "@tiptap/extension-dropcursor";
 import { Gapcursor } from "@tiptap/extension-gapcursor";
+import { Image } from "@tiptap/extension-image";
+import Placeholder from "@tiptap/extension-placeholder";
+import { Table } from "@tiptap/extension-table";
+import { TableCell } from "@tiptap/extension-table-cell";
+import { TableHeader } from "@tiptap/extension-table-header";
+import { TableRow } from "@tiptap/extension-table-row";
+import { TaskItem } from "@tiptap/extension-task-item";
+import { TaskList } from "@tiptap/extension-task-list";
+import { EditorContent, useEditor } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
 import { useEffect } from "react";
 import { Callout } from "@/components/editor/extensions/callout";
 import { Collapsible } from "@/components/editor/extensions/collapsible";
@@ -54,9 +54,7 @@ function outlineToHtml(outline: OutlineData): string {
   return html;
 }
 
-function getDifficultyLabel(
-  difficulty: "beginner" | "intermediate" | "advanced"
-): string {
+function getDifficultyLabel(difficulty: "beginner" | "intermediate" | "advanced"): string {
   const labels = {
     beginner: "初级",
     intermediate: "中级",

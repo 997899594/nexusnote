@@ -4,20 +4,20 @@
  * 抽取共享的数据库查询逻辑，避免代码重复
  */
 
-import { db } from "@nexusnote/db";
 import {
-  courseProfiles,
+  and,
+  count,
   courseChapters,
-  documents,
+  courseProfiles,
+  db,
+  desc,
   documentSnapshots,
+  documents,
+  eq,
   extractedNotes,
+  inArray,
   topics,
   workspaces,
-  eq,
-  and,
-  desc,
-  count,
-  inArray,
 } from "@nexusnote/db";
 import { RecordNotFoundError } from "@/lib/errors";
 
@@ -28,15 +28,9 @@ import { RecordNotFoundError } from "@/lib/errors";
 /**
  * 获取用户的课程画像（带所有权验证）
  */
-export async function getUserCourse(
-  userId: string,
-  courseId: string,
-) {
+export async function getUserCourse(userId: string, courseId: string) {
   const profile = await db.query.courseProfiles.findFirst({
-    where: and(
-      eq(courseProfiles.id, courseId),
-      eq(courseProfiles.userId, userId),
-    ),
+    where: and(eq(courseProfiles.id, courseId), eq(courseProfiles.userId, userId)),
   });
 
   if (!profile) {
@@ -69,11 +63,7 @@ export async function getCourseChapters(courseId: string) {
 /**
  * 获取特定章节内容
  */
-export async function getChapter(
-  profileId: string,
-  chapterIndex: number,
-  sectionIndex = 1,
-) {
+export async function getChapter(profileId: string, chapterIndex: number, sectionIndex = 1) {
   const chapter = await db.query.courseChapters.findFirst({
     where: and(
       eq(courseChapters.profileId, profileId),
@@ -97,10 +87,7 @@ export async function getChapter(
  * 获取用户的文档（带所有权验证）
  * 注意：文档通过 workspace 关联用户，需要联表查询
  */
-export async function getUserDocument(
-  userId: string,
-  documentId: string,
-) {
+export async function getUserDocument(userId: string, documentId: string) {
   const document = await db.query.documents.findFirst({
     where: eq(documents.id, documentId),
     with: {
@@ -124,11 +111,7 @@ export async function getUserDocument(
  * 获取用户的所有文档列表
  * 注意：通过 workspace.ownerId 过滤
  */
-export async function getUserDocuments(
-  userId: string,
-  limit = 50,
-  offset = 0,
-) {
+export async function getUserDocuments(userId: string, limit = 50, offset = 0) {
   // 先获取用户的所有 workspace
   const userWorkspaces = await db.query.workspaces.findMany({
     where: eq(workspaces.ownerId, userId),
@@ -180,16 +163,9 @@ export async function getUserTopics(userId: string) {
 /**
  * 获取主题及其最近的笔记
  */
-export async function getTopicWithNotes(
-  userId: string,
-  topicId: string,
-  noteLimit = 5,
-) {
+export async function getTopicWithNotes(userId: string, topicId: string, noteLimit = 5) {
   const topic = await db.query.topics.findFirst({
-    where: and(
-      eq(topics.id, topicId),
-      eq(topics.userId, userId),
-    ),
+    where: and(eq(topics.id, topicId), eq(topics.userId, userId)),
     with: {
       notes: {
         limit: noteLimit,
@@ -225,10 +201,7 @@ export async function getNotesCount(userId: string) {
  * 批量获取多个文档（带所有权验证）
  * 注意：文档通过 workspace 关联用户
  */
-export async function getDocumentsByIds(
-  userId: string,
-  documentIds: string[],
-) {
+export async function getDocumentsByIds(userId: string, documentIds: string[]) {
   if (documentIds.length === 0) return [];
 
   // 先获取用户的所有 workspace
@@ -246,9 +219,6 @@ export async function getDocumentsByIds(
   }
 
   return db.query.documents.findMany({
-    where: and(
-      inArray(documents.workspaceId, workspaceIds),
-      inArray(documents.id, documentIds),
-    ),
+    where: and(inArray(documents.workspaceId, workspaceIds), inArray(documents.id, documentIds)),
   });
 }

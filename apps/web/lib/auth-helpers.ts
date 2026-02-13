@@ -23,7 +23,7 @@ function getDevToken(): string | undefined {
     if (typeof window !== "undefined") {
       console.warn(
         "[Auth] NEXT_PUBLIC_DEV_AUTH_TOKEN not configured. " +
-        'Set it in .env.local: openssl rand -base64 24'
+          "Set it in .env.local: openssl rand -base64 24",
       );
     }
   }

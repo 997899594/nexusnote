@@ -1,19 +1,10 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
-import { useState, useEffect } from "react";
-import {
-  ArrowRight,
-  Clock,
-  Gauge,
-  Sparkles,
-  CheckCircle2,
-  Brain,
-  MessageCircle,
-  Zap,
-} from "lucide-react";
+import type { UIMessage } from "ai";
+import { AnimatePresence, motion } from "framer-motion";
+import { ArrowRight, CheckCircle2, Clock, Gauge, MessageCircle, Sparkles, Zap } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { UIMessage } from "ai";
 import { getMessageContent } from "@/lib/ai/ui-utils";
 
 interface CourseOutline {
@@ -66,8 +57,7 @@ export function OutlineReview({
     return lastMessage ? getMessageContent(lastMessage) : "";
   })();
 
-  const chapters =
-    outline.chapters ?? outline.modules?.flatMap((m) => m.chapters) ?? [];
+  const chapters = outline.chapters ?? outline.modules?.flatMap((m) => m.chapters) ?? [];
 
   const handleRefineSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -200,9 +190,7 @@ export function OutlineReview({
             <div className="p-2 bg-white/10 rounded-xl">
               <Sparkles className="w-3.5 h-3.5 text-white" />
             </div>
-            <h3 className="font-black text-xs uppercase tracking-widest">
-              AI 调优助手
-            </h3>
+            <h3 className="font-black text-xs uppercase tracking-widest">AI 调优助手</h3>
           </div>
 
           <div className="flex-1 overflow-y-auto text-xs leading-relaxed relative z-10 scrollbar-hide">
@@ -214,9 +202,7 @@ export function OutlineReview({
                   animate={{ opacity: 1, y: 0 }}
                   className="space-y-3"
                 >
-                  <div className="text-white/70 font-medium">
-                    {latestAiMessage}
-                  </div>
+                  <div className="text-white/70 font-medium">{latestAiMessage}</div>
                 </motion.div>
               ) : (
                 <div className="text-white/30 font-medium italic mt-2">
@@ -248,9 +234,7 @@ export function OutlineReview({
         <div className="bg-white/50 backdrop-blur-xl border border-black/[0.04] rounded-3xl p-5">
           <div className="flex items-center gap-2 text-black/40">
             <MessageCircle className="w-3.5 h-3.5" />
-            <span className="text-[10px] font-black uppercase tracking-widest">
-              专家模式已开启
-            </span>
+            <span className="text-[10px] font-black uppercase tracking-widest">专家模式已开启</span>
           </div>
           <p className="mt-1.5 text-[10px] text-black/50 leading-relaxed font-medium">
             已根据您的认知风格（{outline.difficulty}）优化。

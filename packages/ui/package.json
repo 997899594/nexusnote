@@ -6,7 +6,7 @@
   "types": "./src/index.ts",
   "sideEffects": false,
   "scripts": {
-    "lint": "echo 'No lint configured'",
+    "lint": "biome check .",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

@@ -7,20 +7,20 @@
 
 "use client";
 
-import { useCallback, useRef, useEffect } from "react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { useCallback, useEffect, useRef } from "react";
 import useSWR from "swr";
-import {
-  optimisticNotesAtom,
-  topicsAtom,
-  noteExtractionLoadingAtom,
-  isKnowledgeSidebarOpenAtom,
-  hasProcessingNotesAtom,
-} from "../atoms/note-extraction";
-import { userIdAtom } from "../atoms/auth";
-import type { ExtractedNote, Topic, NoteSource } from "../atoms/note-extraction";
 import { extractNoteAction } from "@/app/actions/ai";
 import { getNoteTopicsAction } from "@/app/actions/note";
+import { userIdAtom } from "../atoms/auth";
+import type { NoteSource, Topic } from "../atoms/note-extraction";
+import {
+  hasProcessingNotesAtom,
+  isKnowledgeSidebarOpenAtom,
+  noteExtractionLoadingAtom,
+  optimisticNotesAtom,
+  topicsAtom,
+} from "../atoms/note-extraction";
 import { useToast } from "./use-toast";
 
 // ============================================
@@ -81,7 +81,7 @@ export function useNoteExtraction() {
    * Extract a note: trigger flying animation and send to backend
    */
   const extractNote = useCallback(
-    async (content: string, rect: DOMRect, source: NoteSource) => {
+    async (content: string, _rect: DOMRect, source: NoteSource) => {
       if (!userId) {
         console.warn("[NoteExtraction] No userId set, cannot extract");
         return;
@@ -102,9 +102,7 @@ export function useNoteExtraction() {
       // Step 2: After animation completes (600ms), switch to processing
       setTimeout(() => {
         setOptimisticNotes((prev) =>
-          prev.map((n) =>
-            n.id === tempId ? { ...n, status: "processing" } : n,
-          ),
+          prev.map((n) => (n.id === tempId ? { ...n, status: "processing" } : n)),
         );
       }, 600);
 
@@ -141,15 +139,16 @@ export function useNoteExtraction() {
   /**
    * Clear a flying note (called when animation completes)
    */
-  const clearFlyingNote = useCallback((noteId: string) => {
-    setOptimisticNotes((prev) =>
-      prev.map((n) =>
-        n.id === noteId && n.status === "flying"
-          ? { ...n, status: "processing" }
-          : n,
-      ),
-    );
-  }, [setOptimisticNotes]);
+  const clearFlyingNote = useCallback(
+    (noteId: string) => {
+      setOptimisticNotes((prev) =>
+        prev.map((n) =>
+          n.id === noteId && n.status === "flying" ? { ...n, status: "processing" } : n,
+        ),
+      );
+    },
+    [setOptimisticNotes],
+  );
 
   return {
     // Data
@@ -180,6 +179,7 @@ export function useNoteExtraction() {
  */
 export function useNoteExtractionOptional() {
   try {
+    // biome-ignore lint/correctness/useHookAtTopLevel: hook is always called, try/catch is for context check
     return useNoteExtraction();
   } catch {
     return null;
@@ -208,17 +208,13 @@ export function useTopics() {
   const userId = useAtomValue(userIdAtom);
   const hasProcessingNotes = useAtomValue(hasProcessingNotesAtom);
 
-  useSWR(
-    userId ? ["note-topics", userId] : null,
-    actionFetcher,
-    {
-      refreshInterval: hasProcessingNotes ? 3000 : 30000,
-      revalidateOnFocus: true,
-      onSuccess: (data) => {
-        setTopics((data?.topics ?? []) as Topic[]);
-      },
+  useSWR(userId ? ["note-topics", userId] : null, actionFetcher, {
+    refreshInterval: hasProcessingNotes ? 3000 : 30000,
+    revalidateOnFocus: true,
+    onSuccess: (data) => {
+      setTopics((data?.topics ?? []) as Topic[]);
     },
-  );
+  });
 
   return { topics, isLoading };
 }

@@ -6,8 +6,8 @@
  * 支持自动保存到 localStorage
  */
 
-import { atomWithStorage } from "jotai/utils";
 import { atom } from "jotai";
+import { atomWithStorage } from "jotai/utils";
 
 // ============================================
 // Types
@@ -105,10 +105,7 @@ export const currentPhaseAtom = atom((get) => {
 export const isGeneratingAtom = atom((get) => {
   const phase = get(courseGenerationStateAtom).currentPhase;
   return (
-    phase === "synthesis" ||
-    phase === "seeding" ||
-    phase === "growing" ||
-    phase === "manifesting"
+    phase === "synthesis" || phase === "seeding" || phase === "growing" || phase === "manifesting"
   );
 });
 
@@ -130,13 +127,19 @@ export const generationProgressAtom = atom((get) => {
  */
 export const updateInterviewDataAtom = atom(
   null,
-  (_get, set, data: Partial<Pick<CourseGenerationState, "goal" | "background" | "targetOutcome" | "cognitiveStyle">>) => {
+  (
+    _get,
+    set,
+    data: Partial<
+      Pick<CourseGenerationState, "goal" | "background" | "targetOutcome" | "cognitiveStyle">
+    >,
+  ) => {
     set(courseGenerationStateAtom, (prev) => ({
       ...prev,
       ...data,
       updatedAt: new Date().toISOString(),
     }));
-  }
+  },
 );
 
 /**
@@ -150,22 +153,19 @@ export const setOutlineDataAtom = atom(
       outlineData,
       updatedAt: new Date().toISOString(),
     }));
-  }
+  },
 );
 
 /**
  * 更新生成阶段
  */
-export const setCurrentPhaseAtom = atom(
-  null,
-  (_get, set, phase: GenerationPhase) => {
-    set(courseGenerationStateAtom, (prev) => ({
-      ...prev,
-      currentPhase: phase,
-      updatedAt: new Date().toISOString(),
-    }));
-  }
-);
+export const setCurrentPhaseAtom = atom(null, (_get, set, phase: GenerationPhase) => {
+  set(courseGenerationStateAtom, (prev) => ({
+    ...prev,
+    currentPhase: phase,
+    updatedAt: new Date().toISOString(),
+  }));
+});
 
 /**
  * 更新生成进度
@@ -178,15 +178,12 @@ export const updateProgressAtom = atom(
       progress: { ...prev.progress, ...progress },
       updatedAt: new Date().toISOString(),
     }));
-  }
+  },
 );
 
 /**
  * 重置课程生成状态
  */
-export const resetCourseGenerationAtom = atom(
-  null,
-  (_get, _set) => {
-    return initialState;
-  }
-);
+export const resetCourseGenerationAtom = atom(null, (_get, _set) => {
+  return initialState;
+});

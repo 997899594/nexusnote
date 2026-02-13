@@ -1,8 +1,8 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
-import { BookOpen, Sparkles, Loader2 } from "lucide-react";
-import { CourseNode } from "@/lib/types/course";
+import { AnimatePresence, motion } from "framer-motion";
+import { BookOpen, Loader2, Sparkles } from "lucide-react";
+import type { CourseNode } from "@/lib/types/course";
 
 interface NexusGraphProps {
   nodes: CourseNode[];
@@ -12,19 +12,11 @@ interface NexusGraphProps {
   goal: string;
 }
 
-export function NexusGraph({
-  nodes,
-  selectedNode,
-  onNodeClick,
-  phase,
-  goal,
-}: NexusGraphProps) {
+export function NexusGraph({ nodes, selectedNode, onNodeClick, phase, goal }: NexusGraphProps) {
   return (
     <div
       className={`relative w-full h-full flex items-center justify-center transition-all duration-1000 ${
-        phase === "interview" ||
-        phase === "synthesis" ||
-        phase === "outline_review"
+        phase === "interview" || phase === "synthesis" || phase === "outline_review"
           ? "opacity-40 scale-90 blur-[100px] pointer-events-none"
           : "opacity-100 scale-100 blur-0"
       }`}
@@ -56,9 +48,7 @@ export function NexusGraph({
           animate={{ opacity: 1, y: 0 }}
           className="mt-6 text-center"
         >
-          <h1 className="text-xl md:text-2xl font-bold tracking-tight text-black">
-            {goal}
-          </h1>
+          <h1 className="text-xl md:text-2xl font-bold tracking-tight text-black">{goal}</h1>
           <p className="text-[10px] font-bold text-black/20 uppercase tracking-[0.3em] mt-2">
             {phase === "seeding"
               ? "正在分析你的学习目标..."
@@ -86,14 +76,8 @@ export function NexusGraph({
         <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
           <defs>
             <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop
-                offset="0%"
-                style={{ stopColor: "black", stopOpacity: 0.1 }}
-              />
-              <stop
-                offset="100%"
-                style={{ stopColor: "black", stopOpacity: 0 }}
-              />
+              <stop offset="0%" style={{ stopColor: "black", stopOpacity: 0.1 }} />
+              <stop offset="100%" style={{ stopColor: "black", stopOpacity: 0 }} />
             </linearGradient>
           </defs>
           {nodes.map((node) => (
@@ -139,7 +123,7 @@ function NexusNode({
         type: "spring",
         stiffness: 100,
         damping: 15,
-        delay: parseInt(node.id.split("-")[1] || "0") * 0.2,
+        delay: parseInt(node.id.split("-")[1] || "0", 10) * 0.2,
       }}
       className="absolute pointer-events-auto group"
       onClick={(e) => {
@@ -178,9 +162,7 @@ function NexusNode({
           ${isSelected ? "bg-black text-white shadow-2xl" : "bg-black/[0.05] backdrop-blur-md text-black/60"}
         `}
         >
-          <span className="text-[10px] md:text-xs font-bold tracking-tight">
-            {node.title}
-          </span>
+          <span className="text-[10px] md:text-xs font-bold tracking-tight">{node.title}</span>
           {isSelected && (
             <motion.div
               initial={{ width: 0 }}

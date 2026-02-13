@@ -111,11 +111,7 @@ export const serverEnvSchema = z.object({
   // Server
   PORT: z.coerce.number().int().positive().default(defaults.server.port),
   CORS_ORIGIN: z.string().default(defaults.server.corsOrigin),
-  HOCUSPOCUS_PORT: z.coerce
-    .number()
-    .int()
-    .positive()
-    .default(defaults.server.hocuspocusPort),
+  HOCUSPOCUS_PORT: z.coerce.number().int().positive().default(defaults.server.hocuspocusPort),
 
   // JWT Authentication
   JWT_SECRET: z.string().default(defaults.jwt.secret),
@@ -150,11 +146,7 @@ export const serverEnvSchema = z.object({
     .transform((v) => v === "true"),
 
   // Notes / Liquid Knowledge
-  NOTES_TOPIC_THRESHOLD: z.coerce
-    .number()
-    .min(0)
-    .max(1)
-    .default(defaults.notes.topicThreshold),
+  NOTES_TOPIC_THRESHOLD: z.coerce.number().min(0).max(1).default(defaults.notes.topicThreshold),
 
   // Embedding
   EMBEDDING_MODEL: z.string().default(defaults.embedding.model),
@@ -180,16 +172,8 @@ export const serverEnvSchema = z.object({
     .min(0)
     .max(1)
     .default(defaults.rag.similarityThreshold),
-  RAG_CHUNK_SIZE: z.coerce
-    .number()
-    .int()
-    .positive()
-    .default(defaults.rag.chunkSize),
-  RAG_CHUNK_OVERLAP: z.coerce
-    .number()
-    .int()
-    .min(0)
-    .default(defaults.rag.chunkOverlap),
+  RAG_CHUNK_SIZE: z.coerce.number().int().positive().default(defaults.rag.chunkSize),
+  RAG_CHUNK_OVERLAP: z.coerce.number().int().min(0).default(defaults.rag.chunkOverlap),
 
   // RAG Advanced Features (2026 Optimizations)
   QUERY_REWRITING_ENABLED: z
@@ -204,17 +188,10 @@ export const serverEnvSchema = z.object({
     .string()
     .default("false")
     .transform((v) => v === "true"),
-  AI_FAST_MODEL: z
-    .string()
-    .optional()
-    .describe("Fast model for query rewriting"),
+  AI_FAST_MODEL: z.string().optional().describe("Fast model for query rewriting"),
 
   // Snapshot
-  SNAPSHOT_INTERVAL_MS: z.coerce
-    .number()
-    .int()
-    .positive()
-    .default(defaults.snapshot.intervalMs),
+  SNAPSHOT_INTERVAL_MS: z.coerce.number().int().positive().default(defaults.snapshot.intervalMs),
   SNAPSHOT_MAX_PER_DOC: z.coerce
     .number()
     .int()
@@ -222,16 +199,8 @@ export const serverEnvSchema = z.object({
     .default(defaults.snapshot.maxPerDocument),
 
   // Queue
-  QUEUE_RAG_CONCURRENCY: z.coerce
-    .number()
-    .int()
-    .positive()
-    .default(defaults.queue.ragConcurrency),
-  QUEUE_RAG_MAX_RETRIES: z.coerce
-    .number()
-    .int()
-    .min(0)
-    .default(defaults.queue.ragMaxRetries),
+  QUEUE_RAG_CONCURRENCY: z.coerce.number().int().positive().default(defaults.queue.ragConcurrency),
+  QUEUE_RAG_MAX_RETRIES: z.coerce.number().int().min(0).default(defaults.queue.ragMaxRetries),
   QUEUE_RAG_BACKOFF_DELAY: z.coerce
     .number()
     .int()
@@ -239,9 +208,7 @@ export const serverEnvSchema = z.object({
     .default(defaults.queue.ragBackoffDelay),
 
   // Environment
-  NODE_ENV: z
-    .enum(["development", "production", "test"])
-    .default("development"),
+  NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
@@ -276,11 +243,7 @@ export const clientEnvSchema = z.object({
 
   // Embedding (client may need for dimensions)
   EMBEDDING_MODEL: z.string().default(defaults.embedding.model),
-  EMBEDDING_DIMENSIONS: z.coerce
-    .number()
-    .int()
-    .positive()
-    .default(defaults.embedding.dimensions),
+  EMBEDDING_DIMENSIONS: z.coerce.number().int().positive().default(defaults.embedding.dimensions),
 
   // Development Authentication Token
   // 用于开发环境的身份验证（生产环境应使用真实的 OAuth/JWT）
@@ -288,9 +251,7 @@ export const clientEnvSchema = z.object({
   NEXT_PUBLIC_DEV_AUTH_TOKEN: z.string().optional(),
 
   // Environment
-  NODE_ENV: z
-    .enum(["development", "production", "test"])
-    .default("development"),
+  NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
 });
 
 export type ClientEnv = z.infer<typeof clientEnvSchema>;
@@ -302,9 +263,7 @@ export type ClientEnv = z.infer<typeof clientEnvSchema>;
 /**
  * Parse and validate server environment
  */
-export function parseServerEnv(
-  env: NodeJS.ProcessEnv = process.env,
-): ServerEnv {
+export function parseServerEnv(env: NodeJS.ProcessEnv = process.env): ServerEnv {
   // Build-time check bypass for Next.js 16
   if (
     process.env.SKIP_ENV_VALIDATION === "true" ||
@@ -333,9 +292,7 @@ export function parseServerEnv(
 /**
  * Parse and validate client environment
  */
-export function parseClientEnv(
-  env: Record<string, string | undefined> = {},
-): ClientEnv {
+export function parseClientEnv(env: Record<string, string | undefined> = {}): ClientEnv {
   // In browser, read from process.env (Next.js injects NEXT_PUBLIC_ vars)
   // CRITICAL: We MUST explicitly access process.env properties for Next.js to replace them at build time.
   // Destructuring {...process.env} returns an empty object in the browser.
@@ -348,9 +305,7 @@ export function parseClientEnv(
   };
 
   const merged =
-    typeof window !== "undefined"
-      ? { ...processEnv, ...env }
-      : { ...processEnv, ...env }; // Same for now, can be optimized
+    typeof window !== "undefined" ? { ...processEnv, ...env } : { ...processEnv, ...env }; // Same for now, can be optimized
 
   const result = clientEnvSchema.safeParse(merged);
 
@@ -366,7 +321,7 @@ export function parseClientEnv(
 }
 
 export const env = new Proxy({} as ServerEnv, {
-  get(target, prop) {
+  get(_target, prop) {
     if (typeof prop !== "string") return undefined;
 
     // Ignore React internal props and Promise props to avoid noise
@@ -381,9 +336,7 @@ export const env = new Proxy({} as ServerEnv, {
 
     // Prevent access on client side
     if (typeof window !== "undefined") {
-      console.warn(
-        `[config] Detected client-side access to server env var: ${prop}`,
-      );
+      console.warn(`[config] Detected client-side access to server env var: ${prop}`);
       return undefined;
     }
 
@@ -396,7 +349,7 @@ export const env = new Proxy({} as ServerEnv, {
 // Parse client environment (safe to call in browser as it reads from process.env populated by build)
 // Also using proxy for consistency, although client env vars are typically injected at build time
 export const clientEnv = new Proxy({} as ClientEnv, {
-  get(target, prop) {
+  get(_target, prop) {
     if (typeof prop !== "string") return undefined;
     const parsed = parseClientEnv();
     return Reflect.get(parsed, prop);
@@ -417,9 +370,7 @@ export function logServerConfig(env: ServerEnv): void {
   console.log(`  NODE_ENV: ${env.NODE_ENV}`);
   console.log(`  PORT: ${env.PORT}`);
   console.log(`  HOCUSPOCUS_PORT: ${env.HOCUSPOCUS_PORT}`);
-  console.log(
-    `  DATABASE_URL: ${env.DATABASE_URL.replace(/\/\/[^@]+@/, "//***@")}`,
-  );
+  console.log(`  DATABASE_URL: ${env.DATABASE_URL.replace(/\/\/[^@]+@/, "//***@")}`);
   console.log(`  REDIS_URL: ${env.REDIS_URL}`);
   console.log(`  AI_302_API_KEY: ${maskSecret(env.AI_302_API_KEY)}`);
   console.log(`  AI_MODEL: ${env.AI_MODEL}`);

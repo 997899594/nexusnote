@@ -1,7 +1,7 @@
 import { generateText, Output } from "ai";
 import { z } from "zod";
-import { registry } from "../registry";
 import { createTelemetryConfig } from "../langfuse";
+import { registry } from "../registry";
 
 // Define the router output schema
 export const RouterSchema = z.object({
@@ -26,11 +26,10 @@ function fastRoute(input: string, contextStr?: string): RouterOutput | null {
   let context: Record<string, unknown> = {};
   try {
     if (contextStr) context = JSON.parse(contextStr) as Record<string, unknown>;
-  } catch (e) {}
+  } catch (_e) {}
 
   // 1. 明显的访谈启动意图
-  const interviewKeywords =
-    /想学|要学|学习|创建一个|课程|syllabus|learn|tutorial/i;
+  const interviewKeywords = /想学|要学|学习|创建一个|课程|syllabus|learn|tutorial/i;
   if (interviewKeywords.test(normalizedInput) && normalizedInput.length < 50) {
     return {
       target: "INTERVIEW",
@@ -41,12 +40,8 @@ function fastRoute(input: string, contextStr?: string): RouterOutput | null {
   // 2. 访谈延续意图 (基于 Context 的粘滞性)
   if (context.isInInterview) {
     // 如果已经在访谈中，且输入不包含明显的切换意图，则锁定在 INTERVIEW
-    const switchIntentKeywords =
-      /搜索|上网找|查找|修改|search|google|web|edit|change/i;
-    if (
-      !switchIntentKeywords.test(normalizedInput) &&
-      normalizedInput.length < 100
-    ) {
+    const switchIntentKeywords = /搜索|上网找|查找|修改|search|google|web|edit|change/i;
+    if (!switchIntentKeywords.test(normalizedInput) && normalizedInput.length < 100) {
       return {
         target: "INTERVIEW",
         reasoning: "Fast-path: Context stickiness (isInInterview).",
@@ -55,8 +50,7 @@ function fastRoute(input: string, contextStr?: string): RouterOutput | null {
   }
 
   // 3. 基础聊天意图
-  const chatKeywords =
-    /^(你好|hello|hi|你是谁|who are you|早安|午安|晚安)[！!？?.]*$/i;
+  const chatKeywords = /^(你好|hello|hi|你是谁|who are you|早安|午安|晚安)[！!？?.]*$/i;
   if (chatKeywords.test(normalizedInput)) {
     return {
       target: "CHAT",

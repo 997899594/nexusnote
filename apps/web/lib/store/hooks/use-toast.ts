@@ -6,9 +6,9 @@
 
 "use client";
 
-import { useCallback } from "react";
 import { useSetAtom } from "jotai";
-import { toastsAtom, type Toast } from "../atoms/ui";
+import { useCallback } from "react";
+import { type Toast, toastsAtom } from "../atoms/ui";
 
 /**
  * Toast Hook - 显示全局通知

@@ -14,12 +14,7 @@ export class AppError extends Error {
   readonly isOperational: boolean;
   readonly timestamp: string;
 
-  constructor(
-    message: string,
-    code: string,
-    statusCode = 500,
-    isOperational = true,
-  ) {
+  constructor(message: string, code: string, statusCode = 500, isOperational = true) {
     super(message);
     this.name = this.constructor.name;
     this.code = code;
@@ -53,7 +48,10 @@ export class ForbiddenError extends AppError {
 // ============================================
 
 export class ValidationError extends AppError {
-  constructor(message: string, public field?: string) {
+  constructor(
+    message: string,
+    public field?: string,
+  ) {
     super(message, "VALIDATION_ERROR", 400);
   }
 }
@@ -75,7 +73,10 @@ export class ConflictError extends AppError {
 // ============================================
 
 export class RateLimitError extends AppError {
-  constructor(message = "Rate limit exceeded", public retryAfter?: number) {
+  constructor(
+    message = "Rate limit exceeded",
+    public retryAfter?: number,
+  ) {
     super(message, "RATE_LIMIT_EXCEEDED", 429);
   }
 }
@@ -118,7 +119,7 @@ export class AIRateLimitError extends RateLimitError {
   constructor(provider: string, retryAfter?: number) {
     super(`AI provider rate limit exceeded: ${provider}`, retryAfter);
     // Cannot reassign readonly property, use Object.defineProperty to override
-    Object.defineProperty(this, 'code', {
+    Object.defineProperty(this, "code", {
       value: "AI_RATE_LIMIT",
       enumerable: true,
       configurable: true,
@@ -148,11 +149,9 @@ export class DatabaseError extends AppError {
 
 export class RecordNotFoundError extends NotFoundError {
   constructor(record: string, identifier?: string) {
-    super(
-      identifier ? `${record} with id "${identifier}" not found` : `${record} not found`
-    );
+    super(identifier ? `${record} with id "${identifier}" not found` : `${record} not found`);
     // Cannot reassign readonly property, use Object.defineProperty to override
-    Object.defineProperty(this, 'code', {
+    Object.defineProperty(this, "code", {
       value: "RECORD_NOT_FOUND",
       enumerable: true,
       configurable: true,

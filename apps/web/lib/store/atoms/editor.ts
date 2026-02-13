@@ -5,13 +5,9 @@
  * 从 EditorContext 迁移而来
  */
 
-import { atom } from "jotai";
 import type { Editor } from "@tiptap/react";
-import type {
-  DocumentStructure,
-  DocumentBlock,
-  EditCommand,
-} from "@/lib/editor/document-parser";
+import { atom } from "jotai";
+import type { DocumentStructure, EditCommand } from "@/lib/editor/document-parser";
 
 // ============================================
 // Atoms
@@ -58,12 +54,8 @@ export const documentSummaryAtom = atom((get) => {
 
   // 简单摘要：显示块数量和类型分布
   const blockCount = structure.blocks.length;
-  const headingCount = structure.blocks.filter(
-    (b) => b.type === "heading"
-  ).length;
-  const codeBlockCount = structure.blocks.filter(
-    (b) => b.type === "codeBlock"
-  ).length;
+  const headingCount = structure.blocks.filter((b) => b.type === "heading").length;
+  const codeBlockCount = structure.blocks.filter((b) => b.type === "codeBlock").length;
 
   return `${blockCount} blocks (${headingCount} headings, ${codeBlockCount} code)`;
 });
@@ -75,68 +67,56 @@ export const documentSummaryAtom = atom((get) => {
 /**
  * 设置编辑器实例
  */
-export const setEditorAtom = atom(
-  null,
-  (_get, set, editor: Editor | null) => {
-    set(editorAtom, editor);
-  }
-);
+export const setEditorAtom = atom(null, (_get, set, editor: Editor | null) => {
+  set(editorAtom, editor);
+});
 
 /**
  * 高亮指定块
  */
-export const highlightBlockAtom = atom(
-  null,
-  (get, set, blockId: string) => {
-    const editor = get(editorAtom);
-    const structure = get(documentStructureAtom);
-    if (!editor || !structure) return;
+export const highlightBlockAtom = atom(null, (get, set, blockId: string) => {
+  const editor = get(editorAtom);
+  const structure = get(documentStructureAtom);
+  if (!editor || !structure) return;
 
-    const block = structure.blocks.find((b) => b.id === blockId);
-    if (block) {
-      editor
-        .chain()
-        .focus()
-        .setTextSelection({
-          from: block.from + 1,
-          to: block.to - 1,
-        })
-        .run();
-    }
-    set(selectedBlockIdAtom, blockId);
+  const block = structure.blocks.find((b) => b.id === blockId);
+  if (block) {
+    editor
+      .chain()
+      .focus()
+      .setTextSelection({
+        from: block.from + 1,
+        to: block.to - 1,
+      })
+      .run();
   }
-);
+  set(selectedBlockIdAtom, blockId);
+});
 
 /**
  * 应用编辑命令
  */
-export const applyEditAtom = atom(
-  null,
-  (get, _set, command: EditCommand) => {
-    const editor = get(editorAtom);
-    const structure = get(documentStructureAtom);
-    if (!editor || !structure) return false;
+export const applyEditAtom = atom(null, (get, _set, _command: EditCommand) => {
+  const editor = get(editorAtom);
+  const structure = get(documentStructureAtom);
+  if (!editor || !structure) return false;
 
-    // 导入 applyEditCommand 函数以避免循环依赖
-    // 在实际使用时从 @/lib/editor/document-parser 导入
-    return false; // Placeholder
-  }
-);
+  // 导入 applyEditCommand 函数以避免循环依赖
+  // 在实际使用时从 @/lib/editor/document-parser 导入
+  return false; // Placeholder
+});
 
 /**
  * 批量应用编辑命令
  */
-export const applyEditsAtom = atom(
-  null,
-  (get, _set, commands: EditCommand[]) => {
-    const editor = get(editorAtom);
-    const structure = get(documentStructureAtom);
-    if (!editor || !structure) {
-      return { success: 0, failed: commands.length };
-    }
-
-    // 导入 applyEditCommands 函数
-    // 在实际使用时从 @/lib/editor/document-parser 导入
-    return { success: 0, failed: commands.length }; // Placeholder
+export const applyEditsAtom = atom(null, (get, _set, commands: EditCommand[]) => {
+  const editor = get(editorAtom);
+  const structure = get(documentStructureAtom);
+  if (!editor || !structure) {
+    return { success: 0, failed: commands.length };
   }
-);
+
+  // 导入 applyEditCommands 函数
+  // 在实际使用时从 @/lib/editor/document-parser 导入
+  return { success: 0, failed: commands.length }; // Placeholder
+});

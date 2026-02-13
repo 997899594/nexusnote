@@ -9,23 +9,16 @@
  * 3. 封装数据库原子操作
  */
 
-import {
-  saveCourseProfile as dbSaveProfile,
-  getCourseChapters as dbGetChapters,
-  updateCourseProgress as dbUpdateProgress,
-  OutlineData,
-} from "@/lib/ai/profile/course-profile";
+import { and, courseChapters, courseProfiles, db, eq } from "@nexusnote/db";
 import { revalidatePath } from "next/cache";
-import {
-  db,
-  courseChapters,
-  courseProfiles,
-  eq,
-  InferSelectModel,
-  and,
-} from "@nexusnote/db";
 import { createSafeAction } from "@/lib/actions/action-utils";
-import { CourseChapterDTO, CourseProfileDTO } from "@/lib/actions/types";
+import type { CourseChapterDTO, CourseProfileDTO } from "@/lib/actions/types";
+import {
+  getCourseChapters as dbGetChapters,
+  saveCourseProfile as dbSaveProfile,
+  updateCourseProgress as dbUpdateProgress,
+  type OutlineData,
+} from "@/lib/ai/profile/course-profile";
 
 /**
  * 保存课程画像
@@ -67,10 +60,7 @@ export const getCourseChaptersAction = createSafeAction(
   ): Promise<{ chapters: CourseChapterDTO[]; profile: CourseProfileDTO }> => {
     // 权限校验：确保用户只能访问自己的课程
     const profile = await db.query.courseProfiles.findFirst({
-      where: and(
-        eq(courseProfiles.id, courseId),
-        eq(courseProfiles.userId, userId),
-      ),
+      where: and(eq(courseProfiles.id, courseId), eq(courseProfiles.userId, userId)),
     });
 
     if (!profile) {
@@ -89,9 +79,7 @@ export const getCourseChaptersAction = createSafeAction(
       summary: null,
       keyPoints: null,
       isCompleted: false, // 初始状态
-      createdAt: c.createdAt
-        ? c.createdAt.toISOString()
-        : new Date().toISOString(),
+      createdAt: c.createdAt ? c.createdAt.toISOString() : new Date().toISOString(),
     }));
 
     return {
@@ -131,10 +119,7 @@ export const getChapterContentAction = createSafeAction(
 
     // 权限校验
     const profile = await db.query.courseProfiles.findFirst({
-      where: and(
-        eq(courseProfiles.id, courseId),
-        eq(courseProfiles.userId, userId),
-      ),
+      where: and(eq(courseProfiles.id, courseId), eq(courseProfiles.userId, userId)),
     });
 
     if (!profile) {
@@ -162,9 +147,7 @@ export const getChapterContentAction = createSafeAction(
       summary: null,
       keyPoints: null,
       isCompleted: false,
-      createdAt: chapter.createdAt
-        ? chapter.createdAt.toISOString()
-        : new Date().toISOString(),
+      createdAt: chapter.createdAt ? chapter.createdAt.toISOString() : new Date().toISOString(),
     };
   },
 );
@@ -186,10 +169,7 @@ export const updateCourseProgressAction = createSafeAction(
 
     // 权限校验
     const profile = await db.query.courseProfiles.findFirst({
-      where: and(
-        eq(courseProfiles.id, courseId),
-        eq(courseProfiles.userId, userId),
-      ),
+      where: and(eq(courseProfiles.id, courseId), eq(courseProfiles.userId, userId)),
     });
 
     if (!profile) {

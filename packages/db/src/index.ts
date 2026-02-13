@@ -1,6 +1,6 @@
+import { env } from "@nexusnote/config";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { env } from "@nexusnote/config";
 import * as schema from "./schema.js";
 
 // We rely on @nexusnote/config or the application entry point to load env vars
@@ -30,28 +30,26 @@ export const db = isServer
   ? drizzle(client, { schema })
   : (null as unknown as ReturnType<typeof drizzle<typeof schema>>);
 
-export * from "./schema.js";
-export * from "./fsrs.js";
-
 // Re-export common drizzle-orm operators for consistency
 export {
-  eq,
-  ne,
-  gt,
-  gte,
-  lt,
-  lte,
   and,
-  or,
-  sql,
-  inArray,
-  notInArray,
-  desc,
   asc,
   count,
-  type InferSelectModel,
+  desc,
+  eq,
+  gt,
+  gte,
   type InferInsertModel,
+  type InferSelectModel,
+  inArray,
+  lt,
+  lte,
+  ne,
+  notInArray,
+  or,
+  sql,
 } from "drizzle-orm";
-
 // Re-export drizzle function for creating database instances
 export { drizzle } from "drizzle-orm/postgres-js";
+export * from "./fsrs.js";
+export * from "./schema.js";

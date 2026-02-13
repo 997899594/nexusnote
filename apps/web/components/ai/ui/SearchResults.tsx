@@ -1,18 +1,18 @@
-'use client'
+"use client";
 
-import { Search, FileText, ExternalLink } from 'lucide-react'
-import Link from 'next/link'
+import { ExternalLink, FileText, Search } from "lucide-react";
+import Link from "next/link";
 
 interface SearchResult {
-  title: string
-  content: string
-  documentId: string
-  relevance: number
+  title: string;
+  content: string;
+  documentId: string;
+  relevance: number;
 }
 
 interface SearchResultsProps {
-  query: string
-  results: SearchResult[]
+  query: string;
+  results: SearchResult[];
 }
 
 export function SearchResults({ query, results }: SearchResultsProps) {
@@ -24,16 +24,14 @@ export function SearchResults({ query, results }: SearchResultsProps) {
           <span>没有找到与 "{query}" 相关的笔记</span>
         </div>
       </div>
-    )
+    );
   }
 
   return (
     <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 my-2">
       <div className="flex items-center gap-2 mb-3">
         <Search className="w-4 h-4 text-blue-600" />
-        <span className="font-medium text-gray-900">
-          找到 {results.length} 条相关笔记
-        </span>
+        <span className="font-medium text-gray-900">找到 {results.length} 条相关笔记</span>
       </div>
 
       <div className="space-y-2">
@@ -46,9 +44,7 @@ export function SearchResults({ query, results }: SearchResultsProps) {
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
                 <FileText className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                <span className="font-medium text-gray-900 truncate">
-                  {result.title}
-                </span>
+                <span className="font-medium text-gray-900 truncate">{result.title}</span>
               </div>
               <div className="flex items-center gap-1 flex-shrink-0">
                 <span className="text-xs text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded">
@@ -62,5 +58,5 @@ export function SearchResults({ query, results }: SearchResultsProps) {
         ))}
       </div>
     </div>
-  )
+  );
 }

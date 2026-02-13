@@ -5,6 +5,6 @@
  * 支持渐进式动画效果
  */
 
-export * from './QuizSkeleton'
-export * from './MindMapSkeleton'
-export * from './SummarySkeleton'
+export * from "./MindMapSkeleton";
+export * from "./QuizSkeleton";
+export * from "./SummarySkeleton";

@@ -1,10 +1,10 @@
-import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { auth } from "@/auth";
+import { CourseSkeleton } from "@/components/loading/skeletons";
+import { type CourseProfileDTO, serializeObject } from "@/lib/actions/types";
 import { getCourseProfile } from "@/lib/ai/profile/course-profile";
 import LearnPageClient from "./client-page";
-import { CourseProfileDTO, serializeObject } from "@/lib/actions/types";
-import { CourseSkeleton } from "@/components/loading/skeletons";
 
 interface LearnPageProps {
   params: Promise<{
@@ -21,7 +21,7 @@ export default async function LearnPage({ params }: LearnPageProps) {
   }
 
   // Load course profile server-side to verify access and get data
-  let profile;
+  let profile: Awaited<ReturnType<typeof getCourseProfile>>;
   try {
     profile = await getCourseProfile(courseId);
   } catch (err) {

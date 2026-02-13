@@ -1,22 +1,22 @@
 "use client";
 
-import { Editor } from "@tiptap/react";
+import type { Editor } from "@tiptap/react";
 import {
   Bold,
-  Italic,
-  Strikethrough,
   Code,
-  List,
-  ListOrdered,
-  Quote,
-  Minus,
-  Undo,
-  Redo,
   Heading1,
   Heading2,
   Heading3,
+  Italic,
+  List,
+  ListOrdered,
+  Minus,
+  Quote,
+  Redo,
   Shield,
   ShieldOff,
+  Strikethrough,
+  Undo,
 } from "lucide-react";
 
 interface EditorToolbarProps {
@@ -33,13 +33,7 @@ interface ToolbarButtonProps {
   title?: string;
 }
 
-function ToolbarButton({
-  onClick,
-  isActive,
-  disabled,
-  children,
-  title,
-}: ToolbarButtonProps) {
+function ToolbarButton({ onClick, isActive, disabled, children, title }: ToolbarButtonProps) {
   return (
     <button
       onClick={onClick}
@@ -60,11 +54,7 @@ function Divider() {
   return <div className="w-[1px] h-4 bg-black/[0.06] mx-1.5" />;
 }
 
-export function EditorToolbar({
-  editor,
-  isVault,
-  onToggleVault,
-}: EditorToolbarProps) {
+export function EditorToolbar({ editor, isVault, onToggleVault }: EditorToolbarProps) {
   if (!editor) return null;
 
   return (

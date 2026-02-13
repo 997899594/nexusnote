@@ -3,13 +3,13 @@
  *
  * 显示正在生成测验时的骨架屏
  */
-'use client'
+"use client";
 
-import { motion } from 'framer-motion'
-import { Brain } from 'lucide-react'
+import { motion } from "framer-motion";
+import { Brain } from "lucide-react";
 
 interface QuizSkeletonProps {
-  questionCount?: number
+  questionCount?: number;
 }
 
 export function QuizSkeleton({ questionCount = 5 }: QuizSkeletonProps) {
@@ -25,9 +25,7 @@ export function QuizSkeleton({ questionCount = 5 }: QuizSkeletonProps) {
           <Brain className="w-5 h-5 text-white" />
         </div>
         <div>
-          <h3 className="font-semibold text-violet-900 dark:text-violet-100">
-            正在生成测验
-          </h3>
+          <h3 className="font-semibold text-violet-900 dark:text-violet-100">正在生成测验</h3>
           <p className="text-xs text-violet-600/70 dark:text-violet-400/70">
             AI 正在分析内容并设计题目...
           </p>
@@ -38,9 +36,14 @@ export function QuizSkeleton({ questionCount = 5 }: QuizSkeletonProps) {
       <div className="mb-6">
         <div className="h-2 bg-violet-100 dark:bg-violet-900/30 rounded-full overflow-hidden">
           <motion.div
-            initial={{ width: '0%' }}
-            animate={{ width: '60%' }}
-            transition={{ duration: 1.5, ease: 'easeInOut', repeat: Infinity, repeatType: 'reverse' }}
+            initial={{ width: "0%" }}
+            animate={{ width: "60%" }}
+            transition={{
+              duration: 1.5,
+              ease: "easeInOut",
+              repeat: Infinity,
+              repeatType: "reverse",
+            }}
             className="h-full bg-gradient-to-r from-violet-500 to-indigo-500 rounded-full"
           />
         </div>
@@ -93,5 +96,5 @@ export function QuizSkeleton({ questionCount = 5 }: QuizSkeletonProps) {
         <span className="ml-1">正在设计 {questionCount} 道题目...</span>
       </motion.div>
     </motion.div>
-  )
+  );
 }

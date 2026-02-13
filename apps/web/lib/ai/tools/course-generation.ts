@@ -10,14 +10,11 @@
  * 注意：工具执行在 API 路由（后端）中，与前端完全解耦
  */
 
-import { tool, type ToolSet } from "ai";
+import { type ToolSet, tool } from "ai";
 import { z } from "zod";
-import {
-  saveCourseChapter,
-  getCourseChapters,
-} from "@/lib/ai/profile/course-profile";
-import { generateIllustrationTool } from "./multimodal";
+import { getCourseChapters, saveCourseChapter } from "@/lib/ai/profile/course-profile";
 import { generateQuiz, mindMap } from "./chat/learning";
+import { generateIllustrationTool } from "./multimodal";
 
 /**
  * checkGenerationProgress - 检查当前课程的生成进度
@@ -36,14 +33,9 @@ export const checkGenerationProgressTool = tool({
     try {
       // 架构师改进：直接从数据库获取最真实的章节列表
       const chapters = await getCourseChapters(profileId);
-      const generatedIndices = chapters
-        .map((c) => c.chapterIndex)
-        .sort((a, b) => a - b);
+      const generatedIndices = chapters.map((c) => c.chapterIndex).sort((a, b) => a - b);
 
-      console.log(
-        `[checkGenerationProgress] 已生成章节索引:`,
-        generatedIndices,
-      );
+      console.log(`[checkGenerationProgress] 已生成章节索引:`, generatedIndices);
 
       // 计算下一个需要生成的索引
       let nextIndex = 0;
@@ -88,10 +80,7 @@ const saveChapterContentSchema = z.object({
   chapterIndex: z.number().describe("章节索引（从 0 开始）"),
   sectionIndex: z.number().describe("小节索引（从 0 开始）"),
   title: z.string().describe("章节标题"),
-  contentMarkdown: z
-    .string()
-    .min(200)
-    .describe("章节内容（Markdown 格式，至少 200 字）"),
+  contentMarkdown: z.string().min(200).describe("章节内容（Markdown 格式，至少 200 字）"),
 });
 
 export const saveChapterContentTool = tool({
@@ -104,9 +93,7 @@ export const saveChapterContentTool = tool({
     );
     console.log(`[saveChapterContent] 画像 ID: ${params.profileId}`);
     console.log(`[saveChapterContent] 标题: ${params.title}`);
-    console.log(
-      `[saveChapterContent] 内容长度: ${params.contentMarkdown.length} 字符`,
-    );
+    console.log(`[saveChapterContent] 内容长度: ${params.contentMarkdown.length} 字符`);
 
     try {
       // 直接在后端执行保存操作到数据库

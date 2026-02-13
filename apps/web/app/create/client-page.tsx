@@ -1,16 +1,15 @@
 "use client";
 
-import { useCourseGeneration } from "@/hooks/useCourseGeneration";
+import { AnimatePresence, motion } from "framer-motion";
+import { useSearchParams } from "next/navigation";
+import { useState } from "react";
 import { AmbientBackground } from "@/components/create/AmbientBackground";
-import { NexusGraph } from "@/components/create/NexusGraph";
 import { ChatInterface } from "@/components/create/ChatInterface";
 import { ManifestingOverlay } from "@/components/create/ManifestingOverlay";
+import { NexusGraph } from "@/components/create/NexusGraph";
 import { OrganicHeader } from "@/components/create/OrganicHeader";
 import { OutlineReview } from "@/components/create/OutlineReview";
-
-import { useSearchParams } from "next/navigation";
-import { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useCourseGeneration } from "@/hooks/useCourseGeneration";
 
 interface CreatePageClientProps {
   userId: string;
@@ -18,9 +17,7 @@ interface CreatePageClientProps {
 
 export default function CreatePageClient({ userId }: CreatePageClientProps) {
   const searchParams = useSearchParams();
-  const goal = searchParams.get("goal")
-    ? decodeURIComponent(searchParams.get("goal")!)
-    : "";
+  const goal = searchParams.get("goal") ? decodeURIComponent(searchParams.get("goal")!) : "";
 
   // 使用 goal 作为 key，当 goal 改变时强制整个组件树重新挂载
   // 这样所有 state、ref、useEffect 都会重新初始化，避免状态残留
@@ -48,7 +45,7 @@ function CreatePageContent({ initialGoal, userId }: CreatePageContentProps) {
   const { handleSendMessage, confirmOutline, retry } = actions;
 
   // Track course profile save
-  const [courseId, setCourseId] = useState<string | null>(null);
+  const [courseId, _setCourseId] = useState<string | null>(null);
 
   // Note: 2026 架构师提示：
   // 课程保存逻辑已迁移至 useCourseGeneration 内部使用 saveCourseProfileAction
@@ -100,9 +97,7 @@ function CreatePageContent({ initialGoal, userId }: CreatePageContentProps) {
             >
               <OutlineReview
                 outline={outline}
-                onConfirm={(finalOutline) =>
-                  confirmOutline(finalOutline, courseId || undefined)
-                }
+                onConfirm={(finalOutline) => confirmOutline(finalOutline, courseId || undefined)}
                 onRefine={(feedback) => handleSendMessage(undefined, feedback)}
                 isThinking={isAiThinking}
                 messages={messages}

@@ -5,9 +5,9 @@
  * 相比 302.ai 原生搜索，提供更好的用户体验和可控性
  */
 
-import { env, clientEnv } from "@nexusnote/config";
-import { z } from "zod";
+import { env } from "@nexusnote/config";
 import { tool } from "ai";
+import { z } from "zod";
 
 // ============================================
 // Tavily Search Tool
@@ -30,22 +30,10 @@ export const searchWeb = tool({
       .default("basic")
       .describe("搜索深度：basic=快速结果，advanced=深度搜索"),
     maxResults: z.number().min(1).max(10).default(5).describe("返回结果数量"),
-    includeDomains: z
-      .array(z.string())
-      .optional()
-      .describe("指定搜索的域名（可选）"),
-    excludeDomains: z
-      .array(z.string())
-      .optional()
-      .describe("排除的域名（可选）"),
+    includeDomains: z.array(z.string()).optional().describe("指定搜索的域名（可选）"),
+    excludeDomains: z.array(z.string()).optional().describe("排除的域名（可选）"),
   }),
-  execute: async ({
-    query,
-    searchDepth,
-    maxResults,
-    includeDomains,
-    excludeDomains,
-  }) => {
+  execute: async ({ query, searchDepth, maxResults, includeDomains, excludeDomains }) => {
     // 检查 API Key
     const apiKey = env.TAVILY_API_KEY;
 

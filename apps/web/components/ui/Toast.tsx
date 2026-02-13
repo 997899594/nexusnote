@@ -1,9 +1,9 @@
 "use client";
 
+import { AnimatePresence, motion } from "framer-motion";
 import { useAtomValue } from "jotai";
-import { toastsAtom, type Toast } from "@/lib/store/atoms/ui";
-import { motion, AnimatePresence } from "framer-motion";
-import { X, CheckCircle, AlertCircle, AlertTriangle, Info } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle, Info, X } from "lucide-react";
+import { type Toast, toastsAtom } from "@/lib/store/atoms/ui";
 
 const toastIcons = {
   success: CheckCircle,
@@ -52,7 +52,7 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) =
 export function Toaster() {
   const toasts = useAtomValue(toastsAtom);
 
-  const handleRemove = (id: string) => {
+  const handleRemove = (_id: string) => {
     const { toastsAtom: atom } = require("@/lib/store/atoms/ui");
     const { setAtom } = require("jotai");
     // This is handled by the auto-remove in useToast, but users can also click to dismiss

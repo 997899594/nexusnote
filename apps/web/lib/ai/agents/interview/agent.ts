@@ -9,18 +9,11 @@
  * 4. 可观测性 - 集成 Langfuse 追踪
  */
 
-import {
-  ToolLoopAgent,
-  InferAgentUIMessage,
-  stepCountIs,
-  hasToolCall,
-  type ToolSet,
-  type LanguageModel,
-} from "ai";
-import { string, z } from "zod";
-import { chatModel, webSearchModel } from "@/lib/ai/registry";
-import { interviewTools } from "@/lib/ai/tools/interview";
+import { type InferAgentUIMessage, type LanguageModel, stepCountIs, ToolLoopAgent } from "ai";
+import { z } from "zod";
 import { buildInterviewPrompt } from "@/lib/ai/prompts/interview";
+import { chatModel } from "@/lib/ai/registry";
+import { interviewTools } from "@/lib/ai/tools/interview";
 
 const interviewModel = chatModel;
 
@@ -89,18 +82,14 @@ export const interviewAgent = new ToolLoopAgent({
       `[Interview Agent.${callId}] Generated instructions (first 500 chars):`,
       instructions.slice(0, 500),
     );
-    console.log(
-      `[Interview Agent.${callId}] Tools available:`,
-      Object.keys(interviewTools),
-    );
+    console.log(`[Interview Agent.${callId}] Tools available:`, Object.keys(interviewTools));
 
     // 检测当前阶段
     const hasGoal = Boolean(callOptions.goal);
     const hasBackground = Boolean(callOptions.background);
     const hasTargetOutcome = Boolean(callOptions.targetOutcome);
     const hasCognitiveStyle = Boolean(callOptions.cognitiveStyle);
-    const hasAllInfo =
-      hasGoal && hasBackground && hasTargetOutcome && hasCognitiveStyle;
+    const hasAllInfo = hasGoal && hasBackground && hasTargetOutcome && hasCognitiveStyle;
 
     console.log(`[Interview Agent.${callId}] Phase detection:`, {
       hasGoal,
@@ -125,9 +114,7 @@ export const interviewAgent = new ToolLoopAgent({
 
     // Phase 4: 信息收集完毕，强制调用 generateOutline
     if (hasAllInfo) {
-      console.log(
-        `[Interview Agent.${callId}] ✅ All info collected, FORCING generateOutline`,
-      );
+      console.log(`[Interview Agent.${callId}] ✅ All info collected, FORCING generateOutline`);
       return {
         ...rest,
         instructions,
@@ -140,9 +127,7 @@ export const interviewAgent = new ToolLoopAgent({
     const isFirstMessage = !callOptions.goal && !callOptions.background;
 
     if (isFirstMessage) {
-      console.log(
-        `[Interview Agent.${callId}] 🔄 First message, FORCING presentOptions`,
-      );
+      console.log(`[Interview Agent.${callId}] 🔄 First message, FORCING presentOptions`);
       return {
         ...rest,
         instructions,

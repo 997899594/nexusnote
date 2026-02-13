@@ -1,30 +1,17 @@
 "use server";
 
-import { v4 as uuidv4 } from "uuid";
-import {
-  isAIConfigured,
-  fastModel,
-  chatModel,
-  getAIProviderInfo,
-} from "@/lib/ai/registry";
-import { createTelemetryConfig } from "@/lib/ai/langfuse";
-import { checkRateLimit } from "@/lib/ai/rate-limit";
-import {
-  streamText,
-  generateText,
-  Output,
-} from "ai";
-import {
-  AIGatewayService,
-  AIRequestSchema,
-  type AIRequest,
-} from "@/lib/ai/gateway/service";
-import { requireUserId, requireAuthWithRateLimit } from "@/lib/auth/auth-utils";
-import { z } from "zod";
+import { env } from "@nexusnote/config";
 import { db, extractedNotes } from "@nexusnote/db";
+import { generateText, Output, streamText } from "ai";
 import { Queue } from "bullmq";
 import IORedis from "ioredis";
-import { env } from "@nexusnote/config";
+import { v4 as uuidv4 } from "uuid";
+import { z } from "zod";
+import { AIGatewayService, type AIRequest, AIRequestSchema } from "@/lib/ai/gateway/service";
+import { createTelemetryConfig } from "@/lib/ai/langfuse";
+import { checkRateLimit } from "@/lib/ai/rate-limit";
+import { chatModel, fastModel, isAIConfigured } from "@/lib/ai/registry";
+import { requireAuthWithRateLimit } from "@/lib/auth/auth-utils";
 
 // Redis 连接（复用现有配置）
 const redis = new IORedis(env.REDIS_URL || "redis://localhost:6379", {
@@ -88,10 +75,7 @@ export async function extractNoteAction(body: {
  * 闪卡生成 Action
  * 替代 /api/flashcard/generate
  */
-export async function generateFlashcardAction(body: {
-  question: string;
-  context?: string;
-}) {
+export async function generateFlashcardAction(body: { question: string; context?: string }) {
   const traceId = uuidv4();
   const { userId } = await requireAuthWithRateLimit(checkRateLimit);
 
@@ -173,10 +157,7 @@ export async function editorCompletionAction(body: {
  * 幽灵分析 Action
  * 替代 /api/ghost/analyze
  */
-export async function ghostAnalyzeAction(body: {
-  context: string;
-  documentTitle?: string;
-}) {
+export async function ghostAnalyzeAction(body: { context: string; documentTitle?: string }) {
   const traceId = uuidv4();
   const { userId } = await requireAuthWithRateLimit(checkRateLimit);
 
@@ -286,10 +267,7 @@ export async function generateDocAction(body: {
 export async function aiGatewayAction(input: AIRequest): Promise<Response> {
   console.log("[aiGatewayAction] Starting...");
   console.log("[aiGatewayAction] Input messages:", input.messages?.length);
-  console.log(
-    "[aiGatewayAction] Input context:",
-    JSON.stringify(input.context, null, 2),
-  );
+  console.log("[aiGatewayAction] Input context:", JSON.stringify(input.context, null, 2));
 
   const { userId } = await requireAuthWithRateLimit(checkRateLimit);
 

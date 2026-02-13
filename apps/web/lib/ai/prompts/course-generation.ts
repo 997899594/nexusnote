@@ -10,9 +10,7 @@
 
 import type { CourseGenerationContext } from "@/lib/ai/agents/course-generation/agent";
 
-export function buildCourseGenerationPrompt(
-  context: CourseGenerationContext,
-): string {
+export function buildCourseGenerationPrompt(context: CourseGenerationContext): string {
   const LEARNING_PROFILE = `
 【学生背景】
 - 学习目标: ${context.goal}
@@ -60,7 +58,7 @@ ${JSON.stringify(context.outlineData, null, 2)}
 【Markdown 高级渲染】
 请积极使用以下语法增强内容：
 - **图表**：使用 Mermaid 语法，如 \`\`\`mermaid ... \`\`\`
-- **公式**：使用 LaTeX 语法，如 \`$E=mc^2$\` 或 \`$$\sum...$$\`
+- **公式**：使用 LaTeX 语法，如 \`$E=mc^2$\` 或 \`$$sum...$$\`
 - **提示块**：使用 Callout 语法，如 \`> [!INFO] 提示内容\`
 
 【按需生成模式 (On-Demand Mode)】

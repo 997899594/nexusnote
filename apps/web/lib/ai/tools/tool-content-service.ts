@@ -11,10 +11,10 @@
  * - 请求去重缓存
  */
 
-import { generateText } from 'ai'
-import { z } from 'zod'
-import { fastModel, chatModel } from '@/lib/ai/registry'
-import { createTelemetryConfig } from '@/lib/ai/langfuse'
+import { generateText } from "ai";
+import { z } from "zod";
+import { createTelemetryConfig } from "@/lib/ai/langfuse";
+import { chatModel, fastModel } from "@/lib/ai/registry";
 
 // ============================================
 // Error Handling & Retry Utilities
@@ -23,11 +23,11 @@ import { createTelemetryConfig } from '@/lib/ai/langfuse'
 class ToolError extends Error {
   constructor(
     message: string,
-    public code: 'RATE_LIMIT' | 'TIMEOUT' | 'INVALID_RESPONSE' | 'MODEL_ERROR' | 'UNKNOWN',
+    public code: "RATE_LIMIT" | "TIMEOUT" | "INVALID_RESPONSE" | "MODEL_ERROR" | "UNKNOWN",
     public retryable: boolean = true,
   ) {
-    super(message)
-    this.name = 'ToolError'
+    super(message);
+    this.name = "ToolError";
   }
 }
 
@@ -42,79 +42,79 @@ async function withRetry<T>(
   maxRetries: number = 3,
   baseDelay: number = 1000,
 ): Promise<T> {
-  let lastError: Error | undefined
+  let lastError: Error | undefined;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      return await fn()
+      return await fn();
     } catch (error) {
-      lastError = error as Error
+      lastError = error as Error;
 
       // 判断是否可重试
-      const toolError = error instanceof ToolError ? error : undefined
+      const toolError = error instanceof ToolError ? error : undefined;
       if (toolError && !toolError.retryable) {
-        throw error
+        throw error;
       }
 
       // 最后一次尝试失败，不再重试
       if (attempt === maxRetries) {
-        throw error
+        throw error;
       }
 
       // 指数退避延迟
-      const delay = baseDelay * Math.pow(2, attempt) + Math.random() * 500
-      await new Promise(resolve => setTimeout(resolve, delay))
+      const delay = baseDelay * 2 ** attempt + Math.random() * 500;
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
 
-  throw lastError || new Error('Unknown error in retry logic')
+  throw lastError || new Error("Unknown error in retry logic");
 }
 
 /**
  * 简单的内存缓存（用于请求去重）
  */
 class SimpleCache<K, V> {
-  private cache = new Map<K, { value: V; expiry: number }>()
-  private defaultTTL = 5 * 60 * 1000 // 5 minutes
+  private cache = new Map<K, { value: V; expiry: number }>();
+  private defaultTTL = 5 * 60 * 1000; // 5 minutes
 
   set(key: K, value: V, ttl: number = this.defaultTTL): void {
     this.cache.set(key, {
       value,
       expiry: Date.now() + ttl,
-    })
+    });
   }
 
   get(key: K): V | undefined {
-    const entry = this.cache.get(key)
-    if (!entry) return undefined
+    const entry = this.cache.get(key);
+    if (!entry) return undefined;
 
     if (Date.now() > entry.expiry) {
-      this.cache.delete(key)
-      return undefined
+      this.cache.delete(key);
+      return undefined;
     }
 
-    return entry.value
+    return entry.value;
   }
 
   getAs<T = V>(key: K): T | undefined {
-    return this.get(key) as T | undefined
+    return this.get(key) as T | undefined;
   }
 
   clear(): void {
-    this.cache.clear()
+    this.cache.clear();
   }
 }
 
 // 创建全局缓存实例
-const contentCache = new SimpleCache<string, any>()
+const contentCache = new SimpleCache<string, any>();
 
 // 生成缓存键
 function generateCacheKey(type: string, params: Record<string, any>): string {
   const sortedParams = Object.keys(params)
     .sort()
-    .map(k => `${k}=${JSON.stringify(params[k])}`)
-    .join('&')
-  return `${type}:${sortedParams}`
+    .map((k) => `${k}=${JSON.stringify(params[k])}`)
+    .join("&");
+  return `${type}:${sortedParams}`;
 }
 
 // ============================================
@@ -123,39 +123,39 @@ function generateCacheKey(type: string, params: Record<string, any>): string {
 
 const QuizQuestionSchema = z.object({
   id: z.number(),
-  type: z.enum(['multiple_choice', 'true_false', 'fill_blank']),
+  type: z.enum(["multiple_choice", "true_false", "fill_blank"]),
   question: z.string(),
   options: z.array(z.string()).optional(),
   answer: z.union([z.string(), z.number()]),
   explanation: z.string().optional(),
-})
+});
 
 const QuizQuestionsSchema = z.object({
   questions: z.array(QuizQuestionSchema),
-})
+});
 
-export type QuizQuestion = z.infer<typeof QuizQuestionSchema>
+export type QuizQuestion = z.infer<typeof QuizQuestionSchema>;
 
 export async function generateQuizQuestions(
   content: string,
   questionCount: number,
-  difficulty: 'easy' | 'medium' | 'hard',
-  types?: ('multiple_choice' | 'true_false' | 'fill_blank')[],
+  difficulty: "easy" | "medium" | "hard",
+  types?: ("multiple_choice" | "true_false" | "fill_blank")[],
 ): Promise<QuizQuestion[]> {
-  const cacheKey = generateCacheKey('quiz', { content, questionCount, difficulty, types })
-  const cached = contentCache.getAs<QuizQuestion[]>(cacheKey)
+  const cacheKey = generateCacheKey("quiz", { content, questionCount, difficulty, types });
+  const cached = contentCache.getAs<QuizQuestion[]>(cacheKey);
   if (cached) {
-    console.log('[ToolContentService] Cache hit for quiz generation')
-    return cached
+    console.log("[ToolContentService] Cache hit for quiz generation");
+    return cached;
   }
 
   const difficultyMap = {
-    easy: '简单',
-    medium: '中等',
-    hard: '困难',
-  }
+    easy: "简单",
+    medium: "中等",
+    hard: "困难",
+  };
 
-  const typeDescriptions = types?.join('、') || '单选题、判断题和填空题'
+  const typeDescriptions = types?.join("、") || "单选题、判断题和填空题";
 
   const prompt = `你是一个专业的教育测验设计师。请根据以下内容生成 ${questionCount} 道${difficultyMap[difficulty]}难度的${typeDescriptions}。
 
@@ -181,91 +181,95 @@ ${content}
       "explanation": "解释说明"
     }
   ]
-}`
+}`;
 
   try {
-    const result = await withRetry(async () => {
-      const model = fastModel || chatModel
-      if (!model) {
-        throw new ToolError('AI model not available', 'MODEL_ERROR', false)
-      }
+    const result = await withRetry(
+      async () => {
+        const model = fastModel || chatModel;
+        if (!model) {
+          throw new ToolError("AI model not available", "MODEL_ERROR", false);
+        }
 
-      const response = await generateText({
-        model,
-        prompt,
-        experimental_telemetry: createTelemetryConfig('tool-quiz-generation', {
-          questionCount,
-          difficulty,
-          contentLength: content.length,
-        }),
-      })
+        const response = await generateText({
+          model,
+          prompt,
+          experimental_telemetry: createTelemetryConfig("tool-quiz-generation", {
+            questionCount,
+            difficulty,
+            contentLength: content.length,
+          }),
+        });
 
-      // 验证响应格式
-      const parsed = JSON.parse(response.text)
-      try {
-        const validated = QuizQuestionsSchema.parse(parsed)
-        return { questions: validated.questions }
-      } catch (zodError) {
-        throw new ToolError('Invalid response format from AI', 'INVALID_RESPONSE', true)
-      }
-    }, 2, 1000)
+        // 验证响应格式
+        const parsed = JSON.parse(response.text);
+        try {
+          const validated = QuizQuestionsSchema.parse(parsed);
+          return { questions: validated.questions };
+        } catch (_zodError) {
+          throw new ToolError("Invalid response format from AI", "INVALID_RESPONSE", true);
+        }
+      },
+      2,
+      1000,
+    );
 
-    contentCache.set(cacheKey, result.questions)
-    return result.questions
+    contentCache.set(cacheKey, result.questions);
+    return result.questions;
   } catch (error) {
-    console.error('[ToolContentService] Quiz generation failed after retries:', error)
+    console.error("[ToolContentService] Quiz generation failed after retries:", error);
     // 返回降级题目
-    return generateFallbackQuiz(content, questionCount, difficulty, types)
+    return generateFallbackQuiz(content, questionCount, difficulty, types);
   }
 }
 
 function generateFallbackQuiz(
   content: string,
   questionCount: number,
-  difficulty: 'easy' | 'medium' | 'hard',
-  types?: ('multiple_choice' | 'true_false' | 'fill_blank')[],
+  _difficulty: "easy" | "medium" | "hard",
+  types?: ("multiple_choice" | "true_false" | "fill_blank")[],
 ): QuizQuestion[] {
-  const topic = content.length > 50 ? content.slice(0, 47) + '...' : content
-  const questions: QuizQuestion[] = []
-  const defaultTypes = types || ['multiple_choice', 'true_false', 'fill_blank']
+  const topic = content.length > 50 ? `${content.slice(0, 47)}...` : content;
+  const questions: QuizQuestion[] = [];
+  const defaultTypes = types || ["multiple_choice", "true_false", "fill_blank"];
 
   for (let i = 0; i < Math.min(questionCount, 10); i++) {
-    const type = defaultTypes[i % defaultTypes.length]
+    const type = defaultTypes[i % defaultTypes.length];
 
-    if (type === 'multiple_choice') {
+    if (type === "multiple_choice") {
       questions.push({
         id: i + 1,
-        type: 'multiple_choice',
+        type: "multiple_choice",
         question: `关于"${topic}"的以下哪个描述是正确的？`,
         options: [
-          '这是第一个选项，描述概念的特征',
-          '这是第二个选项，包含可能的错误信息',
-          '这是第三个选项，描述另一个特征',
-          '这是正确答案',
+          "这是第一个选项，描述概念的特征",
+          "这是第二个选项，包含可能的错误信息",
+          "这是第三个选项，描述另一个特征",
+          "这是正确答案",
         ],
         answer: 3,
-        explanation: '正确答案是 D，因为这是基于内容的准确描述。',
-      })
-    } else if (type === 'true_false') {
+        explanation: "正确答案是 D，因为这是基于内容的准确描述。",
+      });
+    } else if (type === "true_false") {
       questions.push({
         id: i + 1,
-        type: 'true_false',
+        type: "true_false",
         question: `"${topic}"的核心概念是否包含以下要素？`,
-        answer: 'true',
-        explanation: '这个陈述是正确的，因为它准确反映了核心概念。',
-      })
+        answer: "true",
+        explanation: "这个陈述是正确的，因为它准确反映了核心概念。",
+      });
     } else {
       questions.push({
         id: i + 1,
-        type: 'fill_blank',
+        type: "fill_blank",
         question: `在"${topic}"中，最重要的概念是______。`,
-        answer: '核心概念',
-        explanation: '这是该主题的核心概念，理解它对掌握整个内容至关重要。',
-      })
+        answer: "核心概念",
+        explanation: "这是该主题的核心概念，理解它对掌握整个内容至关重要。",
+      });
     }
   }
 
-  return questions
+  return questions;
 }
 
 // ============================================
@@ -274,34 +278,34 @@ function generateFallbackQuiz(
 
 // 使用 interface 避免递归类型推断问题
 export interface MindMapNodeData {
-  id: string
-  label: string
-  children?: MindMapNodeData[]
+  id: string;
+  label: string;
+  children?: MindMapNodeData[];
 }
 
 const MindMapNodeSchema: z.ZodType<MindMapNodeData> = z.object({
   id: z.string(),
   label: z.string(),
   children: z.array(z.lazy(() => MindMapNodeSchema)).optional(),
-})
+});
 
 const MindMapSchema = z.object({
   nodes: z.array(MindMapNodeSchema),
-})
+});
 
 export async function generateMindMapNodes(
   topic: string,
   content: string | undefined,
   maxDepth: number,
 ): Promise<MindMapNodeData[]> {
-  const cacheKey = generateCacheKey('mindmap', { topic, content, maxDepth })
-  const cached = contentCache.getAs<MindMapNodeData[]>(cacheKey)
+  const cacheKey = generateCacheKey("mindmap", { topic, content, maxDepth });
+  const cached = contentCache.getAs<MindMapNodeData[]>(cacheKey);
   if (cached) {
-    console.log('[ToolContentService] Cache hit for mindmap generation')
-    return cached
+    console.log("[ToolContentService] Cache hit for mindmap generation");
+    return cached;
   }
 
-  const contentText = content || topic
+  const contentText = content || topic;
 
   const prompt = `你是一个专业的知识结构设计师。请为以下主题创建一个思维导图结构。
 
@@ -330,141 +334,127 @@ ${contentText}
       ]
     }
   ]
-}`
+}`;
 
   try {
-    const result = await withRetry(async () => {
-      const model = chatModel
-      if (!model) {
-        throw new ToolError('AI model not available', 'MODEL_ERROR', false)
-      }
+    const result = await withRetry(
+      async () => {
+        const model = chatModel;
+        if (!model) {
+          throw new ToolError("AI model not available", "MODEL_ERROR", false);
+        }
 
-      const response = await generateText({
-        model,
-        prompt,
-        experimental_telemetry: createTelemetryConfig('tool-mindmap-generation', {
-          topic,
-          maxDepth,
-        }),
-      })
+        const response = await generateText({
+          model,
+          prompt,
+          experimental_telemetry: createTelemetryConfig("tool-mindmap-generation", {
+            topic,
+            maxDepth,
+          }),
+        });
 
-      // 验证响应格式
-      const parsed = JSON.parse(response.text)
-      try {
-        const validated = MindMapSchema.parse(parsed)
-        return { nodes: validated.nodes }
-      } catch (zodError) {
-        throw new ToolError('Invalid response format from AI', 'INVALID_RESPONSE', true)
-      }
-    }, 2, 1000)
+        // 验证响应格式
+        const parsed = JSON.parse(response.text);
+        try {
+          const validated = MindMapSchema.parse(parsed);
+          return { nodes: validated.nodes };
+        } catch (_zodError) {
+          throw new ToolError("Invalid response format from AI", "INVALID_RESPONSE", true);
+        }
+      },
+      2,
+      1000,
+    );
 
-    contentCache.set(cacheKey, result.nodes)
-    return result.nodes
+    contentCache.set(cacheKey, result.nodes);
+    return result.nodes;
   } catch (error) {
-    console.error('[ToolContentService] MindMap generation failed after retries:', error)
-    return generateFallbackMindMap(topic, maxDepth)
+    console.error("[ToolContentService] MindMap generation failed after retries:", error);
+    return generateFallbackMindMap(topic, maxDepth);
   }
 }
 
-function generateFallbackMindMap(
-  topic: string,
-  maxDepth: number,
-): MindMapNodeData[] {
+function generateFallbackMindMap(_topic: string, maxDepth: number): MindMapNodeData[] {
   const branches = [
     {
-      label: '核心概念',
-      children: [
-        { label: '定义与特征' },
-        { label: '关键要素' },
-        { label: '适用场景' },
-      ],
+      label: "核心概念",
+      children: [{ label: "定义与特征" }, { label: "关键要素" }, { label: "适用场景" }],
     },
     {
-      label: '实践应用',
-      children: [
-        { label: '使用方法' },
-        { label: '注意事项' },
-        { label: '最佳实践' },
-      ],
+      label: "实践应用",
+      children: [{ label: "使用方法" }, { label: "注意事项" }, { label: "最佳实践" }],
     },
     {
-      label: '深入理解',
-      children: [
-        { label: '底层原理' },
-        { label: '与其他概念的关系' },
-        { label: '常见问题' },
-      ],
+      label: "深入理解",
+      children: [{ label: "底层原理" }, { label: "与其他概念的关系" }, { label: "常见问题" }],
     },
     {
-      label: '延伸拓展',
-      children: [
-        { label: '相关资源' },
-        { label: '学习路径' },
-      ],
+      label: "延伸拓展",
+      children: [{ label: "相关资源" }, { label: "学习路径" }],
     },
-  ]
+  ];
 
   return branches.map((branch, idx) => {
-    const nodeId = `branch-${idx}`
+    const nodeId = `branch-${idx}`;
     const node: MindMapNodeData = {
       id: nodeId,
       label: branch.label,
-    }
+    };
 
     if (maxDepth > 1 && branch.children) {
       node.children = branch.children.map((child, childIdx) => {
-        const childId = `node-${idx}-${childIdx}`
+        const childId = `node-${idx}-${childIdx}`;
         const childNode: MindMapNodeData = {
           id: childId,
           label: child.label,
-        }
+        };
 
         if (maxDepth > 2 && childIdx === 0) {
           childNode.children = [
-            { id: `${childId}-1`, label: '要点一' },
-            { id: `${childId}-2`, label: '要点二' },
-          ]
+            { id: `${childId}-1`, label: "要点一" },
+            { id: `${childId}-2`, label: "要点二" },
+          ];
         }
 
-        return childNode
-      })
+        return childNode;
+      });
     }
 
-    return node
-  })
+    return node;
+  });
 }
 
 // ============================================
 // Summary Generation
 // ============================================
 
-const SummarySchema = z.object({
+const _SummarySchema = z.object({
   content: z.string(),
-})
+});
 
 export async function generateSummaryContent(
   content: string,
-  length: 'brief' | 'medium' | 'detailed',
-  style: 'bullet_points' | 'paragraph' | 'key_takeaways',
+  length: "brief" | "medium" | "detailed",
+  style: "bullet_points" | "paragraph" | "key_takeaways",
 ): Promise<string> {
-  const cacheKey = generateCacheKey('summary', { content: content.slice(0, 100), length, style })
-  const cached = contentCache.getAs<string>(cacheKey)
+  const cacheKey = generateCacheKey("summary", { content: content.slice(0, 100), length, style });
+  const cached = contentCache.getAs<string>(cacheKey);
   if (cached) {
-    console.log('[ToolContentService] Cache hit for summary generation')
-    return cached
+    console.log("[ToolContentService] Cache hit for summary generation");
+    return cached;
   }
 
   const lengthMap = {
-    brief: '1-2句话',
-    medium: '一段话',
-    detailed: '多段落',
-  }
+    brief: "1-2句话",
+    medium: "一段话",
+    detailed: "多段落",
+  };
 
   const styleMap = {
-    bullet_points: '要点列表格式（每行以 • 开头）',
-    paragraph: '段落形式',
-    key_takeaways: '编号列表格式（1. 2. 3.）',
-  }
+    bullet_points: "要点列表格式（每行以 • 开头）",
+    paragraph: "段落形式",
+    key_takeaways: "编号列表格式（1. 2. 3.）",
+  };
 
   const prompt = `你是一个专业的内容摘要专家。请对以下内容进行摘要。
 
@@ -477,56 +467,62 @@ ${content}
 3. 保留核心信息，去除冗余内容
 4. 语言简洁，逻辑清晰
 
-请直接输出摘要内容，不要有任何其他说明文字。`
+请直接输出摘要内容，不要有任何其他说明文字。`;
 
   try {
-    const result = await withRetry(async () => {
-      const model = fastModel || chatModel
-      if (!model) {
-        throw new ToolError('AI model not available', 'MODEL_ERROR', false)
-      }
+    const result = await withRetry(
+      async () => {
+        const model = fastModel || chatModel;
+        if (!model) {
+          throw new ToolError("AI model not available", "MODEL_ERROR", false);
+        }
 
-      const response = await generateText({
-        model,
-        prompt,
-        experimental_telemetry: createTelemetryConfig('tool-summary-generation', {
-          length,
-          style,
-          contentLength: content.length,
-        }),
-      })
+        const response = await generateText({
+          model,
+          prompt,
+          experimental_telemetry: createTelemetryConfig("tool-summary-generation", {
+            length,
+            style,
+            contentLength: content.length,
+          }),
+        });
 
-      return response.text.trim()
-    }, 2, 1000)
+        return response.text.trim();
+      },
+      2,
+      1000,
+    );
 
-    contentCache.set(cacheKey, result)
-    return result
+    contentCache.set(cacheKey, result);
+    return result;
   } catch (error) {
-    console.error('[ToolContentService] Summary generation failed after retries:', error)
-    return generateFallbackSummary(content, length, style)
+    console.error("[ToolContentService] Summary generation failed after retries:", error);
+    return generateFallbackSummary(content, length, style);
   }
 }
 
 function generateFallbackSummary(
   content: string,
-  length: 'brief' | 'medium' | 'detailed',
-  style: 'bullet_points' | 'paragraph' | 'key_takeaways',
+  length: "brief" | "medium" | "detailed",
+  style: "bullet_points" | "paragraph" | "key_takeaways",
 ): string {
-  const sentences = content.split(/[。！？.!?]/).filter(s => s.trim().length > 10)
+  const sentences = content.split(/[。！？.!?]/).filter((s) => s.trim().length > 10);
 
-  if (style === 'bullet_points') {
-    const points = sentences.slice(0, length === 'brief' ? 2 : length === 'medium' ? 4 : 6)
-    return points.map((s) => `• ${s.trim()}`).join('\n')
+  if (style === "bullet_points") {
+    const points = sentences.slice(0, length === "brief" ? 2 : length === "medium" ? 4 : 6);
+    return points.map((s) => `• ${s.trim()}`).join("\n");
   }
 
-  if (style === 'key_takeaways') {
-    const takeaways = sentences.slice(0, length === 'brief' ? 2 : length === 'medium' ? 3 : 5)
-    return takeaways.map((s, i) => `${i + 1}. ${s.trim()}`).join('\n')
+  if (style === "key_takeaways") {
+    const takeaways = sentences.slice(0, length === "brief" ? 2 : length === "medium" ? 3 : 5);
+    return takeaways.map((s, i) => `${i + 1}. ${s.trim()}`).join("\n");
   }
 
   // paragraph
-  const summaryText = sentences.slice(0, length === 'brief' ? 2 : length === 'medium' ? 4 : 7).join('。')
-  return summaryText + '。'
+  const summaryText = sentences
+    .slice(0, length === "brief" ? 2 : length === "medium" ? 4 : 7)
+    .join("。");
+  return `${summaryText}。`;
 }
 
 // ============================================
@@ -541,23 +537,23 @@ export async function streamQuizQuestions(
   content: string,
   questionCount: number,
   onQuestion: (question: QuizQuestion, index: number) => void,
-  difficulty?: 'easy' | 'medium' | 'hard',
-  types?: ('multiple_choice' | 'true_false' | 'fill_blank')[],
+  difficulty?: "easy" | "medium" | "hard",
+  types?: ("multiple_choice" | "true_false" | "fill_blank")[],
 ): Promise<QuizQuestion[]> {
   const questions = await generateQuizQuestions(
     content,
     questionCount,
-    difficulty || 'medium',
+    difficulty || "medium",
     types,
-  )
+  );
 
   // 逐个返回题目，模拟流式效果
   for (let i = 0; i < questions.length; i++) {
-    await new Promise(resolve => setTimeout(resolve, 200)) // 每题间隔 200ms
-    onQuestion(questions[i], i)
+    await new Promise((resolve) => setTimeout(resolve, 200)); // 每题间隔 200ms
+    onQuestion(questions[i], i);
   }
 
-  return questions
+  return questions;
 }
 
 /**
@@ -570,15 +566,15 @@ export async function streamMindMapNodes(
   maxDepth: number,
   content?: string,
 ): Promise<MindMapNodeData[]> {
-  const nodes = await generateMindMapNodes(topic, content, maxDepth)
+  const nodes = await generateMindMapNodes(topic, content, maxDepth);
 
   // 逐个返回分支，模拟流式效果
   for (let i = 0; i < nodes.length; i++) {
-    await new Promise(resolve => setTimeout(resolve, 300)) // 每分支间隔 300ms
-    onBranch(nodes[i], i)
+    await new Promise((resolve) => setTimeout(resolve, 300)); // 每分支间隔 300ms
+    onBranch(nodes[i], i);
   }
 
-  return nodes
+  return nodes;
 }
 
 // ============================================
@@ -586,9 +582,9 @@ export async function streamMindMapNodes(
 // ============================================
 
 export function clearContentCache() {
-  contentCache.clear()
+  contentCache.clear();
 }
 
 export function getCacheSize(): number {
-  return (contentCache as any).cache.size
+  return (contentCache as any).cache.size;
 }

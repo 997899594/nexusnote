@@ -1,9 +1,9 @@
 "use server";
 
-import { db, documentSnapshots, eq, desc, and, inArray } from "@nexusnote/db";
-import { createSafeAction } from "@/lib/actions/action-utils";
-import { verifyDocumentOwnership, AuthError } from "@/lib/auth/auth-utils";
+import { db, desc, documentSnapshots, eq } from "@nexusnote/db";
 import { z } from "zod";
+import { createSafeAction } from "@/lib/actions/action-utils";
+import { AuthError, verifyDocumentOwnership } from "@/lib/auth/auth-utils";
 
 /**
  * 快照服务器端格式
@@ -136,18 +136,12 @@ export const deleteSnapshotAction = createSafeAction(
     }
 
     // 验证文档所有权（通过 workspace）
-    const ownership = await verifyDocumentOwnership(
-      db,
-      snapshot.documentId ?? "",
-      userId,
-    );
+    const ownership = await verifyDocumentOwnership(db, snapshot.documentId ?? "", userId);
     if (!ownership.ownsDocument) {
       throw new AuthError("Access denied to this snapshot");
     }
 
-    await db
-      .delete(documentSnapshots)
-      .where(eq(documentSnapshots.id, snapshotId));
+    await db.delete(documentSnapshots).where(eq(documentSnapshots.id, snapshotId));
 
     return { success: true };
   },

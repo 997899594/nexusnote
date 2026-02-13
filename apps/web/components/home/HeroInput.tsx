@@ -1,17 +1,17 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-  Paperclip,
-  Mic,
-  Image as ImageIcon,
-  FileText,
   ArrowUp,
   Command,
+  FileText,
+  Image as ImageIcon,
+  Mic,
+  Paperclip,
   Sparkles,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 interface CommandOption {
@@ -76,15 +76,13 @@ export function HeroInput() {
         },
       },
     ],
-    [value],
+    [value, handleGenerate],
   );
 
   // Filter commands based on query
   const filteredCommands = useMemo(() => {
     if (!commandQuery) return commands;
-    return commands.filter((c) =>
-      c.label.toLowerCase().includes(commandQuery.toLowerCase()),
-    );
+    return commands.filter((c) => c.label.toLowerCase().includes(commandQuery.toLowerCase()));
   }, [commands, commandQuery]);
 
   // Auto-resize textarea
@@ -93,7 +91,7 @@ export function HeroInput() {
       textareaRef.current.style.height = "auto";
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
     }
-  }, [value]);
+  }, []);
 
   // Slash Command Logic
   useEffect(() => {
@@ -122,12 +120,7 @@ export function HeroInput() {
       if (showCommandMenu) {
         e.preventDefault();
         executeCommand(filteredCommands[selectedIndex]);
-      } else if (
-        e.metaKey ||
-        e.ctrlKey ||
-        !textareaRef.current ||
-        value.split("\n").length <= 1
-      ) {
+      } else if (e.metaKey || e.ctrlKey || !textareaRef.current || value.split("\n").length <= 1) {
         e.preventDefault();
         handleSubmit();
       }
@@ -140,10 +133,7 @@ export function HeroInput() {
         setSelectedIndex((prev) => (prev + 1) % filteredCommands.length);
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
-        setSelectedIndex(
-          (prev) =>
-            (prev - 1 + filteredCommands.length) % filteredCommands.length,
-        );
+        setSelectedIndex((prev) => (prev - 1 + filteredCommands.length) % filteredCommands.length);
       } else if (e.key === "Escape") {
         e.preventDefault();
         setShowCommandMenu(false);
@@ -174,9 +164,7 @@ export function HeroInput() {
               <span className="text-[10px] font-bold text-black/40 uppercase tracking-wider">
                 Commands
               </span>
-              <span className="text-[10px] text-black/30">
-                {filteredCommands.length} matches
-              </span>
+              <span className="text-[10px] text-black/30">{filteredCommands.length} matches</span>
             </div>
 
             {filteredCommands.length > 0 ? (
@@ -191,9 +179,7 @@ export function HeroInput() {
                 />
               ))
             ) : (
-              <div className="px-3 py-4 text-center text-xs text-black/40">
-                No commands found
-              </div>
+              <div className="px-3 py-4 text-center text-xs text-black/40">No commands found</div>
             )}
           </motion.div>
         )}
@@ -217,7 +203,6 @@ export function HeroInput() {
             placeholder="Describe your learning goal..."
             className="w-full bg-transparent outline-none text-2xl text-[#1a1a1a] placeholder:text-[#999] resize-none overflow-hidden leading-relaxed min-h-[80px]"
             rows={1}
-            autoFocus
           />
 
           <div className="flex items-end justify-between mt-auto pt-6">
@@ -231,9 +216,7 @@ export function HeroInput() {
             <div className="flex items-center gap-3">
               <span className="text-xs font-medium text-black/30 hidden sm:inline-block">
                 {showCommandMenu ? (
-                  <span className="text-indigo-500 font-bold">
-                    Select command...
-                  </span>
+                  <span className="text-indigo-500 font-bold">Select command...</span>
                 ) : (
                   <>
                     Use{" "}
@@ -297,9 +280,7 @@ function CommandItem({
       <div
         className={cn(
           "w-6 h-6 flex items-center justify-center rounded-md transition-colors",
-          isSelected
-            ? "bg-white text-black shadow-sm"
-            : "text-black/40 bg-black/5",
+          isSelected ? "bg-white text-black shadow-sm" : "text-black/40 bg-black/5",
         )}
       >
         <Icon className="w-3.5 h-3.5" />

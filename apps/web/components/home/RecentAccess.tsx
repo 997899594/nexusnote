@@ -1,8 +1,8 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { BookOpen, FileText, ArrowUpRight } from "lucide-react";
-import { RecentItemDTO } from "@/lib/actions/types";
+import { ArrowUpRight, BookOpen, FileText } from "lucide-react";
+import type { RecentItemDTO } from "@/lib/actions/types";
 
 interface RecentAccessProps {
   items?: RecentItemDTO[];
@@ -10,11 +10,7 @@ interface RecentAccessProps {
   onItemClick?: (item: RecentItemDTO) => void;
 }
 
-export const RecentAccess = ({
-  items,
-  loading,
-  onItemClick,
-}: RecentAccessProps) => {
+export const RecentAccess = ({ items, loading, onItemClick }: RecentAccessProps) => {
   const displayItems = items || [];
 
   return (
@@ -48,10 +44,7 @@ export const RecentAccess = ({
                 }}
                 className="snap-center w-[300px] md:w-auto"
               >
-                <AccessItem
-                  item={item}
-                  onClick={() => onItemClick?.(item)}
-                />
+                <AccessItem item={item} onClick={() => onItemClick?.(item)} />
               </motion.div>
             ))
           ) : (
@@ -67,13 +60,7 @@ export const RecentAccess = ({
   );
 };
 
-const AccessItem = ({
-  item,
-  onClick,
-}: {
-  item: RecentItemDTO;
-  onClick?: () => void;
-}) => {
+const AccessItem = ({ item, onClick }: { item: RecentItemDTO; onClick?: () => void }) => {
   const formatTimeAgo = (isoString: string) => {
     const time = new Date(isoString).getTime();
     const seconds = Math.floor((Date.now() - time) / 1000);

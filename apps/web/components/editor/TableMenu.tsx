@@ -1,17 +1,17 @@
 "use client";
 
-import { Editor } from "@tiptap/react";
+import type { Editor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import {
-  Plus,
-  Minus,
-  Trash2,
-  ArrowUp,
   ArrowDown,
   ArrowLeft,
   ArrowRight,
+  ArrowUp,
   Merge,
+  Minus,
+  Plus,
   Split,
+  Trash2,
 } from "lucide-react";
 
 interface TableMenuProps {
@@ -27,7 +27,7 @@ export function TableMenu({ editor }: TableMenuProps) {
       shouldShow={({ editor }) => {
         return editor.isActive("table");
       }}
-      // @ts-ignore - tippyOptions property mismatch in some Tiptap versions
+      // @ts-expect-error - tippyOptions property mismatch in some Tiptap versions
       tippyOptions={{ duration: 300 }}
     >
       <div className="flex items-center gap-0.5 bg-white/70 backdrop-blur-3xl border border-black/[0.03] rounded-[20px] shadow-2xl shadow-black/5 p-1 ring-1 ring-black/[0.02]">

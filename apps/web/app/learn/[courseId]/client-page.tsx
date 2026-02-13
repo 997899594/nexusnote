@@ -1,66 +1,48 @@
 "use client";
 
-import { useEffect, useMemo, useState, useRef, useCallback } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
 import type { DynamicToolUIPart } from "ai";
-import type { OutlineData } from "@/lib/ai/types/course";
+import { AnimatePresence, motion } from "framer-motion";
+import { ArrowLeft, ArrowRight, ChevronLeft, Menu, MessageSquare, Sparkles } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { getCourseChaptersAction, updateCourseProgressAction } from "@/app/actions/course";
+import { MessageResponse } from "@/components/ai/Message";
 import { UnifiedChatUI } from "@/components/ai/UnifiedChatUI";
-import {
-  QuizResult,
-  MindMapView,
-  SummaryResult,
-  WebSearchResult,
-} from "@/components/ai/ui";
-import { OrganicHeader } from "@/components/create/OrganicHeader";
+import { MindMapView, QuizResult, SummaryResult, WebSearchResult } from "@/components/ai/ui";
 import { ContentRenderer } from "@/components/course/content-renderer";
-import {
-  getCourseChaptersAction,
-  updateCourseProgressAction,
-} from "@/app/actions/course";
-import { CourseChapterDTO, CourseProfileDTO } from "@/lib/actions/types";
-import {
-  ChevronLeft,
-  MessageSquare,
-  Sparkles,
-  ArrowRight,
-  ArrowLeft,
-  Menu,
-} from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import type { CourseGenerationAgentMessage } from "@/lib/ai/agents/course-generation/agent";
+import { OrganicHeader } from "@/components/create/OrganicHeader";
+import type { CourseChapterDTO, CourseProfileDTO } from "@/lib/actions/types";
 import type { ChatAgentMessage } from "@/lib/ai/agents/chat-agent";
-import {
+import type { CourseGenerationAgentMessage } from "@/lib/ai/agents/course-generation/agent";
+import type {
   MindMapOutput,
   QuizOutput,
   SummarizeOutput,
   WebSearchOutput,
 } from "@/lib/ai/tools/types";
+import type { OutlineData } from "@/lib/ai/types/course";
 import { getMessageContent } from "@/lib/ai/ui-utils";
-import { MessageResponse } from "@/components/ai/Message";
 
 interface LearnPageClientProps {
   courseId: string;
   initialProfile: CourseProfileDTO;
 }
 
-export default function LearnPageClient({
-  courseId,
-  initialProfile,
-}: LearnPageClientProps) {
+export default function LearnPageClient({ courseId, initialProfile }: LearnPageClientProps) {
   const [courseProfile] = useState<CourseProfileDTO>(initialProfile);
   const router = useRouter();
   const searchParams = useSearchParams();
   const [currentChapterId, setCurrentChapterId] = useState<string | null>(null);
   const [chapters, setChapters] = useState<CourseChapterDTO[]>([]);
-  const [isGenerationComplete, setIsGenerationComplete] = useState(false);
+  const [_isGenerationComplete, _setIsGenerationComplete] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isChatOpen, setIsChatOpen] = useState(true);
 
   // 防止并发生成的 ref
   const generatingChapterRef = useRef<Set<string>>(new Set());
-  const generationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const _generationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [_isInitialLoading, setIsInitialLoading] = useState(true);
 
   // 课程生成用的 useChat（不显示在聊天框）
   const {
@@ -101,9 +83,7 @@ export default function LearnPageClient({
         }
       } else if (!currentChapterId) {
         // 如果 URL 没带 ID 且当前未选中，默认选中第一个已生成的章节
-        const firstGenerated = [...chapters].sort(
-          (a, b) => a.chapterIndex - b.chapterIndex,
-        )[0];
+        const firstGenerated = [...chapters].sort((a, b) => a.chapterIndex - b.chapterIndex)[0];
         if (firstGenerated) {
           setCurrentChapterId(firstGenerated.id);
         }
@@ -117,11 +97,7 @@ export default function LearnPageClient({
     if (currentChapter?.id) {
       const newUrl = `${window.location.pathname}?chapterId=${currentChapter.id}`;
       // 使用 replaceState 静默更新 URL，不触发页面刷新
-      window.history.replaceState(
-        { ...window.history.state, as: newUrl, url: newUrl },
-        "",
-        newUrl,
-      );
+      window.history.replaceState({ ...window.history.state, as: newUrl, url: newUrl }, "", newUrl);
     }
   }, [currentChapterId, chapters]);
 
@@ -152,7 +128,7 @@ export default function LearnPageClient({
     };
 
     syncProgress();
-  }, [courseId, currentChapterId, chapters.length]);
+  }, [courseId, currentChapterId, chapters.find]);
 
   // 监听课程生成消息，重新从数据库加载章节
   useEffect(() => {
@@ -175,9 +151,7 @@ export default function LearnPageClient({
     if (toolCall) {
       const { chapterIndex, sectionIndex } = toolCall.output;
 
-      console.log(
-        `[Stream Update] 新章节已保存: Chapter ${chapterIndex}-${sectionIndex}`,
-      );
+      console.log(`[Stream Update] 新章节已保存: Chapter ${chapterIndex}-${sectionIndex}`);
 
       // 重新从数据库加载所有章节
       loadChapters();
@@ -193,15 +167,13 @@ export default function LearnPageClient({
     id: `course-chat-${courseId}`,
   });
 
-  const isChatLoading =
-    chatStatus === "streaming" || chatStatus === "submitted";
+  const isChatLoading = chatStatus === "streaming" || chatStatus === "submitted";
 
   // 提取当前章节正在生成的思考过程
   const currentThinking = useMemo(() => {
-    if (generationStatus !== "streaming" && generationStatus !== "submitted")
-      return null;
+    if (generationStatus !== "streaming" && generationStatus !== "submitted") return null;
     const lastMessage = generationMessages[generationMessages.length - 1];
-    // @ts-ignore - reasoning is added by extractReasoningMiddleware
+    // @ts-expect-error - reasoning is added by extractReasoningMiddleware
     return lastMessage?.reasoning || null;
   }, [generationMessages, generationStatus]);
 
@@ -221,9 +193,7 @@ export default function LearnPageClient({
       currentChapterId &&
       !generatingChapterRef.current.has(currentChapterId)
     ) {
-      console.log(
-        `[On-Demand] Triggering generation for Chapter ${currentChapterId}...`,
-      );
+      console.log(`[On-Demand] Triggering generation for Chapter ${currentChapterId}...`);
 
       // 标记为正在生成
       generatingChapterRef.current.add(currentChapterId);
@@ -280,9 +250,7 @@ export default function LearnPageClient({
   const getGlobalChapterIndex = useCallback(
     (mIdx: number, cIdx: number) => {
       return (
-        (outline.modules || [])
-          .slice(0, mIdx)
-          .reduce((sum, m) => sum + m.chapters.length, 0) + cIdx
+        (outline.modules || []).slice(0, mIdx).reduce((sum, m) => sum + m.chapters.length, 0) + cIdx
       );
     },
     [outline],
@@ -300,11 +268,7 @@ export default function LearnPageClient({
   }, [currentChapterId, chapters]);
 
   // 渲染工具输出结果 UI
-  const renderToolOutput = (
-    toolName: string,
-    output: unknown,
-    _toolCallId: string,
-  ) => {
+  const renderToolOutput = (toolName: string, output: unknown, _toolCallId: string) => {
     if (!output) return null;
 
     switch (toolName) {
@@ -330,11 +294,7 @@ export default function LearnPageClient({
               </p>
               <p className="text-[10px] text-muted-foreground mt-1">
                 难度：
-                {quiz.difficulty === "easy"
-                  ? "简单"
-                  : quiz.difficulty === "hard"
-                    ? "困难"
-                    : "中等"}
+                {quiz.difficulty === "easy" ? "简单" : quiz.difficulty === "hard" ? "困难" : "中等"}
               </p>
             </div>
           );
@@ -349,11 +309,7 @@ export default function LearnPageClient({
           if (mm.nodes && mm.nodes.length > 0) {
             return (
               <div className="h-[400px] w-full">
-                <MindMapView
-                  topic={mm.topic}
-                  nodes={mm.nodes}
-                  layout={mm.layout}
-                />
+                <MindMapView topic={mm.topic} nodes={mm.nodes} layout={mm.layout} />
               </div>
             );
           }
@@ -541,16 +497,11 @@ export default function LearnPageClient({
                         const globalIdx = getGlobalChapterIndex(mIdx, cIdx);
 
                         // 找到对应的已生成章节（如果存在）
-                        const generatedChapter = chapters.find(
-                          (c) => c.chapterIndex === globalIdx,
-                        );
+                        const generatedChapter = chapters.find((c) => c.chapterIndex === globalIdx);
                         const isGenerated = !!generatedChapter;
-                        const isActive =
-                          currentChapterId === generatedChapter?.id;
+                        const isActive = currentChapterId === generatedChapter?.id;
                         const isGenerating = generatedChapter
-                          ? generatingChapterRef.current.has(
-                              generatedChapter.id,
-                            )
+                          ? generatingChapterRef.current.has(generatedChapter.id)
                           : false;
 
                         return (
@@ -584,9 +535,7 @@ export default function LearnPageClient({
                             </div>
 
                             <div className="flex-1 text-left min-w-0">
-                              <div className="text-sm font-bold truncate">
-                                {chapter.title}
-                              </div>
+                              <div className="text-sm font-bold truncate">{chapter.title}</div>
                               {!isGenerated && !isGenerating && (
                                 <div className="text-[10px] opacity-70 group-hover:opacity-100">
                                   点击生成
@@ -652,9 +601,7 @@ export default function LearnPageClient({
                     : "bg-black/5 text-black/60 hover:bg-black/10"
                 }`}
               >
-                <Sparkles
-                  className={`w-3.5 h-3.5 ${isChatOpen ? "animate-pulse" : ""}`}
-                />
+                <Sparkles className={`w-3.5 h-3.5 ${isChatOpen ? "animate-pulse" : ""}`} />
                 智能助手
               </button>
             </div>
@@ -692,10 +639,7 @@ export default function LearnPageClient({
                           </span>
                           <div className="h-px flex-1 bg-black/5" />
                           <span className="text-[10px] font-bold text-black/30 uppercase tracking-widest">
-                            {Math.round(
-                              currentChapter.contentMarkdown.length / 500,
-                            )}{" "}
-                            min read
+                            {Math.round(currentChapter.contentMarkdown.length / 500)} min read
                           </span>
                         </div>
 
@@ -719,17 +663,14 @@ export default function LearnPageClient({
                             ))}
                           </div>
                           <div className="text-[10px] font-bold text-black/40 uppercase tracking-widest">
-                            Jointly Synthesized by{" "}
-                            <span className="text-black">Nexus AI</span> &{" "}
+                            Jointly Synthesized by <span className="text-black">Nexus AI</span> &{" "}
                             <span className="text-black">You</span>
                           </div>
                         </div>
                       </div>
 
                       {/* 正文内容 - 2026 Fluid Typography */}
-                      <ContentRenderer
-                        content={currentChapter.contentMarkdown}
-                      />
+                      <ContentRenderer content={currentChapter.contentMarkdown} />
 
                       {/* 思考轨迹 (如果仍在生成中) */}
                       {isChatLoading && (
@@ -744,18 +685,14 @@ export default function LearnPageClient({
                           onClick={() => {
                             if (currentChapter) {
                               const prevChapter = chapters.find(
-                                (c) =>
-                                  c.chapterIndex ===
-                                  currentChapter.chapterIndex - 1,
+                                (c) => c.chapterIndex === currentChapter.chapterIndex - 1,
                               );
                               if (prevChapter) {
                                 setCurrentChapterId(prevChapter.id);
                               }
                             }
                           }}
-                          disabled={
-                            !currentChapter || currentChapter.chapterIndex === 0
-                          }
+                          disabled={!currentChapter || currentChapter.chapterIndex === 0}
                           className="group flex items-center gap-6 disabled:opacity-20"
                         >
                           <div className="w-14 h-14 rounded-full border border-black/10 flex items-center justify-center group-hover:bg-black group-hover:text-white transition-all duration-500">
@@ -765,9 +702,7 @@ export default function LearnPageClient({
                             <div className="text-[10px] font-black uppercase tracking-widest text-black/30">
                               Previous
                             </div>
-                            <div className="text-lg font-bold text-black">
-                              上一章节
-                            </div>
+                            <div className="text-lg font-bold text-black">上一章节</div>
                           </div>
                         </button>
 
@@ -776,20 +711,18 @@ export default function LearnPageClient({
                             Progress
                           </div>
                           <div className="flex gap-1">
-                            {Array.from({ length: totalChapters }).map(
-                              (_, i) => (
-                                <div
-                                  key={i}
-                                  className={`w-1.5 h-1.5 rounded-full transition-all duration-500 ${
-                                    i === currentChapterIndex
-                                      ? "w-6 bg-black"
-                                      : i < chapters.length
-                                        ? "bg-black/20"
-                                        : "bg-black/5"
-                                  }`}
-                                />
-                              ),
-                            )}
+                            {Array.from({ length: totalChapters }).map((_, i) => (
+                              <div
+                                key={i}
+                                className={`w-1.5 h-1.5 rounded-full transition-all duration-500 ${
+                                  i === currentChapterIndex
+                                    ? "w-6 bg-black"
+                                    : i < chapters.length
+                                      ? "bg-black/20"
+                                      : "bg-black/5"
+                                }`}
+                              />
+                            ))}
                           </div>
                         </div>
 
@@ -797,9 +730,7 @@ export default function LearnPageClient({
                           onClick={() => {
                             if (currentChapter) {
                               const nextChapter = chapters.find(
-                                (c) =>
-                                  c.chapterIndex ===
-                                  currentChapter.chapterIndex + 1,
+                                (c) => c.chapterIndex === currentChapter.chapterIndex + 1,
                               );
                               if (nextChapter) {
                                 setCurrentChapterId(nextChapter.id);
@@ -808,9 +739,7 @@ export default function LearnPageClient({
                           }}
                           disabled={
                             !currentChapter ||
-                            !chapters.some(
-                              (c) => c.chapterIndex === currentChapterIndex + 1,
-                            )
+                            !chapters.some((c) => c.chapterIndex === currentChapterIndex + 1)
                           }
                           className="group flex items-center gap-6 text-right disabled:opacity-20"
                         >
@@ -818,9 +747,7 @@ export default function LearnPageClient({
                             <div className="text-[10px] font-black uppercase tracking-widest text-black/30">
                               Next
                             </div>
-                            <div className="text-lg font-bold text-black">
-                              下一章节
-                            </div>
+                            <div className="text-lg font-bold text-black">下一章节</div>
                           </div>
                           <div className="w-14 h-14 rounded-full bg-black text-white flex items-center justify-center shadow-2xl shadow-black/20 group-hover:scale-110 transition-all duration-500">
                             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -886,9 +813,7 @@ export default function LearnPageClient({
                       return (
                         <div className="flex justify-end px-4">
                           <div className="bg-violet-600 px-5 py-3 rounded-2xl rounded-tr-sm shadow-lg shadow-violet-600/10">
-                            <p className="text-sm font-medium text-white">
-                              {content}
-                            </p>
+                            <p className="text-sm font-medium text-white">{content}</p>
                           </div>
                         </div>
                       );
@@ -901,8 +826,7 @@ export default function LearnPageClient({
                             className="text-sm leading-relaxed text-neutral-800 dark:text-neutral-200"
                             mode={
                               isChatLoading &&
-                              message.id ===
-                                chatMessages[chatMessages.length - 1].id
+                              message.id === chatMessages[chatMessages.length - 1].id
                                 ? "streaming"
                                 : "static"
                             }
@@ -919,24 +843,20 @@ export default function LearnPageClient({
                         <MessageSquare className="w-6 h-6 text-black/20" />
                       </div>
                       <div className="space-y-1">
-                        <p className="text-sm font-bold text-black">
-                          有什么疑问吗？
-                        </p>
+                        <p className="text-sm font-bold text-black">有什么疑问吗？</p>
                         <p className="text-xs text-black/40 leading-relaxed">
                           AI 随时为您解答当前章节的难点，或者帮您生成练习题。
                         </p>
                       </div>
                       <div className="grid grid-cols-1 gap-2 w-full pt-4">
-                        {["核心要点总结", "帮我出几道题", "深入解释一下"].map(
-                          (q) => (
-                            <button
-                              key={q}
-                              className="text-left px-4 py-2.5 rounded-xl bg-black/5 hover:bg-black text-black/60 hover:text-white text-[11px] font-bold transition-all"
-                            >
-                              {q}
-                            </button>
-                          ),
-                        )}
+                        {["核心要点总结", "帮我出几道题", "深入解释一下"].map((q) => (
+                          <button
+                            key={q}
+                            className="text-left px-4 py-2.5 rounded-xl bg-black/5 hover:bg-black text-black/60 hover:text-white text-[11px] font-bold transition-all"
+                          >
+                            {q}
+                          </button>
+                        ))}
                       </div>
                     </div>
                   )}

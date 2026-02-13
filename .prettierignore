@@ -1,3 +1,0 @@
-# Ignore Helm template files (Prettier doesn't understand Go template syntax)
-**/templates/**/*.yaml
-**/*.yaml

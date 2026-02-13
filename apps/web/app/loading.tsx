@@ -6,8 +6,8 @@
  * 在页面 Suspense 解析期间显示
  */
 
-import { CourseSkeleton, CreatePageSkeleton } from "@/components/loading/skeletons";
 import { usePathname } from "next/navigation";
+import { CourseSkeleton, CreatePageSkeleton } from "@/components/loading/skeletons";
 
 export default function Loading() {
   const pathname = usePathname();

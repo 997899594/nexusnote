@@ -1,3 +1,3 @@
-export * from './FlashcardReview'
-export * from './FlashcardStats'
-export * from './CreateFlashcardDialog'
+export * from "./CreateFlashcardDialog";
+export * from "./FlashcardReview";
+export * from "./FlashcardStats";

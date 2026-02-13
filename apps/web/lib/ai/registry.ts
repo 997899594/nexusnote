@@ -9,13 +9,13 @@
  */
 
 import { createOpenAI } from "@ai-sdk/openai";
-import { clientEnv, env, defaults } from "@nexusnote/config";
+import { clientEnv, env } from "@nexusnote/config";
 import {
-  LanguageModel,
-  EmbeddingModel,
-  wrapLanguageModel,
-  extractReasoningMiddleware,
   addToolInputExamplesMiddleware,
+  type EmbeddingModel,
+  extractReasoningMiddleware,
+  type LanguageModel,
+  wrapLanguageModel,
 } from "ai";
 
 // ============================================
@@ -167,12 +167,8 @@ export function initializeRegistry(): AIRegistry {
   if (typeof window === "undefined") {
     console.log("[AI Registry] Checking configuration...");
     Object.entries(PROVIDERS).forEach(([key, config]) => {
-      const maskedKey = config.apiKey
-        ? `${config.apiKey.slice(0, 8)}...`
-        : "missing";
-      console.log(
-        `[AI Registry] Provider ${key}: apiKey=${maskedKey}, baseURL=${config.baseURL}`,
-      );
+      const maskedKey = config.apiKey ? `${config.apiKey.slice(0, 8)}...` : "missing";
+      console.log(`[AI Registry] Provider ${key}: apiKey=${maskedKey}, baseURL=${config.baseURL}`);
     });
   }
 
@@ -211,15 +207,11 @@ export function initializeRegistry(): AIRegistry {
   });
 
   // 4. 获取模型名称配置
-  const chatModelId =
-    clientEnv.AI_MODEL || getChatModelForProvider(selectedProvider.name);
-  const proModelId =
-    clientEnv.AI_MODEL_PRO || getProModelForProvider(selectedProvider.name);
+  const chatModelId = clientEnv.AI_MODEL || getChatModelForProvider(selectedProvider.name);
+  const proModelId = clientEnv.AI_MODEL_PRO || getProModelForProvider(selectedProvider.name);
   const webSearchModelId =
-    clientEnv.AI_MODEL_WEB_SEARCH ||
-    getWebSearchModelForProvider(selectedProvider.name);
-  const embeddingModelId =
-    clientEnv.EMBEDDING_MODEL || "Qwen/Qwen3-Embedding-8B";
+    clientEnv.AI_MODEL_WEB_SEARCH || getWebSearchModelForProvider(selectedProvider.name);
+  const embeddingModelId = clientEnv.EMBEDDING_MODEL || "Qwen/Qwen3-Embedding-8B";
 
   // 5. 创建基础模型
   const baseChatModel = openai.chat(chatModelId);
@@ -230,12 +222,12 @@ export function initializeRegistry(): AIRegistry {
     model: baseChatModel,
     middleware: [
       extractReasoningMiddleware({
-        tagName: 'thinking',
-        separator: '\n\n---\n\n',
+        tagName: "thinking",
+        separator: "\n\n---\n\n",
         startWithReasoning: false,
       }),
       addToolInputExamplesMiddleware({
-        prefix: '示例调用：',
+        prefix: "示例调用：",
       }),
     ],
   });
@@ -244,8 +236,8 @@ export function initializeRegistry(): AIRegistry {
     model: baseProModel,
     middleware: [
       extractReasoningMiddleware({
-        tagName: 'thinking',
-        separator: '\n\n---\n\n',
+        tagName: "thinking",
+        separator: "\n\n---\n\n",
         startWithReasoning: false,
       }),
     ],
@@ -324,17 +316,14 @@ export function isWebSearchAvailable(): boolean {
 }
 
 export function getAIProviderInfo() {
-  const chatDef =
-    registry.models["gemini-3-flash-preview"] ||
-    Object.values(registry.models)[0];
+  const chatDef = registry.models["gemini-3-flash-preview"] || Object.values(registry.models)[0];
   return {
     provider: registry.provider?.name ?? "none",
     models: {
       chat: chatDef?.displayName || "unknown",
       pro: "Pro",
       webSearch: registry.webSearchModel ? "Available" : "Unavailable",
-      embedding:
-        registry.models["Qwen/Qwen3-Embedding-8B"]?.displayName || "unknown",
+      embedding: registry.models["Qwen/Qwen3-Embedding-8B"]?.displayName || "unknown",
     },
     embeddingDimensions: clientEnv.EMBEDDING_DIMENSIONS,
     configured: !!registry.provider,

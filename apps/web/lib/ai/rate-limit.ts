@@ -5,16 +5,16 @@
  * 使用 PostgreSQL 记录 AI 使用量（成本追踪）
  */
 
-import IORedis from 'ioredis';
-import { env } from '@nexusnote/config';
-import { db, aiUsage, eq, gte, and, sql } from '@nexusnote/db';
+import { env } from "@nexusnote/config";
+import { aiUsage, and, db, eq, gte, sql } from "@nexusnote/db";
+import IORedis from "ioredis";
 
 // Redis 单例
 let redis: IORedis | null = null;
 
 function getRedis(): IORedis {
   if (!redis) {
-    redis = new IORedis(env.REDIS_URL || 'redis://localhost:6379', {
+    redis = new IORedis(env.REDIS_URL || "redis://localhost:6379", {
       maxRetriesPerRequest: 3,
       lazyConnect: true,
     });
@@ -82,16 +82,13 @@ export async function checkRateLimit(userId: string): Promise<{
 
     return {
       allowed: true,
-      remaining: Math.min(
-        RATE_LIMITS.perMinute - minuteCount,
-        RATE_LIMITS.perHour - hourCount
-      ),
+      remaining: Math.min(RATE_LIMITS.perMinute - minuteCount, RATE_LIMITS.perHour - hourCount),
       resetAt: Math.ceil(now / 60000) * 60000,
       limit: RATE_LIMITS.perMinute,
     };
   } catch (error) {
     // Redis 故障时放行，避免阻塞用户
-    console.error('[RateLimit] Redis error, allowing request:', error);
+    console.error("[RateLimit] Redis error, allowing request:", error);
     return {
       allowed: true,
       remaining: RATE_LIMITS.perMinute,
@@ -107,43 +104,39 @@ export async function checkRateLimit(userId: string): Promise<{
 export function createRateLimitResponse(resetAt: number): Response {
   return new Response(
     JSON.stringify({
-      error: 'Rate limit exceeded',
-      message: '请求过于频繁，请稍后再试',
+      error: "Rate limit exceeded",
+      message: "请求过于频繁，请稍后再试",
       resetAt,
     }),
     {
       status: 429,
       headers: {
-        'Content-Type': 'application/json',
-        'Retry-After': String(Math.ceil((resetAt - Date.now()) / 1000)),
-        'X-RateLimit-Reset': String(resetAt),
+        "Content-Type": "application/json",
+        "Retry-After": String(Math.ceil((resetAt - Date.now()) / 1000)),
+        "X-RateLimit-Reset": String(resetAt),
       },
-    }
+    },
   );
 }
 
 // 模型成本配置（每百万 token，美分）
 const MODEL_COSTS: Record<string, { input: number; output: number }> = {
   // Gemini 3
-  'gemini-3-flash-preview': { input: 7.5, output: 30 },
-  'gemini-3-pro-preview': { input: 125, output: 500 },
-  'gemini-3-flash-preview-web-search': { input: 7.5, output: 30 },
+  "gemini-3-flash-preview": { input: 7.5, output: 30 },
+  "gemini-3-pro-preview": { input: 125, output: 500 },
+  "gemini-3-flash-preview-web-search": { input: 7.5, output: 30 },
   // DeepSeek
-  'deepseek-chat': { input: 14, output: 28 },
-  'deepseek-reasoner': { input: 55, output: 219 },
+  "deepseek-chat": { input: 14, output: 28 },
+  "deepseek-reasoner": { input: 55, output: 219 },
   // 默认
-  'default': { input: 10, output: 40 },
+  default: { input: 10, output: 40 },
 };
 
 /**
  * 计算成本（美分）
  */
-function calculateCost(
-  model: string,
-  inputTokens: number,
-  outputTokens: number
-): number {
-  const costs = MODEL_COSTS[model] || MODEL_COSTS['default'];
+function calculateCost(model: string, inputTokens: number, outputTokens: number): number {
+  const costs = MODEL_COSTS[model] || MODEL_COSTS.default;
   const inputCost = (inputTokens / 1_000_000) * costs.input;
   const outputCost = (outputTokens / 1_000_000) * costs.output;
   return Math.round((inputCost + outputCost) * 100); // 转为整数美分
@@ -194,14 +187,14 @@ export async function trackAIUsage(params: {
     });
 
     // 开发环境打印日志
-    if (env.NODE_ENV === 'development') {
+    if (env.NODE_ENV === "development") {
       console.log(
-        `[AIUsage] ${endpoint} | ${model} | ${totalTokens} tokens | $${(costCents / 100).toFixed(4)}`
+        `[AIUsage] ${endpoint} | ${model} | ${totalTokens} tokens | $${(costCents / 100).toFixed(4)}`,
       );
     }
   } catch (error) {
     // 记录失败不应阻塞请求
-    console.error('[AIUsage] Failed to track usage:', error);
+    console.error("[AIUsage] Failed to track usage:", error);
   }
 }
 
@@ -223,12 +216,7 @@ export async function getUserDailyUsage(userId: string): Promise<{
       requestCount: sql<number>`COUNT(*)`,
     })
     .from(aiUsage)
-    .where(
-      and(
-        eq(aiUsage.userId, userId),
-        gte(aiUsage.createdAt, today)
-      )
-    );
+    .where(and(eq(aiUsage.userId, userId), gte(aiUsage.createdAt, today)));
 
   return {
     totalTokens: Number(result[0]?.totalTokens) || 0,

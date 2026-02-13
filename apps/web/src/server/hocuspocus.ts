@@ -5,27 +5,27 @@
  * 处理文档实时同步、用户光标、删除恢复等
  */
 
-import { Server } from '@hocuspocus/server';
-import { Database } from '@hocuspocus/extension-database';
-import { Redis } from '@hocuspocus/extension-redis';
-import * as Y from 'yjs';
-import IORedis from 'ioredis';
-import { Queue } from 'bullmq';
-import { db, documents, eq } from '@nexusnote/db';
-import { env } from '@nexusnote/config';
+import { Database } from "@hocuspocus/extension-database";
+import { Redis } from "@hocuspocus/extension-redis";
+import { Server } from "@hocuspocus/server";
+import { env } from "@nexusnote/config";
+import { db, documents, eq } from "@nexusnote/db";
+import { Queue } from "bullmq";
+import IORedis from "ioredis";
+import * as Y from "yjs";
 
 // Redis 客户端（分布式锁）
-const redis = new IORedis(env.REDIS_URL || 'redis://localhost:6379', {
+const redis = new IORedis(env.REDIS_URL || "redis://localhost:6379", {
   maxRetriesPerRequest: null,
 });
 
 // BullMQ 队列
-const ragQueue = new Queue('rag-index', {
+const ragQueue = new Queue("rag-index", {
   connection: redis,
   defaultJobOptions: {
     attempts: env.QUEUE_RAG_MAX_RETRIES || 3,
     backoff: {
-      type: 'exponential',
+      type: "exponential",
       delay: env.QUEUE_RAG_BACKOFF_DELAY || 1000,
     },
     removeOnComplete: true,
@@ -38,7 +38,7 @@ const ragQueue = new Queue('rag-index', {
  */
 async function debouncedIndexDocument(documentId: string, plainText: string) {
   const lockKey = `lock:rag-index:${documentId}`;
-  const acquired = await redis.set(lockKey, 'locked', 'EX', 10, 'NX');
+  const acquired = await redis.set(lockKey, "locked", "EX", 10, "NX");
 
   if (!acquired) {
     // 已被其他实例锁定，跳过
@@ -56,7 +56,7 @@ async function debouncedIndexDocument(documentId: string, plainText: string) {
       .where(eq(documents.id, documentId));
 
     // 2. 将 RAG 索引任务添加到 BullMQ 队列
-    await ragQueue.add('index', {
+    await ragQueue.add("index", {
       documentId,
       plainText,
     });
@@ -71,7 +71,7 @@ async function debouncedIndexDocument(documentId: string, plainText: string) {
  * 提取纯文本（从 Yjs 文档）
  */
 function getPlainText(ydoc: Y.Doc): string {
-  const ytext = ydoc.getText('content');
+  const ytext = ydoc.getText("content");
   return ytext.toString();
 }
 
@@ -81,7 +81,7 @@ function getPlainText(ydoc: Y.Doc): string {
 export function createHocuspocusServer() {
   const server = Server.configure({
     // 监听所有网卡，端口由环境变量控制
-    address: '0.0.0.0',
+    address: "0.0.0.0",
     port: env.HOCUSPOCUS_PORT,
 
     // 扩展：数据库持久化
@@ -183,20 +183,18 @@ export async function startHocuspocusServer() {
   try {
     const server = createHocuspocusServer();
     await server.listen();
-    console.log(
-      `[Hocuspocus] ✅ Server listening on ws://0.0.0.0:${env.HOCUSPOCUS_PORT || 1234}`
-    );
+    console.log(`[Hocuspocus] ✅ Server listening on ws://0.0.0.0:${env.HOCUSPOCUS_PORT || 1234}`);
     return server;
   } catch (err) {
-    console.error('[Hocuspocus] ❌ Failed to start server:', err);
+    console.error("[Hocuspocus] ❌ Failed to start server:", err);
     throw err;
   }
 }
 
 // 启动服务器
-if (require.main === module || process.env.NODE_ENV === 'production') {
+if (require.main === module || process.env.NODE_ENV === "production") {
   startHocuspocusServer().catch((err) => {
-    console.error('[Hocuspocus] Fatal error during startup:', err);
+    console.error("[Hocuspocus] Fatal error during startup:", err);
     process.exit(1);
   });
 }

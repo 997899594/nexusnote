@@ -8,10 +8,10 @@
  * @see https://ai-sdk.dev/docs/foundations/tools
  */
 
-import { z } from "zod";
 import { tool } from "ai";
-import { flashcardStore } from "@/lib/storage/flashcard-store";
+import { z } from "zod";
 import { searchNotesAction } from "@/app/actions/note";
+import { flashcardStore } from "@/lib/storage/flashcard-store";
 
 // ============================================
 // Skill Definitions (Tools for AI SDK 6.x)
@@ -83,9 +83,7 @@ export const searchNotes = tool({
         query,
         results: (results || []).map((r) => ({
           title: r.documentTitle,
-          content:
-            (r.content || "").slice(0, 200) +
-            ((r.content || "").length > 200 ? "..." : ""),
+          content: (r.content || "").slice(0, 200) + ((r.content || "").length > 200 ? "..." : ""),
           documentId: r.documentId,
           relevance: Math.round((r.similarity || 0) * 100),
         })),
@@ -106,8 +104,7 @@ export const searchNotes = tool({
  * 获取复习统计 - 获取用户的 SRS 学习数据
  */
 export const getReviewStats = tool({
-  description:
-    '获取用户的闪卡复习统计。当用户问"我的学习进度"、"今天要复习多少"时调用。',
+  description: '获取用户的闪卡复习统计。当用户问"我的学习进度"、"今天要复习多少"时调用。',
   inputSchema: z.object({}),
   execute: async () => {
     const stats = await flashcardStore.getStats();
@@ -129,15 +126,11 @@ export const getReviewStats = tool({
  * 生成学习计划 - 基于目标创建学习计划
  */
 export const createLearningPlan = tool({
-  description:
-    '为用户生成学习计划。当用户要求"制定学习计划"、"帮我规划学习"时调用。',
+  description: '为用户生成学习计划。当用户要求"制定学习计划"、"帮我规划学习"时调用。',
   inputSchema: z.object({
     topic: z.string().describe("学习主题"),
     duration: z.string().optional().describe('学习时长，如"一周"、"一个月"'),
-    level: z
-      .enum(["beginner", "intermediate", "advanced"])
-      .optional()
-      .describe("难度级别"),
+    level: z.enum(["beginner", "intermediate", "advanced"]).optional().describe("难度级别"),
   }),
   execute: async ({ topic, duration, level }) => {
     return {

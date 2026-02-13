@@ -6,7 +6,6 @@
  */
 
 import { atom } from "jotai";
-import { userIdAtom } from "./auth";
 
 // ============================================
 // Types

@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { CourseNode } from "@/lib/types/course";
+import type { CourseNode } from "@/lib/types/course";
 
 interface AmbientBackgroundProps {
   nodes: CourseNode[];
@@ -10,20 +10,14 @@ interface AmbientBackgroundProps {
   progress: number;
 }
 
-export function AmbientBackground({
-  nodes,
-  isThinking,
-  phase,
-  progress,
-}: AmbientBackgroundProps) {
+export function AmbientBackground({ nodes, isThinking, phase, progress }: AmbientBackgroundProps) {
   const getBgClass = () => {
     if (phase === "interview") {
       if (progress < 0.3) return "opacity-20 blur-[120px] scale-90";
       if (progress < 0.7) return "opacity-40 blur-[80px] scale-100";
       return "opacity-60 blur-[40px] scale-110";
     }
-    if (phase === "synthesis" || phase === "seeding")
-      return "opacity-80 blur-[20px] scale-125";
+    if (phase === "synthesis" || phase === "seeding") return "opacity-80 blur-[20px] scale-125";
     return "opacity-40 blur-[100px]";
   };
 

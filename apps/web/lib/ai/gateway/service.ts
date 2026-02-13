@@ -1,36 +1,33 @@
-import { v4 as uuidv4 } from "uuid";
-import { isAIConfigured, chatModel } from "@/lib/ai/registry";
-import { pruneUIMessages } from "@/lib/ai/ui-utils";
-import { routeIntent } from "@/lib/ai/router/route";
 import {
-  interviewAgent,
-  InterviewContextSchema,
-  type InterviewContext,
-} from "@/lib/ai/agents/interview/agent";
-import { chatAgent } from "@/lib/ai/agents/chat-agent";
-import {
-  courseGenerationAgent,
-  CourseGenerationContextSchema,
-  type CourseGenerationContext,
-} from "@/lib/ai/agents/course-generation/agent";
-import { ragService } from "@/lib/ai/rag";
-import { checkRateLimit } from "@/lib/ai/rate-limit";
-import {
+  convertToModelMessages,
   createAgentUIStreamResponse,
   smoothStream,
-  convertToModelMessages,
   type UIMessage,
 } from "ai";
+import { v4 as uuidv4 } from "uuid";
 import { z } from "zod";
+import { chatAgent } from "@/lib/ai/agents/chat-agent";
+import {
+  type CourseGenerationContext,
+  CourseGenerationContextSchema,
+  courseGenerationAgent,
+} from "@/lib/ai/agents/course-generation/agent";
+import {
+  type InterviewContext,
+  InterviewContextSchema,
+  interviewAgent,
+} from "@/lib/ai/agents/interview/agent";
+import { ragService } from "@/lib/ai/rag";
+import { isAIConfigured } from "@/lib/ai/registry";
+import { routeIntent } from "@/lib/ai/router/route";
+import { pruneUIMessages } from "@/lib/ai/ui-utils";
 
 /**
  * 2026 架构师标准：统一 AI 上下文 Schema
  * 采用严格的联合类型，确保类型安全，杜绝 passthrough
  */
 export const AIContextSchema = z.object({
-  explicitIntent: z
-    .enum(["INTERVIEW", "CHAT", "EDITOR", "SEARCH", "COURSE_GENERATION"])
-    .optional(),
+  explicitIntent: z.enum(["INTERVIEW", "CHAT", "EDITOR", "SEARCH", "COURSE_GENERATION"]).optional(),
   interviewContext: InterviewContextSchema.optional(),
   courseGenerationContext: CourseGenerationContextSchema.optional(),
   enableRAG: z.boolean().optional(),
@@ -76,10 +73,7 @@ export interface AIGatewayOptions {
  * AIGatewayService - 系统核心 AI 调度服务
  */
 export class AIGatewayService {
-  static async handleRequest(
-    input: AIRequest,
-    options: AIGatewayOptions,
-  ): Promise<Response> {
+  static async handleRequest(input: AIRequest, options: AIGatewayOptions): Promise<Response> {
     const traceId = options.traceId || uuidv4();
     const { userId } = options;
 
@@ -143,7 +137,10 @@ export class AIGatewayService {
         return createAgentUIStreamResponse({
           agent: courseGenerationAgent,
           uiMessages: optimizedMessages,
-          options: { ...(context.courseGenerationContext || {}), userId } as CourseGenerationContext,
+          options: {
+            ...(context.courseGenerationContext || {}),
+            userId,
+          } as CourseGenerationContext,
           experimental_transform: smoothStreamConfig,
         });
       }
@@ -170,8 +167,6 @@ export class AIGatewayService {
           experimental_transform: smoothStreamConfig,
         });
       }
-
-      case "CHAT":
       default: {
         let ragContext: string | undefined;
         if (context.enableRAG && userInput) {

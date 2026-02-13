@@ -3,25 +3,25 @@
  *
  * 显示正在生成摘要时的骨架屏
  */
-'use client'
+"use client";
 
-import { motion } from 'framer-motion'
-import { FileText } from 'lucide-react'
+import { motion } from "framer-motion";
+import { FileText } from "lucide-react";
 
 interface SummarySkeletonProps {
-  style?: 'bullet_points' | 'paragraph' | 'key_takeaways'
-  length?: 'brief' | 'medium' | 'detailed'
+  style?: "bullet_points" | "paragraph" | "key_takeaways";
+  length?: "brief" | "medium" | "detailed";
 }
 
 export function SummarySkeleton({
-  style = 'bullet_points',
-  length = 'medium'
+  style = "bullet_points",
+  length = "medium",
 }: SummarySkeletonProps) {
   const lines = {
     brief: 2,
     medium: 4,
     detailed: 6,
-  }[length]
+  }[length];
 
   return (
     <motion.div
@@ -35,28 +35,24 @@ export function SummarySkeleton({
           <FileText className="w-5 h-5 text-white" />
         </div>
         <div>
-          <h3 className="font-semibold text-amber-900 dark:text-amber-100">
-            正在生成摘要
-          </h3>
-          <p className="text-xs text-amber-600/70 dark:text-amber-400/70">
-            AI 正在提取关键信息...
-          </p>
+          <h3 className="font-semibold text-amber-900 dark:text-amber-100">正在生成摘要</h3>
+          <p className="text-xs text-amber-600/70 dark:text-amber-400/70">AI 正在提取关键信息...</p>
         </div>
       </div>
 
       {/* Style Badge */}
       <div className="mb-4">
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30 text-xs font-medium text-amber-700 dark:text-amber-300">
-          {style === 'bullet_points' && '要点列表'}
-          {style === 'paragraph' && '段落形式'}
-          {style === 'key_takeaways' && '核心要点'}
+          {style === "bullet_points" && "要点列表"}
+          {style === "paragraph" && "段落形式"}
+          {style === "key_takeaways" && "核心要点"}
           <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
         </span>
       </div>
 
       {/* Content Skeleton */}
       <div className="bg-white/60 dark:bg-black/20 rounded-xl p-4 border border-amber-100 dark:border-amber-900/20">
-        {style === 'paragraph' ? (
+        {style === "paragraph" ? (
           // Paragraph style skeleton
           <div className="space-y-3">
             {Array.from({ length: lines }).map((_, i) => (
@@ -74,7 +70,7 @@ export function SummarySkeleton({
               </motion.div>
             ))}
           </div>
-        ) : style === 'key_takeaways' ? (
+        ) : style === "key_takeaways" ? (
           // Numbered list skeleton
           <div className="space-y-3">
             {Array.from({ length: lines }).map((_, i) => (
@@ -131,8 +127,11 @@ export function SummarySkeleton({
         className="mt-4 flex items-center gap-2 text-xs text-amber-600/60 dark:text-amber-400/60"
       >
         <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-        <span>正在分析原文并提取 {length === 'brief' ? '简要' : length === 'detailed' ? '详细' : '适中'}摘要...</span>
+        <span>
+          正在分析原文并提取 {length === "brief" ? "简要" : length === "detailed" ? "详细" : "适中"}
+          摘要...
+        </span>
       </motion.div>
     </motion.div>
-  )
+  );
 }

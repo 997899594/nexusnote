@@ -1,4 +1,4 @@
 /**
  * Shared type definitions
  */
-export * from './course'
+export * from "./course";

@@ -1,22 +1,18 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Book, Edit3, Split, Sparkles, X, Layout } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Book, Edit3, Layout, Sparkles, Split, X } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { use, useEffect, useState } from "react";
+import { getDocumentAction } from "@/app/actions/document";
+import { ChatSidebar } from "@/components/ai/ChatSidebar";
 import { Editor } from "@/components/editor/Editor";
 import { MaterialViewer } from "@/components/workpanel/MaterialViewer";
-import { ChatSidebar } from "@/components/ai/ChatSidebar";
 import { useNoteExtraction } from "@/lib/store";
-import { useSession } from "next-auth/react";
-import { getDocumentAction } from "@/app/actions/document";
 
 type ViewMode = "read" | "dual" | "notes";
 
-export default function EditorPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default function EditorPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>("notes");
@@ -165,9 +161,7 @@ export default function EditorPage({
                   : "bg-black/5 text-black/40 hover:bg-black/10 hover:text-black"
               }`}
             >
-              <Sparkles
-                className={`w-3.5 h-3.5 ${sidebarOpen ? "animate-pulse" : ""}`}
-              />
+              <Sparkles className={`w-3.5 h-3.5 ${sidebarOpen ? "animate-pulse" : ""}`} />
               AI Co-Pilot
             </button>
           </div>
@@ -205,12 +199,7 @@ export default function EditorPage({
             <div
               className={`max-w-4xl mx-auto py-20 px-10 md:px-16 lg:px-24 transition-all duration-700 ${viewMode === "notes" ? "scale-100" : "scale-[0.98] opacity-90"}`}
             >
-              <Editor
-                documentId={id}
-                title={title}
-                setTitle={setTitle}
-                showToolbar={true}
-              />
+              <Editor documentId={id} title={title} setTitle={setTitle} showToolbar={true} />
             </div>
           </motion.div>
 
@@ -224,9 +213,7 @@ export default function EditorPage({
                 transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
                 className="h-full border-l border-black/[0.04] bg-white/60 backdrop-blur-3xl shrink-0 z-40 flex flex-col overflow-hidden shadow-2xl shadow-black/[0.02]"
               >
-                <ChatSidebarWithNoteTarget
-                  onClose={() => setSidebarOpen(false)}
-                />
+                <ChatSidebarWithNoteTarget onClose={() => setSidebarOpen(false)} />
               </motion.aside>
             )}
           </AnimatePresence>
@@ -247,9 +234,7 @@ function ChatSidebarWithNoteTarget({ onClose }: { onClose: () => void }) {
               Intelligence System
             </span>
           </div>
-          <h2 className="text-xl font-black text-black mt-2 tracking-tight">
-            AI Co-Pilot
-          </h2>
+          <h2 className="text-xl font-black text-black mt-2 tracking-tight">AI Co-Pilot</h2>
         </div>
         <button
           onClick={onClose}

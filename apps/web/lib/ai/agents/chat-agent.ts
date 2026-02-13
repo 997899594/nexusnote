@@ -6,14 +6,9 @@
  * 导出 InferAgentUIMessage 类型供客户端类型安全渲染
  */
 
-import {
-  ToolLoopAgent,
-  InferAgentUIMessage,
-  stepCountIs,
-  type ToolSet,
-} from "ai";
+import { type InferAgentUIMessage, stepCountIs, ToolLoopAgent, type ToolSet } from "ai";
 import { z } from "zod";
-import { chatModel, webSearchModel } from "@/lib/ai/registry";
+import { chatModel } from "@/lib/ai/registry";
 import { skills } from "@/lib/ai/tools/chat";
 import { editorSkills } from "@/lib/ai/tools/chat/editor";
 import { learningSkills } from "@/lib/ai/tools/chat/learning";
@@ -55,13 +50,7 @@ export const chatTools: ToolSet = {
  * 根据调用上下文构建 system prompt
  */
 export function buildInstructions(options: ChatCallOptions): string {
-  const {
-    ragContext,
-    ragSources,
-    documentContext,
-    documentStructure,
-    editMode,
-  } = options;
+  const { ragContext, ragSources, documentContext, documentStructure, editMode } = options;
 
   let prompt = "";
 

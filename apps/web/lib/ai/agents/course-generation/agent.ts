@@ -16,17 +16,11 @@
  * - AI 的推理过程显示给用户（thinking 标签）
  */
 
-import {
-  ToolLoopAgent,
-  InferAgentUIMessage,
-  stepCountIs,
-  type ToolSet,
-  type LanguageModel,
-} from "ai";
+import { type InferAgentUIMessage, type LanguageModel, stepCountIs, ToolLoopAgent } from "ai";
 import { z } from "zod";
-import { chatModel, webSearchModel } from "@/lib/ai/registry";
-import { courseGenerationTools } from "@/lib/ai/tools/course-generation";
 import { buildCourseGenerationPrompt } from "@/lib/ai/prompts/course-generation";
+import { chatModel } from "@/lib/ai/registry";
+import { courseGenerationTools } from "@/lib/ai/tools/course-generation";
 import { OutlineSchema } from "@/lib/ai/types/course";
 
 const courseModel = chatModel;
@@ -35,11 +29,11 @@ const courseModel = chatModel;
  * 获取课程生成模型，如果未配置则抛出错误
  * 这个函数在运行时调用，而不是在模块加载时
  */
-function getCourseModel() {
+function _getCourseModel() {
   if (!courseModel) {
     throw new Error(
       "Course generation agent requires at least one model (webSearchModel or chatModel) to be configured. " +
-      "Please ensure AI_GATEWAY_MODEL or AI_MODEL environment variables are set."
+        "Please ensure AI_GATEWAY_MODEL or AI_MODEL environment variables are set.",
     );
   }
   return courseModel;
@@ -71,9 +65,7 @@ export const CourseGenerationContextSchema = z.object({
   chaptersGenerated: z.number().default(0).describe("已生成的章节数"),
 });
 
-export type CourseGenerationContext = z.infer<
-  typeof CourseGenerationContextSchema
->;
+export type CourseGenerationContext = z.infer<typeof CourseGenerationContextSchema>;
 
 /**
  * Course Generation Agent
@@ -122,8 +114,7 @@ export const courseGenerationAgent = new ToolLoopAgent({
       console.log("[Course Generation Agent] ✅ Generation complete");
       return {
         ...rest,
-        instructions:
-          "所有章节已生成完毕。请总结课程亮点，并鼓励学生开始学习。",
+        instructions: "所有章节已生成完毕。请总结课程亮点，并鼓励学生开始学习。",
         stopWhen: stepCountIs(1),
       };
     }
@@ -136,9 +127,7 @@ export const courseGenerationAgent = new ToolLoopAgent({
         const lastStep = steps[steps.length - 1];
         if (!lastStep?.toolCalls) return false;
         return lastStep.toolCalls.some(
-          (tc) =>
-            tc.toolName === "saveChapterContent" ||
-            tc.toolName === "markGenerationComplete",
+          (tc) => tc.toolName === "saveChapterContent" || tc.toolName === "markGenerationComplete",
         );
       },
     };
@@ -148,6 +137,4 @@ export const courseGenerationAgent = new ToolLoopAgent({
 /**
  * 导出类型：客户端 useChat 泛型参数
  */
-export type CourseGenerationAgentMessage = InferAgentUIMessage<
-  typeof courseGenerationAgent
->;
+export type CourseGenerationAgentMessage = InferAgentUIMessage<typeof courseGenerationAgent>;

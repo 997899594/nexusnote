@@ -10,22 +10,19 @@
 
 "use client";
 
-import { useCallback } from "react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { useCallback } from "react";
+import type { CourseGenerationState, GenerationPhase } from "../atoms/course-generation";
 import {
   courseGenerationStateAtom,
   currentPhaseAtom,
-  isGeneratingAtom,
   generationProgressAtom,
-  updateInterviewDataAtom,
-  setOutlineDataAtom,
-  setCurrentPhaseAtom,
-  updateProgressAtom,
+  isGeneratingAtom,
   resetCourseGenerationAtom,
-} from "../atoms/course-generation";
-import type {
-  CourseGenerationState,
-  GenerationPhase,
+  setCurrentPhaseAtom,
+  setOutlineDataAtom,
+  updateInterviewDataAtom,
+  updateProgressAtom,
 } from "../atoms/course-generation";
 
 // ============================================
@@ -46,62 +43,79 @@ export function useCourseGenerationState() {
   /**
    * 更新访谈数据
    */
-  const updateInterviewData = useCallback((data: Partial<{
-    goal: string;
-    background: string;
-    targetOutcome: string;
-    cognitiveStyle: string;
-  }>) => {
-    setState((prev) => ({
-      ...prev,
-      ...data,
-      updatedAt: new Date().toISOString(),
-    }));
-  }, [setState]);
+  const updateInterviewData = useCallback(
+    (
+      data: Partial<{
+        goal: string;
+        background: string;
+        targetOutcome: string;
+        cognitiveStyle: string;
+      }>,
+    ) => {
+      setState((prev) => ({
+        ...prev,
+        ...data,
+        updatedAt: new Date().toISOString(),
+      }));
+    },
+    [setState],
+  );
 
   /**
    * 设置大纲数据
    */
-  const setOutlineData = useCallback((outlineData: CourseGenerationState["outlineData"]) => {
-    setState((prev) => ({
-      ...prev,
-      outlineData,
-      updatedAt: new Date().toISOString(),
-    }));
-  }, [setState]);
+  const setOutlineData = useCallback(
+    (outlineData: CourseGenerationState["outlineData"]) => {
+      setState((prev) => ({
+        ...prev,
+        outlineData,
+        updatedAt: new Date().toISOString(),
+      }));
+    },
+    [setState],
+  );
 
   /**
    * 设置当前阶段
    */
-  const setPhase = useCallback((phase: GenerationPhase) => {
-    setState((prev) => ({
-      ...prev,
-      currentPhase: phase,
-      updatedAt: new Date().toISOString(),
-    }));
-  }, [setState]);
+  const setPhase = useCallback(
+    (phase: GenerationPhase) => {
+      setState((prev) => ({
+        ...prev,
+        currentPhase: phase,
+        updatedAt: new Date().toISOString(),
+      }));
+    },
+    [setState],
+  );
 
   /**
    * 更新进度
    */
-  const updateProgress = useCallback((progress: Partial<CourseGenerationState["progress"]>) => {
-    setState((prev) => ({
-      ...prev,
-      progress: { ...prev.progress, ...progress },
-      updatedAt: new Date().toISOString(),
-    }));
-  }, [setState]);
+  const updateProgress = useCallback(
+    (progress: Partial<CourseGenerationState["progress"]>) => {
+      setState((prev) => ({
+        ...prev,
+        progress: { ...prev.progress, ...progress },
+        updatedAt: new Date().toISOString(),
+      }));
+    },
+    [setState],
+  );
 
   /**
    * 设置课程 ID
    */
-  const setCourseId = useCallback((courseId: string) => {
-    setState((prev) => ({
-      ...prev,
-      courseId,
-      updatedAt: new Date().toISOString(),
-    }));
-  }, [setState]);
+  const setCourseId = useCallback(
+    (courseId: string) => {
+      setState((prev) => ({
+        ...prev,
+        courseId,
+        updatedAt: new Date().toISOString(),
+      }));
+    },
+    [setState],
+  );
 
   /**
    * 重置状态
@@ -214,6 +228,10 @@ export function useGenerationPhase() {
     phase,
     setPhase,
     reset,
-    isGenerating: phase === "synthesis" || phase === "seeding" || phase === "growing" || phase === "manifesting",
+    isGenerating:
+      phase === "synthesis" ||
+      phase === "seeding" ||
+      phase === "growing" ||
+      phase === "manifesting",
   };
 }

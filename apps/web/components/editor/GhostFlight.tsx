@@ -1,14 +1,14 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { useNoteExtractionOptional } from '@/lib/store'
+import { AnimatePresence, motion } from "framer-motion";
+import { useEffect, useState } from "react";
+import { useNoteExtractionOptional } from "@/lib/store";
 
 interface GhostFlightProps {
-  id: string
-  content: string
-  startRect: DOMRect
-  onComplete: () => void
+  id: string;
+  content: string;
+  startRect: DOMRect;
+  onComplete: () => void;
 }
 
 /**
@@ -23,41 +23,41 @@ interface GhostFlightProps {
  * 3. Last resort: Fixed position at top-right corner
  */
 export function GhostFlight({ id, content, startRect, onComplete }: GhostFlightProps) {
-  const noteExtraction = useNoteExtractionOptional()
-  const [targetPosition, setTargetPosition] = useState({ x: 0, y: 0 })
+  const noteExtraction = useNoteExtractionOptional();
+  const [targetPosition, setTargetPosition] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     // Calculate target position based on available refs
-    const knowledgeTabRef = noteExtraction?.knowledgeTabRef
-    const sidebarToggleRef = noteExtraction?.sidebarToggleRef
-    const isSidebarOpen = noteExtraction?.isSidebarOpen ?? true
+    const knowledgeTabRef = noteExtraction?.knowledgeTabRef;
+    const sidebarToggleRef = noteExtraction?.sidebarToggleRef;
+    const isSidebarOpen = noteExtraction?.isSidebarOpen ?? true;
 
-    let targetRect: DOMRect | null = null
+    let targetRect: DOMRect | null = null;
 
     if (isSidebarOpen && knowledgeTabRef?.current) {
       // Primary: Knowledge Tab button
-      targetRect = knowledgeTabRef.current.getBoundingClientRect()
+      targetRect = knowledgeTabRef.current.getBoundingClientRect();
     } else if (sidebarToggleRef?.current) {
       // Fallback: Sidebar toggle
-      targetRect = sidebarToggleRef.current.getBoundingClientRect()
+      targetRect = sidebarToggleRef.current.getBoundingClientRect();
     }
 
     if (targetRect) {
       setTargetPosition({
         x: targetRect.x + targetRect.width / 2,
         y: targetRect.y + targetRect.height / 2,
-      })
+      });
     } else {
       // Last resort: fixed top-right position
       setTargetPosition({
         x: window.innerWidth - 60,
         y: 60,
-      })
+      });
     }
-  }, [noteExtraction])
+  }, [noteExtraction]);
 
   // Truncate content for display
-  const displayText = content.length > 50 ? content.slice(0, 50) + '...' : content
+  const displayText = content.length > 50 ? `${content.slice(0, 50)}...` : content;
 
   return (
     <motion.div
@@ -81,18 +81,16 @@ export function GhostFlight({ id, content, startRect, onComplete }: GhostFlightP
         scale: 0.2,
       }}
       transition={{
-        type: 'spring',
+        type: "spring",
         stiffness: 300,
         damping: 30,
         duration: 0.6,
       }}
       onAnimationComplete={onComplete}
     >
-      <span className="text-yellow-800 dark:text-yellow-200 line-clamp-2">
-        {displayText}
-      </span>
+      <span className="text-yellow-800 dark:text-yellow-200 line-clamp-2">{displayText}</span>
     </motion.div>
-  )
+  );
 }
 
 /**
@@ -101,38 +99,38 @@ export function GhostFlight({ id, content, startRect, onComplete }: GhostFlightP
  * Use this component at the app root level to render all active ghost flights.
  */
 interface FlyingNote {
-  id: string
-  content: string
-  startRect: DOMRect
+  id: string;
+  content: string;
+  startRect: DOMRect;
 }
 
 export function GhostFlightContainer() {
-  const noteExtraction = useNoteExtractionOptional()
-  const [flyingNotes, setFlyingNotes] = useState<FlyingNote[]>([])
+  const noteExtraction = useNoteExtractionOptional();
+  const [flyingNotes, setFlyingNotes] = useState<FlyingNote[]>([]);
 
   // Listen for new flying notes from context
   useEffect(() => {
-    if (!noteExtraction) return
+    if (!noteExtraction) return;
 
-    const pending = noteExtraction.pendingNotes.filter(n => n.status === 'flying')
+    const _pending = noteExtraction.pendingNotes.filter((n) => n.status === "flying");
     // Note: We track flying notes separately because we need startRect
     // The actual trigger happens in the extraction callback
-  }, [noteExtraction?.pendingNotes])
+  }, [noteExtraction?.pendingNotes, noteExtraction]);
 
   const handleComplete = (id: string) => {
-    setFlyingNotes(prev => prev.filter(n => n.id !== id))
-    noteExtraction?.clearFlyingNote(id)
-  }
+    setFlyingNotes((prev) => prev.filter((n) => n.id !== id));
+    noteExtraction?.clearFlyingNote(id);
+  };
 
   // This function should be called when a note is extracted
   // Exported for use by the extraction trigger
-  const addFlyingNote = (note: FlyingNote) => {
-    setFlyingNotes(prev => [...prev, note])
-  }
+  const _addFlyingNote = (note: FlyingNote) => {
+    setFlyingNotes((prev) => [...prev, note]);
+  };
 
   return (
     <AnimatePresence>
-      {flyingNotes.map(note => (
+      {flyingNotes.map((note) => (
         <GhostFlight
           key={note.id}
           id={note.id}
@@ -142,8 +140,8 @@ export function GhostFlightContainer() {
         />
       ))}
     </AnimatePresence>
-  )
+  );
 }
 
 // Re-export for external use
-export type { FlyingNote }
+export type { FlyingNote };

@@ -1,58 +1,40 @@
 "use client";
 
-import { useEditor as useTiptapEditor, EditorContent } from "@tiptap/react";
+import { HocuspocusProvider } from "@hocuspocus/provider";
 import { clientEnv } from "@nexusnote/config";
-import StarterKit from "@tiptap/starter-kit";
-import Placeholder from "@tiptap/extension-placeholder";
 import Collaboration from "@tiptap/extension-collaboration";
 import CollaborationCursor from "@tiptap/extension-collaboration-cursor";
-import { Table } from "@tiptap/extension-table";
-import { TableRow } from "@tiptap/extension-table-row";
-import { TableCell } from "@tiptap/extension-table-cell";
-import { TableHeader } from "@tiptap/extension-table-header";
-import { Image } from "@tiptap/extension-image";
-import { Youtube } from "@tiptap/extension-youtube";
-import { TaskList } from "@tiptap/extension-task-list";
-import { TaskItem } from "@tiptap/extension-task-item";
 import { Dropcursor } from "@tiptap/extension-dropcursor";
 import { Gapcursor } from "@tiptap/extension-gapcursor";
+import { Image } from "@tiptap/extension-image";
+import Placeholder from "@tiptap/extension-placeholder";
+import { Table } from "@tiptap/extension-table";
+import { TableCell } from "@tiptap/extension-table-cell";
+import { TableHeader } from "@tiptap/extension-table-header";
+import { TableRow } from "@tiptap/extension-table-row";
+import { TaskItem } from "@tiptap/extension-task-item";
+import { TaskList } from "@tiptap/extension-task-list";
+import { Youtube } from "@tiptap/extension-youtube";
+import { EditorContent, useEditor as useTiptapEditor } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import { Edit3, History, Lock, RefreshCw } from "lucide-react";
 import { useSession } from "next-auth/react";
-import {
-  useMemo,
-  useEffect,
-  useState,
-  useCallback,
-  Component,
-  type ReactNode,
-} from "react";
-import {
-  getDocumentAction,
-  updateDocumentAction,
-} from "@/app/actions/document";
-import { useEditor } from "@/lib/store";
-import * as Y from "yjs";
+import { Component, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { IndexeddbPersistence } from "y-indexeddb";
-import { HocuspocusProvider } from "@hocuspocus/provider";
-import { getRandomColor, getRandomUserName } from "@/lib/editor/collaboration";
+import * as Y from "yjs";
+import { getDocumentAction, updateDocumentAction } from "@/app/actions/document";
+import { TimelinePanel, useTimeline } from "@/components/timeline";
 import { getAuthToken } from "@/lib/auth-helpers";
-import {
-  Wifi,
-  WifiOff,
-  Users,
-  History,
-  Lock,
-  Edit3,
-  RefreshCw,
-} from "lucide-react";
-import { EditorToolbar } from "./EditorToolbar";
+import { getRandomColor, getRandomUserName } from "@/lib/editor/collaboration";
+import { type DocumentSnapshot, snapshotStore } from "@/lib/storage";
+import { useEditor } from "@/lib/store";
 import { AIBubbleMenu } from "./AIBubbleMenu";
-import { TableMenu } from "./TableMenu";
-import { SlashCommand } from "./SlashCommand";
-import { GhostBrain } from "./GhostBrain";
+import { EditorToolbar } from "./EditorToolbar";
 import { Callout } from "./extensions/callout";
 import { Collapsible } from "./extensions/collapsible";
-import { TimelinePanel, useTimeline } from "@/components/timeline";
-import { snapshotStore, DocumentSnapshot } from "@/lib/storage";
+import { GhostBrain } from "./GhostBrain";
+import { SlashCommand } from "./SlashCommand";
+import { TableMenu } from "./TableMenu";
 
 /**
  * Error Boundary for Editor - 捕获编辑器初始化错误并提供恢复选项
@@ -158,7 +140,7 @@ function EditorInner({
         isVault: nextValue,
       });
       if (result.success) setIsVault?.(nextValue);
-    } catch (err) {}
+    } catch (_err) {}
   };
 
   // Extensions 稳定化 - 只在 provider 和 ydoc 不变时保持稳定
@@ -212,8 +194,7 @@ function EditorInner({
   const { stats } = useTimeline({ documentId, ydoc, enabled: true });
   const handleRestoreSnapshot = useCallback(
     async (s: DocumentSnapshot) => {
-      if (await snapshotStore.restoreSnapshot(s.id, ydoc))
-        console.log("Restored");
+      if (await snapshotStore.restoreSnapshot(s.id, ydoc)) console.log("Restored");
     },
     [ydoc],
   );
@@ -308,11 +289,7 @@ function EditorInner({
       {showToolbar && (
         <div className="mb-12 sticky top-6 z-40 transition-all flex justify-center">
           <div className="bg-white/70 backdrop-blur-3xl p-2 rounded-[28px] inline-flex border border-black/[0.03] shadow-2xl shadow-black/5 ring-1 ring-black/[0.02]">
-            <EditorToolbar
-              editor={editor}
-              isVault={isVault}
-              onToggleVault={toggleVault}
-            />
+            <EditorToolbar editor={editor} isVault={isVault} onToggleVault={toggleVault} />
           </div>
         </div>
       )}
@@ -361,9 +338,7 @@ export function Editor({
 }: EditorProps) {
   const { data: session } = useSession();
   const [status, setStatus] = useState<ConnectionStatus>("connecting");
-  const [collaborators, setCollaborators] = useState<
-    Array<{ name: string; color: string }>
-  >([]);
+  const [collaborators, setCollaborators] = useState<Array<{ name: string; color: string }>>([]);
   const [provider, setProvider] = useState<HocuspocusProvider | null>(null);
   const [isProviderSynced, setIsProviderSynced] = useState(false);
 
@@ -406,8 +381,7 @@ export function Editor({
       name: getRandomUserName(),
       color: getRandomColor(),
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.user?.id]);
+  }, [session?.user?.id, session?.user?.name, session?.user?.image, session?.user]);
 
   // HocuspocusProvider - created in useEffect
   useEffect(() => {
@@ -417,9 +391,7 @@ export function Editor({
       url: COLLAB_URL,
       name: documentId,
       document: ydoc,
-      token:
-        (session as { accessToken?: string } | null)?.accessToken ||
-        getAuthToken(),
+      token: (session as { accessToken?: string } | null)?.accessToken || getAuthToken(),
       onConnect() {
         setStatus("connected");
       },

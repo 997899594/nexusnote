@@ -16,40 +16,35 @@
  */
 
 // ============================================
+// Re-export commonly used Jotai utilities
+// ============================================
+export { useAtom, useAtomValue, useSetAtom } from "jotai";
+export { atomWithReset, atomWithStorage } from "jotai/utils";
+// ============================================
 // Auth State
 // ============================================
 export * from "./atoms/auth";
 
 // ============================================
-// Note Extraction State
+// Course Generation State
 // ============================================
-export * from "./atoms/note-extraction";
-
+export * from "./atoms/course-generation";
 // ============================================
 // Editor State
 // ============================================
 export * from "./atoms/editor";
-
 // ============================================
-// Course Generation State
+// Note Extraction State
 // ============================================
-export * from "./atoms/course-generation";
-
+export * from "./atoms/note-extraction";
 // ============================================
 // UI State
 // ============================================
 export * from "./atoms/ui";
-
+export * from "./hooks/use-course-generation";
+export * from "./hooks/use-editor";
 // ============================================
 // Hooks
 // ============================================
 export * from "./hooks/use-note-extraction";
-export * from "./hooks/use-editor";
-export * from "./hooks/use-course-generation";
 export * from "./hooks/use-web-search-toggle";
-
-// ============================================
-// Re-export commonly used Jotai utilities
-// ============================================
-export { useAtom, useAtomValue, useSetAtom } from "jotai";
-export { atomWithStorage, atomWithReset } from "jotai/utils";

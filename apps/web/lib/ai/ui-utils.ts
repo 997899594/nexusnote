@@ -1,13 +1,12 @@
 import {
-  UIMessage,
-  isToolUIPart,
   getToolName,
-  isTextUIPart,
   isReasoningUIPart,
-  UIDataTypes,
-  UITools,
-  ToolUIPart,
-  UIMessagePart,
+  isTextUIPart,
+  isToolUIPart,
+  type UIDataTypes,
+  type UIMessage,
+  type UIMessagePart,
+  type UITools,
 } from "ai";
 
 /**
@@ -33,11 +32,7 @@ export function pruneUIMessages(
   messages: UIMessage[],
   options: PruneUIMessagesOptions = {},
 ): UIMessage[] {
-  const {
-    reasoning = "all",
-    toolCalls = "all",
-    emptyMessages = "remove",
-  } = options;
+  const { reasoning = "all", toolCalls = "all", emptyMessages = "remove" } = options;
 
   const result: UIMessage[] = [];
 
@@ -145,7 +140,14 @@ export function findToolCall<TInput = unknown, TOutput = unknown>(
   toolName: string,
 ): {
   toolCallId: string;
-  state: "input-streaming" | "input-available" | "approval-requested" | "approval-responded" | "output-available" | "output-error" | "output-denied";
+  state:
+    | "input-streaming"
+    | "input-available"
+    | "approval-requested"
+    | "approval-responded"
+    | "output-available"
+    | "output-error"
+    | "output-denied";
   input: TInput;
   output: TOutput;
   errorText?: string;

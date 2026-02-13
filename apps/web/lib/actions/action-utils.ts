@@ -1,7 +1,7 @@
+import type { z } from "zod";
 import { requireUserId } from "@/lib/auth/auth-utils";
-import { success, error, logError, handleActionError } from "@/lib/errors";
 import type { ActionResult } from "@/lib/errors";
-import { z } from "zod";
+import { error, handleActionError, logError, success } from "@/lib/errors";
 
 /**
  * 2026 架构师标准：Server Action 包装器
@@ -29,10 +29,7 @@ export function createSafeAction<T, R>(
       if (schema && payload !== undefined) {
         const validation = schema.safeParse(payload);
         if (!validation.success) {
-          return error(
-            `Validation failed: ${validation.error.message}`,
-            "VALIDATION_ERROR",
-          );
+          return error(`Validation failed: ${validation.error.message}`, "VALIDATION_ERROR");
         }
         validatedPayload = validation.data;
       }

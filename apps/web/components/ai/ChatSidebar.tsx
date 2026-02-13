@@ -1,67 +1,53 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import type { UIMessageChunk } from "ai";
-import { type AIRequest } from "@/lib/ai/gateway/service";
-import { useState, FormEvent, useMemo, useCallback, useEffect } from "react";
+import { motion } from "framer-motion";
 import {
   BookOpen,
   FileText,
-  Pencil,
-  Copy,
-  FileDown,
-  MessageSquare,
-  Lightbulb,
   Ghost,
   Globe,
-  User,
-  Bot,
+  Lightbulb,
+  MessageSquare,
+  Pencil,
   Sparkles,
-  Check,
 } from "lucide-react";
-import { useEditor } from "@/lib/store";
-import { useNoteExtractionOptional, useWebSearchToggle } from "@/lib/store";
-import { KnowledgePanel } from "./KnowledgePanel";
-import { UnifiedChatUI } from "./UnifiedChatUI";
-import type { EditCommand } from "@/lib/editor/document-parser";
-import { motion } from "framer-motion";
+import { type FormEvent, useCallback, useEffect, useState } from "react";
 import type { ChatAgentMessage } from "@/lib/ai/agents/chat-agent";
-import {
-  getToolCalls,
-  findToolCall,
-  getMessageContent,
-} from "@/lib/ai/ui-utils";
-// Generative UI Components
-import {
-  FlashcardCreated,
-  SearchResults,
-  ReviewStats,
-  LearningPlan,
-  EditConfirmCard,
-  EditThinking,
-  QuizResult,
-  MindMapView,
-  SummaryResult,
-  WebSearchResult,
-  QuizSkeleton,
-  MindMapSkeleton,
-  SummarySkeleton,
-} from "./ui";
-import type { Question, MindMapNode } from "@/lib/ai/tools/chat/learning";
-
-import {
-  QuizOutput,
-  MindMapOutput,
-  SummarizeOutput,
-  WebSearchOutput,
-  FlashcardOutput,
-  SearchNotesOutput,
-  ReviewStatsOutput,
-  LearningPlanOutput,
-  EditDocumentOutput,
+import type { MindMapNode, Question } from "@/lib/ai/tools/chat/learning";
+import type {
   BatchEditOutput,
   DraftContentOutput,
+  EditDocumentOutput,
+  FlashcardOutput,
+  LearningPlanOutput,
+  MindMapOutput,
+  QuizOutput,
+  ReviewStatsOutput,
+  SearchNotesOutput,
+  SummarizeOutput,
+  WebSearchOutput,
 } from "@/lib/ai/tools/types";
+import { getMessageContent, getToolCalls } from "@/lib/ai/ui-utils";
+import type { EditCommand } from "@/lib/editor/document-parser";
+import { useEditor, useNoteExtractionOptional, useWebSearchToggle } from "@/lib/store";
+import { KnowledgePanel } from "./KnowledgePanel";
+import { UnifiedChatUI } from "./UnifiedChatUI";
+// Generative UI Components
+import {
+  EditConfirmCard,
+  FlashcardCreated,
+  LearningPlan,
+  MindMapSkeleton,
+  MindMapView,
+  QuizResult,
+  QuizSkeleton,
+  ReviewStats,
+  SearchResults,
+  SummaryResult,
+  SummarySkeleton,
+  WebSearchResult,
+} from "./ui";
 
 type SidebarMode = "chat" | "knowledge";
 
@@ -78,18 +64,15 @@ interface PendingEdit {
 export function ChatSidebar() {
   const [mode, setMode] = useState<SidebarMode>("chat");
   const [enableRAG, setEnableRAG] = useState(false);
-  const { webSearchEnabled, setWebSearchEnabled, toggleWebSearch } =
-    useWebSearchToggle();
+  const { webSearchEnabled, setWebSearchEnabled, toggleWebSearch } = useWebSearchToggle();
   const [useDocContext, setUseDocContext] = useState(true);
   const [editMode, setEditMode] = useState(true);
   const [input, setInput] = useState("");
-  const [pendingEdits, setPendingEdits] = useState<Map<string, PendingEdit>>(
-    new Map(),
-  );
+  const [pendingEdits, setPendingEdits] = useState<Map<string, PendingEdit>>(new Map());
   const [appliedEdits, setAppliedEdits] = useState<Set<string>>(new Set());
-  const [extractedNotes, setExtractedNotes] = useState<Set<string>>(new Set());
+  const [_extractedNotes, _setExtractedNotes] = useState<Set<string>>(new Set());
   const editorContext = useEditor();
-  const noteExtraction = useNoteExtractionOptional();
+  const _noteExtraction = useNoteExtractionOptional();
 
   // SDK v6: 使用 ChatAgentMessage 泛型实现 typed tool parts
   const { messages, sendMessage, status, stop } = useChat<ChatAgentMessage>({
@@ -112,11 +95,7 @@ export function ChatSidebar() {
       for (const tool of toolCalls) {
         const { toolName, output, toolCallId, state } = tool;
 
-        if (
-          toolName !== "editDocument" &&
-          toolName !== "batchEdit" &&
-          toolName !== "draftContent"
-        )
+        if (toolName !== "editDocument" && toolName !== "batchEdit" && toolName !== "draftContent")
           continue;
 
         if (appliedEdits.has(toolCallId)) continue;
@@ -180,7 +159,7 @@ export function ChatSidebar() {
     }
 
     setPendingEdits(newPendingEdits);
-  }, [messages, editorContext, appliedEdits]);
+  }, [messages, editorContext, appliedEdits, getOriginalContent]);
 
   function getOriginalContent(
     ctx: NonNullable<typeof editorContext>,
@@ -191,9 +170,7 @@ export function ChatSidebar() {
       return ctx.getDocumentContent() || "";
     }
     const structure = ctx.getDocumentStructure();
-    const block = structure?.blocks.find(
-      (b: { id: string }) => b.id === targetId,
-    );
+    const block = structure?.blocks.find((b: { id: string }) => b.id === targetId);
     return block?.content || "";
   }
 
@@ -241,24 +218,20 @@ export function ChatSidebar() {
     );
   };
 
-  const insertToEditor = (text: string) => {
+  const _insertToEditor = (text: string) => {
     if (!editorContext?.editor) return;
     // 直接插入纯文本或简单的Markdown，不使用legacy convert
     editorContext.editor.chain().focus().insertContent(text).run();
   };
 
-  const copyToClipboard = async (text: string) => {
+  const _copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-    } catch (err) {}
+    } catch (_err) {}
   };
 
   // 渲染工具输出结果 UI
-  const renderToolOutput = (
-    toolName: string,
-    output: unknown,
-    toolCallId: string,
-  ) => {
+  const renderToolOutput = (toolName: string, output: unknown, toolCallId: string) => {
     if (!output) return null;
 
     switch (toolName) {
@@ -271,9 +244,7 @@ export function ChatSidebar() {
 
       case "searchNotes": {
         const res = output as SearchNotesOutput;
-        return (
-          <SearchResults query={res.query || ""} results={res.results || []} />
-        );
+        return <SearchResults query={res.query || ""} results={res.results || []} />;
       }
 
       case "getReviewStats": {
@@ -344,11 +315,7 @@ export function ChatSidebar() {
               </p>
               <p className="text-[10px] text-muted-foreground mt-1">
                 {quiz.questionCount} 道 ·{" "}
-                {quiz.difficulty === "easy"
-                  ? "简单"
-                  : quiz.difficulty === "hard"
-                    ? "困难"
-                    : "中等"}
+                {quiz.difficulty === "easy" ? "简单" : quiz.difficulty === "hard" ? "困难" : "中等"}
               </p>
             </div>
           );
@@ -364,13 +331,7 @@ export function ChatSidebar() {
           const mm = res.mindMap;
           // 如果有实际的节点数据，使用 MindMapView 组件
           if (mm.nodes && mm.nodes.length > 0) {
-            return (
-              <MindMapView
-                topic={mm.topic}
-                nodes={mm.nodes}
-                layout={mm.layout}
-              />
-            );
+            return <MindMapView topic={mm.topic} nodes={mm.nodes} layout={mm.layout} />;
           }
           // 否则显示简化版本（保持向后兼容）
           return (
@@ -380,12 +341,7 @@ export function ChatSidebar() {
               </p>
               <p className="text-[10px] text-muted-foreground mt-1">
                 最大 {mm.maxDepth} 层 ·{" "}
-                {mm.layout === "tree"
-                  ? "树状"
-                  : mm.layout === "radial"
-                    ? "径向"
-                    : "思维导图"}{" "}
-                布局
+                {mm.layout === "tree" ? "树状" : mm.layout === "radial" ? "径向" : "思维导图"} 布局
               </p>
             </div>
           );
@@ -497,9 +453,7 @@ export function ChatSidebar() {
                 }`}
               />
             )}
-            <span className="relative z-10">
-              {m === "chat" ? "智能对话" : "原子知识"}
-            </span>
+            <span className="relative z-10">{m === "chat" ? "智能对话" : "原子知识"}</span>
 
             {mode === m && (
               <motion.div
@@ -671,7 +625,7 @@ export function ChatSidebar() {
   );
 }
 
-function Switch({
+function _Switch({
   active,
   onClick,
   disabled,

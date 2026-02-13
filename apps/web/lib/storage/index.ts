@@ -8,19 +8,19 @@
  * - 可选的云端同步
  */
 
-export * from './local-db'
-export * from './document-store'
-export * from './snapshot-store'
-export * from './sync-engine'
-export * from './snapshot-sync'
-export * from './learning-store'
-export * from './flashcard-store'
+export * from "./document-store";
+export { documentStore } from "./document-store";
+export * from "./flashcard-store";
+export { flashcardStore } from "./flashcard-store";
+export * from "./learning-store";
+export { learningStore } from "./learning-store";
+export * from "./local-db";
 
 // Re-export singletons for convenience
-export { localDb } from './local-db'
-export { documentStore } from './document-store'
-export { snapshotStore } from './snapshot-store'
-export { syncEngine } from './sync-engine'
-export { snapshotSync } from './snapshot-sync'
-export { learningStore } from './learning-store'
-export { flashcardStore } from './flashcard-store'
+export { localDb } from "./local-db";
+export * from "./snapshot-store";
+export { snapshotStore } from "./snapshot-store";
+export * from "./snapshot-sync";
+export { snapshotSync } from "./snapshot-sync";
+export * from "./sync-engine";
+export { syncEngine } from "./sync-engine";

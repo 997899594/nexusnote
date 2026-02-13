@@ -1,9 +1,9 @@
-'use client'
+"use client";
 
-import { useNoteExtractionOptional, Topic, ExtractedNote } from '@/lib/store'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Loader2, BookOpen, ChevronRight, Sparkles } from 'lucide-react'
-import { useState } from 'react'
+import { AnimatePresence, motion } from "framer-motion";
+import { BookOpen, ChevronRight, Loader2, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { type ExtractedNote, type Topic, useNoteExtractionOptional } from "@/lib/store";
 
 /**
  * TopicCard - A single topic card with note count and preview
@@ -22,7 +22,9 @@ function TopicCard({ topic, onClick }: { topic: Topic; onClick: () => void }) {
           <div className="w-8 h-8 rounded-xl bg-black/5 flex items-center justify-center group-hover:bg-black group-hover:text-white transition-all">
             <BookOpen className="w-4 h-4" />
           </div>
-          <h3 className="font-black text-sm tracking-tight truncate max-w-[140px] text-black/80">{topic.name}</h3>
+          <h3 className="font-black text-sm tracking-tight truncate max-w-[140px] text-black/80">
+            {topic.name}
+          </h3>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-black bg-black text-white px-2 py-1 rounded-lg shadow-lg shadow-black/10">
@@ -42,7 +44,7 @@ function TopicCard({ topic, onClick }: { topic: Topic; onClick: () => void }) {
       {/* Background Glow */}
       <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-black/[0.01] rounded-full blur-2xl group-hover:bg-black/[0.03] transition-colors" />
     </motion.div>
-  )
+  );
 }
 
 /**
@@ -59,40 +61,34 @@ function ProcessingNote({ note }: { note: ExtractedNote }) {
       <div className="flex items-center gap-3 relative z-10">
         <div className="relative">
           <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
-          <motion.div 
+          <motion.div
             animate={{ opacity: [0, 1, 0] }}
             transition={{ duration: 2, repeat: Infinity }}
             className="absolute inset-0 bg-emerald-500/20 blur-sm rounded-full"
           />
         </div>
         <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">
-          {note.status === 'flying' ? 'Transmitting...' : 'AI Synthesizing...'}
+          {note.status === "flying" ? "Transmitting..." : "AI Synthesizing..."}
         </span>
       </div>
       <p className="text-[11px] text-emerald-900/40 mt-2 line-clamp-1 font-medium italic">
         "{note.content}"
       </p>
-      
+
       {/* Scanning effect */}
-      <motion.div 
-        animate={{ x: ['-100%', '200%'] }}
+      <motion.div
+        animate={{ x: ["-100%", "200%"] }}
         transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
         className="absolute inset-y-0 w-20 bg-gradient-to-r from-transparent via-emerald-500/[0.05] to-transparent skew-x-12"
       />
     </motion.div>
-  )
+  );
 }
 
 /**
  * TopicDetailPanel - Shows notes in a selected topic
  */
-function TopicDetailPanel({
-  topic,
-  onBack,
-}: {
-  topic: Topic
-  onBack: () => void
-}) {
+function TopicDetailPanel({ topic, onBack }: { topic: Topic; onBack: () => void }) {
   return (
     <div className="flex flex-col h-full bg-white/20">
       {/* Header */}
@@ -105,11 +101,17 @@ function TopicDetailPanel({
         </button>
         <div className="flex flex-col flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-black/20">Topic Detail</span>
+            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-black/20">
+              Topic Detail
+            </span>
             <span className="w-1 h-1 rounded-full bg-black/10" />
-            <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">{topic.noteCount} Notes</span>
+            <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">
+              {topic.noteCount} Notes
+            </span>
           </div>
-          <h2 className="font-black text-base text-black tracking-tight truncate mt-0.5">{topic.name}</h2>
+          <h2 className="font-black text-base text-black tracking-tight truncate mt-0.5">
+            {topic.name}
+          </h2>
         </div>
       </div>
 
@@ -126,7 +128,9 @@ function TopicDetailPanel({
             >
               <div className="flex items-start gap-4">
                 <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-black/10 group-hover:bg-black transition-colors shrink-0" />
-                <p className="text-[13px] leading-relaxed text-black/70 font-medium">{note.content}</p>
+                <p className="text-[13px] leading-relaxed text-black/70 font-medium">
+                  {note.content}
+                </p>
               </div>
             </motion.div>
           ))
@@ -140,15 +144,15 @@ function TopicDetailPanel({
         )}
       </div>
     </div>
-  )
+  );
 }
 
 /**
  * KnowledgePanel - Main panel showing extracted knowledge topics
  */
 export function KnowledgePanel() {
-  const noteExtraction = useNoteExtractionOptional()
-  const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null)
+  const noteExtraction = useNoteExtractionOptional();
+  const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
 
   // Not available
   if (!noteExtraction) {
@@ -158,22 +162,19 @@ export function KnowledgePanel() {
           <div className="w-20 h-20 rounded-[32px] bg-black/[0.02] border border-black/[0.04] flex items-center justify-center mx-auto mb-6">
             <BookOpen className="w-8 h-8 text-black/10" />
           </div>
-          <h3 className="text-sm font-black text-black/20 uppercase tracking-[0.2em]">Functionality Offline</h3>
+          <h3 className="text-sm font-black text-black/20 uppercase tracking-[0.2em]">
+            Functionality Offline
+          </h3>
         </div>
       </div>
-    )
+    );
   }
 
-  const { topics, pendingNotes, isLoading } = noteExtraction
+  const { topics, pendingNotes, isLoading } = noteExtraction;
 
   // Show topic detail
   if (selectedTopic) {
-    return (
-      <TopicDetailPanel
-        topic={selectedTopic}
-        onBack={() => setSelectedTopic(null)}
-      />
-    )
+    return <TopicDetailPanel topic={selectedTopic} onBack={() => setSelectedTopic(null)} />;
   }
 
   // Main topic list view
@@ -181,13 +182,17 @@ export function KnowledgePanel() {
     <div className="flex-1 flex flex-col min-h-0 bg-white/20">
       <div className="p-6 pb-2 flex items-center justify-between shrink-0">
         <div className="flex flex-col">
-          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-black/20">Knowledge Base</span>
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-black/20">
+            Knowledge Base
+          </span>
           <h2 className="text-sm font-bold text-black mt-1">原子知识库</h2>
         </div>
         {isLoading && (
           <div className="flex items-center gap-2 px-3 py-1.5 bg-black/[0.03] rounded-full">
             <Loader2 className="w-3 h-3 animate-spin text-black/40" />
-            <span className="text-[9px] font-black uppercase tracking-widest text-black/40">Syncing</span>
+            <span className="text-[9px] font-black uppercase tracking-widest text-black/40">
+              Syncing
+            </span>
           </div>
         )}
       </div>
@@ -196,7 +201,7 @@ export function KnowledgePanel() {
         {/* Processing notes */}
         <AnimatePresence>
           {pendingNotes
-            .filter((n) => n.status === 'processing' || n.status === 'flying')
+            .filter((n) => n.status === "processing" || n.status === "flying")
             .map((note) => (
               <ProcessingNote key={note.id} note={note} />
             ))}
@@ -206,12 +211,8 @@ export function KnowledgePanel() {
         {topics.length > 0 ? (
           <div className="grid gap-4">
             <AnimatePresence>
-              {topics.map((topic, idx) => (
-                <TopicCard
-                  key={topic.id}
-                  topic={topic}
-                  onClick={() => setSelectedTopic(topic)}
-                />
+              {topics.map((topic, _idx) => (
+                <TopicCard key={topic.id} topic={topic} onClick={() => setSelectedTopic(topic)} />
               ))}
             </AnimatePresence>
           </div>
@@ -221,7 +222,7 @@ export function KnowledgePanel() {
               <div className="w-20 h-20 rounded-[32px] bg-black/[0.02] border border-black/[0.04] flex items-center justify-center">
                 <Sparkles className="w-8 h-8 text-black/5" />
               </div>
-              <motion.div 
+              <motion.div
                 animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
                 transition={{ duration: 3, repeat: Infinity }}
                 className="absolute inset-0 bg-black/5 blur-xl rounded-full"
@@ -235,5 +236,5 @@ export function KnowledgePanel() {
         )}
       </div>
     </div>
-  )
+  );
 }

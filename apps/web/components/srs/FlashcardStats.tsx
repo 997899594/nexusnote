@@ -1,33 +1,30 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { flashcardStore, ReviewStats } from '@/lib/storage/flashcard-store'
+import { useCallback, useEffect, useState } from "react";
+import { flashcardStore, type ReviewStats } from "@/lib/storage/flashcard-store";
 
 interface FlashcardStatsProps {
-  onStartReview?: () => void
+  onStartReview?: () => void;
 }
 
 export function FlashcardStats({ onStartReview }: FlashcardStatsProps) {
-  const [stats, setStats] = useState<ReviewStats | null>(null)
-  const [streak, setStreak] = useState(0)
-  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState<ReviewStats | null>(null);
+  const [streak, setStreak] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  const loadStats = useCallback(async () => {
+    try {
+      const [s, st] = await Promise.all([flashcardStore.getStats(), flashcardStore.getStreak()]);
+      setStats(s);
+      setStreak(st);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    loadStats()
-  }, [])
-
-  const loadStats = async () => {
-    try {
-      const [s, st] = await Promise.all([
-        flashcardStore.getStats(),
-        flashcardStore.getStreak(),
-      ])
-      setStats(s)
-      setStreak(st)
-    } finally {
-      setLoading(false)
-    }
-  }
+    loadStats();
+  }, [loadStats]);
 
   if (loading) {
     return (
@@ -39,10 +36,10 @@ export function FlashcardStats({ onStartReview }: FlashcardStatsProps) {
           <div className="h-20 bg-gray-200 rounded-lg" />
         </div>
       </div>
-    )
+    );
   }
 
-  if (!stats) return null
+  if (!stats) return null;
 
   return (
     <div className="space-y-4">
@@ -98,8 +95,11 @@ export function FlashcardStats({ onStartReview }: FlashcardStatsProps) {
         <div className="w-full bg-gray-200 rounded-full h-2">
           <div
             className={`h-2 rounded-full transition-all ${
-              stats.averageRetention >= 90 ? 'bg-green-500' :
-              stats.averageRetention >= 70 ? 'bg-yellow-500' : 'bg-red-500'
+              stats.averageRetention >= 90
+                ? "bg-green-500"
+                : stats.averageRetention >= 70
+                  ? "bg-yellow-500"
+                  : "bg-red-500"
             }`}
             style={{ width: `${stats.averageRetention}%` }}
           />
@@ -107,9 +107,7 @@ export function FlashcardStats({ onStartReview }: FlashcardStatsProps) {
       </div>
 
       {/* 总卡片数 */}
-      <div className="text-center text-sm text-gray-500">
-        共 {stats.totalCards} 张卡片
-      </div>
+      <div className="text-center text-sm text-gray-500">共 {stats.totalCards} 张卡片</div>
     </div>
-  )
+  );
 }

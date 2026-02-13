@@ -16,12 +16,12 @@
  * 不应该在客户端代码中直接导入数据库操作函数
  */
 
-import { db, courseProfiles, courseChapters, eq } from "@nexusnote/db";
+import { courseChapters, courseProfiles, db, eq } from "@nexusnote/db";
 import { z } from "zod";
-import { OutlineSchema, type OutlineData } from "@/lib/ai/types/course";
+import { type OutlineData, OutlineSchema } from "@/lib/ai/types/course";
 
 // Re-export for convenience
-export { type OutlineData } from "@/lib/ai/types/course";
+export type { OutlineData } from "@/lib/ai/types/course";
 
 /**
  * 课程画像数据结构
@@ -160,9 +160,7 @@ export async function updateCourseProgress(
       })
       .where(eq(courseProfiles.id, id));
 
-    console.log(
-      `[Course Profile] 更新进度: ${currentChapter}-${currentSection}`,
-    );
+    console.log(`[Course Profile] 更新进度: ${currentChapter}-${currentSection}`);
   } catch (error) {
     console.error("[Course Profile] 更新失败:", error);
     throw error;
@@ -336,10 +334,5 @@ export function isInterviewComplete(context: {
   targetOutcome?: string;
   cognitiveStyle?: string;
 }): boolean {
-  return !!(
-    context.goal &&
-    context.background &&
-    context.targetOutcome &&
-    context.cognitiveStyle
-  );
+  return !!(context.goal && context.background && context.targetOutcome && context.cognitiveStyle);
 }

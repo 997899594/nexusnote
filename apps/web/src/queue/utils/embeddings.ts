@@ -7,8 +7,7 @@
  * 2. AI SDK v6 embedMany（推荐）
  */
 
-import { env } from "@nexusnote/config";
-import { embedMany, type EmbeddingModel } from "ai";
+import { type EmbeddingModel, embedMany } from "ai";
 
 export interface EmbeddingResponse {
   embedding: number[];
@@ -37,9 +36,7 @@ export async function generateEmbeddings(
     return [];
   }
 
-  console.log(
-    `[Embeddings] Generating ${texts.length} embeddings with AI SDK...`,
-  );
+  console.log(`[Embeddings] Generating ${texts.length} embeddings with AI SDK...`);
 
   try {
     const { embeddings } = await embedMany({
@@ -48,15 +45,10 @@ export async function generateEmbeddings(
       maxParallelCalls: 5, // 最多5个并行请求
     });
 
-    console.log(
-      `[Embeddings] ✅ Generated ${embeddings.length} embeddings (AI SDK)`,
-    );
+    console.log(`[Embeddings] ✅ Generated ${embeddings.length} embeddings (AI SDK)`);
     return embeddings;
   } catch (err) {
-    console.error(
-      "[Embeddings] ❌ Error generating embeddings with AI SDK:",
-      err,
-    );
+    console.error("[Embeddings] ❌ Error generating embeddings with AI SDK:", err);
     throw err;
   }
 }

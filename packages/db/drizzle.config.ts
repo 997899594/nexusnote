@@ -1,6 +1,6 @@
-import type { Config } from "drizzle-kit";
+import * as path from "node:path";
 import * as dotenv from "dotenv";
-import * as path from "path";
+import type { Config } from "drizzle-kit";
 
 // 兼容本地开发 (如果有 .env 就加载，没有就算了)
 // 这样既能在本地跑，也能在 K8s 跑

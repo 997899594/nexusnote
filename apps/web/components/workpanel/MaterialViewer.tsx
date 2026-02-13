@@ -1,29 +1,29 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   Book,
-  ChevronDown,
-  List,
-  Layers,
-  PlayCircle,
-  Sparkles,
-  Info,
   BookmarkPlus,
+  Calendar,
+  ChevronDown,
+  ExternalLink,
+  Hash,
   History,
+  Info,
+  Layers,
+  List,
   MessageSquare,
   MoreVertical,
-  ExternalLink,
-  Calendar,
+  PlayCircle,
+  Sparkles,
   User,
-  Hash,
 } from "lucide-react";
-import { useNoteExtractionOptional } from "@/lib/store";
-import { GhostFlight } from "@/components/editor/GhostFlight";
-import { markdownToHtml } from "@/lib/editor/markdown";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getDocumentAction } from "@/app/actions/document";
-import { DocumentDTO } from "@/lib/actions/types";
+import { GhostFlight } from "@/components/editor/GhostFlight";
+import type { DocumentDTO } from "@/lib/actions/types";
+import { markdownToHtml } from "@/lib/editor/markdown";
+import { useNoteExtractionOptional } from "@/lib/store";
 
 interface MaterialViewerProps {
   title: string;
@@ -37,9 +37,7 @@ interface FlyingNote {
 }
 
 export function MaterialViewer({ title, documentId }: MaterialViewerProps) {
-  const [activeTab, setActiveTab] = useState<"content" | "details" | "notes">(
-    "content",
-  );
+  const [activeTab, setActiveTab] = useState<"content" | "details" | "notes">("content");
   const [flyingNotes, setFlyingNotes] = useState<FlyingNote[]>([]);
   const [selection, setSelection] = useState<{
     text: string;
@@ -65,12 +63,12 @@ export function MaterialViewer({ title, documentId }: MaterialViewerProps) {
           // 如果是 base64 编码的内容，需要解码
           const decodedContent = doc.content ? atob(doc.content) : "";
           setContent(decodedContent);
-          
+
           // Convert Date to string for DTO compatibility
           setDocInfo({
             ...doc,
             createdAt: new Date().toISOString(), // Fallback or get from API
-            updatedAt: doc.updatedAt ? doc.updatedAt.toISOString() : null
+            updatedAt: doc.updatedAt ? doc.updatedAt.toISOString() : null,
           } as DocumentDTO);
         } else {
           console.error(`[MaterialViewer] Fetch failed: ${result.error}`);
@@ -182,9 +180,7 @@ export function MaterialViewer({ title, documentId }: MaterialViewerProps) {
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
               className={`flex items-center gap-2.5 pb-5 text-[11px] font-black uppercase tracking-[0.15em] transition-all relative group ${
-                activeTab === tab.id
-                  ? "text-black"
-                  : "text-black/25 hover:text-black/40"
+                activeTab === tab.id ? "text-black" : "text-black/25 hover:text-black/40"
               }`}
             >
               <tab.icon
@@ -256,8 +252,8 @@ export function MaterialViewer({ title, documentId }: MaterialViewerProps) {
                         <p className="first-letter:text-4xl first-letter:font-black first-letter:mr-3 first-letter:float-left first-letter:text-black">
                           在探讨现代高性能计算时，我们不能忽略底层资源的分配逻辑。Rust
                           语言通过一套独特的所有权模型，
-                          在不需要垃圾回收的情况下，实现了内存安全性。这一设计彻底解决了
-                          C/C++ 中困扰开发者数十年的悬垂指针与内存竞态问题。
+                          在不需要垃圾回收的情况下，实现了内存安全性。这一设计彻底解决了 C/C++
+                          中困扰开发者数十年的悬垂指针与内存竞态问题。
                         </p>
 
                         <p>
@@ -288,9 +284,7 @@ export function MaterialViewer({ title, documentId }: MaterialViewerProps) {
                             <Sparkles className="w-6 h-6" />
                           </div>
                           <div>
-                            <h4 className="text-emerald-900 font-black text-sm mb-1">
-                              关键知识点
-                            </h4>
+                            <h4 className="text-emerald-900 font-black text-sm mb-1">关键知识点</h4>
                             <p className="text-emerald-700/70 text-xs font-bold leading-relaxed">
                               所有权模型是 Rust
                               的核心特征，它确保了在不损失性能的前提下实现内存安全。
@@ -362,9 +356,7 @@ export function MaterialViewer({ title, documentId }: MaterialViewerProps) {
                       Course Directory
                     </span>
                   </div>
-                  <span className="text-[9px] font-bold text-black/20">
-                    4 Chapters • 120 Mins
-                  </span>
+                  <span className="text-[9px] font-bold text-black/20">4 Chapters • 120 Mins</span>
                 </div>
                 <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
                   {chapters.map((ch) => (
@@ -468,9 +460,7 @@ export function MaterialViewer({ title, documentId }: MaterialViewerProps) {
                         <span className="text-[10px] font-black uppercase tracking-widest text-black/20 mb-1">
                           {item.label}
                         </span>
-                        <span className="text-sm font-black text-black">
-                          {item.value}
-                        </span>
+                        <span className="text-sm font-black text-black">{item.value}</span>
                       </div>
                     </div>
                   ))}
@@ -490,9 +480,7 @@ export function MaterialViewer({ title, documentId }: MaterialViewerProps) {
               <div className="max-w-xl mx-auto w-full space-y-8">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex flex-col">
-                    <h2 className="text-xl font-black tracking-tight">
-                      知识库关联
-                    </h2>
+                    <h2 className="text-xl font-black tracking-tight">知识库关联</h2>
                     <p className="text-xs text-black/40 font-medium mt-1">
                       从该文档中提取的所有知识点
                     </p>
@@ -516,9 +504,7 @@ export function MaterialViewer({ title, documentId }: MaterialViewerProps) {
                               <Layers className="w-5 h-5" />
                             </div>
                             <div>
-                              <h3 className="font-black text-sm tracking-tight">
-                                {topic.name}
-                              </h3>
+                              <h3 className="font-black text-sm tracking-tight">{topic.name}</h3>
                               <span className="text-[10px] text-black/30 font-bold">
                                 {topic.noteCount} 个笔记
                               </span>
@@ -547,9 +533,7 @@ export function MaterialViewer({ title, documentId }: MaterialViewerProps) {
                 ) : (
                   <div className="flex flex-col items-center justify-center text-center py-20 opacity-20">
                     <BookmarkPlus className="w-16 h-16 mb-6" />
-                    <p className="text-sm font-black uppercase tracking-widest">
-                      暂无提取内容
-                    </p>
+                    <p className="text-sm font-black uppercase tracking-widest">暂无提取内容</p>
                     <p className="text-xs mt-2">在阅读模式下选中文字即可提取</p>
                   </div>
                 )}

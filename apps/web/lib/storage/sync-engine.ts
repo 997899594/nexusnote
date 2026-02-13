@@ -8,25 +8,18 @@
  * 4. 增量同步 - 只传输差异，节省带宽
  */
 
-import * as Y from "yjs";
 import { HocuspocusProvider } from "@hocuspocus/provider";
+import { clientEnv } from "@nexusnote/config";
+import * as Y from "yjs";
+import { getAuthToken } from "../auth-helpers";
 import { documentStore } from "./document-store";
 import { snapshotStore } from "./snapshot-store";
-import { localDb, STORES, SyncState } from "./local-db";
-import { clientEnv } from "@nexusnote/config";
-import { getAuthToken } from "../auth-helpers";
 
 type SyncStatus = "idle" | "syncing" | "offline" | "error";
 type ConnectionState = "connected" | "connecting" | "disconnected";
 
 interface SyncEvent {
-  type:
-    | "sync_start"
-    | "sync_complete"
-    | "sync_error"
-    | "conflict_resolved"
-    | "offline"
-    | "online";
+  type: "sync_start" | "sync_complete" | "sync_error" | "conflict_resolved" | "offline" | "online";
   documentId?: string;
   error?: Error;
 }
@@ -40,7 +33,6 @@ export class SyncEngine {
   private connectionState: ConnectionState = "disconnected";
   private listeners: Set<SyncEventListener> = new Set();
   private syncQueue: Set<string> = new Set();
-  private isSyncing = false;
 
   constructor() {
     // 监听网络状态
@@ -72,7 +64,7 @@ export class SyncEngine {
     }
 
     // 3. 设置本地持久化（每次更新都保存到 IndexedDB）
-    ydoc.on("update", async (update: Uint8Array, origin: unknown) => {
+    ydoc.on("update", async (_update: Uint8Array, origin: unknown) => {
       // 忽略来自远程的更新（避免重复保存）
       if (origin === "remote") return;
 
@@ -123,14 +115,14 @@ export class SyncEngine {
         console.log(`[SyncEngine] Disconnected from server: ${documentId}`);
       },
 
-      onMessage: (data) => {
+      onMessage: (_data) => {
         // 服务器发来的更新应用到本地
         // Yjs 自动处理 CRDT 合并
       },
     });
 
     // 监听来自服务器的更新
-    ydoc.on("update", (update: Uint8Array, origin: unknown) => {
+    ydoc.on("update", (_update: Uint8Array, origin: unknown) => {
       if (origin === provider) {
         // 来自服务器的更新，标记为 remote 并保存
         documentStore.saveFromYDoc(documentId, ydoc);
@@ -236,7 +228,7 @@ export class SyncEngine {
     this.emit({ type: "offline" });
 
     // 断开所有服务器连接（但保留本地 YDoc）
-    for (const [documentId, provider] of this.providers) {
+    for (const [_documentId, provider] of this.providers) {
       provider.disconnect();
     }
   }

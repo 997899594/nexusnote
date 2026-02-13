@@ -1,8 +1,8 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, Check, Zap } from "lucide-react";
-import { UIMessage as Message } from "ai";
+import type { UIMessage as Message } from "ai";
+import { AnimatePresence, motion } from "framer-motion";
+import { Check, Loader2, Zap } from "lucide-react";
 import { MessageResponse } from "@/components/ai/Message";
 import { UnifiedChatUI } from "@/components/ai/UnifiedChatUI";
 import type { InterviewContext } from "@/lib/ai/agents/interview/agent";
@@ -72,15 +72,10 @@ export function ChatInterface({
 
     if (
       toolCall &&
-      (toolCall.state === "input-available" ||
-        toolCall.state === "output-available")
+      (toolCall.state === "input-available" || toolCall.state === "output-available")
     ) {
       const input = toolCall.input;
-      if (
-        input?.options &&
-        Array.isArray(input.options) &&
-        input.options.length > 0
-      ) {
+      if (input?.options && Array.isArray(input.options) && input.options.length > 0) {
         activeToolOptions = {
           options: input.options,
           targetField: input.targetField || "general",
@@ -105,9 +100,7 @@ export function ChatInterface({
         >
           <div
             className={
-              compact
-                ? "flex flex-col h-full w-full"
-                : "max-w-4xl w-full flex flex-col h-[85vh]"
+              compact ? "flex flex-col h-full w-full" : "max-w-4xl w-full flex flex-col h-[85vh]"
             }
           >
             <UnifiedChatUI
@@ -161,27 +154,18 @@ export function ChatInterface({
                   {isAiThinking ? (
                     <>
                       <Loader2 className="w-8 h-8 animate-spin" />
-                      <p className="text-sm font-medium">
-                        等待AI响应中... 目标: {goal}
-                      </p>
-                      <p className="text-xs text-black/20">
-                        (自动启动中，请稍候...)
-                      </p>
+                      <p className="text-sm font-medium">等待AI响应中... 目标: {goal}</p>
+                      <p className="text-xs text-black/20">(自动启动中，请稍候...)</p>
                     </>
                   ) : (
                     <>
-                      <p className="text-sm font-medium">
-                        准备开始... 目标: {goal}
-                      </p>
+                      <p className="text-sm font-medium">准备开始... 目标: {goal}</p>
                       <p className="text-xs text-black/20 mb-2">
                         (如果没有自动启动，请点击下方按钮)
                       </p>
                       <button
                         onClick={() =>
-                          handleSendWithFeedback(
-                            undefined,
-                            `我的目标是：${goal}。请开始访谈。`,
-                          )
+                          handleSendWithFeedback(undefined, `我的目标是：${goal}。请开始访谈。`)
                         }
                         className="mt-4 px-6 py-2 bg-black text-white rounded-full text-sm font-medium hover:scale-105 active:scale-95 transition-all shadow-lg shadow-black/10"
                       >
@@ -194,24 +178,22 @@ export function ChatInterface({
               renderAfterMessages={() => (
                 <>
                   {/* Waiting Indicator - 在滚动区内，属于消息流 */}
-                  {isAiThinking &&
-                    messages.length > 0 &&
-                    lastMessage?.role !== "assistant" && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="flex justify-start pt-4"
-                      >
-                        <div className="bg-white shadow-xl shadow-black/5 px-8 py-6 rounded-[32px] max-w-[95%] text-left border border-black/[0.02]">
-                          <div className="flex items-center gap-3">
-                            <div className="w-1.5 h-1.5 rounded-full bg-black/20 animate-pulse" />
-                            <p className="text-black/20 font-bold uppercase text-[10px] tracking-[0.2em]">
-                              WAITING FOR RESPONSE
-                            </p>
-                          </div>
+                  {isAiThinking && messages.length > 0 && lastMessage?.role !== "assistant" && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex justify-start pt-4"
+                    >
+                      <div className="bg-white shadow-xl shadow-black/5 px-8 py-6 rounded-[32px] max-w-[95%] text-left border border-black/[0.02]">
+                        <div className="flex items-center gap-3">
+                          <div className="w-1.5 h-1.5 rounded-full bg-black/20 animate-pulse" />
+                          <p className="text-black/20 font-bold uppercase text-[10px] tracking-[0.2em]">
+                            WAITING FOR RESPONSE
+                          </p>
                         </div>
-                      </motion.div>
-                    )}
+                      </div>
+                    </motion.div>
+                  )}
                 </>
               )}
               renderBeforeInput={() => (
@@ -233,13 +215,7 @@ export function ChatInterface({
                         return (
                           <button
                             key={option}
-                            onClick={() =>
-                              handleSendWithFeedback(
-                                undefined,
-                                option,
-                                contextUpdate,
-                              )
-                            }
+                            onClick={() => handleSendWithFeedback(undefined, option, contextUpdate)}
                             className="bg-white/80 backdrop-blur-md border border-black/5 px-6 py-3 rounded-full text-sm font-medium hover:bg-black hover:text-white transition-all shadow-lg shadow-black/5 hover:scale-105 active:scale-95"
                           >
                             {option}
@@ -285,9 +261,7 @@ export function ChatInterface({
               <div className="space-y-4 text-left bg-black/[0.02] p-8 rounded-[32px] border border-black/[0.05]">
                 <div className="flex items-center gap-3">
                   <div className="w-1.5 h-1.5 rounded-full bg-black" />
-                  <p className="text-sm font-medium text-black/60">
-                    目标：{goal}
-                  </p>
+                  <p className="text-sm font-medium text-black/60">目标：{goal}</p>
                 </div>
 
                 {context.targetOutcome && (
@@ -301,9 +275,7 @@ export function ChatInterface({
 
                 <div className="flex items-center gap-3 text-black pt-4 border-t border-black/5">
                   <Check className="w-4 h-4" />
-                  <p className="text-sm font-bold italic">
-                    “已为你优化知识关联，准备生成结构。”
-                  </p>
+                  <p className="text-sm font-bold italic">“已为你优化知识关联，准备生成结构。”</p>
                 </div>
               </div>
             </div>

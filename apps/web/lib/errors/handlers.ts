@@ -4,16 +4,7 @@
  * 统一的错误处理函数
  */
 
-import {
-  AppError,
-  AuthError,
-  ValidationError,
-  isAppError,
-  isAuthError,
-  isValidationError,
-  getUserMessage,
-  getErrorCode,
-} from "./types";
+import { isAppError, isAuthError, isValidationError } from "./types";
 
 // ============================================
 // Server Action Response Types
@@ -49,10 +40,7 @@ export function success<T = void>(data?: T): ActionSuccess<T> {
 /**
  * 创建错误响应
  */
-export function error(
-  message: string,
-  code = "INTERNAL_ERROR",
-): ActionError {
+export function error(message: string, code = "INTERNAL_ERROR"): ActionError {
   return {
     success: false,
     error: message,
@@ -63,10 +51,7 @@ export function error(
 /**
  * 创建验证错误响应
  */
-export function validationError(
-  message: string,
-  field?: string,
-): ActionError {
+export function validationError(message: string, _field?: string): ActionError {
   return {
     success: false,
     error: message,
@@ -77,9 +62,7 @@ export function validationError(
 /**
  * 创建未授权响应
  */
-export function unauthorizedError(
-  message = "Authentication required",
-): ActionError {
+export function unauthorizedError(message = "Authentication required"): ActionError {
   return {
     success: false,
     error: message,
@@ -104,9 +87,7 @@ export function handleActionError(err: unknown): ActionError {
   if (err instanceof Error) {
     // 生产环境隐藏内部错误详情
     const message =
-      process.env.NODE_ENV === "production"
-        ? "An unexpected error occurred"
-        : err.message;
+      process.env.NODE_ENV === "production" ? "An unexpected error occurred" : err.message;
 
     return error(message, "INTERNAL_ERROR");
   }
@@ -118,9 +99,7 @@ export function handleActionError(err: unknown): ActionError {
 /**
  * 异步操作包装器 - 自动处理错误
  */
-export async function tryAction<T>(
-  fn: () => Promise<T>,
-): Promise<ActionResult<T>> {
+export async function tryAction<T>(fn: () => Promise<T>): Promise<ActionResult<T>> {
   try {
     const data = await fn();
     return success(data);

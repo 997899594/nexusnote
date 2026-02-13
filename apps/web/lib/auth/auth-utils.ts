@@ -11,7 +11,7 @@
  * - 使用类型断言保证运行时安全
  */
 
-import { auth, type AuthSession } from "@/auth";
+import { type AuthSession, auth } from "@/auth";
 
 // 重新导出 AuthSession，方便其他模块使用
 export type { AuthSession };
@@ -168,10 +168,7 @@ export function checkOwnership(
  *
  * @returns 如果所有权匹配返回 true，否则 false
  */
-export function hasOwnership(
-  userId: string,
-  resourceOwnerId: string | null | undefined,
-): boolean {
+export function hasOwnership(userId: string, resourceOwnerId: string | null | undefined): boolean {
   return !!resourceOwnerId && userId === resourceOwnerId;
 }
 

@@ -1,20 +1,19 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { BookOpen, FileText } from "lucide-react";
-import { motion } from "framer-motion";
-import {
-  learningStore,
-  LocalLearningContent,
-  LocalLearningProgress,
-} from "@/lib/storage";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { getNoteTopicsAction } from "@/app/actions/note";
 import { OrganicHeader } from "@/components/create/OrganicHeader";
 import { HeroInput } from "@/components/home/HeroInput";
 import { RecentAccess } from "@/components/home/RecentAccess";
-import { getNoteTopicsAction } from "@/app/actions/note";
-import { NoteDTO, RecentItemDTO } from "@/lib/actions/types";
+import type { NoteDTO, RecentItemDTO } from "@/lib/actions/types";
+import {
+  type LocalLearningContent,
+  type LocalLearningProgress,
+  learningStore,
+} from "@/lib/storage";
 
 interface CourseWithProgress extends LocalLearningContent {
   progress?: LocalLearningProgress;
@@ -27,11 +26,7 @@ export default function Home() {
   const [notes, setNotes] = useState<NoteDTO[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadData();
-  }, [session?.user?.id]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       // 1. Load Courses (Local-First)
@@ -63,8 +58,7 @@ export default function Home() {
             }
           });
           allNotes.sort(
-            (a, b) =>
-              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
           );
           setNotes(allNotes);
         }
@@ -74,7 +68,11 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const recentItems = useMemo((): RecentItemDTO[] => {
     const items: RecentItemDTO[] = [];
@@ -84,9 +82,7 @@ export default function Home() {
         id: c.id,
         title: c.title,
         type: "course",
-        updatedAt: new Date(
-          c.progress?.lastAccessedAt || c.createdAt,
-        ).toISOString(),
+        updatedAt: new Date(c.progress?.lastAccessedAt || c.createdAt).toISOString(),
       });
     });
 
@@ -100,10 +96,7 @@ export default function Home() {
     });
 
     return items
-      .sort(
-        (a, b) =>
-          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-      )
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
       .slice(0, 8);
   }, [courses, notes]);
 
@@ -149,11 +142,7 @@ export default function Home() {
         </div>
 
         <div className="mt-8 md:mt-16 w-full max-w-3xl">
-          <RecentAccess
-            items={recentItems}
-            loading={loading}
-            onItemClick={handleItemClick}
-          />
+          <RecentAccess items={recentItems} loading={loading} onItemClick={handleItemClick} />
         </div>
       </main>
 

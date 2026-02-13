@@ -1,14 +1,10 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, ReactNode } from "react";
-import { isReasoningUIPart, isToolUIPart, UIMessage as Message } from "ai";
-import { Send, Square, Bot, User } from "lucide-react";
+import { isReasoningUIPart, isToolUIPart, type UIMessage as Message } from "ai";
+import { Bot, Send, Square, User } from "lucide-react";
+import { type FormEvent, type ReactNode, useEffect, useRef } from "react";
+import { getMessageContent, getReasoningContent, getToolCalls } from "@/lib/ai/ui-utils";
 import { MessageResponse } from "./Message";
-import {
-  getMessageContent,
-  getReasoningContent,
-  getToolCalls,
-} from "@/lib/ai/ui-utils";
 
 /**
  * 通用聊天 UI 组件 - 2026 架构师标准版
@@ -32,20 +28,9 @@ interface UnifiedChatUIProps {
   onStop?: () => void;
 
   // 自定义渲染
-  renderToolOutput?: (
-    toolName: string,
-    output: unknown,
-    toolCallId: string,
-  ) => ReactNode;
-  renderToolLoading?: (
-    toolName: string,
-    toolCallId: string,
-  ) => ReactNode;
-  renderMessage?: (
-    message: Message,
-    text: string,
-    isUser: boolean,
-  ) => ReactNode;
+  renderToolOutput?: (toolName: string, output: unknown, toolCallId: string) => ReactNode;
+  renderToolLoading?: (toolName: string, toolCallId: string) => ReactNode;
+  renderMessage?: (message: Message, text: string, isUser: boolean) => ReactNode;
   renderEmpty?: () => ReactNode;
   renderAfterMessages?: () => ReactNode;
   renderBeforeInput?: () => ReactNode;
@@ -82,17 +67,13 @@ export function UnifiedChatUI({
     if (scrollable) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages, scrollable]);
+  }, [scrollable]);
 
   /**
    * 默认消息渲染函数
    * 处理：文本、思维链、工具输出
    */
-  const defaultRenderMessage = (
-    message: Message,
-    text: string,
-    isUser: boolean,
-  ) => {
+  const defaultRenderMessage = (message: Message, text: string, isUser: boolean) => {
     const reasoning = getReasoningContent(message);
     const toolCalls = getToolCalls(message);
 
@@ -127,9 +108,7 @@ export function UnifiedChatUI({
           {isUser ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
         </div>
 
-        <div
-          className={`flex flex-col ${isUser ? "items-end" : "items-start"} min-w-0`}
-        >
+        <div className={`flex flex-col ${isUser ? "items-end" : "items-start"} min-w-0`}>
           {/* Reasoning Section (Collapsible) */}
           {!isUser && reasoning && showReasoningSection && (
             <details className="mb-2 group">
@@ -152,9 +131,7 @@ export function UnifiedChatUI({
             }`}
           >
             {text ? (
-              <MessageResponse className={isUser ? "text-white" : ""}>
-                {text}
-              </MessageResponse>
+              <MessageResponse className={isUser ? "text-white" : ""}>{text}</MessageResponse>
             ) : (
               isLoading &&
               toolCalls.length === 0 && (
@@ -176,17 +153,12 @@ export function UnifiedChatUI({
                 // 1. 执行完成且有渲染器
                 if (state === "output-available" && renderToolOutput) {
                   return (
-                    <div key={toolCallId}>
-                      {renderToolOutput(toolName, output, toolCallId)}
-                    </div>
+                    <div key={toolCallId}>{renderToolOutput(toolName, output, toolCallId)}</div>
                   );
                 }
 
                 // 2. 正在执行中
-                if (
-                  state === "input-streaming" ||
-                  state === "input-available"
-                ) {
+                if (state === "input-streaming" || state === "input-available") {
                   // 优先使用自定义骨架屏组件
                   if (renderToolLoading) {
                     const loadingComponent = renderToolLoading(toolName, toolCallId);
@@ -259,8 +231,7 @@ export function UnifiedChatUI({
 
                 // 2026 修复：更宽松的过滤逻辑，确保有工具调用的消息不会被过滤
                 // 即使工具调用处于 input-streaming/input-available 状态，也要保留消息
-                const hasContent =
-                  text || isUser || hasReasoning || hasToolCalls || isLoading;
+                const hasContent = text || isUser || hasReasoning || hasToolCalls || isLoading;
 
                 if (!hasContent) {
                   return null;

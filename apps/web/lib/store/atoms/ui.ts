@@ -4,9 +4,9 @@
  * 全局 UI 状态：侧边栏、模态框、通知等
  */
 
+import { clientEnv } from "@nexusnote/config";
 import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
-import { clientEnv } from "@nexusnote/config";
 
 // ============================================
 // AI Preferences

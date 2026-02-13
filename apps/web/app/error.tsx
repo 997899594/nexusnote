@@ -7,10 +7,11 @@
 
 "use client";
 
-import { useEffect } from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 
+// biome-ignore lint/suspicious/noShadowRestrictedNames: Next.js error boundary convention
 export default function Error({
   error,
   reset,
@@ -34,17 +35,12 @@ export default function Error({
         {/* Message */}
         <div className="space-y-2">
           <h1 className="text-2xl font-bold text-black">出错了</h1>
-          <p className="text-black/60 text-sm">
-            {error.message || "应用遇到了一些问题"}
-          </p>
+          <p className="text-black/60 text-sm">{error.message || "应用遇到了一些问题"}</p>
         </div>
 
         {/* Actions */}
         <div className="flex gap-3 justify-center">
-          <Button
-            onClick={reset}
-            className="bg-black text-white hover:bg-black/80"
-          >
+          <Button onClick={reset} className="bg-black text-white hover:bg-black/80">
             <RefreshCw className="w-4 h-4 mr-2" />
             重试
           </Button>

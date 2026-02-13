@@ -1,84 +1,84 @@
-'use client'
+"use client";
 
-import { useState, useEffect, useCallback } from 'react'
-import { X, Sparkles, Loader2, Brain } from 'lucide-react'
-import { flashcardStore } from '@/lib/storage/flashcard-store'
-import { generateFlashcardAction } from '@/app/actions/ai'
+import { Brain, Loader2, Sparkles, X } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { generateFlashcardAction } from "@/app/actions/ai";
+import { flashcardStore } from "@/lib/storage/flashcard-store";
 
 interface CreateFlashcardDialogProps {
-  isOpen: boolean
-  onClose: () => void
-  initialFront?: string
-  context?: string
-  documentId?: string
+  isOpen: boolean;
+  onClose: () => void;
+  initialFront?: string;
+  context?: string;
+  documentId?: string;
 }
 
 export function CreateFlashcardDialog({
   isOpen,
   onClose,
-  initialFront = '',
+  initialFront = "",
   context,
   documentId,
 }: CreateFlashcardDialogProps) {
-  const [front, setFront] = useState(initialFront)
-  const [back, setBack] = useState('')
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
+  const [front, setFront] = useState(initialFront);
+  const [back, setBack] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      setFront(initialFront)
-      setBack('')
+      setFront(initialFront);
+      setBack("");
     }
-  }, [isOpen, initialFront])
+  }, [isOpen, initialFront]);
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose()
+      if (e.key === "Escape" && isOpen) {
+        onClose();
       }
-    }
-    window.addEventListener('keydown', handleEsc)
-    return () => window.removeEventListener('keydown', handleEsc)
-  }, [isOpen, onClose])
+    };
+    window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, [isOpen, onClose]);
 
   const generateAnswer = useCallback(async () => {
-    if (!front.trim()) return
+    if (!front.trim()) return;
 
-    setIsGenerating(true)
+    setIsGenerating(true);
     try {
       // 架构师重构：将 fetch 替换为 Server Action
       const data = await generateFlashcardAction({
         question: front,
         context,
-      })
+      });
 
-      setBack(data.answer || '')
+      setBack(data.answer || "");
     } catch (error) {
-      console.error('Failed to generate answer:', error)
+      console.error("Failed to generate answer:", error);
     } finally {
-      setIsGenerating(false)
+      setIsGenerating(false);
     }
-  }, [front, context])
+  }, [front, context]);
 
   const handleSave = useCallback(async () => {
-    if (!front.trim() || !back.trim()) return
+    if (!front.trim() || !back.trim()) return;
 
-    setIsSaving(true)
+    setIsSaving(true);
     try {
       await flashcardStore.createCard(front.trim(), back.trim(), {
         documentId,
         context,
-      })
-      onClose()
+      });
+      onClose();
     } catch (error) {
-      console.error('Failed to create flashcard:', error)
+      console.error("Failed to create flashcard:", error);
     } finally {
-      setIsSaving(false)
+      setIsSaving(false);
     }
-  }, [front, back, documentId, context, onClose])
+  }, [front, back, documentId, context, onClose]);
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -89,10 +89,7 @@ export function CreateFlashcardDialog({
             <Brain className="w-5 h-5 text-violet-500" />
             <span className="font-medium text-gray-900">创建卡片</span>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 hover:bg-gray-100 rounded-lg transition"
-          >
+          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg transition">
             <X className="w-4 h-4 text-gray-500" />
           </button>
         </div>
@@ -168,11 +165,11 @@ export function CreateFlashcardDialog({
                 保存中...
               </>
             ) : (
-              '创建卡片'
+              "创建卡片"
             )}
           </button>
         </div>
       </div>
     </div>
-  )
+  );
 }
