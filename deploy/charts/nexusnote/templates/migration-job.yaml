@@ -53,9 +53,18 @@ spec:
             - -c
             - |
               set -e
-              echo "Running database migrations..."
+              echo "Running Drizzle schema push..."
               drizzle-kit push --config /app/packages/db/drizzle.config.ts
-              echo "Migrations completed."
+              echo "Drizzle push completed."
+
+              echo "Running custom SQL migrations..."
+              for f in /app/packages/db/migrations/*.sql; do
+                if [ -f "$f" ]; then
+                  echo "Executing: $f"
+                  psql "$DATABASE_URL" -f "$f"
+                fi
+              done
+              echo "All migrations completed."
           envFrom:
             - configMapRef:
                 name: nexusnote-config
