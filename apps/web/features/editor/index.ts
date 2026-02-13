@@ -19,6 +19,10 @@ export { snapshotSync } from "./sync/snapshot-sync";
 // Actions
 export { getDocumentAction, updateDocumentAction } from "./actions/document";
 
+// Hooks
+export { useEditorToolGuard } from "./hooks/useEditorToolGuard";
+export { useInlineAI, type AIAction } from "./hooks/useInlineAI";
+
 // 核心工具
 export { parseDocument } from "./core/document-parser";
 export { smartConvert } from "./core/markdown";
