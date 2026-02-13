@@ -96,8 +96,19 @@ COPY --from=builder --chown=nextjs:nodejs /app/packages/db/drizzle/ ./packages/d
 COPY --from=builder --chown=nextjs:nodejs /app/packages/db/drizzle.config.ts ./packages/db/
 COPY --from=builder --chown=nextjs:nodejs /app/packages/db/package.json ./packages/db/
 
-# 安装 drizzle-kit 用于数据库迁移（锁定版本）
-RUN npm install -g drizzle-kit@0.30.0
+# 复制 config 包（schema.ts 通过 @nexusnote/config 引用）
+COPY --from=builder --chown=nextjs:nodejs /app/packages/config/dist ./packages/config/dist/
+COPY --from=builder --chown=nextjs:nodejs /app/packages/config/package.json ./packages/config/
+
+# 安装迁移依赖：drizzle-kit push 需要 drizzle-orm + @nexusnote/config (zod)
+RUN npm install -g drizzle-kit@0.30.0 \
+    && mkdir -p /app/node_modules/@nexusnote \
+    && ln -s /app/packages/config /app/node_modules/@nexusnote/config \
+    && cd /tmp && mkdir deps && cd deps && npm init -y > /dev/null 2>&1 \
+    && npm install --no-save drizzle-orm@0.44.0 zod@4 > /dev/null 2>&1 \
+    && cp -r node_modules/drizzle-orm /app/node_modules/ \
+    && cp -r node_modules/zod /app/node_modules/ \
+    && cd / && rm -rf /tmp/deps
 
 # 复制静态资源
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public/
