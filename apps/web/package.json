@@ -21,6 +21,7 @@
     "@hocuspocus/server": "^2.13.0",
     "@nexusnote/config": "workspace:*",
     "@nexusnote/db": "workspace:*",
+    "@nexusnote/fsrs": "workspace:*",
     "@nexusnote/types": "workspace:*",
     "@radix-ui/react-separator": "^1.1.8",
     "@radix-ui/react-slot": "^1.2.4",

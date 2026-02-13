@@ -7,115 +7,27 @@
  * - 支持从高亮/文档创建卡片
  */
 
+import {
+  State,
+  Rating,
+  schedule,
+  createInitialState,
+  forgettingCurve,
+  type ReviewRating,
+  type CardState,
+} from "@nexusnote/fsrs";
 import { v4 as uuid } from "uuid";
 import {
   type FlashcardState,
   type LocalFlashcard,
   type LocalReviewLog,
   localDb,
-  type ReviewRating,
+  type ReviewRating as LocalReviewRating,
   STORES,
 } from "@/features/shared/stores/local-db";
 
-// ============================================
-// FSRS-5 算法核心
-// ============================================
-
-// FSRS-5 默认参数（经大规模数据优化）
-const FSRS_PARAMS = {
-  w: [
-    0.4072,
-    1.1829,
-    3.1262,
-    15.4722, // S0: 初始稳定性
-    7.2102,
-    0.5715,
-    1.0,
-    0.0062, // 难度相关
-    1.8363,
-    0.2783,
-    0.8552,
-    2.4029, // 稳定性增益
-    0.1192,
-    0.295,
-    2.2663,
-    0.2924, // 惩罚/奖励
-    2.9466, // 遗忘稳定性
-  ],
-  requestRetention: 0.9,
-  maximumInterval: 36500,
-};
-
-// 状态常量
-export const State = {
-  New: 0 as FlashcardState,
-  Learning: 1 as FlashcardState,
-  Review: 2 as FlashcardState,
-  Relearning: 3 as FlashcardState,
-};
-
-// 评分常量
-export const Rating = {
-  Again: 1 as ReviewRating,
-  Hard: 2 as ReviewRating,
-  Good: 3 as ReviewRating,
-  Easy: 4 as ReviewRating,
-};
-
-// 计算遗忘曲线
-function forgettingCurve(elapsedDays: number, stability: number): number {
-  return (1 + elapsedDays / (9 * stability)) ** -1;
-}
-
-// 初始难度
-function initDifficulty(rating: ReviewRating): number {
-  const w = FSRS_PARAMS.w;
-  return Math.min(10, Math.max(1, w[4] - Math.exp(w[5] * (rating - 1)) + 1));
-}
-
-// 初始稳定性
-function initStability(rating: ReviewRating): number {
-  return Math.max(0.1, FSRS_PARAMS.w[rating - 1]);
-}
-
-// 计算下次间隔天数
-function nextInterval(stability: number): number {
-  const interval = (stability / 0.9) * (FSRS_PARAMS.requestRetention ** (1 / -0.5) - 1);
-  return Math.min(FSRS_PARAMS.maximumInterval, Math.max(1, Math.round(interval)));
-}
-
-// 成功复习后的稳定性
-function nextRecallStability(d: number, s: number, r: number, rating: ReviewRating): number {
-  const w = FSRS_PARAMS.w;
-  const hardPenalty = rating === Rating.Hard ? w[14] : 1;
-  const easyBonus = rating === Rating.Easy ? w[15] : 1;
-
-  return (
-    s *
-    (1 +
-      Math.exp(w[8]) *
-        (11 - d) *
-        s ** -w[9] *
-        (Math.exp((1 - r) * w[10]) - 1) *
-        hardPenalty *
-        easyBonus)
-  );
-}
-
-// 遗忘后的稳定性
-function nextForgetStability(d: number, s: number, r: number): number {
-  const w = FSRS_PARAMS.w;
-  return w[11] * d ** -w[12] * ((s + 1) ** w[13] - 1) * Math.exp((1 - r) * w[14]);
-}
-
-// 下次难度
-function nextDifficulty(d: number, rating: ReviewRating): number {
-  const w = FSRS_PARAMS.w;
-  const delta = rating - 3;
-  const newD = d - w[6] * delta;
-  const meanReversion = w[7] * w[4] + (1 - w[7]) * newD;
-  return Math.min(10, Math.max(1, meanReversion));
-}
+// 重导出供外部使用
+export { State, Rating } from "@nexusnote/fsrs";
 
 // ============================================
 // Flashcard Store 类
@@ -273,7 +185,7 @@ export class FlashcardStore {
   }
 
   /**
-   * 复习卡片并更新调度
+   * 复习卡片并更新调度（委托给 @nexusnote/fsrs）
    */
   async reviewCard(
     cardId: string,
@@ -284,8 +196,6 @@ export class FlashcardStore {
     if (!card) return null;
 
     const now = Date.now();
-    const elapsedDays =
-      card.state === State.New ? 0 : Math.max(0, (now - card.due) / (1000 * 60 * 60 * 24));
 
     // 保存复习前状态到日志
     const log: LocalReviewLog = {
@@ -302,23 +212,31 @@ export class FlashcardStore {
       reviewedAt: now,
     };
 
-    // 根据当前状态更新卡片
-    card.elapsedDays = elapsedDays;
+    // 从本地存储格式转换为 FSRS 格式（difficulty: /10, stability: /100）
+    const result = schedule(
+      {
+        state: card.state as CardState,
+        stability: card.stability / 100,
+        difficulty: card.difficulty / 10,
+        elapsedDays: card.elapsedDays,
+        scheduledDays: card.scheduledDays,
+        reps: card.reps,
+        lapses: card.lapses,
+        due: card.due,
+      },
+      rating,
+      now,
+    );
 
-    switch (card.state) {
-      case State.New:
-        this.scheduleNew(card, rating);
-        break;
-      case State.Learning:
-      case State.Relearning:
-        this.scheduleLearning(card, rating);
-        break;
-      case State.Review:
-        this.scheduleReview(card, rating, elapsedDays);
-        break;
-    }
-
-    // 更新元数据
+    // 从 FSRS 格式转换回本地存储格式
+    card.state = result.state as FlashcardState;
+    card.stability = result.stability * 100;
+    card.difficulty = result.difficulty * 10;
+    card.elapsedDays = result.elapsedDays;
+    card.scheduledDays = result.scheduledDays;
+    card.reps = result.reps;
+    card.lapses = result.lapses;
+    card.due = result.due;
     card.updatedAt = now;
     card.isDirty = true;
 
@@ -330,56 +248,6 @@ export class FlashcardStore {
       `[FlashcardStore] Reviewed card ${card.id}: rating=${rating}, next due in ${card.scheduledDays} days`,
     );
     return { card, log };
-  }
-
-  private scheduleNew(card: LocalFlashcard, rating: ReviewRating): void {
-    card.difficulty = initDifficulty(rating) * 10; // 转换为 0-100
-    card.stability = initStability(rating) * 100; // 转换为整数存储
-
-    if (rating === Rating.Again || rating === Rating.Hard) {
-      card.state = State.Learning;
-      card.scheduledDays = 0;
-      card.due = Date.now() + 60 * 1000; // 1分钟后
-    } else {
-      card.state = State.Review;
-      card.scheduledDays = nextInterval(card.stability / 100);
-      card.due = Date.now() + card.scheduledDays * 24 * 60 * 60 * 1000;
-      card.reps = 1;
-    }
-  }
-
-  private scheduleLearning(card: LocalFlashcard, rating: ReviewRating): void {
-    if (rating === Rating.Again || rating === Rating.Hard) {
-      card.scheduledDays = 0;
-      card.due = Date.now() + 60 * 1000;
-    } else {
-      card.state = State.Review;
-      card.stability = initStability(rating) * 100;
-      card.scheduledDays = nextInterval(card.stability / 100);
-      card.due = Date.now() + card.scheduledDays * 24 * 60 * 60 * 1000;
-      card.reps += 1;
-    }
-  }
-
-  private scheduleReview(card: LocalFlashcard, rating: ReviewRating, elapsedDays: number): void {
-    const stability = card.stability / 100;
-    const difficulty = card.difficulty / 10;
-    const retrievability = forgettingCurve(elapsedDays, stability);
-
-    if (rating === Rating.Again) {
-      card.lapses += 1;
-      card.state = State.Relearning;
-      card.difficulty = nextDifficulty(difficulty, rating) * 10;
-      card.stability = nextForgetStability(difficulty, stability, retrievability) * 100;
-      card.scheduledDays = 0;
-      card.due = Date.now() + 60 * 1000;
-    } else {
-      card.reps += 1;
-      card.difficulty = nextDifficulty(difficulty, rating) * 10;
-      card.stability = nextRecallStability(difficulty, stability, retrievability, rating) * 100;
-      card.scheduledDays = nextInterval(card.stability / 100);
-      card.due = Date.now() + card.scheduledDays * 24 * 60 * 60 * 1000;
-    }
   }
 
   // ============================================
