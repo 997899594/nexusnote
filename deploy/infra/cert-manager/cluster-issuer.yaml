@@ -17,3 +17,6 @@ spec:
               - name: nexusnote-gateway
                 namespace: nexusnote
                 kind: Gateway
+                # sectionName: http 必须指定，Cilium 1.16 对无 sectionName 的
+                # HTTPRoute 不生成 HTTP listener 路由（只生成 HTTPS）
+                sectionName: http

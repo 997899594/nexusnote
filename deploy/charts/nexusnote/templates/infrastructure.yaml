@@ -20,9 +20,11 @@ spec:
   gatewayClassName: cilium
   listeners:
     # HTTP 监听器（重定向到 HTTPS）
+    # hostname 必须显式指定，Cilium 1.16 对无 hostname 的 listener 不生成 RDS 路由
     - name: http
       protocol: HTTP
       port: 80
+      hostname: {{ include "nexusnote.hostname" . | quote }}
       allowedRoutes:
         namespaces:
           from: Same
@@ -53,6 +55,9 @@ spec:
     - name: nexusnote-gateway
       namespace: {{ .Values.namespace }}
       kind: Gateway
+      # 只绑定 HTTPS listener，HTTP 由 nexusnote-redirect 处理重定向
+      # cert-manager solver 的 Exact 匹配优先于重定向的 PathPrefix
+      sectionName: https
   hostnames:
     - {{ include "nexusnote.hostname" . | quote }}
   rules:
