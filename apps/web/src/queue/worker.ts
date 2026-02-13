@@ -15,7 +15,7 @@ import { env } from "@nexusnote/config";
 import { db, documentChunks, documents, eq, extractedNotes, sql, topics } from "@nexusnote/db";
 import { Worker } from "bullmq";
 import IORedis from "ioredis";
-import { embeddingModel, isEmbeddingConfigured } from "@/lib/ai/registry";
+import { registry, isEmbeddingConfigured } from "@/lib/ai/registry";
 import { generateEmbeddings } from "./utils/embeddings";
 
 // Redis 连接
@@ -105,7 +105,7 @@ async function processRAGIndexJob(job: { data: { documentId: string; plainText: 
       throw new Error("[RAG Worker] Embedding model not configured");
     }
 
-    const embeddings = await generateEmbeddings(chunks, embeddingModel!);
+    const embeddings = await generateEmbeddings(chunks, registry.embeddingModel!);
 
     console.log(
       `[RAG Worker] Generated ${embeddings.length} embeddings (using AI SDK v6 embedMany)`,
@@ -196,7 +196,7 @@ async function processNoteClassifyJob(job: {
     }
 
     // 1. 生成嵌入
-    const [embedding] = await generateEmbeddings([content], embeddingModel!);
+    const [embedding] = await generateEmbeddings([content], registry.embeddingModel!);
 
     // 2. 查找最相近的主题（余弦相似度）
     const threshold = env.NOTES_TOPIC_THRESHOLD || 0.25;

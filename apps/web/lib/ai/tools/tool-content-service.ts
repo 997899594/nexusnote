@@ -14,7 +14,7 @@
 import { generateText } from "ai";
 import { z } from "zod";
 import { createTelemetryConfig } from "@/lib/ai/langfuse";
-import { chatModel, fastModel } from "@/lib/ai/registry";
+import { registry } from "@/lib/ai/registry";
 
 // ============================================
 // Error Handling & Retry Utilities
@@ -186,7 +186,7 @@ ${content}
   try {
     const result = await withRetry(
       async () => {
-        const model = fastModel || chatModel;
+        const model = registry.fastModel || registry.chatModel;
         if (!model) {
           throw new ToolError("AI model not available", "MODEL_ERROR", false);
         }
@@ -339,7 +339,7 @@ ${contentText}
   try {
     const result = await withRetry(
       async () => {
-        const model = chatModel;
+        const model = registry.chatModel;
         if (!model) {
           throw new ToolError("AI model not available", "MODEL_ERROR", false);
         }
@@ -472,7 +472,7 @@ ${content}
   try {
     const result = await withRetry(
       async () => {
-        const model = fastModel || chatModel;
+        const model = registry.fastModel || registry.chatModel;
         if (!model) {
           throw new ToolError("AI model not available", "MODEL_ERROR", false);
         }

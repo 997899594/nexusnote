@@ -19,11 +19,11 @@
 import { type InferAgentUIMessage, type LanguageModel, stepCountIs, ToolLoopAgent } from "ai";
 import { z } from "zod";
 import { buildCourseGenerationPrompt } from "@/lib/ai/prompts/course-generation";
-import { chatModel } from "@/lib/ai/registry";
+import { registry } from "@/lib/ai/registry";
 import { courseGenerationTools } from "@/lib/ai/tools/course-generation";
 import { OutlineSchema } from "@/lib/ai/types/course";
 
-const courseModel = chatModel;
+const courseModel = registry.courseModel;
 
 /**
  * 获取课程生成模型，如果未配置则抛出错误

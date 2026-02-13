@@ -12,10 +12,10 @@
 import { type InferAgentUIMessage, type LanguageModel, stepCountIs, ToolLoopAgent } from "ai";
 import { z } from "zod";
 import { buildInterviewPrompt } from "@/lib/ai/prompts/interview";
-import { chatModel } from "@/lib/ai/registry";
+import { registry } from "@/lib/ai/registry";
 import { interviewTools } from "@/lib/ai/tools/interview";
 
-const interviewModel = chatModel;
+const interviewModel = registry.chatModel;
 
 /**
  * Interview Context Schema - 统一的维度定义

@@ -10,7 +10,7 @@ import { z } from "zod";
 import { AIGatewayService, type AIRequest, AIRequestSchema } from "@/lib/ai/gateway/service";
 import { createTelemetryConfig } from "@/lib/ai/langfuse";
 import { checkRateLimit } from "@/lib/ai/rate-limit";
-import { chatModel, fastModel, isAIConfigured } from "@/lib/ai/registry";
+import { registry, isAIConfigured } from "@/lib/ai/registry";
 import { requireAuthWithRateLimit } from "@/lib/auth/auth-utils";
 
 // Redis 连接（复用现有配置）
@@ -79,7 +79,7 @@ export async function generateFlashcardAction(body: { question: string; context?
   const traceId = uuidv4();
   const { userId } = await requireAuthWithRateLimit(checkRateLimit);
 
-  if (!isAIConfigured() || !fastModel) throw new Error("AI not configured");
+  if (!isAIConfigured() || !registry.fastModel) throw new Error("AI not configured");
 
   const SYSTEM_PROMPT = `你是一个间隔重复学习(SRS)卡片生成助手。用户会提供一个问题或概念，你需要生成一个简洁、准确的答案。
 
@@ -94,7 +94,7 @@ export async function generateFlashcardAction(body: { question: string; context?
     : `问题: ${body.question}\n\n请生成简洁的答案：`;
 
   const result = await generateText({
-    model: fastModel,
+    model: registry.fastModel!,
     system: SYSTEM_PROMPT,
     prompt: userPrompt,
     maxOutputTokens: 500,
@@ -121,7 +121,7 @@ export async function editorCompletionAction(body: {
   const traceId = uuidv4();
   const { userId } = await requireAuthWithRateLimit(checkRateLimit);
 
-  if (!isAIConfigured() || !fastModel) throw new Error("AI not configured");
+  if (!isAIConfigured() || !registry.fastModel) throw new Error("AI not configured");
 
   const PROMPTS: Record<string, string> = {
     continue: "请继续写作以下内容，保持风格一致，自然衔接：\n\n",
@@ -139,7 +139,7 @@ export async function editorCompletionAction(body: {
   const fullPrompt = instruction + (body.selection || body.prompt);
 
   const result = streamText({
-    model: fastModel,
+    model: registry.fastModel!,
     prompt: fullPrompt,
     maxOutputTokens: 2048,
     temperature: 0.7,
@@ -161,7 +161,7 @@ export async function ghostAnalyzeAction(body: { context: string; documentTitle?
   const traceId = uuidv4();
   const { userId } = await requireAuthWithRateLimit(checkRateLimit);
 
-  if (!isAIConfigured() || !chatModel) throw new Error("AI not configured");
+  if (!isAIConfigured() || !registry.chatModel) throw new Error("AI not configured");
 
   const systemPrompt = `你是 NexusNote 幽灵助手。你正在观察一个用户编写文档 "${
     body.documentTitle || "无标题"
@@ -183,7 +183,7 @@ ${body.context}
 ---`;
 
   const result = streamText({
-    model: chatModel!,
+    model: registry.chatModel!,
     system: systemPrompt,
     prompt:
       "根据上下文判断是否需要幽灵评论。如果需要，请输出建议内容。如果不需要，请输出空字符串。",
@@ -213,7 +213,7 @@ export async function generateDocAction(body: {
   const traceId = uuidv4();
   const { userId } = await requireAuthWithRateLimit(checkRateLimit);
 
-  if (!isAIConfigured() || !chatModel) throw new Error("AI not configured");
+  if (!isAIConfigured() || !registry.chatModel) throw new Error("AI not configured");
 
   const ChapterSchema = z.object({
     title: z.string().describe("章节标题"),
@@ -238,7 +238,7 @@ export async function generateDocAction(body: {
   }[validDepth(body.depth || "medium")];
 
   const result = streamText({
-    model: chatModel!,
+    model: registry.chatModel!,
     system: `你是一个技术文档写作专家。根据用户提供的主题生成结构化的文档大纲。
 
     ## 输出要求

@@ -1,189 +1,153 @@
 /**
- * AI Provider Registry (2026 Modern Stack)
+ * AI Provider Registry — 多 Provider Fallback + 熔断器
  *
- * 统一的模型和提供商管理系统
- * 支持多提供商（302.ai, DeepSeek, OpenAI）的无缝切换
- *
- * 使用 Vercel AI SDK v6 的原生 Provider API
- * @see https://ai-sdk.dev/docs/providers
+ * 设计：
+ * 1. 启动时检测所有配置了 API Key 的 provider
+ * 2. 每个 provider 配一个 CircuitBreaker（连续失败 3 次后熔断 60 秒）
+ * 3. 每个 model 角色（chat/course/agent/...）创建 fallback chain
+ * 4. 调用时按优先级尝试，跳过已熔断的 provider，失败自动切换
+ * 5. 中间件（reasoning extraction 等）包装在 fallback model 外层
  */
 
-import { createOpenAI } from "@ai-sdk/openai";
+import { createOpenAI, type OpenAIProvider } from "@ai-sdk/openai";
 import { clientEnv, env } from "@nexusnote/config";
+import type { LanguageModelV3 } from "@ai-sdk/provider";
 import {
   addToolInputExamplesMiddleware,
   type EmbeddingModel,
   extractReasoningMiddleware,
-  type LanguageModel,
   wrapLanguageModel,
 } from "ai";
+import { CircuitBreaker } from "./circuit-breaker";
+import { createFallbackModel, type FallbackCandidate } from "./fallback-model";
 
 // ============================================
-// 类型定义
+// Provider 配置
 // ============================================
 
-export interface ProviderConfig {
+interface ProviderDefinition {
   name: string;
   baseURL: string;
-  apiKey: string;
-  priority: number; // 优先级：数字越小越优先
+  envKey: () => string;
+  priority: number; // 数字越小越优先
+  models: {
+    chat: string;
+    pro: string;
+    webSearch: string | null;
+    embedding: string | null;
+  };
 }
 
-export interface ModelDefinition {
-  id: string;
-  provider: string;
-  displayName: string;
-  tier: "fast" | "balanced" | "power"; // 快速 | 均衡 | 强大
-  capabilities: string[]; // 工具调用、web搜索等
-  costRatio: number; // 相对 GPT-4 的成本比例
-}
-
-export interface AIRegistry {
-  // 聊天模型
-  chatModel: LanguageModel | null;
-  courseModel: LanguageModel | null;
-  agentModel: LanguageModel | null;
-  webSearchModel: LanguageModel | null;
-  fastModel: LanguageModel | null;
-
-  // Embedding 模型
-  embeddingModel: EmbeddingModel | null;
-
-  // 元数据
-  provider: ProviderConfig | null;
-  models: Record<string, ModelDefinition>;
-}
-
-// ============================================
-// 提供商列表
-// ============================================
-
-const PROVIDERS: Record<string, Omit<ProviderConfig, "priority">> = {
-  "302ai": {
+/**
+ * 所有支持的 Provider 定义
+ * 按优先级排列：302.ai > DeepSeek > OpenAI
+ */
+const PROVIDER_DEFINITIONS: ProviderDefinition[] = [
+  {
     name: "302.ai",
     baseURL: "https://api.302.ai/v1",
-    apiKey:
+    envKey: () =>
       (typeof window === "undefined" ? env.AI_302_API_KEY : undefined) ||
       clientEnv.AI_302_API_KEY ||
       "",
+    priority: 0,
+    models: {
+      chat: "gemini-3-flash-preview",
+      pro: "gemini-3-pro-preview",
+      webSearch: "gemini-3-flash-preview-web-search",
+      embedding: "Qwen/Qwen3-Embedding-8B",
+    },
   },
-  deepseek: {
+  {
     name: "DeepSeek",
     baseURL: "https://api.deepseek.com",
-    apiKey:
+    envKey: () =>
       (typeof window === "undefined" ? env.DEEPSEEK_API_KEY : undefined) ||
       clientEnv.DEEPSEEK_API_KEY ||
       "",
+    priority: 1,
+    models: {
+      chat: "deepseek-chat",
+      pro: "deepseek-chat",
+      webSearch: null,
+      embedding: null,
+    },
   },
-  openai: {
+  {
     name: "OpenAI",
     baseURL: "https://api.openai.com/v1",
-    apiKey:
+    envKey: () =>
       (typeof window === "undefined" ? env.OPENAI_API_KEY : undefined) ||
       clientEnv.OPENAI_API_KEY ||
       "",
+    priority: 2,
+    models: {
+      chat: "gpt-4o-mini",
+      pro: "gpt-4o",
+      webSearch: null,
+      embedding: null,
+    },
   },
-};
+];
 
 // ============================================
-// 模型定义库
+// 已初始化的 Provider 实例
 // ============================================
 
-const MODEL_DEFINITIONS: Record<string, ModelDefinition> = {
-  // Gemini 3 系列 (302.ai)
-  "gemini-3-flash-preview": {
-    id: "gemini-3-flash-preview",
-    provider: "302ai",
-    displayName: "Gemini 3 Flash",
-    tier: "fast",
-    capabilities: ["tools", "streaming", "reasoning"],
-    costRatio: 0.1,
-  },
-  "gemini-3-pro-preview": {
-    id: "gemini-3-pro-preview",
-    provider: "302ai",
-    displayName: "Gemini 3 Pro",
-    tier: "power",
-    capabilities: ["tools", "streaming", "reasoning", "long-context"],
-    costRatio: 0.5,
-  },
-  "gemini-3-flash-preview-web-search": {
-    id: "gemini-3-flash-preview-web-search",
-    provider: "302ai",
-    displayName: "Gemini 3 Flash (Web Search)",
-    tier: "fast",
-    capabilities: ["tools", "streaming", "web-search"],
-    costRatio: 0.15,
-  },
-
-  // DeepSeek 模型
-  "deepseek-chat": {
-    id: "deepseek-chat",
-    provider: "deepseek",
-    displayName: "DeepSeek Chat",
-    tier: "balanced",
-    capabilities: ["tools", "streaming", "reasoning"],
-    costRatio: 0.05,
-  },
-
-  // OpenAI 模型
-  "gpt-4o": {
-    id: "gpt-4o",
-    provider: "openai",
-    displayName: "GPT-4o",
-    tier: "power",
-    capabilities: ["tools", "streaming", "reasoning", "vision"],
-    costRatio: 1.0,
-  },
-  "gpt-4o-mini": {
-    id: "gpt-4o-mini",
-    provider: "openai",
-    displayName: "GPT-4o Mini",
-    tier: "fast",
-    capabilities: ["tools", "streaming", "reasoning"],
-    costRatio: 0.15,
-  },
-
-  // Embedding 模型
-  "Qwen/Qwen3-Embedding-8B": {
-    id: "Qwen/Qwen3-Embedding-8B",
-    provider: "302ai",
-    displayName: "Qwen 3 Embedding",
-    tier: "balanced",
-    capabilities: ["embedding"],
-    costRatio: 0.01,
-  },
-};
+interface InitializedProvider {
+  definition: ProviderDefinition;
+  client: OpenAIProvider;
+  breaker: CircuitBreaker;
+}
 
 // ============================================
-// Registry 初始化
+// Registry
 // ============================================
+
+export interface AIRegistry {
+  chatModel: LanguageModelV3 | null;
+  courseModel: LanguageModelV3 | null;
+  agentModel: LanguageModelV3 | null;
+  webSearchModel: LanguageModelV3 | null;
+  fastModel: LanguageModelV3 | null;
+  embeddingModel: EmbeddingModel | null;
+
+  providers: InitializedProvider[];
+}
 
 /**
- * 自动检测并初始化 Registry
+ * 初始化所有可用 Provider，构建 Fallback Chain
  */
-export function initializeRegistry(): AIRegistry {
-  // Debug: 打印所有配置（在服务端）
+function initializeRegistry(): AIRegistry {
+  // 1. 检测所有有 API Key 的 provider，按优先级排序
+  const providers: InitializedProvider[] = PROVIDER_DEFINITIONS
+    .filter((def) => {
+      const key = def.envKey();
+      return key && key.length > 0;
+    })
+    .sort((a, b) => a.priority - b.priority)
+    .map((def) => ({
+      definition: def,
+      client: createOpenAI({
+        baseURL: def.baseURL,
+        apiKey: def.envKey(),
+      }),
+      breaker: new CircuitBreaker(def.name, {
+        failureThreshold: 3,
+        resetTimeoutMs: 60_000,
+      }),
+    }));
+
   if (typeof window === "undefined") {
-    console.log("[AI Registry] Checking configuration...");
-    Object.entries(PROVIDERS).forEach(([key, config]) => {
-      const maskedKey = config.apiKey ? `${config.apiKey.slice(0, 8)}...` : "missing";
-      console.log(`[AI Registry] Provider ${key}: apiKey=${maskedKey}, baseURL=${config.baseURL}`);
-    });
+    console.log(`[AI Registry] ${providers.length} 个 provider 可用:`);
+    for (const p of providers) {
+      const masked = p.definition.envKey().slice(0, 8) + "...";
+      console.log(`  - ${p.definition.name} (优先级 ${p.definition.priority}, key=${masked})`);
+    }
   }
 
-  // 1. 检测可用的提供商（按优先级）
-  const providersWithKeys = Object.entries(PROVIDERS)
-    .map(([key, config]) => ({
-      key,
-      ...config,
-      priority: key === "302ai" ? 0 : key === "deepseek" ? 1 : 2,
-    }))
-    .filter((p) => p.apiKey)
-    .sort((a, b) => a.priority - b.priority);
-
-  if (providersWithKeys.length === 0) {
-    console.warn("[AI Registry] No API keys configured");
+  if (providers.length === 0) {
+    console.warn("[AI Registry] 没有配置任何 API Key");
     return {
       chatModel: null,
       courseModel: null,
@@ -191,35 +155,80 @@ export function initializeRegistry(): AIRegistry {
       webSearchModel: null,
       fastModel: null,
       embeddingModel: null,
-      provider: null,
-      models: MODEL_DEFINITIONS,
+      providers: [],
     };
   }
 
-  // 2. 选择优先级最高的提供商
-  const selectedProvider = providersWithKeys[0] as ProviderConfig;
+  // 2. 为每个 model 角色构建 fallback chain
+  const chatFallback = buildFallbackChain(providers, "chat");
+  const proFallback = buildFallbackChain(providers, "pro");
 
-  // 3. 创建 OpenAI 兼容实例
-  // Note: AI SDK v6 已有 maxRetries 自动重试，无需 Helicone Gateway
-  const openai = createOpenAI({
-    baseURL: selectedProvider.baseURL,
-    apiKey: selectedProvider.apiKey,
-  });
+  // 3. 应用中间件（包装在 fallback model 外层，只需定义一次）
+  const chatModel = chatFallback
+    ? withStandardMiddleware(chatFallback)
+    : null;
 
-  // 4. 获取模型名称配置
-  const chatModelId = clientEnv.AI_MODEL || getChatModelForProvider(selectedProvider.name);
-  const proModelId = clientEnv.AI_MODEL_PRO || getProModelForProvider(selectedProvider.name);
-  const webSearchModelId =
-    clientEnv.AI_MODEL_WEB_SEARCH || getWebSearchModelForProvider(selectedProvider.name);
-  const embeddingModelId = clientEnv.EMBEDDING_MODEL || "Qwen/Qwen3-Embedding-8B";
+  const courseModel = proFallback
+    ? withReasoningMiddleware(proFallback)
+    : null;
 
-  // 5. 创建基础模型
-  const baseChatModel = openai.chat(chatModelId);
-  const baseProModel = openai.chat(proModelId);
+  // 4. Web Search — 只有部分 provider 支持，不做 fallback（降级为无搜索）
+  const webSearchProvider = providers.find(
+    (p) => p.definition.models.webSearch !== null,
+  );
+  const webSearchModel = webSearchProvider
+    ? webSearchProvider.client.chat(webSearchProvider.definition.models.webSearch!)
+    : null;
 
-  // 6. 应用中间件增强模型
-  const enhancedChatModel = wrapLanguageModel({
-    model: baseChatModel,
+  // 5. Embedding — 只有部分 provider 支持
+  const embeddingProvider = providers.find(
+    (p) => p.definition.models.embedding !== null,
+  );
+  const embeddingModel = embeddingProvider
+    ? embeddingProvider.client.embedding(
+        clientEnv.EMBEDDING_MODEL || embeddingProvider.definition.models.embedding!,
+      )
+    : null;
+
+  return {
+    chatModel,
+    courseModel,
+    agentModel: chatModel, // agent 复用 chat model
+    webSearchModel,
+    fastModel: chatModel, // fast 复用 chat model（已经是 flash 级别）
+    embeddingModel,
+    providers,
+  };
+}
+
+// ============================================
+// 内部工具函数
+// ============================================
+
+/**
+ * 为指定 model 角色构建 fallback candidate 列表
+ */
+function buildFallbackChain(
+  providers: InitializedProvider[],
+  role: "chat" | "pro",
+): LanguageModelV3 | null {
+  const candidates: FallbackCandidate[] = providers.map((p) => ({
+    model: p.client.chat(p.definition.models[role]),
+    breaker: p.breaker,
+  }));
+
+  if (candidates.length === 0) return null;
+  if (candidates.length === 1) return candidates[0].model as LanguageModelV3;
+
+  return createFallbackModel(candidates) as LanguageModelV3;
+}
+
+/**
+ * 标准中间件：reasoning extraction + tool input examples
+ */
+function withStandardMiddleware(model: LanguageModelV3): LanguageModelV3 {
+  return wrapLanguageModel({
+    model,
     middleware: [
       extractReasoningMiddleware({
         tagName: "thinking",
@@ -231,9 +240,14 @@ export function initializeRegistry(): AIRegistry {
       }),
     ],
   });
+}
 
-  const enhancedProModel = wrapLanguageModel({
-    model: baseProModel,
+/**
+ * Pro 模型中间件：只加 reasoning extraction
+ */
+function withReasoningMiddleware(model: LanguageModelV3): LanguageModelV3 {
+  return wrapLanguageModel({
+    model,
     middleware: [
       extractReasoningMiddleware({
         tagName: "thinking",
@@ -242,69 +256,16 @@ export function initializeRegistry(): AIRegistry {
       }),
     ],
   });
-
-  return {
-    chatModel: enhancedChatModel,
-    courseModel: enhancedProModel,
-    agentModel: enhancedChatModel,
-    webSearchModel: webSearchModelId ? openai.chat(webSearchModelId) : null,
-    fastModel: enhancedChatModel,
-    embeddingModel: openai.embedding(embeddingModelId),
-    provider: selectedProvider,
-    models: MODEL_DEFINITIONS,
-  };
 }
 
 // ============================================
-// 提供商特定的模型选择
-// ============================================
-
-function getChatModelForProvider(provider: string): string {
-  const defaults: Record<string, string> = {
-    "302.ai": "gemini-3-flash-preview",
-    DeepSeek: "deepseek-chat",
-    OpenAI: "gpt-4o-mini",
-  };
-  return defaults[provider] || "gpt-4o-mini";
-}
-
-function getProModelForProvider(provider: string): string {
-  const defaults: Record<string, string> = {
-    "302.ai": "gemini-3-pro-preview",
-    DeepSeek: "deepseek-chat",
-    OpenAI: "gpt-4o",
-  };
-  return defaults[provider] || "gpt-4o";
-}
-
-function getWebSearchModelForProvider(provider: string): string | null {
-  const defaults: Record<string, string | null> = {
-    "302.ai": "gemini-3-flash-preview-web-search",
-    DeepSeek: null,
-    OpenAI: null,
-  };
-  return defaults[provider] ?? null;
-}
-
-// ============================================
-// 全局 Registry 实例
+// 全局实例 + 导出
 // ============================================
 
 export const registry = initializeRegistry();
 
-// ============================================
-// 导出便利函数（向后兼容）
-// ============================================
-
-export const chatModel = registry.chatModel;
-export const courseModel = registry.courseModel;
-export const agentModel = registry.agentModel;
-export const webSearchModel = registry.webSearchModel;
-export const fastModel = registry.fastModel;
-export const embeddingModel = registry.embeddingModel;
-
 export function isAIConfigured(): boolean {
-  return registry.provider !== null;
+  return registry.providers.length > 0;
 }
 
 export function isEmbeddingConfigured(): boolean {
@@ -316,17 +277,20 @@ export function isWebSearchAvailable(): boolean {
 }
 
 export function getAIProviderInfo() {
-  const chatDef = registry.models["gemini-3-flash-preview"] || Object.values(registry.models)[0];
   return {
-    provider: registry.provider?.name ?? "none",
+    providers: registry.providers.map((p) => ({
+      name: p.definition.name,
+      priority: p.definition.priority,
+      circuitBreaker: p.breaker.getStatus(),
+    })),
     models: {
-      chat: chatDef?.displayName || "unknown",
-      pro: "Pro",
-      webSearch: registry.webSearchModel ? "Available" : "Unavailable",
-      embedding: registry.models["Qwen/Qwen3-Embedding-8B"]?.displayName || "unknown",
+      chat: registry.chatModel ? "Ready" : "N/A",
+      course: registry.courseModel ? "Ready" : "N/A",
+      webSearch: registry.webSearchModel ? "Ready" : "N/A",
+      embedding: registry.embeddingModel ? "Ready" : "N/A",
     },
     embeddingDimensions: clientEnv.EMBEDDING_DIMENSIONS,
-    configured: !!registry.provider,
+    configured: registry.providers.length > 0,
   };
 }
 
@@ -338,14 +302,16 @@ export function getEmbeddingConfig() {
 }
 
 // ============================================
-// 日志（启动时打印）
+// 启动日志
 // ============================================
 
-if (typeof window === "undefined" && registry.provider) {
-  console.log("[AI Registry] Provider:", registry.provider.name);
-  console.log("[AI Registry] Models configured:");
-  console.log("  - Chat:", chatModel ? "Ready" : "N/A");
-  console.log("  - Course:", courseModel ? "Ready" : "N/A");
-  console.log("  - Web Search:", webSearchModel ? "Ready" : "N/A");
-  console.log("  - Embedding:", embeddingModel ? "Ready" : "N/A");
+if (typeof window === "undefined" && registry.providers.length > 0) {
+  const fallbackChain = registry.providers
+    .map((p) => p.definition.name)
+    .join(" → ");
+  console.log(`[AI Registry] Fallback chain: ${fallbackChain}`);
+  console.log(`  - Chat: ${registry.chatModel ? "Ready" : "N/A"}`);
+  console.log(`  - Course: ${registry.courseModel ? "Ready" : "N/A"}`);
+  console.log(`  - Web Search: ${registry.webSearchModel ? "Ready" : "N/A"}`);
+  console.log(`  - Embedding: ${registry.embeddingModel ? "Ready" : "N/A"}`);
 }

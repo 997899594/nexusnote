@@ -8,7 +8,7 @@
 
 import { type InferAgentUIMessage, stepCountIs, ToolLoopAgent, type ToolSet } from "ai";
 import { z } from "zod";
-import { chatModel } from "@/lib/ai/registry";
+import { registry } from "@/lib/ai/registry";
 import { skills } from "@/lib/ai/tools/chat";
 import { editorSkills } from "@/lib/ai/tools/chat/editor";
 import { learningSkills } from "@/lib/ai/tools/chat/learning";
@@ -161,7 +161,7 @@ ${ragContext}
  */
 export const chatAgent = new ToolLoopAgent({
   id: "nexusnote-chat",
-  model: chatModel!,
+  model: registry.chatModel!,
   tools: chatTools,
   maxOutputTokens: 4096,
   callOptionsSchema: ChatCallOptionsSchema,
