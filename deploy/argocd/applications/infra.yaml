@@ -10,7 +10,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/997899594/nexusnote
+    repoURL: https://gh-proxy.com/https://github.com/997899594/nexusnote
     targetRevision: main
     path: deploy/infra
     directory:
