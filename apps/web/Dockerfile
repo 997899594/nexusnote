@@ -13,7 +13,7 @@ RUN npm install -g turbo@^2.0.0
 COPY . .
 
 # 提取 @nexusnote/web 和 db 构建所需的最小文件集
-RUN turbo prune --scope=@nexusnote/web --scope=@nexusnote/db --scope=@nexusnote/config --scope=@nexusnote/types --docker
+RUN turbo prune --scope=@nexusnote/web --scope=@nexusnote/db --scope=@nexusnote/config --scope=@nexusnote/types --scope=@nexusnote/ai-core --scope=@nexusnote/fsrs --docker
 
 # ============================================
 # Stage 2: Install - 安装依赖
@@ -46,6 +46,8 @@ ENV SKIP_ENV_VALIDATION=true
 # 构建所有包（按依赖顺序）
 RUN pnpm --filter @nexusnote/types build
 RUN pnpm --filter @nexusnote/config build
+RUN pnpm --filter @nexusnote/fsrs build
+RUN pnpm --filter @nexusnote/ai-core build
 RUN pnpm --filter @nexusnote/db build
 RUN pnpm --filter @nexusnote/ui build
 RUN pnpm --filter @nexusnote/web build
