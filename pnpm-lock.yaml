@@ -104,7 +104,7 @@ importers:
         version: 1.2.8(@types/react-dom@19.2.3)(@types/react@19.2.10)(react-dom@19.2.4)(react@19.2.4)
       '@serwist/turbopack':
         specifier: ^9.5.5
-        version: 9.5.5(esbuild@0.25.12)(next@16.1.6)(react@19.2.4)(typescript@5.9.3)
+        version: 9.5.5(esbuild-wasm@0.25.12)(esbuild@0.25.12)(next@16.1.6)(react@19.2.4)(typescript@5.9.3)
       '@streamdown/cjk':
         specifier: ^1.0.1
         version: 1.0.1(micromark@4.0.2)(react@19.2.4)(unified@11.0.5)
@@ -192,6 +192,9 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      esbuild-wasm:
+        specifier: ^0.25.12
+        version: 0.25.12
       framer-motion:
         specifier: ^12.29.2
         version: 12.29.2(react-dom@19.2.4)(react@19.2.4)
@@ -2454,7 +2457,7 @@ packages:
       - browserslist
     dev: false
 
-  /@serwist/turbopack@9.5.5(esbuild@0.25.12)(next@16.1.6)(react@19.2.4)(typescript@5.9.3):
+  /@serwist/turbopack@9.5.5(esbuild-wasm@0.25.12)(esbuild@0.25.12)(next@16.1.6)(react@19.2.4)(typescript@5.9.3):
     resolution: {integrity: sha512-3SIbB5/YRYWMFv7tFmkX5Q35fOeZkLSm6m99UumRTvurElqKvbQ2il5TXViOdJ/5FWr9UzJSoaDKXFao/hRZOA==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
@@ -2477,6 +2480,7 @@ packages:
       '@swc/core': 1.15.11
       browserslist: 4.28.1
       esbuild: 0.25.12
+      esbuild-wasm: 0.25.12
       kolorist: 1.8.0
       next: 16.1.6(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4)(react@19.2.4)
       react: 19.2.4
@@ -4326,6 +4330,12 @@ packages:
     transitivePeerDependencies:
       - supports-color
     dev: true
+
+  /esbuild-wasm@0.25.12:
+    resolution: {integrity: sha512-rZqkjL3Y6FwLpSHzLnaEy8Ps6veCNo1kZa9EOfJvmWtBq5dJH4iVjfmOO6Mlkv9B0tt9WFPFmb/VxlgJOnueNg==}
+    engines: {node: '>=18'}
+    hasBin: true
+    dev: false
 
   /esbuild@0.18.20:
     resolution: {integrity: sha512-ceqxoedUrcayh7Y7ZX6NdbbDzGROiyVBgC4PriJThBKSVPWnnFHZAkfI1lJT8QFkOwH4qOS2SJkS4wvpGl8BpA==}
