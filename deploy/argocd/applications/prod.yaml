@@ -57,12 +57,6 @@ spec:
       jsonPointers:
         - /spec/template/spec/containers/0/image
         - /spec/template/spec/initContainers/0/image
-    - group: batch
-      kind: Job
-      jsonPointers:
-        - /spec/template/spec/containers/0/image
-        - /spec/template/spec/initContainers/0/image
-        - /spec/template/spec/initContainers/1/image
     # Gateway API 控制器注入的默认字段
     - group: gateway.networking.k8s.io
       kind: Gateway
