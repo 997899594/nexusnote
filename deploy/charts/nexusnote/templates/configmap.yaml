@@ -9,6 +9,8 @@ metadata:
   namespace: {{ .Values.namespace }}
   labels:
     {{- include "nexusnote.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
 data:
   # 运行环境
   NODE_ENV: {{ .Values.env.NODE_ENV | default "production" | quote }}
