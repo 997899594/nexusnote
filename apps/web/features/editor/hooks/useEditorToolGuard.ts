@@ -15,7 +15,7 @@
 import { useCallback, useRef } from "react";
 import type * as Y from "yjs";
 import { snapshotStore } from "../stores/snapshot-store";
-import { useInlineAI, type AIAction } from "./useInlineAI";
+import { type AIAction, useInlineAI } from "./useInlineAI";
 
 interface GuardState {
   /** 最近一次 AI 编辑前的快照 ID */
@@ -24,10 +24,7 @@ interface GuardState {
   pending: boolean;
 }
 
-export function useEditorToolGuard(
-  ydoc: Y.Doc | null,
-  documentId: string | null,
-) {
+export function useEditorToolGuard(ydoc: Y.Doc | null, documentId: string | null) {
   const inlineAI = useInlineAI();
   const stateRef = useRef<GuardState>({
     lastPreEditSnapshotId: null,

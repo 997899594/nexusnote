@@ -9,7 +9,7 @@
  * 5. 全部失败 → 抛出 AggregateError
  */
 
-import { CircuitBreaker } from "./circuit-breaker";
+import type { CircuitBreaker } from "./circuit-breaker";
 
 /**
  * 任何带 doGenerate/doStream 的 model 对象

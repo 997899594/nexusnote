@@ -9,7 +9,6 @@
  */
 
 import { createAgentUIStreamResponse } from "ai";
-import type { PipelineContext, PipelineStage } from "./types";
 import { buildStreamStage } from "./stages/build-stream";
 import { enrichRAGStage } from "./stages/enrich-rag";
 import { extractInputStage } from "./stages/extract-input";
@@ -17,6 +16,7 @@ import { pruneMessagesStage } from "./stages/prune-messages";
 import { routeIntentStage } from "./stages/route-intent";
 import { selectAgentStage } from "./stages/select-agent";
 import { validateStage } from "./stages/validate";
+import type { PipelineContext, PipelineStage } from "./types";
 
 // ============================================
 // Pipeline 核心
@@ -46,7 +46,9 @@ export class AIPipeline {
       agent: ctx.agent as Parameters<typeof createAgentUIStreamResponse>[0]["agent"],
       uiMessages: ctx.optimizedMessages || ctx.rawMessages,
       options: ctx.agentOptions,
-      experimental_transform: ctx.streamTransform as Parameters<typeof createAgentUIStreamResponse>[0]["experimental_transform"],
+      experimental_transform: ctx.streamTransform as Parameters<
+        typeof createAgentUIStreamResponse
+      >[0]["experimental_transform"],
     });
   }
 
@@ -90,11 +92,11 @@ export const defaultPipeline = new AIPipeline([
 // Re-exports
 // ============================================
 
-export type { PipelineContext, PipelineStage } from "./types";
-export { validateStage } from "./stages/validate";
+export { buildStreamStage } from "./stages/build-stream";
+export { enrichRAGStage } from "./stages/enrich-rag";
 export { extractInputStage } from "./stages/extract-input";
 export { pruneMessagesStage } from "./stages/prune-messages";
 export { routeIntentStage } from "./stages/route-intent";
-export { enrichRAGStage } from "./stages/enrich-rag";
 export { selectAgentStage } from "./stages/select-agent";
-export { buildStreamStage } from "./stages/build-stream";
+export { validateStage } from "./stages/validate";
+export type { PipelineContext, PipelineStage } from "./types";

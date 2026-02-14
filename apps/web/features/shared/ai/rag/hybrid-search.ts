@@ -5,9 +5,9 @@
  * 结合 PostgreSQL 全文搜索兜底，用 Reciprocal Rank Fusion 合并排名。
  */
 
-import { db, documentChunks, sql } from "@nexusnote/db";
+import { db, sql } from "@nexusnote/db";
 import { embedMany } from "ai";
-import { registry, isEmbeddingConfigured } from "../registry";
+import { isEmbeddingConfigured, registry } from "../registry";
 
 // ============================================
 // 类型定义
@@ -179,10 +179,7 @@ function reciprocalRankFusion(
  * @param topK 返回结果数量
  * @returns 融合排序后的搜索结果
  */
-export async function hybridSearch(
-  query: string,
-  topK: number = 5,
-): Promise<HybridSearchResult[]> {
+export async function hybridSearch(query: string, topK: number = 5): Promise<HybridSearchResult[]> {
   // 并行执行向量搜索和关键词搜索
   const [vResults, kResults] = await Promise.all([
     vectorSearch(query, topK * 2), // 多取一些用于融合

@@ -38,7 +38,7 @@ function CreatePageContent({ initialGoal, userId }: CreatePageContentProps) {
     isAiThinking,
     selectedNode,
     setSelectedNode,
-    createdCourseId,
+    createdCourseId: _createdCourseId,
     messages,
     error,
   } = ui;

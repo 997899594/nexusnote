@@ -47,10 +47,7 @@ const ragQueue = new Queue("rag-index", {
 /**
  * 分布式去重：Redis NX 锁确保多实例只触发一次 RAG 索引
  */
-async function debouncedIndexDocument(
-  documentId: string,
-  plainText: string,
-): Promise<void> {
+async function debouncedIndexDocument(documentId: string, plainText: string): Promise<void> {
   const lockKey = `lock:rag-index:${documentId}`;
   const acquired = await redis.set(lockKey, "locked", "EX", 10, "NX");
 
@@ -166,9 +163,7 @@ function createServer(): ReturnType<typeof Server.configure> {
 async function main(): Promise<void> {
   const server = createServer();
   await server.listen();
-  console.log(
-    `[collab] 协作服务已启动 ws://0.0.0.0:${env.HOCUSPOCUS_PORT || 1234}`,
-  );
+  console.log(`[collab] 协作服务已启动 ws://0.0.0.0:${env.HOCUSPOCUS_PORT || 1234}`);
 }
 
 main().catch((err) => {

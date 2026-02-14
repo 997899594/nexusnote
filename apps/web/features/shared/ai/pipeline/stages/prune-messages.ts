@@ -3,7 +3,7 @@
  */
 
 import { pruneUIMessages } from "../../ui-utils";
-import type { PipelineContext, PipelineStage } from "../types";
+import type { PipelineStage } from "../types";
 
 export const pruneMessagesStage: PipelineStage = {
   name: "prune-messages",

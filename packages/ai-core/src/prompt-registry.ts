@@ -41,9 +41,7 @@ export class PromptRegistry {
 
     const missing = prompt.variables.filter((v) => !(v in vars));
     if (missing.length > 0) {
-      throw new Error(
-        `[PromptRegistry] Prompt "${id}" missing variables: ${missing.join(", ")}`,
-      );
+      throw new Error(`[PromptRegistry] Prompt "${id}" missing variables: ${missing.join(", ")}`);
     }
 
     let result = prompt.template;

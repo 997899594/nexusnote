@@ -1,45 +1,37 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import { motion, useMotionValue, PanInfo } from "framer-motion";
 import type { DynamicToolUIPart } from "ai";
-import type { OutlineData } from "@/features/shared/ai/types/course";
+import { AnimatePresence, motion, type PanInfo, useMotionValue } from "framer-motion";
+import { ArrowLeft, ArrowRight, ChevronLeft, Menu, MessageSquare, Sparkles, X } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ChatAgentMessage } from "@/features/chat/agents/chat-agent";
+import { MessageResponse } from "@/features/chat/components/ai/Message";
 import { UnifiedChatUI } from "@/features/chat/components/ai/UnifiedChatUI";
 import {
-  QuizResult,
   MindMapView,
+  QuizResult,
   SummaryResult,
   WebSearchResult,
 } from "@/features/chat/components/ai/ui";
-import { OrganicHeader } from "@/features/learning/components/create/OrganicHeader";
-import { ContentRenderer } from "@/features/learning/components/course/content-renderer";
 import {
   getCourseChaptersAction,
   updateCourseProgressAction,
 } from "@/features/learning/actions/course";
-import { CourseChapterDTO, CourseProfileDTO } from "@/lib/actions/types";
-import {
-  ChevronLeft,
-  MessageSquare,
-  Sparkles,
-  ArrowRight,
-  ArrowLeft,
-  Menu,
-  X,
-  ChevronRight,
-} from "lucide-react";
-import { AnimatePresence } from "framer-motion";
 import type { CourseGenerationAgentMessage } from "@/features/learning/agents/course-generation/agent";
-import type { ChatAgentMessage } from "@/features/chat/agents/chat-agent";
-import {
+import { ContentRenderer } from "@/features/learning/components/course/content-renderer";
+import { OrganicHeader } from "@/features/learning/components/create/OrganicHeader";
+import type {
   MindMapOutput,
   QuizOutput,
   SummarizeOutput,
   WebSearchOutput,
 } from "@/features/learning/tools/types";
+import type { OutlineData } from "@/features/shared/ai/types/course";
 import { getMessageContent } from "@/features/shared/ai/ui-utils";
-import { MessageResponse } from "@/features/chat/components/ai/Message";
-import { cn } from "@/lib/utils";
+import { cn } from "@/features/shared/utils";
+import type { CourseChapterDTO, CourseProfileDTO } from "@/lib/actions/types";
 
 interface LearnPageClientProps {
   courseId: string;
@@ -48,11 +40,11 @@ interface LearnPageClientProps {
 
 export default function LearnPageClient({ courseId, initialProfile }: LearnPageClientProps) {
   const [courseProfile] = useState<CourseProfileDTO>(initialProfile);
-  const router = useRouter();
+  const _router = useRouter();
   const searchParams = useSearchParams();
   const [currentChapterId, setCurrentChapterId] = useState<string | null>(null);
   const [chapters, setChapters] = useState<CourseChapterDTO[]>([]);
-  const [isGenerationComplete, setIsGenerationComplete] = useState(false);
+  const [_isGenerationComplete, _setIsGenerationComplete] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
 
@@ -125,9 +117,7 @@ export default function LearnPageClient({ courseId, initialProfile }: LearnPageC
           setCurrentChapterId(chapter.id);
         }
       } else if (!currentChapterId) {
-        const firstGenerated = [...chapters].sort(
-          (a, b) => a.chapterIndex - b.chapterIndex,
-        )[0];
+        const firstGenerated = [...chapters].sort((a, b) => a.chapterIndex - b.chapterIndex)[0];
         if (firstGenerated) {
           setCurrentChapterId(firstGenerated.id);
         }
@@ -139,11 +129,7 @@ export default function LearnPageClient({ courseId, initialProfile }: LearnPageC
     const currentChapter = chapters.find((c) => c.id === currentChapterId);
     if (currentChapter?.id) {
       const newUrl = `${window.location.pathname}?chapterId=${currentChapter.id}`;
-      window.history.replaceState(
-        { ...window.history.state, as: newUrl, url: newUrl },
-        "",
-        newUrl,
-      );
+      window.history.replaceState({ ...window.history.state, as: newUrl, url: newUrl }, "", newUrl);
     }
   }, [currentChapterId, chapters]);
 
@@ -193,9 +179,7 @@ export default function LearnPageClient({ courseId, initialProfile }: LearnPageC
 
     if (toolCall) {
       const { chapterIndex, sectionIndex } = toolCall.output;
-      console.log(
-        `[Stream Update] 新章节已保存: Chapter ${chapterIndex}-${sectionIndex}`,
-      );
+      console.log(`[Stream Update] 新章节已保存: Chapter ${chapterIndex}-${sectionIndex}`);
       loadChapters();
     }
   }, [generationMessages, loadChapters]);
@@ -213,7 +197,7 @@ export default function LearnPageClient({ courseId, initialProfile }: LearnPageC
   const currentThinking = useMemo(() => {
     if (generationStatus !== "streaming" && generationStatus !== "submitted") return null;
     const lastMessage = generationMessages[generationMessages.length - 1];
-    return lastMessage?.reasoning || null;
+    return (lastMessage as any)?.reasoning || null;
   }, [generationMessages, generationStatus]);
 
   useEffect(() => {
@@ -298,11 +282,7 @@ export default function LearnPageClient({ courseId, initialProfile }: LearnPageC
     return chapter?.chapterIndex ?? 0;
   }, [currentChapterId, chapters]);
 
-  const renderToolOutput = (
-    toolName: string,
-    output: unknown,
-    _toolCallId: string,
-  ) => {
+  const renderToolOutput = (toolName: string, output: unknown, _toolCallId: string) => {
     if (!output) return null;
 
     switch (toolName) {
@@ -321,9 +301,7 @@ export default function LearnPageClient({ courseId, initialProfile }: LearnPageC
           }
           return (
             <div className="p-3 bg-primary/10 rounded-xl border border-primary/20">
-              <p className="text-xs font-medium text-primary">
-                📝 生成测验：{quiz.topic}
-              </p>
+              <p className="text-xs font-medium text-primary">📝 生成测验：{quiz.topic}</p>
               <p className="text-[10px] text-foreground/60 mt-1">
                 难度：
                 {quiz.difficulty === "easy" ? "简单" : quiz.difficulty === "hard" ? "困难" : "中等"}
@@ -347,9 +325,7 @@ export default function LearnPageClient({ courseId, initialProfile }: LearnPageC
           }
           return (
             <div className="p-3 bg-primary/10 rounded-xl border border-primary/20">
-              <p className="text-xs font-medium text-primary">
-                🧠 思维导图：{mm.topic}
-              </p>
+              <p className="text-xs font-medium text-primary">🧠 思维导图：{mm.topic}</p>
             </div>
           );
         }
@@ -499,10 +475,7 @@ export default function LearnPageClient({ courseId, initialProfile }: LearnPageC
                           </span>
                           <div className="h-px flex-1 bg-black/5" />
                           <span className="text-[10px] font-bold text-foreground/30 uppercase tracking-widest">
-                            {Math.round(
-                              currentChapter.contentMarkdown.length / 500,
-                            )}{" "}
-                            min read
+                            {Math.round(currentChapter.contentMarkdown.length / 500)} min read
                           </span>
                         </div>
 
@@ -526,14 +499,13 @@ export default function LearnPageClient({ courseId, initialProfile }: LearnPageC
                             ))}
                           </div>
                           <div className="text-[10px] font-bold text-foreground/40 uppercase tracking-widest">
-                            由 <span className="text-foreground">Nexus AI</span> 与 <span className="text-foreground">您</span> 共同生成
+                            由 <span className="text-foreground">Nexus AI</span> 与{" "}
+                            <span className="text-foreground">您</span> 共同生成
                           </div>
                         </div>
                       </div>
 
-                      <ContentRenderer
-                        content={currentChapter.contentMarkdown}
-                      />
+                      <ContentRenderer content={currentChapter.contentMarkdown} />
 
                       {isChatLoading && (
                         <div className="mt-12 md:mt-16">
@@ -608,7 +580,7 @@ function LeftDrawer({
         transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
         className={cn(
           "fixed left-0 top-0 bottom-0 z-50 bg-surface-50/95 backdrop-blur-xl border-r border-black/5 shadow-glass flex flex-col",
-          "hidden md:flex md:static md:shadow-none md:backdrop-blur-none md:w-80"
+          "hidden md:flex md:static md:shadow-none md:backdrop-blur-none md:w-80",
         )}
       >
         <div className="p-4 md:p-8 border-b border-black/5 flex items-center justify-between">
@@ -652,83 +624,87 @@ function LeftDrawer({
         </div>
 
         <nav className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-          {outline.modules?.map((module, mIdx) => (
-            <div key={mIdx} className="mb-6 md:mb-10 last:mb-0">
-              <div className="px-4 mb-3 md:mb-4 flex items-center gap-3">
-                <span className="text-[10px] font-black text-foreground uppercase tracking-[0.2em]">
-                  {String(mIdx + 1).padStart(2, "0")}
-                </span>
-                <h4 className="text-[10px] font-black text-foreground/20 uppercase tracking-[0.1em] truncate">
-                  {module.title}
-                </h4>
-              </div>
+          {outline.modules?.map(
+            (
+              module: { title: string; chapters: { title: string; contentSnippet?: string }[] },
+              mIdx: number,
+            ) => (
+              <div key={mIdx} className="mb-6 md:mb-10 last:mb-0">
+                <div className="px-4 mb-3 md:mb-4 flex items-center gap-3">
+                  <span className="text-[10px] font-black text-foreground uppercase tracking-[0.2em]">
+                    {String(mIdx + 1).padStart(2, "0")}
+                  </span>
+                  <h4 className="text-[10px] font-black text-foreground/20 uppercase tracking-[0.1em] truncate">
+                    {module.title}
+                  </h4>
+                </div>
 
-              <div className="space-y-1">
-                {module.chapters.map((chapter, cIdx) => {
-                  const globalIdx = getGlobalChapterIndex(mIdx, cIdx);
-                  const generatedChapter = chapters.find(
-                    (c) => c.chapterIndex === globalIdx,
-                  );
-                  const isGenerated = !!generatedChapter;
-                  const isActive =
-                    currentChapterId === generatedChapter?.id;
-                  const isGenerating = generatedChapter
-                    ? generatingChapterRef.current.has(
-                        generatedChapter.id,
-                      )
-                    : false;
+                <div className="space-y-1">
+                  {module.chapters.map(
+                    (chapter: { title: string; contentSnippet?: string }, cIdx: number) => {
+                      const globalIdx = getGlobalChapterIndex(mIdx, cIdx);
+                      const generatedChapter = chapters.find(
+                        (c: CourseChapterDTO) => c.chapterIndex === globalIdx,
+                      );
+                      const isGenerated = !!generatedChapter;
+                      const isActive = currentChapterId === generatedChapter?.id;
+                      const isGenerating = generatedChapter
+                        ? generatingChapterRef.current.has(generatedChapter.id)
+                        : false;
 
-                  return (
-                    <button
-                      key={cIdx}
-                      onClick={() => {
-                        if (generatedChapter) {
-                          setCurrentChapterId(generatedChapter.id);
-                        }
-                      }}
-                      className={`w-full group flex items-center gap-3 md:gap-4 px-3 md:px-4 py-2.5 md:py-3 rounded-xl md:rounded-2xl transition-all duration-500 relative touch-safe ${
-                        isActive
-                          ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
-                          : isGenerating
-                            ? "bg-primary/10 text-primary animate-pulse"
-                            : isGenerated
-                              ? "hover:bg-black/5 text-foreground/70 hover:text-foreground"
-                              : "hover:bg-primary/10 text-foreground/40 hover:text-primary"
-                      }`}
-                    >
-                      <div className="relative flex-shrink-0">
-                        {isGenerating ? (
-                          <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-primary animate-ping" />
-                        ) : isGenerated ? (
-                          <div
-                            className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full ${isActive ? "bg-primary-foreground" : "bg-foreground/20 group-hover:bg-foreground"}`}
-                          />
-                        ) : (
-                          <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full border-2 border-dashed border-foreground/20 group-hover:border-primary" />
-                        )}
-                      </div>
-
-                      <div className="flex-1 text-left min-w-0">
-                        <div className="text-xs md:text-sm font-bold truncate">
-                          {chapter.title}
-                        </div>
-                        {!isGenerated && !isGenerating && (
-                          <div className="text-[10px] opacity-70 group-hover:opacity-100">
-                            点击生成
+                      return (
+                        <button
+                          key={cIdx}
+                          onClick={() => {
+                            if (generatedChapter) {
+                              setCurrentChapterId(generatedChapter.id);
+                            }
+                          }}
+                          className={`w-full group flex items-center gap-3 md:gap-4 px-3 md:px-4 py-2.5 md:py-3 rounded-xl md:rounded-2xl transition-all duration-500 relative touch-safe ${
+                            isActive
+                              ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                              : isGenerating
+                                ? "bg-primary/10 text-primary animate-pulse"
+                                : isGenerated
+                                  ? "hover:bg-black/5 text-foreground/70 hover:text-foreground"
+                                  : "hover:bg-primary/10 text-foreground/40 hover:text-primary"
+                          }`}
+                        >
+                          <div className="relative flex-shrink-0">
+                            {isGenerating ? (
+                              <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-primary animate-ping" />
+                            ) : isGenerated ? (
+                              <div
+                                className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full ${isActive ? "bg-primary-foreground" : "bg-foreground/20 group-hover:bg-foreground"}`}
+                              />
+                            ) : (
+                              <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full border-2 border-dashed border-foreground/20 group-hover:border-primary" />
+                            )}
                           </div>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
+
+                          <div className="flex-1 text-left min-w-0">
+                            <div className="text-xs md:text-sm font-bold truncate">
+                              {chapter.title}
+                            </div>
+                            {!isGenerated && !isGenerating && (
+                              <div className="text-[10px] opacity-70 group-hover:opacity-100">
+                                点击生成
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    },
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            ),
+          )}
         </nav>
 
         <div className="p-4 md:p-6 mt-auto border-t border-black/5 hidden md:block">
           <button
-            onClick={() => window.location.href = "/create"}
+            onClick={() => (window.location.href = "/create")}
             className="flex items-center justify-center gap-3 w-full py-4 rounded-xl bg-black/5 hover:bg-black text-foreground/40 hover:text-white text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-500 group"
           >
             <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
@@ -777,9 +753,7 @@ function CourseHeader({
               : "bg-black/5 text-foreground/60 hover:bg-black/10 hover:text-foreground"
           }`}
         >
-          <Sparkles
-            className={`w-3.5 h-3.5 ${isChatOpen ? "animate-pulse" : ""}`}
-          />
+          <Sparkles className={`w-3.5 h-3.5 ${isChatOpen ? "animate-pulse" : ""}`} />
           <span className="hidden md:inline">智能助手</span>
         </button>
       </div>
@@ -820,7 +794,7 @@ function RightDrawer({
         transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
         className={cn(
           "fixed right-0 top-0 bottom-0 z-50 bg-surface-50/95 backdrop-blur-xl border-l border-black/5 shadow-glass flex flex-col",
-          "hidden md:flex md:static md:shadow-none md:backdrop-blur-none md:w-96"
+          "hidden md:flex md:static md:shadow-none md:backdrop-blur-none md:w-96",
         )}
       >
         <div className="p-4 md:p-6 border-b border-black/5 flex items-center justify-between">
@@ -865,9 +839,7 @@ function RightDrawer({
                 return (
                   <div className="flex justify-end px-4">
                     <div className="bg-primary px-4 md:px-5 py-3 rounded-2xl rounded-tr-sm shadow-lg shadow-primary/10">
-                      <p className="text-sm font-medium text-primary-foreground">
-                        {content}
-                      </p>
+                      <p className="text-sm font-medium text-primary-foreground">{content}</p>
                     </div>
                   </div>
                 );
@@ -879,8 +851,7 @@ function RightDrawer({
                     <MessageResponse
                       className="text-sm leading-relaxed text-foreground"
                       mode={
-                        isChatLoading &&
-                        message.id === chatMessages[chatMessages.length - 1].id
+                        isChatLoading && message.id === chatMessages[chatMessages.length - 1].id
                           ? "streaming"
                           : "static"
                       }
@@ -897,24 +868,20 @@ function RightDrawer({
                   <MessageSquare className="w-5 md:w-6 h-5 md:h-6 text-foreground/20" />
                 </div>
                 <div className="space-y-1">
-                  <p className="text-sm font-bold text-foreground">
-                    有什么疑问吗？
-                  </p>
+                  <p className="text-sm font-bold text-foreground">有什么疑问吗？</p>
                   <p className="text-xs text-foreground/40 leading-relaxed">
                     AI 随时为您解答当前章节的难点，或者帮您生成练习题。
                   </p>
                 </div>
                 <div className="grid grid-cols-1 gap-2 w-full pt-4">
-                  {["核心要点总结", "帮我出几道题", "深入解释一下"].map(
-                    (q) => (
-                      <button
-                        key={q}
-                        className="text-left px-4 py-2.5 rounded-xl bg-black/5 hover:bg-black text-foreground/60 hover:text-white text-xs font-bold transition-all touch-safe"
-                      >
-                        {q}
-                      </button>
-                    ),
-                  )}
+                  {["核心要点总结", "帮我出几道题", "深入解释一下"].map((q) => (
+                    <button
+                      key={q}
+                      className="text-left px-4 py-2.5 rounded-xl bg-black/5 hover:bg-black text-foreground/60 hover:text-white text-xs font-bold transition-all touch-safe"
+                    >
+                      {q}
+                    </button>
+                  ))}
                 </div>
               </div>
             )}
@@ -939,17 +906,14 @@ function ChapterNavigation({
           onClick={() => {
             if (currentChapter) {
               const prevChapter = chapters.find(
-                (c: any) =>
-                  c.chapterIndex === currentChapter.chapterIndex - 1,
+                (c: any) => c.chapterIndex === currentChapter.chapterIndex - 1,
               );
               if (prevChapter) {
                 setCurrentChapterId(prevChapter.id);
               }
             }
           }}
-          disabled={
-            !currentChapter || currentChapter.chapterIndex === 0
-          }
+          disabled={!currentChapter || currentChapter.chapterIndex === 0}
           className="group flex items-center gap-3 md:gap-6 disabled:opacity-20 flex-1 justify-start"
         >
           <div className="w-10 h-10 md:w-14 md:h-14 rounded-full border border-black/10 flex items-center justify-center group-hover:bg-foreground group-hover:text-background transition-all duration-500">
@@ -959,9 +923,7 @@ function ChapterNavigation({
             <div className="text-[10px] font-black uppercase tracking-widest text-foreground/30">
               Previous
             </div>
-            <div className="text-sm md:text-lg font-bold text-foreground">
-              上一章节
-            </div>
+            <div className="text-sm md:text-lg font-bold text-foreground">上一章节</div>
           </div>
         </button>
 
@@ -989,8 +951,7 @@ function ChapterNavigation({
           onClick={() => {
             if (currentChapter) {
               const nextChapter = chapters.find(
-                (c: any) =>
-                  c.chapterIndex === currentChapter.chapterIndex + 1,
+                (c: any) => c.chapterIndex === currentChapter.chapterIndex + 1,
               );
               if (nextChapter) {
                 setCurrentChapterId(nextChapter.id);
@@ -999,9 +960,7 @@ function ChapterNavigation({
           }}
           disabled={
             !currentChapter ||
-            !chapters.some(
-              (c: any) => c.chapterIndex === currentChapterIndex + 1,
-            )
+            !chapters.some((c: any) => c.chapterIndex === currentChapterIndex + 1)
           }
           className="group flex items-center gap-3 md:gap-6 text-right disabled:opacity-20 flex-1 justify-end"
         >
@@ -1009,9 +968,7 @@ function ChapterNavigation({
             <div className="text-[10px] font-black uppercase tracking-widest text-foreground/30">
               Next
             </div>
-            <div className="text-sm md:text-lg font-bold text-foreground">
-              下一章节
-            </div>
+            <div className="text-sm md:text-lg font-bold text-foreground">下一章节</div>
           </div>
           <div className="w-10 h-10 md:w-14 md:h-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/20 group-hover:scale-110 transition-all duration-500">
             <ArrowRight className="w-4 md:w-5 h-4 md:h-5 group-hover:translate-x-1 transition-transform" />

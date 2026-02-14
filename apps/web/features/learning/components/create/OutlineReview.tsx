@@ -4,8 +4,8 @@ import type { UIMessage } from "ai";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, CheckCircle2, Clock, Gauge, MessageCircle, Sparkles, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Button } from "@/features/shared/components/ui/button";
 import { getMessageContent } from "@/features/shared/ai/ui-utils";
+import { Button } from "@/features/shared/components/ui/button";
 
 interface CourseOutline {
   title: string;

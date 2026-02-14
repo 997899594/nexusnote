@@ -12,43 +12,14 @@ import {
   Pencil,
   Sparkles,
 } from "lucide-react";
-import { useEditor } from "@/lib/store";
-import { KnowledgePanel } from "./KnowledgePanel";
-import { UnifiedChatUI } from "./UnifiedChatUI";
-import type { EditCommand } from "@/features/editor/core/document-parser";
+import type { FormEvent } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { ChatAgentMessage } from "@/features/chat/agents/chat-agent";
-import {
-  getToolCalls,
-  findToolCall,
-  getMessageContent,
-} from "@/features/shared/ai/ui-utils";
-import {
-  FlashcardCreated,
-  SearchResults,
-  ReviewStats,
-  LearningPlan,
-  EditConfirmCard,
-  EditThinking,
-  QuizResult,
-  MindMapView,
-  SummaryResult,
-  WebSearchResult,
-  QuizSkeleton,
-  MindMapSkeleton,
-  SummarySkeleton,
-} from "./ui";
-import type { Question, MindMapNode } from "@/features/chat/tools/chat/learning";
-
-import {
-  QuizOutput,
-  MindMapOutput,
-  SummarizeOutput,
-  WebSearchOutput,
-  FlashcardOutput,
-  SearchNotesOutput,
-  ReviewStatsOutput,
-  LearningPlanOutput,
-  EditDocumentOutput,
+import { useWebSearchToggle } from "@/features/chat/hooks/use-web-search-toggle";
+import type { MindMapNode, Question } from "@/features/chat/tools/chat/learning";
+import type { EditCommand } from "@/features/editor/core/document-parser";
+import { useNoteExtractionOptional } from "@/features/learning/hooks/use-note-extraction";
+import type {
   BatchEditOutput,
   DraftContentOutput,
   EditDocumentOutput,
@@ -62,7 +33,9 @@ import {
   WebSearchOutput,
 } from "@/features/learning/tools/types";
 import { getMessageContent, getToolCalls } from "@/features/shared/ai/ui-utils";
-// Generative UI Components
+import { useEditor } from "@/lib/store";
+import { KnowledgePanel } from "./KnowledgePanel";
+import { UnifiedChatUI } from "./UnifiedChatUI";
 import {
   EditConfirmCard,
   FlashcardCreated,
@@ -250,11 +223,7 @@ export function ChatSidebar() {
     } catch (_err) {}
   };
 
-  const renderToolOutput = (
-    toolName: string,
-    output: unknown,
-    toolCallId: string,
-  ) => {
+  const renderToolOutput = (toolName: string, output: unknown, toolCallId: string) => {
     if (!output) return null;
 
     switch (toolName) {
@@ -331,9 +300,7 @@ export function ChatSidebar() {
           }
           return (
             <div className="glass glass-lg p-3 rounded-2xl border-l-4 border-primary/50">
-              <p className="text-xs font-semibold text-primary">
-                📝 生成测验：{quiz.topic}
-              </p>
+              <p className="text-xs font-semibold text-primary">📝 生成测验：{quiz.topic}</p>
               <p className="text-[10px] text-muted-foreground mt-1">
                 {quiz.questionCount} 道 ·{" "}
                 {quiz.difficulty === "easy" ? "简单" : quiz.difficulty === "hard" ? "困难" : "中等"}
@@ -355,9 +322,7 @@ export function ChatSidebar() {
           }
           return (
             <div className="glass glass-lg p-3 rounded-2xl border-l-4 border-primary/50">
-              <p className="text-xs font-semibold text-primary">
-                🧠 思维导图：{mm.topic}
-              </p>
+              <p className="text-xs font-semibold text-primary">🧠 思维导图：{mm.topic}</p>
               <p className="text-[10px] text-muted-foreground mt-1">
                 最大 {mm.maxDepth} 层 ·{" "}
                 {mm.layout === "tree" ? "树状" : mm.layout === "radial" ? "径向" : "思维导图"} 布局
@@ -386,9 +351,7 @@ export function ChatSidebar() {
           }
           return (
             <div className="glass glass-lg p-3 rounded-2xl border-l-4 border-primary/50">
-              <p className="text-xs font-semibold text-primary">
-                📄 生成摘要中...
-              </p>
+              <p className="text-xs font-semibold text-primary">📄 生成摘要中...</p>
               <p className="text-[10px] text-muted-foreground mt-1">
                 目标 {s.targetLength} 字 ·{" "}
                 {s.style === "bullet_points"
@@ -417,9 +380,7 @@ export function ChatSidebar() {
         }
         return (
           <div className="glass glass-lg p-3 rounded-2xl border-l-4 border-destructive/50">
-            <p className="text-xs text-destructive">
-              🔍 搜索失败：{res.message || "未知错误"}
-            </p>
+            <p className="text-xs text-destructive">🔍 搜索失败：{res.message || "未知错误"}</p>
           </div>
         );
       }
@@ -442,8 +403,16 @@ export function ChatSidebar() {
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-transparent" role="region" aria-label="AI 聊天面板">
-      <div className="flex px-4 xs:px-6 md:px-8 pt-6 xs:pt-8 gap-2 xs:gap-3 flex-shrink-0 mb-4 xs:mb-6" role="tablist" aria-label="聊天模式选择">
+    <div
+      className="flex-1 flex flex-col min-h-0 bg-transparent"
+      role="region"
+      aria-label="AI 聊天面板"
+    >
+      <div
+        className="flex px-4 xs:px-6 md:px-8 pt-6 xs:pt-8 gap-2 xs:gap-3 flex-shrink-0 mb-4 xs:mb-6"
+        role="tablist"
+        aria-label="聊天模式选择"
+      >
         {(["chat", "knowledge"] as const).map((m) => (
           <button
             key={m}
@@ -474,9 +443,7 @@ export function ChatSidebar() {
             <span className="relative z-10 hidden xs:inline">
               {m === "chat" ? "智能对话" : "原子知识"}
             </span>
-            <span className="relative z-10 xs:hidden">
-              {m === "chat" ? "对话" : "知识"}
-            </span>
+            <span className="relative z-10 xs:hidden">{m === "chat" ? "对话" : "知识"}</span>
 
             {mode === m && (
               <motion.div
@@ -493,7 +460,11 @@ export function ChatSidebar() {
         {mode === "knowledge" && <KnowledgePanel />}
         {mode === "chat" && (
           <>
-            <div className="mx-4 xs:mx-6 md:mx-8 mb-4 xs:mb-6 p-1 rounded-[24px] xs:rounded-[32px] bg-surface/50 border border-border/50 grid grid-cols-2 gap-1" role="group" aria-label="上下文控制">
+            <div
+              className="mx-4 xs:mx-6 md:mx-8 mb-4 xs:mb-6 p-1 rounded-[24px] xs:rounded-[32px] bg-surface/50 border border-border/50 grid grid-cols-2 gap-1"
+              role="group"
+              aria-label="上下文控制"
+            >
               {[
                 {
                   id: "doc",
@@ -591,7 +562,10 @@ export function ChatSidebar() {
                 return (
                   <div className="mb-4" role="article">
                     <div className="flex items-start gap-2 mb-1">
-                      <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center" aria-hidden="true">
+                      <div
+                        className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center"
+                        aria-hidden="true"
+                      >
                         <Sparkles className="w-3.5 h-3.5 text-primary" />
                       </div>
                       <div className="text-[11px] font-medium text-muted-foreground mt-1 uppercase tracking-wider">
@@ -609,8 +583,15 @@ export function ChatSidebar() {
                 );
               }}
               renderEmpty={() => (
-                <div className="h-full flex flex-col items-center justify-center text-center px-6 xs:px-12 opacity-40" role="status" aria-live="polite">
-                  <div className="w-16 xs:w-20 md:w-24 h-16 xs:h-20 md:h-24 rounded-[32px] xs:rounded-[40px] bg-gradient-to-br from-primary/10 to-primary/[0.02] flex items-center justify-center mb-6 xs:mb-8 relative" aria-hidden="true">
+                <div
+                  className="h-full flex flex-col items-center justify-center text-center px-6 xs:px-12 opacity-40"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <div
+                    className="w-16 xs:w-20 md:w-24 h-16 xs:h-20 md:h-24 rounded-[32px] xs:rounded-[40px] bg-gradient-to-br from-primary/10 to-primary/[0.02] flex items-center justify-center mb-6 xs:mb-8 relative"
+                    aria-hidden="true"
+                  >
                     <Ghost className="w-8 h-8 xs:w-10 xs:h-10 text-primary animate-pulse" />
                     <div className="absolute inset-0 rounded-[32px] xs:rounded-[40px] border border-border/20 animate-ping [animation-duration:3s]" />
                   </div>

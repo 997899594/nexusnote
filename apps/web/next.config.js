@@ -7,18 +7,7 @@ try {
   console.warn("Failed to load root .env file", e);
 }
 
-// PWA 配置（2026 最佳实践 - Serwist）
-// 协作应用需要实时数据，只缓存静态资源，不缓存 API
-const withSerwistInit = require("@serwist/next").default;
-
-const withSerwist = withSerwistInit({
-  swSrc: "src/app/sw.ts",
-  swDest: "public/sw.js",
-  cacheOnNavigation: true,
-  disable: process.env.NODE_ENV === "development",
-});
-
-const nextConfig = withSerwist({
+const nextConfig = {
   // Enable standalone output for Docker
   output: "standalone",
 
@@ -26,8 +15,10 @@ const nextConfig = withSerwist({
   transpilePackages: ["@nexusnote/ui", "@nexusnote/db", "@nexusnote/config"],
 
   // React Compiler - 自动优化 React 组件性能 (2026 最佳实践)
-  // 参考: https://juejin.cn/post/7593541290990747698
   reactCompiler: true,
+
+  // esbuild native binary for @serwist/turbopack
+  serverExternalPackages: ["esbuild", "@esbuild/darwin-arm64", "@esbuild/linux-x64"],
 
   // Experimental features
   experimental: {
@@ -60,6 +51,11 @@ const nextConfig = withSerwist({
             key: "Referrer-Policy",
             value: "strict-origin-when-cross-origin",
           },
+          // Service Worker scope
+          {
+            key: "Service-Worker-Allowed",
+            value: "/",
+          },
           // CSP - 开发模式下放宽限制
           {
             key: "Content-Security-Policy",
@@ -71,20 +67,6 @@ const nextConfig = withSerwist({
       },
     ];
   },
-
-  // Webpack config for Yjs
-  webpack: (config, { isServer }) => {
-    // Handle Yjs imports
-    if (!isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-        net: false,
-        tls: false,
-      };
-    }
-    return config;
-  },
-});
+};
 
 module.exports = nextConfig;

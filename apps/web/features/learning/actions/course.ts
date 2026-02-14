@@ -11,14 +11,14 @@
 
 import { and, courseChapters, courseProfiles, db, eq } from "@nexusnote/db";
 import { revalidatePath } from "next/cache";
-import { createSafeAction } from "@/lib/actions/action-utils";
-import type { CourseChapterDTO, CourseProfileDTO } from "@/lib/actions/types";
 import {
   getCourseChapters as dbGetChapters,
   saveCourseProfile as dbSaveProfile,
   updateCourseProgress as dbUpdateProgress,
   type OutlineData,
 } from "@/features/learning/agents/course-profile";
+import { createSafeAction } from "@/lib/actions/action-utils";
+import type { CourseChapterDTO, CourseProfileDTO } from "@/lib/actions/types";
 
 /**
  * 保存课程画像

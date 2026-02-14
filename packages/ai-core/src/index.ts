@@ -9,4 +9,4 @@
 
 export { CircuitBreaker, type CircuitBreakerConfig, type CircuitState } from "./circuit-breaker.js";
 export { PromptRegistry, type PromptTemplate } from "./prompt-registry.js";
-export { safeGenerateObject, type SafeGenerateOptions } from "./safe-generate.js";
+export { type SafeGenerateOptions, safeGenerateObject } from "./safe-generate.js";

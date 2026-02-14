@@ -1,10 +1,10 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { Zap } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Zap } from "lucide-react";
 import { getNoteTopicsAction } from "@/features/learning/actions/note";
 import { OrganicHeader } from "@/features/learning/components/create/OrganicHeader";
 import { HeroInput } from "@/features/shared/components/home/HeroInput";
@@ -136,12 +136,8 @@ export default function Home() {
           </div>
 
           <h1 className="font-black text-foreground tracking-tight leading-[1.05] mb-4">
-            <span className="block text-[clamp(2.5rem,8vw,5rem)]">
-              你想学习
-            </span>
-            <span className="block text-[clamp(2rem,6.5vw,4.5rem)] text-foreground/30">
-              什么？
-            </span>
+            <span className="block text-[clamp(2.5rem,8vw,5rem)]">你想学习</span>
+            <span className="block text-[clamp(2rem,6.5vw,4.5rem)] text-foreground/30">什么？</span>
           </h1>
 
           <p className="text-[clamp(0.875rem,1.5vw,1.125rem)] text-foreground/60 max-w-2xl mx-auto leading-relaxed">
@@ -154,11 +150,7 @@ export default function Home() {
         </div>
 
         <div className="w-full max-w-6xl">
-          <RecentAccess
-            items={recentItems}
-            loading={loading}
-            onItemClick={handleItemClick}
-          />
+          <RecentAccess items={recentItems} loading={loading} onItemClick={handleItemClick} />
         </div>
       </main>
 

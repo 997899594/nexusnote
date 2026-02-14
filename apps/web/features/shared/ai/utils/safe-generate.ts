@@ -3,6 +3,6 @@
  * 此文件仅做重导出，方便现有代码过渡。
  */
 export {
-  safeGenerateObject,
   type SafeGenerateOptions,
+  safeGenerateObject,
 } from "@nexusnote/ai-core";

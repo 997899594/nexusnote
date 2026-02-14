@@ -8,11 +8,11 @@
 
 import { type InferAgentUIMessage, stepCountIs, ToolLoopAgent, type ToolSet } from "ai";
 import { z } from "zod";
-import { registry } from "@/features/shared/ai/registry";
 import { skills } from "@/features/chat/tools/chat";
 import { editorSkills } from "@/features/chat/tools/chat/editor";
 import { learningSkills } from "@/features/chat/tools/chat/learning";
 import { webSearchSkills } from "@/features/chat/tools/chat/web";
+import { registry } from "@/features/shared/ai/registry";
 
 /**
  * 调用选项：路由层传入的动态上下文

@@ -17,13 +17,11 @@ export * from "@/features/editor/sync/snapshot-sync";
 export { snapshotSync } from "@/features/editor/sync/snapshot-sync";
 export * from "@/features/editor/sync/sync-engine";
 export { syncEngine } from "@/features/editor/sync/sync-engine";
-
-// shared 领域
-export * from "@/features/shared/stores/local-db";
-export { localDb } from "@/features/shared/stores/local-db";
-
 // learning 领域
 export * from "@/features/learning/stores/flashcard-store";
 export { flashcardStore } from "@/features/learning/stores/flashcard-store";
 export * from "@/features/learning/stores/learning-store";
 export { learningStore } from "@/features/learning/stores/learning-store";
+// shared 领域
+export * from "@/features/shared/stores/local-db";
+export { localDb } from "@/features/shared/stores/local-db";

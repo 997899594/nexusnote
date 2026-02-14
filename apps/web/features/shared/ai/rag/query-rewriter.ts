@@ -19,10 +19,7 @@ import { registry } from "../registry";
  * @param conversationContext 最近对话上下文（用于解析指代）
  * @returns 改写后的查询（失败则返回原始查询）
  */
-export async function rewriteQuery(
-  query: string,
-  conversationContext?: string,
-): Promise<string> {
+export async function rewriteQuery(query: string, conversationContext?: string): Promise<string> {
   if (!registry.fastModel) {
     return query;
   }

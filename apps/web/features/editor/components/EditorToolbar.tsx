@@ -1,4 +1,4 @@
-'use client'
+"use client";
 
 import type { Editor } from "@tiptap/react";
 import {
@@ -7,22 +7,22 @@ import {
   Heading1,
   Heading2,
   Heading3,
+  Image as ImageIcon,
   Italic,
+  Link as LinkIcon,
   List,
   ListOrdered,
   Minus,
+  MoreHorizontal,
   Quote,
   Redo,
   Shield,
   ShieldOff,
   Strikethrough,
-  MoreHorizontal,
-  Link as LinkIcon,
-  Image as ImageIcon,
   Undo,
 } from "lucide-react";
-import { useState } from 'react'
-import { cn } from '@/lib/utils'
+import { useState } from "react";
+import { cn } from "@/features/shared/utils";
 
 interface EditorToolbarProps {
   editor: Editor | null;
@@ -45,12 +45,12 @@ function ToolbarButton({ onClick, isActive, disabled, children, title }: Toolbar
       disabled={disabled}
       title={title}
       className={cn(
-        'w-8 h-8 flex items-center justify-center rounded-xl',
-        'transition-all duration-200',
+        "w-8 h-8 flex items-center justify-center rounded-xl",
+        "transition-all duration-200",
         isActive
-          ? 'bg-primary text-primary-foreground shadow-lg'
-          : 'text-foreground/60 hover:bg-foreground/5 hover:text-foreground active:bg-foreground/10',
-        disabled && 'opacity-30 cursor-not-allowed'
+          ? "bg-primary text-primary-foreground shadow-lg"
+          : "text-foreground/60 hover:bg-foreground/5 hover:text-foreground active:bg-foreground/10",
+        disabled && "opacity-30 cursor-not-allowed",
       )}
     >
       {children}
@@ -66,52 +66,51 @@ interface ToolbarItem {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   action: () => void;
-  group?: 'text' | 'list' | 'heading' | 'insert';
+  group?: "text" | "list" | "heading" | "insert";
 }
 
 const toolbarButtons: ToolbarItem[] = [
-  { icon: Bold, label: '加粗', action: () => {}, group: 'text' },
-  { icon: Italic, label: '斜体', action: () => {}, group: 'text' },
-  { icon: Strikethrough, label: '删除线', action: () => {}, group: 'text' },
-  { icon: Code, label: '代码', action: () => {}, group: 'text' },
-  { icon: List, label: '无序列表', action: () => {}, group: 'list' },
-  { icon: ListOrdered, label: '有序列表', action: () => {}, group: 'list' },
-  { icon: Quote, label: '引用', action: () => {}, group: 'list' },
-  { icon: Heading1, label: '标题 1', action: () => {}, group: 'heading' },
-  { icon: Heading2, label: '标题 2', action: () => {}, group: 'heading' },
-  { icon: Heading3, label: '标题 3', action: () => {}, group: 'heading' },
-  { icon: LinkIcon, label: '链接', action: () => {}, group: 'insert' },
-  { icon: ImageIcon, label: '图片', action: () => {}, group: 'insert' },
-  { icon: Minus, label: '分割线', action: () => {}, group: 'insert' },
-]
+  { icon: Bold, label: "加粗", action: () => {}, group: "text" },
+  { icon: Italic, label: "斜体", action: () => {}, group: "text" },
+  { icon: Strikethrough, label: "删除线", action: () => {}, group: "text" },
+  { icon: Code, label: "代码", action: () => {}, group: "text" },
+  { icon: List, label: "无序列表", action: () => {}, group: "list" },
+  { icon: ListOrdered, label: "有序列表", action: () => {}, group: "list" },
+  { icon: Quote, label: "引用", action: () => {}, group: "list" },
+  { icon: Heading1, label: "标题 1", action: () => {}, group: "heading" },
+  { icon: Heading2, label: "标题 2", action: () => {}, group: "heading" },
+  { icon: Heading3, label: "标题 3", action: () => {}, group: "heading" },
+  { icon: LinkIcon, label: "链接", action: () => {}, group: "insert" },
+  { icon: ImageIcon, label: "图片", action: () => {}, group: "insert" },
+  { icon: Minus, label: "分割线", action: () => {}, group: "insert" },
+];
 
-export function EditorToolbar({
-  editor,
-  isVault,
-  onToggleVault,
-}: EditorToolbarProps) {
-  const [expanded, setExpanded] = useState(false)
-  const [activeGroup, setActiveGroup] = useState<string | null>(null)
+export function EditorToolbar({ editor, isVault, onToggleVault }: EditorToolbarProps) {
+  const [expanded, setExpanded] = useState(false);
+  const [activeGroup, setActiveGroup] = useState<string | null>(null);
 
   if (!editor) return null;
 
   const executeAction = (action: () => void) => {
-    action?.()
-  }
+    action?.();
+  };
 
   return (
     <>
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-surface/95 backdrop-blur-lg border-t border-border/5 pb-safe-bottom md:hidden">
         <div className="flex items-center gap-1 overflow-x-auto px-2 py-2 scrollbar-hide">
-          {toolbarButtons.filter(b => b.group === 'text').slice(0, 4).map((button, idx) => (
-            <ToolbarButton
-              key={button.label + idx}
-              onClick={() => executeAction(button.action)}
-              title={button.label}
-            >
-              <button.icon className="w-4 h-4" />
-            </ToolbarButton>
-          ))}
+          {toolbarButtons
+            .filter((b) => b.group === "text")
+            .slice(0, 4)
+            .map((button, idx) => (
+              <ToolbarButton
+                key={button.label + idx}
+                onClick={() => executeAction(button.action)}
+                title={button.label}
+              >
+                <button.icon className="w-4 h-4" />
+              </ToolbarButton>
+            ))}
 
           <Divider />
 
@@ -126,21 +125,21 @@ export function EditorToolbar({
         {expanded && (
           <div className="px-2 pb-2 pt-1 border-t border-border/5 animate-slide-up">
             <div className="flex gap-2 mb-2 overflow-x-auto scrollbar-hide">
-              {['text', 'list', 'heading', 'insert'].map((group) => (
+              {["text", "list", "heading", "insert"].map((group) => (
                 <button
                   key={group}
                   onClick={() => setActiveGroup(activeGroup === group ? null : group)}
                   className={cn(
-                    'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap',
+                    "px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
                     activeGroup === group
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-foreground/60 hover:bg-foreground/5'
+                      ? "bg-primary text-primary-foreground"
+                      : "text-foreground/60 hover:bg-foreground/5",
                   )}
                 >
-                  {group === 'text' && '文本'}
-                  {group === 'list' && '列表'}
-                  {group === 'heading' && '标题'}
-                  {group === 'insert' && '插入'}
+                  {group === "text" && "文本"}
+                  {group === "list" && "列表"}
+                  {group === "heading" && "标题"}
+                  {group === "insert" && "插入"}
                 </button>
               ))}
             </div>
@@ -148,7 +147,7 @@ export function EditorToolbar({
             {activeGroup && (
               <div className="grid grid-cols-5 gap-1">
                 {toolbarButtons
-                  .filter(b => b.group === activeGroup)
+                  .filter((b) => b.group === activeGroup)
                   .map((button, idx) => (
                     <ToolbarButton
                       key={button.label + idx}

@@ -4,7 +4,7 @@
  */
 export {
   Tooltip,
-  TooltipTrigger,
   TooltipContent,
   TooltipProvider,
+  TooltipTrigger,
 } from "@nexusnote/ui";

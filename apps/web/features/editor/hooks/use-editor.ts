@@ -9,7 +9,11 @@
 
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect } from "react";
-import type { DocumentBlock, DocumentStructure, EditCommand } from "@/features/editor/core/document-parser";
+import type {
+  DocumentBlock,
+  DocumentStructure,
+  EditCommand,
+} from "@/features/editor/core/document-parser";
 import {
   documentContentAtom,
   documentJSONAtom,

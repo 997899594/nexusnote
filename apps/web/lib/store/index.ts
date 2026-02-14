@@ -7,20 +7,16 @@
 // Jotai 基础工具
 export { useAtom, useAtomValue, useSetAtom } from "jotai";
 export { atomWithReset, atomWithStorage } from "jotai/utils";
-
-// shared 领域
-export * from "@/features/shared/atoms/auth";
-export * from "@/features/shared/atoms/ui";
-
+// chat 领域
+export * from "@/features/chat/hooks/use-web-search-toggle";
 // editor 领域
 export * from "@/features/editor/atoms/editor";
 export * from "@/features/editor/hooks/use-editor";
-
 // learning 领域
 export * from "@/features/learning/atoms/course-generation";
 export * from "@/features/learning/atoms/note-extraction";
 export * from "@/features/learning/hooks/use-course-generation";
 export * from "@/features/learning/hooks/use-note-extraction";
-
-// chat 领域
-export * from "@/features/chat/hooks/use-web-search-toggle";
+// shared 领域
+export * from "@/features/shared/atoms/auth";
+export * from "@/features/shared/atoms/ui";

@@ -5,8 +5,8 @@ import { BubbleMenu } from "@tiptap/react/menus";
 import { AnimatePresence, motion } from "framer-motion";
 import { BookmarkPlus, Brain, Check, Sparkles, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { CreateFlashcardDialog } from "@/features/learning/components/srs/CreateFlashcardDialog";
 import { AI_ACTIONS, type AIAction, useInlineAI } from "@/features/editor/hooks/useInlineAI";
+import { CreateFlashcardDialog } from "@/features/learning/components/srs/CreateFlashcardDialog";
 import { useNoteExtractionOptional } from "@/lib/store";
 import { GhostFlight } from "./GhostFlight";
 

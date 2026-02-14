@@ -3,7 +3,11 @@
 import { isReasoningUIPart, isToolUIPart, type UIMessage as Message } from "ai";
 import { Bot, Send, Square, User } from "lucide-react";
 import { type FormEvent, type ReactNode, useEffect, useRef } from "react";
-import { getMessageContent, getReasoningContent, getToolCalls } from "@/features/shared/ai/ui-utils";
+import {
+  getMessageContent,
+  getReasoningContent,
+  getToolCalls,
+} from "@/features/shared/ai/ui-utils";
 import { MessageResponse } from "./Message";
 
 interface UnifiedChatUIProps {
@@ -13,20 +17,9 @@ interface UnifiedChatUIProps {
   onInputChange: (v: string) => void;
   onSubmit: (e: FormEvent) => void;
   onStop?: () => void;
-  renderToolOutput?: (
-    toolName: string,
-    output: unknown,
-    toolCallId: string,
-  ) => ReactNode;
-  renderToolLoading?: (
-    toolName: string,
-    toolCallId: string,
-  ) => ReactNode;
-  renderMessage?: (
-    message: Message,
-    text: string,
-    isUser: boolean,
-  ) => ReactNode;
+  renderToolOutput?: (toolName: string, output: unknown, toolCallId: string) => ReactNode;
+  renderToolLoading?: (toolName: string, toolCallId: string) => ReactNode;
+  renderMessage?: (message: Message, text: string, isUser: boolean) => ReactNode;
   renderEmpty?: () => ReactNode;
   renderAfterMessages?: () => ReactNode;
   renderBeforeInput?: () => ReactNode;
@@ -62,11 +55,7 @@ export function UnifiedChatUI({
     }
   }, [scrollable]);
 
-  const defaultRenderMessage = (
-    message: Message,
-    text: string,
-    isUser: boolean,
-  ) => {
+  const defaultRenderMessage = (message: Message, text: string, isUser: boolean) => {
     const reasoning = getReasoningContent(message);
     const toolCalls = getToolCalls(message);
 
@@ -92,17 +81,13 @@ export function UnifiedChatUI({
       >
         <div
           className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-            isUser
-              ? "bg-surface"
-              : "bg-primary/10 text-primary"
+            isUser ? "bg-surface" : "bg-primary/10 text-primary"
           }`}
         >
           {isUser ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
         </div>
 
-        <div
-          className={`flex flex-col ${isUser ? "items-end" : "items-start"} min-w-0`}
-        >
+        <div className={`flex flex-col ${isUser ? "items-end" : "items-start"} min-w-0`}>
           {!isUser && reasoning && showReasoningSection && (
             <details className="mb-2 group">
               <summary className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1 flex items-center gap-1.5 cursor-pointer list-none hover:text-foreground transition-colors">
@@ -149,10 +134,7 @@ export function UnifiedChatUI({
                   );
                 }
 
-                if (
-                  state === "input-streaming" ||
-                  state === "input-available"
-                ) {
+                if (state === "input-streaming" || state === "input-available") {
                   if (renderToolLoading) {
                     const loadingComponent = renderToolLoading(toolName, toolCallId);
                     if (loadingComponent) {
@@ -205,8 +187,17 @@ export function UnifiedChatUI({
   const renderFn = renderMessage || defaultRenderMessage;
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-transparent" role="region" aria-label="聊天消息">
-      <div className="flex-1 overflow-y-auto px-4 custom-scrollbar pb-8 min-h-0" role="log" aria-live="polite" aria-atomic="false">
+    <div
+      className="flex-1 flex flex-col min-h-0 bg-transparent"
+      role="region"
+      aria-label="聊天消息"
+    >
+      <div
+        className="flex-1 overflow-y-auto px-4 custom-scrollbar pb-8 min-h-0"
+        role="log"
+        aria-live="polite"
+        aria-atomic="false"
+      >
         <div className="flex flex-col gap-6 max-w-4xl mx-auto pt-4">
           {messages.length === 0 ? (
             renderEmptyFn()
@@ -219,15 +210,19 @@ export function UnifiedChatUI({
                 const hasToolCalls = message.parts?.some(isToolUIPart);
                 const messageKey = message.id || `msg-${idx}`;
 
-                const hasContent =
-                  text || isUser || hasReasoning || hasToolCalls || isLoading;
+                const hasContent = text || isUser || hasReasoning || hasToolCalls || isLoading;
 
                 if (!hasContent) {
                   return null;
                 }
 
                 return (
-                  <div key={messageKey} className="flex flex-col" role="article" aria-label={isUser ? "用户消息" : "AI 助手回复"}>
+                  <div
+                    key={messageKey}
+                    className="flex flex-col"
+                    role="article"
+                    aria-label={isUser ? "用户消息" : "AI 助手回复"}
+                  >
                     {renderFn(message, text, isUser)}
                   </div>
                 );
@@ -243,7 +238,7 @@ export function UnifiedChatUI({
 
       <div className="p-4 shrink-0">
         <div className="max-w-4xl mx-auto relative group">
-          <form onSubmit={onSubmit} className="relative" role="form" aria-label="发送消息">
+          <form onSubmit={onSubmit} className="relative" aria-label="发送消息">
             <input
               value={input}
               onChange={(e) => onInputChange(e.target.value)}

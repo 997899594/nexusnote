@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Network } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
 interface MindMapSkeletonProps {
   maxDepth?: number;
@@ -37,12 +37,8 @@ export function MindMapSkeleton({ maxDepth = 3 }: MindMapSkeletonProps) {
           <Network className="w-4 h-4 xs:w-5 xs:h-5 text-primary-foreground" />
         </div>
         <div>
-          <h3 className="text-xs xs:text-sm font-semibold text-foreground">
-            正在构建思维导图
-          </h3>
-          <p className="text-[10px] xs:text-xs text-muted-foreground">
-            AI 正在分析知识结构...
-          </p>
+          <h3 className="text-xs xs:text-sm font-semibold text-foreground">正在构建思维导图</h3>
+          <p className="text-[10px] xs:text-xs text-muted-foreground">AI 正在分析知识结构...</p>
         </div>
       </div>
 
@@ -84,7 +80,7 @@ export function MindMapSkeleton({ maxDepth = 3 }: MindMapSkeletonProps) {
               y1="50%"
               x2="50%"
               y2="50%"
-              stroke={pulseCount > i ? 'hsl(var(--primary))' : 'hsl(var(--primary) / 0.3)'}
+              stroke={pulseCount > i ? "hsl(var(--primary))" : "hsl(var(--primary) / 0.3)"}
               strokeWidth="2"
               strokeDasharray="5,5"
               initial={{ pathLength: 0 }}
@@ -112,16 +108,12 @@ export function MindMapSkeleton({ maxDepth = 3 }: MindMapSkeletonProps) {
               animate={{ scale: pulseCount >= i ? 1 : 0.5 }}
               transition={{ duration: 0.2 }}
               className={`w-1.5 h-1.5 xs:w-2 xs:h-2 rounded-full ${
-                pulseCount >= i
-                  ? 'bg-primary'
-                  : 'bg-primary/20'
+                pulseCount >= i ? "bg-primary" : "bg-primary/20"
               }`}
             />
           ))}
         </div>
-        <span className="text-[10px] xs:text-xs text-muted-foreground">
-          正在生成节点结构...
-        </span>
+        <span className="text-[10px] xs:text-xs text-muted-foreground">正在生成节点结构...</span>
       </div>
     </motion.div>
   );

@@ -8,13 +8,11 @@
  */
 
 import {
-  State,
-  Rating,
-  schedule,
-  createInitialState,
+  type CardState,
   forgettingCurve,
   type ReviewRating,
-  type CardState,
+  State,
+  schedule,
 } from "@nexusnote/fsrs";
 import { v4 as uuid } from "uuid";
 import {
@@ -22,12 +20,11 @@ import {
   type LocalFlashcard,
   type LocalReviewLog,
   localDb,
-  type ReviewRating as LocalReviewRating,
   STORES,
 } from "@/features/shared/stores/local-db";
 
 // 重导出供外部使用
-export { State, Rating } from "@nexusnote/fsrs";
+export { Rating, State } from "@nexusnote/fsrs";
 
 // ============================================
 // Flashcard Store 类

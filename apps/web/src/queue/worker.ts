@@ -15,7 +15,7 @@ import { env } from "@nexusnote/config";
 import { db, documentChunks, documents, eq, extractedNotes, sql, topics } from "@nexusnote/db";
 import { Worker } from "bullmq";
 import IORedis from "ioredis";
-import { registry, isEmbeddingConfigured } from "@/features/shared/ai/registry";
+import { isEmbeddingConfigured, registry } from "@/features/shared/ai/registry";
 import { generateEmbeddings } from "./utils/embeddings";
 
 // Redis 连接

@@ -8,8 +8,8 @@
  * 4. 达到 maxRetries 后抛出最终错误
  */
 
-import { generateObject } from "ai";
 import type { LanguageModelV3 } from "@ai-sdk/provider";
+import { generateObject } from "ai";
 import type { ZodSchema } from "zod";
 
 export interface SafeGenerateOptions<T> {
@@ -27,9 +27,7 @@ export interface SafeGenerateOptions<T> {
   temperature?: number;
 }
 
-export async function safeGenerateObject<T>(
-  options: SafeGenerateOptions<T>,
-): Promise<T> {
+export async function safeGenerateObject<T>(options: SafeGenerateOptions<T>): Promise<T> {
   const { schema, maxRetries = 2, ...generateOptions } = options;
   let currentPrompt = generateOptions.prompt;
 
@@ -45,9 +43,7 @@ export async function safeGenerateObject<T>(
       if (attempt === maxRetries) throw error;
 
       if (error instanceof Error) {
-        console.warn(
-          `[safeGenerateObject] 第 ${attempt + 1} 次尝试失败: ${error.message}`,
-        );
+        console.warn(`[safeGenerateObject] 第 ${attempt + 1} 次尝试失败: ${error.message}`);
         currentPrompt = `${generateOptions.prompt}\n\n[系统提示: 上次输出格式错误: ${error.message}. 请严格遵循 JSON schema 输出。]`;
       }
     }

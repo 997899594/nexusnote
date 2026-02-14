@@ -6,7 +6,7 @@
  */
 
 import { routeIntent } from "../../router/route";
-import type { PipelineContext, PipelineStage } from "../types";
+import type { PipelineStage } from "../types";
 
 export const routeIntentStage: PipelineStage = {
   name: "route-intent",

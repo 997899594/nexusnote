@@ -9,11 +9,8 @@ import {
   type CourseGenerationContext,
   courseGenerationAgent,
 } from "@/features/learning/agents/course-generation/agent";
-import {
-  type InterviewContext,
-  interviewAgent,
-} from "@/features/learning/agents/interview/agent";
-import type { PipelineContext, PipelineStage } from "../types";
+import { type InterviewContext, interviewAgent } from "@/features/learning/agents/interview/agent";
+import type { PipelineStage } from "../types";
 
 export const selectAgentStage: PipelineStage = {
   name: "select-agent",

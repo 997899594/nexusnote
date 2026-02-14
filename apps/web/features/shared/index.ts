@@ -5,17 +5,19 @@
  */
 
 // AI 基础设施
-export { registry, isAIConfigured, isEmbeddingConfigured, isWebSearchAvailable } from "./ai/registry";
-
-// 本地存储基础层
-export { localDb } from "./stores/local-db";
-
+export {
+  isAIConfigured,
+  isEmbeddingConfigured,
+  isWebSearchAvailable,
+  registry,
+} from "./ai/registry";
 // 全局 Atoms
 export * from "./atoms/auth";
 export * from "./atoms/ui";
-
 // 通用 Hooks
 export { useToast } from "./hooks/use-toast";
+// 本地存储基础层
+export { localDb } from "./stores/local-db";
 
 // 工具函数
 export { cn } from "./utils";

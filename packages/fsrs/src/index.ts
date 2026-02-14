@@ -66,11 +66,23 @@ export interface SchedulingResult {
 
 export const DEFAULT_PARAMS: FSRSParams = {
   w: [
-    0.4072, 1.1829, 3.1262, 15.4722, // S0: 初始稳定性
-    7.2102, 0.5715, 1.0, 0.0062,       // 难度相关
-    1.8363, 0.2783, 0.8552, 2.4029,    // 稳定性增益
-    0.1192, 0.295, 2.2663, 0.2924,     // 惩罚/奖励
-    2.9466,                             // 遗忘稳定性
+    0.4072,
+    1.1829,
+    3.1262,
+    15.4722, // S0: 初始稳定性
+    7.2102,
+    0.5715,
+    1.0,
+    0.0062, // 难度相关
+    1.8363,
+    0.2783,
+    0.8552,
+    2.4029, // 稳定性增益
+    0.1192,
+    0.295,
+    2.2663,
+    0.2924, // 惩罚/奖励
+    2.9466, // 遗忘稳定性
   ],
   requestRetention: 0.9,
   maximumInterval: 36500,
@@ -97,12 +109,8 @@ export function initStability(rating: ReviewRating, params: FSRSParams = DEFAULT
 }
 
 /** 计算下次间隔天数 */
-export function nextInterval(
-  stability: number,
-  params: FSRSParams = DEFAULT_PARAMS,
-): number {
-  const interval =
-    (stability / 0.9) * (params.requestRetention ** (1 / -0.5) - 1);
+export function nextInterval(stability: number, params: FSRSParams = DEFAULT_PARAMS): number {
+  const interval = (stability / 0.9) * (params.requestRetention ** (1 / -0.5) - 1);
   return Math.min(params.maximumInterval, Math.max(1, Math.round(interval)));
 }
 
@@ -175,9 +183,7 @@ export function schedule(
 ): SchedulingState {
   const next = { ...current };
   const elapsedDays =
-    current.state === State.New
-      ? 0
-      : Math.max(0, (now - current.due) / (1000 * 60 * 60 * 24));
+    current.state === State.New ? 0 : Math.max(0, (now - current.due) / (1000 * 60 * 60 * 24));
 
   next.elapsedDays = elapsedDays;
 
@@ -249,12 +255,7 @@ function scheduleReview(
     card.lapses += 1;
     card.state = State.Relearning;
     card.difficulty = nextDifficulty(card.difficulty, rating, params);
-    card.stability = nextForgetStability(
-      card.difficulty,
-      card.stability,
-      retrievability,
-      params,
-    );
+    card.stability = nextForgetStability(card.difficulty, card.stability, retrievability, params);
     card.scheduledDays = 0;
     card.due = now + 60 * 1000;
   } else {

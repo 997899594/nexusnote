@@ -4,16 +4,13 @@
  * 公共 API：只导出外部领域需要的接口
  */
 
-// 组件
-export { UnifiedChatUI } from "./components/ai/UnifiedChatUI";
-export { ChatSidebar } from "./components/ai/ChatSidebar";
-export { KnowledgePanel } from "./components/ai/KnowledgePanel";
-
 // Agent
 export { chatAgent } from "./agents/chat-agent";
-
-// Tools
-export * from "./tools/chat";
-
+export { ChatSidebar } from "./components/ai/ChatSidebar";
+export { KnowledgePanel } from "./components/ai/KnowledgePanel";
+// 组件
+export { UnifiedChatUI } from "./components/ai/UnifiedChatUI";
 // Hooks
 export { useWebSearchToggle } from "./hooks/use-web-search-toggle";
+// Tools
+export * from "./tools/chat";

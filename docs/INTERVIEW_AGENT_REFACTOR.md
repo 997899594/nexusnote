@@ -378,9 +378,286 @@ sendMessage("你是谁")
 
 ---
 
+## 八、多 Agent 协作架构（体验升级）
+
+### 当前单 Agent 的真实瓶颈
+
+访谈流程本质上是 **4 步表单**，不管交互模式怎么改，有三个靠单 agent 解决不了的问题：
+
+| 瓶颈 | 说明 |
+|------|------|
+| **AI 不懂用户要学的领域** | 用户说"学 Kubernetes"，AI 靠训练数据生成泛泛选项。不知道 K8s 最新版本、Gateway API 趋势、用户可能需要先学 Docker |
+| **大纲生成太粗糙** | `generateOutline` 靠 4 个字段让模型编大纲，没参考真实教材、知识图谱、学习路径 |
+| **对话缺乏深度** | 四轮固定问答，每轮"说一句话+给选项"，和填表单没本质区别 |
+
+### 设计原则：一个面子，两个里子
+
+**用户始终只跟一个 Interview Agent 对话。** 不做角色切换，不做"现在转接课程设计师"。背后两个专业 agent 作为 server-side tool 被静默调用。
+
+```
+用户
+  ↕ 对话（唯一交互面）
+Interview Agent（编排者）
+  ├── tool: researchTopic  → Topic Research Agent（里子 1）
+  │     搜索 web、分析领域、找前置技能、返回结构化摘要
+  │
+  └── tool: designCurriculum → Curriculum Designer Agent（里子 2）
+        拿到用户画像 + 领域研究 → 用更强模型设计专业大纲
+```
+
+### 场景对比
+
+**现在（单 agent，无领域知识）：**
+
+```
+用户："我想学 Kubernetes"
+AI："很棒！你对哪个方向感兴趣？"
+  [容器编排] [微服务部署] [云原生开发] [DevOps 实践]
+
+→ 选项来自 LLM 常识，泛泛而谈
+```
+
+**改造后（Research Agent 提供领域知识）：**
+
+```
+用户："我想学 Kubernetes"
+                        ← Interview Agent 静默调用 researchTopic("Kubernetes")
+                        ← Research Agent 搜索后返回：
+                        ←   K8s 1.32 Gateway API 替代 Ingress
+                        ←   学习路径：Docker → Pod → Service → Deployment → Helm
+                        ←   前置知识：Linux 基础、网络基础、容器概念
+
+AI："Kubernetes 最近动作挺大——1.32 版本的 Gateway API 正在替代传统 Ingress，
+     生态变化不小。你现在是想从运维角度管理集群，还是作为开发者部署应用？"
+  [应用开发者视角] [运维/SRE 视角] [从零学起（含 Docker 基础）] [已有基础，想进阶]
+
+→ 选项基于真实领域知识，有深度，能动态调整
+```
+
+### 三个 Agent 的职责定义
+
+#### 1. Interview Agent（用户面对的编排者）
+
+| 属性 | 值 |
+|------|---|
+| **模型** | chatModel（对话能力优先） |
+| **角色** | 温暖专业的课程导师 |
+| **工具** | `presentOptions`(无execute), `researchTopic`(有execute), `designCurriculum`(有execute) |
+| **职责** | 引导对话、根据研究结果调整问题、决定何时信息充分 |
+
+关键能力：
+- 根据 Research Agent 返回的领域知识，生成**有深度的选项**
+- 能追问、能跳过（如果用户已经表达了足够信息）
+- 不再是固定 4 步，而是**信息充分即可进入大纲设计**
+
+#### 2. Topic Research Agent（领域研究）
+
+| 属性 | 值 |
+|------|---|
+| **模型** | chatModel |
+| **工具** | `searchWeb` |
+| **调用方式** | Interview Agent 的 server-side tool（`researchTopic`） |
+| **调用时机** | 用户首次说出学习主题时；用户选择具体方向后可能再调一次 |
+
+输入/输出：
+
+```typescript
+// 输入
+{ topic: "Kubernetes", userBackground?: "有 Docker 经验" }
+
+// 输出（结构化）
+{
+  summary: "Kubernetes 是容器编排平台...",
+  currentVersion: "1.32",
+  recentTrends: ["Gateway API 替代 Ingress", "Sidecarless Service Mesh"],
+  typicalLearningPath: ["Docker 基础", "Pod 概念", "Service/Networking", "Deployment", "Helm/Kustomize"],
+  prerequisites: ["Linux 命令行", "网络基础(TCP/IP)", "容器概念"],
+  commonGoals: ["部署应用到生产环境", "考 CKA 认证", "搭建 CI/CD 流水线"]
+}
+```
+
+#### 3. Curriculum Designer Agent（课程设计）
+
+| 属性 | 值 |
+|------|---|
+| **模型** | courseModel（更强的推理能力） |
+| **工具** | 无（纯文本生成，结构化输出） |
+| **调用方式** | Interview Agent 的 server-side tool（`designCurriculum`） |
+| **调用时机** | 所有信息收集完毕后，替代当前的 `generateOutline` |
+
+输入/输出：
+
+```typescript
+// 输入
+{
+  userProfile: { goal, background, targetOutcome, cognitiveStyle },
+  domainResearch: { /* Research Agent 的输出 */ },
+}
+
+// 输出
+{
+  title: "Kubernetes 应用开发实战",
+  description: "从 Docker 到 K8s，面向应用开发者的渐进式学习路径",
+  difficulty: "intermediate",
+  estimatedMinutes: 480,
+  designRationale: "用户有 Docker 基础，跳过容器入门；侧重应用部署而非集群运维...",
+  modules: [ /* 基于真实学习路径设计的模块 */ ],
+}
+```
+
+### AI SDK v6 实现
+
+#### 新增的 interview tools
+
+```typescript
+// features/learning/tools/interview.ts
+
+// presentOptions — client-side tool（无 execute，等用户）
+export const presentOptionsTool = tool({
+  description: "展示选项卡片，等待用户选择",
+  inputSchema: z.object({
+    replyToUser: z.string(),
+    question: z.string(),
+    options: z.array(z.string()).min(2).max(4),
+    targetField: z.enum(["goal", "background", "targetOutcome", "cognitiveStyle", "general"]),
+  }),
+  // 无 execute → agent 循环自动暂停
+});
+
+// researchTopic — server-side tool（有 execute，调用子 agent）
+export const researchTopicTool = tool({
+  description: "研究用户想学的领域，获取最新信息、学习路径和前置知识",
+  inputSchema: z.object({
+    topic: z.string().describe("用户想学的主题"),
+    specificDirection: z.string().optional().describe("用户选择的具体方向"),
+    userBackground: z.string().optional().describe("用户已有的背景"),
+  }),
+  execute: async ({ topic, specificDirection, userBackground }) => {
+    const result = await researchAgent.generate({
+      prompt: `研究「${topic}」${specificDirection ? `（方向：${specificDirection}）` : ""} 的学习领域。
+               ${userBackground ? `用户背景：${userBackground}` : ""}
+               返回：领域摘要、最新趋势、典型学习路径、前置知识、常见学习目标。`,
+    });
+    return result.text;
+  },
+});
+
+// designCurriculum — server-side tool（有 execute，调用子 agent）
+export const designCurriculumTool = tool({
+  description: "基于用户画像和领域研究设计个性化课程大纲",
+  inputSchema: z.object({
+    goal: z.string(),
+    background: z.string(),
+    targetOutcome: z.string(),
+    cognitiveStyle: z.string(),
+    domainResearch: z.string().describe("Topic Research Agent 返回的领域研究结果"),
+  }),
+  execute: async (params) => {
+    const result = await curriculumDesignerAgent.generate({
+      prompt: "基于以下用户画像和领域研究，设计个性化课程大纲...",
+      options: params,
+    });
+    return JSON.parse(result.text);
+  },
+});
+```
+
+#### Interview Agent 的 prepareCall
+
+```typescript
+export const interviewAgent = new ToolLoopAgent({
+  id: "nexusnote-interview",
+  model: interviewModel,
+  tools: {
+    presentOptions: presentOptionsTool,
+    researchTopic: researchTopicTool,
+    designCurriculum: designCurriculumTool,
+  },
+  maxOutputTokens: 4096,
+
+  prepareCall: ({ messages, ...rest }) => {
+    const context = extractContextFromMessages(messages);
+    const instructions = buildInterviewPrompt(context);
+
+    // 信息充分 → 强制调用 designCurriculum
+    const hasAllInfo = Boolean(context.goal) && Boolean(context.background)
+      && Boolean(context.targetOutcome) && Boolean(context.cognitiveStyle);
+
+    if (hasAllInfo) {
+      return {
+        ...rest,
+        instructions,
+        toolChoice: { type: "tool", toolName: "designCurriculum" },
+        stopWhen: stepCountIs(1),
+      };
+    }
+
+    // 信息不足 → AI 自主决定调 researchTopic 还是 presentOptions
+    // researchTopic 有 execute，调完循环继续 → AI 拿到研究结果后调 presentOptions
+    // presentOptions 无 execute → 循环自动停止，等用户
+    return { ...rest, instructions, temperature: 0.7 };
+  },
+});
+```
+
+### 完整流程
+
+```
+1. 用户输入 "我想学 Kubernetes"
+2. Interview Agent 收到消息
+3. Agent 决定先研究领域
+4.   → 调用 researchTopic("Kubernetes")     [server-side, 自动执行]
+5.   → Research Agent 搜索 web，返回领域摘要  [agent 循环继续]
+6. Agent 拿到研究结果，生成有深度的回复
+7.   → 调用 presentOptions（基于研究结果）    [client-side, 循环暂停]
+8. 用户看到选项，点击 "应用开发者视角"
+9. addToolOutput → sendAutomaticallyWhen → 下一轮请求
+10. Agent 可能再次 researchTopic("Kubernetes 应用开发") 深入
+11. Agent 调 presentOptions 问背景             [暂停，等用户]
+12. 用户选择 → 下一轮
+13. ...收集 targetOutcome、cognitiveStyle...
+14. 信息充分 → Agent 调用 designCurriculum     [server-side]
+15. Curriculum Designer 用 courseModel 生成专业大纲
+16. 客户端收到大纲 → outline_review phase
+```
+
+### 不要做的事
+
+| 反模式 | 原因 |
+|--------|------|
+| 让用户跟多个"角色"对话 | 像客服转接，体验割裂 |
+| 给每个维度（背景/风格/目标）分配独立 agent | 过度拆分，单 agent 完全胜任 |
+| 加"激励 agent"或"情感 agent" | 画蛇添足，prompt 能解决的事不用拆 agent |
+| Research Agent 每轮都调用 | 浪费 token 和时间，只在主题变化时调用 |
+
+### 判断标准：什么时候拆 Agent
+
+```
+单 agent prompt 能解决？
+  ├── 能 → 不拆（如：收集背景、了解风格、语气调整）
+  └── 不能 → 拆
+       ├── 需要外部数据 → Research Agent（searchWeb）
+       ├── 需要更强模型 → Specialist Agent（courseModel）
+       └── 需要不同工具集 → Tool-specific Agent
+```
+
+### 新增文件清单
+
+| 文件 | 说明 |
+|------|------|
+| `features/learning/agents/research/agent.ts` | Topic Research Agent 定义 |
+| `features/learning/agents/curriculum/agent.ts` | Curriculum Designer Agent 定义 |
+| `features/shared/ai/prompts/research.ts` | 领域研究 prompt |
+| `features/shared/ai/prompts/curriculum.ts` | 课程设计 prompt |
+| `features/learning/tools/interview.ts` | 新增 `researchTopic` + `designCurriculum` tool |
+
+---
+
 ## 参考资料
 
 - [AI SDK v6 Agents: Loop Control](https://ai-sdk.dev/docs/agents/loop-control) — `stopWhen`, `prepareStep`
 - [AI SDK Chatbot Tool Usage](https://ai-sdk.dev/docs/ai-sdk-ui/chatbot-tool-usage) — client-side tools, `addToolOutput`
 - [AI SDK Human-in-the-Loop](https://ai-sdk.dev/cookbook/next/human-in-the-loop) — `needsApproval`, interactive patterns
 - [AI SDK v6 Announcement](https://vercel.com/blog/ai-sdk-6) — 架构概览
+- [AI SDK Agents: Building Agents](https://ai-sdk.dev/docs/agents/building-agents) — agent 定义与组合
+- [AI SDK Agents: Configuring Call Options](https://ai-sdk.dev/docs/agents/configuring-call-options) — `prepareCall` vs `prepareStep`

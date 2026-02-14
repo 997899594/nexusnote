@@ -3,7 +3,7 @@
  */
 
 import { isAIConfigured } from "../../registry";
-import type { PipelineContext, PipelineStage } from "../types";
+import type { PipelineStage } from "../types";
 
 export const validateStage: PipelineStage = {
   name: "validate",

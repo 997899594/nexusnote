@@ -6,16 +6,13 @@
  */
 
 import { ragService } from "../../rag";
-import type { PipelineContext, PipelineStage } from "../types";
+import type { PipelineStage } from "../types";
 
 export const enrichRAGStage: PipelineStage = {
   name: "enrich-rag",
   async execute(ctx) {
     // 只有 CHAT 意图 + 启用 RAG + 有用户输入时才执行检索
-    const shouldEnrich =
-      ctx.intent === "CHAT" &&
-      ctx.context.enableRAG &&
-      ctx.userInput;
+    const shouldEnrich = ctx.intent === "CHAT" && ctx.context.enableRAG && ctx.userInput;
 
     if (!shouldEnrich) {
       return ctx;

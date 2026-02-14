@@ -1,9 +1,9 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { BookOpen, FileText, ArrowUpRight, Clock } from "lucide-react";
+import { ArrowUpRight, BookOpen, Clock, FileText } from "lucide-react";
+import { cn } from "@/features/shared/utils";
 import type { RecentItemDTO } from "@/lib/actions/types";
-import { cn } from "@/lib/utils";
 
 interface RecentAccessProps {
   items?: RecentItemDTO[];
@@ -27,9 +27,7 @@ export const RecentAccess = ({ items, loading, onItemClick }: RecentAccessProps)
       <div className="relative -mx-4 px-4 py-2 -my-2 overflow-x-auto scrollbar-hide snap-x snap-mandatory md:overflow-visible md:px-0 md:py-0 md:-my-0">
         <div className="flex md:grid md:grid-cols-3 gap-4 md:gap-6 min-w-max md:min-w-0">
           {loading ? (
-            Array.from({ length: 3 }).map((_, i) => (
-              <SkeletonCard key={i} />
-            ))
+            Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)
           ) : displayItems.length > 0 ? (
             displayItems.map((item, index) => (
               <motion.div
@@ -83,22 +81,26 @@ const AccessItem = ({ item, onClick }: { item: RecentItemDTO; onClick?: () => vo
 
       <div className="relative p-5 min-h-[180px] flex flex-col justify-between border border-border/5 rounded-2xl bg-surface/50 backdrop-blur-sm transition-all group-hover:border-border/10">
         <div className="flex justify-between items-start">
-          <div className={cn(
-            "w-11 h-11 rounded-xl flex items-center justify-center transition-all",
-            item.type === "course"
-              ? "bg-primary/10 text-primary"
-              : "bg-foreground/5 text-foreground/60"
-          )}>
+          <div
+            className={cn(
+              "w-11 h-11 rounded-xl flex items-center justify-center transition-all",
+              item.type === "course"
+                ? "bg-primary/10 text-primary"
+                : "bg-foreground/5 text-foreground/60",
+            )}
+          >
             {item.type === "course" ? (
               <BookOpen className="w-5 h-5" />
             ) : (
               <FileText className="w-5 h-5" />
             )}
           </div>
-          <div className={cn(
-            "w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300",
-            "bg-foreground/5 text-foreground/30 group-hover:bg-primary group-hover:text-primary-foreground"
-          )}>
+          <div
+            className={cn(
+              "w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300",
+              "bg-foreground/5 text-foreground/30 group-hover:bg-primary group-hover:text-primary-foreground",
+            )}
+          >
             <ArrowUpRight className="w-4 h-4" />
           </div>
         </div>

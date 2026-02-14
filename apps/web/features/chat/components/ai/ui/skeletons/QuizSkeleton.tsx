@@ -19,9 +19,7 @@ export function QuizSkeleton({ questionCount = 5 }: QuizSkeletonProps) {
           <Brain className="w-4 h-4 xs:w-5 xs:h-5 text-primary-foreground" />
         </div>
         <div>
-          <h3 className="text-xs xs:text-sm font-semibold text-foreground">
-            正在生成测验
-          </h3>
+          <h3 className="text-xs xs:text-sm font-semibold text-foreground">正在生成测验</h3>
           <p className="text-[10px] xs:text-xs text-muted-foreground">
             AI 正在分析内容并设计题目...
           </p>
@@ -33,7 +31,12 @@ export function QuizSkeleton({ questionCount = 5 }: QuizSkeletonProps) {
           <motion.div
             initial={{ width: "0%" }}
             animate={{ width: "60%" }}
-            transition={{ duration: 1.5, ease: "easeInOut", repeat: Infinity, repeatType: "reverse" }}
+            transition={{
+              duration: 1.5,
+              ease: "easeInOut",
+              repeat: Infinity,
+              repeatType: "reverse",
+            }}
             className="h-full bg-gradient-to-r from-primary to-primary/60 rounded-full"
           />
         </div>
@@ -50,9 +53,7 @@ export function QuizSkeleton({ questionCount = 5 }: QuizSkeletonProps) {
           >
             <div className="flex items-center gap-3 mb-2 xs:mb-3">
               <div className="w-5 h-5 xs:w-6 xs:h-6 rounded-full bg-primary/20 flex items-center justify-center">
-                <span className="text-[10px] xs:text-xs font-bold text-primary">
-                  {i + 1}
-                </span>
+                <span className="text-[10px] xs:text-xs font-bold text-primary">{i + 1}</span>
               </div>
               <div className="flex-1 h-3 xs:h-4 skeleton-gradient rounded" />
             </div>

@@ -1,19 +1,19 @@
-'use client'
+"use client";
 
-import { Home, BookOpen, Layers, Settings, FileText, Zap } from 'lucide-react'
-import { usePathname } from 'next/navigation'
-import Link from 'next/link'
-import { cn } from '@/lib/utils'
+import { BookOpen, FileText, Home, Layers, Settings, Zap } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { cn } from "@/features/shared/utils";
 
 export function AppSidebar() {
-  const pathname = usePathname()
+  const pathname = usePathname();
 
   const navItems = [
-    { icon: Home, label: '首页', href: '/' },
-    { icon: BookOpen, label: '学习', href: '/learn' },
-    { icon: FileText, label: '笔记', href: '/editor' },
-    { icon: Layers, label: '资源', href: '/resources' },
-  ]
+    { icon: Home, label: "首页", href: "/" },
+    { icon: BookOpen, label: "学习", href: "/learn" },
+    { icon: FileText, label: "笔记", href: "/editor" },
+    { icon: Layers, label: "资源", href: "/resources" },
+  ];
 
   return (
     <aside className="hidden md:flex flex-col w-64 h-screen sticky top-0 bg-surface-50/50 border-r border-border/5">
@@ -28,25 +28,25 @@ export function AppSidebar() {
 
       <nav className="flex-1 px-3 py-6 space-y-1">
         {navItems.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
-          const Icon = item.icon
+          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const Icon = item.icon;
 
           return (
             <Link
               key={item.href}
               href={item.href}
               className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-xl',
-                'transition-all duration-200',
+                "flex items-center gap-3 px-3 py-2.5 rounded-xl",
+                "transition-all duration-200",
                 isActive
-                  ? 'bg-primary text-primary-foreground font-medium'
-                  : 'text-foreground/70 hover:bg-foreground/5 hover:text-foreground'
+                  ? "bg-primary text-primary-foreground font-medium"
+                  : "text-foreground/70 hover:bg-foreground/5 hover:text-foreground",
               )}
             >
               <Icon className="w-5 h-5" />
               <span>{item.label}</span>
             </Link>
-          )
+          );
         })}
       </nav>
 
@@ -60,5 +60,5 @@ export function AppSidebar() {
         </Link>
       </div>
     </aside>
-  )
+  );
 }

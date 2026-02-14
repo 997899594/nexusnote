@@ -10,7 +10,7 @@ interface SummarySkeletonProps {
 
 export function SummarySkeleton({
   style = "bullet_points",
-  length = "medium"
+  length = "medium",
 }: SummarySkeletonProps) {
   const lines = {
     brief: 2,
@@ -29,12 +29,8 @@ export function SummarySkeleton({
           <FileText className="w-4 h-4 xs:w-5 xs:h-5 text-primary-foreground" />
         </div>
         <div>
-          <h3 className="text-xs xs:text-sm font-semibold text-foreground">
-            正在生成摘要
-          </h3>
-          <p className="text-[10px] xs:text-xs text-muted-foreground">
-            AI 正在提取关键信息...
-          </p>
+          <h3 className="text-xs xs:text-sm font-semibold text-foreground">正在生成摘要</h3>
+          <p className="text-[10px] xs:text-xs text-muted-foreground">AI 正在提取关键信息...</p>
         </div>
       </div>
 
@@ -59,9 +55,7 @@ export function SummarySkeleton({
                 className="space-y-2"
               >
                 <div className="h-3 xs:h-4 skeleton-gradient rounded w-full" />
-                {i < lines - 1 && (
-                  <div className="h-3 xs:h-4 skeleton-gradient rounded w-[80%]" />
-                )}
+                {i < lines - 1 && <div className="h-3 xs:h-4 skeleton-gradient rounded w-[80%]" />}
               </motion.div>
             ))}
           </div>
@@ -76,15 +70,11 @@ export function SummarySkeleton({
                 className="flex items-start gap-3"
               >
                 <div className="w-5 h-5 xs:w-6 xs:h-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                  <span className="text-[10px] xs:text-xs font-bold text-primary">
-                    {i + 1}
-                  </span>
+                  <span className="text-[10px] xs:text-xs font-bold text-primary">{i + 1}</span>
                 </div>
                 <div className="flex-1 space-y-2">
                   <div className="h-3 xs:h-4 skeleton-gradient rounded w-full" />
-                  {i % 2 === 0 && (
-                    <div className="h-3 xs:h-4 skeleton-gradient rounded w-[60%]" />
-                  )}
+                  {i % 2 === 0 && <div className="h-3 xs:h-4 skeleton-gradient rounded w-[60%]" />}
                 </div>
               </motion.div>
             ))}
@@ -102,9 +92,7 @@ export function SummarySkeleton({
                 <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0" />
                 <div className="flex-1 space-y-2">
                   <div className="h-3 xs:h-4 skeleton-gradient rounded w-full" />
-                  {i % 3 === 0 && (
-                    <div className="h-3 xs:h-4 skeleton-gradient rounded w-[70%]" />
-                  )}
+                  {i % 3 === 0 && <div className="h-3 xs:h-4 skeleton-gradient rounded w-[70%]" />}
                 </div>
               </motion.div>
             ))}
@@ -119,7 +107,10 @@ export function SummarySkeleton({
         className="mt-3 xs:mt-4 flex items-center gap-2 text-[10px] xs:text-xs text-muted-foreground"
       >
         <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-        <span>正在分析原文并提取 {length === 'brief' ? '简要' : length === 'detailed' ? '详细' : '适中'}摘要...</span>
+        <span>
+          正在分析原文并提取 {length === "brief" ? "简要" : length === "detailed" ? "详细" : "适中"}
+          摘要...
+        </span>
       </motion.div>
     </motion.div>
   );

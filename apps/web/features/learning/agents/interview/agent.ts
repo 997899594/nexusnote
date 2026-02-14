@@ -11,9 +11,9 @@
 
 import { type InferAgentUIMessage, type LanguageModel, stepCountIs, ToolLoopAgent } from "ai";
 import { z } from "zod";
+import { interviewTools } from "@/features/learning/tools/interview";
 import { buildInterviewPrompt } from "@/features/shared/ai/prompts/interview";
 import { registry } from "@/features/shared/ai/registry";
-import { interviewTools } from "@/features/learning/tools/interview";
 
 const interviewModel = registry.chatModel;
 

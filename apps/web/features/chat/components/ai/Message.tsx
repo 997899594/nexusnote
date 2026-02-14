@@ -11,7 +11,12 @@ import { createContext, memo, useContext, useEffect, useState } from "react";
 import { Streamdown } from "streamdown";
 import { ButtonGroup, ButtonGroupText } from "@/features/shared/components/ui/ButtonGroup";
 import { Button } from "@/features/shared/components/ui/button";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/features/shared/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/features/shared/components/ui/tooltip";
 import { cn } from "@/features/shared/utils";
 
 export type MessageProps = HTMLAttributes<HTMLDivElement> & {

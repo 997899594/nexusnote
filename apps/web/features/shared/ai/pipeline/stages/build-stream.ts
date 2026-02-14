@@ -5,7 +5,7 @@
  */
 
 import { smoothStream } from "ai";
-import type { PipelineContext, PipelineStage } from "../types";
+import type { PipelineStage } from "../types";
 
 export const buildStreamStage: PipelineStage = {
   name: "build-stream",

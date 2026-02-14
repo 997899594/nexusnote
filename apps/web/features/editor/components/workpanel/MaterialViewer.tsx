@@ -21,8 +21,8 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getDocumentAction } from "@/features/editor/actions/document";
 import { GhostFlight } from "@/features/editor/components/GhostFlight";
-import type { DocumentDTO } from "@/lib/actions/types";
 import { markdownToHtml } from "@/features/editor/core/markdown";
+import type { DocumentDTO } from "@/lib/actions/types";
 import { useNoteExtractionOptional } from "@/lib/store";
 
 interface MaterialViewerProps {

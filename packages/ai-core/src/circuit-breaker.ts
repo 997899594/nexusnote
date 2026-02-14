@@ -69,9 +69,7 @@ export class CircuitBreaker {
 
     if (this.failures >= this.config.failureThreshold) {
       this.state = "open";
-      console.warn(
-        `[CircuitBreaker] ${this.name} 熔断：连续失败 ${this.failures} 次`,
-      );
+      console.warn(`[CircuitBreaker] ${this.name} 熔断：连续失败 ${this.failures} 次`);
     }
   }
 

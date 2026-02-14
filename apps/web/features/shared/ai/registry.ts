@@ -10,8 +10,8 @@
  */
 
 import { createOpenAI, type OpenAIProvider } from "@ai-sdk/openai";
-import { clientEnv, env } from "@nexusnote/config";
 import type { LanguageModelV3 } from "@ai-sdk/provider";
+import { clientEnv, env } from "@nexusnote/config";
 import {
   addToolInputExamplesMiddleware,
   type EmbeddingModel,
@@ -120,11 +120,10 @@ export interface AIRegistry {
  */
 function initializeRegistry(): AIRegistry {
   // 1. 检测所有有 API Key 的 provider，按优先级排序
-  const providers: InitializedProvider[] = PROVIDER_DEFINITIONS
-    .filter((def) => {
-      const key = def.envKey();
-      return key && key.length > 0;
-    })
+  const providers: InitializedProvider[] = PROVIDER_DEFINITIONS.filter((def) => {
+    const key = def.envKey();
+    return key && key.length > 0;
+  })
     .sort((a, b) => a.priority - b.priority)
     .map((def) => ({
       definition: def,
@@ -141,7 +140,7 @@ function initializeRegistry(): AIRegistry {
   if (typeof window === "undefined") {
     console.log(`[AI Registry] ${providers.length} 个 provider 可用:`);
     for (const p of providers) {
-      const masked = p.definition.envKey().slice(0, 8) + "...";
+      const masked = `${p.definition.envKey().slice(0, 8)}...`;
       console.log(`  - ${p.definition.name} (优先级 ${p.definition.priority}, key=${masked})`);
     }
   }
@@ -164,26 +163,18 @@ function initializeRegistry(): AIRegistry {
   const proFallback = buildFallbackChain(providers, "pro");
 
   // 3. 应用中间件（包装在 fallback model 外层，只需定义一次）
-  const chatModel = chatFallback
-    ? withStandardMiddleware(chatFallback)
-    : null;
+  const chatModel = chatFallback ? withStandardMiddleware(chatFallback) : null;
 
-  const courseModel = proFallback
-    ? withReasoningMiddleware(proFallback)
-    : null;
+  const courseModel = proFallback ? withReasoningMiddleware(proFallback) : null;
 
   // 4. Web Search — 只有部分 provider 支持，不做 fallback（降级为无搜索）
-  const webSearchProvider = providers.find(
-    (p) => p.definition.models.webSearch !== null,
-  );
+  const webSearchProvider = providers.find((p) => p.definition.models.webSearch !== null);
   const webSearchModel = webSearchProvider
     ? webSearchProvider.client.chat(webSearchProvider.definition.models.webSearch!)
     : null;
 
   // 5. Embedding — 只有部分 provider 支持
-  const embeddingProvider = providers.find(
-    (p) => p.definition.models.embedding !== null,
-  );
+  const embeddingProvider = providers.find((p) => p.definition.models.embedding !== null);
   const embeddingModel = embeddingProvider
     ? embeddingProvider.client.embedding(
         clientEnv.EMBEDDING_MODEL || embeddingProvider.definition.models.embedding!,
@@ -306,9 +297,7 @@ export function getEmbeddingConfig() {
 // ============================================
 
 if (typeof window === "undefined" && registry.providers.length > 0) {
-  const fallbackChain = registry.providers
-    .map((p) => p.definition.name)
-    .join(" → ");
+  const fallbackChain = registry.providers.map((p) => p.definition.name).join(" → ");
   console.log(`[AI Registry] Fallback chain: ${fallbackChain}`);
   console.log(`  - Chat: ${registry.chatModel ? "Ready" : "N/A"}`);
   console.log(`  - Course: ${registry.courseModel ? "Ready" : "N/A"}`);

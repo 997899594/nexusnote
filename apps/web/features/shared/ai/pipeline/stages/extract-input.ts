@@ -3,7 +3,7 @@
  */
 
 import { convertToModelMessages } from "ai";
-import type { PipelineContext, PipelineStage } from "../types";
+import type { PipelineStage } from "../types";
 
 export const extractInputStage: PipelineStage = {
   name: "extract-input",
