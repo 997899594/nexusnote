@@ -41,6 +41,7 @@ spec:
         mode: Terminate
         certificateRefs:
           - name: nexusnote-tls
+            group: ""
             kind: Secret
 
 ---
@@ -57,6 +58,7 @@ spec:
   parentRefs:
     - name: nexusnote-gateway
       namespace: {{ .Values.namespace }}
+      group: gateway.networking.k8s.io
       kind: Gateway
       # 只绑定 HTTPS listener，HTTP 由 nexusnote-redirect 处理重定向
       # cert-manager solver 的 Exact 匹配优先于重定向的 PathPrefix
@@ -71,7 +73,10 @@ spec:
             value: /collab
       backendRefs:
         - name: nexusnote-collab
+          group: ""
+          kind: Service
           port: {{ .Values.env.HOCUSPOCUS_PORT | default 1234 }}
+          weight: 1
     # 主应用路由
     - matches:
         - path:
@@ -79,7 +84,10 @@ spec:
             value: /
       backendRefs:
         - name: nexusnote-web
+          group: ""
+          kind: Service
           port: {{ .Values.env.PORT | default 3000 }}
+          weight: 1
 
 ---
 # HTTP 到 HTTPS 重定向
@@ -96,12 +104,17 @@ spec:
   parentRefs:
     - name: nexusnote-gateway
       namespace: {{ .Values.namespace }}
+      group: gateway.networking.k8s.io
       kind: Gateway
       sectionName: http
   hostnames:
     - {{ include "nexusnote.hostname" . | quote }}
   rules:
-    - filters:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      filters:
         - type: RequestRedirect
           requestRedirect:
             scheme: https

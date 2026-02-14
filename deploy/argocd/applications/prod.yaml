@@ -69,6 +69,7 @@ spec:
       jqPathExpressions:
         - .spec.rules[]?.matches[]?.method
         - .metadata.annotations
+        - .status
     # cert-manager 控制器注入的字段
     - group: cert-manager.io
       kind: Certificate
