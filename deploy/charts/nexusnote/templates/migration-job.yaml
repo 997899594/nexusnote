@@ -1,8 +1,8 @@
 # ===========================================
-# Database Migration Job - ArgoCD PreSync Hook
+# Database Migration Job - ArgoCD Sync Wave
 # ===========================================
-# 使用 PreSync hook 确保在 Deployment 之前运行
-# HookSucceeded 策略：成功后自动清理，不会报 Missing
+# sync-wave: "-1" 在 InfisicalSecret (wave -2) 之后、Deployment (wave 0) 之前运行
+# Replace=true: 每次同步时先删除旧 Job 再创建新的，避免 Job 不可变字段冲突
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -11,8 +11,8 @@ metadata:
   labels:
     {{- include "nexusnote.labels" . | nindent 4 }}
   annotations:
-    argocd.argoproj.io/hook: PreSync
-    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "-1"
+    argocd.argoproj.io/sync-options: Replace=true
 spec:
   backoffLimit: 3
   template:
