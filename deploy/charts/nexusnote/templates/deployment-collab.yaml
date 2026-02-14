@@ -40,7 +40,7 @@ spec:
         - name: app
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["dumb-init", "--", "node", "apps/web/hocuspocus.js"]
+          command: ["dumb-init", "--", "node", "apps/collab/collab.js"]
           ports:
             - name: collab
               containerPort: {{ .Values.env.HOCUSPOCUS_PORT | default 1234 }}

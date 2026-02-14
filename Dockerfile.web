@@ -14,7 +14,7 @@ COPY . .
 
 # 提取 @nexusnote/web 和 db 构建所需的最小文件集
 # turbo prune 会自动包含所有依赖包，只需指定入口
-RUN turbo prune --scope=@nexusnote/web --scope=@nexusnote/db --docker
+RUN turbo prune --scope=@nexusnote/web --scope=@nexusnote/collab --scope=@nexusnote/db --docker
 
 # ============================================
 # Stage 2: Install - 安装依赖
@@ -51,14 +51,15 @@ ENV SKIP_ENV_VALIDATION=true
 RUN turbo build --filter=@nexusnote/web
 
 # ============================================
-# Build Hocuspocus and Worker
+# Build Collab and Worker
 # ============================================
-RUN pnpm --filter @nexusnote/web exec esbuild src/server/hocuspocus.ts \
+RUN pnpm --filter @nexusnote/web exec esbuild \
+  ../../apps/collab/src/index.ts \
   --bundle \
   --platform=node \
   --minify \
   --target=node22 \
-  --outfile=hocuspocus.js
+  --outfile=../../apps/collab/collab.js
 
 RUN pnpm --filter @nexusnote/web exec esbuild src/queue/worker.ts \
   --bundle \
@@ -91,8 +92,8 @@ RUN apk add --no-cache dumb-init \
 # 复制构建产物
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
 
-# 复制 Hocuspocus 和 Worker
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/hocuspocus.js ./apps/web/
+# 复制 Collab 和 Worker
+COPY --from=builder --chown=nextjs:nodejs /app/apps/collab/collab.js ./apps/collab/
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/worker.js ./apps/web/
 
 # 复制迁移工具（pnpm deploy 打包的 @nexusnote/db 完整依赖子集）
@@ -108,7 +109,7 @@ COPY --chown=nextjs:nodejs apps/web/package.json ./apps/web/
 
 USER nextjs
 
-EXPOSE 3000 1234
+EXPOSE 3000
 
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
