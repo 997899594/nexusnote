@@ -19,6 +19,7 @@ metadata:
     {{- include "nexusnote.labels" . | nindent 4 }}
   annotations:
     argocd.argoproj.io/sync-wave: "-2"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true,SkipHealthCheck=true
 spec:
   accessModes:
     - ReadWriteOnce
@@ -38,6 +39,7 @@ metadata:
     {{- include "nexusnote.labels" . | nindent 4 }}
   annotations:
     argocd.argoproj.io/sync-wave: "-2"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true,SkipHealthCheck=true
 spec:
   accessModes:
     - ReadWriteOnce
