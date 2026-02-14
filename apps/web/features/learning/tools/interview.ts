@@ -39,8 +39,6 @@ export const presentOptionsTool = tool({
 
     multiSelect: z.boolean().optional().describe("是否多选，可选"),
   }),
-
-  execute: async () => ({ status: "ui_rendered" }),
 });
 
 // updateProfile 和 resetField 工具已删除
