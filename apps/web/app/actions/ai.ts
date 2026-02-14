@@ -7,11 +7,7 @@ import { Queue } from "bullmq";
 import IORedis from "ioredis";
 import { v4 as uuidv4 } from "uuid";
 import { z } from "zod";
-import {
-  AIGatewayService,
-  type AIRequest,
-  AIRequestSchema,
-} from "@/features/shared/ai/gateway/service";
+
 import { createTelemetryConfig } from "@/features/shared/ai/langfuse";
 import { checkRateLimit } from "@/features/shared/ai/rate-limit";
 import { isAIConfigured, registry } from "@/features/shared/ai/registry";
@@ -263,27 +259,3 @@ export async function generateDocAction(body: {
   return result.toTextStreamResponse();
 }
 
-/**
- * AI Gateway Server Action (Legacy/Bridge)
- * 2026 架构师建议：流式对话应优先使用 /api/ai Route Handler
- * 这里的 Action 仅作为非流式任务或旧版代码的桥接
- */
-export async function aiGatewayAction(input: AIRequest): Promise<Response> {
-  console.log("[aiGatewayAction] Starting...");
-  console.log("[aiGatewayAction] Input messages:", input.messages?.length);
-  console.log("[aiGatewayAction] Input context:", JSON.stringify(input.context, null, 2));
-
-  const { userId } = await requireAuthWithRateLimit(checkRateLimit);
-
-  console.log("[aiGatewayAction] userId:", userId);
-
-  const parseResult = AIRequestSchema.safeParse(input);
-  if (!parseResult.success) {
-    console.error("[aiGatewayAction] Schema parse error:", parseResult.error);
-    throw new Error(`Invalid request: ${parseResult.error.message}`);
-  }
-
-  console.log("[aiGatewayAction] Schema parsed successfully");
-
-  return AIGatewayService.handleRequest(parseResult.data, { userId });
-}
