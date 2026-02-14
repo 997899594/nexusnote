@@ -206,13 +206,16 @@ nexusnote/
 │       │   ├── queue/                # BullMQ RAG worker
 │       │   ├── lib/                  # Utilities, AI, storage
 │       │   └── components/           # React components
-│       └── Dockerfile                # Multi-stage Docker build
 │
 ├── packages/
 │   ├── db/                           # Drizzle ORM + migrations
 │   ├── config/                       # Shared env config (Zod)
 │   ├── types/                        # Shared TypeScript types
 │   └── ui/                           # Shared UI components
+│
+├── Dockerfile.web                    # Multi-stage Docker build for web app
+├── docker-bake.hcl                   # BuildKit multi-target config
+├── docker-compose.yml                # Local development stack
 │
 ├── deploy/
 │   ├── argocd/                       # ArgoCD GitOps config

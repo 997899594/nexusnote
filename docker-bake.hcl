@@ -1,5 +1,6 @@
 # ============================================
 # Docker BuildKit 构建配置
+# Monorepo 最佳实践：所有 Dockerfile 放在根目录
 # ============================================
 
 variable "REGISTRY" {
@@ -7,12 +8,14 @@ variable "REGISTRY" {
 }
 
 # ============================================
-# 目标定义
+# Web 应用构建目标
 # ============================================
-target "default" {
-  dockerfile = "apps/web/Dockerfile"
+target "web" {
+  dockerfile = "Dockerfile.web"
+  context = "."
   tags = [
-    "${REGISTRY}/nexusnote:latest"
+    "${REGISTRY}/nexusnote:latest",
+    "${REGISTRY}/nexusnote-web:latest"
   ]
   cache-from = [
     "type=registry,ref=${REGISTRY}/nexusnote:buildcache",
@@ -24,8 +27,13 @@ target "default" {
   ]
 }
 
+# 默认目标（兼容旧脚本）
+target "default" {
+  inherits = ["web"]
+}
+
 # 多平台构建
 target "multi" {
-  inherits = ["default"]
+  inherits = ["web"]
   platforms = ["linux/amd64", "linux/arm64"]
 }

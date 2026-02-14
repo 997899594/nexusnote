@@ -13,7 +13,8 @@ RUN npm install -g turbo@^2.0.0
 COPY . .
 
 # 提取 @nexusnote/web 和 db 构建所需的最小文件集
-RUN turbo prune --scope=@nexusnote/web --scope=@nexusnote/db --scope=@nexusnote/config --scope=@nexusnote/types --scope=@nexusnote/ai-core --scope=@nexusnote/fsrs --docker
+# turbo prune 会自动包含所有依赖包，只需指定入口
+RUN turbo prune --scope=@nexusnote/web --scope=@nexusnote/db --docker
 
 # ============================================
 # Stage 2: Install - 安装依赖
@@ -35,6 +36,9 @@ RUN pnpm install --frozen-lockfile --prod=false
 # ============================================
 FROM installer AS builder
 
+# 安装 turbo（继承自 installer，需要重新安装）
+RUN npm install -g turbo@^2.0.0
+
 # 复制 prune 生成的源码集合（只包含相关 package）
 COPY --from=pruner /app/out/full ./
 
@@ -43,14 +47,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 ENV SKIP_ENV_VALIDATION=true
 
-# 构建所有包（按依赖顺序）
-RUN pnpm --filter @nexusnote/types build
-RUN pnpm --filter @nexusnote/config build
-RUN pnpm --filter @nexusnote/fsrs build
-RUN pnpm --filter @nexusnote/ai-core build
-RUN pnpm --filter @nexusnote/db build
-RUN pnpm --filter @nexusnote/ui build
-RUN pnpm --filter @nexusnote/web build
+# 使用 Turbo 自动构建所有依赖（自动解析依赖顺序、并行构建、缓存）
+RUN turbo build --filter=@nexusnote/web
 
 # ============================================
 # Build Hocuspocus and Worker

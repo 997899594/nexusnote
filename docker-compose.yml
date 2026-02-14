@@ -44,7 +44,7 @@ services:
   app:
     build:
       context: .
-      dockerfile: apps/web/Dockerfile
+      dockerfile: Dockerfile.web
     container_name: nexusnote-app
     restart: unless-stopped
     environment:
