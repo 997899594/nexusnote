@@ -9,7 +9,7 @@
  * 4. 可观测性 - 集成 Langfuse 追踪
  */
 
-import { type InferAgentUIMessage, type LanguageModel, stepCountIs, ToolLoopAgent } from "ai";
+import { type InferAgentUIMessage, type LanguageModel, type ModelMessage, stepCountIs, ToolLoopAgent } from "ai";
 import { z } from "zod";
 import { interviewTools } from "@/features/learning/tools/interview";
 import { buildInterviewPrompt } from "@/features/shared/ai/prompts/interview";
@@ -40,81 +40,28 @@ export const InterviewContextSchema = z.object({
 
 export type InterviewContext = z.infer<typeof InterviewContextSchema>;
 
-/**
- * Interview Agent 定义
- *
- * 与 Chat Agent 保持一致的架构模式
- * 集成 extractReasoningMiddleware 显示 AI 的思考过程
- */
+const InterviewCallOptionsSchema = z.object({
+  userId: z.string().optional().describe("从 session 获取的用户 ID"),
+});
 
-/**
- * Interview Agent 定义
- *
- * chatModel 已在 registry 中通过 wrapLanguageModel 应用了推理中间件
- * 无需再次包装，直接使用即可
- */
 export const interviewAgent = new ToolLoopAgent({
   id: "nexusnote-interview",
-  model: interviewModel as LanguageModel, // 运行时会检查，构建时使用类型断言
+  model: interviewModel as LanguageModel,
   tools: interviewTools,
   maxOutputTokens: 4096,
-  callOptionsSchema: InterviewContextSchema,
+  callOptionsSchema: InterviewCallOptionsSchema,
 
-  /**
-   * prepareCall: 核心逻辑
-   * 在每次 AI 调用前，动态构建 instructions
-   */
-  prepareCall: ({ options, ...rest }) => {
-    const callOptions = (options ?? {}) as InterviewContext;
-    const callId = crypto.randomUUID().slice(0, 8);
+  prepareCall: ({ messages, ...rest }) => {
+    const context = extractContextFromMessages(messages ?? []);
+    const instructions = buildInterviewPrompt(context);
 
-    console.log(
-      `[Interview Agent.${callId}] prepareCall called with options:`,
-      JSON.stringify(callOptions, null, 2),
-    );
-    console.log(`[Interview Agent.${callId}] rest keys:`, Object.keys(rest));
+    const hasAllInfo =
+      Boolean(context.goal) &&
+      Boolean(context.background) &&
+      Boolean(context.targetOutcome) &&
+      Boolean(context.cognitiveStyle);
 
-    // L1: 动态构建 System Prompt
-    // 这里是"代码控流"的关键：根据数据缺口注入不同的指令
-    const instructions = buildInterviewPrompt(callOptions);
-
-    console.log(
-      `[Interview Agent.${callId}] Generated instructions (first 500 chars):`,
-      instructions.slice(0, 500),
-    );
-    console.log(`[Interview Agent.${callId}] Tools available:`, Object.keys(interviewTools));
-
-    // 检测当前阶段
-    const hasGoal = Boolean(callOptions.goal);
-    const hasBackground = Boolean(callOptions.background);
-    const hasTargetOutcome = Boolean(callOptions.targetOutcome);
-    const hasCognitiveStyle = Boolean(callOptions.cognitiveStyle);
-    const hasAllInfo = hasGoal && hasBackground && hasTargetOutcome && hasCognitiveStyle;
-
-    console.log(`[Interview Agent.${callId}] Phase detection:`, {
-      hasGoal,
-      hasBackground,
-      hasTargetOutcome,
-      hasCognitiveStyle,
-      hasAllInfo,
-    });
-    console.log(
-      `[Interview Agent.${callId}] User Profile Summary:`,
-      JSON.stringify(
-        {
-          goal: callOptions.goal,
-          background: callOptions.background,
-          targetOutcome: callOptions.targetOutcome,
-          cognitiveStyle: callOptions.cognitiveStyle,
-        },
-        null,
-        2,
-      ),
-    );
-
-    // Phase 4: 信息收集完毕，强制调用 generateOutline
     if (hasAllInfo) {
-      console.log(`[Interview Agent.${callId}] ✅ All info collected, FORCING generateOutline`);
       return {
         ...rest,
         instructions,
@@ -124,29 +71,63 @@ export const interviewAgent = new ToolLoopAgent({
       };
     }
 
-    // Phase 1-3: 首次消息必须调用 presentOptions
-    const isFirstMessage = !callOptions.goal && !callOptions.background;
-
-    if (isFirstMessage) {
-      console.log(`[Interview Agent.${callId}] 🔄 First message, FORCING presentOptions`);
-      return {
-        ...rest,
-        instructions,
-        temperature: 0.7,
-        toolChoice: { type: "tool", toolName: "presentOptions" },
-        stopWhen: stepCountIs(1),
-      };
-    }
-
-    console.log(`[Interview Agent.${callId}] 🔄 Continuing conversation`);
-    return {
-      ...rest,
-      instructions,
-      temperature: 0.7,
-      stopWhen: stepCountIs(1),
-    };
+    return { ...rest, instructions, temperature: 0.7 };
   },
 });
+
+/**
+ * 从消息历史中解析 presentOptions 的 tool result，重建用户选择
+ *
+ * 遍历所有 tool role 消息，找到 presentOptions 的 tool-result，
+ * 提取 selected 和 targetField 字段，填充 InterviewContext。
+ */
+export function extractContextFromMessages(messages: ModelMessage[]): InterviewContext {
+  const context: InterviewContext = {
+    goal: "",
+    background: "",
+    targetOutcome: "",
+    cognitiveStyle: "",
+  };
+
+  for (const msg of messages) {
+    if (msg.role !== "tool" || !Array.isArray(msg.content)) continue;
+
+    for (const part of msg.content) {
+      if (part.type !== "tool-result" || part.toolName !== "presentOptions") continue;
+
+      try {
+        let parsed: Record<string, unknown>;
+        const output = part.output as { type: string; value: unknown };
+
+        if (output.type === "json") {
+          parsed = output.value as Record<string, unknown>;
+        } else if (output.type === "text") {
+          parsed = JSON.parse(output.value as string);
+        } else {
+          continue;
+        }
+
+        const { selected, targetField } = parsed as {
+          selected?: string;
+          targetField?: string;
+        };
+
+        if (
+          selected &&
+          targetField &&
+          targetField !== "general" &&
+          targetField in context
+        ) {
+          context[targetField as keyof Pick<InterviewContext, "goal" | "background" | "targetOutcome" | "cognitiveStyle">] = selected;
+        }
+      } catch {
+        // Skip malformed tool results
+      }
+    }
+  }
+
+  return context;
+}
 
 /**
  * 导出类型：客户端 useChat 泛型参数
