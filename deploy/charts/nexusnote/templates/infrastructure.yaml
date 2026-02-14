@@ -12,6 +12,7 @@ metadata:
   labels:
     {{- include "nexusnote.labels" . | nindent 4 }}
   annotations:
+    argocd.argoproj.io/sync-wave: "-1"
     # 使用集群级 ClusterIssuer（在 deploy/infra/cert-manager/ 中定义）
     cert-manager.io/cluster-issuer: letsencrypt-prod
     # Cilium LB-IPAM 配置
@@ -50,6 +51,8 @@ metadata:
   namespace: {{ .Values.namespace }}
   labels:
     {{- include "nexusnote.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
 spec:
   parentRefs:
     - name: nexusnote-gateway
@@ -87,6 +90,8 @@ metadata:
   namespace: {{ .Values.namespace }}
   labels:
     {{- include "nexusnote.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
 spec:
   parentRefs:
     - name: nexusnote-gateway

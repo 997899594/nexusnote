@@ -10,6 +10,8 @@ metadata:
   labels:
     app: postgres-backup
     {{- include "nexusnote.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
 spec:
   schedule: "0 2 * * *"
   concurrencyPolicy: Forbid
@@ -72,6 +74,8 @@ metadata:
   labels:
     app: postgres-backup
     {{- include "nexusnote.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-3"
 spec:
   accessModes:
     - ReadWriteOnce

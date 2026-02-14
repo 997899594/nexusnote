@@ -9,6 +9,8 @@ metadata:
   labels:
     app: nexusnote-worker
     {{- include "nexusnote.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
 spec:
   replicas: {{ .Values.services.worker.replicaCount }}
   strategy:

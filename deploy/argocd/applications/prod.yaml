@@ -42,6 +42,7 @@ spec:
       - PrunePropagationPolicy=foreground
       - PruneLast=true
       - ServerSideApply=true
+      - RespectIgnoreDifferences=true
     retry:
       limit: 5
       backoff:
@@ -56,12 +57,19 @@ spec:
       jsonPointers:
         - /spec/template/spec/containers/0/image
         - /spec/template/spec/initContainers/0/image
+    - group: batch
+      kind: Job
+      jsonPointers:
+        - /spec/template/spec/containers/0/image
+        - /spec/template/spec/initContainers/0/image
+        - /spec/template/spec/initContainers/1/image
     # Gateway API 控制器注入的默认字段
     - group: gateway.networking.k8s.io
       kind: Gateway
       jqPathExpressions:
         - .spec.listeners[]?.allowedRoutes
         - .metadata.annotations
+        - .status
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
       jqPathExpressions:
@@ -72,8 +80,13 @@ spec:
       kind: Certificate
       jsonPointers:
         - /status
-    # PVC 的 storage 可能被 StorageClass 修改
+    # PVC 被 StorageClass/provisioner 修改的字段
     - kind: PersistentVolumeClaim
       jsonPointers:
         - /spec/volumeMode
         - /spec/volumeName
+    # Infisical Operator 控制器字段
+    - group: secrets.infisical.com
+      kind: InfisicalSecret
+      jsonPointers:
+        - /status

@@ -1,7 +1,7 @@
 # ===========================================
 # Database Migration Job - ArgoCD Sync Wave
 # ===========================================
-# sync-wave: "-1" 在 InfisicalSecret (wave -2) 之后、Deployment (wave 0) 之前运行
+# sync-wave: "1" 在数据库 (wave -2) 就绪后、Deployment (wave 2) 之前运行
 # Replace=true: 每次同步时先删除旧 Job 再创建新的，避免 Job 不可变字段冲突
 apiVersion: batch/v1
 kind: Job
@@ -11,7 +11,7 @@ metadata:
   labels:
     {{- include "nexusnote.labels" . | nindent 4 }}
   annotations:
-    argocd.argoproj.io/sync-wave: "-1"
+    argocd.argoproj.io/sync-wave: "1"
     argocd.argoproj.io/sync-options: Replace=true
 spec:
   backoffLimit: 3
@@ -37,6 +37,34 @@ spec:
               done
               echo "Secrets available."
           envFrom:
+            - secretRef:
+                name: nexusnote-secrets
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+        - name: wait-for-db
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Waiting for PostgreSQL..."
+              until node -e "
+                const net = require('net');
+                const s = new net.Socket();
+                s.connect({{ .Values.database.port }}, '{{ .Values.database.host }}', () => { s.end(); process.exit(0); });
+                s.on('error', () => process.exit(1));
+                setTimeout(() => process.exit(1), 3000);
+              "; do
+                echo "PostgreSQL not ready, retrying..."
+                sleep 3
+              done
+              echo "PostgreSQL is ready."
+          envFrom:
+            - configMapRef:
+                name: nexusnote-config
             - secretRef:
                 name: nexusnote-secrets
           securityContext:

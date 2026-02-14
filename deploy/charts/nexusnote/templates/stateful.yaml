@@ -1,6 +1,11 @@
 # ===========================================
 # NexusNote Stateful Services (PostgreSQL + Redis)
 # ===========================================
+# sync-wave 顺序：
+#   wave -3: PVCs（和 ConfigMap、InfisicalSecret 同步）
+#   wave -2: StatefulSets + Services（等 PVC 就绪后启动 DB/Redis）
+#   wave  1: Migration Job（等 DB ready 后执行）
+#   wave  2: Deployments
 
 ---
 # PostgreSQL PVC
@@ -12,6 +17,8 @@ metadata:
   labels:
     app: postgres
     {{- include "nexusnote.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-3"
 spec:
   accessModes:
     - ReadWriteOnce
@@ -29,6 +36,8 @@ metadata:
   labels:
     app: redis
     {{- include "nexusnote.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-3"
 spec:
   accessModes:
     - ReadWriteOnce
@@ -46,6 +55,8 @@ metadata:
   labels:
     app: postgres
     {{- include "nexusnote.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
 spec:
   serviceName: {{ .Values.database.host }}
   replicas: 1
@@ -121,6 +132,8 @@ metadata:
   labels:
     app: postgres
     {{- include "nexusnote.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
 spec:
   type: ClusterIP
   selector:
@@ -141,6 +154,8 @@ metadata:
   labels:
     app: redis
     {{- include "nexusnote.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
 spec:
   serviceName: {{ .Values.redis.host }}
   replicas: 1
@@ -216,6 +231,8 @@ metadata:
   labels:
     app: redis
     {{- include "nexusnote.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
 spec:
   type: ClusterIP
   selector:
