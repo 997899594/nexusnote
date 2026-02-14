@@ -3,7 +3,6 @@ import { auth } from "@/auth";
 import { chatAgent } from "@/features/chat/agents/chat-agent";
 import type { CourseGenerationContext } from "@/features/learning/agents/course-generation/agent";
 import { courseGenerationAgent } from "@/features/learning/agents/course-generation/agent";
-import type { InterviewContext } from "@/features/learning/agents/interview/agent";
 import { interviewAgent } from "@/features/learning/agents/interview/agent";
 
 export const runtime = "nodejs";
@@ -16,10 +15,9 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { messages, explicitIntent, interviewContext, courseGenerationContext } = body as {
+  const { messages, explicitIntent, courseGenerationContext } = body as {
     messages: unknown[];
     explicitIntent?: "INTERVIEW" | "CHAT" | "EDITOR" | "SEARCH" | "COURSE_GENERATION";
-    interviewContext?: InterviewContext;
     courseGenerationContext?: Record<string, unknown>;
   };
 
@@ -29,17 +27,10 @@ export async function POST(request: Request) {
   // 根据意图选择对应的 agent
   switch (intent) {
     case "INTERVIEW": {
-      const options: InterviewContext & { userId: string } = {
-        goal: interviewContext?.goal ?? "",
-        background: interviewContext?.background ?? "",
-        targetOutcome: interviewContext?.targetOutcome ?? "",
-        cognitiveStyle: interviewContext?.cognitiveStyle ?? "",
-        userId,
-      };
       return createAgentUIStreamResponse({
         agent: interviewAgent,
         uiMessages: messages,
-        options,
+        options: { userId },
         experimental_transform: smoothStream({
           chunking: new Intl.Segmenter("zh-CN", { granularity: "grapheme" }),
         }),
