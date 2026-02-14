@@ -1,0 +1,22 @@
+# ===========================================
+# ArgoCD Image Updater CR (v1.x CRD-based)
+# ===========================================
+# Replaces annotation-based configuration on Application resources.
+# Monitors ghcr.io/997899594/nexusnote:latest digest changes
+# and triggers ArgoCD sync when a new image is pushed.
+apiVersion: argocd-image-updater.argoproj.io/v1alpha1
+kind: ImageUpdater
+metadata:
+  name: nexusnote-image-updater
+  namespace: argocd
+spec:
+  namespace: argocd
+  commonUpdateSettings:
+    updateStrategy: "digest"
+    allowTags: "regexp:^latest$"
+    pullSecret: "pullsecret:argocd/github-registry"
+  applicationRefs:
+    - namePattern: "nexusnote-prod"
+      images:
+        - alias: "nexusnote"
+          imageName: "ghcr.io/997899594/nexusnote:latest"

@@ -83,7 +83,7 @@ safe_delete() {
 # 1. 安装 ArgoCD
 # ===========================================
 install_argocd() {
-    log_info "[1/7] 安装 ArgoCD..."
+    log_info "[1/10] 安装 ArgoCD..."
 
     if kubectl get deployment argocd-application-controller -n argocd &>/dev/null; then
         log_warn "ArgoCD 已安装，跳过"
@@ -102,10 +102,25 @@ install_argocd() {
 }
 
 # ===========================================
-# 2. 安装 Infisical Operator
+# 2. 安装 ArgoCD Image Updater
+# ===========================================
+install_image_updater() {
+    log_info "[2/10] 安装 ArgoCD Image Updater..."
+    if kubectl get deployment argocd-image-updater-controller -n argocd &>/dev/null; then
+        log_warn "ArgoCD Image Updater 已安装，跳过"
+        return
+    fi
+    kubectl apply -n argocd \
+        -f https://raw.githubusercontent.com/argoproj-labs/argocd-image-updater/stable/config/install.yaml
+    kubectl wait --for=condition=available deployment/argocd-image-updater-controller -n argocd --timeout=120s
+    log_success "ArgoCD Image Updater 安装完成"
+}
+
+# ===========================================
+# 3. 安装 Infisical Operator
 # ===========================================
 install_infisical_operator() {
-    log_info "[2/7] 安装 Infisical Operator..."
+    log_info "[3/10] 安装 Infisical Operator..."
 
     if kubectl get deployment -n infisical-operator-system -l app.kubernetes.io/name=secrets-operator &>/dev/null; then
         log_warn "Infisical Operator 已安装，跳过"
@@ -123,10 +138,10 @@ install_infisical_operator() {
 }
 
 # ===========================================
-# 3. 安装 Cert-Manager
+# 4. 安装 Cert-Manager
 # ===========================================
 install_cert_manager() {
-    log_info "[3/7] 安装 Cert-Manager..."
+    log_info "[4/10] 安装 Cert-Manager..."
 
     if kubectl get deployment cert-manager -n cert-manager &>/dev/null; then
         log_warn "Cert-Manager 已安装，跳过"
@@ -156,10 +171,10 @@ install_cert_manager() {
 }
 
 # ===========================================
-# 4. 创建 ArgoCD Project
+# 5. 创建 ArgoCD Project
 # ===========================================
 create_argocd_project() {
-    log_info "[4/7] 创建 ArgoCD Project..."
+    log_info "[5/10] 创建 ArgoCD Project..."
 
     kubectl apply -f - <<EOF >/dev/null
 apiVersion: argoproj.io/v1alpha1
@@ -183,10 +198,10 @@ EOF
 }
 
 # ===========================================
-# 5. 创建 Namespace
+# 6. 创建 Namespace
 # ===========================================
 create_namespace() {
-    log_info "[5/7] 创建 Namespace..."
+    log_info "[6/10] 创建 Namespace..."
 
     kubectl create namespace nexusnote --dry-run=client -o yaml | kubectl apply -f - >/dev/null
 
@@ -194,10 +209,10 @@ create_namespace() {
 }
 
 # ===========================================
-# 6. 配置 Git 凭证
+# 7. 配置 Git 凭证
 # ===========================================
 configure_git_credentials() {
-    log_info "[6/7] 配置 Git 凭证..."
+    log_info "[7/10] 配置 Git 凭证..."
 
     kubectl apply -f - <<EOF >/dev/null
 apiVersion: v1
@@ -218,10 +233,24 @@ EOF
 }
 
 # ===========================================
-# 7. 配置 Infisical 凭证
+# 8. 配置 GHCR Registry 凭证
+# ===========================================
+configure_registry_credentials() {
+    log_info "[8/10] 配置 GHCR Registry 凭证..."
+    kubectl create secret docker-registry github-registry \
+        --docker-server=ghcr.io \
+        --docker-username=${GITHUB_USERNAME} \
+        --docker-password=${GITHUB_TOKEN} \
+        --namespace=argocd \
+        --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+    log_success "GHCR Registry 凭证配置完成"
+}
+
+# ===========================================
+# 9. 配置 Infisical 凭证
 # ===========================================
 configure_infisical_credentials() {
-    log_info "[7/7] 配置 Infisical 凭证..."
+    log_info "[9/10] 配置 Infisical 凭证..."
 
     kubectl apply -f - <<EOF >/dev/null
 apiVersion: v1
@@ -239,10 +268,10 @@ EOF
 }
 
 # ===========================================
-# 8. 部署 Root App
+# 10. 部署 Root App
 # ===========================================
 deploy_root_app() {
-    log_info "[8/8] 部署 Root App..."
+    log_info "[10/10] 部署 Root App..."
 
     local root_app="$WORK_DIR/root-app.yaml"
     if [[ -f "$root_app" ]]; then
@@ -266,6 +295,10 @@ health_check() {
     kubectl get pods -n argocd -l app.kubernetes.io/name=argocd-server -o jsonpath='{.items[0].status.phase}' 2>/dev/null | grep -q "Running" \
         && echo -e "  ArgoCD:             ${GREEN}✅ Running${NC}" \
         || echo -e "  ArgoCD:             ${YELLOW}⏳ 启动中${NC}"
+
+    kubectl get pods -n argocd -l app.kubernetes.io/name=argocd-image-updater -o jsonpath='{.items[0].status.phase}' 2>/dev/null | grep -q "Running" \
+        && echo -e "  Image Updater:      ${GREEN}✅ Running${NC}" \
+        || echo -e "  Image Updater:      ${YELLOW}⏳ 启动中${NC}"
 
     kubectl get pods -n infisical-operator-system -l app.kubernetes.io/name=secrets-operator -o jsonpath='{.items[0].status.phase}' 2>/dev/null | grep -q "Running" \
         && echo -e "  Infisical Operator: ${GREEN}✅ Running${NC}" \
@@ -292,11 +325,13 @@ main() {
     check_env_vars
 
     install_argocd
+    install_image_updater
     install_infisical_operator
     install_cert_manager
     create_argocd_project
     create_namespace
     configure_git_credentials
+    configure_registry_credentials
     configure_infisical_credentials
     deploy_root_app
 

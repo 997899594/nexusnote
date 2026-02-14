@@ -1,20 +1,20 @@
 # ===========================================
-# Database Migration Job - ArgoCD Sync Wave
+# Database Migration Job - ArgoCD PreSync Hook
 # ===========================================
-# sync-wave: "-1" 确保在 Deployment (wave 0) 之前创建
-# 不使用 PreSync hook，避免失败时阻塞整个同步
+# 使用 PreSync hook 确保在 Deployment 之前运行
+# HookSucceeded 策略：成功后自动清理，不会报 Missing
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: nexusnote-db-migrate-{{ .Release.Revision | default "1" }}
+  name: nexusnote-db-migrate
   namespace: {{ .Values.namespace }}
   labels:
     {{- include "nexusnote.labels" . | nindent 4 }}
   annotations:
-    argocd.argoproj.io/sync-wave: "-1"
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 spec:
   backoffLimit: 3
-  ttlSecondsAfterFinished: 300
   template:
     spec:
       restartPolicy: Never

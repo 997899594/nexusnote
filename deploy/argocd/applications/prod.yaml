@@ -11,18 +11,7 @@ metadata:
     app.kubernetes.io/name: nexusnote
   finalizers:
     - resources-finalizer.argocd.argoproj.io
-  annotations:
-    # ===========================================
-    # ArgoCD Image Updater 配置
-    # ===========================================
-    # 监控的镜像列表
-    argocd-image-updater.argoproj.io/image-list: nexusnote=ghcr.io/997899594/nexusnote
-    # 更新策略：digest（监控镜像 digest 变化）
-    argocd-image-updater.argoproj.io/nexusnote.update-strategy: digest
-    # 只允许 latest tag
-    argocd-image-updater.argoproj.io/nexusnote.allow-tags: "regexp:^latest$"
-    # GitHub Registry 认证
-    argocd-image-updater.argoproj.io/nexusnote.pull-secret: secret:argocd/github-registry#dockerconfigjson
+  # Image Updater configuration moved to deploy/argocd/image-updater.yaml (v1.x CRD)
 spec:
   project: nexusnote
 
@@ -60,10 +49,31 @@ spec:
         factor: 2
         maxDuration: 3m
 
-  # 忽略镜像差异（Image Updater 会动态更新）
   ignoreDifferences:
+    # Image Updater 动态更新镜像
     - group: apps
       kind: Deployment
       jsonPointers:
         - /spec/template/spec/containers/0/image
         - /spec/template/spec/initContainers/0/image
+    # Gateway API 控制器注入的默认字段
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      jqPathExpressions:
+        - .spec.listeners[]?.allowedRoutes
+        - .metadata.annotations
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      jqPathExpressions:
+        - .spec.rules[]?.matches[]?.method
+        - .metadata.annotations
+    # cert-manager 控制器注入的字段
+    - group: cert-manager.io
+      kind: Certificate
+      jsonPointers:
+        - /status
+    # PVC 的 storage 可能被 StorageClass 修改
+    - kind: PersistentVolumeClaim
+      jsonPointers:
+        - /spec/volumeMode
+        - /spec/volumeName
