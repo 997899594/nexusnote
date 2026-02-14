@@ -30,8 +30,8 @@ interface CreatePageContentProps {
 }
 
 function CreatePageContent({ initialGoal, userId }: CreatePageContentProps) {
-  const { state, ui, actions } = useCourseGeneration(initialGoal, userId);
-  const { phase, goal, context, nodes, outline } = state;
+  const { state, interviewContext, ui, actions } = useCourseGeneration(initialGoal, userId);
+  const { phase, goal, nodes, outline } = state;
   const {
     userInput,
     setUserInput,
@@ -42,7 +42,7 @@ function CreatePageContent({ initialGoal, userId }: CreatePageContentProps) {
     messages,
     error,
   } = ui;
-  const { handleSendMessage, confirmOutline, retry } = actions;
+  const { handleSendMessage, handleOptionSelect, confirmOutline, retry } = actions;
 
   // Track course profile save
   const [courseId, _setCourseId] = useState<string | null>(null);
@@ -78,8 +78,9 @@ function CreatePageContent({ initialGoal, userId }: CreatePageContentProps) {
             userInput={userInput}
             setUserInput={setUserInput}
             onSendMessage={handleSendMessage}
+            onOptionSelect={handleOptionSelect}
             goal={goal}
-            context={context}
+            interviewContext={interviewContext}
             error={error}
             onRetry={retry}
           />

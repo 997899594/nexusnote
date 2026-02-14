@@ -14,13 +14,10 @@ interface ChatInterfaceProps {
   isAiThinking: boolean;
   userInput: string;
   setUserInput: (v: string) => void;
-  onSendMessage: (
-    e?: React.FormEvent,
-    override?: string,
-    contextUpdate?: Partial<InterviewContext>,
-  ) => void;
+  onSendMessage: (e?: React.FormEvent, override?: string) => void;
+  onOptionSelect: (toolCallId: string, selected: string, targetField: string) => void;
   goal: string;
-  context: InterviewContext;
+  interviewContext?: InterviewContext;
   error?: string | null;
   onRetry?: () => void;
   compact?: boolean;
@@ -33,8 +30,9 @@ export function ChatInterface({
   userInput,
   setUserInput,
   onSendMessage,
+  onOptionSelect,
   goal,
-  context,
+  interviewContext,
   error,
   onRetry,
   compact = false,
@@ -45,13 +43,11 @@ export function ChatInterface({
   const handleSendWithFeedback = (
     e?: React.FormEvent,
     override?: string,
-    contextUpdate?: Partial<InterviewContext>,
   ) => {
-    // Vibration feedback on mobile
     if (typeof navigator !== "undefined" && navigator.vibrate) {
       navigator.vibrate(50);
     }
-    onSendMessage(e, override, contextUpdate);
+    onSendMessage(e, override);
   };
 
   if (phase !== "interview" && phase !== "synthesis") {
@@ -60,8 +56,9 @@ export function ChatInterface({
 
   // Extract tool options from the last assistant message
   let activeToolOptions: {
-    options?: string[];
-    targetField?: string;
+    toolCallId: string;
+    options: string[];
+    targetField: string;
   } | null = null;
 
   if (lastMessage?.role === "assistant") {
@@ -70,13 +67,11 @@ export function ChatInterface({
       "presentOptions",
     );
 
-    if (
-      toolCall &&
-      (toolCall.state === "input-available" || toolCall.state === "output-available")
-    ) {
+    if (toolCall?.state === "input-available") {
       const input = toolCall.input;
       if (input?.options && Array.isArray(input.options) && input.options.length > 0) {
         activeToolOptions = {
+          toolCallId: toolCall.toolCallId,
           options: input.options,
           targetField: input.targetField || "general",
         };
@@ -199,29 +194,27 @@ export function ChatInterface({
               renderBeforeInput={() => (
                 <>
                   {/* Options Buttons - 固定在输入框上方，不随消息滚动 */}
-                  {activeToolOptions?.options && !isAiThinking && (
+                  {activeToolOptions && !isAiThinking && (
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       className="px-4 pb-3 flex flex-wrap gap-3 justify-end"
                     >
-                      {activeToolOptions.options.map((option) => {
-                        const targetField = activeToolOptions!.targetField;
-                        const contextUpdate =
-                          targetField && targetField !== "general"
-                            ? { [targetField]: option }
-                            : undefined;
-
-                        return (
-                          <button
-                            key={option}
-                            onClick={() => handleSendWithFeedback(undefined, option, contextUpdate)}
-                            className="bg-white/80 backdrop-blur-md border border-black/5 px-6 py-3 rounded-full text-sm font-medium hover:bg-black hover:text-white transition-all shadow-lg shadow-black/5 hover:scale-105 active:scale-95"
-                          >
-                            {option}
-                          </button>
-                        );
-                      })}
+                      {activeToolOptions.options.map((option) => (
+                        <button
+                          key={option}
+                          onClick={() =>
+                            onOptionSelect(
+                              activeToolOptions!.toolCallId,
+                              option,
+                              activeToolOptions!.targetField,
+                            )
+                          }
+                          className="bg-white/80 backdrop-blur-md border border-black/5 px-6 py-3 rounded-full text-sm font-medium hover:bg-black hover:text-white transition-all shadow-lg shadow-black/5 hover:scale-105 active:scale-95"
+                        >
+                          {option}
+                        </button>
+                      ))}
                     </motion.div>
                   )}
                 </>
@@ -264,11 +257,11 @@ export function ChatInterface({
                   <p className="text-sm font-medium text-black/60">目标：{goal}</p>
                 </div>
 
-                {context.targetOutcome && (
+                {interviewContext?.targetOutcome && (
                   <div className="flex items-center gap-3">
                     <div className="w-1.5 h-1.5 rounded-full bg-black" />
                     <p className="text-sm font-medium text-black/60">
-                      预期成果：{context.targetOutcome}
+                      预期成果：{interviewContext?.targetOutcome}
                     </p>
                   </div>
                 )}

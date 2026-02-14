@@ -1,6 +1,8 @@
 import { useChat } from "@ai-sdk/react";
+import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
+import { getToolName, isToolUIPart } from "ai";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { saveCourseProfileAction } from "@/features/learning/actions/course";
 import type { OutlineData } from "@/features/learning/agents/course-profile";
 import type {
@@ -64,15 +66,13 @@ interface CourseOutline {
 interface State {
   phase: Phase;
   goal: string;
-  context: InterviewContext; // Use shared InterviewContext type
   nodes: CourseNode[];
   outline: CourseOutline | null;
-  id?: string; // Unified ID
+  id?: string;
 }
 
 type Action =
   | { type: "SET_GOAL"; payload: string }
-  | { type: "UPDATE_CONTEXT"; payload: Partial<InterviewContext> }
   | { type: "SET_NODES"; payload: CourseNode[] }
   | { type: "SET_OUTLINE"; payload: CourseOutline }
   | { type: "SET_ID"; payload: string }
@@ -88,12 +88,6 @@ type Action =
 const initialState: State = {
   phase: "interview",
   goal: "",
-  context: {
-    goal: "",
-    background: "",
-    targetOutcome: "",
-    cognitiveStyle: "",
-  },
   nodes: [],
   outline: null,
 };
@@ -101,13 +95,7 @@ const initialState: State = {
 function reducer(state: State, action: Action): State {
   switch (action.type) {
     case "SET_GOAL":
-      return {
-        ...state,
-        goal: action.payload,
-        context: { ...state.context, goal: action.payload },
-      };
-    case "UPDATE_CONTEXT":
-      return { ...state, context: { ...state.context, ...action.payload } };
+      return { ...state, goal: action.payload };
     case "SET_NODES":
       return { ...state, nodes: action.payload };
     case "SET_OUTLINE":
@@ -180,13 +168,9 @@ function clearCourseStorage(goal: string) {
 // --- Hook ---
 
 export function useCourseGeneration(initialGoal: string = "", userId: string) {
-  // 2026-02-09 修复：不要把 URL 的 goal 直接设为 context.goal
-  // 用户可能输入任意文字（如测试的 "adad"），AI 需要先分析这是否是有效的学习目标
-  // 初始 context 保持为空，让 AI 通过对话来确认用户的真实意图
   const [state, dispatch] = useReducer(reducer, {
     ...initialState,
     goal: initialGoal || initialState.goal,
-    context: initialState.context, // 不预设 goal，让 AI 分析
   });
 
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
@@ -210,35 +194,75 @@ export function useCourseGeneration(initialGoal: string = "", userId: string) {
   // =========================================================
   // 2026 ARCHITECTURE: useChat + Tools
   // =========================================================
-  // Updated for AI SDK React 3.0.69 / AI SDK 6.0+
-  // - Server-side Tool Execution (Agentic)
-  // - Client-side State Sync (via useEffect)
-  // - status instead of isLoading
 
-  const { messages, sendMessage, setMessages, status, error, regenerate, stop } =
-    useChat<InterviewAgentMessage>();
+  const { messages, sendMessage, addToolOutput, setMessages, status, error, stop } =
+    useChat<InterviewAgentMessage>({
+      body: { explicitIntent: "INTERVIEW" },
+      sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+    } as Parameters<typeof useChat<InterviewAgentMessage>>[0]);
 
   // Calculate isLoading from status
   const isLoading = status === "streaming" || status === "submitted";
 
-  // Tool Invocation Handler (Sync Server Agent -> Client State)
-  const processedToolCallIds = useRef<Set<string>>(new Set());
+  // Derive interview context from message history (client-side)
+  const interviewContext = useMemo((): InterviewContext => {
+    const context: InterviewContext = {
+      goal: "",
+      background: "",
+      targetOutcome: "",
+      cognitiveStyle: "",
+    };
 
-  // Auto-resume if last message is from user (e.g. after refresh)
-  useEffect(() => {
-    if (status !== "ready") return;
+    for (const msg of messages) {
+      if (msg.role !== "assistant" || !msg.parts) continue;
+      for (const part of msg.parts) {
+        if (!isToolUIPart(part) || getToolName(part) !== "presentOptions") continue;
+        if (part.state !== "output-available") continue;
 
-    const lastMessage = messages.at(-1);
-    if (lastMessage?.role === "user") {
-      regenerate({
-        body: {
-          explicitIntent: "INTERVIEW",
-          interviewContext: state.context,
-        },
-      });
+        try {
+          const output =
+            typeof part.output === "string"
+              ? JSON.parse(part.output)
+              : (part.output as Record<string, unknown>);
+          const { selected, targetField } = output as {
+            selected?: string;
+            targetField?: string;
+          };
+          if (
+            selected &&
+            targetField &&
+            targetField !== "general" &&
+            targetField in context
+          ) {
+            context[
+              targetField as keyof Pick<
+                InterviewContext,
+                "goal" | "background" | "targetOutcome" | "cognitiveStyle"
+              >
+            ] = selected;
+          }
+        } catch {
+          // Skip malformed tool outputs
+        }
+      }
     }
-  }, [status, messages, regenerate, state.context]);
 
+    return context;
+  }, [messages]);
+
+  // Handle option selection via addToolOutput
+  const handleOptionSelect = useCallback(
+    (toolCallId: string, selected: string, targetField: string) => {
+      (addToolOutput as Function)({
+        tool: "presentOptions",
+        toolCallId,
+        output: { selected, targetField },
+      });
+    },
+    [addToolOutput],
+  );
+
+  // Detect generateOutline completion
   useEffect(() => {
     const lastMessage = messages.at(-1);
     if (lastMessage?.role !== "assistant") return;
@@ -249,11 +273,6 @@ export function useCourseGeneration(initialGoal: string = "", userId: string) {
     );
 
     if (toolCall?.state === "output-available" && toolCall.output) {
-      if (processedToolCallIds.current.has(toolCall.toolCallId)) return;
-
-      console.log("[Tool Sync] Outline generated, updating state");
-      processedToolCallIds.current.add(toolCall.toolCallId);
-
       const chapters =
         toolCall.output.chapters ?? toolCall.output.modules?.flatMap((m) => m.chapters) ?? [];
 
@@ -350,50 +369,43 @@ export function useCourseGeneration(initialGoal: string = "", userId: string) {
   // Auto-start
   useEffect(() => {
     if (messages.length > 0 || !state.goal || hasStartedRef.current) return;
-
     hasStartedRef.current = true;
     setIsStarting(true);
-
-    sendMessage(
-      { text: state.goal },
-      {
-        body: {
-          explicitIntent: "INTERVIEW",
-          interviewContext: state.context,
-        },
-      },
-    );
-
+    sendMessage({ text: state.goal });
     setIsStarting(false);
-  }, [state.goal, messages.length, sendMessage, state.context]);
+  }, [state.goal, messages.length, sendMessage]);
 
   // Handle Send Message
   const handleSendMessage = useCallback(
-    async (
-      e?: React.FormEvent,
-      overrideInput?: string,
-      contextUpdate?: Partial<InterviewContext>,
-    ) => {
+    async (e?: React.FormEvent, overrideInput?: string) => {
       e?.preventDefault();
       const text = overrideInput ?? input;
       if (!text.trim()) return;
-
       if (!overrideInput) setInput("");
-      if (contextUpdate) dispatch({ type: "UPDATE_CONTEXT", payload: contextUpdate });
 
-      const finalContext = contextUpdate ? { ...state.context, ...contextUpdate } : state.context;
+      // If there's a pending presentOptions, route text through addToolOutput
+      const lastMsg = messages.at(-1);
+      if (lastMsg?.role === "assistant") {
+        const pendingToolCall = findToolCall<{
+          targetField?: string;
+        }>(lastMsg, "presentOptions");
 
-      sendMessage(
-        { text },
-        {
-          body: {
-            explicitIntent: "INTERVIEW",
-            interviewContext: finalContext,
-          },
-        },
-      );
+        if (pendingToolCall?.state === "input-available") {
+          (addToolOutput as Function)({
+            tool: "presentOptions",
+            toolCallId: pendingToolCall.toolCallId,
+            output: {
+              selected: text,
+              targetField: pendingToolCall.input?.targetField ?? "general",
+            },
+          });
+          return;
+        }
+      }
+
+      sendMessage({ text });
     },
-    [input, state.context, sendMessage],
+    [input, messages, addToolOutput, sendMessage],
   );
 
   // Course Generation Logic
@@ -426,13 +438,13 @@ export function useCourseGeneration(initialGoal: string = "", userId: string) {
       const course = await learningStore.createFromOutline(storeOutline, "course", unifiedId);
       setCreatedCourseId(course.id);
 
-      console.log(`[useCourseGeneration] 💾 Core profile sync: ${course.id}`);
+      console.log(`[useCourseGeneration] Core profile sync: ${course.id}`);
       const result = await saveCourseProfileAction({
         id: course.id,
-        goal: state.context.goal,
-        background: state.context.background,
-        targetOutcome: state.context.targetOutcome,
-        cognitiveStyle: state.context.cognitiveStyle,
+        goal: interviewContext.goal,
+        background: interviewContext.background,
+        targetOutcome: interviewContext.targetOutcome,
+        cognitiveStyle: interviewContext.cognitiveStyle,
         outlineData: data as OutlineData,
         designReason: "AI 驱动的个性化学习路径",
       });
@@ -442,7 +454,7 @@ export function useCourseGeneration(initialGoal: string = "", userId: string) {
       }
 
       // 启动后台预生成（非阻塞）
-      console.log(`[useCourseGeneration] 🚀 Background generation: ${course.id}`);
+      console.log(`[useCourseGeneration] Background generation: ${course.id}`);
       fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -458,10 +470,10 @@ export function useCourseGeneration(initialGoal: string = "", userId: string) {
           courseGenerationContext: {
             id: course.id,
             userId,
-            goal: state.context.goal,
-            background: state.context.background,
-            targetOutcome: state.context.targetOutcome,
-            cognitiveStyle: state.context.cognitiveStyle,
+            goal: interviewContext.goal,
+            background: interviewContext.background,
+            targetOutcome: interviewContext.targetOutcome,
+            cognitiveStyle: interviewContext.cognitiveStyle,
             outlineTitle: data.title,
             outlineData: data,
             moduleCount: data.modules?.length ?? 0,
@@ -492,7 +504,7 @@ export function useCourseGeneration(initialGoal: string = "", userId: string) {
       console.error("[useCourseGeneration] Flow interrupted:", err);
       dispatch({ type: "TRANSITION", payload: "seeding" });
     });
-  }, [state.phase, state.outline, state.id, state.context, userId]);
+  }, [state.phase, state.outline, state.id, interviewContext, userId]);
 
   // Phase transition chain
   useEffect(() => {
@@ -541,6 +553,7 @@ export function useCourseGeneration(initialGoal: string = "", userId: string) {
 
   return {
     state,
+    interviewContext,
     ui: {
       userInput: input,
       setUserInput: setInput,
@@ -553,9 +566,10 @@ export function useCourseGeneration(initialGoal: string = "", userId: string) {
     },
     actions: {
       handleSendMessage,
+      handleOptionSelect,
       selectNode: setSelectedNode,
       confirmOutline,
-      retry: () => (error ? regenerate() : sendMessage({ text: "继续" })),
+      retry: () => sendMessage({ text: "继续" }),
       sendMessage,
       stop,
     },
