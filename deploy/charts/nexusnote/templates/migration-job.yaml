@@ -46,6 +46,7 @@ spec:
                 - ALL
         - name: wait-for-db
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
           command:
             - /bin/sh
             - -c
