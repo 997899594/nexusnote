@@ -9,11 +9,20 @@
  * 4. 可观测性 - 集成 Langfuse 追踪
  */
 
-import { type InferAgentUIMessage, type LanguageModel, type ModelMessage, stepCountIs, ToolLoopAgent } from "ai";
+import {
+  type InferAgentUIMessage,
+  type LanguageModel,
+  stepCountIs,
+  tool,
+  ToolLoopAgent,
+  type ModelMessage,
+} from "ai";
 import { z } from "zod";
 import { interviewTools } from "@/features/learning/tools/interview";
 import { buildInterviewPrompt } from "@/features/shared/ai/prompts/interview";
 import { registry } from "@/features/shared/ai/registry";
+import { researchTopic, type TopicResearchOutput } from "@/features/learning/agents/research/agent";
+import { designCurriculum, type CurriculumOutput } from "@/features/learning/agents/curriculum/agent";
 
 const interviewModel = registry.chatModel;
 
@@ -40,46 +49,161 @@ export const InterviewContextSchema = z.object({
 
 export type InterviewContext = z.infer<typeof InterviewContextSchema>;
 
-const InterviewCallOptionsSchema = z.object({
-  userId: z.string().optional().describe("从 session 获取的用户 ID"),
-});
+/**
+ * Interview Agent 定义
+ *
+ * 与 Chat Agent 保持一致的架构模式
+ * 集成 extractReasoningMiddleware 显示 AI 的思考过程
+ */
+
+/**
+ * Interview Agent 定义
+ *
+ * chatModel 已在 registry 中通过 wrapLanguageModel 应用了推理中间件
+ * 无需再次包装，直接使用即可
+ */
+/**
+ * 从消息历史中提取用户已提供的信息
+ * 用于 prepareCall 构建动态 Prompt
+ */
+function extractContextFromOptions(options: unknown): InterviewContext {
+  if (options && typeof options === "object") {
+    const opts = options as Partial<InterviewContext>;
+    return {
+      goal: opts.goal ?? "",
+      background: opts.background ?? "",
+      targetOutcome: opts.targetOutcome ?? "",
+      cognitiveStyle: opts.cognitiveStyle ?? "",
+    };
+  }
+  return {
+    goal: "",
+    background: "",
+    targetOutcome: "",
+    cognitiveStyle: "",
+  };
+}
+
+/**
+ * Interview Agent 扩展工具集
+ * 包含原有工具 + 新增的研究和设计工具
+ */
+const interviewToolsExtended = {
+  ...interviewTools,
+  researchTopic: tool({
+    description: "研究用户想学的领域，获取最新信息、学习路径和前置知识",
+    inputSchema: z.object({
+      topic: z.string().describe("用户想学的主题"),
+      specificDirection: z.string().optional().describe("用户选择的具体方向"),
+      userBackground: z.string().optional().describe("用户已有的背景"),
+    }),
+    execute: async ({ topic, specificDirection, userBackground }) => {
+      const researchResult = await researchTopic({
+        topic,
+        specificDirection,
+        userBackground,
+      });
+
+      // 返回结构化的领域研究，作为 JSON 字符串
+      return JSON.stringify(researchResult);
+    },
+  }),
+  designCurriculum: tool({
+    description: "基于用户画像和领域研究设计个性化课程大纲",
+    inputSchema: z.object({
+      goal: z.string().describe("学习目标"),
+      background: z.string().describe("学习背景"),
+      targetOutcome: z.string().describe("预期成果"),
+      cognitiveStyle: z.string().describe("学习风格"),
+      domainResearch: z.string().describe("Topic Research Agent 返回的领域研究结果（JSON 字符串）"),
+    }),
+    execute: async (input) => {
+      const domainResearch = JSON.parse(input.domainResearch) as TopicResearchOutput;
+
+      const curriculumResult = await designCurriculum({
+        userProfile: {
+          goal: input.goal,
+          background: input.background,
+          targetOutcome: input.targetOutcome,
+          cognitiveStyle: input.cognitiveStyle,
+        },
+        domainResearch,
+      });
+
+      // 返回课程大纲，作为 JSON 字符串
+      return JSON.stringify(curriculumResult);
+    },
+  }),
+};
 
 export const interviewAgent = new ToolLoopAgent({
   id: "nexusnote-interview",
   model: interviewModel as LanguageModel,
-  tools: interviewTools,
+  tools: interviewToolsExtended,
   maxOutputTokens: 4096,
-  callOptionsSchema: InterviewCallOptionsSchema,
+  callOptionsSchema: InterviewContextSchema,
 
-  prepareCall: ({ messages, ...rest }) => {
-    const context = extractContextFromMessages(messages ?? []);
+  /**
+   * prepareCall: 请求级配置
+   * - 构建动态 instructions（基于 call options）
+   * - 设置 temperature
+   * - 步级控制（toolChoice, stopWhen）由 prepareStep 处理
+   */
+  prepareCall: ({ options, ...settings }) => {
+    const context = extractContextFromOptions(options);
+
+    // 基于当前收集的信息构建 instructions
     const instructions = buildInterviewPrompt(context);
 
-    const hasAllInfo =
-      Boolean(context.goal) &&
-      Boolean(context.background) &&
-      Boolean(context.targetOutcome) &&
-      Boolean(context.cognitiveStyle);
+    return {
+      ...settings,
+      instructions,
+      temperature: 0.7,
+    };
+  },
 
+  /**
+   * prepareStep: 步级控制
+   * - 根据 stepNumber 和已收集信息动态调整 toolChoice 和 stopWhen
+   * - 支持 researchTopic 和 designCurriculum 工具
+   */
+  prepareStep: ({ stepNumber, messages }) => {
+    // 从消息历史提取上下文（支持 P0 后的消息历史状态）
+    const context = extractContextFromMessages(messages);
+
+    // 检测信息收集状态
+    const hasGoal = Boolean(context.goal);
+    const hasBackground = Boolean(context.background);
+    const hasTargetOutcome = Boolean(context.targetOutcome);
+    const hasCognitiveStyle = Boolean(context.cognitiveStyle);
+    const hasAllInfo = hasGoal && hasBackground && hasTargetOutcome && hasCognitiveStyle;
+
+    // Phase 4: 信息收集完毕 → 强制调用 designCurriculum，只执行 1 步
     if (hasAllInfo) {
       return {
-        ...rest,
-        instructions,
-        temperature: 0.7,
-        toolChoice: { type: "tool", toolName: "generateOutline" },
+        toolChoice: { type: "tool", toolName: "designCurriculum" },
         stopWhen: stepCountIs(1),
       };
     }
 
-    return { ...rest, instructions, temperature: 0.7 };
+    // Phase 1: 首次交互（goal 为空）→ 让 AI 决定是否先研究领域
+    if (stepNumber === 0 && !hasGoal) {
+      // 不强制工具，让 AI 决定是先 researchTopic 还是 presentOptions
+      return {
+        stopWhen: stepCountIs(1),
+      };
+    }
+
+    // 其他情况：让 AI 自由决策（可以调用 researchTopic、presentOptions 等）
+    return {
+      stopWhen: stepCountIs(1),
+    };
   },
 });
 
 /**
- * 从消息历史中解析 presentOptions 的 tool result，重建用户选择
- *
- * 遍历所有 tool role 消息，找到 presentOptions 的 tool-result，
- * 提取 selected 和 targetField 字段，填充 InterviewContext。
+ * 从消息历史中提取访谈上下文（P0 消息历史状态源）
+ * 解析 presentOptions 的 tool result，重建用户选择
  */
 export function extractContextFromMessages(messages: ModelMessage[]): InterviewContext {
   const context: InterviewContext = {
@@ -121,7 +245,7 @@ export function extractContextFromMessages(messages: ModelMessage[]): InterviewC
           context[targetField as keyof Pick<InterviewContext, "goal" | "background" | "targetOutcome" | "cognitiveStyle">] = selected;
         }
       } catch {
-        // Skip malformed tool results
+        // 跳过格式错误的 tool result
       }
     }
   }
