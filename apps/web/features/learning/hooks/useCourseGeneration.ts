@@ -262,19 +262,22 @@ export function useCourseGeneration(initialGoal: string = "", userId: string) {
     [addToolOutput],
   );
 
-  // Detect generateOutline completion
+  // Detect designCurriculum completion (P2: curriculum agent)
   useEffect(() => {
     const lastMessage = messages.at(-1);
     if (lastMessage?.role !== "assistant") return;
 
     const toolCall = findToolCall<Record<string, unknown>, CourseOutline>(
       lastMessage,
-      "generateOutline",
+      "designCurriculum",
     );
 
     if (toolCall?.state === "output-available" && toolCall.output) {
+      const output = toolCall.output as CourseOutline;
+
+      // 兼容 modules 和 chapters 两种格式
       const chapters =
-        toolCall.output.chapters ?? toolCall.output.modules?.flatMap((m) => m.chapters) ?? [];
+        output.chapters ?? output.modules?.flatMap((m) => m.chapters ?? []) ?? [];
 
       const newNodes: CourseNode[] = chapters.map((ch, i) => ({
         id: `node-${i}`,
@@ -286,7 +289,7 @@ export function useCourseGeneration(initialGoal: string = "", userId: string) {
         depth: 1,
       }));
 
-      dispatch({ type: "SET_OUTLINE", payload: toolCall.output });
+      dispatch({ type: "SET_OUTLINE", payload: output });
       dispatch({ type: "SET_NODES", payload: newNodes });
       dispatch({ type: "TRANSITION", payload: "outline_review" });
     }
