@@ -1,7 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { Zap } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -56,7 +54,8 @@ export default function Home() {
             }
           });
           allNotes.sort(
-            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+            (a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
           );
           setNotes(allNotes);
         }
@@ -80,7 +79,9 @@ export default function Home() {
         id: c.id,
         title: c.title,
         type: "course",
-        updatedAt: new Date(c.progress?.lastAccessedAt || c.createdAt).toISOString(),
+        updatedAt: new Date(
+          c.progress?.lastAccessedAt || c.createdAt,
+        ).toISOString(),
       });
     });
 
@@ -94,7 +95,10 @@ export default function Home() {
     });
 
     return items
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      .sort(
+        (a, b) =>
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      )
       .slice(0, 8);
   }, [courses, notes]);
 
@@ -107,7 +111,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden font-sans selection:bg-primary/10 selection:text-foreground">
+    <div className="bg-background relative font-sans selection:bg-primary/10 selection:text-foreground">
       <div
         className="absolute inset-0 z-0 opacity-[0.02] pointer-events-none"
         style={{
@@ -119,44 +123,25 @@ export default function Home() {
 
       <OrganicHeader />
 
-      <main className="relative z-10 flex flex-col items-center pt-[clamp(10vh,15vh,20vh)] px-4 md:px-6 w-full max-w-7xl mx-auto pb-safe-bottom">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          className="text-center mb-[clamp(2rem,4vh,3rem)] w-full"
-        >
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <Zap className="w-4 h-4 text-primary-foreground fill-primary-foreground" />
-            </div>
-            <span className="text-[clamp(0.625rem,0.8vw,0.75rem)] font-black uppercase tracking-[0.3em] text-foreground/40">
-              NexusNote
-            </span>
-          </div>
-
-          <h1 className="font-black text-foreground tracking-tight leading-[1.05] mb-4">
-            <span className="block text-[clamp(2.5rem,8vw,5rem)]">你想学习</span>
-            <span className="block text-[clamp(2rem,6.5vw,4.5rem)] text-foreground/30">什么？</span>
-          </h1>
-
-          <p className="text-[clamp(0.875rem,1.5vw,1.125rem)] text-foreground/60 max-w-2xl mx-auto leading-relaxed">
-            AI 原生的知识内化平台，让学习变得自然流畅
-          </p>
-        </motion.div>
-
-        <div className="w-full max-w-3xl mb-[clamp(2rem,5vh,4rem)]">
+      <main className="relative z-10 flex items-center justify-center px-4 md:px-6 w-full h-screen [-webkit-mask-image:linear-gradient(to_bottom,black_50%,transparent_100%)]">
+        <div className="w-full max-w-3xl -mt-16">
           <HeroInput />
-        </div>
-
-        <div className="w-full max-w-6xl">
-          <RecentAccess items={recentItems} loading={loading} onItemClick={handleItemClick} />
         </div>
       </main>
 
-      <footer className="absolute bottom-6 w-full text-center text-foreground/20 text-[10px] font-mono uppercase tracking-widest z-10 hidden md:block">
-        AI Native OS • v3.0.0
-      </footer>
+      {/* Bottom fixed section with recent items */}
+      <div className="fixed bottom-0 left-0 right-0 z-20 px-4 md:px-6 pb-4 pt-8 bg-gradient-to-t from-background via-background to-transparent">
+        <div className="w-full max-w-4xl mx-auto">
+          <RecentAccess
+            items={recentItems}
+            loading={loading}
+            onItemClick={handleItemClick}
+          />
+        </div>
+        <footer className="mt-4 w-full text-center text-foreground/20 text-[10px] font-mono uppercase tracking-widest">
+          AI Native OS • v3.0.0
+        </footer>
+      </div>
     </div>
   );
 }
