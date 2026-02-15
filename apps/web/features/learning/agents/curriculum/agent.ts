@@ -25,7 +25,7 @@ export const CurriculumDesignInputSchema = z.object({
     summary: z.string(),
     currentVersion: z.string().optional(),
     recentTrends: z.array(z.string()).optional(),
-    typicalLearningPath: z.array(z.string()),
+    typicalLearningPath: z.array(z.string()).optional(),
     prerequisites: z.array(z.string()).optional(),
     commonGoals: z.array(z.string()).optional(),
   }),
@@ -76,6 +76,11 @@ const systemPrompt = `你是 NexusNote 的专业课程设计师。你的任务�
 
 /**
  * 设计课程大纲
+ *
+ * 架构说明：
+ * - 直接将结构化输入作为 prompt 的一部分传递给 AI
+ * - AI SDK v6 的 generateText 支持在 prompt 中传递上下文对象
+ * - 不需要手动拼接字符串，让 AI 自己解析结构化数据
  */
 export async function designCurriculum(
   input: CurriculumDesignInput,
@@ -85,29 +90,19 @@ export async function designCurriculum(
     throw new Error("Course model not configured");
   }
 
-  const prompt = `## 用户画像
-- 学习目标：${input.userProfile.goal}
-- 学习背景：${input.userProfile.background}
-- 预期成果：${input.userProfile.targetOutcome}
-- 学习风格：${input.userProfile.cognitiveStyle}
+  // 直接传递 JSON 格式的上下文，让 AI 解析
+  const contextJSON = JSON.stringify(input, null, 2);
 
-## 领域研究
-- 概要：${input.domainResearch.summary}
-${input.domainResearch.currentVersion ? `- 最新版本：${input.domainResearch.currentVersion}` : ""}
-${input.domainResearch.recentTrends && input.domainResearch.recentTrends.length > 0 ? `- 最新趋势：${input.domainResearch.recentTrends.join("、")}` : ""}
-- 典型学习路径：
-${input.domainResearch.typicalLearningPath.map((s, i) => `  ${i + 1}. ${s}`).join("\n")}
-${input.domainResearch.prerequisites && input.domainResearch.prerequisites.length > 0 ? `- 前置知识：
-${input.domainResearch.prerequisites.map((s, i) => `  ${i + 1}. ${s}`).join("\n")}` : ""}
-${input.domainResearch.commonGoals && input.domainResearch.commonGoals.length > 0 ? `- 常见目标：
-${input.domainResearch.commonGoals.map((s, i) => `  ${i + 1}. ${s}`).join("\n")}` : ""}
+  const prompt = `基于以下用户画像和领域研究，设计个性化课程大纲：
 
-基于以上信息，设计一个个性化、高质量的课程大纲。`;
+${contextJSON}
+
+请按照系统提示中的设计原则和输出要求生成课程大纲。`;
 
   // 使用 AI SDK v6 正确 API：generateText + Output.object
   const { generateText, Output } = await import("ai");
 
-  const result = await generateText({
+  const { output } = await generateText({
     model,
     system: systemPrompt,
     prompt,
@@ -116,12 +111,5 @@ ${input.domainResearch.commonGoals.map((s, i) => `  ${i + 1}. ${s}`).join("\n")}
     }),
   });
 
-  // result.object 包含结构化输出，直接传给 safeParse
-  const parsed = CurriculumOutputSchema.safeParse(result.object);
-  if (!parsed.success) {
-    console.error("[CurriculumDesigner] Invalid output:", parsed.error);
-    throw new Error(`Invalid curriculum output: ${parsed.error.message}`);
-  }
-
-  return parsed.data;
+  return output;
 }

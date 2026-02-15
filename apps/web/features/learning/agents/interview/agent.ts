@@ -34,6 +34,10 @@ const interviewModel = registry.chatModel;
  * Phase 4: CognitiveStyle (怎么学)
  *
  * 扩展：支持课程画像持久化，便于后续 Agent 或页面访问
+ *
+ * 架构说明：
+ * - InterviewContext: 完整的访谈上下文（从消息历史提取）
+ * - InterviewCallOptions: Agent 调用时传入的 options（仅包含外部传入的字段）
  */
 export const InterviewContextSchema = z.object({
   // 用户信息维度
@@ -45,6 +49,24 @@ export const InterviewContextSchema = z.object({
   // 课程画像存储（生成大纲后填充）
   courseId: z.string().optional().describe("生成的课程 ID"),
   userId: z.string().optional().describe("用户 ID（从 session 获取）"),
+});
+
+/**
+ * Agent 调用时的 Options Schema
+ *
+ * 设计原则：
+ * - 只包含需要从外部传入的字段
+ * - 其他字段从消息历史中通过 extractContextFromMessages 提取
+ */
+export const InterviewCallOptionsSchema = z.object({
+  // 可选：用户 ID（从 session 传入，用于数据持久化）
+  userId: z.string().optional().describe("用户 ID（从 session 获取）"),
+
+  // 可选：预设的初始值（通常为空，由 AI 通过对话收集）
+  goal: z.string().optional().describe("预设的学习目标（可选）"),
+  background: z.string().optional().describe("预设的学习背景（可选）"),
+  targetOutcome: z.string().optional().describe("预设的预期成果（可选）"),
+  cognitiveStyle: z.string().optional().describe("预设的学习风格（可选）"),
 });
 
 export type InterviewContext = z.infer<typeof InterviewContextSchema>;
@@ -63,8 +85,12 @@ export type InterviewContext = z.infer<typeof InterviewContextSchema>;
  * 无需再次包装，直接使用即可
  */
 /**
- * 从消息历史中提取用户已提供的信息
- * 用于 prepareCall 构建动态 Prompt
+ * 从 Agent 调用选项中提取初始上下文
+ *
+ * 架构说明：
+ * - options 中的字段都是可选的，用于提供预设值
+ * - 如果没有提供，返回空字符串（表示需要通过对话收集）
+ * - 真正的上下文由 prepareStep 中的 extractContextFromMessages 从消息历史提取
  */
 function extractContextFromOptions(options: unknown): InterviewContext {
   if (options && typeof options === "object") {
@@ -74,6 +100,7 @@ function extractContextFromOptions(options: unknown): InterviewContext {
       background: opts.background ?? "",
       targetOutcome: opts.targetOutcome ?? "",
       cognitiveStyle: opts.cognitiveStyle ?? "",
+      userId: opts.userId,
     };
   }
   return {
@@ -141,7 +168,7 @@ export const interviewAgent = new ToolLoopAgent({
   model: interviewModel as LanguageModel,
   tools: interviewToolsExtended,
   maxOutputTokens: 4096,
-  callOptionsSchema: InterviewContextSchema,
+  callOptionsSchema: InterviewCallOptionsSchema,
 
   /**
    * prepareCall: 请求级配置

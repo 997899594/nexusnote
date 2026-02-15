@@ -1,14 +1,10 @@
 "use client";
 
-import { isReasoningUIPart, isToolUIPart, type UIMessage as Message } from "ai";
-import { Bot, Send, Square, User } from "lucide-react";
+import { type UIMessage as Message } from "ai";
+import { Bot, Send, Square } from "lucide-react";
 import { type FormEvent, type ReactNode, useEffect, useRef } from "react";
-import {
-  getMessageContent,
-  getReasoningContent,
-  getToolCalls,
-} from "@/features/shared/ai/ui-utils";
-import { MessageResponse } from "./Message";
+import { PartsBasedMessage } from "@/features/shared/components/ai/PartsBasedMessage";
+import { cn } from "@/features/shared/utils";
 
 interface UnifiedChatUIProps {
   messages: Message[];
@@ -19,6 +15,12 @@ interface UnifiedChatUIProps {
   onStop?: () => void;
   renderToolOutput?: (toolName: string, output: unknown, toolCallId: string) => ReactNode;
   renderToolLoading?: (toolName: string, toolCallId: string) => ReactNode;
+  renderToolOptions?: (input: {
+    options: string[];
+    toolCallId: string;
+    replyToUser?: string;
+    targetField?: string;
+  }) => ReactNode;
   renderMessage?: (message: Message, text: string, isUser: boolean) => ReactNode;
   renderEmpty?: () => ReactNode;
   renderAfterMessages?: () => ReactNode;
@@ -29,6 +31,14 @@ interface UnifiedChatUIProps {
   showReasoningSection?: boolean;
 }
 
+/**
+ * UnifiedChatUI v2 - Parts-Based Rendering
+ *
+ * 重构为使用 AI SDK v6 推荐的 parts-based 渲染架构
+ * - 移除 getMessageContent() 合并逻辑
+ * - 使用 PartsBasedMessage 直接基于 parts 数组渲染
+ * - 支持视觉段落分割（工具输出后形成新气泡）
+ */
 export function UnifiedChatUI({
   messages,
   isLoading,
@@ -38,7 +48,7 @@ export function UnifiedChatUI({
   onStop,
   renderToolOutput,
   renderToolLoading,
-  renderMessage,
+  renderToolOptions,
   renderEmpty,
   renderAfterMessages,
   renderBeforeInput,
@@ -55,123 +65,6 @@ export function UnifiedChatUI({
     }
   }, [scrollable]);
 
-  const defaultRenderMessage = (message: Message, text: string, isUser: boolean) => {
-    const reasoning = getReasoningContent(message);
-    const toolCalls = getToolCalls(message);
-
-    if (variant === "interview") {
-      return (
-        <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
-          <div
-            className={`${isUser ? "bg-primary px-6 py-3 rounded-[24px]" : "bg-surface/50 px-6 py-3 rounded-[24px]"} max-w-[85%] text-left`}
-          >
-            <p
-              className={`text-sm md:text-base font-medium ${isUser ? "text-primary-foreground font-bold text-right" : "text-muted-foreground"} leading-relaxed`}
-            >
-              {text}
-            </p>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div
-        className={`flex gap-3 max-w-[95%] ${isUser ? "flex-row-reverse self-end" : "flex-row self-start"}`}
-      >
-        <div
-          className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-            isUser ? "bg-surface" : "bg-primary/10 text-primary"
-          }`}
-        >
-          {isUser ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
-        </div>
-
-        <div className={`flex flex-col ${isUser ? "items-end" : "items-start"} min-w-0`}>
-          {!isUser && reasoning && showReasoningSection && (
-            <details className="mb-2 group">
-              <summary className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1 flex items-center gap-1.5 cursor-pointer list-none hover:text-foreground transition-colors">
-                <span className="w-1 h-1 rounded-full bg-muted-foreground group-open:bg-primary" />
-                思维链
-              </summary>
-              <div className="text-xs text-muted-foreground glass p-3 rounded-xl italic leading-relaxed whitespace-pre-wrap">
-                {reasoning}
-              </div>
-            </details>
-          )}
-
-          <div
-            className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-glass ${
-              isUser
-                ? "bg-primary text-primary-foreground rounded-tr-sm"
-                : "bg-surface border border-border/50 rounded-tl-sm"
-            }`}
-          >
-            {text ? (
-              <MessageResponse className={isUser ? "text-primary-foreground" : ""}>
-                {text}
-              </MessageResponse>
-            ) : (
-              isLoading &&
-              toolCalls.length === 0 && (
-                <div className="flex items-center gap-2 text-muted-foreground py-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:-0.3s]" />
-                  <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:-0.15s]" />
-                  <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 animate-bounce" />
-                </div>
-              )
-            )}
-          </div>
-
-          {!isUser && toolCalls.length > 0 && (
-            <div className="mt-2 space-y-2 w-full">
-              {toolCalls.map((tool) => {
-                const { toolName, state, output, toolCallId, errorText } = tool;
-
-                if (state === "output-available" && renderToolOutput) {
-                  return (
-                    <div key={toolCallId}>{renderToolOutput(toolName, output, toolCallId)}</div>
-                  );
-                }
-
-                if (state === "input-streaming" || state === "input-available") {
-                  if (renderToolLoading) {
-                    const loadingComponent = renderToolLoading(toolName, toolCallId);
-                    if (loadingComponent) {
-                      return <div key={toolCallId}>{loadingComponent}</div>;
-                    }
-                  }
-                  return (
-                    <div
-                      key={toolCallId}
-                      className="flex items-center gap-2 text-[11px] text-muted-foreground font-medium py-1 px-2 glass rounded-lg w-fit"
-                    >
-                      <div className="w-2.5 h-2.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                      正在运行 {toolName}...
-                    </div>
-                  );
-                }
-
-                if (state === "output-error") {
-                  return (
-                    <div
-                      key={toolCallId}
-                      className="text-[11px] text-destructive glass glass-lg p-3 rounded-lg border-l-4 border-destructive/50"
-                    >
-                      {toolName} 执行失败: {errorText || "未知错误"}
-                    </div>
-                  );
-                }
-
-                return null;
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
   const renderEmptyFn =
     renderEmpty ||
     (() => (
@@ -184,46 +77,52 @@ export function UnifiedChatUI({
       </div>
     ));
 
-  const renderFn = renderMessage || defaultRenderMessage;
-
   return (
     <div
       className="flex-1 flex flex-col min-h-0 bg-transparent"
       role="region"
       aria-label="聊天消息"
     >
+      {/* 消息列表区域 */}
       <div
-        className="flex-1 overflow-y-auto px-4 custom-scrollbar pb-8 min-h-0"
+        className={cn(
+          "flex-1 overflow-y-auto min-h-0",
+          variant === "interview" ? "px-0" : "px-4 custom-scrollbar pb-8",
+        )}
         role="log"
         aria-live="polite"
         aria-atomic="false"
       >
-        <div className="flex flex-col gap-6 max-w-4xl mx-auto pt-4">
+        <div
+          className={cn(
+            "flex flex-col gap-6 mx-auto",
+            variant === "interview" ? "max-w-full px-4 pt-4" : "max-w-4xl pt-4",
+          )}
+        >
           {messages.length === 0 ? (
             renderEmptyFn()
           ) : (
             <>
               {messages.map((message, idx) => {
-                const text = getMessageContent(message);
-                const isUser = message.role === "user";
-                const hasReasoning = message.parts?.some(isReasoningUIPart);
-                const hasToolCalls = message.parts?.some(isToolUIPart);
                 const messageKey = message.id || `msg-${idx}`;
-
-                const hasContent = text || isUser || hasReasoning || hasToolCalls || isLoading;
-
-                if (!hasContent) {
-                  return null;
-                }
+                const isLastMessage = idx === messages.length - 1;
 
                 return (
                   <div
                     key={messageKey}
-                    className="flex flex-col"
+                    className="flex flex-col w-full"
                     role="article"
-                    aria-label={isUser ? "用户消息" : "AI 助手回复"}
+                    aria-label={
+                      message.role === "user" ? "用户消息" : "AI 助手回复"
+                    }
                   >
-                    {renderFn(message, text, isUser)}
+                    <PartsBasedMessage
+                      message={message}
+                      variant={variant}
+                      isLastMessage={isLastMessage}
+                      renderToolOutput={renderToolOutput}
+                      renderToolOptions={renderToolOptions}
+                    />
                   </div>
                 );
               })}
@@ -234,10 +133,12 @@ export function UnifiedChatUI({
         </div>
       </div>
 
+      {/* 输入框前的内容（如选项按钮） */}
       <div className="shrink-0">{renderBeforeInput?.()}</div>
 
-      <div className="p-4 shrink-0">
-        <div className="max-w-4xl mx-auto relative group">
+      {/* 输入框区域 */}
+      <div className={cn("shrink-0", variant === "interview" ? "p-4" : "p-4")}>
+        <div className={cn("max-w-4xl mx-auto relative group", variant === "interview" && "max-w-full")}>
           <form onSubmit={onSubmit} className="relative" aria-label="发送消息">
             <input
               value={input}
@@ -273,6 +174,33 @@ export function UnifiedChatUI({
           </form>
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * 默认的选项按钮渲染器
+ */
+export function DefaultOptionButtons({
+  options,
+  toolCallId,
+  onSelect,
+}: {
+  options: string[];
+  toolCallId: string;
+  onSelect: (toolCallId: string, option: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2 mt-3">
+      {options.map((option) => (
+        <button
+          key={option}
+          onClick={() => onSelect(toolCallId, option)}
+          className="bg-white/80 backdrop-blur-md border border-black/5 px-4 py-2 rounded-full text-sm font-medium hover:bg-black hover:text-white transition-all shadow-lg shadow-black/5 hover:scale-105 active:scale-95"
+        >
+          {option}
+        </button>
+      ))}
     </div>
   );
 }

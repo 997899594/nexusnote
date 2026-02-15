@@ -3,10 +3,8 @@
 import type { UIMessage as Message } from "ai";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, Loader2, Zap } from "lucide-react";
-import { MessageResponse } from "@/features/chat/components/ai/Message";
-import { UnifiedChatUI } from "@/features/chat/components/ai/UnifiedChatUI";
+import { UnifiedChatUI, DefaultOptionButtons } from "@/features/chat/components/ai/UnifiedChatUI";
 import type { InterviewContext } from "@/features/learning/agents/interview/agent";
-import { findToolCall } from "@/features/shared/ai/ui-utils";
 
 interface ChatInterfaceProps {
   phase: string;
@@ -23,6 +21,14 @@ interface ChatInterfaceProps {
   compact?: boolean;
 }
 
+/**
+ * ChatInterface v2 - Parts-Based Rendering
+ *
+ * 重构为使用 AI SDK v6 推荐的 parts-based 渲染架构
+ * - 移除 renderMessage 自定义渲染
+ * - 使用 renderToolOptions 回调在 PartsBasedMessage 中内嵌渲染选项按钮
+ * - 选项按钮现在是消息的一部分，而不是固定在输入框上方
+ */
 export function ChatInterface({
   phase,
   messages,
@@ -37,9 +43,6 @@ export function ChatInterface({
   onRetry,
   compact = false,
 }: ChatInterfaceProps) {
-  const lastMessage = messages[messages.length - 1];
-
-  // Enhanced send message with vibration feedback
   const handleSendWithFeedback = (
     e?: React.FormEvent,
     override?: string,
@@ -52,31 +55,6 @@ export function ChatInterface({
 
   if (phase !== "interview" && phase !== "synthesis") {
     return null;
-  }
-
-  // Extract tool options from the last assistant message
-  let activeToolOptions: {
-    toolCallId: string;
-    options: string[];
-    targetField: string;
-  } | null = null;
-
-  if (lastMessage?.role === "assistant") {
-    const toolCall = findToolCall<{ options: string[]; targetField?: string }>(
-      lastMessage,
-      "presentOptions",
-    );
-
-    if (toolCall?.state === "input-available") {
-      const input = toolCall.input;
-      if (input?.options && Array.isArray(input.options) && input.options.length > 0) {
-        activeToolOptions = {
-          toolCallId: toolCall.toolCallId,
-          options: input.options,
-          targetField: input.targetField || "general",
-        };
-      }
-    }
   }
 
   return (
@@ -106,44 +84,17 @@ export function ChatInterface({
               onSubmit={(e) => handleSendWithFeedback(e)}
               variant="interview"
               placeholder="Type your answer..."
-              renderMessage={(message, text, isUser) => {
-                if (isUser) {
-                  return (
-                    <div className="flex justify-end">
-                      <div className="bg-black px-6 py-3 rounded-[24px] max-w-[85%]">
-                        <p className="text-sm md:text-base font-bold text-white text-right leading-relaxed">
-                          {text}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                }
-
-                // 最后一条 assistant 消息使用增强样式
-                const isActive = message === lastMessage;
-
-                return (
-                  <div className="flex justify-start">
-                    <div
-                      className={`${
-                        isActive
-                          ? "bg-white shadow-xl shadow-black/5 px-8 py-6 rounded-[32px] max-w-[95%] border border-black/[0.02]"
-                          : "bg-black/5 px-6 py-3 rounded-[24px] max-w-[85%]"
-                      }`}
-                    >
-                      <MessageResponse
-                        className={`${
-                          isActive
-                            ? "text-lg md:text-xl font-bold tracking-tight text-black leading-snug"
-                            : "text-sm md:text-base font-medium text-black/60 leading-relaxed"
-                        }`}
-                      >
-                        {text}
-                      </MessageResponse>
-                    </div>
-                  </div>
-                );
-              }}
+              renderToolOptions={(input) => (
+                <DefaultOptionButtons
+                  options={input.options}
+                  toolCallId={input.toolCallId}
+                  onSelect={(toolCallId, option) => {
+                    // 从工具输入中获取 targetField
+                    const targetField = input.targetField || "general";
+                    onOptionSelect(toolCallId, option, targetField);
+                  }}
+                />
+              )}
               renderEmpty={() => (
                 <div className="flex flex-col items-center justify-center h-full gap-4 text-black/40">
                   {isAiThinking ? (
@@ -172,8 +123,8 @@ export function ChatInterface({
               )}
               renderAfterMessages={() => (
                 <>
-                  {/* Waiting Indicator - 在滚动区内，属于消息流 */}
-                  {isAiThinking && messages.length > 0 && lastMessage?.role !== "assistant" && (
+                  {/* Waiting Indicator - AI 正在思考时显示 */}
+                  {isAiThinking && messages.length > 0 && (
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -191,35 +142,7 @@ export function ChatInterface({
                   )}
                 </>
               )}
-              renderBeforeInput={() => (
-                <>
-                  {/* Options Buttons - 固定在输入框上方，不随消息滚动 */}
-                  {activeToolOptions && !isAiThinking && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="px-4 pb-3 flex flex-wrap gap-3 justify-end"
-                    >
-                      {activeToolOptions.options.map((option) => (
-                        <button
-                          key={option}
-                          onClick={() =>
-                            onOptionSelect(
-                              activeToolOptions!.toolCallId,
-                              option,
-                              activeToolOptions!.targetField,
-                            )
-                          }
-                          className="bg-white/80 backdrop-blur-md border border-black/5 px-6 py-3 rounded-full text-sm font-medium hover:bg-black hover:text-white transition-all shadow-lg shadow-black/5 hover:scale-105 active:scale-95"
-                        >
-                          {option}
-                        </button>
-                      ))}
-                    </motion.div>
-                  )}
-                </>
-              )}
-              showReasoningSection={true}
+              showReasoningSection={false}
             />
           </div>
         </motion.div>
@@ -268,7 +191,7 @@ export function ChatInterface({
 
                 <div className="flex items-center gap-3 text-black pt-4 border-t border-black/5">
                   <Check className="w-4 h-4" />
-                  <p className="text-sm font-bold italic">“已为你优化知识关联，准备生成结构。”</p>
+                  <p className="text-sm font-bold italic">"已为你优化知识关联，准备生成结构。"</p>
                 </div>
               </div>
             </div>

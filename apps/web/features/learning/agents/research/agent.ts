@@ -63,7 +63,7 @@ export async function researchTopic(
   // 使用 AI SDK v6 正确 API：generateText + Output.object
   const { generateText, Output } = await import("ai");
 
-  const result = await generateText({
+  const { output } = await generateText({
     model: chatModel,
     system: systemPrompt,
     prompt,
@@ -72,12 +72,6 @@ export async function researchTopic(
     }),
   });
 
-  // result.object 是结构化输出，直接传给 safeParse
-  const parsed = TopicResearchOutputSchema.safeParse(result.object);
-  if (!parsed.success) {
-    console.error("[TopicResearch] Invalid output:", parsed.error);
-    throw new Error(`Invalid research output: ${parsed.error.message}`);
-  }
-
-  return parsed.data;
+  // output 是已经通过 schema 验证的结构化输出
+  return output;
 }
