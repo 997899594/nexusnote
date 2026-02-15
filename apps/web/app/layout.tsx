@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { SessionProvider } from "next-auth/react";
-import { AppSidebar } from "@/features/shared/components/layout/AppSidebar";
-import { MobileNav } from "@/features/shared/components/layout/MobileNav";
 import { ThemeProvider } from "@/features/shared/components/layout/ThemeProvider";
 import { PWAProvider } from "@/features/shared/components/pwa/PWAProvider";
 import { Toaster } from "@/features/shared/components/ui/Toast";
+import { MobileNav } from "@/features/shared/components/layout/MobileNav";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -39,11 +38,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <PWAProvider>
           <SessionProvider>
             <ThemeProvider attribute="class" defaultTheme="light">
-              <div className="flex h-screen bg-background">
-                <AppSidebar />
-                <main className="flex-1 min-h-screen pb-safe-bottom md:pb-0">{children}</main>
-                <MobileNav />
+              <div className="min-h-screen bg-background">
+                {children}
               </div>
+              <MobileNav />
               <Toaster />
             </ThemeProvider>
           </SessionProvider>

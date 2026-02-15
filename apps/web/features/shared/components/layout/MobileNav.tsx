@@ -41,10 +41,7 @@ export function MobileNav() {
                     {item.isAction ? (
                       <button
                         onClick={() => setCreateSheetOpen(true)}
-                        className="flex items-center justify-center w-14 h-14 rounded-full
-                                   bg-foreground text-background shadow-float
-                                   transform transition-all duration-300
-                                   hover:-translate-y-1 hover:shadow-lg active:scale-95"
+                        className="flex items-center justify-center w-14 h-14 rounded-full bg-foreground text-background shadow-float transform transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95"
                         aria-label="新建"
                       >
                         <Icon className="w-7 h-7" />
@@ -52,10 +49,7 @@ export function MobileNav() {
                     ) : (
                       <Link
                         href="/create"
-                        className="flex items-center justify-center w-14 h-14 rounded-full
-                                   bg-foreground text-background shadow-float
-                                   transform transition-all duration-300
-                                   hover:-translate-y-1 hover:shadow-lg active:scale-95"
+                        className="flex items-center justify-center w-14 h-14 rounded-full bg-foreground text-background shadow-float transform transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95"
                       >
                         <Icon className="w-7 h-7" />
                       </Link>

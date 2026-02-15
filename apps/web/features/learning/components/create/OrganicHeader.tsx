@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Menu, Settings, User, X } from "lucide-react";
+import { Menu, Settings, User, X, Zap } from "lucide-react";
 import { useState } from "react";
 
 export function OrganicHeader() {
@@ -11,11 +11,11 @@ export function OrganicHeader() {
     <>
       <header className="fixed top-0 left-0 right-0 z-50 px-6 py-4 md:px-8 md:py-6 max-w-7xl mx-auto w-full flex justify-between items-center pointer-events-none">
         {/* Logo Area */}
-        <div className="flex items-center gap-3 pointer-events-auto backdrop-blur-md bg-white/50 px-3 py-1.5 rounded-2xl border border-white/20 shadow-sm">
-          <div className="w-8 h-8 bg-gradient-to-tr from-black to-zinc-800 rounded-xl flex items-center justify-center shadow-lg shadow-black/5">
-            <span className="text-white text-xs font-bold font-mono">N</span>
+        <div className="flex items-center gap-2 pointer-events-auto">
+          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+            <Zap className="w-4 h-4 text-primary-foreground fill-primary-foreground" />
           </div>
-          <span className="font-bold text-black tracking-tight text-lg hidden md:block">
+          <span className="text-xs font-black uppercase tracking-[0.3em] text-foreground/40">
             NexusNote
           </span>
         </div>

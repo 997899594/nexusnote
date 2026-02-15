@@ -16,21 +16,21 @@
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
 
-    --primary: 262.1 83.3% 57.8%;
-    --primary-foreground: 210 20% 98%;
-    --primary-50: 250 95% 97%;
-    --primary-100: 250 94% 94%;
-    --primary-200: 250 91% 89%;
-    --primary-300: 250 84% 80%;
-    --primary-400: 250 78% 69%;
-    --primary-500: 250 78% 57%;
-    --primary-600: 250 75% 48%;
-    --primary-700: 251 66% 40%;
-    --primary-800: 253 58% 34%;
-    --primary-900: 255 56% 27%;
-    --primary-950: 259 56% 16%;
+    --primary: 240 5.9% 10%;
+    --primary-foreground: 0 0% 98%;
+    --primary-50: 240 5% 96%;
+    --primary-100: 240 5% 90%;
+    --primary-200: 240 5% 80%;
+    --primary-300: 240 5% 70%;
+    --primary-400: 240 5% 60%;
+    --primary-500: 240 5% 50%;
+    --primary-600: 240 5% 40%;
+    --primary-700: 240 5% 30%;
+    --primary-800: 240 5% 20%;
+    --primary-900: 240 5% 15%;
+    --primary-950: 240 5% 10%;
 
-    --ring: 262.1 83.3% 57.8%;
+    --ring: 240 5.9% 10%;
 
     --muted: 240 4.8% 95.9%;
     --muted-foreground: 240 3.8% 46.1%;
