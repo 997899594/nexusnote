@@ -3,7 +3,6 @@ import { auth } from "@/auth";
 import { chatAgent } from "@/features/chat/agents/chat-agent";
 import type { CourseGenerationContext } from "@/features/learning/agents/course-generation/agent";
 import { courseGenerationAgent } from "@/features/learning/agents/course-generation/agent";
-import { interviewAgent } from "@/features/learning/agents/interview/agent";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -24,27 +23,49 @@ export async function POST(request: Request) {
   const userId = session.user.id;
   const intent = explicitIntent ?? "INTERVIEW";
 
-  // 根据意图选择对应的 agent
   switch (intent) {
     case "INTERVIEW": {
-      return createAgentUIStreamResponse({
-        agent: interviewAgent,
+      const sessionId = body.sessionId as string | undefined;
+      const initialGoal = body.initialGoal as string | undefined;
+
+      if (!sessionId && !initialGoal) {
+        return new Response("sessionId or initialGoal required", { status: 400 });
+      }
+
+      const { createInterviewAgent } = await import(
+        "@/features/learning/agent/interview-agent"
+      );
+      const { createInterviewSession, getInterviewSession } = await import(
+        "@/features/learning/services/interview-session"
+      );
+
+      let sid = sessionId;
+      if (!sid) {
+        sid = await createInterviewSession(userId, initialGoal!);
+      } else {
+        await getInterviewSession(sid, userId);
+      }
+
+      const agent = createInterviewAgent(sid);
+
+      const response = await createAgentUIStreamResponse({
+        agent,
         uiMessages: messages,
-        options: { userId },
+        options: { userId, sessionId: sid },
         experimental_transform: smoothStream({
           chunking: new Intl.Segmenter("zh-CN", { granularity: "grapheme" }),
         }),
       });
+
+      response.headers.set("X-Session-Id", sid);
+      return response;
     }
 
     case "COURSE_GENERATION": {
       const options: CourseGenerationContext = {
         id: (courseGenerationContext?.id as string) ?? crypto.randomUUID(),
         userId,
-        goal: (courseGenerationContext?.goal as string) ?? "",
-        background: (courseGenerationContext?.background as string) ?? "",
-        targetOutcome: (courseGenerationContext?.targetOutcome as string) ?? "",
-        cognitiveStyle: (courseGenerationContext?.cognitiveStyle as string) ?? "",
+        interviewProfile: courseGenerationContext?.interviewProfile as Record<string, unknown>,
         outlineTitle: (courseGenerationContext?.outlineTitle as string) ?? "",
         outlineData: courseGenerationContext?.outlineData as CourseGenerationContext["outlineData"],
         moduleCount: (courseGenerationContext?.moduleCount as number) ?? 0,
