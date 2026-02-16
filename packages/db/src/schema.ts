@@ -156,24 +156,26 @@ export const courseProfiles = pgTable(
       onDelete: "cascade",
     }),
 
-    // 用户画像维度（Interview Agent 收集）
-    goal: text("goal").notNull(), // 学什么
-    background: text("background").notNull(), // 基础水平
-    targetOutcome: text("target_outcome").notNull(), // 预期成果
-    cognitiveStyle: text("cognitive_style").notNull(), // 学习风格
-
-    // 课程元数据（generateOutline 工具生成）
-    title: text("title").notNull(),
+    // 课程元数据（大纲确认后填入）
+    title: text("title"),
     description: text("description"),
-    difficulty: text("difficulty").notNull().default("intermediate"), // beginner | intermediate | advanced
-    estimatedMinutes: integer("estimated_minutes").notNull(),
+    difficulty: text("difficulty").default("intermediate"),
+    estimatedMinutes: integer("estimated_minutes"),
 
-    // 完整的大纲数据（JSON 格式，Tiptap 渲染）
-    outlineData: jsonb("outline_data").notNull(), // 完整大纲结构
-    outlineMarkdown: text("outline_markdown"), // Markdown 格式的大纲（用于流式渲染）
+    // 完整的大纲数据（JSON 格式）
+    outlineData: jsonb("outline_data"),
+    outlineMarkdown: text("outline_markdown"),
 
     // 生成理由（说明为什么这样设计课程）
     designReason: text("design_reason"),
+
+    // ─── S-Tier Interview Engine ───
+    // AI 自主填充的学习者画像 (每轮 merge update)
+    interviewProfile: jsonb("interview_profile"),
+    // AI SDK UIMessages 持久化（替代 localStorage）
+    interviewMessages: jsonb("interview_messages"),
+    // 会话状态: interviewing | proposing | confirmed | generating | completed
+    interviewStatus: text("interview_status").default("interviewing"),
 
     // 课程生成进度
     currentChapter: integer("current_chapter").default(0),
