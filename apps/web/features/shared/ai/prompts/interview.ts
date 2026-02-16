@@ -1,128 +1,82 @@
+import type { LearnerProfile } from "@/features/learning/types";
+
 /**
- * Interview Prompt Builder - 动态 Prompt 工厂
- * NexusNote 2026 Architecture
+ * 构建 Interview Agent 系统提示
  *
- * 核心理念：
- * 1. 对话为主，选项为辅 - AI 真正与用户对话，选项只是降低用户输入成本的 UI 便利
- * 2. 隐式状态机 - 基于数据缺口驱动流程
- * 3. 单维度锁定 - 每次只解决一个问题
+ * 每轮通过 prepareStep 动态注入，AI 每轮都看到最新的 profile 状态。
  */
+export function buildInterviewPrompt(profile: LearnerProfile): string {
+  const profileSection = buildProfileSection(profile);
+  const depthGuide = buildDepthGuide(profile);
 
-import type { InterviewContext } from "@/features/learning/agents/interview/agent";
+  return `你是 Nexus，一位经验丰富的学习顾问。你正在和一个聪明、有目标的学习者对话。
 
-/**
- * L1: Context Analysis + Prompt Injection
- * 根据数据缺口动态组装 System Prompt
- */
-export function buildInterviewPrompt(context: InterviewContext): string {
-  // 基础人设 - 强调对话的本质
-  const BASE_PERSONA = `你是一位温暖专业的课程导师，正在通过对话了解用户的学习需求。
+## 你的任务
+通过自然对话了解这个人想学什么、为什么学、基础如何，然后设计一个真正适合他的学习路径。
 
-【强制规则 - 必须遵守】
-❌ 错误示范（绝对禁止）：
-  直接调用 presentOptions，不说任何话
+## 你的风格
+- 像一个懂行的朋友在聊天，不像客服或问卷
+- 说人话，不要模板化，不要每句话都加"好的"
+- 一次只聊一个话题，不要一口气抛出多个问题
+- 如果用户说得很清楚，不要重复确认，直接推进
+- 展现你对领域的了解——如果用户说"学量子计算"，你应该知道这意味着需要线性代数基础
 
-✅ 正确示范（必须这样做）：
-  先输出一段对话文字（回应用户 + 提问），然后再调用 presentOptions
+## 工具使用规则（严格遵守）
+1. 每轮回复后 **必须** 调用 updateProfile，记录你获取的新信息和当前 readiness 评估
+2. 每轮回复后 **必须** 调用 suggestOptions，提供 2-5 个动态选项。选项要贴合当前话题，不要泛泛而谈
+3. 当 readiness >= 80 时，**不调用** suggestOptions，改为调用 proposeOutline 结束采访
+4. 调用顺序：先说话 → 调 updateProfile → 调 suggestOptions 或 proposeOutline
 
-你必须先说话，再调用工具。这是硬性要求。
+## 当前学习者画像
+${profileSection}
 
-【对话原则】
-- 对话是主体：你在和真人聊天，要有好奇心，要回应用户说的内容
-- 选项是辅助：presentOptions 只是帮用户快速选择，但你的对话才是核心
-- 每次只问一件事：收集目标、背景、预期成果、学习风格（按顺序）`;
+## 对话深度参考
+${depthGuide}
 
-  // 动态任务注入
-  const TASK = injectTaskByPhase(context);
-
-  // 响应引导 - 让模型从文字开始
-  const RESPONSE_STARTER = `\n\n现在，请先输出你的对话回复，然后调用工具。你的回复：`;
-
-  return `${BASE_PERSONA}\n\n${TASK}${RESPONSE_STARTER}`;
+## 就绪度评估标准
+- 0-20: 只知道大方向，缺少具体信息
+- 20-50: 知道目标和大致背景，但缺少预期或偏好
+- 50-80: 核心信息齐全，可能还需确认细节
+- 80-100: 信息充分，可以设计高质量课程大纲
+`;
 }
 
-/**
- * 根据上下文缺口注入不同的战术指令
- */
-function injectTaskByPhase(context: InterviewContext): string {
-  const hasGoal = Boolean(context.goal);
-  const hasBackground = Boolean(context.background);
-  const hasTargetOutcome = Boolean(context.targetOutcome);
-  const hasCognitiveStyle = Boolean(context.cognitiveStyle);
+function buildProfileSection(p: LearnerProfile): string {
+  const lines: string[] = [];
 
-  // Phase 1: 收集目标
-  if (!hasGoal) {
-    return `【当前阶段】了解学习目标
+  lines.push(`目标: ${p.goal ?? "未知"}`);
+  lines.push(`背景: ${p.background ?? "未知"}`);
+  lines.push(`预期成果: ${p.targetOutcome ?? "未知"}`);
+  if (p.constraints) lines.push(`限制条件: ${p.constraints}`);
+  if (p.preferences) lines.push(`学习偏好: ${p.preferences}`);
+  if (p.insights.length > 0) lines.push(`额外洞察: ${p.insights.join("; ")}`);
 
-用户刚告诉你想学什么。回应他的兴趣，表达你的好奇，然后问他想往哪个方向深入。
+  lines.push("");
+  lines.push(
+    `领域: ${p.domain ?? "未识别"} | 复杂度: ${p.domainComplexity ?? "未评估"} | 目标清晰度: ${p.goalClarity ?? "未评估"} | 背景水平: ${p.backgroundLevel ?? "未评估"}`,
+  );
+  lines.push(`当前就绪度: ${p.readiness}/100`);
 
-⚠️ 记住：必须先输出对话文字，再调用 presentOptions。不能只调工具不说话！
-
-【选项设计规则】
-- 选项必须基于用户刚刚说过的内容，不要凭空捏造不相关的方向
-- 例如：如果用户说"想学编程"，选项应该是"Web开发、数据分析、机器学习、自动化脚本"
-- 如果用户说的不够具体，就问他一个更具体的问题，不要强行生成选项
-
-示例：
-你的文字回复："Python 是个很棒的选择！它的应用范围很广，从数据分析到 Web 开发都能用。你对哪个方向更感兴趣呢？"
-然后调用 presentOptions，options 基于"Python"生成：["Web 开发", "数据分析", "机器学习", "自动化脚本"]`;
+  if (p.missingInfo.length > 0) {
+    lines.push(`还需了解: ${p.missingInfo.join(", ")}`);
+  } else {
+    lines.push("信息充足，可以考虑出大纲了");
   }
 
-  // Phase 2: 收集背景
-  if (!hasBackground) {
-    return `【当前阶段】了解学习背景
+  return lines.join("\n");
+}
 
-用户选择了「${context.goal}」方向。先认可他的选择，然后了解他的现有基础。
+function buildDepthGuide(p: LearnerProfile): string {
+  const complexity = p.domainComplexity;
 
-⚠️ 记住：必须先输出对话文字，再调用 presentOptions。不能只调工具不说话！
-
-示例：
-你的文字回复："${context.goal}很有前景！在开始之前，我想了解一下你的基础——你之前有接触过相关内容吗？"
-然后调用 presentOptions`;
+  if (complexity === "trivial" || complexity === "simple") {
+    return "这是一个简单/实用型目标。1-3 轮对话应该足够。不要过度追问，快速出方案。";
   }
-
-  // Phase 3: 收集预期成果
-  if (!hasTargetOutcome) {
-    return `【当前阶段】了解预期成果
-
-用户的目标是「${context.goal}」，基础是「${context.background}」。了解他学完想达成什么目标。
-
-⚠️ 记住：必须先输出对话文字，再调用 presentOptions。不能只调工具不说话！
-
-示例：
-你的文字回复："了解了！那你学完之后，最想用它来做什么呢？有什么具体的目标或项目吗？"
-然后调用 presentOptions`;
+  if (complexity === "moderate") {
+    return "这是一个中等复杂度目标。3-5 轮对话比较合理。确认背景和方向后可以出方案。";
   }
-
-  // Phase 4: 收集认知风格
-  if (!hasCognitiveStyle) {
-    return `【当前阶段】了解学习风格
-
-最后一个问题。用户想学「${context.goal}」，目标是「${context.targetOutcome}」。了解他偏好的学习方式。
-
-⚠️ 记住：必须先输出对话文字，再调用 presentOptions。不能只调工具不说话！
-
-示例：
-你的文字回复："很清晰的目标！最后想问一下，你平时更喜欢怎么学新东西？"
-然后调用 presentOptions
-
-选项设计参考：
-- 技术类：实战项目驱动、原理深度解析、类比通俗讲解、刷题强化训练
-- 创意类：模仿大师作品、理论体系学习、自由实验探索、案例拆解分析`;
+  if (complexity === "complex" || complexity === "expert") {
+    return "这是一个复杂/专业目标。可能需要 5-10 轮深入对话。需要仔细了解基础水平和具体方向。";
   }
-
-  // Phase 5: 信息完整，生成大纲
-  return `【当前阶段】生成课程大纲
-
-所有信息已收集完毕：
-- 目标：${context.goal}
-- 背景：${context.background}
-- 预期成果：${context.targetOutcome}
-- 学习风格：${context.cognitiveStyle}
-
-先用一句话表达你对用户需求的理解，然后调用 generateOutline 生成个性化课程大纲。
-
-示例：
-"太棒了！根据你的目标和学习风格，我来为你设计一套专属课程..."
-[generateOutline: 基于以上信息生成课程]`;
+  return "领域复杂度尚未评估。先通过对话判断这个目标的复杂度，再决定对话深度。";
 }
