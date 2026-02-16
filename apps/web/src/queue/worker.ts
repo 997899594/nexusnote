@@ -12,9 +12,11 @@
  */
 
 import { env } from "@nexusnote/config";
-import { db, documentChunks, documents, eq, extractedNotes, sql, topics } from "@nexusnote/db";
+import { courseProfiles, db, documentChunks, documents, eq, extractedNotes, sql, topics } from "@nexusnote/db";
 import { Worker } from "bullmq";
 import IORedis from "ioredis";
+import type { CourseGenerationJobData, CourseGenerationProgress } from "@/lib/queue/course-generation";
+import type { CourseGenerationContext } from "@/features/learning/agents/course-generation/agent";
 import { isEmbeddingConfigured, registry } from "@/features/shared/ai/registry";
 import { generateEmbeddings } from "./utils/embeddings";
 
@@ -283,15 +285,127 @@ async function startNoteClassifyWorker() {
   return worker;
 }
 
+/**
+ * 处理课程生成任务
+ * 1. 从 DB 加载 courseProfile（包含 interviewProfile + outlineData）
+ * 2. 逐章调用 courseGenerationAgent.generate()
+ * 3. 通过 job.updateProgress 报告进度
+ */
+async function processCourseGenerationJob(job: { data: CourseGenerationJobData; updateProgress: (p: CourseGenerationProgress) => Promise<void> }) {
+  const { courseId, userId } = job.data;
+
+  console.log(`[Course Worker] Starting generation for course: ${courseId}`);
+
+  const profile = await db.query.courseProfiles.findFirst({
+    where: eq(courseProfiles.id, courseId),
+  });
+
+  if (!profile) throw new Error(`Course profile ${courseId} not found`);
+
+  const outline = profile.outlineData as Record<string, unknown> | null;
+  if (!outline) throw new Error(`Course ${courseId} has no outline data`);
+
+  const interviewProfile = profile.interviewProfile as Record<string, unknown> | undefined;
+  const modules = (outline.modules as Array<{ title: string; chapters: Array<{ title: string }> }>) || [];
+  const chapters = outline.chapters
+    ? (outline.chapters as Array<{ title: string }>)
+    : modules.flatMap((m) => m.chapters ?? []);
+
+  if (chapters.length === 0) throw new Error(`Course ${courseId} has no chapters in outline`);
+
+  // 动态导入避免顶层副作用（模型初始化）
+  const { courseGenerationAgent } = await import(
+    "@/features/learning/agents/course-generation/agent"
+  );
+
+  // 更新状态为 generating
+  await db
+    .update(courseProfiles)
+    .set({ interviewStatus: "generating", updatedAt: new Date() })
+    .where(eq(courseProfiles.id, courseId));
+
+  for (let i = 0; i < chapters.length; i++) {
+    await job.updateProgress({
+      current: i,
+      total: chapters.length,
+      status: "generating",
+      chapterTitle: chapters[i].title,
+    });
+
+    console.log(`[Course Worker] Generating chapter ${i + 1}/${chapters.length}: ${chapters[i].title}`);
+
+    await courseGenerationAgent.generate({
+      prompt: `请生成第 ${i + 1} 章的内容: ${chapters[i].title}`,
+      options: {
+        id: courseId,
+        userId,
+        interviewProfile,
+        outlineTitle: profile.title || "",
+        outlineData: outline as CourseGenerationContext["outlineData"],
+        moduleCount: modules.length,
+        totalChapters: chapters.length,
+        currentModuleIndex: 0,
+        currentChapterIndex: i,
+        chaptersGenerated: i,
+      },
+    });
+
+    console.log(`[Course Worker] Chapter ${i + 1} generated`);
+  }
+
+  await job.updateProgress({
+    current: chapters.length,
+    total: chapters.length,
+    status: "completed",
+  });
+
+  // 更新状态为 completed
+  await db
+    .update(courseProfiles)
+    .set({ interviewStatus: "completed", updatedAt: new Date() })
+    .where(eq(courseProfiles.id, courseId));
+
+  console.log(`[Course Worker] Course ${courseId} generation complete`);
+  return { completed: true, chapters: chapters.length };
+}
+
+/**
+ * 启动 Course Generation Worker
+ */
+async function startCourseGenerationWorker() {
+  console.log("[Course Worker] Starting worker...");
+
+  const worker = new Worker<CourseGenerationJobData>("course-generation", processCourseGenerationJob, {
+    connection: redis,
+    concurrency: 1,
+    limiter: { max: 2, duration: 60_000 },
+  });
+
+  worker.on("completed", (job) => {
+    console.log(`[Course Worker] Job ${job.id} completed`);
+  });
+
+  worker.on("failed", (job, err) => {
+    console.error(
+      `[Course Worker] Job ${job?.id} failed:`,
+      err instanceof Error ? err.message : err,
+    );
+  });
+
+  console.log("[Course Worker] Worker ready");
+  return worker;
+}
+
 // 启动所有 Workers
 async function startAllWorkers() {
   const ragWorker = await startWorker();
   const noteClassifyWorker = await startNoteClassifyWorker();
+  const courseWorker = await startCourseGenerationWorker();
 
   // 优雅关闭
   const shutdown = async () => {
     console.log("[Workers] Shutting down...");
-    await Promise.all([ragWorker?.close(), noteClassifyWorker?.close()]);
+    await Promise.all([ragWorker?.close(), noteClassifyWorker?.close(), courseWorker?.close()]);
     await redis.quit();
     process.exit(0);
   };
