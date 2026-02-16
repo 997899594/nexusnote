@@ -3,5 +3,5 @@
  */
 
 export { useInlineAI } from "@/features/editor/hooks/useInlineAI";
-export { useCourseGeneration } from "@/features/learning/hooks/useCourseGeneration";
+export { useInterview } from "@/features/learning/hooks/useInterview";
 export { useDocumentGeneration } from "@/features/learning/hooks/useDocumentGeneration";

@@ -1,14 +1,5 @@
 "use server";
 
-/**
- * 2026 架构师标准：Server Actions 核心中心
- *
- * 职责：
- * 1. 替代传统的 fetch /api 模式，提供类型安全的直接调用
- * 2. 处理认证与授权逻辑
- * 3. 封装数据库原子操作
- */
-
 import { and, courseChapters, courseProfiles, db, eq } from "@nexusnote/db";
 import { revalidatePath } from "next/cache";
 import {
@@ -19,6 +10,7 @@ import {
 } from "@/features/learning/agents/course-profile";
 import { createSafeAction } from "@/lib/actions/action-utils";
 import type { CourseChapterDTO, CourseProfileDTO } from "@/lib/actions/types";
+import type { LearnerProfile } from "@/features/learning/types";
 
 /**
  * 保存课程画像
@@ -28,12 +20,8 @@ export const saveCourseProfileAction = createSafeAction(
   async (
     payload: {
       id?: string;
-      goal: string;
-      background: string;
-      targetOutcome: string;
-      cognitiveStyle: string;
       outlineData: OutlineData;
-      designReason: string;
+      designReason?: string;
     },
     userId,
   ) => {
@@ -42,7 +30,6 @@ export const saveCourseProfileAction = createSafeAction(
       ...payload,
     });
 
-    // 清除相关缓存，确保数据最新
     revalidatePath(`/learn/${id}`);
 
     return { courseId: id };
@@ -58,7 +45,6 @@ export const getCourseChaptersAction = createSafeAction(
     courseId: string,
     userId,
   ): Promise<{ chapters: CourseChapterDTO[]; profile: CourseProfileDTO }> => {
-    // 权限校验：确保用户只能访问自己的课程
     const profile = await db.query.courseProfiles.findFirst({
       where: and(eq(courseProfiles.id, courseId), eq(courseProfiles.userId, userId)),
     });
@@ -69,7 +55,6 @@ export const getCourseChaptersAction = createSafeAction(
 
     const chapters = await dbGetChapters(courseId);
 
-    // 映射为 DTO
     const chapterDTOs: CourseChapterDTO[] = chapters.map((c) => ({
       id: c.id,
       chapterIndex: c.chapterIndex,
@@ -78,24 +63,23 @@ export const getCourseChaptersAction = createSafeAction(
       contentMarkdown: c.contentMarkdown,
       summary: null,
       keyPoints: null,
-      isCompleted: false, // 初始状态
+      isCompleted: false,
       createdAt: c.createdAt ? c.createdAt.toISOString() : new Date().toISOString(),
     }));
+
+    const interviewProfile = profile.interviewProfile as LearnerProfile | null;
 
     return {
       chapters: chapterDTOs,
       profile: {
         id: profile.id,
-        title: profile.title,
+        title: profile.title ?? "",
         progress: {
           currentChapter: profile.currentChapter || 0,
           currentSection: profile.currentSection || 1,
         },
         userId: profile.userId || userId,
-        goal: profile.goal,
-        background: profile.background,
-        targetOutcome: profile.targetOutcome,
-        cognitiveStyle: profile.cognitiveStyle,
+        interviewProfile,
         outlineData: profile.outlineData as OutlineData,
       },
     };
@@ -117,7 +101,6 @@ export const getChapterContentAction = createSafeAction(
   ): Promise<CourseChapterDTO> => {
     const { courseId, chapterIndex, sectionIndex = 1 } = payload;
 
-    // 权限校验
     const profile = await db.query.courseProfiles.findFirst({
       where: and(eq(courseProfiles.id, courseId), eq(courseProfiles.userId, userId)),
     });
@@ -167,7 +150,6 @@ export const updateCourseProgressAction = createSafeAction(
   ) => {
     const { courseId, currentChapter, currentSection = 1 } = payload;
 
-    // 权限校验
     const profile = await db.query.courseProfiles.findFirst({
       where: and(eq(courseProfiles.id, courseId), eq(courseProfiles.userId, userId)),
     });

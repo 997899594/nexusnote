@@ -9,9 +9,9 @@ export {
   chatAgent,
 } from "@/features/chat/agents/chat-agent";
 
-// Interview Agent — 已迁移到 features/learning/agents/
+// Interview Agent — 工厂函数，不再是单例
 export {
   type InterviewAgentMessage,
-  type InterviewContext,
-  interviewAgent,
-} from "@/features/learning/agents/interview/agent";
+  type InterviewCallOptions,
+  createInterviewAgent,
+} from "@/features/learning/agent/interview-agent";

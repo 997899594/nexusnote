@@ -10,83 +10,35 @@
 
 ---
 
-## Task 1: 数据库 — 新增 `interview_sessions` 表
+## Task 1: 数据库 — 扩展 `courseProfiles` 表
 
 **文件:**
 - 修改: `packages/db/src/schema.ts`
-- 运行: `packages/db/drizzle.config.ts` (迁移生成)
+- 运行: 迁移生成
 
-**Step 1: 在 schema.ts 中添加表定义**
+**决策:** 不新建表。`courseProfiles` 本来就是 "Interview Agent 收集的用户信息 + 课程大纲"，直接加 3 个字段。
 
-在 `courseProfiles` 表定义之前添加 `interviewSessions` 表:
+**Step 1: 在 courseProfiles 表定义中追加字段**
+
+在 `designReason` 字段之后、`currentChapter` 之前添加:
 
 ```typescript
-// ============================================
-// Interview Sessions (S-Tier 智能对话引擎)
-// ============================================
-
-export const interviewSessions = pgTable(
-  "interview_sessions",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    initialGoal: text("initial_goal").notNull(),
+    // ─── S-Tier Interview Engine 新增字段 ───
 
     // AI 自主填充的学习者画像 (JSONB, 每轮 merge update)
-    profile: jsonb("profile").notNull().default("{}"),
+    // 替代固定的 goal/background/targetOutcome/cognitiveStyle 四列
+    // 大纲确认后从此字段提取填入旧列（兼容已有流程）
+    interviewProfile: jsonb("interview_profile"),
+
+    // AI SDK UIMessages 持久化（替代 localStorage）
+    interviewMessages: jsonb("interview_messages"),
 
     // 会话状态
-    status: text("status").notNull().default("interviewing"),
     // 'interviewing' | 'proposing' | 'confirmed' | 'generating' | 'completed'
-
-    // AI SDK UIMessages 持久化 (替代 localStorage)
-    messages: jsonb("messages").notNull().default("[]"),
-
-    // 大纲
-    proposedOutline: jsonb("proposed_outline"),
-    confirmedOutline: jsonb("confirmed_outline"),
-
-    // 关联到最终创建的课程
-    courseId: uuid("course_id").references(() => courseProfiles.id, {
-      onDelete: "set null",
-    }),
-
-    createdAt: timestamp("created_at").defaultNow(),
-    updatedAt: timestamp("updated_at").defaultNow(),
-  },
-  (table) => ({
-    userIdIdx: index("interview_sessions_user_id_idx").on(table.userId),
-    statusIdx: index("interview_sessions_status_idx").on(table.status),
-  }),
-);
-
-// Relations
-export const interviewSessionsRelations = relations(interviewSessions, ({ one }) => ({
-  user: one(users, {
-    fields: [interviewSessions.userId],
-    references: [users.id],
-  }),
-  course: one(courseProfiles, {
-    fields: [interviewSessions.courseId],
-    references: [courseProfiles.id],
-  }),
-}));
+    interviewStatus: text("interview_status").default("interviewing"),
 ```
 
-同时在 `usersRelations` 中追加:
-
-```typescript
-interviewSessions: many(interviewSessions),
-```
-
-在文件底部追加类型导出:
-
-```typescript
-export type InterviewSession = typeof interviewSessions.$inferSelect;
-export type NewInterviewSession = typeof interviewSessions.$inferInsert;
-```
+旧的 goal/background/targetOutcome/cognitiveStyle 四列保留，大纲确认后从 interviewProfile 提取填入。
 
 **Step 2: 生成并执行迁移**
 
@@ -107,7 +59,7 @@ pnpm --filter @nexusnote/web typecheck
 
 ```bash
 git add packages/db/
-git commit -m "feat(db): add interview_sessions table for S-tier interview engine"
+git commit -m "feat(db): extend courseProfiles with interviewProfile, interviewMessages, interviewStatus"
 ```
 
 ---
@@ -239,15 +191,17 @@ git commit -m "feat(types): define LearnerProfile schema and interview tool sche
 
 ---
 
-## Task 3: 服务层 — Interview Session CRUD
+## Task 3: 服务层 — Interview Session CRUD（基于 courseProfiles）
 
 **文件:**
 - 新建: `apps/web/features/learning/services/interview-session.ts`
 
 **Step 1: 创建 interview-session.ts**
 
+所有操作基于 `courseProfiles` 表的新字段（interviewProfile, interviewMessages, interviewStatus）。
+
 ```typescript
-import { db, eq, and, interviewSessions } from "@nexusnote/db";
+import { db, eq, and, courseProfiles } from "@nexusnote/db";
 import {
   type LearnerProfile,
   LearnerProfileSchema,
@@ -255,7 +209,7 @@ import {
   type InterviewStatus,
 } from "@/features/learning/types";
 
-// ─── 创建 Session ───
+// ─── 创建 Session（创建一条 courseProfiles 记录）───
 
 export async function createInterviewSession(
   userId: string,
@@ -269,27 +223,36 @@ export async function createInterviewSession(
     missingInfo: ["领域和复杂度", "学习背景", "预期成果"],
   };
 
-  const [row] = await db
-    .insert(interviewSessions)
-    .values({
-      userId,
-      initialGoal,
-      profile,
-      status: "interviewing",
-      messages: [],
-    })
-    .returning({ id: interviewSessions.id });
+  const id = crypto.randomUUID();
 
-  return row.id;
+  await db.insert(courseProfiles).values({
+    id,
+    userId,
+    // 旧列先填占位值，大纲确认后再从 profile 提取填入
+    goal: initialGoal,
+    background: "",
+    targetOutcome: "",
+    cognitiveStyle: "",
+    title: initialGoal,
+    difficulty: "intermediate",
+    estimatedMinutes: 0,
+    outlineData: {},
+    // 新列
+    interviewProfile: profile,
+    interviewMessages: [],
+    interviewStatus: "interviewing",
+  });
+
+  return id;
 }
 
 // ─── 读取 Session ───
 
 export async function getInterviewSession(sessionId: string, userId: string) {
-  const session = await db.query.interviewSessions.findFirst({
+  const session = await db.query.courseProfiles.findFirst({
     where: and(
-      eq(interviewSessions.id, sessionId),
-      eq(interviewSessions.userId, userId),
+      eq(courseProfiles.id, sessionId),
+      eq(courseProfiles.userId, userId),
     ),
   });
   if (!session) throw new Error("Interview session not found");
@@ -299,12 +262,12 @@ export async function getInterviewSession(sessionId: string, userId: string) {
 // ─── 读取 Profile ───
 
 export async function getProfile(sessionId: string): Promise<LearnerProfile> {
-  const session = await db.query.interviewSessions.findFirst({
-    where: eq(interviewSessions.id, sessionId),
-    columns: { profile: true },
+  const session = await db.query.courseProfiles.findFirst({
+    where: eq(courseProfiles.id, sessionId),
+    columns: { interviewProfile: true },
   });
   if (!session) throw new Error("Session not found");
-  return LearnerProfileSchema.parse(session.profile);
+  return LearnerProfileSchema.parse(session.interviewProfile || EMPTY_PROFILE);
 }
 
 // ─── Merge Profile（部分更新）───
@@ -331,69 +294,64 @@ export async function mergeProfile(
   }
   merged.insights = mergedInsights;
 
-  // 验证后写入
   const validated = LearnerProfileSchema.parse(merged);
 
   await db
-    .update(interviewSessions)
-    .set({ profile: validated, updatedAt: new Date() })
-    .where(eq(interviewSessions.id, sessionId));
+    .update(courseProfiles)
+    .set({ interviewProfile: validated, updatedAt: new Date() })
+    .where(eq(courseProfiles.id, sessionId));
 
   return validated;
 }
 
 // ─── 更新状态 ───
 
-export async function updateSessionStatus(
+export async function updateInterviewStatus(
   sessionId: string,
   status: InterviewStatus,
 ) {
   await db
-    .update(interviewSessions)
-    .set({ status, updatedAt: new Date() })
-    .where(eq(interviewSessions.id, sessionId));
+    .update(courseProfiles)
+    .set({ interviewStatus: status, updatedAt: new Date() })
+    .where(eq(courseProfiles.id, sessionId));
 }
 
-// ─── 保存 Messages（AI SDK UIMessages 持久化）───
+// ─── 保存 Messages ───
 
-export async function saveMessages(sessionId: string, messages: unknown[]) {
+export async function saveInterviewMessages(sessionId: string, messages: unknown[]) {
   await db
-    .update(interviewSessions)
-    .set({ messages, updatedAt: new Date() })
-    .where(eq(interviewSessions.id, sessionId));
+    .update(courseProfiles)
+    .set({ interviewMessages: messages, updatedAt: new Date() })
+    .where(eq(courseProfiles.id, sessionId));
 }
 
-// ─── 保存大纲 ───
+// ─── 确认大纲（从 interviewProfile 提取填入旧列）───
 
-export async function saveProposedOutline(
+export async function confirmOutlineAndSyncProfile(
   sessionId: string,
-  outline: unknown,
+  outlineData: Record<string, unknown>,
 ) {
-  await db
-    .update(interviewSessions)
-    .set({
-      proposedOutline: outline,
-      status: "proposing",
-      updatedAt: new Date(),
-    })
-    .where(eq(interviewSessions.id, sessionId));
-}
-
-export async function confirmOutline(sessionId: string) {
-  const session = await db.query.interviewSessions.findFirst({
-    where: eq(interviewSessions.id, sessionId),
-    columns: { proposedOutline: true },
-  });
-  if (!session?.proposedOutline) throw new Error("No proposed outline");
+  const profile = await getProfile(sessionId);
 
   await db
-    .update(interviewSessions)
+    .update(courseProfiles)
     .set({
-      confirmedOutline: session.proposedOutline,
-      status: "confirmed",
+      // 同步旧列（兼容已有的 /learn 页面）
+      goal: profile.goal || "",
+      background: profile.background || "",
+      targetOutcome: profile.targetOutcome || "",
+      cognitiveStyle: profile.preferences || "",
+      // 大纲数据
+      title: (outlineData.title as string) || profile.goal || "",
+      description: outlineData.description as string,
+      difficulty: (outlineData.difficulty as string) || "intermediate",
+      estimatedMinutes: (outlineData.estimatedMinutes as number) || 0,
+      outlineData,
+      // 状态
+      interviewStatus: "confirmed",
       updatedAt: new Date(),
     })
-    .where(eq(interviewSessions.id, sessionId));
+    .where(eq(courseProfiles.id, sessionId));
 }
 ```
 

@@ -13,9 +13,7 @@ export * from "@/features/chat/hooks/use-web-search-toggle";
 export * from "@/features/editor/atoms/editor";
 export * from "@/features/editor/hooks/use-editor";
 // learning 领域
-export * from "@/features/learning/atoms/course-generation";
 export * from "@/features/learning/atoms/note-extraction";
-export * from "@/features/learning/hooks/use-course-generation";
 export * from "@/features/learning/hooks/use-note-extraction";
 // shared 领域
 export * from "@/features/shared/atoms/auth";

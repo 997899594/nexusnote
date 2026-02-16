@@ -8,13 +8,13 @@
 export { getCourseChaptersAction, saveCourseProfileAction } from "./actions/course";
 export { courseGenerationAgent } from "./agents/course-generation/agent";
 // Agents
-export { interviewAgent } from "./agents/interview/agent";
+export { createInterviewAgent } from "./agent/interview-agent";
 // 组件
 export { ChatInterface } from "./components/create/ChatInterface";
 export { FlashcardReview } from "./components/srs/FlashcardReview";
 export { useNoteExtraction } from "./hooks/use-note-extraction";
 // Hooks
-export { useCourseGeneration } from "./hooks/useCourseGeneration";
+export { useInterview } from "./hooks/useInterview";
 // 存储
 export { flashcardStore } from "./stores/flashcard-store";
 export { learningStore } from "./stores/learning-store";

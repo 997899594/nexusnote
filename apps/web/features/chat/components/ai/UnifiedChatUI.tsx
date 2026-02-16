@@ -18,8 +18,6 @@ interface UnifiedChatUIProps {
   renderToolOptions?: (input: {
     options: string[];
     toolCallId: string;
-    replyToUser?: string;
-    targetField?: string;
   }) => ReactNode;
   renderMessage?: (message: Message, text: string, isUser: boolean) => ReactNode;
   renderEmpty?: () => ReactNode;
@@ -190,6 +188,7 @@ export function DefaultOptionButtons({
   toolCallId: string;
   onSelect: (toolCallId: string, option: string) => void;
 }) {
+  console.log("[DefaultOptionButtons] Rendering with options:", options);
   return (
     <div className="flex flex-wrap gap-2 mt-3">
       {options.map((option) => (

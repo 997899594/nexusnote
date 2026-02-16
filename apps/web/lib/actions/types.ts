@@ -1,4 +1,5 @@
 import type { OutlineData } from "@/features/learning/agents/course-profile";
+import type { LearnerProfile } from "@/features/learning/types";
 
 /**
  * 2026 架构师标准：标准返回协议 (ActionResult)
@@ -71,10 +72,7 @@ export interface CourseProfileDTO {
     currentSection: number;
   };
   userId: string;
-  goal: string;
-  background: string;
-  targetOutcome: string;
-  cognitiveStyle: string;
+  interviewProfile: LearnerProfile | null;
   outlineData: OutlineData;
 }
 

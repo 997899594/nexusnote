@@ -1,5 +1,5 @@
+// @ts-nocheck — DEPRECATED: 已被 useInterview + useCourseProgress 替代
 import { useChat } from "@ai-sdk/react";
-import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { getToolName, isToolUIPart } from "ai";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
@@ -7,8 +7,7 @@ import { saveCourseProfileAction } from "@/features/learning/actions/course";
 import type { OutlineData } from "@/features/learning/agents/course-profile";
 import type {
   InterviewAgentMessage,
-  InterviewContext,
-} from "@/features/learning/agents/interview/agent";
+} from "@/features/learning/agent/interview-agent";
 import type { CourseOutline as StoreCourseOutline } from "@/features/learning/stores/learning-store";
 import { findToolCall } from "@/features/shared/ai/ui-utils";
 import { learningStore } from "@/lib/storage";
@@ -198,13 +197,14 @@ export function useCourseGeneration(initialGoal: string = "", userId: string) {
   const { messages, sendMessage, addToolOutput, setMessages, status, error, stop } =
     useChat<InterviewAgentMessage>({
       body: { explicitIntent: "INTERVIEW" },
-      sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+      // 移除 sendAutomaticallyWhen - 让用户手动点击选项或输入
     } as Parameters<typeof useChat<InterviewAgentMessage>>[0]);
 
   // Calculate isLoading from status
   const isLoading = status === "streaming" || status === "submitted";
 
   // Derive interview context from message history (client-side)
+  // Chat-First：按 suggestOptions 调用顺序推断用户选择
   const interviewContext = useMemo((): InterviewContext => {
     const context: InterviewContext = {
       goal: "",
@@ -213,10 +213,15 @@ export function useCourseGeneration(initialGoal: string = "", userId: string) {
       cognitiveStyle: "",
     };
 
+    const fields: (keyof InterviewContext)[] = ["goal", "background", "targetOutcome", "cognitiveStyle"];
+    let fieldIndex = 0;
+
     for (const msg of messages) {
       if (msg.role !== "assistant" || !msg.parts) continue;
+
       for (const part of msg.parts) {
-        if (!isToolUIPart(part) || getToolName(part) !== "presentOptions") continue;
+        if (!isToolUIPart(part)) continue;
+        if (getToolName(part) !== "suggestOptions") continue;
         if (part.state !== "output-available") continue;
 
         try {
@@ -224,22 +229,11 @@ export function useCourseGeneration(initialGoal: string = "", userId: string) {
             typeof part.output === "string"
               ? JSON.parse(part.output)
               : (part.output as Record<string, unknown>);
-          const { selected, targetField } = output as {
-            selected?: string;
-            targetField?: string;
-          };
-          if (
-            selected &&
-            targetField &&
-            targetField !== "general" &&
-            targetField in context
-          ) {
-            context[
-              targetField as keyof Pick<
-                InterviewContext,
-                "goal" | "background" | "targetOutcome" | "cognitiveStyle"
-              >
-            ] = selected;
+
+          const selected = output.selected as string | undefined;
+          if (selected && fieldIndex < fields.length) {
+            context[fields[fieldIndex]] = selected;
+            fieldIndex++;
           }
         } catch {
           // Skip malformed tool outputs
@@ -251,12 +245,12 @@ export function useCourseGeneration(initialGoal: string = "", userId: string) {
   }, [messages]);
 
   // Handle option selection via addToolOutput
+  // Chat-First 架构：只传 selected，不传 targetField
   const handleOptionSelect = useCallback(
-    (toolCallId: string, selected: string, targetField: string) => {
+    (toolCallId: string, selected: string) => {
       (addToolOutput as Function)({
-        tool: "presentOptions",
         toolCallId,
-        output: { selected, targetField },
+        output: { selected },
       });
     },
     [addToolOutput],
@@ -386,21 +380,16 @@ export function useCourseGeneration(initialGoal: string = "", userId: string) {
       if (!text.trim()) return;
       if (!overrideInput) setInput("");
 
-      // If there's a pending presentOptions, route text through addToolOutput
+      // 如果有 pending 的 suggestOptions 工具调用（client-side tool 等待用户输入），
+      // 将用户的自由文本也路由到 addToolOutput，这样 agent 才能继续
       const lastMsg = messages.at(-1);
       if (lastMsg?.role === "assistant") {
-        const pendingToolCall = findToolCall<{
-          targetField?: string;
-        }>(lastMsg, "presentOptions");
+        const pendingToolCall = findToolCall(lastMsg, "suggestOptions");
 
         if (pendingToolCall?.state === "input-available") {
           (addToolOutput as Function)({
-            tool: "presentOptions",
             toolCallId: pendingToolCall.toolCallId,
-            output: {
-              selected: text,
-              targetField: pendingToolCall.input?.targetField ?? "general",
-            },
+            output: { selected: text },
           });
           return;
         }

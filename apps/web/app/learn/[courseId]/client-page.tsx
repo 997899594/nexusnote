@@ -228,10 +228,7 @@ export default function LearnPageClient({ courseId, initialProfile }: LearnPageC
             courseGenerationContext: {
               id: courseId,
               userId: courseProfile.userId,
-              goal: courseProfile.goal,
-              background: courseProfile.background,
-              targetOutcome: courseProfile.targetOutcome,
-              cognitiveStyle: courseProfile.cognitiveStyle,
+              interviewProfile: courseProfile.interviewProfile,
               outlineTitle: courseProfile.title,
               outlineData: outline,
               moduleCount: outline.modules?.length || 0,

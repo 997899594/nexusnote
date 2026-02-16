@@ -38,16 +38,13 @@ export default async function LearnPage({ params }: LearnPageProps) {
   // 移除手动映射，直接使用数据库返回的数据（已经是 JSON 可序列化）
   const courseProfileDTO: CourseProfileDTO = serializeObject({
     id: profile.id,
-    title: profile.title,
+    title: profile.title ?? "",
     progress: {
       currentChapter: profile.currentChapter || 0,
       currentSection: profile.currentSection || 1,
     },
     userId: profile.userId || session.user.id,
-    goal: profile.goal,
-    background: profile.background,
-    targetOutcome: profile.targetOutcome,
-    cognitiveStyle: profile.cognitiveStyle,
+    interviewProfile: profile.interviewProfile as import("@/features/learning/types").LearnerProfile | null,
     outlineData: profile.outlineData,
   });
 

@@ -47,11 +47,8 @@ export const CourseGenerationContextSchema = z.object({
   id: z.string().uuid().describe("课程 ID"),
   userId: z.string().uuid().describe("用户 ID"),
 
-  // 课程基本信息
-  goal: z.string().describe("学习目标"),
-  background: z.string().describe("学习背景"),
-  targetOutcome: z.string().describe("预期成果"),
-  cognitiveStyle: z.string().describe("学习风格"),
+  // 学习者画像（从 interviewProfile 传入）
+  interviewProfile: z.record(z.string(), z.unknown()).optional().describe("学习者画像 JSON"),
 
   // 大纲信息
   outlineTitle: z.string().describe("课程标题"),

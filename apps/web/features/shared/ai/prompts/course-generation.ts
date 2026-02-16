@@ -1,22 +1,20 @@
 /**
  * Course Generation Prompt Builder
  * 根据课程进度动态生成生成指令
- *
- * 核心理念：代码掌舵，AI 划桨
- * - 业务逻辑由代码控制（章节顺序、内容深度等）
- * - AI 负责生成高质量的内容
- * - 工具调用由 AI 决策（何时保存章节、何时完成生成）
  */
 
 import type { CourseGenerationContext } from "@/features/learning/agents/course-generation/agent";
 
 export function buildCourseGenerationPrompt(context: CourseGenerationContext): string {
+  const profile = context.interviewProfile as Record<string, unknown> | undefined;
+
   const LEARNING_PROFILE = `
 【学生背景】
-- 学习目标: ${context.goal}
-- 基础水平: ${context.background}
-- 预期成果: ${context.targetOutcome}
-- 学习风格: ${context.cognitiveStyle}
+- 学习目标: ${profile?.goal ?? "未知"}
+- 基础水平: ${profile?.background ?? "未知"}
+- 预期成果: ${profile?.targetOutcome ?? "未知"}
+- 学习偏好: ${profile?.preferences ?? "未知"}
+- 领域复杂度: ${profile?.domainComplexity ?? "未评估"}
 
 【课程信息】
 - 课程 ID: ${context.id}
@@ -32,15 +30,18 @@ export function buildCourseGenerationPrompt(context: CourseGenerationContext): s
 
   const BASE_PERSONA = `你是一位顶尖的 AI 课程架构师。你不仅精通文字创作，还擅长利用多模态工具（如插图生成）和高级 Markdown 渲染（如 Mermaid 图表、KaTeX 公式）来构建沉浸式的学习体验。`;
 
+  const backgroundStr = (profile?.background as string) ?? "";
+  const preferencesStr = (profile?.preferences as string) ?? "";
+
   const REASONING_INSTRUCTIONS = `
 【思考要求】
 在每次回复或调用工具前，请先在 <thinking> 标签内进行深度的思考和规划。
 思考内容应包括：
 1. 当前生成的是哪个章节，其在整体大纲中的位置。
-2. 如何根据学生的背景（${context.background}）和风格（${context.cognitiveStyle}）定制内容。
+2. 如何根据学生的背景（${backgroundStr}）和学习偏好（${preferencesStr}）定制内容。
 3. 哪些概念适合用插图展示，哪些逻辑适合用 Mermaid 图表，哪些公式需要 KaTeX。
 4. 规划接下来的工具调用序列。
-注意：<thinking> 标签内的内容将通过中间件提取并展示在 UI 的“AI 思考过程”区域。`;
+注意：<thinking> 标签内的内容将通过中间件提取并展示在 UI 的"AI 思考过程"区域。`;
 
   const TOOLS_INSTRUCTIONS = `
 【课程大纲】

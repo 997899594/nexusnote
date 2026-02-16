@@ -57,6 +57,11 @@ function UpdatePrompt() {
 }
 
 export function PWAProvider({ children }: { children: React.ReactNode }) {
+  // 开发环境禁用 SW
+  if (process.env.NODE_ENV === "development") {
+    return <>{children}</>;
+  }
+
   return (
     <SerwistProvider swUrl="/serwist/sw.js" options={{ scope: "/" }}>
       {children}
