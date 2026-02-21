@@ -1,474 +1,371 @@
+/**
+ * Editor - 2026 Modern Tiptap Editor with All Extensions
+ */
+
 "use client";
 
-import { HocuspocusProvider } from "@hocuspocus/provider";
-import { clientEnv } from "@nexusnote/config";
-import Collaboration from "@tiptap/extension-collaboration";
-import CollaborationCursor from "@tiptap/extension-collaboration-cursor";
-import { Dropcursor } from "@tiptap/extension-dropcursor";
-import { Gapcursor } from "@tiptap/extension-gapcursor";
-import { Image } from "@tiptap/extension-image";
+import Details from "@tiptap/extension-details";
+import Highlight from "@tiptap/extension-highlight";
+import Image from "@tiptap/extension-image";
+import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
-import { Table } from "@tiptap/extension-table";
-import { TableCell } from "@tiptap/extension-table-cell";
-import { TableHeader } from "@tiptap/extension-table-header";
-import { TableRow } from "@tiptap/extension-table-row";
-import { TaskItem } from "@tiptap/extension-task-item";
-import { TaskList } from "@tiptap/extension-task-list";
-import { Youtube } from "@tiptap/extension-youtube";
-import { EditorContent, useEditor as useTiptapEditor } from "@tiptap/react";
+import TaskList from "@tiptap/extension-task-list";
+import { TextStyle } from "@tiptap/extension-text-style";
+import Underline from "@tiptap/extension-underline";
+import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { Edit3, History, Lock, RefreshCw } from "lucide-react";
-import { useSession } from "next-auth/react";
-import { Component, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
-import { IndexeddbPersistence } from "y-indexeddb";
-import * as Y from "yjs";
-import { getDocumentAction, updateDocumentAction } from "@/features/editor/actions/document";
-import { TimelinePanel, useTimeline } from "@/features/editor/components/timeline";
-import { Callout } from "@/features/editor/extensions/callout";
-import { Collapsible } from "@/features/editor/extensions/collapsible";
-import { getRandomColor, getRandomUserName } from "@/features/editor/sync/collaboration";
-import { getAuthToken } from "@/lib/auth-helpers";
-import { type DocumentSnapshot, snapshotStore } from "@/lib/storage";
-import { useEditor } from "@/lib/store";
-import { AIBubbleMenu } from "./AIBubbleMenu";
-import { EditorToolbar } from "./EditorToolbar";
-import { GhostBrain } from "./GhostBrain";
-import { SlashCommand } from "./SlashCommand";
-import { TableMenu } from "./TableMenu";
-
-/**
- * Error Boundary for Editor - 捕获编辑器初始化错误并提供恢复选项
- */
-interface EditorErrorBoundaryState {
-  hasError: boolean;
-  error: Error | null;
-}
-
-class EditorErrorBoundary extends Component<
-  { children: ReactNode; onRetry: () => void },
-  EditorErrorBoundaryState
-> {
-  constructor(props: { children: ReactNode; onRetry: () => void }) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-
-  static getDerivedStateFromError(error: Error): EditorErrorBoundaryState {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error("[Editor] Error caught by boundary:", error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 text-muted-foreground">
-          <p className="text-sm">编辑器加载失败</p>
-          <button
-            onClick={() => {
-              this.setState({ hasError: false, error: null });
-              this.props.onRetry();
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:opacity-90"
-          >
-            <RefreshCw className="w-4 h-4" />
-            重新加载
-          </button>
-        </div>
-      );
-    }
-
-    return this.props.children;
-  }
-}
-
-const COLLAB_URL = clientEnv.NEXT_PUBLIC_COLLAB_URL;
+import { useEffect, useState } from "react";
+import { Callout } from "../extensions/Callout";
 
 interface EditorProps {
-  documentId: string;
-  showToolbar?: boolean;
-  isVault?: boolean;
-  setIsVault?: (v: boolean) => void;
-  title?: string;
-  setTitle?: (t: string) => void;
+  content?: string;
+  placeholder?: string;
+  onChange?: (html: string) => void;
+  editable?: boolean;
 }
 
-type ConnectionStatus = "connecting" | "connected" | "disconnected";
+const SlashCommands = [
+  {
+    id: "heading1",
+    label: "标题 1",
+    icon: "H1",
+    command: (e: any) => e.chain().focus().toggleHeading({ level: 1 }).run(),
+  },
+  {
+    id: "heading2",
+    label: "标题 2",
+    icon: "H2",
+    command: (e: any) => e.chain().focus().toggleHeading({ level: 2 }).run(),
+  },
+  {
+    id: "heading3",
+    label: "标题 3",
+    icon: "H3",
+    command: (e: any) => e.chain().focus().toggleHeading({ level: 3 }).run(),
+  },
+  {
+    id: "bullet",
+    label: "无序列表",
+    icon: "•",
+    command: (e: any) => e.chain().focus().toggleBulletList().run(),
+  },
+  {
+    id: "ordered",
+    label: "有序列表",
+    icon: "1.",
+    command: (e: any) => e.chain().focus().toggleOrderedList().run(),
+  },
+  {
+    id: "task",
+    label: "任务列表",
+    icon: "☑",
+    command: (e: any) => e.chain().focus().toggleTaskList().run(),
+  },
+  {
+    id: "code",
+    label: "代码块",
+    icon: "</>",
+    command: (e: any) => e.chain().focus().toggleCodeBlock().run(),
+  },
+  {
+    id: "quote",
+    label: "引用",
+    icon: '"',
+    command: (e: any) => e.chain().focus().toggleBlockquote().run(),
+  },
+  {
+    id: "divider",
+    label: "分割线",
+    icon: "—",
+    command: (e: any) => e.chain().focus().setHorizontalRule().run(),
+  },
+  {
+    id: "highlight",
+    label: "高亮",
+    icon: "🖍",
+    command: (e: any) => e.chain().focus().toggleHighlight().run(),
+  },
+  {
+    id: "link",
+    label: "链接",
+    icon: "🔗",
+    command: (e: any) => e.chain().focus().setLink({ href: "https://" }).run(),
+  },
+  {
+    id: "underline",
+    label: "下划线",
+    icon: "U",
+    command: (e: any) => e.chain().focus().toggleUnderline().run(),
+  },
+];
 
-/**
- * 内部 Editor 组件 - 只有当 provider 就绪时才渲染
- * 这样可以避免 useEditor 依赖项变化导致的重建问题
- */
-function EditorInner({
-  documentId,
-  ydoc,
-  provider,
-  currentUser,
-  showToolbar,
-  isVault,
-  setIsVault,
-  title,
-  status,
-  collaborators,
-}: {
-  documentId: string;
-  ydoc: Y.Doc;
-  provider: HocuspocusProvider;
-  currentUser: {
-    id: string;
-    name: string;
-    color: string;
-    image?: string | null;
-  };
-  showToolbar: boolean;
-  isVault: boolean;
-  setIsVault?: (v: boolean) => void;
-  title: string;
-  status: ConnectionStatus;
-  collaborators: Array<{ name: string; color: string }>;
-}) {
-  const { setEditor } = useEditor();
-  const [showTimeline, setShowTimeline] = useState(false);
-
-  const toggleVault = async () => {
-    const nextValue = !isVault;
-    try {
-      const result = await updateDocumentAction({
-        documentId,
-        isVault: nextValue,
-      });
-      if (result.success) setIsVault?.(nextValue);
-    } catch (_err) {}
-  };
-
-  // Extensions 稳定化 - 只在 provider 和 ydoc 不变时保持稳定
-  const extensions = useMemo(
-    () => [
-      StarterKit,
-      Placeholder.configure({ placeholder: "开始记笔记..." }),
-      Collaboration.configure({ document: ydoc }),
-      CollaborationCursor.configure({ provider, user: currentUser }),
-      SlashCommand,
-      Dropcursor.configure({ color: "hsl(var(--primary))", width: 2 }),
-      Gapcursor,
-      TaskList,
-      TaskItem.configure({ nested: true }),
-      Table.configure({ resizable: true }),
-      TableRow,
-      TableCell,
-      TableHeader,
-      Image.configure({ allowBase64: true }),
-      Youtube.configure({}),
-      Callout,
-      Collapsible,
-    ],
-    [ydoc, provider, currentUser],
+function SlashMenu({ editor, onClose }: { editor: any; onClose: () => void }) {
+  const [search, setSearch] = useState("");
+  const filtered = SlashCommands.filter((c) =>
+    c.label.toLowerCase().includes(search.toLowerCase()),
   );
 
-  // Editor - 使用稳定的配置
-  const editor = useTiptapEditor(
-    {
-      immediatelyRender: false,
-      extensions,
-      editorProps: {
-        attributes: {
-          class:
-            "tiptap prose prose-sm sm:prose lg:prose-neutral dark:prose-invert max-w-none focus:outline-none min-h-[70vh] pb-64 leading-relaxed",
-        },
-      },
-    },
-    [extensions],
-  );
-
-  // Sync editor to context
   useEffect(() => {
-    if (setEditor && editor) setEditor(editor);
-    return () => {
-      if (setEditor) setEditor(null);
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
     };
-  }, [editor, setEditor]);
-
-  // Timeline
-  const { stats } = useTimeline({ documentId, ydoc, enabled: true });
-  const handleRestoreSnapshot = useCallback(
-    async (s: DocumentSnapshot) => {
-      if (await snapshotStore.restoreSnapshot(s.id, ydoc)) console.log("Restored");
-    },
-    [ydoc],
-  );
-
-  // Loading state
-  if (!editor || !editor.state) {
-    return (
-      <div className="animate-pulse space-y-4">
-        <div className="h-10 bg-muted rounded-xl w-1/4" />
-        <div className="h-64 bg-muted rounded-2xl w-full" />
-      </div>
-    );
-  }
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [onClose]);
 
   return (
-    <div className="relative flex flex-col">
-      {/* Normalized Header - More Exquisite */}
-      <div className="mb-12">
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-5">
-            <div className="w-12 h-12 rounded-2xl bg-black flex items-center justify-center text-white shadow-2xl shadow-black/20 group hover:scale-105 transition-transform duration-500">
-              <Edit3 className="w-6 h-6 group-hover:rotate-12 transition-transform" />
-            </div>
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-black/30 leading-none">
-                  Drafting Note
-                </span>
-                {isVault && (
-                  <div className="px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-600 text-[8px] font-black flex items-center gap-1 uppercase tracking-widest border border-violet-500/5">
-                    <Lock className="w-2.5 h-2.5" /> Private Vault
-                  </div>
-                )}
-              </div>
-              <h1 className="text-3xl font-black tracking-tighter text-black leading-tight">
-                {title}
-              </h1>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4">
-            {collaborators.length > 0 && (
-              <div className="flex items-center px-4 py-2 bg-black/[0.02] border border-black/[0.04] rounded-2xl gap-3">
-                <div className="flex items-center -space-x-2">
-                  {collaborators.slice(0, 3).map((u, i) => (
-                    <div
-                      key={i}
-                      className="w-6 h-6 rounded-full border-2 border-white shadow-sm ring-1 ring-black/5"
-                      style={{ backgroundColor: u.color }}
-                      title={u.name}
-                    />
-                  ))}
-                  {collaborators.length > 3 && (
-                    <div className="w-6 h-6 rounded-full bg-white border border-black/5 flex items-center justify-center text-[8px] font-black">
-                      +{collaborators.length - 3}
-                    </div>
-                  )}
-                </div>
-                <span className="text-[10px] font-black uppercase tracking-widest text-black/40">
-                  Collaborating
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-8 text-[10px] font-black uppercase tracking-[0.2em]">
-          <div className="flex items-center gap-2.5">
-            {status === "connected" ? (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/5 rounded-full border border-emerald-500/10">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-emerald-600">Synced Live</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-rose-500/5 rounded-full border border-rose-500/10">
-                <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                <span className="text-rose-600">Offline Mode</span>
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2.5 text-black/40">
-            <RefreshCw className="w-3.5 h-3.5 opacity-40" />
-            <span>{editor.getText().length} Characters</span>
-          </div>
-
-          <div className="flex-1 h-px bg-black/[0.03]" />
-        </div>
-      </div>
-
-      {/* Toolbar - Floating & Glassy */}
-      {showToolbar && (
-        <div className="mb-12 sticky top-6 z-40 transition-all flex justify-center">
-          <div className="bg-white/70 backdrop-blur-3xl p-2 rounded-[28px] inline-flex border border-black/[0.03] shadow-2xl shadow-black/5 ring-1 ring-black/[0.02]">
-            <EditorToolbar editor={editor} isVault={isVault} onToggleVault={toggleVault} />
-          </div>
-        </div>
-      )}
-
-      {/* Content - Pure & Focused */}
-      <div className="relative z-10 max-w-4xl mx-auto w-full">
-        <EditorContent editor={editor} />
-        <AIBubbleMenu editor={editor} documentId={documentId} />
-        <TableMenu editor={editor} />
-      </div>
-
-      {/* Timeline Toggle - More Discrete */}
-      <div className="fixed bottom-10 right-10 z-[100]">
-        <button
-          onClick={() => setShowTimeline(true)}
-          className="w-14 h-14 bg-white/60 backdrop-blur-3xl rounded-[24px] flex items-center justify-center border border-black/[0.04] text-black/30 hover:text-black hover:bg-white hover:border-black/10 transition-all hover:scale-110 shadow-2xl shadow-black/5 group"
-          title="View Version History"
-        >
-          <History className="w-6 h-6 group-hover:rotate-[-10deg] transition-transform" />
-        </button>
-      </div>
-
-      <TimelinePanel
-        documentId={documentId}
-        ydoc={ydoc}
-        isOpen={showTimeline}
-        onClose={() => setShowTimeline(false)}
-        onRestore={handleRestoreSnapshot}
+    <div
+      style={{
+        position: "absolute",
+        top: "100%",
+        left: 0,
+        background: "white",
+        border: "1px solid #ddd",
+        borderRadius: 8,
+        boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+        padding: 8,
+        minWidth: 200,
+        zIndex: 100,
+      }}
+    >
+      <input
+        autoFocus
+        placeholder="搜索命令..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && filtered[0]) {
+            filtered[0].command(editor);
+            onClose();
+          }
+        }}
+        style={{
+          width: "100%",
+          padding: "8px 12px",
+          border: "1px solid #ddd",
+          borderRadius: 6,
+          marginBottom: 8,
+        }}
       />
-
-      <GhostBrain editor={editor} documentId={documentId} title={title} />
+      {filtered.map((cmd) => (
+        <button
+          key={cmd.id}
+          onClick={() => {
+            cmd.command(editor);
+            onClose();
+          }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            width: "100%",
+            padding: "8px 12px",
+            border: "none",
+            background: "transparent",
+            cursor: "pointer",
+            textAlign: "left",
+            borderRadius: 6,
+          }}
+        >
+          <span style={{ width: 24, textAlign: "center", fontWeight: "bold" }}>{cmd.icon}</span>
+          <span>{cmd.label}</span>
+        </button>
+      ))}
     </div>
   );
 }
 
-/**
- * 外层 Editor 组件 - 负责初始化 ydoc、provider 等基础设施
- */
-export function Editor({
-  documentId,
-  showToolbar = true,
-  isVault = false,
-  setIsVault,
-  title = "无标题文档",
-  setTitle,
-}: EditorProps) {
-  const { data: session } = useSession();
-  const [status, setStatus] = useState<ConnectionStatus>("connecting");
-  const [collaborators, setCollaborators] = useState<Array<{ name: string; color: string }>>([]);
-  const [provider, setProvider] = useState<HocuspocusProvider | null>(null);
-  const [isProviderSynced, setIsProviderSynced] = useState(false);
-
-  // Fetch document metadata
-  useEffect(() => {
-    const fetchMetadata = async () => {
-      try {
-        const result = await getDocumentAction(documentId);
-        // 2026 架构师标准：使用类型收窄处理标准 ActionResult
-        if (result.success) {
-          const doc = result.data;
-          setIsVault?.(doc.isVault);
-          setTitle?.(doc.title);
-        } else {
-          console.error(`[Editor] Failed to fetch metadata: ${result.error}`);
-        }
-      } catch (err) {
-        console.error("[Editor] Unexpected error:", err);
-      }
-    };
-    fetchMetadata();
-  }, [documentId, setIsVault, setTitle]);
-
-  // Y.Doc - stable across renders
-  // 注意：不要手动调用 getXmlFragment，让 Collaboration 扩展自己处理
-  const ydoc = useMemo(() => new Y.Doc(), []);
-
-  // Current user - stable across renders (只依赖 session.user.id)
-  const currentUser = useMemo(() => {
-    if (session?.user) {
-      return {
-        id: session.user.id || `u-${Math.random()}`,
-        name: session.user.name || "Anonymous",
-        color: getRandomColor(),
-        image: session.user.image,
-      };
-    }
-    return {
-      id: `u-${Math.random()}`,
-      name: getRandomUserName(),
-      color: getRandomColor(),
-    };
-  }, [session?.user?.id, session?.user?.name, session?.user?.image, session?.user]);
-
-  // HocuspocusProvider - created in useEffect
-  useEffect(() => {
-    setIsProviderSynced(false);
-
-    const p = new HocuspocusProvider({
-      url: COLLAB_URL,
-      name: documentId,
-      document: ydoc,
-      token: (session as { accessToken?: string } | null)?.accessToken || getAuthToken(),
-      onConnect() {
-        setStatus("connected");
-      },
-      onDisconnect() {
-        setStatus("disconnected");
-      },
-      onSynced() {
-        // 确保 provider 完全同步后再标记就绪
-        setIsProviderSynced(true);
-      },
-    });
-    setProvider(p);
-
-    return () => {
-      p.destroy();
-      setProvider(null);
-      setIsProviderSynced(false);
-    };
-  }, [documentId, ydoc, session]);
-
-  // Collaborators awareness
-  useEffect(() => {
-    if (!provider || !currentUser) return;
-
-    provider.setAwarenessField("user", currentUser);
-
-    const updateCollaborators = () => {
-      const states = provider.awareness?.getStates();
-      if (!states) return;
-      const users: Array<{ name: string; color: string }> = [];
-      states.forEach((state, cli) => {
-        if (cli !== provider.awareness?.clientID && state.user)
-          users.push(state.user as { name: string; color: string });
-      });
-      setCollaborators(users);
-    };
-
-    provider.awareness?.on("change", updateCollaborators);
-    return () => {
-      provider.awareness?.off("change", updateCollaborators);
-    };
-  }, [provider, currentUser]);
-
-  // IndexedDB persistence
-  useEffect(() => {
-    const persistence = new IndexeddbPersistence(documentId, ydoc);
-    return () => {
-      persistence.destroy();
-    };
-  }, [documentId, ydoc]);
-
-  // 等待 provider 就绪且同步完成后再渲染 EditorInner
-  if (!provider || !isProviderSynced) {
-    return (
-      <div className="animate-pulse space-y-4">
-        <div className="h-10 bg-muted rounded-xl w-1/4" />
-        <div className="h-64 bg-muted rounded-2xl w-full" />
-      </div>
-    );
-  }
-
-  // 用 key 强制完全重新挂载，避免状态不一致
-  const editorKey = `${documentId}-${COLLAB_URL}`;
-
+function ToolbarButton({
+  onClick,
+  active,
+  children,
+  disabled,
+}: {
+  onClick: () => void;
+  active?: boolean;
+  children: React.ReactNode;
+  disabled?: boolean;
+}) {
   return (
-    <EditorInner
-      key={editorKey}
-      documentId={documentId}
-      ydoc={ydoc}
-      provider={provider}
-      currentUser={currentUser}
-      showToolbar={showToolbar}
-      isVault={isVault}
-      setIsVault={setIsVault}
-      title={title}
-      status={status}
-      collaborators={collaborators}
-    />
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        padding: "6px 10px",
+        borderRadius: 4,
+        border: "none",
+        background: active ? "#e0e0e0" : "transparent",
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.5 : 1,
+      }}
+    >
+      {children}
+    </button>
   );
 }
+
+export function Editor({
+  content = "",
+  placeholder = "输入 / 查看命令...",
+  onChange,
+  editable = true,
+}: EditorProps) {
+  const [showSlash, setShowSlash] = useState(false);
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
+      Placeholder.configure({ placeholder, emptyEditorClass: "is-editor-empty" }),
+      Highlight,
+      Image,
+      Link.configure({ openOnClick: false }),
+      TaskList,
+      TextStyle,
+      Underline,
+      Details,
+      Callout,
+    ],
+    content,
+    editable,
+    onUpdate: ({ editor }: { editor: any }) => {
+      const text = editor.getText();
+      if (text.endsWith("/")) setShowSlash(true);
+      else if (showSlash) setShowSlash(false);
+      onChange?.(editor.getHTML());
+    },
+    editorProps: { attributes: { class: "prose focus:outline-none min-h-[200px] p-4" } },
+  });
+
+  if (!editor) return null;
+
+  const addImage = () => {
+    const url = window.prompt("输入图片 URL");
+    if (url) editor.chain().focus().setImage({ src: url }).run();
+  };
+
+  return (
+    <div
+      style={{
+        position: "relative",
+        border: "1px solid #ddd",
+        borderRadius: 8,
+        overflow: "hidden",
+      }}
+    >
+      {editable && (
+        <div
+          style={{
+            borderBottom: "1px solid #eee",
+            padding: 8,
+            display: "flex",
+            gap: 4,
+            flexWrap: "wrap",
+          }}
+        >
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleBold().run()}
+            active={editor.isActive("bold")}
+          >
+            <b>B</b>
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleItalic().run()}
+            active={editor.isActive("italic")}
+          >
+            <i>I</i>
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleUnderline().run()}
+            active={editor.isActive("underline")}
+          >
+            <u>U</u>
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleHighlight().run()}
+            active={editor.isActive("highlight")}
+          >
+            🖍
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleStrike().run()}
+            active={editor.isActive("strike")}
+          >
+            <s>S</s>
+          </ToolbarButton>
+          <span style={{ width: 1, background: "#ddd", margin: "0 4px" }} />
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+            active={editor.isActive("heading", { level: 1 })}
+          >
+            H1
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+            active={editor.isActive("heading", { level: 2 })}
+          >
+            H2
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+            active={editor.isActive("heading", { level: 3 })}
+          >
+            H3
+          </ToolbarButton>
+          <span style={{ width: 1, background: "#ddd", margin: "0 4px" }} />
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleBulletList().run()}
+            active={editor.isActive("bulletList")}
+          >
+            •
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleOrderedList().run()}
+            active={editor.isActive("orderedList")}
+          >
+            1.
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleTaskList().run()}
+            active={editor.isActive("taskList")}
+          >
+            ☑
+          </ToolbarButton>
+          <span style={{ width: 1, background: "#ddd", margin: "0 4px" }} />
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+            active={editor.isActive("codeBlock")}
+          >
+            &lt;/&gt;
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleBlockquote().run()}
+            active={editor.isActive("blockquote")}
+          >
+            "
+          </ToolbarButton>
+          <ToolbarButton onClick={addImage}>🖼</ToolbarButton>
+          <span style={{ width: 1, background: "#ddd", margin: "0 4px" }} />
+          <ToolbarButton
+            onClick={() => editor.chain().focus().undo().run()}
+            disabled={!editor.can().undo()}
+          >
+            ↩
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().redo().run()}
+            disabled={!editor.can().redo()}
+          >
+            ↪
+          </ToolbarButton>
+        </div>
+      )}
+      <div style={{ position: "relative" }}>
+        <EditorContent editor={editor} />
+        {showSlash && <SlashMenu editor={editor} onClose={() => setShowSlash(false)} />}
+      </div>
+    </div>
+  );
+}
+
+export default Editor;

@@ -1,17 +1,15 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "globalDependencies": [".env"],
-  "globalEnv": ["DATABASE_URL", "REDIS_URL"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
       "outputs": [".next/**", "!.next/cache/**", "dist/**"]
     },
     "dev": {
-      "dependsOn": ["@nexusnote/web#build"],
+      "dependsOn": [],
       "cache": false,
-      "persistent": true,
-      "env": ["DATABASE_URL", "REDIS_URL"]
+      "persistent": true
     },
     "lint": {},
     "typecheck": {

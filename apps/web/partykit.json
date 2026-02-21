@@ -1,0 +1,12 @@
+{
+  "name": "nexusnote-collaboration",
+  "compatibilityDate": "2025-01-01",
+  "main": "party/server.ts",
+  "scripts": {
+    "dev": "partykit dev party/server.ts",
+    "deploy": "partykit deploy party/server.ts"
+  },
+  "dependencies": {
+    "y-partykit": "^0.0.33"
+  }
+}
