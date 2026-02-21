@@ -44,7 +44,9 @@ export default async function LearnPage({ params }: LearnPageProps) {
       currentSection: profile.currentSection || 1,
     },
     userId: profile.userId || session.user.id,
-    interviewProfile: profile.interviewProfile as import("@/features/learning/types").LearnerProfile | null,
+    interviewProfile: profile.interviewProfile as
+      | import("@/features/learning/types").LearnerProfile
+      | null,
     outlineData: profile.outlineData,
   });
 

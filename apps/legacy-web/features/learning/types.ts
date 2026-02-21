@@ -18,10 +18,7 @@ export const LearnerProfileSchema = z.object({
     .enum(["trivial", "simple", "moderate", "complex", "expert"])
     .nullable()
     .default(null),
-  goalClarity: z
-    .enum(["vague", "clear", "precise"])
-    .nullable()
-    .default(null),
+  goalClarity: z.enum(["vague", "clear", "precise"]).nullable().default(null),
   backgroundLevel: z
     .enum(["none", "beginner", "intermediate", "advanced"])
     .nullable()
@@ -51,13 +48,9 @@ export const UpdateProfileInputSchema = z.object({
     constraints: z.string().nullish(),
     preferences: z.string().nullish(),
     domain: z.string().nullish(),
-    domainComplexity: z
-      .enum(["trivial", "simple", "moderate", "complex", "expert"])
-      .nullish(),
+    domainComplexity: z.enum(["trivial", "simple", "moderate", "complex", "expert"]).nullish(),
     goalClarity: z.enum(["vague", "clear", "precise"]).nullish(),
-    backgroundLevel: z
-      .enum(["none", "beginner", "intermediate", "advanced"])
-      .nullish(),
+    backgroundLevel: z.enum(["none", "beginner", "intermediate", "advanced"]).nullish(),
     insights: z.array(z.string()).nullish(),
     readiness: z.number().min(0).max(100),
     missingInfo: z.array(z.string()),

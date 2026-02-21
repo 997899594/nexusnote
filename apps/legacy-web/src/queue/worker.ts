@@ -12,12 +12,24 @@
  */
 
 import { env } from "@nexusnote/config";
-import { courseProfiles, db, documentChunks, documents, eq, extractedNotes, sql, topics } from "@nexusnote/db";
+import {
+  courseProfiles,
+  db,
+  documentChunks,
+  documents,
+  eq,
+  extractedNotes,
+  sql,
+  topics,
+} from "@nexusnote/db";
 import { Worker } from "bullmq";
 import IORedis from "ioredis";
-import type { CourseGenerationJobData, CourseGenerationProgress } from "@/lib/queue/course-generation";
 import type { CourseGenerationContext } from "@/features/learning/agents/course-generation/agent";
 import { isEmbeddingConfigured, registry } from "@/features/shared/ai/registry";
+import type {
+  CourseGenerationJobData,
+  CourseGenerationProgress,
+} from "@/lib/queue/course-generation";
 import { generateEmbeddings } from "./utils/embeddings";
 
 // Redis 连接
@@ -291,7 +303,10 @@ async function startNoteClassifyWorker() {
  * 2. 逐章调用 courseGenerationAgent.generate()
  * 3. 通过 job.updateProgress 报告进度
  */
-async function processCourseGenerationJob(job: { data: CourseGenerationJobData; updateProgress: (p: CourseGenerationProgress) => Promise<void> }) {
+async function processCourseGenerationJob(job: {
+  data: CourseGenerationJobData;
+  updateProgress: (p: CourseGenerationProgress) => Promise<void>;
+}) {
   const { courseId, userId } = job.data;
 
   console.log(`[Course Worker] Starting generation for course: ${courseId}`);
@@ -306,7 +321,8 @@ async function processCourseGenerationJob(job: { data: CourseGenerationJobData; 
   if (!outline) throw new Error(`Course ${courseId} has no outline data`);
 
   const interviewProfile = profile.interviewProfile as Record<string, unknown> | undefined;
-  const modules = (outline.modules as Array<{ title: string; chapters: Array<{ title: string }> }>) || [];
+  const modules =
+    (outline.modules as Array<{ title: string; chapters: Array<{ title: string }> }>) || [];
   const chapters = outline.chapters
     ? (outline.chapters as Array<{ title: string }>)
     : modules.flatMap((m) => m.chapters ?? []);
@@ -332,7 +348,9 @@ async function processCourseGenerationJob(job: { data: CourseGenerationJobData; 
       chapterTitle: chapters[i].title,
     });
 
-    console.log(`[Course Worker] Generating chapter ${i + 1}/${chapters.length}: ${chapters[i].title}`);
+    console.log(
+      `[Course Worker] Generating chapter ${i + 1}/${chapters.length}: ${chapters[i].title}`,
+    );
 
     await courseGenerationAgent.generate({
       prompt: `请生成第 ${i + 1} 章的内容: ${chapters[i].title}`,
@@ -375,11 +393,15 @@ async function processCourseGenerationJob(job: { data: CourseGenerationJobData; 
 async function startCourseGenerationWorker() {
   console.log("[Course Worker] Starting worker...");
 
-  const worker = new Worker<CourseGenerationJobData>("course-generation", processCourseGenerationJob, {
-    connection: redis,
-    concurrency: 1,
-    limiter: { max: 2, duration: 60_000 },
-  });
+  const worker = new Worker<CourseGenerationJobData>(
+    "course-generation",
+    processCourseGenerationJob,
+    {
+      connection: redis,
+      concurrency: 1,
+      limiter: { max: 2, duration: 60_000 },
+    },
+  );
 
   worker.on("completed", (job) => {
     console.log(`[Course Worker] Job ${job.id} completed`);

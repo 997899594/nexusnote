@@ -8,9 +8,9 @@ import {
   updateCourseProgress as dbUpdateProgress,
   type OutlineData,
 } from "@/features/learning/agents/course-profile";
+import type { LearnerProfile } from "@/features/learning/types";
 import { createSafeAction } from "@/lib/actions/action-utils";
 import type { CourseChapterDTO, CourseProfileDTO } from "@/lib/actions/types";
-import type { LearnerProfile } from "@/features/learning/types";
 
 /**
  * 保存课程画像

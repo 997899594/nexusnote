@@ -373,7 +373,7 @@ export function HeroInput() {
       : "输入开始对话 或 / 使用命令";
 
   return (
-    <div className="w-full max-w-3xl mx-auto">
+    <div className="w-full">
       <AnimatePresence mode="wait">
         {!isExpanded ? (
           // ========================================================================
@@ -482,48 +482,14 @@ export function HeroInput() {
 
             {/* Messages */}
             <div className="h-[400px] overflow-y-auto p-4 space-y-4">
-              {/* 计算是否需要显示 loading */}
-              {(() => {
-                const lastMsg = chatMessages[chatMessages.length - 1];
-                const lastMsgText = lastMsg ? getTextContent(lastMsg) : "";
-                const isWaitingForFirstChunk =
-                  (status === "submitted" || status === "streaming") &&
-                  (!lastMsg || lastMsg.role !== "assistant" || lastMsgText.length === 0);
+              {/* 初始提示 */}
+              {chatMessages.length === 0 && status !== "submitted" && status !== "streaming" && (
+                <div className="text-center py-8 text-zinc-400 text-sm">
+                  Start a conversation...
+                </div>
+              )}
 
-                if (isWaitingForFirstChunk && chatMessages.length === 0) {
-                  return (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="flex justify-start"
-                    >
-                      <div className="bg-zinc-100 dark:bg-zinc-800 px-4 py-3 rounded-2xl">
-                        <div className="flex gap-1">
-                          {[0, 1, 2].map((i) => (
-                            <motion.span
-                              key={i}
-                              animate={{ y: [0, -3, 0] }}
-                              transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15 }}
-                              className="w-1.5 h-1.5 bg-zinc-400 rounded-full"
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    </motion.div>
-                  );
-                }
-
-                if (chatMessages.length === 0) {
-                  return (
-                    <div className="text-center py-8 text-zinc-400 text-sm">
-                      Start a conversation...
-                    </div>
-                  );
-                }
-
-                return null;
-              })()}
-
+              {/* 已有的消息 */}
               {chatMessages.map((msg) => (
                 <motion.div
                   key={msg.id}
@@ -547,6 +513,37 @@ export function HeroInput() {
                   </div>
                 </motion.div>
               ))}
+
+              {/* AI 正在生成时，在最后一条用户消息后显示 AI loading 气泡 */}
+              {(() => {
+                const lastMsg = chatMessages[chatMessages.length - 1];
+                const isAILoading =
+                  (status === "submitted" || status === "streaming") &&
+                  (!lastMsg || lastMsg.role === "user");
+
+                if (!isAILoading) return null;
+
+                return (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex justify-start"
+                  >
+                    <div className="bg-zinc-100 dark:bg-zinc-800 px-4 py-3 rounded-2xl">
+                      <div className="flex gap-1">
+                        {[0, 1, 2].map((i) => (
+                          <motion.span
+                            key={i}
+                            animate={{ y: [0, -3, 0] }}
+                            transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15 }}
+                            className="w-1.5 h-1.5 bg-zinc-400 rounded-full"
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })()}
 
               <div ref={messagesEndRef} />
             </div>

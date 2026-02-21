@@ -32,9 +32,7 @@ export function useCourseProgress(courseId: string | null) {
         }
 
         if (data.status === "completed" || data.status === "failed") {
-          setProgress((prev) =>
-            prev ? { ...prev, status: data.status } : null,
-          );
+          setProgress((prev) => (prev ? { ...prev, status: data.status } : null));
           eventSource.close();
         }
       } catch {

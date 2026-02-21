@@ -26,15 +26,12 @@ export interface CourseGenerationProgress {
   chapterTitle?: string;
 }
 
-export const courseGenerationQueue = new Queue<CourseGenerationJobData>(
-  "course-generation",
-  {
-    connection: redis,
-    defaultJobOptions: {
-      attempts: 3,
-      backoff: { type: "exponential", delay: 5000 },
-      removeOnComplete: 100,
-      removeOnFail: 50,
-    },
+export const courseGenerationQueue = new Queue<CourseGenerationJobData>("course-generation", {
+  connection: redis,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: { type: "exponential", delay: 5000 },
+    removeOnComplete: 100,
+    removeOnFail: 50,
   },
-);
+});

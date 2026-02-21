@@ -11,7 +11,7 @@ export {
 
 // Interview Agent — 工厂函数，不再是单例
 export {
+  createInterviewAgent,
   type InterviewAgentMessage,
   type InterviewCallOptions,
-  createInterviewAgent,
 } from "@/features/learning/agent/interview-agent";

@@ -1,17 +1,14 @@
-import { courseProfiles, db, eq, and } from "@nexusnote/db";
+import { and, courseProfiles, db, eq } from "@nexusnote/db";
 import {
-  type LearnerProfile,
-  LearnerProfileSchema,
   EMPTY_PROFILE,
   type InterviewStatus,
+  type LearnerProfile,
+  LearnerProfileSchema,
 } from "@/features/learning/types";
 
 // ─── 创建 Session ───
 
-export async function createInterviewSession(
-  userId: string,
-  initialGoal: string,
-): Promise<string> {
+export async function createInterviewSession(userId: string, initialGoal: string): Promise<string> {
   const profile: LearnerProfile = {
     ...EMPTY_PROFILE,
     goal: initialGoal,
@@ -37,10 +34,7 @@ export async function createInterviewSession(
 
 export async function getInterviewSession(sessionId: string, userId: string) {
   const session = await db.query.courseProfiles.findFirst({
-    where: and(
-      eq(courseProfiles.id, sessionId),
-      eq(courseProfiles.userId, userId),
-    ),
+    where: and(eq(courseProfiles.id, sessionId), eq(courseProfiles.userId, userId)),
   });
   if (!session) throw new Error("Interview session not found");
   return session;
@@ -67,9 +61,7 @@ export async function mergeProfile(
 
   // insights 追加不覆盖
   const newInsights = updates.insights as string[] | undefined;
-  const mergedInsights = newInsights
-    ? [...current.insights, ...newInsights]
-    : current.insights;
+  const mergedInsights = newInsights ? [...current.insights, ...newInsights] : current.insights;
 
   // 其他字段：非 null 值覆盖
   const merged: LearnerProfile = { ...current };
@@ -96,10 +88,7 @@ export async function mergeProfile(
 
 // ─── 更新状态 ───
 
-export async function updateInterviewStatus(
-  sessionId: string,
-  status: InterviewStatus,
-) {
+export async function updateInterviewStatus(sessionId: string, status: InterviewStatus) {
   await db
     .update(courseProfiles)
     .set({ interviewStatus: status, updatedAt: new Date() })
@@ -108,10 +97,7 @@ export async function updateInterviewStatus(
 
 // ─── 保存 Messages ───
 
-export async function saveInterviewMessages(
-  sessionId: string,
-  messages: unknown[],
-) {
+export async function saveInterviewMessages(sessionId: string, messages: unknown[]) {
   await db
     .update(courseProfiles)
     .set({ interviewMessages: messages, updatedAt: new Date() })
@@ -120,10 +106,7 @@ export async function saveInterviewMessages(
 
 // ─── 确认大纲 ───
 
-export async function confirmOutline(
-  sessionId: string,
-  outlineData: Record<string, unknown>,
-) {
+export async function confirmOutline(sessionId: string, outlineData: Record<string, unknown>) {
   const profile = await getProfile(sessionId);
 
   await db

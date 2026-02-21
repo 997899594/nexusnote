@@ -2,7 +2,7 @@
 
 import { getToolName, isTextUIPart, isToolUIPart, type UIMessage } from "ai";
 import { Bot } from "lucide-react";
-import { type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { MessageResponse } from "@/features/chat/components/ai/Message";
 import { cn } from "@/features/shared/utils";
 
@@ -11,10 +11,7 @@ interface PartsBasedMessageProps {
   variant?: "chat" | "interview";
   isLastMessage?: boolean;
   renderToolOutput?: (toolName: string, output: unknown, toolCallId: string) => ReactNode;
-  renderToolOptions?: (input: {
-    options: string[];
-    toolCallId: string;
-  }) => ReactNode;
+  renderToolOptions?: (input: { options: string[]; toolCallId: string }) => ReactNode;
 }
 
 export function PartsBasedMessage({
@@ -24,17 +21,17 @@ export function PartsBasedMessage({
   renderToolOutput,
   renderToolOptions,
 }: PartsBasedMessageProps) {
-  const text = message.parts
-    ?.filter(isTextUIPart)
-    .map((p) => p.text)
-    .join("\n\n") || "";
+  const text =
+    message.parts
+      ?.filter(isTextUIPart)
+      .map((p) => p.text)
+      .join("\n\n") || "";
 
   // 同时匹配 client-side 工具 (input-available) 和 server-side 工具 (output-available)
   // suggestOptions 如果是 client-side tool 则为 input-available
   // 如果是 server-side tool (有 execute) 则为 output-available
-  const tools = message.parts
-    ?.filter(isToolUIPart)
-    .map(p => ({
+  const tools =
+    message.parts?.filter(isToolUIPart).map((p) => ({
       toolCallId: p.toolCallId,
       toolName: getToolName(p),
       input: p.input,
@@ -47,17 +44,16 @@ export function PartsBasedMessage({
   if (message.role === "user") {
     return (
       <div className="flex justify-end w-full">
-        <div className="bg-black text-white px-6 py-3 rounded-[24px] max-w-[85%]">
-          {text}
-        </div>
+        <div className="bg-black text-white px-6 py-3 rounded-[24px] max-w-[85%]">{text}</div>
       </div>
     );
   }
 
   // suggestOptions 工具渲染 — 支持 input-available（client-side）和 output-available（server-side）
   const suggestOptionsTool = tools.find(
-    t => t.toolName === "suggestOptions" &&
-      (t.state === "input-available" || t.state === "output-available")
+    (t) =>
+      t.toolName === "suggestOptions" &&
+      (t.state === "input-available" || t.state === "output-available"),
   );
   const options = suggestOptionsTool
     ? (suggestOptionsTool.input as { options?: string[] })?.options || []

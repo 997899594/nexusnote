@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { SessionProvider } from "next-auth/react";
+import { MobileNav } from "@/features/shared/components/layout/MobileNav";
 import { ThemeProvider } from "@/features/shared/components/layout/ThemeProvider";
 import { PWAProvider } from "@/features/shared/components/pwa/PWAProvider";
 import { Toaster } from "@/features/shared/components/ui/Toast";
-import { MobileNav } from "@/features/shared/components/layout/MobileNav";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -38,9 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <PWAProvider>
           <SessionProvider>
             <ThemeProvider attribute="class" defaultTheme="light">
-              <div className="min-h-screen bg-background">
-                {children}
-              </div>
+              <div className="min-h-screen bg-background">{children}</div>
               <MobileNav />
               <Toaster />
             </ThemeProvider>

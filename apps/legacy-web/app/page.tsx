@@ -54,8 +54,7 @@ export default function Home() {
             }
           });
           allNotes.sort(
-            (a, b) =>
-              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
           );
           setNotes(allNotes);
         }
@@ -79,9 +78,7 @@ export default function Home() {
         id: c.id,
         title: c.title,
         type: "course",
-        updatedAt: new Date(
-          c.progress?.lastAccessedAt || c.createdAt,
-        ).toISOString(),
+        updatedAt: new Date(c.progress?.lastAccessedAt || c.createdAt).toISOString(),
       });
     });
 
@@ -95,10 +92,7 @@ export default function Home() {
     });
 
     return items
-      .sort(
-        (a, b) =>
-          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-      )
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
       .slice(0, 8);
   }, [courses, notes]);
 
@@ -132,11 +126,7 @@ export default function Home() {
       {/* Bottom fixed section with recent items */}
       <div className="fixed bottom-0 left-0 right-0 z-20 px-4 md:px-6 pb-4 pt-8 bg-gradient-to-t from-background via-background to-transparent">
         <div className="w-full max-w-4xl mx-auto">
-          <RecentAccess
-            items={recentItems}
-            loading={loading}
-            onItemClick={handleItemClick}
-          />
+          <RecentAccess items={recentItems} loading={loading} onItemClick={handleItemClick} />
         </div>
         <footer className="mt-4 w-full text-center text-foreground/20 text-[10px] font-mono uppercase tracking-widest">
           AI Native OS • v3.0.0

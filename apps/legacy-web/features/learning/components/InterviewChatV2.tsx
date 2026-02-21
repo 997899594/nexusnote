@@ -1,9 +1,9 @@
 "use client";
 
-import { getToolName, isTextUIPart, isToolUIPart, type UIMessage } from "ai";
 import { useChat } from "@ai-sdk/react";
+import { getToolName, isTextUIPart, isToolUIPart, type UIMessage } from "ai";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { type OptionButtonsProps } from "../types";
+import type { OptionButtonsProps } from "../types";
 
 // 子组件：漂亮的选项按钮
 function OptionButtons({ options, onSelect, disabled }: OptionButtonsProps) {
@@ -27,12 +27,7 @@ function OptionButtons({ options, onSelect, disabled }: OptionButtonsProps) {
 
 // 主组件
 export default function InterviewChatV2() {
-  const {
-    messages,
-    sendMessage,
-    addToolOutput,
-    status,
-  } = useChat({
+  const { messages, sendMessage, addToolOutput, status } = useChat({
     id: "interview-v2",
   });
 
@@ -50,22 +45,28 @@ export default function InterviewChatV2() {
   }, [messages]);
 
   // 处理选项点击
-  const handleOptionSelect = useCallback((toolCallId: string, value: string) => {
-    // 使用 addToolOutput 传递用户选择
-    (addToolOutput as Function)({
-      toolCallId,
-      output: { selected: value },
-    });
-  }, [addToolOutput]);
+  const handleOptionSelect = useCallback(
+    (toolCallId: string, value: string) => {
+      // 使用 addToolOutput 传递用户选择
+      (addToolOutput as Function)({
+        toolCallId,
+        output: { selected: value },
+      });
+    },
+    [addToolOutput],
+  );
 
   // 处理发送消息
-  const handleSendMessage = useCallback((e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (!input.trim()) return;
+  const handleSendMessage = useCallback(
+    (e?: React.FormEvent) => {
+      e?.preventDefault();
+      if (!input.trim()) return;
 
-    sendMessage({ text: input });
-    setInput("");
-  }, [input, sendMessage]);
+      sendMessage({ text: input });
+      setInput("");
+    },
+    [input, sendMessage],
+  );
 
   // 渲染单个消息
   const renderMessage = (m: UIMessage) => {
@@ -87,48 +88,50 @@ export default function InterviewChatV2() {
     return (
       <div key={m.id} className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}>
         {/* 消息气泡 */}
-        <div className={`max-w-[85%] rounded-2xl px-5 py-3 text-sm leading-relaxed shadow-sm ${
-          isUser
-            ? "bg-black text-white rounded-br-sm"
-            : "bg-gray-100 text-gray-900 rounded-bl-sm"
-        }`}>
+        <div
+          className={`max-w-[85%] rounded-2xl px-5 py-3 text-sm leading-relaxed shadow-sm ${
+            isUser ? "bg-black text-white rounded-br-sm" : "bg-gray-100 text-gray-900 rounded-bl-sm"
+          }`}
+        >
           {/* 文本内容 */}
-          {textContent && (
-            <span className="whitespace-pre-wrap">{textContent}</span>
-          )}
+          {textContent && <span className="whitespace-pre-wrap">{textContent}</span>}
 
           {/* 工具选项按钮 */}
-          {!isUser && toolParts.map((part) => {
-            const toolName = getToolName(part);
-            const toolCallId = part.toolCallId;
-            const input = part.input as { options?: string[] } | undefined;
+          {!isUser &&
+            toolParts.map((part) => {
+              const toolName = getToolName(part);
+              const toolCallId = part.toolCallId;
+              const input = part.input as { options?: string[] } | undefined;
 
-            // 只处理 suggestOptions 工具
-            if (toolName !== "suggestOptions") return null;
+              // 只处理 suggestOptions 工具
+              if (toolName !== "suggestOptions") return null;
 
-            // 检查状态
-            const hasOutput = part.state === "output-available";
+              // 检查状态
+              const hasOutput = part.state === "output-available";
 
-            if (hasOutput) {
-              // 已选择状态
+              if (hasOutput) {
+                // 已选择状态
+                return (
+                  <div
+                    key={toolCallId}
+                    className="mt-2 pt-2 border-t border-gray-200/50 text-xs opacity-60 flex items-center gap-1"
+                  >
+                    <span>✓ 已选择</span>
+                  </div>
+                );
+              }
+
+              // 未选择状态：显示按钮
+              const options = input?.options || [];
               return (
-                <div key={toolCallId} className="mt-2 pt-2 border-t border-gray-200/50 text-xs opacity-60 flex items-center gap-1">
-                  <span>✓ 已选择</span>
-                </div>
+                <OptionButtons
+                  key={toolCallId}
+                  options={options}
+                  disabled={isLoading}
+                  onSelect={(val) => handleOptionSelect(toolCallId, val)}
+                />
               );
-            }
-
-            // 未选择状态：显示按钮
-            const options = input?.options || [];
-            return (
-              <OptionButtons
-                key={toolCallId}
-                options={options}
-                disabled={isLoading}
-                onSelect={(val) => handleOptionSelect(toolCallId, val)}
-              />
-            );
-          })}
+            })}
         </div>
       </div>
     );
@@ -141,7 +144,7 @@ export default function InterviewChatV2() {
         {messages.map(renderMessage)}
 
         {/* Loading Indicator */}
-        {isLoading && messages.at(-1)?.role === 'user' && (
+        {isLoading && messages.at(-1)?.role === "user" && (
           <div className="flex items-center gap-2 ml-4 text-gray-400 text-xs animate-pulse">
             <div className="w-2 h-2 bg-gray-300 rounded-full" />
             <span>AI 正在思考...</span>

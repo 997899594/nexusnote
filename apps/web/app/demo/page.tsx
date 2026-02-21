@@ -6,13 +6,16 @@ import {
   FileText,
   GraduationCap,
   Lightbulb,
-  Map as MindMapIcon,
+  Map as MapIcon,
   Plus,
   Search,
   Sparkles,
   StickyNote,
   Zap,
 } from "lucide-react";
+import { useState } from "react";
+
+type StyleKey = "glass" | "shadow" | "minimal";
 
 const outputs = [
   {
@@ -20,7 +23,6 @@ const outputs = [
     title: "TypeScript 进阶教程",
     desc: "深入理解类型系统",
     icon: GraduationCap,
-    bg: "bg-gradient-to-br from-violet-500 to-purple-600",
     time: "2小时前",
   },
   {
@@ -28,7 +30,6 @@ const outputs = [
     title: "React 核心概念",
     desc: "32 张卡片 · 已复习 3 次",
     icon: StickyNote,
-    bg: "bg-gradient-to-br from-amber-500 to-orange-500",
     time: "昨天",
   },
   {
@@ -36,187 +37,185 @@ const outputs = [
     title: "Node.js 面试题",
     desc: "15 道题目 · 正确率 87%",
     icon: Brain,
-    bg: "bg-gradient-to-br from-emerald-500 to-teal-500",
     time: "2天前",
   },
-  {
-    type: "mindmap",
-    title: "微服务架构设计",
-    desc: "12 个节点",
-    icon: MindMapIcon,
-    bg: "bg-gradient-to-br from-cyan-500 to-blue-500",
-    time: "3天前",
-  },
-  {
-    type: "note",
-    title: "AI 学习笔记",
-    desc: "GPT-4 原理与应用",
-    icon: FileText,
-    bg: "bg-gradient-to-br from-rose-500 to-pink-500",
-    time: "1周前",
-  },
+  { type: "mindmap", title: "微服务架构设计", desc: "12 个节点", icon: MapIcon, time: "3天前" },
+  { type: "note", title: "AI 学习笔记", desc: "GPT-4 原理与应用", icon: FileText, time: "1周前" },
   {
     type: "insight",
     title: "本周学习洞察",
     desc: "学习时长 12.5 小时",
     icon: Lightbulb,
-    bg: "bg-gradient-to-br from-indigo-500 to-blue-500",
     time: "每周",
   },
 ];
 
-const shortcuts = [
-  { key: "/", action: "唤起命令" },
-  { key: "↑↓", action: "选择命令" },
-  { key: "Enter", action: "执行" },
+const commands = [
+  { icon: Search, label: "搜索笔记" },
+  { icon: Plus, label: "创建笔记" },
+  { icon: GraduationCap, label: "生成课程" },
+  { icon: StickyNote, label: "创建闪卡" },
+  { icon: Brain, label: "生成测验" },
+  { icon: MapIcon, label: "思维导图" },
 ];
 
-export default function DemoPage() {
-  return (
-    <div className="min-h-screen relative">
-      {/* 背景 */}
-      <div className="fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-[#0a0a0a]" />
-        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-[#1a1a2e] rounded-full blur-[150px] opacity-60" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-[#16213e] rounded-full blur-[180px] opacity-50" />
-        <div className="absolute top-[40%] left-[30%] w-[30%] h-[30%] bg-[#1f1f3d] rounded-full blur-[120px] opacity-40" />
-      </div>
+const styles: Record<
+  StyleKey,
+  { name: string; bg: string; card: string; cardHover: string; input: string; inputHover: string }
+> = {
+  glass: {
+    name: "玻璃",
+    bg: "bg-gradient-to-br from-slate-100 via-white to-slate-50",
+    card: "bg-white/60 backdrop-blur-xl shadow-[0_4px_24px_-4px_rgba(0,0,0,0.06)]",
+    cardHover: "hover:shadow-[0_8px_32px_-4px_rgba(0,0,0,0.1)] hover:bg-white/70",
+    input: "bg-white/50 backdrop-blur-xl shadow-[0_4px_32px_-8px_rgba(0,0,0,0.08)]",
+    inputHover: "hover:shadow-[0_8px_40px_-8px_rgba(0,0,0,0.12)]",
+  },
+  shadow: {
+    name: "阴影",
+    bg: "bg-slate-50",
+    card: "bg-white shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05),0_4px_20px_-4px_rgba(0,0,0,0.08)]",
+    cardHover:
+      "hover:shadow-[0_4px_16px_-4px_rgba(0,0,0,0.1),0_12px_32px_-8px_rgba(0,0,0,0.12)] hover:-translate-y-0.5",
+    input: "bg-white shadow-[0_4px_24px_-4px_rgba(0,0,0,0.1),0_8px_48px_-8px_rgba(0,0,0,0.06)]",
+    inputHover: "hover:shadow-[0_8px_32px_-4px_rgba(0,0,0,0.12),0_16px_64px_-8px_rgba(0,0,0,0.08)]",
+  },
+  minimal: {
+    name: "极简",
+    bg: "bg-white",
+    card: "bg-slate-50/80",
+    cardHover: "hover:bg-slate-100/80",
+    input: "bg-slate-50",
+    inputHover: "",
+  },
+};
 
-      <div className="relative z-10 max-w-5xl mx-auto px-6 pt-12 pb-16">
+export default function DemoPage() {
+  const [style, setStyle] = useState<StyleKey>("shadow");
+  const s = styles[style];
+
+  return (
+    <div className={`min-h-screen transition-colors duration-300 ${s.bg}`}>
+      {/* Style Switcher */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.2 }}
+        className="fixed top-6 right-6 z-50 flex gap-1 p-1 bg-white/80 backdrop-blur-sm rounded-full shadow-sm"
+      >
+        {(Object.keys(styles) as StyleKey[]).map((key) => (
+          <button
+            type="button"
+            key={key}
+            onClick={() => setStyle(key)}
+            className={`px-4 py-2 text-sm font-medium rounded-full transition-all ${
+              style === key ? "bg-zinc-900 text-white" : "text-zinc-500 hover:text-zinc-700"
+            }`}
+          >
+            {styles[key].name}
+          </button>
+        ))}
+      </motion.div>
+
+      <div className="max-w-4xl mx-auto px-6 pt-28 pb-20">
         {/* Header */}
         <motion.header
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between mb-16"
+          className="mb-14"
         >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl flex items-center justify-center">
+          <div className="flex items-center gap-3 mb-10">
+            <div className="w-10 h-10 rounded-xl bg-zinc-900 flex items-center justify-center">
               <Zap className="w-5 h-5 text-white" />
             </div>
-            <div>
-              <h1 className="text-white font-semibold text-lg tracking-tight">NexusNote</h1>
-              <p className="text-zinc-500 text-xs">AI 学习助手</p>
-            </div>
+            <span className="font-semibold text-lg text-zinc-900">NexusNote</span>
           </div>
 
-          <div className="flex items-center gap-4">
-            {shortcuts.map((s, i) => (
-              <div key={i} className="flex items-center gap-2 text-zinc-500 text-sm">
-                <kbd className="px-2 py-1 bg-zinc-800/60 border border-zinc-700/50 rounded-lg text-xs text-zinc-300 font-mono">
-                  {s.key}
-                </kbd>
-                <span className="hidden sm:inline">{s.action}</span>
-              </div>
-            ))}
-          </div>
+          <h1 className="text-4xl md:text-5xl font-bold text-zinc-900 mb-3 tracking-tight">
+            你想学什么？
+          </h1>
+          <p className="text-lg text-zinc-500">告诉 AI 你的学习目标，自动生成课程、闪卡、测验</p>
         </motion.header>
 
-        {/* Hero Section */}
+        {/* Input */}
         <motion.section
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="mb-20"
+          className="mb-14"
         >
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
-            你想学什么？
-          </h2>
-          <p className="text-zinc-400 text-lg mb-10 max-w-xl">
-            告诉 AI你的学习目标，自动生成课程、闪卡、测验，让学习更高效。
-          </p>
-
-          {/* 输入框 */}
-          <div className="relative group">
-            <div className="absolute inset-0 bg-gradient-to-r from-violet-600 to-indigo-600 rounded-3xl blur-lg opacity-30 group-hover:opacity-50 transition-opacity duration-500" />
-            <div className="relative bg-zinc-900/80 backdrop-blur-xl border border-zinc-800 rounded-3xl p-6">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl flex items-center justify-center flex-shrink-0">
-                  <Sparkles className="w-6 h-6 text-white" />
-                </div>
-                <input
-                  type="text"
-                  placeholder="例如：我想学习 React Hooks"
-                  className="flex-1 bg-transparent text-white text-lg placeholder:text-zinc-500 outline-none"
-                />
-                <button className="px-5 py-2.5 bg-white text-black font-medium rounded-xl hover:bg-zinc-100 transition-colors">
-                  开始
-                </button>
+          <motion.div
+            whileHover={{ scale: style === "minimal" ? 1 : 1.005 }}
+            transition={{ duration: 0.2 }}
+            className={`rounded-3xl p-6 transition-all duration-300 ${s.input} ${s.inputHover}`}
+          >
+            <div className="flex items-center gap-4 mb-5">
+              <div className="w-11 h-11 rounded-xl bg-zinc-100 flex items-center justify-center flex-shrink-0">
+                <Sparkles className="w-5 h-5 text-zinc-400" />
               </div>
-
-              {/* 命令标签 */}
-              <div className="mt-5 flex flex-wrap gap-2">
-                {[
-                  { icon: Search, label: "搜索笔记" },
-                  { icon: Plus, label: "创建笔记" },
-                  { icon: GraduationCap, label: "生成课程" },
-                  { icon: StickyNote, label: "创建闪卡" },
-                  { icon: Brain, label: "生成测验" },
-                  { icon: MindMapIcon, label: "思维导图" },
-                ].map((cmd, i) => (
-                  <motion.button
-                    key={cmd.label}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.3 + i * 0.05 }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800/60 hover:bg-zinc-700/60 border border-zinc-700/50 rounded-lg text-sm text-zinc-300 hover:text-white transition-all"
-                  >
-                    <cmd.icon className="w-3.5 h-3.5" />
-                    {cmd.label}
-                  </motion.button>
-                ))}
-              </div>
+              <input
+                type="text"
+                placeholder="例如：我想学习 React Hooks"
+                className="flex-1 bg-transparent text-lg text-zinc-900 placeholder:text-zinc-400 outline-none"
+              />
+              <button
+                type="button"
+                className="px-5 py-2.5 rounded-xl font-medium text-sm bg-zinc-900 text-white hover:bg-zinc-800 transition-colors"
+              >
+                开始
+              </button>
             </div>
-          </div>
+
+            {/* Commands */}
+            <div className="flex flex-wrap gap-2">
+              {commands.map((cmd, i) => (
+                <motion.button
+                  key={cmd.label}
+                  type="button"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.2 + i * 0.03 }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm bg-zinc-100/80 text-zinc-500 hover:text-zinc-700 hover:bg-zinc-200/80 transition-colors"
+                >
+                  <cmd.icon className="w-3.5 h-3.5" />
+                  {cmd.label}
+                </motion.button>
+              ))}
+            </div>
+          </motion.div>
         </motion.section>
 
-        {/* Recent Outputs */}
+        {/* Recent */}
         <motion.section
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25 }}
+          transition={{ delay: 0.2 }}
         >
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-white font-semibold text-xl">最近产出</h3>
-            <button className="text-zinc-500 hover:text-white text-sm transition-colors">
-              查看全部 →
-            </button>
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="font-medium text-zinc-700">最近</h2>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {outputs.map((item, i) => (
               <motion.div
-                key={item.type + i}
-                initial={{ opacity: 0, y: 20 }}
+                key={item.type}
+                initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.35 + i * 0.05 }}
-                className="group bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 hover:border-zinc-700 rounded-2xl p-5 cursor-pointer transition-all hover:bg-zinc-800/30"
+                transition={{ delay: 0.25 + i * 0.04 }}
+                className={`p-5 rounded-2xl cursor-pointer transition-all duration-200 ${s.card} ${s.cardHover}`}
               >
-                <div className="flex items-start justify-between mb-4">
-                  <div
-                    className={`w-11 h-11 ${item.bg} rounded-xl flex items-center justify-center shadow-lg`}
-                  >
-                    <item.icon className="w-5 h-5 text-white" />
+                <div className="flex items-start justify-between mb-3">
+                  <div className="w-10 h-10 rounded-xl bg-zinc-100 flex items-center justify-center">
+                    <item.icon className="w-4 h-4 text-zinc-500" />
                   </div>
-                  <span className="text-zinc-600 text-xs">{item.time}</span>
+                  <span className="text-xs text-zinc-400">{item.time}</span>
                 </div>
-                <h4 className="text-white font-medium mb-1 group-hover:text-violet-300 transition-colors">
-                  {item.title}
-                </h4>
-                <p className="text-zinc-500 text-sm">{item.desc}</p>
+                <h3 className="font-medium text-sm text-zinc-900 mb-0.5">{item.title}</h3>
+                <p className="text-xs text-zinc-400">{item.desc}</p>
               </motion.div>
             ))}
           </div>
         </motion.section>
-
-        {/* Footer */}
-        <motion.footer
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.6 }}
-          className="mt-20 text-center"
-        >
-          <p className="text-zinc-600 text-sm">使用 AI 快速生成学习内容 · 间隔重复高效记忆</p>
-        </motion.footer>
       </div>
     </div>
   );

@@ -32,9 +32,7 @@ export async function POST(request: Request) {
         return new Response("sessionId or initialGoal required", { status: 400 });
       }
 
-      const { createInterviewAgent } = await import(
-        "@/features/learning/agent/interview-agent"
-      );
+      const { createInterviewAgent } = await import("@/features/learning/agent/interview-agent");
       const { createInterviewSession, getInterviewSession } = await import(
         "@/features/learning/services/interview-session"
       );

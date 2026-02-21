@@ -3,10 +3,7 @@ import { courseGenerationQueue } from "@/lib/queue/course-generation";
 
 export const runtime = "nodejs";
 
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.id) {
     return new Response("Unauthorized", { status: 401 });
@@ -19,9 +16,7 @@ export async function GET(
     async start(controller) {
       const send = (data: unknown) => {
         try {
-          controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify(data)}\n\n`),
-          );
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
         } catch {
           // stream may be closed
         }

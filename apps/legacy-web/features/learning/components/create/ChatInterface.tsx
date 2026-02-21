@@ -3,10 +3,7 @@
 import type { UIMessage as Message } from "ai";
 import { AnimatePresence, motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
-import {
-  UnifiedChatUI,
-  DefaultOptionButtons,
-} from "@/features/chat/components/ai/UnifiedChatUI";
+import { DefaultOptionButtons, UnifiedChatUI } from "@/features/chat/components/ai/UnifiedChatUI";
 import type { InterviewPhase } from "@/features/learning/types";
 
 interface ChatInterfaceProps {
@@ -41,10 +38,7 @@ export function ChatInterface({
   onConfirmOutline,
   onAdjustOutline,
 }: ChatInterfaceProps) {
-  const handleSendWithFeedback = (
-    e?: React.FormEvent,
-    override?: string,
-  ) => {
+  const handleSendWithFeedback = (e?: React.FormEvent, override?: string) => {
     if (typeof navigator !== "undefined" && navigator.vibrate) {
       navigator.vibrate(50);
     }
@@ -71,9 +65,7 @@ export function ChatInterface({
       >
         <div
           className={
-            compact
-              ? "flex flex-col h-full w-full"
-              : "max-w-4xl w-full flex flex-col h-[85vh]"
+            compact ? "flex flex-col h-full w-full" : "max-w-4xl w-full flex flex-col h-[85vh]"
           }
         >
           <UnifiedChatUI
@@ -98,21 +90,14 @@ export function ChatInterface({
                 {isAiThinking ? (
                   <>
                     <Loader2 className="w-8 h-8 animate-spin" />
-                    <p className="text-sm font-medium">
-                      等待AI响应中... 目标: {goal}
-                    </p>
+                    <p className="text-sm font-medium">等待AI响应中... 目标: {goal}</p>
                   </>
                 ) : (
                   <>
-                    <p className="text-sm font-medium">
-                      准备开始... 目标: {goal}
-                    </p>
+                    <p className="text-sm font-medium">准备开始... 目标: {goal}</p>
                     <button
                       onClick={() =>
-                        handleSendWithFeedback(
-                          undefined,
-                          `我的目标是：${goal}。请开始访谈。`,
-                        )
+                        handleSendWithFeedback(undefined, `我的目标是：${goal}。请开始访谈。`)
                       }
                       className="mt-4 px-6 py-2 bg-black text-white rounded-full text-sm font-medium hover:scale-105 active:scale-95 transition-all shadow-lg shadow-black/10"
                     >

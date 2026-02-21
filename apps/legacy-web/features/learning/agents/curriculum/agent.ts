@@ -8,8 +8,8 @@
  */
 
 import { z } from "zod";
-import { registry } from "@/features/shared/ai/registry";
 import type { TopicResearchOutput } from "@/features/learning/agents/research/agent";
+import { registry } from "@/features/shared/ai/registry";
 
 /**
  * Curriculum Design 输入
@@ -82,9 +82,7 @@ const systemPrompt = `你是 NexusNote 的专业课程设计师。你的任务�
  * - AI SDK v6 的 generateText 支持在 prompt 中传递上下文对象
  * - 不需要手动拼接字符串，让 AI 自己解析结构化数据
  */
-export async function designCurriculum(
-  input: CurriculumDesignInput,
-): Promise<CurriculumOutput> {
+export async function designCurriculum(input: CurriculumDesignInput): Promise<CurriculumOutput> {
   const model = registry.courseModel ?? registry.chatModel;
   if (!model) {
     throw new Error("Course model not configured");

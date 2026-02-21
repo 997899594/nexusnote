@@ -12,9 +12,7 @@ interface CreatePageClientProps {
 
 export default function CreatePageClient({ userId }: CreatePageClientProps) {
   const searchParams = useSearchParams();
-  const goal = searchParams.get("goal")
-    ? decodeURIComponent(searchParams.get("goal")!)
-    : "";
+  const goal = searchParams.get("goal") ? decodeURIComponent(searchParams.get("goal")!) : "";
 
   return <CreatePageContent key={goal} initialGoal={goal} userId={userId} />;
 }

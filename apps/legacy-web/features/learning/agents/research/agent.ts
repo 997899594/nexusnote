@@ -48,9 +48,7 @@ const systemPrompt = `你是 NexusNote 的领域研究专家。用户会提供�
 /**
  * 研究领域并返回结构化信息
  */
-export async function researchTopic(
-  input: TopicResearchInput,
-): Promise<TopicResearchOutput> {
+export async function researchTopic(input: TopicResearchInput): Promise<TopicResearchOutput> {
   const chatModel = registry.chatModel;
   if (!chatModel) {
     throw new Error("Chat model not configured");

@@ -6,9 +6,9 @@
 
 // Actions
 export { getCourseChaptersAction, saveCourseProfileAction } from "./actions/course";
-export { courseGenerationAgent } from "./agents/course-generation/agent";
 // Agents
 export { createInterviewAgent } from "./agent/interview-agent";
+export { courseGenerationAgent } from "./agents/course-generation/agent";
 // 组件
 export { ChatInterface } from "./components/create/ChatInterface";
 export { FlashcardReview } from "./components/srs/FlashcardReview";

@@ -1,10 +1,7 @@
 import { auth } from "@/auth";
 import { getInterviewSession } from "@/features/learning/services/interview-session";
 
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.id) {
     return new Response("Unauthorized", { status: 401 });

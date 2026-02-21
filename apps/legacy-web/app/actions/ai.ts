@@ -258,4 +258,3 @@ export async function generateDocAction(body: {
 
   return result.toTextStreamResponse();
 }
-

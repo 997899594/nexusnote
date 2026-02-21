@@ -1,6 +1,6 @@
 "use client";
 
-import { type UIMessage as Message } from "ai";
+import type { UIMessage as Message } from "ai";
 import { Bot, Send, Square } from "lucide-react";
 import { type FormEvent, type ReactNode, useEffect, useRef } from "react";
 import { PartsBasedMessage } from "@/features/shared/components/ai/PartsBasedMessage";
@@ -15,10 +15,7 @@ interface UnifiedChatUIProps {
   onStop?: () => void;
   renderToolOutput?: (toolName: string, output: unknown, toolCallId: string) => ReactNode;
   renderToolLoading?: (toolName: string, toolCallId: string) => ReactNode;
-  renderToolOptions?: (input: {
-    options: string[];
-    toolCallId: string;
-  }) => ReactNode;
+  renderToolOptions?: (input: { options: string[]; toolCallId: string }) => ReactNode;
   renderMessage?: (message: Message, text: string, isUser: boolean) => ReactNode;
   renderEmpty?: () => ReactNode;
   renderAfterMessages?: () => ReactNode;
@@ -110,9 +107,7 @@ export function UnifiedChatUI({
                     key={messageKey}
                     className="flex flex-col w-full"
                     role="article"
-                    aria-label={
-                      message.role === "user" ? "用户消息" : "AI 助手回复"
-                    }
+                    aria-label={message.role === "user" ? "用户消息" : "AI 助手回复"}
                   >
                     <PartsBasedMessage
                       message={message}
@@ -136,7 +131,12 @@ export function UnifiedChatUI({
 
       {/* 输入框区域 */}
       <div className={cn("shrink-0", variant === "interview" ? "p-4" : "p-4")}>
-        <div className={cn("max-w-4xl mx-auto relative group", variant === "interview" && "max-w-full")}>
+        <div
+          className={cn(
+            "max-w-4xl mx-auto relative group",
+            variant === "interview" && "max-w-full",
+          )}
+        >
           <form onSubmit={onSubmit} className="relative" aria-label="发送消息">
             <input
               value={input}
