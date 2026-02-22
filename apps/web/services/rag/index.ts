@@ -8,3 +8,16 @@
 export * from "./chunker";
 export * from "./hybrid-search";
 export * from "./query-rewriter";
+
+// Semantic chunking
+export {
+  semanticChunk,
+  semanticChunkConversation,
+  type SemanticChunk,
+  type SemanticChunkOptions,
+} from "./semantic-chunker";
+
+// Cosine similarity utility
+export {
+  cosineSimilarity,
+} from "./utils/cosine-similarity";
