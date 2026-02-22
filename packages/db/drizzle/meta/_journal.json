@@ -71,6 +71,13 @@
       "when": 1771759334891,
       "tag": "0009_0009_add_user_profiles",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1771759967662,
+      "tag": "0010_fluffy_amazoness",
+      "breakpoints": true
     }
   ]
 }

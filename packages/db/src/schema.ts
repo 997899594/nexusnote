@@ -246,6 +246,10 @@ export const courseProfiles = pgTable(
     interviewMessages: jsonb("interview_messages"),
     interviewStatus: text("interview_status").default("interviewing"),
 
+    // Course lifecycle status and progress tracking
+    status: text("status").default("idle"),
+    currentStep: jsonb("current_step"),
+
     currentChapter: integer("current_chapter").default(0),
     currentSection: integer("current_section").default(1),
     isCompleted: boolean("is_completed").default(false),
@@ -479,6 +483,10 @@ export type AIUsage = typeof aiUsage.$inferSelect;
 export type NewAIUsage = typeof aiUsage.$inferInsert;
 export type UserProfile = typeof userProfiles.$inferSelect;
 export type NewUserProfile = typeof userProfiles.$inferInsert;
+export type CourseProfile = typeof courseProfiles.$inferSelect;
+export type NewCourseProfile = typeof courseProfiles.$inferInsert;
+export type CourseChapter = typeof courseChapters.$inferSelect;
+export type NewCourseChapter = typeof courseChapters.$inferInsert;
 
 // ============================================
 // Relations
