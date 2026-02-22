@@ -257,7 +257,6 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
                 commands={filteredCommands}
                 selectedIndex={selectedIndex}
                 onSelect={handleSelectCommand}
-                onClose={() => setShowCommands(false)}
               />
             )}
           </AnimatePresence>

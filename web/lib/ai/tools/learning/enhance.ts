@@ -18,7 +18,7 @@ export const generateQuizTool = tool({
       .optional()
       .describe("题型"),
   }),
-  execute: async ({ content, questionCount, difficulty, types }) => {
+  execute: async ({ content, questionCount, difficulty }) => {
     // TODO: 调用 LLM 生成真实测验
     console.log("[Tool] generateQuiz:", { content, questionCount, difficulty });
     return {

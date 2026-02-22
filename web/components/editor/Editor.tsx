@@ -148,6 +148,7 @@ function SlashMenu({ editor, onClose }: { editor: any; onClose: () => void }) {
       />
       {filtered.map((cmd) => (
         <button
+          type="button"
           key={cmd.id}
           onClick={() => {
             cmd.command(editor);

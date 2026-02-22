@@ -185,6 +185,7 @@ export function CommentThread({ comment }: { comment: Comment; onSelect?: () => 
           </button>
           {comment.resolved ? (
             <button
+              type="button"
               onClick={() => reopenComment(comment.id)}
               style={{
                 background: "none",
