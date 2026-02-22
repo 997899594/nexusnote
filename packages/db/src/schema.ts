@@ -45,6 +45,30 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// User learning profile - accumulates cross-course learning data
+export const userProfiles = pgTable(
+  "user_profiles",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull()
+      .unique(),
+    learningGoals: jsonb("learning_goals"),
+    knowledgeAreas: jsonb("knowledge_areas"),
+    learningStyle: jsonb("learning_style"),
+    assessmentHistory: jsonb("assessment_history"),
+    currentLevel: text("current_level"),
+    totalStudyMinutes: integer("total_study_minutes").notNull().default(0),
+    profileEmbedding: halfvec("profile_embedding"),
+    updatedAt: timestamp("updated_at").defaultNow(),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => ({
+    userIdIdx: index("user_profiles_user_id_idx").on(table.userId),
+  }),
+);
+
 export const workspaces = pgTable("workspaces", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
@@ -221,6 +245,10 @@ export const courseProfiles = pgTable(
     interviewProfile: jsonb("interview_profile"),
     interviewMessages: jsonb("interview_messages"),
     interviewStatus: text("interview_status").default("interviewing"),
+
+    // Course lifecycle status and progress tracking
+    status: text("status").default("idle"),
+    currentStep: jsonb("current_step"),
 
     currentChapter: integer("current_chapter").default(0),
     currentSection: integer("current_section").default(1),
@@ -453,6 +481,12 @@ export type ExtractedNote = typeof extractedNotes.$inferSelect;
 export type NewExtractedNote = typeof extractedNotes.$inferInsert;
 export type AIUsage = typeof aiUsage.$inferSelect;
 export type NewAIUsage = typeof aiUsage.$inferInsert;
+export type UserProfile = typeof userProfiles.$inferSelect;
+export type NewUserProfile = typeof userProfiles.$inferInsert;
+export type CourseProfile = typeof courseProfiles.$inferSelect;
+export type NewCourseProfile = typeof courseProfiles.$inferInsert;
+export type CourseChapter = typeof courseChapters.$inferSelect;
+export type NewCourseChapter = typeof courseChapters.$inferInsert;
 
 // ============================================
 // Relations
@@ -465,6 +499,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   workspaces: many(workspaces),
   conversations: many(conversations),
   knowledgeChunks: many(knowledgeChunks),
+  userProfiles: many(userProfiles),
 }));
 
 export const workspacesRelations = relations(workspaces, ({ one, many }) => ({
