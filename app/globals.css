@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Streamdown - 流式 Markdown 样式 */
+@source "../node_modules/streamdown/dist/*.js";
+
 /* ────────────────────────────────────────────────────────────────────────────
  * Layer 1: Brand Palette (Raw OKLCH values, theme-switchable)
  * ──────────────────────────────────────────────────────────────────────────── */
