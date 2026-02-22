@@ -12,16 +12,20 @@ import { FloatingHeader } from "@/components/shared/layout";
 export default function HomePage() {
   const loadSessions = useChatStore((state) => state.loadSessions);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isLoading = useAuthStore((state) => state.isLoading);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const router = useRouter();
 
+  // Only load sessions if authenticated
   useEffect(() => {
-    loadSessions();
-  }, [loadSessions]);
+    if (isAuthenticated) {
+      loadSessions();
+    }
+  }, [loadSessions, isAuthenticated]);
 
   useEffect(() => {
-    // Show login prompt after 1s if not authenticated
-    if (!isAuthenticated) {
+    // Show login prompt after 1s if not authenticated and done loading
+    if (!isLoading && !isAuthenticated) {
       const timer = setTimeout(() => {
         setShowAuthPrompt(true);
       }, 1000);
@@ -29,7 +33,7 @@ export default function HomePage() {
     } else {
       setShowAuthPrompt(false);
     }
-  }, [isAuthenticated]);
+  }, [isLoading, isAuthenticated]);
 
   const handleLoginClick = () => {
     router.push("/login");
