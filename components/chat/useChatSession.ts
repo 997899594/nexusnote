@@ -15,6 +15,7 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useEffect } from "react";
+import { persistMessages } from "@/lib/chat/api";
 import { usePendingChatStore } from "./usePendingChatStore";
 
 interface UseChatSessionOptions {
@@ -25,19 +26,6 @@ interface UseChatSessionOptions {
 // 模块级 Set（生命周期 = 整个 app，不随组件 remount 丢失）
 const loadedSessions = new Set<string>();
 const sentSessions = new Set<string>();
-
-/**
- * 持久化消息到数据库（模块级函数）
- */
-function persistMessages(sessionId: string, messages: UIMessage[]) {
-  fetch(`/api/chat-sessions/${sessionId}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages }),
-  }).catch((error) => {
-    console.error("[ChatSession] Failed to persist messages:", error);
-  });
-}
 
 export function useChatSession({ sessionId, pendingMessage }: UseChatSessionOptions) {
   const clearPending = usePendingChatStore((state) => state.clear);

@@ -13,6 +13,7 @@
 
 import { create } from "zustand";
 import type { Conversation } from "@/db";
+import * as chatApi from "@/lib/chat/api";
 
 interface ChatStore {
   sessions: Conversation[];
@@ -27,62 +28,32 @@ export const useChatStore = create<ChatStore>((set) => ({
   sessions: [],
 
   loadSessions: async () => {
-    try {
-      const res = await fetch("/api/chat-sessions");
-      const data = await res.json();
-      set({ sessions: data.sessions || [] });
-    } catch (error) {
-      console.error("[ChatStore] loadSessions error:", error);
-    }
+    const sessions = await chatApi.loadSessions();
+    set({ sessions });
   },
 
   createSession: async (title: string) => {
-    try {
-      const res = await fetch("/api/chat-sessions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title }),
-      });
-      const data = await res.json();
-      const session = data.session as Conversation;
-
+    const session = await chatApi.createSession(title);
+    if (session) {
       set((state) => ({
         sessions: [session, ...state.sessions],
       }));
-
-      return session;
-    } catch (error) {
-      console.error("[ChatStore] createSession error:", error);
-      return null;
     }
+    return session;
   },
 
   updateSession: async (id: string, updates: Partial<Conversation>) => {
-    try {
-      const res = await fetch(`/api/chat-sessions/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updates),
-      });
-      const data = await res.json();
-      const updated = data.session as Conversation;
-
-      set((state) => ({
-        sessions: state.sessions.map((s) => (s.id === id ? updated : s)),
-      }));
-    } catch (error) {
-      console.error("[ChatStore] updateSession error:", error);
-    }
+    await chatApi.updateSession(id, updates);
+    // Optimistically update local state
+    set((state) => ({
+      sessions: state.sessions.map((s) => (s.id === id ? { ...s, ...updates } : s)),
+    }));
   },
 
   deleteSession: async (id: string) => {
-    try {
-      await fetch(`/api/chat-sessions/${id}`, { method: "DELETE" });
-      set((state) => ({
-        sessions: state.sessions.filter((s) => s.id !== id),
-      }));
-    } catch (error) {
-      console.error("[ChatStore] deleteSession error:", error);
-    }
+    await chatApi.deleteSession(id);
+    set((state) => ({
+      sessions: state.sessions.filter((s) => s.id !== id),
+    }));
   },
 }));
