@@ -5,23 +5,14 @@ import { LogIn } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/components/auth";
-import { useChatStore } from "@/components/chat";
 import { HeroInput, RecentSection } from "@/components/shared/home";
 import { FloatingHeader } from "@/components/shared/layout";
 
 export default function HomePage() {
-  const loadSessions = useChatStore((state) => state.loadSessions);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const isLoading = useAuthStore((state) => state.isLoading);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const router = useRouter();
-
-  // Only load sessions if authenticated
-  useEffect(() => {
-    if (isAuthenticated) {
-      loadSessions();
-    }
-  }, [loadSessions, isAuthenticated]);
 
   useEffect(() => {
     // Show login prompt after 1s if not authenticated and done loading
