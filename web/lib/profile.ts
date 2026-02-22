@@ -6,7 +6,7 @@
  */
 
 import { db, userProfiles, eq } from "@/db";
-import { aiProvider } from "@/infrastructure/ai/provider";
+import { aiProvider } from "@/lib/ai";
 import { embedMany } from "ai";
 
 /**

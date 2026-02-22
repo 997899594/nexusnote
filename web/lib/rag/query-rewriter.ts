@@ -10,7 +10,7 @@
  */
 
 import { generateText } from "ai";
-import { aiProvider } from "@/infrastructure/ai/provider";
+import { aiProvider } from "@/lib/ai";
 
 export async function rewriteQuery(query: string, conversationContext?: string): Promise<string> {
   // Short queries (< 10 chars) with no context, return as-is

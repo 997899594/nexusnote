@@ -13,10 +13,8 @@ import IORedis from "ioredis";
 // Queue Configuration
 // ============================================
 
-export const queueConfig = {
-  redisHost: env.REDIS_HOST || "localhost",
-  redisPort: parseInt(env.REDIS_PORT || "6379", 10),
-};
+// 使用 REDIS_URL，不再使用 REDIS_HOST/PORT
+
 
 // ============================================
 // Conversation Indexing Queue

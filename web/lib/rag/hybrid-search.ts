@@ -7,7 +7,7 @@
 
 import { db, sql } from "@/db";
 import { embedMany } from "ai";
-import { aiProvider } from "@/infrastructure/ai/provider";
+import { aiProvider } from "@/lib/ai";
 import type { SourceType } from "./chunker";
 import { rewriteQuery } from "./query-rewriter";
 

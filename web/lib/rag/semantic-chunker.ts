@@ -6,7 +6,7 @@
  */
 
 import { embedMany } from "ai";
-import { aiProvider } from "@/infrastructure/ai/provider";
+import { aiProvider } from "@/lib/ai";
 import { cosineSimilarity } from "./utils/cosine-similarity";
 
 export interface SemanticChunk {

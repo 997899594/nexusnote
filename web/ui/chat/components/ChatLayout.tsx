@@ -13,7 +13,7 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { FloatingHeader } from "@/ui/layout";
+import { FloatingHeader } from "@/components/shared/layout";
 import { useChatStore } from "../stores/useChatStore";
 import { ChatHistory } from "./ChatHistory";
 

@@ -8,7 +8,7 @@
 
 import { db, documents, eq, knowledgeChunks } from "@/db";
 import { embedMany } from "ai";
-import { aiProvider } from "@/infrastructure/ai/provider";
+import { aiProvider } from "@/lib/ai";
 
 export interface ChunkOptions {
   chunkSize?: number;

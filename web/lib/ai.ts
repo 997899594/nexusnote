@@ -240,7 +240,7 @@ export async function safeGenerateObject<T>(options: SafeGenerateOptions<T>): Pr
  */
 
 import { createOpenAI } from "@ai-sdk/openai";
-import type { EmbeddingModelV3, LanguageModelV3 } from "@ai-sdk/provider";
+import type { EmbeddingModelV3 } from "@ai-sdk/provider";
 import { extractReasoningMiddleware, wrapLanguageModel } from "ai";
 
 const MODELS = {

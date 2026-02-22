@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AuthSync, SessionProvider } from "@/ui/auth";
 import { TransitionOverlay } from "@/ui/chat/components/TransitionOverlay";
-import { MobileNav } from "@/ui/layout/components/MobileNav";
+import { MobileNav } from "@/components/shared/layout";
 
 export const metadata: Metadata = {
   title: "NexusNote - 私人学习助理",
