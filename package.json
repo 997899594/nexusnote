@@ -2,42 +2,16 @@
   "name": "nexusnote",
   "private": true,
   "scripts": {
-    "dev": "turbo dev",
-    "build": "turbo build",
-    "lint": "biome check .",
-    "lint:fix": "biome check --fix .",
-    "format": "biome format --write .",
-    "typecheck": "turbo typecheck",
-    "docker:build": "docker build -t nexusnote:local -f Dockerfile.web .",
-    "docker:build:web": "docker buildx bake web",
-    "docker:build:multi": "docker buildx bake multi",
-    "docker:bake": "docker buildx bake",
-    "docker:push": "docker push ghcr.io/${GITHUB_REPOSITORY}:latest",
-    "docker:push:sha": "docker push ghcr.io/${GITHUB_REPOSITORY}:sha-${GITHUB_SHA}",
-    "k8s:status": "kubectl get pods,svc,gateway,httproute -n nexusnote",
-    "k8s:logs": "kubectl logs -f deployment/nexusnote-web -n nexusnote",
-    "k8s:logs:all": "kubectl logs -f -l app=nexusnote -n nexusnote --all-containers=true",
-    "db:push": "pnpm --filter @nexusnote/db push",
-    "db:studio": "pnpm --filter @nexusnote/db studio",
-    "db:generate": "pnpm --filter @nexusnote/db generate",
-    "db:migrate": "pnpm --filter @nexusnote/db migrate",
-    "test": "turbo test",
-    "test:watch": "turbo test --watch",
-    "test:coverage": "turbo test --coverage",
-    "e2e": "turbo test --filter=*e2e*"
+    "dev": "cd web && pnpm dev",
+    "build": "cd web && pnpm build",
+    "start": "cd web && pnpm start",
+    "lint": "cd web && pnpm lint",
+    "typecheck": "cd web && pnpm typecheck",
+    "db:push": "cd web && pnpm db:push",
+    "db:studio": "cd web && pnpm db:studio",
+    "db:generate": "cd web && pnpm db:generate"
   },
-  "devDependencies": {
-    "@biomejs/biome": "^2.3.15",
-    "turbo": "^2.0.0",
-    "typescript": "^5.9.3"
-  },
-  "packageManager": "pnpm@8.15.0",
   "engines": {
     "node": ">=18"
-  },
-  "dependencies": {
-    "@tiptap/core": "^3.20.0",
-    "@tiptap/pm": "^3.20.0",
-    "@tiptap/react": "^3.20.0"
   }
 }
