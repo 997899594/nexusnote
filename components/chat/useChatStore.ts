@@ -48,7 +48,6 @@ export const useChatStore = create<ChatStore>((set) => ({
 
       set((state) => ({
         sessions: [session, ...state.sessions],
-        currentSessionId: session.id,
       }));
 
       return session;
