@@ -1,4 +1,4 @@
-import { env } from "@nexusnote/config";
+import { env } from "@/config/env";
 import { relations } from "drizzle-orm";
 import {
   boolean,
