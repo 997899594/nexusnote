@@ -1,11 +1,11 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { LogIn } from "lucide-react";
-import { useChatStore } from "@/components/chat";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { useAuthStore } from "@/components/auth";
+import { useChatStore } from "@/components/chat";
 import { HeroInput, RecentSection } from "@/components/shared/home";
 import { FloatingHeader } from "@/components/shared/layout";
 
@@ -53,6 +53,7 @@ export default function HomePage() {
               <span className="font-medium">登录以保存你的学习记录</span>
             </div>
             <button
+              type="button"
               onClick={handleLoginClick}
               className="ml-4 px-4 py-2 bg-white text-blue-600 rounded-lg font-medium hover:bg-blue-50 transition-colors"
             >

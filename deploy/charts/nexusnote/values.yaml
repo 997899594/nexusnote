@@ -35,7 +35,6 @@ infisical:
 env:
   NODE_ENV: "production"
   PORT: "3000"
-  HOCUSPOCUS_PORT: "1234"
   NEXT_PUBLIC_APP_URL: "http://localhost:3000"
   AUTH_TRUST_HOST: "true"
   NEXTAUTH_URL: "http://localhost:3000"
@@ -62,26 +61,6 @@ loadBalancerIP: "10.2.0.15"
 services:
   web:
     name: web
-    replicaCount: 1
-    resources:
-      limits:
-        cpu: 500m
-        memory: 512Mi
-      requests:
-        cpu: 100m
-        memory: 128Mi
-  collab:
-    name: collab
-    replicaCount: 1
-    resources:
-      limits:
-        cpu: 500m
-        memory: 512Mi
-      requests:
-        cpu: 100m
-        memory: 128Mi
-  worker:
-    name: worker
     replicaCount: 1
     resources:
       limits:

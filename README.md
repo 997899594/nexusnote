@@ -100,7 +100,6 @@ NexusNote uses a **single Next.js fullstack application** deployed as three Kube
 | **Queue** | BullMQ, Redis 7 | Async job processing |
 | **AI** | Vercel AI SDK 6.x | Unified AI interface |
 | **ORM** | Drizzle | Type-safe SQL queries |
-| **Monorepo** | Turborepo, pnpm | Build orchestration |
 | **CI/CD** | GitHub Actions, ArgoCD | Build + GitOps deployment |
 | **Secrets** | Infisical Cloud | Centralized secret management |
 | **TLS** | Cert-Manager, Let's Encrypt | Automatic certificate management |
@@ -198,25 +197,24 @@ For detailed deployment instructions, see [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 ```
 nexusnote/
-├── web/                              # Next.js Fullstack App
-│   ├── app/                          # App Router
-│   ├── components/                   # UI Components
-│   │   ├── ui/                       # Base UI Components
-│   │   ├── editor/                   # Editor Components
-│   │   ├── chat/                     # Chat Components
-│   │   ├── auth/                     # Auth Components
-│   │   └── shared/                   # Shared Components
-│   ├── lib/                          # Utilities & Services
-│   │   ├── db.ts                     # Database Client
-│   │   ├── ai.ts                     # AI Tools
-│   │   ├── algorithm.ts              # FSRS Algorithm
-│   │   ├── queue.ts                  # BullMQ Queue
-│   │   ├── rag/                      # RAG Services
-│   │   ├── profile.ts                # Profile Service
-│   │   └── utils.ts                  # Helper Functions
-│   ├── config/                       # Environment Config
-│   ├── types/                        # TypeScript Types
-│   └── db/                          # Database Schema
+├── app/                              # Next.js App Router
+├── components/                       # UI Components
+│   ├── ui/                           # Base UI Components
+│   ├── editor/                       # Editor Components
+│   ├── chat/                         # Chat Components
+│   ├── auth/                         # Auth Components
+│   └── shared/                       # Shared Components
+├── lib/                              # Utilities & Services
+│   ├── db.ts                         # Database Client
+│   ├── ai.ts                         # AI Tools
+│   ├── algorithm.ts                  # FSRS Algorithm
+│   ├── queue.ts                      # BullMQ Queue
+│   ├── rag/                          # RAG Services
+│   └── utils.ts                      # Helper Functions
+├── config/                           # Environment Config
+├── types/                            # TypeScript Types
+├── db/                               # Database Schema (Drizzle)
+├── party/                            # PartyKit Collaboration Server
 ├── deploy/                           # K8s Deployment
 ├── docs/                             # Documentation
 └── README.md

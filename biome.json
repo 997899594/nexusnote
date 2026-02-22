@@ -62,7 +62,7 @@
     }
   },
   "files": {
-    "includes": ["**", "!node_modules", "!.next", "!.turbo"]
+    "includes": ["**", "!node_modules", "!.next"]
   },
   "assist": {
     "actions": {

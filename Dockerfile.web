@@ -1,81 +1,41 @@
 # syntax=docker/dockerfile:1
 
 # ============================================
-# Stage 1: Prune - 提取构建所需文件
+# Stage 1: Dependencies - 安装依赖
 # ============================================
-FROM node:22-alpine AS pruner
-WORKDIR /app
-
-# 安装 turbo
-RUN npm install -g turbo@^2.0.0
-
-# 复制项目文件
-COPY . .
-
-# 提取 @nexusnote/web 和 db 构建所需的最小文件集
-# turbo prune 会自动包含所有依赖包，只需指定入口
-RUN turbo prune --scope=@nexusnote/web --scope=@nexusnote/collab --scope=@nexusnote/db --docker
-
-# ============================================
-# Stage 2: Install - 安装依赖
-# ============================================
-FROM node:22-alpine AS installer
+FROM node:22-alpine AS deps
 WORKDIR /app
 
 RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
 
-# 复制 prune 生成的 package.json 集合
-COPY --from=pruner /app/out/json ./
-COPY --from=pruner /app/out/pnpm-lock.yaml ./
+# 复制依赖文件
+COPY package.json pnpm-lock.yaml ./
 
-# 安装依赖
-RUN pnpm install --frozen-lockfile --prod=false
+# 安装所有依赖（包括生产依赖）
+RUN pnpm install --frozen-lockfile
 
 # ============================================
-# Stage 3: Build - 构建项目
+# Stage 2: Builder - 构建项目
 # ============================================
-FROM installer AS builder
+FROM node:22-alpine AS builder
+WORKDIR /app
 
-# 安装 turbo（继承自 installer，需要重新安装）
-RUN npm install -g turbo@^2.0.0
+RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
 
-# 复制 prune 生成的源码集合（只包含相关 package）
-COPY --from=pruner /app/out/full ./
+# 复制依赖
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
 
 # 设置环境变量
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 ENV SKIP_ENV_VALIDATION=true
 
-# 使用 Turbo 自动构建所有依赖（自动解析依赖顺序、并行构建、缓存）
-RUN turbo build --filter=@nexusnote/web
+# 构建 Next.js 应用
+RUN pnpm build
 
 # ============================================
-# Build Collab and Worker
-# ============================================
-RUN pnpm --filter @nexusnote/web exec esbuild \
-  ../../apps/collab/src/index.ts \
-  --bundle \
-  --platform=node \
-  --minify \
-  --target=node22 \
-  --outfile=../../apps/collab/collab.js
-
-RUN pnpm --filter @nexusnote/web exec esbuild src/queue/worker.ts \
-  --bundle \
-  --platform=node \
-  --minify \
-  --target=node22 \
-  --outfile=worker.js
-
-# ============================================
-# 打包迁移依赖子集（在 builder 阶段完成，利用已有的 pnpm 依赖）
-# pnpm deploy 只导出 @nexusnote/db 及其依赖到独立目录
-# ============================================
-RUN pnpm --filter @nexusnote/db deploy --prod=false /app/migration-bundle
-
-# ============================================
-# Stage 4: Runner - 运行时镜像
+# Stage 3: Runner - 运行时镜像
 # ============================================
 FROM node:22-alpine AS runner
 WORKDIR /app
@@ -89,23 +49,15 @@ RUN apk add --no-cache dumb-init \
     && adduser --system --uid 1001 nextjs \
     && mkdir -p /app/logs && chown -R nextjs:nodejs /app/logs
 
-# 复制构建产物
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
-
-# 复制 Collab 和 Worker
-COPY --from=builder --chown=nextjs:nodejs /app/apps/collab/collab.js ./apps/collab/
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/worker.js ./apps/web/
-
-# 复制迁移工具（pnpm deploy 打包的 @nexusnote/db 完整依赖子集）
-COPY --from=builder --chown=nextjs:nodejs /app/migration-bundle ./migration/
-
-# 复制静态资源
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public/
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static/
-
 # 复制 package.json
-COPY --chown=nextjs:nodejs package.json .
-COPY --chown=nextjs:nodejs apps/web/package.json ./apps/web/
+COPY --from=builder --chown=nextjs:nodejs /app/package.json ./
+
+# 复制生产依赖
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
+
+# 复制构建产物
+COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next/
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public/
 
 USER nextjs
 
@@ -115,4 +67,4 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["node", "apps/web/server.js"]
+CMD ["pnpm", "start"]

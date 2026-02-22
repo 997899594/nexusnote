@@ -4,10 +4,10 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ChevronRight, Plus, Send, Sparkles, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { cn } from "@/lib/utils";
 import { usePendingChatStore } from "@/components/chat/usePendingChatStore";
 import { useTransitionStore } from "@/components/chat/useTransitionStore";
-import { HOME_COMMANDS, QUICK_ACTIONS, extractCommandContent } from "@/lib/chat/commands";
+import { extractCommandContent, HOME_COMMANDS, QUICK_ACTIONS } from "@/lib/chat/commands";
+import { cn } from "@/lib/utils";
 import type { Command } from "@/types/chat";
 
 export function HeroInput() {

@@ -1,5 +1,5 @@
 /**
- * @nexusnote/fsrs — FSRS-5 间隔重复调度算法
+ * FSRS-5 间隔重复调度算法
  *
  * 纯函数实现，零外部依赖。
  * 可独立用于浏览器、Node.js、Web Worker。

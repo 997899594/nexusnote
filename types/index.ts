@@ -20,7 +20,7 @@ export type Intent = "CHAT" | "INTERVIEW" | "COURSE" | "SEARCH";
 export type LoadingStatus = "idle" | "loading" | "success" | "error";
 
 // ============================================
-// Document & Editor Types (from @nexusnote/types)
+// Document & Editor Types
 // ============================================
 
 /**
@@ -73,7 +73,7 @@ export interface DocumentSnapshotBase {
 }
 
 // ============================================
-// SRS / Flashcard Types (from @nexusnote/types)
+// SRS / Flashcard Types
 // ============================================
 
 /**

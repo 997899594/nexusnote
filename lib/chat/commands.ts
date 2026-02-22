@@ -1,4 +1,3 @@
-import type { Command } from "@/types/chat";
 import {
   BookOpen,
   Globe,
@@ -8,6 +7,7 @@ import {
   Plus,
   Search,
 } from "lucide-react";
+import type { Command } from "@/types/chat";
 
 export const CHAT_COMMANDS: Command[] = [
   {

@@ -36,9 +36,12 @@ export const useChatStore = create<ChatStore>((set) => ({
     const hasDefaultTitles = sessions.some((s) => s.title === "新对话");
     if (hasDefaultTitles) {
       // Fire and forget - don't block the UI
-      useChatStore.getState().generateBatchTitles().catch((err) => {
-        console.error("[ChatStore] Failed to generate batch titles:", err);
-      });
+      useChatStore
+        .getState()
+        .generateBatchTitles()
+        .catch((err) => {
+          console.error("[ChatStore] Failed to generate batch titles:", err);
+        });
     }
   },
 

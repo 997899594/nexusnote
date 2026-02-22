@@ -1,7 +1,5 @@
 /**
- * @nexusnote/config
- *
- * Centralized configuration for NexusNote monorepo.
+ * Centralized configuration for NexusNote.
  * Single source of truth for all configuration values.
  */
 

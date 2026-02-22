@@ -3,8 +3,8 @@ import postgres from "postgres";
 import { env } from "@/config/env";
 import * as schema from "./schema";
 
-// We rely on @nexusnote/config or the application entry point to load env vars
-// This keeps the db package pure and avoids duplicate dotenv loading
+// We rely on the application entry point to load env vars
+// This keeps the db module pure and avoids duplicate dotenv loading
 
 // Prevent execution on client side to avoid accessing ServerEnv
 const isServer = typeof window === "undefined";

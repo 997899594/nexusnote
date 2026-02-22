@@ -1,7 +1,6 @@
 "use client";
 
 import { useAuthStore } from "@/components/auth/useAuthStore";
-import { User } from "lucide-react";
 
 interface UserAvatarProps {
   className?: string;
@@ -34,9 +33,7 @@ export function UserAvatar({ className = "", size = "md" }: UserAvatarProps) {
   // Loading state - show pulse
   if (isLoading) {
     return (
-      <div
-        className={`${sizeClasses[size]} rounded-full bg-zinc-100 animate-pulse ${className}`}
-      />
+      <div className={`${sizeClasses[size]} rounded-full bg-zinc-100 animate-pulse ${className}`} />
     );
   }
 

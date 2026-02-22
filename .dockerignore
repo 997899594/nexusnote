@@ -7,7 +7,6 @@
 **/dist
 **/.next
 **/build
-**/.turbo
 **/.cache
 
 # 版本控制

@@ -12,8 +12,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
-import { aiProvider, safeGenerateObject } from "@/lib/ai/core";
 import { conversations, db, eq } from "@/db";
+import { aiProvider, safeGenerateObject } from "@/lib/ai/core";
 import { authOptions } from "../../auth/[...nextauth]/route";
 
 // Title generation schema
@@ -21,10 +21,10 @@ const titleSchema = z.object({
   title: z.string().max(10),
 });
 
-export async function POST(request: Request) {
+export async function POST(_request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    const userId = session?.user?.id;
+    const _userId = session?.user?.id;
 
     // 1. 查询 title = "新对话" 的会话（限制 5 条）
     const conversationsToProcess = await db
@@ -58,7 +58,8 @@ export async function POST(request: Request) {
         const result = await safeGenerateObject({
           schema: titleSchema,
           model: aiProvider.chatModel,
-          system: "你是一个专业的标题生成助手。根据用户的第一条消息，生成一个简洁、准确的标题，不超过10个字。",
+          system:
+            "你是一个专业的标题生成助手。根据用户的第一条消息，生成一个简洁、准确的标题，不超过10个字。",
           prompt: `用户消息：${firstUserMessage}\n\n请生成一个简洁的标题：`,
           temperature: 0.7,
         });
@@ -71,7 +72,10 @@ export async function POST(request: Request) {
 
         updatedCount++;
       } catch (error) {
-        console.error(`[GenerateTitles] Failed to generate title for conversation ${conversation.id}:`, error);
+        console.error(
+          `[GenerateTitles] Failed to generate title for conversation ${conversation.id}:`,
+          error,
+        );
         // 继续处理下一个会话
       }
     }

@@ -83,9 +83,6 @@ spec:
             - -c
             - |
               set -e
-              cd /app/migration
-              echo "Running pre-migration setup..."
-              node pre-migrate.mjs
               echo "Running database migrations..."
               npx drizzle-kit push --config drizzle.config.ts
               echo "Migrations completed."

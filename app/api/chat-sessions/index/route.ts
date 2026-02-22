@@ -34,10 +34,7 @@ export async function POST(request: Request) {
 
     // Validate sessionId
     if (!sessionId || typeof sessionId !== "string") {
-      return NextResponse.json(
-        { error: "Invalid sessionId" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Invalid sessionId" }, { status: 400 });
     }
 
     // Verify session exists and belongs to user
@@ -48,25 +45,16 @@ export async function POST(request: Request) {
       .limit(1);
 
     if (!conversation) {
-      return NextResponse.json(
-        { error: "Session not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ error: "Session not found" }, { status: 404 });
     }
 
     if (conversation.userId !== userId) {
-      return NextResponse.json(
-        { error: "Forbidden" },
-        { status: 403 },
-      );
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Validate messages array
     if (!Array.isArray(messages) || messages.length === 0) {
-      return NextResponse.json(
-        { error: "Invalid messages array" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Invalid messages array" }, { status: 400 });
     }
 
     // Convert UIMessage to simple format for indexing
@@ -105,9 +93,6 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("[ChatSessionIndex] POST error:", error);
-    return NextResponse.json(
-      { error: "Failed to index session" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to index session" }, { status: 500 });
   }
 }

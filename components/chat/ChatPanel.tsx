@@ -43,7 +43,7 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
 
   useEffect(() => {
     scrollToBottom();
-  }, [chatMessages, scrollToBottom]);
+  }, [scrollToBottom]);
 
   const filteredCommands = (() => {
     if (!input.startsWith("/")) return CHAT_COMMANDS;
