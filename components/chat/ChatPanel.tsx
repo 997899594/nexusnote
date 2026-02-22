@@ -5,8 +5,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Loader2, Send, Sparkles, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { cn } from "@/lib/utils";
 import { CHAT_COMMANDS, extractCommandContent } from "@/lib/chat/commands";
+import { cn } from "@/lib/utils";
 import type { Command } from "@/types/chat";
 import { ChatMessage, LoadingDots } from "./ChatMessage";
 import { CommandMenu } from "./CommandMenu";
@@ -43,7 +43,7 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
 
   useEffect(() => {
     scrollToBottom();
-  }, [scrollToBottom]);
+  }, [chatMessages, scrollToBottom]);
 
   const filteredCommands = (() => {
     if (!input.startsWith("/")) return CHAT_COMMANDS;
