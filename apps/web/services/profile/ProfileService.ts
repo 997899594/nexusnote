@@ -152,13 +152,18 @@ export async function getProfileChunk(userId: string): Promise<string | null> {
 
   const parts: string[] = [];
 
-  if (profile.learningGoals?.goals?.length) {
-    const goals = profile.learningGoals.goals.join(", ");
+  const learningGoals = profile.learningGoals as LearningGoals | null;
+  const knowledgeAreas = profile.knowledgeAreas as KnowledgeAreas | null;
+  const learningStyle = profile.learningStyle as LearningStyle | null;
+  const assessmentHistory = profile.assessmentHistory as AssessmentHistory | null;
+
+  if (learningGoals?.goals?.length) {
+    const goals = learningGoals.goals.join(", ");
     parts.push(`Learning Goals: ${goals}`);
   }
 
-  if (profile.knowledgeAreas?.areas?.length) {
-    const areas = profile.knowledgeAreas.areas.join(", ");
+  if (knowledgeAreas?.areas?.length) {
+    const areas = knowledgeAreas.areas.join(", ");
     parts.push(`Knowledge Areas: ${areas}`);
   }
 
@@ -166,15 +171,15 @@ export async function getProfileChunk(userId: string): Promise<string | null> {
     parts.push(`Current Level: ${profile.currentLevel}`);
   }
 
-  if (profile.learningStyle) {
-    const style = JSON.stringify(profile.learningStyle);
+  if (learningStyle) {
+    const style = JSON.stringify(learningStyle);
     parts.push(`Learning Style: ${style}`);
   }
 
-  if (profile.assessmentHistory?.scores?.length) {
+  if (assessmentHistory?.scores?.length) {
     const avgScore =
-      profile.assessmentHistory.scores.reduce((a, b) => a + b, 0) /
-      profile.assessmentHistory.scores.length;
+      assessmentHistory.scores.reduce((a: number, b: number) => a + b, 0) /
+      assessmentHistory.scores.length;
     parts.push(`Average Assessment Score: ${avgScore.toFixed(1)}`);
   }
 
@@ -191,7 +196,7 @@ export async function generateProfileEmbedding(userId: string): Promise<void> {
   // Check if AI provider is configured
   if (!aiProvider.isConfigured()) {
     console.warn("[ProfileService] AI Provider not configured, skipping embedding");
-    return null;
+    return;
   }
 
   const chunk = await getProfileChunk(userId);
@@ -211,7 +216,7 @@ export async function generateProfileEmbedding(userId: string): Promise<void> {
   await db
     .update(userProfiles)
     .set({
-      embedding: embedding,
+      profileEmbedding: embedding,
       updatedAt: new Date(),
     })
     .where(eq(userProfiles.userId, userId));
