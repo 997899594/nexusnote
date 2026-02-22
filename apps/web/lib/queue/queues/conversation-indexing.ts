@@ -4,7 +4,7 @@
  * 使用 BullMQ 处理聊天会话的语义分块和向量索引
  */
 
-import { env } from "@nexusnote/config";
+import { env } from "@/config/env";
 import type { UIMessage } from "ai";
 import { Queue, Worker } from "bullmq";
 import IORedis from "ioredis";
