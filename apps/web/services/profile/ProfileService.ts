@@ -5,7 +5,7 @@
  * Coordinates between the API layer and data access layer.
  */
 
-import { db, userProfiles, eq } from "@nexusnote/db";
+import { db, userProfiles, eq } from "@/db";
 import { aiProvider } from "@/infrastructure/ai/provider";
 import { embedMany } from "ai";
 

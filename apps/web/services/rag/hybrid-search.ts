@@ -5,7 +5,7 @@
  * Supports multiple sources: document | conversation
  */
 
-import { db, sql } from "@nexusnote/db";
+import { db, sql } from "@/db";
 import { embedMany } from "ai";
 import { aiProvider } from "@/infrastructure/ai/provider";
 import type { SourceType } from "./chunker";

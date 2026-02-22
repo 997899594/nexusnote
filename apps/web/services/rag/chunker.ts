@@ -6,7 +6,7 @@
  * - conversation: Chat conversations
  */
 
-import { db, documents, eq, knowledgeChunks } from "@nexusnote/db";
+import { db, documents, eq, knowledgeChunks } from "@/db";
 import { embedMany } from "ai";
 import { aiProvider } from "@/infrastructure/ai/provider";
 
