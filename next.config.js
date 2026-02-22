@@ -1,5 +1,4 @@
-const path = require("node:path");
-require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
+require("dotenv").config();
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
