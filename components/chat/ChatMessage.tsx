@@ -2,7 +2,7 @@
 
 import type { TextUIPart, UIMessage } from "ai";
 import { motion } from "framer-motion";
-import { MarkdownRenderer } from "@/components/shared/home";
+import { StreamdownMessage } from "./StreamdownMessage";
 import { cn } from "@/lib/utils";
 
 interface ChatMessageProps {
@@ -38,7 +38,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
         {isUser ? (
           <p className="whitespace-pre-wrap">{content}</p>
         ) : (
-          <MarkdownRenderer content={content} />
+          <StreamdownMessage content={content} />
         )}
       </div>
     </motion.div>
