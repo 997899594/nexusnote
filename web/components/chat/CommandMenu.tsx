@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Command } from "../types";
+import type { Command } from "@/types/chat";
 
 interface CommandMenuProps {
   commands: Command[];

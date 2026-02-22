@@ -17,9 +17,9 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { usePendingChatStore } from "@/ui/chat/stores/usePendingChatStore";
-import { useTransitionStore } from "@/ui/chat/stores/useTransitionStore";
-import type { Command } from "@/ui/chat/types";
+import { usePendingChatStore } from "@/components/chat/usePendingChatStore";
+import { useTransitionStore } from "@/components/chat/useTransitionStore";
+import type { Command } from "@/types/chat";
 
 const COMMANDS: Command[] = [
   {

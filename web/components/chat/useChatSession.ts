@@ -15,7 +15,7 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useEffect } from "react";
-import { usePendingChatStore } from "../stores/usePendingChatStore";
+import { usePendingChatStore } from "./usePendingChatStore";
 
 interface UseChatSessionOptions {
   sessionId: string | null;
