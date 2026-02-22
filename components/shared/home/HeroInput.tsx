@@ -1,105 +1,14 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import {
-  BookOpen,
-  ChevronRight,
-  Globe,
-  GraduationCap,
-  ListTodo,
-  Map as MapIcon,
-  Plus,
-  Search,
-  Send,
-  Sparkles,
-  X,
-} from "lucide-react";
+import { ChevronRight, Plus, Send, Sparkles, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { cn } from "@/lib/utils";
 import { usePendingChatStore } from "@/components/chat/usePendingChatStore";
 import { useTransitionStore } from "@/components/chat/useTransitionStore";
-import { cn } from "@/lib/utils";
+import { HOME_COMMANDS, QUICK_ACTIONS, extractCommandContent } from "@/lib/chat/commands";
 import type { Command } from "@/types/chat";
-
-const COMMANDS: Command[] = [
-  {
-    id: "search",
-    label: "Search Notes",
-    icon: Search,
-    modeLabel: "搜索笔记",
-    modeIcon: Search,
-    targetPath: "/search",
-    getQueryParams: (input: string) => ({ q: input.trim() }),
-  },
-  {
-    id: "create-note",
-    label: "Create Note",
-    icon: Plus,
-    modeLabel: "创建笔记",
-    modeIcon: Plus,
-    targetPath: "/notes/new",
-    getQueryParams: () => ({}),
-  },
-  {
-    id: "generate-course",
-    label: "Generate Course",
-    icon: GraduationCap,
-    modeLabel: "生成课程",
-    modeIcon: GraduationCap,
-    targetPath: "/courses/new",
-    getQueryParams: (input: string) => ({ msg: input.trim() }),
-  },
-  {
-    id: "create-flashcards",
-    label: "Create Flashcards",
-    icon: ListTodo,
-    modeLabel: "创建闪卡",
-    modeIcon: ListTodo,
-    targetPath: "/flashcards",
-    getQueryParams: (input: string) => ({ msg: input.trim() }),
-  },
-  {
-    id: "generate-quiz",
-    label: "Generate Quiz",
-    icon: BookOpen,
-    modeLabel: "生成测验",
-    modeIcon: BookOpen,
-    targetPath: "/interview",
-    getQueryParams: (input: string) => ({ msg: input.trim() }),
-  },
-  {
-    id: "mind-map",
-    label: "Mind Map",
-    icon: MapIcon,
-    modeLabel: "思维导图",
-    modeIcon: MapIcon,
-    targetPath: "/editor",
-    getQueryParams: (input: string) => ({ msg: `Create mind map: ${input.trim()}` }),
-  },
-  {
-    id: "web-search",
-    label: "Web Search",
-    icon: Globe,
-    modeLabel: "联网搜索",
-    modeIcon: Globe,
-    targetPath: "/search",
-    getQueryParams: (input: string) => ({ web: input.trim() }),
-  },
-];
-
-const QUICK_ACTIONS = [
-  { icon: Search, label: "搜索笔记" },
-  { icon: Plus, label: "创建笔记" },
-  { icon: GraduationCap, label: "生成课程" },
-  { icon: ListTodo, label: "创建闪卡" },
-  { icon: BookOpen, label: "生成测验" },
-  { icon: MapIcon, label: "思维导图" },
-];
-
-function extractCommandContent(input: string): string {
-  const match = input.match(/^\/\S+\s*(.*)$/);
-  return match ? match[1] : "";
-}
 
 export function HeroInput() {
   const router = useRouter();
@@ -112,10 +21,10 @@ export function HeroInput() {
   const [selectedCommand, setSelectedCommand] = useState<Command | null>(null);
 
   const filteredCommands = (() => {
-    if (!input.startsWith("/")) return COMMANDS;
+    if (!input.startsWith("/")) return HOME_COMMANDS;
     const query = input.slice(1).trim().toLowerCase();
-    if (!query) return COMMANDS;
-    return COMMANDS.filter((c) => c.label.toLowerCase().includes(query));
+    if (!query) return HOME_COMMANDS;
+    return HOME_COMMANDS.filter((c) => c.label.toLowerCase().includes(query));
   })();
 
   useEffect(() => {

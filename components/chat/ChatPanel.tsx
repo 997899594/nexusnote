@@ -2,87 +2,15 @@
 
 import type { UIMessage } from "ai";
 import { AnimatePresence, motion } from "framer-motion";
-import {
-  BookOpen,
-  Globe,
-  GraduationCap,
-  Loader2,
-  Map as MapIcon,
-  Plus,
-  Search,
-  Send,
-  Sparkles,
-  X,
-} from "lucide-react";
+import { Loader2, Send, Sparkles, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { CHAT_COMMANDS, extractCommandContent } from "@/lib/chat/commands";
 import type { Command } from "@/types/chat";
 import { ChatMessage, LoadingDots } from "./ChatMessage";
 import { CommandMenu } from "./CommandMenu";
 import { useChatSession } from "./useChatSession";
-
-const COMMANDS: Command[] = [
-  {
-    id: "search",
-    label: "Search Notes",
-    icon: Search,
-    modeLabel: "搜索笔记",
-    modeIcon: Search,
-    targetPath: "/search",
-    getQueryParams: (input: string) => ({ q: input.trim() }),
-  },
-  {
-    id: "create-note",
-    label: "Create Note",
-    icon: Plus,
-    modeLabel: "创建笔记",
-    modeIcon: Plus,
-    targetPath: "/notes/new",
-    getQueryParams: () => ({}),
-  },
-  {
-    id: "generate-course",
-    label: "Generate Course",
-    icon: GraduationCap,
-    modeLabel: "生成课程",
-    modeIcon: GraduationCap,
-    targetPath: "/courses/new",
-    getQueryParams: (input: string) => ({ msg: input.trim() }),
-  },
-  {
-    id: "create-flashcards",
-    label: "Create Flashcards",
-    icon: BookOpen,
-    modeLabel: "创建闪卡",
-    modeIcon: BookOpen,
-    targetPath: "/flashcards",
-    getQueryParams: (input: string) => ({ msg: input.trim() }),
-  },
-  {
-    id: "generate-quiz",
-    label: "Generate Quiz",
-    icon: MapIcon,
-    modeLabel: "生成测验",
-    modeIcon: MapIcon,
-    targetPath: "/interview",
-    getQueryParams: (input: string) => ({ msg: input.trim() }),
-  },
-  {
-    id: "web-search",
-    label: "Web Search",
-    icon: Globe,
-    modeLabel: "联网搜索",
-    modeIcon: Globe,
-    targetPath: "/search",
-    getQueryParams: (input: string) => ({ web: input.trim() }),
-  },
-];
-
-function extractCommandContent(input: string): string {
-  const match = input.match(/^\/\S+\s*(.*)$/);
-  return match ? match[1] : "";
-}
 
 interface ChatPanelProps {
   sessionId: string | null;
@@ -118,10 +46,10 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
   }, [scrollToBottom]);
 
   const filteredCommands = (() => {
-    if (!input.startsWith("/")) return COMMANDS;
+    if (!input.startsWith("/")) return CHAT_COMMANDS;
     const query = input.slice(1).trim().toLowerCase();
-    if (!query) return COMMANDS;
-    return COMMANDS.filter((c) => c.label.toLowerCase().includes(query));
+    if (!query) return CHAT_COMMANDS;
+    return CHAT_COMMANDS.filter((c) => c.label.toLowerCase().includes(query));
   })();
 
   useEffect(() => {
