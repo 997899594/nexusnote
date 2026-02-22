@@ -1,1 +1,0 @@
-ALTER TABLE "course_profiles" ALTER COLUMN "current_chapter" SET DEFAULT 0;
