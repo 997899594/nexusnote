@@ -32,7 +32,10 @@ export const halfvec = customType<{ data: number[] }>({
   },
 });
 
-// 用户表
+// ============================================
+// 用户 & 工作区
+// ============================================
+
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   email: text("email").notNull().unique(),
@@ -42,7 +45,6 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// 工作区表
 export const workspaces = pgTable("workspaces", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
@@ -51,40 +53,30 @@ export const workspaces = pgTable("workspaces", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// 文档表
+// ============================================
+// 文档系统
+// ============================================
+
 export const documents = pgTable("documents", {
   id: uuid("id").primaryKey().defaultRandom(),
   title: text("title").notNull().default("Untitled"),
   workspaceId: uuid("workspace_id").references(() => workspaces.id),
-  content: bytea("content"), // Yjs 二进制状态
-  plainText: text("plain_text"), // 纯文本（用于搜索和 RAG）
-  isVault: boolean("is_vault").notNull().default(false), // 是否为隐私保险箱内容
+  content: bytea("content"),
+  plainText: text("plain_text"),
+  isVault: boolean("is_vault").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// 文档分块表（RAG 用）
-export const documentChunks = pgTable("document_chunks", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  documentId: uuid("document_id").references(() => documents.id, {
-    onDelete: "cascade",
-  }),
-  content: text("content").notNull(),
-  embedding: halfvec("embedding"),
-  chunkIndex: integer("chunk_index").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-// 文档快照表（时间轴）
 export const documentSnapshots = pgTable("document_snapshots", {
-  id: text("id").primaryKey(), // 格式: documentId-timestamp
+  id: text("id").primaryKey(),
   documentId: uuid("document_id").references(() => documents.id, {
     onDelete: "cascade",
   }),
-  yjsState: bytea("yjs_state"), // Yjs 完整状态
+  yjsState: bytea("yjs_state"),
   plainText: text("plain_text"),
   timestamp: timestamp("timestamp").notNull(),
-  trigger: text("trigger").notNull(), // 'auto' | 'manual' | 'ai_edit' | 'collab_join' | 'restore'
+  trigger: text("trigger").notNull(),
   summary: text("summary"),
   wordCount: integer("word_count"),
   diffAdded: integer("diff_added"),
@@ -93,61 +85,122 @@ export const documentSnapshots = pgTable("document_snapshots", {
 });
 
 // ============================================
+// 聊天会话 (Chat Conversations)
+// ============================================
+
+export const conversations = pgTable(
+  "conversations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").references(() => users.id, {
+      onDelete: "cascade",
+    }),
+
+    title: text("title").notNull().default("新对话"),
+    intent: text("intent").notNull().default("CHAT"),
+
+    summary: text("summary"),
+    messageCount: integer("message_count").default(0),
+    lastMessageAt: timestamp("last_message_at").defaultNow(),
+
+    messages: jsonb("messages").notNull().default([]),
+    metadata: jsonb("metadata"),
+
+    isArchived: boolean("is_archived").default(false),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => ({
+    userIdIdx: index("conversations_user_id_idx").on(table.userId),
+    lastMessageIdx: index("conversations_last_message_idx").on(table.lastMessageAt),
+  }),
+);
+
+// ============================================
+// 统一知识库 (Knowledge Chunks)
+// 支持多来源：document | conversation | note | course | flashcard
+// ============================================
+
+export const knowledgeChunks = pgTable(
+  "knowledge_chunks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+
+    sourceType: text("source_type").notNull().default("document"),
+    sourceId: uuid("source_id").notNull(),
+
+    content: text("content").notNull(),
+    embedding: halfvec("embedding"),
+    chunkIndex: integer("chunk_index").notNull(),
+
+    userId: uuid("user_id").references(() => users.id, {
+      onDelete: "cascade",
+    }),
+
+    metadata: jsonb("metadata"),
+
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => ({
+    sourceIdx: index("knowledge_chunks_source_idx").on(table.sourceType, table.sourceId),
+    userIdIdx: index("knowledge_chunks_user_id_idx").on(table.userId),
+  }),
+);
+
+// 向后兼容别名
+export const documentChunks = knowledgeChunks;
+
+// ============================================
 // 学习模块 (Learning Module)
 // ============================================
 
-// 学习内容表（书籍/课程/文章）
 export const learningContents = pgTable("learning_contents", {
   id: uuid("id").primaryKey().defaultRandom(),
   title: text("title").notNull(),
-  type: text("type").notNull().default("book"), // 'book' | 'article' | 'course'
+  type: text("type").notNull().default("book"),
   author: text("author"),
   coverUrl: text("cover_url"),
-  sourceUrl: text("source_url"), // 原始 URL（如果有）
+  sourceUrl: text("source_url"),
   totalChapters: integer("total_chapters").default(1),
-  difficulty: text("difficulty").default("intermediate"), // 'beginner' | 'intermediate' | 'advanced'
+  difficulty: text("difficulty").default("intermediate"),
   estimatedMinutes: integer("estimated_minutes"),
-  tags: jsonb("tags"), // JSON array
-  summary: text("summary"), // AI 生成的摘要
+  tags: jsonb("tags"),
+  summary: text("summary"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// 学习内容章节（复用 documents 表存储实际内容）
 export const learningChapters = pgTable("learning_chapters", {
   id: uuid("id").primaryKey().defaultRandom(),
   contentId: uuid("content_id").references(() => learningContents.id, {
     onDelete: "cascade",
   }),
-  documentId: uuid("document_id").references(() => documents.id), // 关联到 documents 表
+  documentId: uuid("document_id").references(() => documents.id),
   chapterIndex: integer("chapter_index").notNull(),
   title: text("title").notNull(),
-  summary: text("summary"), // AI 生成的章节摘要
-  keyPoints: jsonb("key_points"), // JSON array: 关键知识点
+  summary: text("summary"),
+  keyPoints: jsonb("key_points"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// 学习进度表
 export const learningProgress = pgTable("learning_progress", {
   id: uuid("id").primaryKey().defaultRandom(),
   contentId: uuid("content_id").references(() => learningContents.id, {
     onDelete: "cascade",
   }),
   currentChapter: integer("current_chapter").default(0),
-  completedChapters: jsonb("completed_chapters"), // JSON array of chapter indices
-  totalTimeSpent: integer("total_time_spent").default(0), // 分钟
+  completedChapters: jsonb("completed_chapters"),
+  totalTimeSpent: integer("total_time_spent").default(0),
   lastAccessedAt: timestamp("last_accessed_at").defaultNow(),
   startedAt: timestamp("started_at").defaultNow(),
   completedAt: timestamp("completed_at"),
-  masteryLevel: integer("mastery_level").default(0), // 0-100
+  masteryLevel: integer("mastery_level").default(0),
 });
 
 // ============================================
 // AI 生成课程 (AI-Generated Courses)
-// Interview Agent 的课程配置文件
 // ============================================
 
-// 课程用户画像表 - 保存 Interview Agent 收集的用户信息和生成的课程大纲
 export const courseProfiles = pgTable(
   "course_profiles",
   {
@@ -156,33 +209,23 @@ export const courseProfiles = pgTable(
       onDelete: "cascade",
     }),
 
-    // 课程元数据（大纲确认后填入）
     title: text("title"),
     description: text("description"),
     difficulty: text("difficulty").default("intermediate"),
     estimatedMinutes: integer("estimated_minutes"),
 
-    // 完整的大纲数据（JSON 格式）
     outlineData: jsonb("outline_data"),
     outlineMarkdown: text("outline_markdown"),
-
-    // 生成理由（说明为什么这样设计课程）
     designReason: text("design_reason"),
 
-    // ─── S-Tier Interview Engine ───
-    // AI 自主填充的学习者画像 (每轮 merge update)
     interviewProfile: jsonb("interview_profile"),
-    // AI SDK UIMessages 持久化（替代 localStorage）
     interviewMessages: jsonb("interview_messages"),
-    // 会话状态: interviewing | proposing | confirmed | generating | completed
     interviewStatus: text("interview_status").default("interviewing"),
 
-    // 课程生成进度
     currentChapter: integer("current_chapter").default(0),
     currentSection: integer("current_section").default(1),
     isCompleted: boolean("is_completed").default(false),
 
-    // 元数据
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
   },
@@ -191,7 +234,6 @@ export const courseProfiles = pgTable(
   }),
 );
 
-// 课程章节内容表 - 存储生成的课程具体内容
 export const courseChapters = pgTable(
   "course_chapters",
   {
@@ -202,15 +244,12 @@ export const courseChapters = pgTable(
     chapterIndex: integer("chapter_index").notNull(),
     sectionIndex: integer("section_index").notNull(),
 
-    // 章节元数据
     title: text("title").notNull(),
-    contentMarkdown: text("content_markdown").notNull(), // Markdown 格式的内容（用于 Tiptap 渲染）
+    contentMarkdown: text("content_markdown").notNull(),
 
-    // 生成状态
     isGenerated: boolean("is_generated").default(true),
     generatedAt: timestamp("generated_at").defaultNow(),
 
-    // 元数据
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
   },
@@ -220,31 +259,27 @@ export const courseChapters = pgTable(
   }),
 );
 
-// 学习笔记/标注（关联到章节）
 export const learningHighlights = pgTable("learning_highlights", {
   id: uuid("id").primaryKey().defaultRandom(),
   chapterId: uuid("chapter_id").references(() => learningChapters.id, {
     onDelete: "cascade",
   }),
-  content: text("content").notNull(), // 划线内容
-  note: text("note"), // 用户笔记
+  content: text("content").notNull(),
+  note: text("note"),
   color: text("color").default("yellow"),
-  position: integer("position"), // 在文档中的位置
+  position: integer("position"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 // ============================================
 // SRS 间隔重复系统 (Spaced Repetition System)
-// 基于 FSRS-5 算法
 // ============================================
 
-// 闪卡表
 export const flashcards = pgTable(
   "flashcards",
   {
     id: uuid("id").primaryKey().defaultRandom(),
 
-    // 来源关联（二选一）
     highlightId: uuid("highlight_id").references(() => learningHighlights.id, {
       onDelete: "cascade",
     }),
@@ -252,24 +287,21 @@ export const flashcards = pgTable(
       onDelete: "cascade",
     }),
 
-    // 卡片内容
-    front: text("front").notNull(), // 问题/提示
-    back: text("back").notNull(), // 答案
-    context: text("context"), // 上下文（来源段落）
-    tags: jsonb("tags"), // JSON array
+    front: text("front").notNull(),
+    back: text("back").notNull(),
+    context: text("context"),
+    tags: jsonb("tags"),
 
-    // FSRS-5 核心参数
-    state: integer("state").notNull().default(0), // 0=New, 1=Learning, 2=Review, 3=Relearning
-    due: timestamp("due").notNull().defaultNow(), // 下次复习时间
-    stability: integer("stability").notNull().default(0), // 记忆稳定性（天数 * 100，整数存储）
-    difficulty: integer("difficulty").notNull().default(50), // 难度 0-100
-    elapsedDays: integer("elapsed_days").notNull().default(0), // 距上次复习天数
-    scheduledDays: integer("scheduled_days").notNull().default(0), // 计划间隔天数
-    reps: integer("reps").notNull().default(0), // 成功复习次数
-    lapses: integer("lapses").notNull().default(0), // 遗忘次数
+    state: integer("state").notNull().default(0),
+    due: timestamp("due").notNull().defaultNow(),
+    stability: integer("stability").notNull().default(0),
+    difficulty: integer("difficulty").notNull().default(50),
+    elapsedDays: integer("elapsed_days").notNull().default(0),
+    scheduledDays: integer("scheduled_days").notNull().default(0),
+    reps: integer("reps").notNull().default(0),
+    lapses: integer("lapses").notNull().default(0),
 
-    // 元数据
-    suspended: timestamp("suspended"), // 暂停时间（null=活跃）
+    suspended: timestamp("suspended"),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
   },
@@ -279,29 +311,26 @@ export const flashcards = pgTable(
   }),
 );
 
-// 复习记录表（用于 FSRS 参数优化和学习分析）
 export const reviewLogs = pgTable("review_logs", {
   id: uuid("id").primaryKey().defaultRandom(),
   flashcardId: uuid("flashcard_id").references(() => flashcards.id, {
     onDelete: "cascade",
   }),
-  rating: integer("rating").notNull(), // 1=Again, 2=Hard, 3=Good, 4=Easy
-  state: integer("state").notNull(), // 复习时的状态
-  due: timestamp("due").notNull(), // 原定复习时间
-  stability: integer("stability").notNull(), // 复习前稳定性
-  difficulty: integer("difficulty").notNull(), // 复习前难度
+  rating: integer("rating").notNull(),
+  state: integer("state").notNull(),
+  due: timestamp("due").notNull(),
+  stability: integer("stability").notNull(),
+  difficulty: integer("difficulty").notNull(),
   elapsedDays: integer("elapsed_days").notNull(),
   scheduledDays: integer("scheduled_days").notNull(),
-  reviewDuration: integer("review_duration"), // 复习用时（毫秒）
+  reviewDuration: integer("review_duration"),
   reviewedAt: timestamp("reviewed_at").defaultNow(),
 });
 
 // ============================================
 // 液态知识系统 (Liquid Knowledge System)
-// NexusNote 3.1 - 幽灵飞梭 + AI 园艺
 // ============================================
 
-// AI 维护的语义主题簇
 export const topics = pgTable(
   "topics",
   {
@@ -309,8 +338,8 @@ export const topics = pgTable(
     userId: uuid("user_id").references(() => users.id, {
       onDelete: "cascade",
     }),
-    name: text("name").notNull(), // AI 生成的主题名
-    embedding: halfvec("embedding"), // 主题的中心向量 (4000维)
+    name: text("name").notNull(),
+    embedding: halfvec("embedding"),
     noteCount: integer("note_count").default(0),
     lastActiveAt: timestamp("last_active_at").defaultNow(),
     createdAt: timestamp("created_at").defaultNow(),
@@ -321,7 +350,6 @@ export const topics = pgTable(
   }),
 );
 
-// 提取的知识片段
 export const extractedNotes = pgTable(
   "extracted_notes",
   {
@@ -329,24 +357,22 @@ export const extractedNotes = pgTable(
     userId: uuid("user_id").references(() => users.id, {
       onDelete: "cascade",
     }),
-    content: text("content").notNull(), // 提取的文本内容
-    embedding: halfvec("embedding"), // 文本向量 (4000维)
+    content: text("content").notNull(),
+    embedding: halfvec("embedding"),
 
-    // 来源追溯 (支持两种来源)
-    sourceType: text("source_type").notNull(), // 'document' | 'learning'
+    sourceType: text("source_type").notNull(),
     sourceDocumentId: uuid("source_document_id").references(() => documents.id, {
       onDelete: "set null",
     }),
     sourceChapterId: uuid("source_chapter_id").references(() => learningChapters.id, {
       onDelete: "set null",
     }),
-    sourcePosition: jsonb("source_position"), // { from: number, to: number }
+    sourcePosition: jsonb("source_position"),
 
-    // AI 分类
     topicId: uuid("topic_id").references(() => topics.id, {
       onDelete: "set null",
     }),
-    status: text("status").default("processing"), // 'processing' | 'classified'
+    status: text("status").default("processing"),
 
     createdAt: timestamp("created_at").defaultNow(),
   },
@@ -361,7 +387,6 @@ export const extractedNotes = pgTable(
 // AI 使用量追踪 (AI Usage Tracking)
 // ============================================
 
-// AI 调用记录表 - 用于成本追踪和速率限制分析
 export const aiUsage = pgTable(
   "ai_usage",
   {
@@ -370,21 +395,17 @@ export const aiUsage = pgTable(
       onDelete: "cascade",
     }),
 
-    // 调用信息
-    endpoint: text("endpoint").notNull(), // '/api/ai', '/api/completion', etc.
-    intent: text("intent"), // 'CHAT', 'INTERVIEW', 'EDITOR', etc.
-    model: text("model").notNull(), // 'gemini-3-flash-preview', etc.
+    endpoint: text("endpoint").notNull(),
+    intent: text("intent"),
+    model: text("model").notNull(),
 
-    // Token 使用量
     inputTokens: integer("input_tokens").notNull().default(0),
     outputTokens: integer("output_tokens").notNull().default(0),
     totalTokens: integer("total_tokens").notNull().default(0),
 
-    // 成本（美分）
     costCents: integer("cost_cents").notNull().default(0),
 
-    // 请求元数据
-    durationMs: integer("duration_ms"), // 请求耗时
+    durationMs: integer("duration_ms"),
     success: boolean("success").notNull().default(true),
     errorMessage: text("error_message"),
 
@@ -397,15 +418,26 @@ export const aiUsage = pgTable(
   }),
 );
 
+// ============================================
 // 类型导出
+// ============================================
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Document = typeof documents.$inferSelect;
 export type NewDocument = typeof documents.$inferInsert;
-export type DocumentChunk = typeof documentChunks.$inferSelect;
-export type NewDocumentChunk = typeof documentChunks.$inferInsert;
 export type DocumentSnapshot = typeof documentSnapshots.$inferSelect;
 export type NewDocumentSnapshot = typeof documentSnapshots.$inferInsert;
+
+export type Conversation = typeof conversations.$inferSelect;
+export type NewConversation = typeof conversations.$inferInsert;
+
+export type KnowledgeChunk = typeof knowledgeChunks.$inferSelect;
+export type NewKnowledgeChunk = typeof knowledgeChunks.$inferInsert;
+
+export type DocumentChunk = KnowledgeChunk;
+export type NewDocumentChunk = NewKnowledgeChunk;
+
 export type LearningContent = typeof learningContents.$inferSelect;
 export type NewLearningContent = typeof learningContents.$inferInsert;
 export type LearningChapter = typeof learningChapters.$inferSelect;
@@ -415,20 +447,54 @@ export type Flashcard = typeof flashcards.$inferSelect;
 export type NewFlashcard = typeof flashcards.$inferInsert;
 export type ReviewLog = typeof reviewLogs.$inferSelect;
 export type NewReviewLog = typeof reviewLogs.$inferInsert;
-
-// Liquid Knowledge types
 export type Topic = typeof topics.$inferSelect;
 export type NewTopic = typeof topics.$inferInsert;
 export type ExtractedNote = typeof extractedNotes.$inferSelect;
 export type NewExtractedNote = typeof extractedNotes.$inferInsert;
-
-// AI Usage types
 export type AIUsage = typeof aiUsage.$inferSelect;
 export type NewAIUsage = typeof aiUsage.$inferInsert;
 
 // ============================================
 // Relations
 // ============================================
+
+export const usersRelations = relations(users, ({ many }) => ({
+  topics: many(topics),
+  extractedNotes: many(extractedNotes),
+  courseProfiles: many(courseProfiles),
+  workspaces: many(workspaces),
+  conversations: many(conversations),
+  knowledgeChunks: many(knowledgeChunks),
+}));
+
+export const workspacesRelations = relations(workspaces, ({ one, many }) => ({
+  owner: one(users, {
+    fields: [workspaces.ownerId],
+    references: [users.id],
+  }),
+  documents: many(documents),
+}));
+
+export const documentsRelations = relations(documents, ({ one }) => ({
+  workspace: one(workspaces, {
+    fields: [documents.workspaceId],
+    references: [workspaces.id],
+  }),
+}));
+
+export const conversationsRelations = relations(conversations, ({ one }) => ({
+  user: one(users, {
+    fields: [conversations.userId],
+    references: [users.id],
+  }),
+}));
+
+export const knowledgeChunksRelations = relations(knowledgeChunks, ({ one }) => ({
+  user: one(users, {
+    fields: [knowledgeChunks.userId],
+    references: [users.id],
+  }),
+}));
 
 export const topicsRelations = relations(topics, ({ many }) => ({
   notes: many(extractedNotes),
@@ -445,13 +511,6 @@ export const extractedNotesRelations = relations(extractedNotes, ({ one }) => ({
   }),
 }));
 
-export const usersRelations = relations(users, ({ many }) => ({
-  topics: many(topics),
-  extractedNotes: many(extractedNotes),
-  courseProfiles: many(courseProfiles),
-  workspaces: many(workspaces),
-}));
-
 export const courseProfilesRelations = relations(courseProfiles, ({ one, many }) => ({
   user: one(users, {
     fields: [courseProfiles.userId],
@@ -464,21 +523,5 @@ export const courseChaptersRelations = relations(courseChapters, ({ one }) => ({
   profile: one(courseProfiles, {
     fields: [courseChapters.profileId],
     references: [courseProfiles.id],
-  }),
-}));
-
-// Workspace & Documents relations
-export const workspacesRelations = relations(workspaces, ({ one, many }) => ({
-  owner: one(users, {
-    fields: [workspaces.ownerId],
-    references: [users.id],
-  }),
-  documents: many(documents),
-}));
-
-export const documentsRelations = relations(documents, ({ one }) => ({
-  workspace: one(workspaces, {
-    fields: [documents.workspaceId],
-    references: [workspaces.id],
   }),
 }));

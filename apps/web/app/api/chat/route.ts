@@ -2,8 +2,8 @@
  * AI Chat API - 2026 Modern Architecture
  */
 
-import { aiUsage, db } from "@nexusnote/db";
-import { convertToModelMessages, createAgentUIStreamResponse, smoothStream } from "ai";
+import { aiUsage, conversations, db } from "@nexusnote/db";
+import { createAgentUIStreamResponse, smoothStream, type UIMessage } from "ai";
 import { type NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { getAgent } from "@/features/ai/agents";
@@ -121,6 +121,31 @@ export async function POST(request: NextRequest) {
 
     if (!aiProvider.isConfigured()) {
       throw new APIError("AI 服务未配置", 503, "AI_NOT_CONFIGURED");
+    }
+
+    // 2026 架构：首条消息时 upsert 会话（幂等，支持客户端生成的 nanoid）
+    if (sessionId && userId && userId !== "anonymous") {
+      const uiMessages = messages as UIMessage[];
+      const firstUserMessage = uiMessages.find((m) => m.role === "user");
+      let title = "新对话";
+
+      if (firstUserMessage?.parts) {
+        const textPart = firstUserMessage.parts.find((p) => p.type === "text");
+        if (textPart && "text" in textPart) {
+          title = textPart.text.slice(0, 100);
+        }
+      }
+
+      await db
+        .insert(conversations)
+        .values({
+          id: sessionId,
+          userId,
+          title,
+          intent,
+          messageCount: uiMessages.length,
+        })
+        .onConflictDoNothing();
     }
 
     const agent = getAgent(intent, sessionId);

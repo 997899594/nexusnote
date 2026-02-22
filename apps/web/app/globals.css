@@ -1,79 +1,142 @@
 @import "tailwindcss";
 
+/* ────────────────────────────────────────────────────────────────────────────
+ * Layer 1: Brand Palette (Raw OKLCH values, theme-switchable)
+ * ──────────────────────────────────────────────────────────────────────────── */
+:root,
+[data-theme="default"] {
+  /* Low-saturation indigo (h=268) - perceptually uniform across L values */
+  --palette-brand-50: oklch(97% 0.03 268);
+  --palette-brand-100: oklch(93% 0.05 268);
+  --palette-brand-200: oklch(87% 0.08 268);
+  --palette-brand-300: oklch(78% 0.11 268);
+  --palette-brand-400: oklch(67% 0.14 268);
+  --palette-brand-500: oklch(55% 0.18 268); /* Primary brand color */
+  --palette-brand-600: oklch(47% 0.17 268);
+  --palette-brand-700: oklch(39% 0.15 268);
+  --palette-brand-800: oklch(31% 0.12 268);
+  --palette-brand-900: oklch(23% 0.09 268);
+
+  /* Neutrals (achromatic zinc-like, slight purple tint) */
+  --palette-neutral-50: oklch(98.5% 0.002 270);
+  --palette-neutral-100: oklch(96% 0.003 270);
+  --palette-neutral-200: oklch(92% 0.005 270);
+  --palette-neutral-300: oklch(85% 0.006 270);
+  --palette-neutral-400: oklch(70% 0.008 270);
+  --palette-neutral-500: oklch(55% 0.01 270);
+  --palette-neutral-600: oklch(42% 0.011 270);
+  --palette-neutral-700: oklch(32% 0.012 270);
+  --palette-neutral-800: oklch(24% 0.013 270);
+  --palette-neutral-900: oklch(16% 0.014 270);
+}
+
+/* Future theme example (uncomment to switch brand color to green) */
+/* [data-theme="forest"] {
+  --palette-brand-500: oklch(55% 0.18 145);
+  --palette-brand-600: oklch(47% 0.17 145);
+} */
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Layer 2: Semantic Tokens (Components reference these)
+ * ──────────────────────────────────────────────────────────────────────────── */
 @theme {
-  --color-background: hsl(var(--background));
-  --color-foreground: hsl(var(--foreground));
+  /* Background & Surface */
+  --color-bg: var(--palette-neutral-50);
+  --color-surface: oklch(100% 0 0); /* Pure white for cards */
+  --color-surface-elevated: oklch(100% 0 0);
 
-  --color-surface: hsl(var(--surface));
-  --color-surface-50: hsl(var(--surface-50));
+  /* Text */
+  --color-text: var(--palette-neutral-900);
+  --color-text-secondary: var(--palette-neutral-500);
+  --color-text-tertiary: var(--palette-neutral-400);
+  --color-text-muted: var(--palette-neutral-300);
 
-  --color-card: hsl(var(--card));
-  --color-card-foreground: hsl(var(--card-foreground));
+  /* Accent (Brand color applications) */
+  --color-accent: var(--palette-brand-500);
+  --color-accent-hover: var(--palette-brand-600);
+  --color-accent-active: var(--palette-brand-700);
+  --color-accent-subtle: var(--palette-brand-50);
+  --color-accent-muted: var(--palette-brand-100);
+  --color-accent-fg: oklch(100% 0 0); /* Foreground on accent background */
+  --color-accent-ring: oklch(55% 0.18 268 / 30%);
 
-  --color-border: hsl(var(--border));
-  --color-input: hsl(var(--input));
+  /* Interactive States */
+  --color-hover: var(--palette-neutral-100);
+  --color-active: var(--palette-neutral-200);
+  --color-border: var(--palette-neutral-200);
+  --color-border-subtle: var(--palette-neutral-100);
 
-  --color-primary: hsl(var(--primary));
-  --color-primary-foreground: hsl(var(--primary-foreground));
+  /* Shadcn/Radix Compatibility Bridge (maps to OKLCH tokens) */
+  --color-background: var(--color-bg);
+  --color-foreground: var(--color-text);
+  --color-primary: var(--color-accent);
+  --color-primary-foreground: var(--color-accent-fg);
+  --color-muted: var(--palette-neutral-100);
+  --color-muted-foreground: var(--color-text-secondary);
+  --color-card: var(--color-surface);
+  --color-card-foreground: var(--color-text);
+  --color-input: var(--color-border);
+  --color-ring: var(--color-accent);
 
-  --color-ring: hsl(var(--ring));
-
-  --color-muted: hsl(var(--muted));
-  --color-muted-foreground: hsl(var(--muted-foreground));
-
+  /* Radius */
   --radius-sm: 0.5rem;
   --radius-md: 0.75rem;
   --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 1.75rem;
   --radius-full: 9999px;
+
+  /* Shadow System */
+  --shadow-card: 0 2px 8px -2px oklch(0% 0 0 / 5%), 0 4px 20px -4px oklch(0% 0 0 / 8%);
+  --shadow-card-hover: 0 4px 16px -4px oklch(0% 0 0 / 10%), 0 12px 32px -8px oklch(0% 0 0 / 12%);
+  --shadow-elevated: 0 4px 24px -4px oklch(0% 0 0 / 10%), 0 8px 48px -8px oklch(0% 0 0 / 6%);
+  --shadow-elevated-hover: 0 8px 32px -4px oklch(0% 0 0 / 12%), 0 16px 64px -8px oklch(0% 0 0 / 8%);
+
+  /* Layout */
+  --header-height: 56px;
+  --sidebar-width: 280px;
+  --message-max-width: 720px;
 }
 
+/* ────────────────────────────────────────────────────────────────────────────
+ * Layer 3: Dark Mode Overrides
+ * ──────────────────────────────────────────────────────────────────────────── */
+.dark {
+  /* Increase L value for brand colors in dark mode */
+  --palette-brand-500: oklch(67% 0.14 268);
+  --palette-brand-600: oklch(75% 0.12 268);
+
+  /* Dark backgrounds */
+  --color-bg: oklch(14% 0.01 268);
+  --color-surface: oklch(18% 0.01 268);
+  --color-surface-elevated: oklch(20% 0.01 268);
+
+  /* Inverted text */
+  --color-text: oklch(98% 0.002 270);
+  --color-text-secondary: oklch(70% 0.008 270);
+  --color-text-tertiary: oklch(55% 0.01 270);
+  --color-text-muted: oklch(42% 0.011 270);
+
+  /* Adjusted borders */
+  --color-border: oklch(32% 0.012 270);
+  --color-border-subtle: oklch(24% 0.013 270);
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Base Styles
+ * ──────────────────────────────────────────────────────────────────────────── */
 @layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
-
-    --surface: 240 5% 98%;
-    --surface-50: 240 5% 99%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
-
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-
-    --primary: 240 5.9% 10%;
-    --primary-foreground: 0 0% 98%;
-
-    --ring: 240 5.9% 10%;
-
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-  }
-
-  .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-
-    --surface: 240 10% 7%;
-    --surface-50: 240 10% 8%;
-
-    --card: 240 10% 7%;
-    --card-foreground: 0 0% 98%;
-
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-  }
-
   * {
     border-color: var(--color-border);
   }
 
   body {
-    background-color: var(--color-background);
-    color: var(--color-foreground);
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
   }
 }
 
@@ -82,4 +145,23 @@
   outline: none;
   max-width: none;
   padding: 0 1rem;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: oklch(70% 0.008 270 / 30%);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(70% 0.008 270 / 50%);
 }

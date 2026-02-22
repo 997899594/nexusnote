@@ -1,11 +1,12 @@
 /**
- * Document Chunker - 文档分块与索引
+ * Knowledge Chunker - 统一知识分块与索引
  *
- * 将文档内容分块并生成向量嵌入
- * 用于 RAG 检索
+ * 将内容分块并生成向量嵌入，支持多种来源：
+ * - document: 文档
+ * - conversation: 聊天会话
  */
 
-import { db, documentChunks, documents, eq } from "@nexusnote/db";
+import { db, documents, eq, knowledgeChunks } from "@nexusnote/db";
 import { embedMany } from "ai";
 import { aiProvider } from "../provider";
 
@@ -13,6 +14,8 @@ export interface ChunkOptions {
   chunkSize?: number;
   overlap?: number;
 }
+
+export type SourceType = "document" | "conversation";
 
 const DEFAULT_CHUNK_SIZE = 500;
 const DEFAULT_OVERLAP = 50;
@@ -47,12 +50,17 @@ export function chunkText(
   return chunks;
 }
 
+interface IndexOptions extends ChunkOptions {
+  userId?: string;
+  metadata?: Record<string, unknown>;
+}
+
 export async function indexDocument(
   documentId: string,
   plainText: string,
-  options: ChunkOptions = {},
+  options: IndexOptions = {},
 ): Promise<{ success: boolean; chunksCount: number }> {
-  const { chunkSize = DEFAULT_CHUNK_SIZE, overlap = DEFAULT_OVERLAP } = options;
+  const { chunkSize = DEFAULT_CHUNK_SIZE, overlap = DEFAULT_OVERLAP, userId, metadata } = options;
 
   console.log(`[Chunker] Indexing document: ${documentId}, text length: ${plainText.length}`);
 
@@ -65,11 +73,9 @@ export async function indexDocument(
       throw new Error(`Document not found: ${documentId}`);
     }
 
-    // 清理旧的 chunks
-    await db.delete(documentChunks).where(eq(documentChunks.documentId, documentId));
+    await db.delete(knowledgeChunks).where(eq(knowledgeChunks.sourceId, documentId));
     console.log(`[Chunker] Cleared old chunks for: ${documentId}`);
 
-    // 分块
     const chunks = chunkText(plainText, chunkSize, overlap);
     console.log(`[Chunker] Created ${chunks.length} chunks`);
 
@@ -77,7 +83,6 @@ export async function indexDocument(
       return { success: true, chunksCount: 0 };
     }
 
-    // 生成嵌入
     if (!aiProvider.isConfigured()) {
       throw new Error("[Chunker] Embedding model not configured");
     }
@@ -89,18 +94,20 @@ export async function indexDocument(
 
     console.log(`[Chunker] Generated ${embeddings.length} embeddings`);
 
-    // 插入数据库
     const newChunks = chunks.map((content, index) => ({
-      documentId,
+      sourceType: "document" as SourceType,
+      sourceId: documentId,
       content,
       embedding: embeddings[index],
       chunkIndex: index,
+      userId: userId || null,
+      metadata: metadata || null,
     }));
 
     const batchSize = 50;
     for (let i = 0; i < newChunks.length; i += batchSize) {
       const batch = newChunks.slice(i, i + batchSize);
-      await db.insert(documentChunks).values(batch).onConflictDoNothing();
+      await db.insert(knowledgeChunks).values(batch);
     }
 
     console.log(`[Chunker] ✅ Indexed ${chunks.length} chunks for: ${documentId}`);
@@ -111,6 +118,68 @@ export async function indexDocument(
     };
   } catch (error) {
     console.error(`[Chunker] ❌ Error indexing document:`, error);
+    throw error;
+  }
+}
+
+export async function indexConversation(
+  conversationId: string,
+  plainText: string,
+  userId: string,
+  options: IndexOptions = {},
+): Promise<{ success: boolean; chunksCount: number }> {
+  const { chunkSize = DEFAULT_CHUNK_SIZE, overlap = DEFAULT_OVERLAP, metadata } = options;
+
+  console.log(
+    `[Chunker] Indexing conversation: ${conversationId}, text length: ${plainText.length}`,
+  );
+
+  try {
+    await db.delete(knowledgeChunks).where(eq(knowledgeChunks.sourceId, conversationId));
+    console.log(`[Chunker] Cleared old chunks for: ${conversationId}`);
+
+    const chunks = chunkText(plainText, chunkSize, overlap);
+    console.log(`[Chunker] Created ${chunks.length} chunks`);
+
+    if (chunks.length === 0) {
+      return { success: true, chunksCount: 0 };
+    }
+
+    if (!aiProvider.isConfigured()) {
+      throw new Error("[Chunker] Embedding model not configured");
+    }
+
+    const { embeddings } = await embedMany({
+      model: aiProvider.embeddingModel as any,
+      values: chunks,
+    });
+
+    console.log(`[Chunker] Generated ${embeddings.length} embeddings`);
+
+    const newChunks = chunks.map((content, index) => ({
+      sourceType: "conversation" as SourceType,
+      sourceId: conversationId,
+      content,
+      embedding: embeddings[index],
+      chunkIndex: index,
+      userId,
+      metadata: metadata || null,
+    }));
+
+    const batchSize = 50;
+    for (let i = 0; i < newChunks.length; i += batchSize) {
+      const batch = newChunks.slice(i, i + batchSize);
+      await db.insert(knowledgeChunks).values(batch);
+    }
+
+    console.log(`[Chunker] ✅ Indexed ${chunks.length} chunks for: ${conversationId}`);
+
+    return {
+      success: true,
+      chunksCount: chunks.length,
+    };
+  } catch (error) {
+    console.error(`[Chunker] ❌ Error indexing conversation:`, error);
     throw error;
   }
 }

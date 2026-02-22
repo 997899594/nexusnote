@@ -10,6 +10,7 @@ import { hybridSearch } from "../../rag/hybrid-search";
 export const SearchNotesSchema = z.object({
   query: z.string().min(1).max(500),
   limit: z.number().int().min(1).max(20).default(10),
+  sourceTypes: z.array(z.enum(["document", "conversation"])).optional(),
 });
 
 export type SearchNotesInput = z.infer<typeof SearchNotesSchema>;
@@ -20,7 +21,11 @@ export const searchNotesTool = tool({
   inputSchema: SearchNotesSchema,
   execute: async (args) => {
     try {
-      const results = await hybridSearch(args.query, args.limit);
+      const results = await hybridSearch({
+        query: args.query,
+        topK: args.limit,
+        sourceTypes: args.sourceTypes,
+      });
 
       if (results.length === 0) {
         return {
@@ -31,10 +36,16 @@ export const searchNotesTool = tool({
         };
       }
 
-      const documentIds = [...new Set(results.map((r) => r.documentId))];
-      const docs = await db.query.documents.findMany({
-        where: (docs, { inArray }) => inArray(docs.id, documentIds),
-      });
+      const documentSourceIds = results
+        .filter((r) => r.sourceType === "document")
+        .map((r) => r.sourceId);
+
+      const docs =
+        documentSourceIds.length > 0
+          ? await db.query.documents.findMany({
+              where: (docs, { inArray }) => inArray(docs.id, documentSourceIds),
+            })
+          : [];
 
       const docMap = new Map(docs.map((d) => [d.id, d.title]));
 
@@ -44,9 +55,10 @@ export const searchNotesTool = tool({
         count: results.length,
         results: results.map((r) => ({
           id: r.id,
-          documentId: r.documentId,
-          title: docMap.get(r.documentId) || "未知文档",
-          content: r.content,
+          sourceId: r.sourceId,
+          sourceType: r.sourceType,
+          title: r.sourceType === "document" ? docMap.get(r.sourceId) || "未知文档" : "聊天记录",
+          content: r.content.slice(0, 300),
           relevance: Math.round(r.score * 100),
           source: r.source,
         })),

@@ -1,26 +1,45 @@
 /**
  * Hybrid Search — 向量搜索 + 关键词搜索 + RRF 合并 + Query Rewriter
  *
- * 复用 Legacy 架构
+ * 支持多种来源：document | conversation
  */
 
 import { db, sql } from "@nexusnote/db";
 import { embedMany } from "ai";
 import { aiProvider } from "../provider";
+import type { SourceType } from "./chunker";
 import { rewriteQuery } from "./query-rewriter";
 
 export interface HybridSearchResult {
   id: string;
-  documentId: string;
+  sourceId: string;
+  sourceType: SourceType;
   content: string;
   score: number;
   source: "vector" | "keyword" | "both";
 }
 
+export interface HybridSearchOptions {
+  topK?: number;
+  sourceTypes?: SourceType[];
+  userId?: string;
+  conversationContext?: string;
+}
+
 async function vectorSearch(
   query: string,
   topK: number,
-): Promise<Array<{ id: string; documentId: string; content: string; similarity: number }>> {
+  sourceTypes?: SourceType[],
+  userId?: string,
+): Promise<
+  Array<{
+    id: string;
+    sourceId: string;
+    sourceType: SourceType;
+    content: string;
+    similarity: number;
+  }>
+> {
   if (!aiProvider.isConfigured()) {
     console.warn("[RAG] Provider not configured, skipping vector search");
     return [];
@@ -35,26 +54,38 @@ async function vectorSearch(
     const queryEmbedding = embeddings[0];
     if (!queryEmbedding) return [];
 
+    const sourceTypeFilter =
+      sourceTypes && sourceTypes.length > 0
+        ? sql`AND source_type IN ${sql.raw(`(${sourceTypes.map((t) => `'${t}'`).join(", ")})`)}`
+        : sql``;
+
+    const userFilter = userId ? sql`AND user_id = ${userId}` : sql``;
+
     const results = await db.execute<{
       id: string;
-      document_id: string;
+      source_id: string;
+      source_type: SourceType;
       content: string;
       similarity: number;
     }>(sql`
       SELECT
         id,
-        document_id,
+        source_id,
+        source_type,
         content,
         1 - (embedding <=> ${JSON.stringify(queryEmbedding)}::halfvec) as similarity
-      FROM document_chunks
+      FROM knowledge_chunks
       WHERE embedding IS NOT NULL
+      ${sourceTypeFilter}
+      ${userFilter}
       ORDER BY embedding <=> ${JSON.stringify(queryEmbedding)}::halfvec
       LIMIT ${topK}
     `);
 
     return results.map((r) => ({
       id: r.id,
-      documentId: r.document_id,
+      sourceId: r.source_id,
+      sourceType: r.source_type,
       content: r.content,
       similarity: r.similarity,
     }));
@@ -67,31 +98,47 @@ async function vectorSearch(
 async function keywordSearch(
   query: string,
   topK: number,
-): Promise<Array<{ id: string; documentId: string; content: string; rank: number }>> {
+  sourceTypes?: SourceType[],
+  userId?: string,
+): Promise<
+  Array<{ id: string; sourceId: string; sourceType: SourceType; content: string; rank: number }>
+> {
   try {
+    const sourceTypeFilter =
+      sourceTypes && sourceTypes.length > 0
+        ? sql`AND source_type IN ${sql.raw(`(${sourceTypes.map((t) => `'${t}'`).join(", ")})`)}`
+        : sql``;
+
+    const userFilter = userId ? sql`AND user_id = ${userId}` : sql``;
+
     const results = await db.execute<{
       id: string;
-      document_id: string;
+      source_id: string;
+      source_type: SourceType;
       content: string;
       rank: number;
     }>(sql`
       SELECT
         id,
-        document_id,
+        source_id,
+        source_type,
         content,
         ts_rank(
           to_tsvector('simple', content),
           plainto_tsquery('simple', ${query})
         ) as rank
-      FROM document_chunks
+      FROM knowledge_chunks
       WHERE to_tsvector('simple', content) @@ plainto_tsquery('simple', ${query})
+      ${sourceTypeFilter}
+      ${userFilter}
       ORDER BY rank DESC
       LIMIT ${topK}
     `);
 
     return results.map((r) => ({
       id: r.id,
-      documentId: r.document_id,
+      sourceId: r.source_id,
+      sourceType: r.source_type,
       content: r.content,
       rank: r.rank,
     }));
@@ -102,8 +149,8 @@ async function keywordSearch(
 }
 
 function reciprocalRankFusion(
-  vectorResults: Array<{ id: string; documentId: string; content: string }>,
-  keywordResults: Array<{ id: string; documentId: string; content: string }>,
+  vectorResults: Array<{ id: string; sourceId: string; sourceType: SourceType; content: string }>,
+  keywordResults: Array<{ id: string; sourceId: string; sourceType: SourceType; content: string }>,
   topK: number,
 ): HybridSearchResult[] {
   const k = 60;
@@ -114,7 +161,8 @@ function reciprocalRankFusion(
       score: 1 / (k + rank + 1),
       result: {
         id: result.id,
-        documentId: result.documentId,
+        sourceId: result.sourceId,
+        sourceType: result.sourceType,
         content: result.content,
         score: 0,
         source: "vector",
@@ -134,7 +182,8 @@ function reciprocalRankFusion(
         score: rrfScore,
         result: {
           id: result.id,
-          documentId: result.documentId,
+          sourceId: result.sourceId,
+          sourceType: result.sourceType,
           content: result.content,
           score: 0,
           source: "keyword",
@@ -150,16 +199,29 @@ function reciprocalRankFusion(
 }
 
 export async function hybridSearch(
-  query: string,
-  topK: number = 5,
-  conversationContext?: string,
+  queryOrOptions: string | (HybridSearchOptions & { query: string }),
+  topKOrUndefined?: number,
+  conversationContextOrUndefined?: string,
 ): Promise<HybridSearchResult[]> {
-  const rewrittenQuery = await rewriteQuery(query, conversationContext);
+  let query: string;
+  let options: HybridSearchOptions = {};
+
+  if (typeof queryOrOptions === "string") {
+    query = queryOrOptions;
+    options = { topK: topKOrUndefined ?? 5, conversationContext: conversationContextOrUndefined };
+  } else {
+    query = queryOrOptions.query;
+    options = queryOrOptions;
+  }
+
+  const { topK: k = 5, sourceTypes, userId, conversationContext: ctx } = options;
+
+  const rewrittenQuery = await rewriteQuery(query, ctx);
 
   const [vResults, kResults] = await Promise.all([
-    vectorSearch(rewrittenQuery, topK * 2),
-    keywordSearch(rewrittenQuery, topK * 2),
+    vectorSearch(rewrittenQuery, k * 2, sourceTypes, userId),
+    keywordSearch(rewrittenQuery, k * 2, sourceTypes, userId),
   ]);
 
-  return reciprocalRankFusion(vResults, kResults, topK);
+  return reciprocalRankFusion(vResults, kResults, k);
 }
