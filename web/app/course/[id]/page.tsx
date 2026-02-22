@@ -82,7 +82,7 @@ export default function CoursePage() {
   const progressPercent = course.isCompleted
     ? 100
     : Math.round(
-        (parseInt(course.progress.split("/")[0]) / parseInt(course.progress.split("/")[1])) * 100,
+        (parseInt(course.progress.split("/")[0], 10) / parseInt(course.progress.split("/")[1], 10)) * 100,
       );
 
   return (

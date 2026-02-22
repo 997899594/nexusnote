@@ -1,7 +1,7 @@
 import { env } from "@/config/env";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import * as schema from "./schema.js";
+import * as schema from "./schema";
 
 // We rely on @nexusnote/config or the application entry point to load env vars
 // This keeps the db package pure and avoids duplicate dotenv loading
@@ -51,4 +51,4 @@ export {
 } from "drizzle-orm";
 // Re-export drizzle function for creating database instances
 export { drizzle } from "drizzle-orm/postgres-js";
-export * from "./schema.js";
+export * from "./schema";
