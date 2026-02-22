@@ -57,7 +57,7 @@ export function useChatSession({ sessionId, pendingMessage }: UseChatSessionOpti
     },
   });
 
-  const { messages, setMessages, sendMessage, status } = chat;
+  const { setMessages, sendMessage, status } = chat;
 
   // 历史恢复：每个 sessionId 只加载一次（模块级 Set 防重）
   useEffect(() => {

@@ -9,10 +9,9 @@ interface CommandMenuProps {
   commands: Command[];
   selectedIndex: number;
   onSelect: (command: Command) => void;
-  onClose: () => void;
 }
 
-export function CommandMenu({ commands, selectedIndex, onSelect, onClose }: CommandMenuProps) {
+export function CommandMenu({ commands, selectedIndex, onSelect }: CommandMenuProps) {
   if (commands.length === 0) return null;
 
   return (

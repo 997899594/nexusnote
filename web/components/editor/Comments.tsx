@@ -113,7 +113,7 @@ export function CommentsProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function CommentThread({ comment, onSelect }: { comment: Comment; onSelect: () => void }) {
+export function CommentThread({ comment }: { comment: Comment; onSelect?: () => void }) {
   const { resolveComment, reopenComment, addReply, deleteComment } = useComments();
   const [replyText, setReplyText] = useState("");
   const [showReply, setShowReply] = useState(false);

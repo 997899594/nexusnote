@@ -213,8 +213,7 @@ export function AISuggestionCard({
 }
 
 export function SuggestionPanel({ onApplyAll }: { onApplyAll?: () => void }) {
-  const { suggestions, acceptSuggestion, rejectSuggestion, hasPendingSuggestions } =
-    useSuggestions();
+  const { suggestions, acceptSuggestion, rejectSuggestion } = useSuggestions();
   const pending = suggestions.filter((s) => !s.accepted && !s.rejected);
 
   if (pending.length === 0) return null;
