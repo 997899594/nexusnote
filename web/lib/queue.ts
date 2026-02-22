@@ -1,5 +1,5 @@
 /**
- * Conversation Indexing Queue - 会话索引后台任务
+ * Queue Module - BullMQ 后台任务队列
  *
  * 使用 BullMQ 处理聊天会话的语义分块和向量索引
  */
@@ -8,8 +8,19 @@ import { env } from "@/config/env";
 import type { UIMessage } from "ai";
 import { Queue, Worker } from "bullmq";
 import IORedis from "ioredis";
-import { indexConversation } from "@/services/rag/chunker";
-import { semanticChunkConversation } from "@/services/rag";
+
+// ============================================
+// Queue Configuration
+// ============================================
+
+export const queueConfig = {
+  redisHost: env.REDIS_HOST || "localhost",
+  redisPort: parseInt(env.REDIS_PORT || "6379", 10),
+};
+
+// ============================================
+// Conversation Indexing Queue
+// ============================================
 
 export interface ConversationIndexJobData {
   conversationId: string;
@@ -61,6 +72,10 @@ async function processJob(job: { data: ConversationIndexJobData }) {
         .map((p) => (p as { text: string }).text)
         .join(""),
     }));
+
+    // Import services dynamically to avoid circular dependencies
+    const { semanticChunkConversation } = await import("@/lib/rag");
+    const { indexConversation } = await import("@/lib/rag");
 
     const chunks = await semanticChunkConversation(messagesArray);
 
