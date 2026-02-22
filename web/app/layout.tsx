@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { MobileNav } from "@/components/shared/layout";
-import { AuthSync, SessionProvider } from "@/ui/auth";
+import { AuthSync, SessionProvider } from "@/components/auth";
 import { TransitionOverlay } from "@/components/chat/TransitionOverlay";
 
 export const metadata: Metadata = {

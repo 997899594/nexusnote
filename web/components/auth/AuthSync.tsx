@@ -8,7 +8,7 @@
 
 import { useSession } from "next-auth/react";
 import { useEffect } from "react";
-import { useAuthStore } from "@/ui/auth";
+import { useAuthStore } from "@/components/auth";
 
 export function AuthSync() {
   const { data: session, status } = useSession();
