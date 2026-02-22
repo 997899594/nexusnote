@@ -20,6 +20,10 @@
     ],
     "paths": {
       "@/*": ["./*"],
+      "@/config/*": ["./config/*"],
+      "@/lib/*": ["./lib/*"],
+      "@/db": ["./db"],
+      "@/db/*": ["./db/*"],
       "@/services/*": ["./services/*"],
       "@/infrastructure/*": ["./infrastructure/*"]
     }
