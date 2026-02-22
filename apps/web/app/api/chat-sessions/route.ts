@@ -5,7 +5,7 @@
  * POST: 创建新会话（不保存消息，返回 pendingMessage 让前端发送）
  */
 
-import { conversations, db, desc, eq, sql } from "@nexusnote/db";
+import { conversations, db, desc, eq, sql } from "@/db";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../auth/[...nextauth]/route";

@@ -6,7 +6,7 @@
  * DELETE: 删除会话
  */
 
-import { conversations, db, eq } from "@nexusnote/db";
+import { conversations, db, eq } from "@/db";
 import type { UIMessage } from "ai";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";

@@ -2,7 +2,7 @@
  * AI Chat API - 2026 Modern Architecture
  */
 
-import { aiUsage, conversations, db } from "@nexusnote/db";
+import { aiUsage, conversations, db } from "@/db";
 import { createAgentUIStreamResponse, smoothStream, type UIMessage } from "ai";
 import { type NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";

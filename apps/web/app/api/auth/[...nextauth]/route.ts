@@ -2,7 +2,7 @@
  * NextAuth v4 Configuration
  */
 
-import { db, eq, users } from "@nexusnote/db";
+import { db, eq, users } from "@/db";
 import NextAuth, { type Session } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 
