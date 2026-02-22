@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Editor } from "@/features/editor/components/Editor";
+import { Editor } from "@/ui/editor/components/Editor";
 
 export default function EditorPage() {
   const params = useParams();

@@ -8,8 +8,8 @@ import { env } from "@nexusnote/config";
 import type { UIMessage } from "ai";
 import { Queue, Worker } from "bullmq";
 import IORedis from "ioredis";
-import { indexConversation } from "@/features/ai/rag/chunker";
-import { semanticChunkConversation } from "@/features/ai/rag/semantic-chunker";
+import { indexConversation } from "@/services/rag/chunker";
+import { semanticChunkConversation } from "@/services/rag";
 
 export interface ConversationIndexJobData {
   conversationId: string;

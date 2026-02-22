@@ -5,7 +5,7 @@
  */
 
 import { stepCountIs, ToolLoopAgent, type ToolSet } from "ai";
-import { aiProvider } from "../provider";
+import { aiProvider } from "@/infrastructure/ai/provider";
 import {
   createFlashcardsTool,
   createNoteTool,

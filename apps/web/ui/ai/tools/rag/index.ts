@@ -4,7 +4,7 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import { hybridSearch } from "../../rag/hybrid-search";
+import { hybridSearch } from "@/services/rag";
 
 export const HybridSearchSchema = z.object({
   query: z.string().min(1).max(500),

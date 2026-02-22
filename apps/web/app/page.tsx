@@ -2,9 +2,9 @@
 
 import { motion } from "framer-motion";
 import { useEffect } from "react";
-import { useChatStore } from "@/features/chat";
-import { HeroInput, RecentSection } from "@/features/home";
-import { FloatingHeader } from "@/features/layout";
+import { useChatStore } from "@/ui/chat";
+import { HeroInput, RecentSection } from "@/ui/home";
+import { FloatingHeader } from "@/ui/layout";
 
 export default function HomePage() {
   const loadSessions = useChatStore((state) => state.loadSessions);

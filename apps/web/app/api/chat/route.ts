@@ -6,9 +6,9 @@ import { aiUsage, conversations, db } from "@nexusnote/db";
 import { createAgentUIStreamResponse, smoothStream, type UIMessage } from "ai";
 import { type NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { getAgent } from "@/features/ai/agents";
-import { aiProvider } from "@/features/ai/provider";
-import { validateRequest } from "@/features/ai/validation";
+import { getAgent } from "@/ui/ai/agents";
+import { aiProvider } from "@/infrastructure/ai/provider";
+import { validateRequest } from "@/ui/ai/validation";
 import { authOptions } from "../auth/[...nextauth]/route";
 
 export const runtime = "nodejs";

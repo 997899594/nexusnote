@@ -2,7 +2,7 @@
 
 import type { TextUIPart, UIMessage } from "ai";
 import { motion } from "framer-motion";
-import { MarkdownRenderer } from "@/features/home";
+import { MarkdownRenderer } from "@/ui/home";
 import { cn } from "@/lib/utils";
 
 interface ChatMessageProps {

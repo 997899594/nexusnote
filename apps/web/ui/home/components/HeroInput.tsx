@@ -16,9 +16,9 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { usePendingChatStore } from "@/features/chat/stores/usePendingChatStore";
-import { useTransitionStore } from "@/features/chat/stores/useTransitionStore";
-import type { Command } from "@/features/chat/types";
+import { usePendingChatStore } from "@/ui/chat/stores/usePendingChatStore";
+import { useTransitionStore } from "@/ui/chat/stores/useTransitionStore";
+import type { Command } from "@/ui/chat/types";
 import { cn } from "@/lib/utils";
 
 const COMMANDS: Command[] = [
