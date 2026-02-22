@@ -19,7 +19,9 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@/services/*": ["./services/*"],
+      "@/infrastructure/*": ["./infrastructure/*"]
     }
   },
   "include": [
