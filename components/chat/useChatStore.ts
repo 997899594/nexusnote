@@ -19,6 +19,7 @@ interface ChatStore {
   sessions: Conversation[];
 
   loadSessions: () => Promise<void>;
+  generateBatchTitles: () => Promise<number>;
   createSession: (title: string) => Promise<Conversation | null>;
   updateSession: (id: string, updates: Partial<Conversation>) => Promise<void>;
   deleteSession: (id: string) => Promise<void>;
@@ -30,6 +31,34 @@ export const useChatStore = create<ChatStore>((set) => ({
   loadSessions: async () => {
     const sessions = await chatApi.loadSessions();
     set({ sessions });
+
+    // Trigger batch title generation if sessions have default titles
+    const hasDefaultTitles = sessions.some((s) => s.title === "新对话");
+    if (hasDefaultTitles) {
+      // Fire and forget - don't block the UI
+      useChatStore.getState().generateBatchTitles().catch((err) => {
+        console.error("[ChatStore] Failed to generate batch titles:", err);
+      });
+    }
+  },
+
+  generateBatchTitles: async () => {
+    try {
+      const res = await fetch("/api/chat-sessions/generate-titles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      const data = (await res.json()) as { updated: number };
+      // Reload sessions to get updated titles
+      if (data.updated > 0) {
+        await useChatStore.getState().loadSessions();
+      }
+      return data.updated;
+    } catch (error) {
+      console.error("[ChatStore] Failed to generate batch titles:", error);
+      return 0;
+    }
   },
 
   createSession: async (title: string) => {
