@@ -2,7 +2,7 @@
  * Chat Tools - 笔记 CRUD
  */
 
-import { db, documents, eq } from "@nexusnote/db";
+import { db, documents, eq } from "@/db";
 import { tool } from "ai";
 import { z } from "zod";
 

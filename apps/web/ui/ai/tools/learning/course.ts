@@ -2,7 +2,7 @@
  * Learning Tools - 课程生成
  */
 
-import { courseChapters, courseProfiles, db, eq } from "@nexusnote/db";
+import { courseChapters, courseProfiles, db, eq } from "@/db";
 import { tool } from "ai";
 import { z } from "zod";
 

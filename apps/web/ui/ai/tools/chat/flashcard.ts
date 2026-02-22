@@ -2,7 +2,7 @@
  * Chat Tools - 闪卡
  */
 
-import { db, flashcards } from "@nexusnote/db";
+import { db, flashcards } from "@/db";
 import { tool } from "ai";
 import { z } from "zod";
 

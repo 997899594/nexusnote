@@ -2,7 +2,7 @@
  * Chat Tools - 搜索笔记
  */
 
-import { db, documents, eq } from "@nexusnote/db";
+import { db, documents, eq } from "@/db";
 import { tool } from "ai";
 import { z } from "zod";
 import { hybridSearch } from "@/services/rag";

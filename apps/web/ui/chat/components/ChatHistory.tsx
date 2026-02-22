@@ -1,6 +1,6 @@
 "use client";
 
-import type { Conversation } from "@nexusnote/db";
+import type { Conversation } from "@/db";
 import { motion } from "framer-motion";
 import { MessageSquare, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
