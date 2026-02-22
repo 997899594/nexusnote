@@ -18,6 +18,24 @@ import { useEffect } from "react";
 import { persistMessages } from "@/lib/chat/api";
 import { usePendingChatStore } from "./usePendingChatStore";
 
+/**
+ * Trigger indexing of a conversation for RAG search
+ */
+async function triggerIndex(sessionId: string, messages: UIMessage[]): Promise<void> {
+  try {
+    const response = await fetch("/api/chat-sessions/index", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId, messages }),
+    });
+    if (!response.ok) {
+      console.error("[ChatSession] Index trigger failed:", response.status);
+    }
+  } catch (error) {
+    console.error("[ChatSession] Index trigger error:", error);
+  }
+}
+
 interface UseChatSessionOptions {
   sessionId: string | null;
   pendingMessage?: string | null;
@@ -38,9 +56,11 @@ export function useChatSession({ sessionId, pendingMessage }: UseChatSessionOpti
     }),
 
     // ✅ 对话结束时持久化一次（架构正确，streaming 结束后 SDK 回调）
-    onFinish: ({ messages }) => {
+    onFinish: async ({ messages }) => {
       if (sessionId) {
-        persistMessages(sessionId, messages);
+        await persistMessages(sessionId, messages);
+        // Trigger conversation indexing for RAG search
+        await triggerIndex(sessionId, messages);
       }
     },
   });
