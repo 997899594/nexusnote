@@ -20,8 +20,9 @@ export type ChatRequest = z.infer<typeof ChatRequestSchema>;
 export type Intent = ChatRequest["intent"];
 
 export function sanitizeInput(input: string): string {
+  // Remove control characters using character class escape
   return input
-    .replace(/[\x00-\x1F\x7F]/g, "")
+    .replace(/[\p{Cc}]/gu, "")
     .slice(0, 50000)
     .trim();
 }

@@ -233,7 +233,7 @@ export interface Suggestion {
   createdAt: Date;
 }
 
-export const createProofreadTools = (editor: EditorInstance): Record<string, TiptapTool> => ({
+export const createProofreadTools = (_editor: EditorInstance): Record<string, TiptapTool> => ({
   proofread: {
     name: "proofread",
     description: "校对文本，检查语法和拼写错误",

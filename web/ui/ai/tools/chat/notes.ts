@@ -2,9 +2,9 @@
  * Chat Tools - 笔记 CRUD
  */
 
-import { db, documents, eq } from "@/db";
 import { tool } from "ai";
 import { z } from "zod";
+import { db, documents, eq } from "@/db";
 
 export const CreateNoteSchema = z.object({
   title: z.string().min(1).max(200),

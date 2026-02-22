@@ -32,7 +32,7 @@ export function CollaborationEditor({ config, content = "", onChange, editable =
   const [status, setStatus] = useState<"connecting" | "connected" | "disconnected">("connecting");
   const [users, setUsers] = useState<Array<{ name: string; color: string }>>([]);
   const { documentId, host = DEFAULT_HOST, user } = config;
-  const ydoc = useMemo(() => new Y.Doc(), [documentId]);
+  const ydoc = useMemo(() => new Y.Doc(), []);
 
   const provider = useMemo(() => {
     const protocol = host.startsWith("localhost") ? "ws" : "wss";

@@ -82,7 +82,9 @@ export default function CoursePage() {
   const progressPercent = course.isCompleted
     ? 100
     : Math.round(
-        (parseInt(course.progress.split("/")[0], 10) / parseInt(course.progress.split("/")[1], 10)) * 100,
+        (parseInt(course.progress.split("/")[0], 10) /
+          parseInt(course.progress.split("/")[1], 10)) *
+          100,
       );
 
   return (
@@ -112,6 +114,7 @@ export default function CoursePage() {
       {course.isCompleted ? (
         <div style={{ textAlign: "center" }}>
           <button
+            type="button"
             style={{
               padding: "14px 32px",
               background: "#0070f3",

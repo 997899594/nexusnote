@@ -129,7 +129,6 @@ function SlashMenu({ editor, onClose }: { editor: any; onClose: () => void }) {
       }}
     >
       <input
-        autoFocus
         placeholder="搜索命令..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}

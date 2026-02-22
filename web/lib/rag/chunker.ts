@@ -6,8 +6,8 @@
  * - conversation: Chat conversations
  */
 
-import { db, documents, eq, knowledgeChunks } from "@/db";
 import { embedMany } from "ai";
+import { db, documents, eq, knowledgeChunks } from "@/db";
 import { aiProvider } from "@/lib/ai";
 
 export interface ChunkOptions {

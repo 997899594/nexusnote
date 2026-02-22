@@ -39,7 +39,7 @@ export default function FlashcardsPage() {
     }, 500);
   }, []);
 
-  const handleNext = (quality: number) => {
+  const handleNext = (_quality: number) => {
     setFlipped(false);
     if (currentIndex < cards.length - 1) {
       setCurrentIndex((i) => i + 1);

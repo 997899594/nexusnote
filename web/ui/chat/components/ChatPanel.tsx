@@ -15,7 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useChatSession } from "../hooks/useChatSession";
 import type { Command } from "../types";
@@ -107,25 +107,22 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
   const status = chat.status;
   const isLoading = chat.isLoading;
 
-  const chatMessages = useMemo(
-    () => messages.filter((m: UIMessage) => m.role !== "system"),
-    [messages],
-  );
+  const chatMessages = messages.filter((m: UIMessage) => m.role !== "system");
 
-  const scrollToBottom = useCallback(() => {
+  const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, []);
+  };
 
   useEffect(() => {
     scrollToBottom();
-  }, [chatMessages, scrollToBottom]);
+  }, [scrollToBottom]);
 
-  const filteredCommands = useMemo(() => {
+  const filteredCommands = (() => {
     if (!input.startsWith("/")) return COMMANDS;
     const query = input.slice(1).trim().toLowerCase();
     if (!query) return COMMANDS;
     return COMMANDS.filter((c) => c.label.toLowerCase().includes(query));
-  }, [input]);
+  })();
 
   useEffect(() => {
     if (selectedCommand) {
@@ -138,20 +135,17 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
     }
   }, [input, selectedCommand]);
 
-  const handleSelectCommand = useCallback(
-    (command: Command) => {
-      setInput(extractCommandContent(input));
-      setSelectedCommand(command);
-      setShowCommands(false);
-    },
-    [input],
-  );
+  const handleSelectCommand = (command: Command) => {
+    setInput(extractCommandContent(input));
+    setSelectedCommand(command);
+    setShowCommands(false);
+  };
 
-  const handleCancelCommand = useCallback(() => {
+  const handleCancelCommand = () => {
     setSelectedCommand(null);
-  }, []);
+  };
 
-  const handleSubmit = useCallback(async () => {
+  const handleSubmit = async () => {
     if (!input.trim() || isLoading) return;
 
     if (selectedCommand) {
@@ -176,51 +170,48 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
 
     await sendMessage({ text: input.trim() });
     setInput("");
-  }, [input, isLoading, selectedCommand, filteredCommands, selectedIndex, sendMessage, router]);
+  };
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (selectedCommand) {
-        if (e.key === "Escape") {
-          handleCancelCommand();
-          return;
-        }
-        if (e.key === "Enter" && !e.shiftKey) {
-          e.preventDefault();
-          handleSubmit();
-          return;
-        }
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (selectedCommand) {
+      if (e.key === "Escape") {
+        handleCancelCommand();
+        return;
       }
-
-      if (showCommands && filteredCommands.length > 0) {
-        if (e.key === "ArrowDown") {
-          e.preventDefault();
-          setSelectedIndex((i) => (i + 1) % filteredCommands.length);
-          return;
-        }
-        if (e.key === "ArrowUp") {
-          e.preventDefault();
-          setSelectedIndex((i) => (i - 1 + filteredCommands.length) % filteredCommands.length);
-          return;
-        }
-        if (e.key === "Enter") {
-          e.preventDefault();
-          handleSubmit();
-          return;
-        }
-        if (e.key === "Escape") {
-          setShowCommands(false);
-          return;
-        }
-      }
-
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         handleSubmit();
+        return;
       }
-    },
-    [showCommands, filteredCommands, handleSubmit, selectedCommand, handleCancelCommand],
-  );
+    }
+
+    if (showCommands && filteredCommands.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSelectedIndex((i) => (i + 1) % filteredCommands.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSelectedIndex((i) => (i - 1 + filteredCommands.length) % filteredCommands.length);
+        return;
+      }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleSubmit();
+        return;
+      }
+      if (e.key === "Escape") {
+        setShowCommands(false);
+        return;
+      }
+    }
+
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
 
   const placeholder = selectedCommand
     ? `描述你想${selectedCommand.modeLabel}的内容...`

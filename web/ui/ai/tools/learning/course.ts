@@ -2,9 +2,9 @@
  * Learning Tools - 课程生成
  */
 
-import { courseChapters, courseProfiles, db, eq } from "@/db";
 import { tool } from "ai";
 import { z } from "zod";
+import { courseChapters, courseProfiles, db, eq } from "@/db";
 
 export const GenerateCourseSchema = z.object({
   title: z.string().min(1).max(200),

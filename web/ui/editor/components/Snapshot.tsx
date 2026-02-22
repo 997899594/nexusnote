@@ -98,12 +98,16 @@ export function SnapshotItem({
   isActive: boolean;
 }) {
   return (
-    <div
+    <button
+      type="button"
       style={{
+        width: "100%",
         padding: 12,
         borderBottom: "1px solid #eee",
         background: isActive ? "#f0f9ff" : "white",
         cursor: "pointer",
+        border: "none",
+        textAlign: "left",
       }}
       onClick={onRestore}
     >
@@ -130,6 +134,7 @@ export function SnapshotItem({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <span style={{ fontSize: 12, color: "#999" }}>{snapshot.content.length} 字符</span>
         <button
+          type="button"
           onClick={(e) => {
             e.stopPropagation();
             onDelete();
@@ -145,7 +150,7 @@ export function SnapshotItem({
           删除
         </button>
       </div>
-    </div>
+    </button>
   );
 }
 

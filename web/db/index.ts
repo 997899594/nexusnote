@@ -1,6 +1,6 @@
-import { env } from "@/config/env";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
+import { env } from "@/config/env";
 import * as schema from "./schema";
 
 // We rely on @nexusnote/config or the application entry point to load env vars

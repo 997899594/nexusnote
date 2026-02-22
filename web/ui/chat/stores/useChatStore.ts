@@ -11,8 +11,8 @@
  * - Pending 消息（由 usePendingChatStore 管理）
  */
 
-import type { Conversation } from "@/db";
 import { create } from "zustand";
+import type { Conversation } from "@/db";
 
 interface ChatStore {
   sessions: Conversation[];

@@ -103,7 +103,7 @@ function createAgent(
   });
 }
 
-export function getAgent(intent: Intent, sessionId?: string) {
+export function getAgent(intent: Intent, _sessionId?: string) {
   switch (intent) {
     case "INTERVIEW":
       return createAgent(

@@ -114,8 +114,11 @@ export default function LoginPage() {
             className="space-y-4"
           >
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+              <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1">
+                Email
+              </label>
               <motion.input
+                id="email"
                 whileFocus={{ scale: 1.01 }}
                 type="email"
                 required
@@ -126,10 +129,11 @@ export default function LoginPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
+              <label htmlFor="name" className="block text-sm font-medium text-slate-700 mb-1">
                 Name (optional)
               </label>
               <motion.input
+                id="name"
                 whileFocus={{ scale: 1.01 }}
                 type="text"
                 value={name}

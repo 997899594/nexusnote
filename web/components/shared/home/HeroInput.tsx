@@ -15,11 +15,11 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { cn } from "@/lib/utils";
 import { usePendingChatStore } from "@/ui/chat/stores/usePendingChatStore";
 import { useTransitionStore } from "@/ui/chat/stores/useTransitionStore";
 import type { Command } from "@/ui/chat/types";
-import { cn } from "@/lib/utils";
 
 const COMMANDS: Command[] = [
   {
@@ -111,12 +111,12 @@ export function HeroInput() {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [selectedCommand, setSelectedCommand] = useState<Command | null>(null);
 
-  const filteredCommands = useMemo(() => {
+  const filteredCommands = (() => {
     if (!input.startsWith("/")) return COMMANDS;
     const query = input.slice(1).trim().toLowerCase();
     if (!query) return COMMANDS;
     return COMMANDS.filter((c) => c.label.toLowerCase().includes(query));
-  }, [input]);
+  })();
 
   useEffect(() => {
     if (selectedCommand) {
@@ -129,20 +129,17 @@ export function HeroInput() {
     }
   }, [input, selectedCommand]);
 
-  const handleSelectCommand = useCallback(
-    (command: Command) => {
-      setInput(extractCommandContent(input));
-      setSelectedCommand(command);
-      setShowCommands(false);
-    },
-    [input],
-  );
+  const handleSelectCommand = (command: Command) => {
+    setInput(extractCommandContent(input));
+    setSelectedCommand(command);
+    setShowCommands(false);
+  };
 
-  const handleCancelCommand = useCallback(() => {
+  const handleCancelCommand = () => {
     setSelectedCommand(null);
-  }, []);
+  };
 
-  const handleSubmit = useCallback(() => {
+  const handleSubmit = () => {
     if (!input.trim()) return;
 
     if (selectedCommand) {
@@ -175,59 +172,48 @@ export function HeroInput() {
     setPendingChat(id, message);
     startExpand(rect, `/chat/${id}`);
     setInput("");
-  }, [
-    input,
-    selectedCommand,
-    filteredCommands,
-    selectedIndex,
-    router,
-    startExpand,
-    setPendingChat,
-  ]);
+  };
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (selectedCommand) {
-        if (e.key === "Escape") {
-          handleCancelCommand();
-          return;
-        }
-        if (e.key === "Enter" && !e.shiftKey) {
-          e.preventDefault();
-          handleSubmit();
-          return;
-        }
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (selectedCommand) {
+      if (e.key === "Escape") {
+        handleCancelCommand();
+        return;
       }
-
-      if (showCommands && filteredCommands.length > 0) {
-        if (e.key === "ArrowDown") {
-          e.preventDefault();
-          setSelectedIndex((i) => (i + 1) % filteredCommands.length);
-          return;
-        }
-        if (e.key === "ArrowUp") {
-          e.preventDefault();
-          setSelectedIndex((i) => (i - 1 + filteredCommands.length) % filteredCommands.length);
-          return;
-        }
-        if (e.key === "Enter") {
-          e.preventDefault();
-          handleSubmit();
-          return;
-        }
-        if (e.key === "Escape") {
-          setShowCommands(false);
-          return;
-        }
-      }
-
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         handleSubmit();
+        return;
       }
-    },
-    [showCommands, filteredCommands, handleSubmit, selectedCommand, handleCancelCommand],
-  );
+    }
+
+    if (showCommands && filteredCommands.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSelectedIndex((i) => (i + 1) % filteredCommands.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSelectedIndex((i) => (i - 1 + filteredCommands.length) % filteredCommands.length);
+        return;
+      }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleSubmit();
+        return;
+      }
+      if (e.key === "Escape") {
+        setShowCommands(false);
+        return;
+      }
+    }
+
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
 
   const placeholder = selectedCommand
     ? `描述你想${selectedCommand.modeLabel}的内容...`

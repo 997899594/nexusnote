@@ -43,7 +43,7 @@ export default function InterviewPage() {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  });
 
   const getContent = (msg: any): string => {
     if (!msg) return "";
@@ -57,7 +57,7 @@ export default function InterviewPage() {
     return JSON.stringify(msg.content);
   };
 
-  const handleOptionSelect = (option: string) => {
+  const handleOptionSelect = (_option: string) => {
     if (state.phase === "greeting") {
       setState((s) => ({ ...s, phase: "topic" }));
       chat.sendMessage?.({ text: "我想创建课程" });

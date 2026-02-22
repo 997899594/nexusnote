@@ -5,7 +5,6 @@
  * 用于 AI 结构化内容生成 (streamObject)
  */
 
-import type { JSONContent } from "@tiptap/core";
 import { z } from "zod";
 
 /**

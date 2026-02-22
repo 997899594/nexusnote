@@ -6,10 +6,10 @@
  * DELETE: 删除会话
  */
 
-import { conversations, db, eq } from "@/db";
 import type { UIMessage } from "ai";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { conversations, db, eq } from "@/db";
 import { authOptions } from "../../auth/[...nextauth]/route";
 
 interface UpdateSessionBody {

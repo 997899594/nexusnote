@@ -5,9 +5,9 @@
  * Coordinates between the API layer and data access layer.
  */
 
-import { db, userProfiles, eq } from "@/db";
-import { aiProvider } from "@/lib/ai";
 import { embedMany } from "ai";
+import { db, eq, userProfiles } from "@/db";
+import { aiProvider } from "@/lib/ai";
 
 /**
  * Learning goals with priorities

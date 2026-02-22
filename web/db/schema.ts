@@ -1,4 +1,3 @@
-import { env } from "@/config/env";
 import { relations } from "drizzle-orm";
 import {
   boolean,
@@ -11,6 +10,7 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
+import { env } from "@/config/env";
 
 // 自定义 bytea 类型
 const bytea = customType<{ data: Buffer }>({

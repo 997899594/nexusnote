@@ -2,9 +2,9 @@
  * Chat Tools - 搜索笔记
  */
 
-import { db, documents, eq } from "@/db";
 import { tool } from "ai";
 import { z } from "zod";
+import { db } from "@/db";
 import { hybridSearch } from "@/lib/rag";
 
 export const SearchNotesSchema = z.object({

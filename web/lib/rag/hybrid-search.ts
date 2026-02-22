@@ -5,8 +5,8 @@
  * Supports multiple sources: document | conversation
  */
 
-import { db, sql } from "@/db";
 import { embedMany } from "ai";
+import { db, sql } from "@/db";
 import { aiProvider } from "@/lib/ai";
 import type { SourceType } from "./chunker";
 import { rewriteQuery } from "./query-rewriter";

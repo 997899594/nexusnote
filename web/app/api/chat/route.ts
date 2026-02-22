@@ -2,12 +2,12 @@
  * AI Chat API - 2026 Modern Architecture
  */
 
-import { aiUsage, conversations, db } from "@/db";
 import { createAgentUIStreamResponse, smoothStream, type UIMessage } from "ai";
 import { type NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { getAgent } from "@/ui/ai/agents";
+import { aiUsage, conversations, db } from "@/db";
 import { aiProvider } from "@/lib/ai";
+import { getAgent } from "@/ui/ai/agents";
 import { validateRequest } from "@/ui/ai/validation";
 import { authOptions } from "../auth/[...nextauth]/route";
 

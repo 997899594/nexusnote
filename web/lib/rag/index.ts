@@ -11,13 +11,11 @@ export * from "./query-rewriter";
 
 // Semantic chunking
 export {
-  semanticChunk,
-  semanticChunkConversation,
   type SemanticChunk,
   type SemanticChunkOptions,
+  semanticChunk,
+  semanticChunkConversation,
 } from "./semantic-chunker";
 
 // Cosine similarity utility
-export {
-  cosineSimilarity,
-} from "./utils/cosine-similarity";
+export { cosineSimilarity } from "./utils/cosine-similarity";

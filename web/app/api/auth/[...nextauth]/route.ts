@@ -2,9 +2,9 @@
  * NextAuth v4 Configuration
  */
 
-import { db, eq, users } from "@/db";
 import NextAuth, { type Session } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import { db, eq, users } from "@/db";
 
 export const authOptions = {
   providers: [

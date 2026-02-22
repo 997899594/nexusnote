@@ -2,9 +2,9 @@
  * Chat Tools - 闪卡
  */
 
-import { db, flashcards } from "@/db";
 import { tool } from "ai";
 import { z } from "zod";
+import { db, flashcards } from "@/db";
 
 export const CreateFlashcardsSchema = z.object({
   cards: z.array(
