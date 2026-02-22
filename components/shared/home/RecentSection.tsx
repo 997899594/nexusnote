@@ -2,49 +2,97 @@
 
 import { motion } from "framer-motion";
 import {
-  Brain,
+  BookOpen,
   FileText,
   GraduationCap,
-  Lightbulb,
   Map as MapIcon,
+  MessageSquare,
   StickyNote,
 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useAuthStore } from "@/components/auth";
 import { RecentCard } from "./RecentCard";
 
-const recentOutputs = [
-  {
-    type: "course",
-    title: "TypeScript 进阶教程",
-    desc: "深入理解类型系统",
-    icon: GraduationCap,
-    time: "2小时前",
-  },
-  {
-    type: "flashcard",
-    title: "React 核心概念",
-    desc: "32 张卡片 · 已复习 3 次",
-    icon: StickyNote,
-    time: "昨天",
-  },
-  {
-    type: "quiz",
-    title: "Node.js 面试题",
-    desc: "15 道题目 · 正确率 87%",
-    icon: Brain,
-    time: "2天前",
-  },
-  { type: "mindmap", title: "微服务架构设计", desc: "12 个节点", icon: MapIcon, time: "3天前" },
-  { type: "note", title: "AI 学习笔记", desc: "GPT-4 原理与应用", icon: FileText, time: "1周前" },
-  {
-    type: "insight",
-    title: "本周学习洞察",
-    desc: "学习时长 12.5 小时",
-    icon: Lightbulb,
-    time: "每周",
-  },
-];
+const ICONS = {
+  course: GraduationCap,
+  flashcard: StickyNote,
+  quiz: BookOpen,
+  note: FileText,
+  chat: MessageSquare,
+  mindmap: MapIcon,
+} as const;
 
 export function RecentSection() {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const [items, setItems] = useState<
+    Array<{
+      id: string;
+      type: string;
+      title: string;
+      desc: string;
+      time: string;
+      icon: keyof typeof ICONS;
+      url: string;
+    }>
+  >([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const fetchRecent = async () => {
+      setIsLoading(true);
+      try {
+        const res = await fetch("/api/recent?limit=6");
+        const data = await res.json();
+        setItems(data.items || []);
+      } catch (error) {
+        console.error("[RecentSection] Failed to fetch:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchRecent();
+  }, [isAuthenticated]);
+
+  // 未登录时不显示
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  // 加载中或无数据
+  if (isLoading) {
+    return (
+      <section className="mb-14">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="font-medium text-zinc-700">最近</h2>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="h-24 bg-zinc-100 rounded-xl animate-pulse"
+            />
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  if (items.length === 0) {
+    return (
+      <section className="mb-14">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="font-medium text-zinc-700">最近</h2>
+        </div>
+        <div className="text-center py-8 text-zinc-400 text-sm">
+          还没有学习记录，开始第一次学习吧！
+        </div>
+      </section>
+    );
+  }
+
   return (
     <motion.section
       initial={{ opacity: 0, y: 20 }}
@@ -56,16 +104,25 @@ export function RecentSection() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {recentOutputs.map((item, i) => (
-          <motion.div
-            key={item.type}
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.25 + i * 0.04 }}
-          >
-            <RecentCard title={item.title} desc={item.desc} icon={item.icon} time={item.time} />
-          </motion.div>
-        ))}
+        {items.map((item, i) => {
+          const Icon = ICONS[item.icon] || FileText;
+          return (
+            <motion.div
+              key={item.id}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.25 + i * 0.04 }}
+            >
+              <RecentCard
+                title={item.title}
+                desc={item.desc}
+                icon={Icon}
+                time={item.time}
+                url={item.url}
+              />
+            </motion.div>
+          );
+        })}
       </div>
     </motion.section>
   );

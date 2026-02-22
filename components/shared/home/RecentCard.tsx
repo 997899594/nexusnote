@@ -2,18 +2,27 @@
 
 import { motion } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export interface RecentCardProps {
   title: string;
   desc: string;
   icon: LucideIcon;
   time: string;
+  url?: string;
 }
 
-export function RecentCard({ title, desc, icon: Icon, time }: RecentCardProps) {
+export function RecentCard({ title, desc, icon: Icon, time, url }: RecentCardProps) {
+  const router = useRouter();
+
+  const handleClick = () => {
+    if (url) router.push(url);
+  };
+
   return (
     <motion.div
       whileHover={{ y: -2 }}
+      onClick={handleClick}
       className="bg-white rounded-2xl p-5 cursor-pointer transition-all duration-200 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)]"
     >
       <div className="flex items-start justify-between mb-3">
