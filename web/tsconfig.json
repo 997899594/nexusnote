@@ -22,10 +22,10 @@
       "@/*": ["./*"],
       "@/config/*": ["./config/*"],
       "@/lib/*": ["./lib/*"],
+      "@/components/*": ["./components/*"],
+      "@/types": ["./types"],
       "@/db": ["./db"],
-      "@/db/*": ["./db/*"],
-      "@/services/*": ["./services/*"],
-      "@/infrastructure/*": ["./infrastructure/*"]
+      "@/db/*": ["./db/*"]
     }
   },
   "include": [

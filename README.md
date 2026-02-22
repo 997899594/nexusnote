@@ -198,40 +198,28 @@ For detailed deployment instructions, see [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 ```
 nexusnote/
-├── apps/
-│   └── web/                          # Next.js Fullstack App
-│       ├── app/                      # App Router (pages + API routes)
-│       ├── src/
-│       │   ├── server/               # Hocuspocus WebSocket server
-│       │   ├── queue/                # BullMQ RAG worker
-│       │   ├── lib/                  # Utilities, AI, storage
-│       │   └── components/           # React components
-│
-├── packages/
-│   ├── db/                           # Drizzle ORM + migrations
-│   ├── config/                       # Shared env config (Zod)
-│   ├── types/                        # Shared TypeScript types
-│   └── ui/                           # Shared UI components
-│
-├── Dockerfile.web                    # Multi-stage Docker build for web app
-├── docker-bake.hcl                   # BuildKit multi-target config
-├── docker-compose.yml                # Local development stack
-│
-├── deploy/
-│   ├── argocd/                       # ArgoCD GitOps config
-│   ├── charts/nexusnote/             # Helm Chart (v2.0.0)
-│   └── infra/                        # Cluster infrastructure
-│
+├── web/                              # Next.js Fullstack App
+│   ├── app/                          # App Router
+│   ├── components/                   # UI Components
+│   │   ├── ui/                       # Base UI Components
+│   │   ├── editor/                   # Editor Components
+│   │   ├── chat/                     # Chat Components
+│   │   ├── auth/                     # Auth Components
+│   │   └── shared/                   # Shared Components
+│   ├── lib/                          # Utilities & Services
+│   │   ├── db.ts                     # Database Client
+│   │   ├── ai.ts                     # AI Tools
+│   │   ├── algorithm.ts              # FSRS Algorithm
+│   │   ├── queue.ts                  # BullMQ Queue
+│   │   ├── rag/                      # RAG Services
+│   │   ├── profile.ts                # Profile Service
+│   │   └── utils.ts                  # Helper Functions
+│   ├── config/                       # Environment Config
+│   ├── types/                        # TypeScript Types
+│   └── db/                          # Database Schema
+├── deploy/                           # K8s Deployment
 ├── docs/                             # Documentation
-│   ├── PRD.md                        # Product requirements
-│   ├── AI.md                         # AI system architecture
-│   └── ARCHITECTURE_2026.md          # Core architecture standards
-│
-├── .github/workflows/ci.yaml         # CI pipeline
-├── docker-bake.hcl                   # Docker Buildx config
-├── docker-compose.yml                # Local dev services
-├── turbo.json                        # Turborepo config
-└── DEPLOYMENT.md                     # Deployment guide
+└── README.md
 ```
 
 ---
