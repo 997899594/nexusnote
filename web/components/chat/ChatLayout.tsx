@@ -14,8 +14,8 @@
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { FloatingHeader } from "@/components/shared/layout";
-import { useChatStore } from "./useChatStore";
 import { ChatHistory } from "./ChatHistory";
+import { useChatStore } from "./useChatStore";
 
 interface ChatLayoutProps {
   onExit: () => void;

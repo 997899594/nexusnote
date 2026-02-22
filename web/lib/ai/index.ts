@@ -3,16 +3,13 @@
  * 扁平化自 ui/ai/
  */
 
-// Core AI (CircuitBreaker, PromptRegistry, safeGenerateObject, aiProvider)
-export { CircuitBreaker, PromptRegistry, safeGenerateObject, aiProvider } from './core';
-export type { CircuitState, CircuitBreakerConfig, PromptTemplate } from './core';
-
-// Tools
-export * from './tools';
-
 // Agents
-export { getAgent } from './agents';
-
+export { getAgent } from "./agents";
+export type { CircuitBreakerConfig, CircuitState, PromptTemplate } from "./core";
+// Core AI (CircuitBreaker, PromptRegistry, safeGenerateObject, aiProvider)
+export { aiProvider, CircuitBreaker, PromptRegistry, safeGenerateObject } from "./core";
+// Tools
+export * from "./tools";
+export type { ChatRequest, Intent } from "./validation";
 // Validation
-export { sanitizeInput, validateRequest, MessageSchema, ChatRequestSchema } from './validation';
-export type { ChatRequest, Intent } from './validation';
+export { ChatRequestSchema, MessageSchema, sanitizeInput, validateRequest } from "./validation";

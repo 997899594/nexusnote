@@ -2,22 +2,21 @@
  * Editor Feature - Flat Export
  */
 
-// Components
-export { Editor } from "./Editor";
-export { CollaborationEditor } from "./CollaborationEditor";
-export { SuggestionProvider, SuggestionPanel, useSuggestions } from "./AISuggestions";
-export type { AISuggestion } from "./AISuggestions";
-export { AIMenu, AIQuickActions } from "./AIMenu";
 export type { AIAction, AIMenuState } from "./AIMenu";
-export { SnapshotProvider, SnapshotPanel, SnapshotItem, useSnapshots } from "./Snapshot";
-export type { Snapshot } from "./Snapshot";
-export { ExportButton, ImportButton, exportDocument, importDocument } from "./ExportImport";
-export type { ExportFormat, ExportOptions } from "./ExportImport";
-export { CommentsProvider, CommentsPanel, CommentThread, useComments } from "./Comments";
-export type { Comment, CommentReply } from "./Comments";
-
+export { AIMenu, AIQuickActions } from "./AIMenu";
+export type { AISuggestion } from "./AISuggestions";
+export { SuggestionPanel, SuggestionProvider, useSuggestions } from "./AISuggestions";
 // Extensions
 export { Callout } from "./Callout";
+export { CollaborationEditor } from "./CollaborationEditor";
+export type { Comment, CommentReply } from "./Comments";
+export { CommentsPanel, CommentsProvider, CommentThread, useComments } from "./Comments";
+// Components
+export { Editor } from "./Editor";
+export type { ExportFormat, ExportOptions } from "./ExportImport";
+export { ExportButton, exportDocument, ImportButton, importDocument } from "./ExportImport";
+export type { Snapshot } from "./Snapshot";
+export { SnapshotItem, SnapshotPanel, SnapshotProvider, useSnapshots } from "./Snapshot";
 
 // Stores
 export { useEditorStore } from "./useEditorStore";

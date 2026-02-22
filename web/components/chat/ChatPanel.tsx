@@ -17,10 +17,10 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { useChatSession } from "./useChatSession";
 import type { Command } from "@/types/chat";
 import { ChatMessage, LoadingDots } from "./ChatMessage";
 import { CommandMenu } from "./CommandMenu";
+import { useChatSession } from "./useChatSession";
 
 const COMMANDS: Command[] = [
   {

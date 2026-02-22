@@ -105,7 +105,10 @@ function createAgent(
   });
 }
 
-export function getAgent(intent: "CHAT" | "INTERVIEW" | "COURSE" | "EDITOR" | "SEARCH", _sessionId?: string) {
+export function getAgent(
+  intent: "CHAT" | "INTERVIEW" | "COURSE" | "EDITOR" | "SEARCH",
+  _sessionId?: string,
+) {
   switch (intent) {
     case "INTERVIEW":
       return createAgent(
