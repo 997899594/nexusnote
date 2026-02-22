@@ -82,7 +82,7 @@ export async function generateAIResponse(userInput: string) {
     tools: {
       createFlashcard: {
         description: "根据用户输入创建闪卡，包含正面和背面内容",
-        parameters: z.object({
+        inputSchema: z.object({
           front: z.string().describe("闪卡正面问题"),
           back: z.string().describe("闪卡背面答案"),
         }),
@@ -93,7 +93,7 @@ export async function generateAIResponse(userInput: string) {
       },
       searchNotes: {
         description: "搜索用户的笔记",
-        parameters: z.object({
+        inputSchema: z.object({
           query: z.string().describe("搜索关键词"),
         }),
         generate: async function* ({ query }) {
@@ -110,7 +110,7 @@ export async function generateAIResponse(userInput: string) {
       },
       getWeather: {
         description: "获取指定城市的天气信息",
-        parameters: z.object({
+        inputSchema: z.object({
           city: z.string().describe("城市名称，例如：北京、上海"),
         }),
         generate: async function* ({ city }) {
