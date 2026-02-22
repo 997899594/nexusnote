@@ -21,6 +21,7 @@ export type Intent = ChatRequest["intent"];
 
 export function sanitizeInput(input: string): string {
   // Remove control characters (ASCII 0-31, 127)
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: Intentionally matching control chars
   const controlChars = /[\x00-\x1F\x7F]/g;
   return input.replace(controlChars, "").slice(0, 50000).trim();
 }
