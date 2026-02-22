@@ -114,20 +114,7 @@ function SlashMenu({ editor, onClose }: { editor: any; onClose: () => void }) {
   }, [onClose]);
 
   return (
-    <div
-      style={{
-        position: "absolute",
-        top: "100%",
-        left: 0,
-        background: "white",
-        border: "1px solid #ddd",
-        borderRadius: 8,
-        boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-        padding: 8,
-        minWidth: 200,
-        zIndex: 100,
-      }}
-    >
+    <div className="absolute left-0 z-50 p-2 bg-white border rounded-lg shadow-card min-w-[200px] top-full">
       <input
         placeholder="搜索命令..."
         value={search}
@@ -138,13 +125,7 @@ function SlashMenu({ editor, onClose }: { editor: any; onClose: () => void }) {
             onClose();
           }
         }}
-        style={{
-          width: "100%",
-          padding: "8px 12px",
-          border: "1px solid #ddd",
-          borderRadius: 6,
-          marginBottom: 8,
-        }}
+        className="w-full px-3 py-2 mb-2 border border-border rounded-md"
       />
       {filtered.map((cmd) => (
         <button
@@ -154,20 +135,9 @@ function SlashMenu({ editor, onClose }: { editor: any; onClose: () => void }) {
             cmd.command(editor);
             onClose();
           }}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            width: "100%",
-            padding: "8px 12px",
-            border: "none",
-            background: "transparent",
-            cursor: "pointer",
-            textAlign: "left",
-            borderRadius: 6,
-          }}
+          className="flex items-center gap-3 w-full px-3 py-2 text-left border-none bg-transparent cursor-pointer hover:bg-hover rounded-md"
         >
-          <span style={{ width: 24, textAlign: "center", fontWeight: "bold" }}>{cmd.icon}</span>
+          <span className="w-6 text-center font-bold">{cmd.icon}</span>
           <span>{cmd.label}</span>
         </button>
       ))}
@@ -191,14 +161,9 @@ function ToolbarButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      style={{
-        padding: "6px 10px",
-        borderRadius: 4,
-        border: "none",
-        background: active ? "#e0e0e0" : "transparent",
-        cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.5 : 1,
-      }}
+      className={`px-2.5 py-1.5 rounded-md border-none cursor-pointer ${
+        active ? "bg-hover" : "bg-transparent"
+      } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
     >
       {children}
     </button>
@@ -245,24 +210,9 @@ export function Editor({
   };
 
   return (
-    <div
-      style={{
-        position: "relative",
-        border: "1px solid #ddd",
-        borderRadius: 8,
-        overflow: "hidden",
-      }}
-    >
+    <div className="relative border border-border rounded-lg overflow-hidden">
       {editable && (
-        <div
-          style={{
-            borderBottom: "1px solid #eee",
-            padding: 8,
-            display: "flex",
-            gap: 4,
-            flexWrap: "wrap",
-          }}
-        >
+        <div className="flex flex-wrap gap-1 p-2 border-b border-border-subtle">
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleBold().run()}
             active={editor.isActive("bold")}
@@ -293,7 +243,7 @@ export function Editor({
           >
             <s>S</s>
           </ToolbarButton>
-          <span style={{ width: 1, background: "#ddd", margin: "0 4px" }} />
+          <span className="w-px bg-border mx-2" />
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
             active={editor.isActive("heading", { level: 1 })}
@@ -312,7 +262,7 @@ export function Editor({
           >
             H3
           </ToolbarButton>
-          <span style={{ width: 1, background: "#ddd", margin: "0 4px" }} />
+          <span className="w-px bg-border mx-2" />
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleBulletList().run()}
             active={editor.isActive("bulletList")}
@@ -331,7 +281,7 @@ export function Editor({
           >
             ☑
           </ToolbarButton>
-          <span style={{ width: 1, background: "#ddd", margin: "0 4px" }} />
+          <span className="w-px bg-border mx-2" />
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleCodeBlock().run()}
             active={editor.isActive("codeBlock")}
@@ -345,7 +295,7 @@ export function Editor({
             "
           </ToolbarButton>
           <ToolbarButton onClick={addImage}>🖼</ToolbarButton>
-          <span style={{ width: 1, background: "#ddd", margin: "0 4px" }} />
+          <span className="w-px bg-border mx-2" />
           <ToolbarButton
             onClick={() => editor.chain().focus().undo().run()}
             disabled={!editor.can().undo()}
@@ -360,7 +310,7 @@ export function Editor({
           </ToolbarButton>
         </div>
       )}
-      <div style={{ position: "relative" }}>
+      <div className="relative">
         <EditorContent editor={editor} />
         {showSlash && <SlashMenu editor={editor} onClose={() => setShowSlash(false)} />}
       </div>

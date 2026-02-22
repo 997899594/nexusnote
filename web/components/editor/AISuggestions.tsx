@@ -95,114 +95,74 @@ export function AISuggestionCard({
 
   if (suggestion.accepted || suggestion.rejected) return null;
 
+  const getTypeColor = () => {
+    switch (suggestion.type) {
+      case "insert":
+        return { bg: "bg-sky-50", badge: "bg-sky-500" };
+      case "replace":
+        return { bg: "bg-orange-50", badge: "bg-orange-500" };
+      case "delete":
+        return { bg: "bg-red-50", badge: "bg-red-500" };
+      default:
+        return { bg: "bg-gray-50", badge: "bg-gray-500" };
+    }
+  };
+
+  const typeLabel = {
+    insert: "新增",
+    replace: "替换",
+    delete: "删除",
+    format: "格式",
+  }[suggestion.type];
+
+  const colors = getTypeColor();
+
   return (
-    <div
-      style={{
-        border: "1px solid #ddd",
-        borderRadius: 8,
-        margin: "8px 0",
-        background:
-          suggestion.type === "insert"
-            ? "#f0f9ff"
-            : suggestion.type === "replace"
-              ? "#fff7ed"
-              : "#fef2f2",
-        overflow: "hidden",
-      }}
-    >
-      <div
-        style={{
-          padding: 12,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span
-            style={{
-              padding: "2px 8px",
-              borderRadius: 4,
-              fontSize: 12,
-              background:
-                suggestion.type === "insert"
-                  ? "#0ea5e9"
-                  : suggestion.type === "replace"
-                    ? "#f97316"
-                    : "#ef4444",
-              color: "white",
-            }}
-          >
-            {suggestion.type === "insert"
-              ? "新增"
-              : suggestion.type === "replace"
-                ? "替换"
-                : "删除"}
+    <div className={`${colors.bg} border border-border rounded-lg mx-2 my-2 overflow-hidden`}>
+      <div className="flex items-center justify-between p-3">
+        <div className="flex items-center gap-2">
+          <span className={`${colors.badge} text-white text-xs px-2 py-0.5 rounded`}>
+            {typeLabel}
           </span>
-          <span style={{ fontSize: 13, color: "#666" }}>{suggestion.explanation}</span>
+          <span className="text-sm text-text-secondary">{suggestion.explanation}</span>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="flex gap-2">
           <button
             type="button"
             onClick={onReject}
-            style={{
-              padding: "6px 12px",
-              border: "1px solid #ddd",
-              borderRadius: 6,
-              background: "white",
-              cursor: "pointer",
-            }}
+            className="px-3 py-1.5 text-sm bg-white border border-border rounded-md cursor-pointer hover:bg-hover"
           >
             拒绝
           </button>
           <button
             type="button"
             onClick={onAccept}
-            style={{
-              padding: "6px 12px",
-              border: "none",
-              borderRadius: 6,
-              background: "#0070f3",
-              color: "white",
-              cursor: "pointer",
-            }}
+            className="px-3 py-1.5 text-sm text-white bg-accent rounded-md cursor-pointer hover:bg-accent-hover"
           >
             接受
           </button>
         </div>
       </div>
-      <div style={{ padding: "0 12px 12px" }}>
+      <div className="px-3 pb-3">
         <button
           type="button"
           onClick={() => setExpanded(!expanded)}
-          style={{
-            background: "none",
-            border: "none",
-            color: "#0070f3",
-            cursor: "pointer",
-            fontSize: 13,
-          }}
+          className="bg-transparent border-none text-accent cursor-pointer text-sm hover:underline"
         >
           {expanded ? "隐藏详情 ▲" : "查看详情 ▼"}
         </button>
         {expanded && (
-          <div
-            style={{ marginTop: 8, padding: 8, background: "white", borderRadius: 4, fontSize: 13 }}
-          >
+          <div className="mt-2 p-2 bg-white rounded-md text-sm">
             {suggestion.originalContent && (
               <div>
-                <div style={{ color: "#ef4444", marginBottom: 4 }}>原文:</div>
-                <pre style={{ margin: 0, whiteSpace: "pre-wrap" }}>
-                  {suggestion.originalContent}
-                </pre>
+                <div className="text-red-500 mb-1">原文:</div>
+                <pre className="m-0 whitespace-pre-wrap">{suggestion.originalContent}</pre>
               </div>
             )}
             {suggestion.suggestedContent && (
-              <div style={{ marginTop: suggestion.originalContent ? 12 : 0 }}>
-                <div style={{ color: "#0ea5e9", marginBottom: 4 }}>建议:</div>
-                <pre style={{ margin: 0, whiteSpace: "pre-wrap" }}>
-                  {suggestion.suggestedContent}
-                </pre>
+              <div className={suggestion.originalContent ? "mt-3" : ""}>
+                <div className="text-sky-500 mb-1">建议:</div>
+                <pre className="m-0 whitespace-pre-wrap">{suggestion.suggestedContent}</pre>
               </div>
             )}
           </div>
@@ -219,43 +179,14 @@ export function SuggestionPanel({ onApplyAll }: { onApplyAll?: () => void }) {
   if (pending.length === 0) return null;
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        bottom: 20,
-        right: 20,
-        width: 360,
-        maxHeight: "50vh",
-        overflowY: "auto",
-        background: "white",
-        borderRadius: 12,
-        boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
-        padding: 16,
-        zIndex: 1000,
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 12,
-        }}
-      >
-        <h3 style={{ margin: 0, fontSize: 16 }}>AI 建议 ({pending.length})</h3>
+    <div className="fixed right-5 bottom-5 z-50 w-[360px] max-h-[50vh] overflow-y-auto bg-white rounded-xl shadow-elevated p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="m-0 text-base font-medium">AI 建议 ({pending.length})</h3>
         {onApplyAll && (
           <button
             type="button"
             onClick={onApplyAll}
-            style={{
-              padding: "4px 12px",
-              border: "none",
-              borderRadius: 4,
-              background: "#0070f3",
-              color: "white",
-              cursor: "pointer",
-              fontSize: 13,
-            }}
+            className="px-3 py-1 text-sm text-white bg-accent rounded cursor-pointer hover:bg-accent-hover"
           >
             全部接受
           </button>

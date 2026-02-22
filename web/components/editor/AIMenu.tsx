@@ -47,72 +47,31 @@ export function AIMenu({ onAction, selectedText = "" }: AIMenuProps) {
   };
 
   return (
-    <div style={{ position: "relative" }}>
+    <div className="relative">
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          padding: "8px 16px",
-          border: "1px solid #ddd",
-          borderRadius: 8,
-          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-          color: "white",
-          cursor: "pointer",
-          fontWeight: 500,
-        }}
+        className="inline-flex items-center gap-1.5 px-4 py-2 font-medium text-white border rounded-lg cursor-pointer bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 border-white/20"
       >
         <span>✨</span>
         <span>AI</span>
       </button>
       {isOpen && (
-        <div
-          style={{
-            position: "absolute",
-            top: "100%",
-            left: 0,
-            marginTop: 8,
-            background: "white",
-            border: "1px solid #ddd",
-            borderRadius: 12,
-            boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
-            minWidth: 240,
-            zIndex: 1000,
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{ padding: "8px 12px", borderBottom: "1px solid #eee", background: "#f9fafb" }}
-          >
-            <span style={{ fontSize: 12, color: "#666" }}>选择 AI 操作</span>
+        <div className="absolute left-0 z-50 min-w-[240px] mt-2 overflow-hidden bg-white border rounded-xl shadow-elevated top-full">
+          <div className="px-3 py-2 text-xs font-medium text-text-secondary bg-muted border-b border-border">
+            选择 AI 操作
           </div>
           {actions.map((action) => (
             <button
               type="button"
               key={action.id}
               onClick={() => handleAction(action.id)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                width: "100%",
-                padding: "12px 16px",
-                border: "none",
-                background: "transparent",
-                textAlign: "left",
-                cursor: "pointer",
-                borderBottom: "1px solid #f0f0f0",
-                transition: "background 0.2s",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#f5f5f5")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              className="w-full inline-flex items-center gap-3 px-4 py-3 text-left border-none bg-transparent cursor-pointer hover:bg-hover border-b border-border-subtle last:border-b-0 transition-colors"
             >
-              <span style={{ fontSize: 18 }}>{action.icon}</span>
+              <span className="text-lg">{action.icon}</span>
               <div>
-                <div style={{ fontWeight: 500, fontSize: 14 }}>{action.label}</div>
-                <div style={{ fontSize: 12, color: "#666" }}>{action.description}</div>
+                <div className="text-sm font-medium">{action.label}</div>
+                <div className="text-xs text-text-secondary">{action.description}</div>
               </div>
             </button>
           ))}
@@ -131,21 +90,14 @@ export function AIQuickActions({ onAction }: { onAction: (action: AIAction) => v
   ] as const;
 
   return (
-    <div style={{ display: "flex", gap: 4 }}>
+    <div className="flex gap-1">
       {actions.map((action) => (
         <button
           type="button"
           key={action.id}
           onClick={() => onAction(action.id as AIAction)}
           title={action.id}
-          style={{
-            padding: "6px 10px",
-            border: "1px solid #eee",
-            borderRadius: 6,
-            background: "white",
-            cursor: "pointer",
-            fontSize: 16,
-          }}
+          className="px-2.5 py-1.5 text-base bg-white border rounded-md cursor-pointer border-border hover:bg-hover"
         >
           {action.icon}
         </button>

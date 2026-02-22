@@ -100,52 +100,27 @@ export function SnapshotItem({
   return (
     <button
       type="button"
-      style={{
-        width: "100%",
-        padding: 12,
-        borderBottom: "1px solid #eee",
-        background: isActive ? "#f0f9ff" : "white",
-        cursor: "pointer",
-        border: "none",
-        textAlign: "left",
-      }}
+      className={`w-full py-3 border-b border-border text-left cursor-pointer border-none bg-transparent ${
+        isActive ? "bg-sky-50" : "bg-surface"
+      }`}
       onClick={onRestore}
     >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 4,
-        }}
-      >
-        <span style={{ fontWeight: 500, fontSize: 14 }}>{snapshot.name}</span>
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-sm font-medium">{snapshot.name}</span>
         {snapshot.auto && (
-          <span
-            style={{ fontSize: 10, padding: "2px 6px", background: "#fef3c7", borderRadius: 4 }}
-          >
-            自动
-          </span>
+          <span className="text-[10px] px-1.5 py-0.5 bg-yellow-100 rounded">自动</span>
         )}
       </div>
-      <div style={{ fontSize: 12, color: "#666", marginBottom: 8 }}>
-        {snapshot.createdAt.toLocaleString()}
-      </div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontSize: 12, color: "#999" }}>{snapshot.content.length} 字符</span>
+      <div className="text-xs text-text-secondary mb-2">{snapshot.createdAt.toLocaleString()}</div>
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-text-tertiary">{snapshot.content.length} 字符</span>
         <button
           type="button"
           onClick={(e) => {
             e.stopPropagation();
             onDelete();
           }}
-          style={{
-            background: "none",
-            border: "none",
-            color: "#ef4444",
-            cursor: "pointer",
-            fontSize: 12,
-          }}
+          className="bg-transparent border-none text-red-500 cursor-pointer text-xs hover:underline"
         >
           删除
         </button>
@@ -159,42 +134,19 @@ export function SnapshotPanel({ onRestore }: { onRestore: (content: string) => v
     useSnapshots();
 
   return (
-    <div
-      style={{
-        width: 280,
-        borderLeft: "1px solid #ddd",
-        padding: 16,
-        height: "100%",
-        overflowY: "auto",
-        background: "#fafafa",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 16,
-        }}
-      >
-        <h3 style={{ margin: 0, fontSize: 16 }}>版本历史</h3>
+    <div className="w-[280px] border-l border-border p-4 h-full overflow-y-auto bg-muted/50">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="m-0 text-base font-medium">版本历史</h3>
         <button
           type="button"
           onClick={() => createSnapshot()}
-          style={{
-            padding: "6px 12px",
-            border: "1px solid #ddd",
-            borderRadius: 6,
-            background: "white",
-            cursor: "pointer",
-            fontSize: 12,
-          }}
+          className="px-3 py-1.5 text-xs bg-white border border-border rounded-md cursor-pointer hover:bg-hover"
         >
           创建快照
         </button>
       </div>
       {snapshots.length === 0 ? (
-        <p style={{ color: "#999", fontSize: 14 }}>暂无版本历史</p>
+        <p className="text-text-tertiary text-sm">暂无版本历史</p>
       ) : (
         snapshots.map((snapshot) => (
           <SnapshotItem

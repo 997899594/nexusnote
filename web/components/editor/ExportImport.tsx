@@ -1,6 +1,7 @@
 /**
  * Export/Import - 文档导出导入功能
  */
+import { useState } from "react";
 
 export type ExportFormat = "html" | "markdown" | "json" | "text" | "docx";
 
@@ -140,50 +141,24 @@ export function ExportButton({ content, filename }: { content: string; filename?
   };
 
   return (
-    <div style={{ position: "relative" }}>
+    <div className="relative">
       <button
         type="button"
         onClick={() => setShowMenu(!showMenu)}
-        style={{
-          padding: "8px 16px",
-          border: "1px solid #ddd",
-          borderRadius: 6,
-          background: "white",
-          cursor: "pointer",
-        }}
+        className="px-4 py-2 bg-white border border-border rounded-md cursor-pointer hover:bg-hover"
       >
         导出
       </button>
       {showMenu && (
-        <div
-          style={{
-            position: "absolute",
-            top: "100%",
-            right: 0,
-            marginTop: 4,
-            background: "white",
-            border: "1px solid #ddd",
-            borderRadius: 8,
-            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-            minWidth: 150,
-            zIndex: 100,
-          }}
-        >
+        <div className="absolute right-0 z-50 min-w-[150px] mt-1 bg-white border rounded-lg shadow-card top-full">
           {(["html", "markdown", "json", "text"] as ExportFormat[]).map((format) => (
             <button
               type="button"
               key={format}
               onClick={() => handleExport(format)}
-              style={{
-                display: "block",
-                width: "100%",
-                padding: "10px 16px",
-                border: "none",
-                background: "transparent",
-                textAlign: "left",
-                cursor: "pointer",
-                borderBottom: format !== "text" ? "1px solid #eee" : "none",
-              }}
+              className={`block w-full px-4 py-2.5 text-left border-none bg-transparent cursor-pointer hover:bg-hover ${
+                format !== "text" ? "border-b border-border-subtle" : ""
+              }`}
             >
               {format.toUpperCase()}
             </button>
@@ -193,8 +168,6 @@ export function ExportButton({ content, filename }: { content: string; filename?
     </div>
   );
 }
-
-import { useState } from "react";
 
 export function ImportButton({ onImport }: { onImport: (content: string) => void }) {
   const [loading, setLoading] = useState(false);
@@ -213,21 +186,13 @@ export function ImportButton({ onImport }: { onImport: (content: string) => void
   };
 
   return (
-    <label
-      style={{
-        padding: "8px 16px",
-        border: "1px solid #ddd",
-        borderRadius: 6,
-        background: "white",
-        cursor: "pointer",
-      }}
-    >
+    <label className="px-4 py-2 bg-white border border-border rounded-md cursor-pointer hover:bg-hover inline-block">
       {loading ? "导入中..." : "导入"}
       <input
         type="file"
         accept=".html,.md,.markdown,.json,.txt"
         onChange={handleFile}
-        style={{ display: "none" }}
+        className="hidden"
       />
     </label>
   );

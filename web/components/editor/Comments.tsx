@@ -127,59 +127,30 @@ export function CommentThread({ comment }: { comment: Comment; onSelect?: () => 
 
   return (
     <div
-      style={{
-        border: "1px solid #ddd",
-        borderRadius: 8,
-        margin: "8px 0",
-        background: comment.resolved ? "#f9f9f9" : "white",
-        overflow: "hidden",
-      }}
+      className={`border border-border rounded-lg mx-2 my-2 overflow-hidden ${
+        comment.resolved ? "bg-muted" : "bg-surface"
+      }`}
     >
-      <div
-        style={{
-          padding: 12,
-          borderBottom: comment.replies.length > 0 ? "1px solid #eee" : "none",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-          <div
-            style={{
-              width: 24,
-              height: 24,
-              borderRadius: "50%",
-              background: "#0070f3",
-              color: "white",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 12,
-            }}
-          >
+      <div className={`p-3 ${comment.replies.length > 0 ? "border-b border-border" : ""}`}>
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-6 h-6 rounded-full bg-accent text-accent-fg flex items-center justify-center text-xs">
             {comment.author.name[0]}
           </div>
-          <span style={{ fontWeight: 500, fontSize: 14 }}>{comment.author.name}</span>
-          <span style={{ color: "#999", fontSize: 12 }}>{comment.createdAt.toLocaleString()}</span>
-          {comment.resolved && <span style={{ color: "#22c55e", fontSize: 12 }}>已解决</span>}
+          <span className="text-sm font-medium">{comment.author.name}</span>
+          <span className="text-xs text-text-tertiary">{comment.createdAt.toLocaleString()}</span>
+          {comment.resolved && <span className="text-xs text-green-600">已解决</span>}
         </div>
-        <div style={{ fontSize: 14, marginBottom: 8 }}>
-          <span
-            style={{ background: "#fef3c7", padding: "2px 4px", borderRadius: 4, marginRight: 8 }}
-          >
+        <div className="text-sm mb-2">
+          <span className="bg-yellow-100 px-1 py-0.5 rounded mr-2">
             "{comment.position.text.slice(0, 30)}..."
           </span>
         </div>
-        <div style={{ fontSize: 14 }}>{comment.content}</div>
-        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+        <div className="text-sm">{comment.content}</div>
+        <div className="flex gap-2 mt-2">
           <button
             type="button"
             onClick={() => setShowReply(!showReply)}
-            style={{
-              background: "none",
-              border: "none",
-              color: "#0070f3",
-              cursor: "pointer",
-              fontSize: 13,
-            }}
+            className="bg-transparent border-none text-accent cursor-pointer text-sm hover:underline"
           >
             回复
           </button>
@@ -187,13 +158,7 @@ export function CommentThread({ comment }: { comment: Comment; onSelect?: () => 
             <button
               type="button"
               onClick={() => reopenComment(comment.id)}
-              style={{
-                background: "none",
-                border: "none",
-                color: "#666",
-                cursor: "pointer",
-                fontSize: 13,
-              }}
+              className="bg-transparent border-none text-text-secondary cursor-pointer text-sm hover:underline"
             >
               重新打开
             </button>
@@ -201,13 +166,7 @@ export function CommentThread({ comment }: { comment: Comment; onSelect?: () => 
             <button
               type="button"
               onClick={() => resolveComment(comment.id)}
-              style={{
-                background: "none",
-                border: "none",
-                color: "#22c55e",
-                cursor: "pointer",
-                fontSize: 13,
-              }}
+              className="bg-transparent border-none text-green-600 cursor-pointer text-sm hover:underline"
             >
               解决
             </button>
@@ -215,80 +174,40 @@ export function CommentThread({ comment }: { comment: Comment; onSelect?: () => 
           <button
             type="button"
             onClick={() => deleteComment(comment.id)}
-            style={{
-              background: "none",
-              border: "none",
-              color: "#ef4444",
-              cursor: "pointer",
-              fontSize: 13,
-            }}
+            className="bg-transparent border-none text-red-500 cursor-pointer text-sm hover:underline"
           >
             删除
           </button>
         </div>
       </div>
       {comment.replies.map((reply) => (
-        <div
-          key={reply.id}
-          style={{
-            padding: "8px 12px",
-            background: "#f9f9f9",
-            borderTop: "1px solid #eee",
-            display: "flex",
-            gap: 8,
-          }}
-        >
-          <div
-            style={{
-              width: 20,
-              height: 20,
-              borderRadius: "50%",
-              background: "#666",
-              color: "white",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 10,
-            }}
-          >
+        <div key={reply.id} className="p-2 px-3 bg-muted border-t border-border flex gap-2">
+          <div className="w-5 h-5 rounded-full bg-text-secondary text-white flex items-center justify-center text-[10px]">
             {reply.author.name[0]}
           </div>
           <div>
-            <div style={{ fontSize: 13 }}>
-              <span style={{ fontWeight: 500 }}>{reply.author.name}</span>
-              <span style={{ color: "#999", marginLeft: 8, fontSize: 12 }}>
+            <div className="text-sm">
+              <span className="font-medium">{reply.author.name}</span>
+              <span className="text-text-tertiary ml-2 text-xs">
                 {reply.createdAt.toLocaleString()}
               </span>
             </div>
-            <div style={{ fontSize: 13 }}>{reply.content}</div>
+            <div className="text-sm">{reply.content}</div>
           </div>
         </div>
       ))}
       {showReply && (
-        <div style={{ padding: 8, borderTop: "1px solid #eee", display: "flex", gap: 8 }}>
+        <div className="p-2 border-t border-border flex gap-2">
           <input
             value={replyText}
             onChange={(e) => setReplyText(e.target.value)}
             placeholder="写回复..."
-            style={{
-              flex: 1,
-              padding: "8px 12px",
-              border: "1px solid #ddd",
-              borderRadius: 6,
-              fontSize: 13,
-            }}
+            className="flex-1 px-3 py-2 text-sm border border-border rounded-md"
           />
           <button
             type="button"
             onClick={handleReply}
-            style={{
-              padding: "8px 16px",
-              border: "none",
-              borderRadius: 6,
-              background: "#0070f3",
-              color: "white",
-              cursor: "pointer",
-            }}
+            className="px-4 py-2 text-sm text-white bg-accent rounded-md cursor-pointer hover:bg-accent-hover"
           >
             发送
           </button>
@@ -303,19 +222,10 @@ export function CommentsPanel() {
   const unresolved = comments.filter((c) => !c.resolved);
 
   return (
-    <div
-      style={{
-        width: 300,
-        borderLeft: "1px solid #ddd",
-        padding: 16,
-        height: "100%",
-        overflowY: "auto",
-        background: "#fafafa",
-      }}
-    >
-      <h3 style={{ margin: "0 0 16px 0", fontSize: 16 }}>评论 ({unresolved.length})</h3>
+    <div className="w-[300px] border-l border-border p-4 h-full overflow-y-auto bg-muted/50">
+      <h3 className="m-0 mb-4 text-base font-medium">评论 ({unresolved.length})</h3>
       {comments.length === 0 ? (
-        <p style={{ color: "#999", fontSize: 14 }}>暂无评论</p>
+        <p className="text-text-tertiary text-sm">暂无评论</p>
       ) : (
         comments.map((comment) => (
           <CommentThread
