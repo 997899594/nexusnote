@@ -5,7 +5,10 @@
  */
 
 import { stepCountIs, ToolLoopAgent, type ToolSet } from "ai";
-import { aiProvider } from "@/lib/ai";
+
+// 导入 aiProvider 从同级的 core.ts
+import { aiProvider } from "../core";
+
 import {
   createFlashcardsTool,
   createNoteTool,
@@ -24,7 +27,6 @@ import {
   summarizeTool,
 } from "../tools/learning";
 import { hybridSearchTool } from "../tools/rag";
-import type { Intent } from "../validation";
 
 const DEFAULT_MAX_STEPS = 20;
 
@@ -103,7 +105,7 @@ function createAgent(
   });
 }
 
-export function getAgent(intent: Intent, _sessionId?: string) {
+export function getAgent(intent: "CHAT" | "INTERVIEW" | "COURSE" | "EDITOR" | "SEARCH", _sessionId?: string) {
   switch (intent) {
     case "INTERVIEW":
       return createAgent(

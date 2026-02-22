@@ -1,15 +1,13 @@
 /**
- * Tiptap JSON Schema Types - 2026 Modern Architecture
+ * AI Types - 2026 Modern Architecture
  *
- * 使用官方 @tiptap/core 的 JSONContent 类型
- * 用于 AI 结构化内容生成 (streamObject)
+ * 合并自 ui/ai/types/index.ts
  */
 
 import { z } from "zod";
 
 /**
  * Tiptap JSONContent - 官方类型
- * 用于流式生成结构化文档内容
  */
 export type { JSONContent } from "@tiptap/core";
 
