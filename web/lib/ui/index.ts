@@ -1,15 +1,15 @@
-export { Button, type ButtonProps, buttonVariants } from "./Button";
+export { Button, type ButtonProps, buttonVariants } from "./components/Button";
 export {
   ButtonGroup,
   ButtonGroupSeparator,
   ButtonGroupText,
   buttonGroupVariants,
-} from "./ButtonGroup";
-export { Separator } from "./Separator";
+} from "./components/ButtonGroup";
+export { Separator } from "./components/Separator";
 export {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "./Tooltip";
+} from "./components/Tooltip";
 export { cn } from "./utils";

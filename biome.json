@@ -62,7 +62,7 @@
     }
   },
   "files": {
-    "includes": ["apps/**", "packages/**"]
+    "includes": ["web/**", "deploy/**", "docs/**", "*.js", "*.json", "*.md"]
   },
   "assist": {
     "actions": {
