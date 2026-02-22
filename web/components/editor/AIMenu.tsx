@@ -49,6 +49,7 @@ export function AIMenu({ onAction, selectedText = "" }: AIMenuProps) {
   return (
     <div style={{ position: "relative" }}>
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
         style={{
           display: "flex",
@@ -89,6 +90,7 @@ export function AIMenu({ onAction, selectedText = "" }: AIMenuProps) {
           </div>
           {actions.map((action) => (
             <button
+              type="button"
               key={action.id}
               onClick={() => handleAction(action.id)}
               style={{
@@ -132,6 +134,7 @@ export function AIQuickActions({ onAction }: { onAction: (action: AIAction) => v
     <div style={{ display: "flex", gap: 4 }}>
       {actions.map((action) => (
         <button
+          type="button"
           key={action.id}
           onClick={() => onAction(action.id as AIAction)}
           title={action.id}

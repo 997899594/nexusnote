@@ -142,6 +142,7 @@ export function ExportButton({ content, filename }: { content: string; filename?
   return (
     <div style={{ position: "relative" }}>
       <button
+        type="button"
         onClick={() => setShowMenu(!showMenu)}
         style={{
           padding: "8px 16px",
@@ -170,6 +171,7 @@ export function ExportButton({ content, filename }: { content: string; filename?
         >
           {(["html", "markdown", "json", "text"] as ExportFormat[]).map((format) => (
             <button
+              type="button"
               key={format}
               onClick={() => handleExport(format)}
               style={{

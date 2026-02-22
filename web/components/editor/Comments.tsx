@@ -171,6 +171,7 @@ export function CommentThread({ comment, onSelect }: { comment: Comment; onSelec
         <div style={{ fontSize: 14 }}>{comment.content}</div>
         <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
           <button
+            type="button"
             onClick={() => setShowReply(!showReply)}
             style={{
               background: "none",
@@ -197,6 +198,7 @@ export function CommentThread({ comment, onSelect }: { comment: Comment; onSelec
             </button>
           ) : (
             <button
+              type="button"
               onClick={() => resolveComment(comment.id)}
               style={{
                 background: "none",
@@ -210,6 +212,7 @@ export function CommentThread({ comment, onSelect }: { comment: Comment; onSelec
             </button>
           )}
           <button
+            type="button"
             onClick={() => deleteComment(comment.id)}
             style={{
               background: "none",
@@ -275,6 +278,7 @@ export function CommentThread({ comment, onSelect }: { comment: Comment; onSelec
             }}
           />
           <button
+            type="button"
             onClick={handleReply}
             style={{
               padding: "8px 16px",

@@ -143,6 +143,7 @@ export function AISuggestionCard({
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <button
+            type="button"
             onClick={onReject}
             style={{
               padding: "6px 12px",
@@ -155,6 +156,7 @@ export function AISuggestionCard({
             拒绝
           </button>
           <button
+            type="button"
             onClick={onAccept}
             style={{
               padding: "6px 12px",
@@ -171,6 +173,7 @@ export function AISuggestionCard({
       </div>
       <div style={{ padding: "0 12px 12px" }}>
         <button
+          type="button"
           onClick={() => setExpanded(!expanded)}
           style={{
             background: "none",

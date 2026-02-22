@@ -179,6 +179,7 @@ export function SnapshotPanel({ onRestore }: { onRestore: (content: string) => v
       >
         <h3 style={{ margin: 0, fontSize: 16 }}>版本历史</h3>
         <button
+          type="button"
           onClick={() => createSnapshot()}
           style={{
             padding: "6px 12px",
