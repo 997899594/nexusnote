@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuthStore } from "@/components/auth/useAuthStore";
+import { useAuthStore } from "@/stores";
 
 interface UserAvatarProps {
   className?: string;

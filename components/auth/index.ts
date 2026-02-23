@@ -6,5 +6,5 @@
 export { AuthSync } from "./AuthSync";
 export { SessionProvider } from "./SessionProvider";
 
-// Stores
-export { useAuthStore } from "./useAuthStore";
+// Stores (re-export from @/stores for convenience)
+export { useAuthStore } from "@/stores";

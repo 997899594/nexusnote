@@ -13,7 +13,5 @@ export { CommandMenu } from "./CommandMenu";
 export { TransitionOverlay } from "./TransitionOverlay";
 // Hooks
 export { useChatSession } from "./useChatSession";
-// Stores
-export { useChatStore } from "./useChatStore";
-export { usePendingChatStore } from "./usePendingChatStore";
-export { useTransitionStore } from "./useTransitionStore";
+// Stores (re-export from @/stores for convenience)
+export { useChatStore, usePendingChatStore, useTransitionStore } from "@/stores";

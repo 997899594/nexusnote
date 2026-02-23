@@ -15,7 +15,7 @@
 
 import { use, useEffect, useState } from "react";
 import { ChatPanel } from "@/components/chat";
-import { usePendingChatStore } from "@/components/chat/usePendingChatStore";
+import { usePendingChatStore } from "@/stores";
 
 interface ChatSessionPageProps {
   params: Promise<{ id: string }>;

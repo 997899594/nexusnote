@@ -13,7 +13,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useTransitionStore } from "./useTransitionStore";
+import { useTransitionStore } from "@/stores";
 
 /**
  * 将 DOMRect 转换为 clip-path: inset() 值

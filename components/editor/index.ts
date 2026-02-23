@@ -18,5 +18,5 @@ export { ExportButton, exportDocument, ImportButton, importDocument } from "./Ex
 export type { Snapshot } from "./Snapshot";
 export { SnapshotItem, SnapshotPanel, SnapshotProvider, useSnapshots } from "./Snapshot";
 
-// Stores
-export { useEditorStore } from "./useEditorStore";
+// Stores (re-export from @/stores for convenience)
+export { useEditorStore } from "@/stores";

@@ -7,7 +7,7 @@
  */
 
 import { ChatLayout } from "@/components/chat";
-import { useTransitionStore } from "@/components/chat/useTransitionStore";
+import { useTransitionStore } from "@/stores";
 
 export default function ChatLayoutWrapper({ children }: { children: React.ReactNode }) {
   const startCollapse = useTransitionStore((state) => state.startCollapse);

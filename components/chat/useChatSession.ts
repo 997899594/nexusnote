@@ -16,7 +16,7 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useEffect } from "react";
 import { persistMessages } from "@/lib/chat/api";
-import { usePendingChatStore } from "./usePendingChatStore";
+import { usePendingChatStore } from "@/stores";
 
 /**
  * Trigger indexing of a conversation for RAG search
