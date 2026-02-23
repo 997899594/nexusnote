@@ -151,7 +151,7 @@ export function HeroInput() {
       : "描述你想学习或创建的内容...";
 
   return (
-    <div className="relative w-full">
+    <div className="relative w-full md:w-auto">
       {/* 命令菜单 - Floating UI 定位 */}
       <AnimatePresence mode="sync">
         {showCommands && !selectedCommand && filteredCommands.length > 0 && (
@@ -198,9 +198,9 @@ export function HeroInput() {
         }}
         whileHover={{ scale: showCommands ? 1 : 1.005 }}
         transition={{ duration: 0.2 }}
-        className="relative bg-white shadow-[var(--shadow-elevated)] hover:shadow-[var(--shadow-elevated-hover)] transition-shadow rounded-3xl"
+        className="relative bg-white shadow-[var(--shadow-elevated)] hover:shadow-[var(--shadow-elevated-hover)] transition-shadow rounded-2xl md:rounded-3xl"
       >
-        <div className="p-6">
+        <div className="p-4 md:p-6">
           <div className="flex items-end gap-4">
             <AnimatePresence>
               {selectedCommand && (
@@ -229,8 +229,8 @@ export function HeroInput() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={placeholder}
-                rows={3}
-                className="w-full bg-transparent border-none outline-none text-lg text-zinc-800 placeholder:text-zinc-400 resize-none min-h-[80px] max-h-[200px] py-2"
+                rows={1}
+                className="w-full bg-transparent border-none outline-none text-base md:text-lg text-zinc-800 placeholder:text-zinc-400 resize-none min-h-[44px] md:min-h-[80px] max-h-[120px] md:max-h-[200px] py-2"
               />
             </div>
 
@@ -240,13 +240,13 @@ export function HeroInput() {
               onClick={handleSubmit}
               disabled={!input.trim()}
               className={cn(
-                "w-10 h-10 rounded-full flex items-center justify-center transition-colors flex-shrink-0",
+                "w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center transition-colors flex-shrink-0 touch-target",
                 input.trim()
                   ? "bg-[var(--color-accent)] text-[var(--color-accent-fg)]"
                   : "bg-zinc-200 text-zinc-400 cursor-not-allowed",
               )}
             >
-              <Send className="w-5 h-5" />
+              <Send className="w-4 h-4 md:w-5 md:h-5" />
             </motion.button>
           </div>
         </div>
