@@ -5,6 +5,7 @@
  */
 
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import {
@@ -16,6 +17,7 @@ import {
 import { desc, count, eq, and, gt } from "drizzle-orm";
 import { FloatingHeader } from "@/components/shared/layout";
 import { SkillGraph } from "@/components/profile/SkillGraph";
+import { SkillGraphSkeleton } from "@/components/profile/SkillGraphSkeleton";
 import {
   Brain,
   MessageSquare,
@@ -245,7 +247,9 @@ export default async function ProfilePage() {
 
         {/* 技能图谱 */}
         <section className="mb-8">
-          <SkillGraph userId={session.user.id} />
+          <Suspense fallback={<SkillGraphSkeleton />}>
+            <SkillGraph userId={session.user.id} />
+          </Suspense>
         </section>
 
         {/* 最近活动 */}
