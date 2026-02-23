@@ -3,6 +3,7 @@ import "./globals.css";
 import { AuthSync, SessionProvider } from "@/components/auth";
 import { TransitionOverlay } from "@/components/chat/TransitionOverlay";
 import { MobileNav } from "@/components/shared/layout";
+import { AI } from "./ai-ui/AIProvider";
 
 export const metadata: Metadata = {
   title: "NexusNote - 私人学习助理",
@@ -11,15 +12,17 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="zh-CN" data-theme="default">
-      <body>
-        <SessionProvider>
-          <AuthSync />
-          <div className="min-h-screen">{children}</div>
-          <MobileNav />
-          <TransitionOverlay />
-        </SessionProvider>
-      </body>
-    </html>
+    <AI>
+      <html lang="zh-CN" data-theme="default">
+        <body>
+          <SessionProvider>
+            <AuthSync />
+            <div className="min-h-screen">{children}</div>
+            <MobileNav />
+            <TransitionOverlay />
+          </SessionProvider>
+        </body>
+      </html>
+    </AI>
   );
 }

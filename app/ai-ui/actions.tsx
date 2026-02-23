@@ -123,3 +123,4 @@ export async function generateAIResponse(userInput: string) {
 
   return result.value;
 }
+ 

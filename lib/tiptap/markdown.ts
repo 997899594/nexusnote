@@ -33,7 +33,7 @@ export const markdownManager = new MarkdownManager({ extensions });
  */
 export function jsonToMarkdown(json: unknown): string {
   try {
-    return markdownManager.serialize(json);
+    return markdownManager.serialize(json as any);
   } catch (error) {
     console.error("[jsonToMarkdown] Conversion error:", error);
     // 返回空字符串作为降级
