@@ -4,6 +4,7 @@
  */
 
 import { type NextRequest, NextResponse } from "next/server";
+import { ZodError } from "zod";
 
 export class APIError extends Error {
   constructor(
@@ -34,10 +35,11 @@ export function handleError(error: unknown): NextResponse {
     return errorResponse(error.message, error.statusCode, error.code);
   }
 
+  if (error instanceof ZodError) {
+    return errorResponse("请求参数错误", 400, "VALIDATION_ERROR");
+  }
+
   if (error instanceof Error) {
-    if (error.name === "ZodError") {
-      return errorResponse("请求参数错误", 400, "VALIDATION_ERROR");
-    }
     return errorResponse(error.message, 500, "INTERNAL_ERROR");
   }
 
