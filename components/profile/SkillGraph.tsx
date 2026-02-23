@@ -262,7 +262,7 @@ export function SkillGraph({ userId, className, onDiscover }: SkillGraphProps) {
   useEffect(() => {
     fetchGraphData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchGraphData]);
 
   const stats = useMemo(() => {
     if (!graphData) return null;

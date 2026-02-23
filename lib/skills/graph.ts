@@ -5,7 +5,7 @@
  */
 
 import type { Edge, Node } from "@xyflow/react";
-import { and, eq, inArray, or, sql } from "drizzle-orm";
+import { eq, inArray, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { skillRelationships, skills, userSkillMastery } from "@/db/schema";
 
@@ -157,7 +157,7 @@ export async function getUserSkillGraphData(
   };
 }
 
-function calculateSimpleLayout(nodes: Node[], edges: Edge[]): Node[] {
+function calculateSimpleLayout(nodes: Node[], _edges: Edge[]): Node[] {
   const centerX = 400;
   const centerY = 300;
   const radius = Math.min(nodes.length * 30, 250);

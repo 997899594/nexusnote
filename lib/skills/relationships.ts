@@ -4,8 +4,7 @@
  * 推理技能之间的关系（前置、相关、包含等）
  */
 
-import { generateObject } from "ai";
-import { and, eq, inArray, or } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { skillRelationships, skills, userSkillMastery } from "@/db/schema";

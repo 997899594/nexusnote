@@ -8,7 +8,6 @@
 import type {
   Conversation,
   ConversationsResponse,
-  CreateSessionRequest,
   CreateSessionResponse,
   IndexSessionRequest,
   IndexSessionResponse,

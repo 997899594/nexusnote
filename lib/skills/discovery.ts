@@ -8,7 +8,6 @@
  * - Flashcards (闪卡)
  */
 
-import { generateObject } from "ai";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";

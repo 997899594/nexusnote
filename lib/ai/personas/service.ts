@@ -5,8 +5,7 @@
  * and user preferences.
  */
 
-import { and, desc, eq } from "drizzle-orm";
-import type { NewPersona, Persona, UserPersonaPreference } from "@/db";
+import { and, eq } from "drizzle-orm";
 import { db, personaSubscriptions, personas, userPersonaPreferences } from "@/db";
 import { BUILT_IN_PERSONAS, getBuiltInPersona } from "./built-in";
 
@@ -398,7 +397,7 @@ export async function unsubscribeFromPersona(userId: string, personaId: string):
  * Rate a persona
  */
 export async function ratePersona(
-  userId: string,
+  _userId: string,
   slug: string,
   rating: number, // 1-5
 ): Promise<void> {
