@@ -1,14 +1,16 @@
 /**
- * POST /api/skills/discover - 触发技能发现
- *
- * 从用户数据中发现技能并保存到数据库
+ * POST /api/skills/discover - 流式技能发现
  */
 
+import { createAgentUIStreamResponse, smoothStream, type UIMessage } from "ai";
 import { type NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
-import { discoverAndSaveSkills, discoverAndSaveRelationships } from "@/lib/skills";
+import { getAgent } from "@/lib/ai";
 import { handleError, APIError } from "@/lib/api";
 import { DiscoverSkillsSchema } from "@/lib/skills/validation";
+
+export const runtime = "nodejs";
+export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,18 +23,22 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const options = DiscoverSkillsSchema.parse(body);
 
-    // 发现技能
-    const discoveredSkills = await discoverAndSaveSkills(session.user.id, options);
+    // 构建用户消息
+    const content = `请从我的学习数据中发现技能。
+用户 ID: ${session.user.id}
+数据源: ${options.sources?.join(", ") || "全部"}
+限制: ${options.limit} 条`;
 
-    // 发现关系（异步，不阻塞响应）
-    discoverAndSaveRelationships(undefined, session.user.id).catch((error) => {
-      console.error("[API] /api/skills/discover relationships error:", error);
-    });
+    const uiMessages: UIMessage[] = [
+      { id: "msg-1", role: "user", parts: [{ type: "text", text: content }] }
+    ];
 
-    return Response.json({
-      success: true,
-      skills: discoveredSkills,
-      count: discoveredSkills.length,
+    return createAgentUIStreamResponse({
+      agent: getAgent("SKILLS"),
+      uiMessages,
+      experimental_transform: smoothStream({
+        chunking: new Intl.Segmenter("zh-CN", { granularity: "grapheme" }),
+      }),
     });
   } catch (error) {
     return handleError(error);
