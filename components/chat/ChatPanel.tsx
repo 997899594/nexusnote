@@ -161,8 +161,8 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto px-6 py-4">
-        <div className="max-w-[var(--message-max-width)] mx-auto space-y-4">
+      <div className="flex-1 overflow-y-auto mobile-scroll px-4 md:px-6 py-4 safe-bottom">
+        <div className="max-w-[calc(100vw-32px)] md:max-w-[var(--message-max-width)] mx-auto space-y-4">
           {chatMessages.length === 0 && !isLoading && (
             <div className="text-center py-12 text-zinc-400 text-sm">开始对话...</div>
           )}
@@ -177,8 +177,8 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
         </div>
       </div>
 
-      <div className="border-t border-zinc-100 bg-white px-6 py-4">
-        <div className="max-w-[var(--message-max-width)] mx-auto relative">
+      <div className="border-t border-zinc-100 bg-white px-4 md:px-6 py-3 md:py-4 safe-bottom">
+        <div className="max-w-[calc(100vw-32px)] md:max-w-[var(--message-max-width)] mx-auto relative">
           <AnimatePresence>
             {showCommands && !selectedCommand && filteredCommands.length > 0 && (
               <CommandMenu
@@ -212,7 +212,7 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
             )}
           </AnimatePresence>
 
-          <div className="flex items-end gap-3 bg-zinc-50 rounded-2xl p-3">
+          <div className="flex items-end gap-2 md:gap-3 bg-zinc-50 rounded-2xl p-2 md:p-3">
             <div className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center flex-shrink-0">
               <Sparkles className="w-4 h-4 text-zinc-400" />
             </div>
