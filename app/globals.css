@@ -254,3 +254,43 @@
 ::-webkit-scrollbar-thumb:hover {
   background: oklch(70% 0.008 270 / 50%);
 }
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Touch Feedback for Mobile
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+/* 移动端点击反馈 */
+@media (hover: none) and (pointer: coarse) {
+  /* 为所有交互元素添加默认点击样式 */
+  button,
+  a,
+  [role="button"],
+  .clickable {
+    -webkit-tap-highlight-color: rgba(99, 102, 241, 0.2);
+  }
+
+  /* 移除移动端 hover 效果 */
+  .hover\\:bg-zinc-50:hover {
+    background-color: transparent;
+  }
+
+  /* 添加 active 状态 */
+  button:active,
+  a:active,
+  [role="button"]:active {
+    opacity: 0.7;
+  }
+}
+
+/* 平滑滚动 */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* 文字选择优化 */
+::selection {
+  background-color: oklch(67% 0.14 268 / 20%);
+  color: oklch(23% 0.09 268);
+}
