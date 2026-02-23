@@ -45,7 +45,7 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// User learning profile - accumulates cross-course learning data
+// User profile - 风格分析 + 学习偏好
 export const userProfiles = pgTable(
   "user_profiles",
   {
@@ -54,13 +54,35 @@ export const userProfiles = pgTable(
       .references(() => users.id, { onDelete: "cascade" })
       .notNull()
       .unique(),
-    learningGoals: jsonb("learning_goals"),
-    knowledgeAreas: jsonb("knowledge_areas"),
-    learningStyle: jsonb("learning_style"),
-    assessmentHistory: jsonb("assessment_history"),
-    currentLevel: text("current_level"),
-    totalStudyMinutes: integer("total_study_minutes").notNull().default(0),
-    profileEmbedding: halfvec("profile_embedding"),
+
+    // ========== 手动设置的学习偏好 ==========
+    // 用户主动设置，非 AI 推断
+    learningStyle: jsonb("learning_style"), // { preferredFormat, pace }
+
+    // ========== 风格分析字段（AI 推断）==========
+    // 语言复杂度 (0-1)
+    vocabularyComplexity: jsonb("vocabulary_complexity").$type<{ value: number; confidence: number; samples: number }>(),
+    sentenceComplexity: jsonb("sentence_complexity").$type<{ value: number; confidence: number; samples: number }>(),
+    abstractionLevel: jsonb("abstraction_level").$type<{ value: number; confidence: number; samples: number }>(),
+
+    // 沟通风格 (0-1)
+    directness: jsonb("directness").$type<{ value: number; confidence: number; samples: number }>(),
+    conciseness: jsonb("conciseness").$type<{ value: number; confidence: number; samples: number }>(),
+    formality: jsonb("formality").$type<{ value: number; confidence: number; samples: number }>(),
+    emotionalIntensity: jsonb("emotional_intensity").$type<{ value: number; confidence: number; samples: number }>(),
+
+    // Big Five 特质 (0-1) - 敏感数据，需用户同意
+    openness: jsonb("openness").$type<{ value: number; confidence: number; samples: number }>(),
+    conscientiousness: jsonb("conscientiousness").$type<{ value: number; confidence: number; samples: number }>(),
+    extraversion: jsonb("extraversion").$type<{ value: number; confidence: number; samples: number }>(),
+    agreeableness: jsonb("agreeableness").$type<{ value: number; confidence: number; samples: number }>(),
+    neuroticism: jsonb("neuroticism").$type<{ value: number; confidence: number; samples: number }>(),
+
+    // 分析元数据
+    totalMessagesAnalyzed: integer("total_messages_analyzed").notNull().default(0),
+    totalConversationsAnalyzed: integer("total_conversations_analyzed").notNull().default(0),
+    lastAnalyzedAt: timestamp("last_analyzed_at"),
+
     updatedAt: timestamp("updated_at").defaultNow(),
     createdAt: timestamp("created_at").defaultNow(),
   },
