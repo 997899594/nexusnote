@@ -4,11 +4,12 @@
  */
 
 import { onConnect } from "y-partykit";
+import type * as PartyKit from "partykit/server";
 
 export default {
-  async onConnect(conn: any, room: any) {
+  async onConnect(conn: PartyKit.Connection, room: PartyKit.Room) {
     return onConnect(conn, room, {
       persist: { mode: "snapshot" },
     });
   },
-};
+} satisfies PartyKit.PartyKitServer;

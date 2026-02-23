@@ -8,9 +8,8 @@
 
 import type { UIMessage } from "ai";
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 import { conversations, db, eq } from "@/db";
-import { authOptions } from "../../auth/[...nextauth]/route";
+import { auth } from "@/lib/auth";
 
 interface UpdateSessionBody {
   title?: string;
@@ -22,7 +21,7 @@ interface UpdateSessionBody {
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     const userId = session?.user?.id;
 
     const [conv] = await db.select().from(conversations).where(eq(conversations.id, id)).limit(1);
@@ -45,7 +44,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     const userId = session?.user?.id;
 
     const [existing] = await db
@@ -94,7 +93,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     const userId = session?.user?.id;
 
     const [existing] = await db

@@ -6,9 +6,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 import { conversations, db, desc, eq, sql } from "@/db";
-import { authOptions } from "../auth/[...nextauth]/route";
+import { auth } from "@/lib/auth";
 
 interface CreateSessionBody {
   title?: string;
@@ -18,7 +17,7 @@ interface CreateSessionBody {
 
 export async function GET(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     const userId = session?.user?.id;
 
     const { searchParams } = new URL(request.url);
@@ -52,7 +51,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     const userId = session?.user?.id || null;
 
     const body: CreateSessionBody = await request.json();

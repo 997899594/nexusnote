@@ -4,10 +4,9 @@
 
 import { createAgentUIStreamResponse, smoothStream, type UIMessage } from "ai";
 import { type NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 import { aiUsage, conversations, db } from "@/db";
 import { aiProvider, getAgent, validateRequest } from "@/lib/ai";
-import { authOptions } from "../auth/[...nextauth]/route";
+import { auth } from "@/lib/auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -91,7 +90,7 @@ export async function POST(request: NextRequest) {
   const startTime = Date.now();
 
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     const userId = session?.user?.id || "anonymous";
 
     // Rate Limiting

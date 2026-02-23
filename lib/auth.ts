@@ -1,20 +1,19 @@
 /**
  * Auth utilities for Server Components
  *
- * 提供服务端组件使用的认证工具
+ * Auth.js v5 (formerly NextAuth v5)
+ * 直接使用从 route.ts 导出的 auth 函数
  */
 
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { auth as nextAuth } from "@/app/api/auth/[...nextauth]/route";
 
 /**
  * 获取当前用户会话（服务端组件专用）
  * 如果未登录，返回 null
  */
 export async function auth() {
-  return await getServerSession(authOptions);
+  return await nextAuth();
 }
 
 /**

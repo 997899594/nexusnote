@@ -1,7 +1,7 @@
 /**
- * Session Provider - 客户端 Session 状态管理
+ * Session Provider - Auth.js v5
  *
- * 让客户端组件可以访问 NextAuth session 状态
+ * v5 变化：SessionProvider 仍然从 next-auth/react 导入
  */
 
 "use client";

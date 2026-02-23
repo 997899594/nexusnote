@@ -47,11 +47,14 @@ export type QuizOutput = z.infer<typeof QuizSchema>;
 /**
  * MindMap Schema - 思维导图
  */
-const MindMapNodeSchema: z.ZodType<{
+
+export interface MindMapNode {
   id: string;
   text: string;
-  children?: { id: string; text: string; children?: any }[];
-}> = z.lazy(() =>
+  children?: MindMapNode[];
+}
+
+const MindMapNodeSchema: z.ZodType<MindMapNode> = z.lazy(() =>
   z.object({
     id: z.string().describe("节点ID"),
     text: z.string().describe("节点文本"),

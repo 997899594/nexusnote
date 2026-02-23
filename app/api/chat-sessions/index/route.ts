@@ -9,11 +9,10 @@
 
 import type { UIMessage } from "ai";
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 import { conversations, db, eq } from "@/db";
 import { indexConversation } from "@/lib/rag/chunker";
 import { conversationToParagraphs } from "@/lib/rag/semantic-chunker";
-import { authOptions } from "../../auth/[...nextauth]/route";
+import { auth } from "@/lib/auth";
 
 interface IndexSessionBody {
   sessionId: string;
@@ -22,7 +21,7 @@ interface IndexSessionBody {
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     const userId = session?.user?.id;
 
     if (!userId) {

@@ -75,7 +75,7 @@ export const useChatStore = create<ChatStore>((set) => ({
   },
 
   updateSession: async (id: string, updates: Partial<Conversation>) => {
-    await chatApi.updateSession(id, updates);
+    await chatApi.updateSession(id, updates as Parameters<typeof chatApi.updateSession>[1]);
     // Optimistically update local state
     set((state) => ({
       sessions: state.sessions.map((s) => (s.id === id ? { ...s, ...updates } : s)),

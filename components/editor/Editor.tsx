@@ -14,8 +14,10 @@ import { TextStyle } from "@tiptap/extension-text-style";
 import Underline from "@tiptap/extension-underline";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import type { Editor as TiptapEditorType } from "@tiptap/react";
 import { useEffect, useState } from "react";
 import { Callout } from "./Callout";
+import type { SlashCommand } from "@/types/editor";
 
 interface EditorProps {
   content?: string;
@@ -24,82 +26,87 @@ interface EditorProps {
   editable?: boolean;
 }
 
-const SlashCommands = [
+const SlashCommands: SlashCommand[] = [
   {
     id: "heading1",
     label: "标题 1",
     icon: "H1",
-    command: (e: any) => e.chain().focus().toggleHeading({ level: 1 }).run(),
+    command: (editor) => editor.chain().focus().toggleHeading({ level: 1 }).run(),
   },
   {
     id: "heading2",
     label: "标题 2",
     icon: "H2",
-    command: (e: any) => e.chain().focus().toggleHeading({ level: 2 }).run(),
+    command: (editor) => editor.chain().focus().toggleHeading({ level: 2 }).run(),
   },
   {
     id: "heading3",
     label: "标题 3",
     icon: "H3",
-    command: (e: any) => e.chain().focus().toggleHeading({ level: 3 }).run(),
+    command: (editor) => editor.chain().focus().toggleHeading({ level: 3 }).run(),
   },
   {
     id: "bullet",
     label: "无序列表",
     icon: "•",
-    command: (e: any) => e.chain().focus().toggleBulletList().run(),
+    command: (editor) => editor.chain().focus().toggleBulletList().run(),
   },
   {
     id: "ordered",
     label: "有序列表",
     icon: "1.",
-    command: (e: any) => e.chain().focus().toggleOrderedList().run(),
+    command: (editor) => editor.chain().focus().toggleOrderedList().run(),
   },
   {
     id: "task",
     label: "任务列表",
     icon: "☑",
-    command: (e: any) => e.chain().focus().toggleTaskList().run(),
+    command: (editor) => editor.chain().focus().toggleTaskList().run(),
   },
   {
     id: "code",
     label: "代码块",
     icon: "</>",
-    command: (e: any) => e.chain().focus().toggleCodeBlock().run(),
+    command: (editor) => editor.chain().focus().toggleCodeBlock().run(),
   },
   {
     id: "quote",
     label: "引用",
     icon: '"',
-    command: (e: any) => e.chain().focus().toggleBlockquote().run(),
+    command: (editor) => editor.chain().focus().toggleBlockquote().run(),
   },
   {
     id: "divider",
     label: "分割线",
     icon: "—",
-    command: (e: any) => e.chain().focus().setHorizontalRule().run(),
+    command: (editor) => editor.chain().focus().setHorizontalRule().run(),
   },
   {
     id: "highlight",
     label: "高亮",
     icon: "🖍",
-    command: (e: any) => e.chain().focus().toggleHighlight().run(),
+    command: (editor) => editor.chain().focus().toggleHighlight().run(),
   },
   {
     id: "link",
     label: "链接",
     icon: "🔗",
-    command: (e: any) => e.chain().focus().setLink({ href: "https://" }).run(),
+    command: (editor) => editor.chain().focus().setLink({ href: "https://" }).run(),
   },
   {
     id: "underline",
     label: "下划线",
     icon: "U",
-    command: (e: any) => e.chain().focus().toggleUnderline().run(),
+    command: (editor) => editor.chain().focus().toggleUnderline().run(),
   },
 ];
 
-function SlashMenu({ editor, onClose }: { editor: any; onClose: () => void }) {
+interface SlashMenuProps {
+  editor: TiptapEditorType;
+  onClose: () => void;
+}
+
+function SlashMenu({ editor, onClose }: SlashMenuProps) {
   const [search, setSearch] = useState("");
   const filtered = SlashCommands.filter((c) =>
     c.label.toLowerCase().includes(search.toLowerCase()),
@@ -145,17 +152,14 @@ function SlashMenu({ editor, onClose }: { editor: any; onClose: () => void }) {
   );
 }
 
-function ToolbarButton({
-  onClick,
-  active,
-  children,
-  disabled,
-}: {
+interface ToolbarButtonProps {
   onClick: () => void;
   active?: boolean;
   children: React.ReactNode;
   disabled?: boolean;
-}) {
+}
+
+function ToolbarButton({ onClick, active, children, disabled }: ToolbarButtonProps) {
   return (
     <button
       type="button"
@@ -193,11 +197,11 @@ export function Editor({
     ],
     content,
     editable,
-    onUpdate: ({ editor }: { editor: any }) => {
-      const text = editor.getText();
+    onUpdate: ({ editor: ed }) => {
+      const text = ed.getText();
       if (text.endsWith("/")) setShowSlash(true);
       else if (showSlash) setShowSlash(false);
-      onChange?.(editor.getHTML());
+      onChange?.(ed.getHTML());
     },
     editorProps: { attributes: { class: "prose focus:outline-none min-h-[200px] p-4" } },
   });

@@ -1,14 +1,16 @@
 /**
- * Auth Sync - 同步 NextAuth Session 到 Zustand Store
+ * Auth Sync - 同步 Auth.js v5 Session 到 Zustand Store
  *
- * 在需要访问用户状态的组件中使用
+ * v5 变化：
+ * - useSession 从 next-auth/react 迁移到 auth-js/react
+ * - Session 类型从 next-auth 改为 auth-js
  */
 
 "use client";
 
 import { useSession } from "next-auth/react";
 import { useEffect } from "react";
-import { useAuthStore } from "@/components/auth";
+import { useAuthStore } from "./useAuthStore";
 
 export function AuthSync() {
   const { data: session, status } = useSession();
@@ -22,9 +24,8 @@ export function AuthSync() {
     }
 
     if (session?.user) {
-      const user = session.user as any;
       setUser({
-        id: user.id || "",
+        id: session.user.id || "",
         email: session.user.email || "",
         name: session.user.name || "",
         image: session.user.image || undefined,
@@ -32,6 +33,7 @@ export function AuthSync() {
     } else {
       setUser(null);
     }
+    setLoading(false);
   }, [session, status, setUser, setLoading]);
 
   return null;

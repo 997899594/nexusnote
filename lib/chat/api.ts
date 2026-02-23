@@ -1,6 +1,21 @@
-import type { UIMessage } from "ai";
+/**
+ * Chat API - 2026 Modern Architecture
+ *
+ * 客户端使用的聊天会话 API 函数
+ * 注意：在 Server Components 中应直接调用数据库操作
+ */
 
-export async function persistMessages(sessionId: string, messages: UIMessage[]): Promise<void> {
+import type {
+  Conversation,
+  ConversationsResponse,
+  CreateSessionRequest,
+  CreateSessionResponse,
+  IndexSessionRequest,
+  IndexSessionResponse,
+  UpdateSessionRequest,
+} from "@/types/chat";
+
+export async function persistMessages(sessionId: string, messages: unknown[]): Promise<void> {
   try {
     const res = await fetch(`/api/chat-sessions/${sessionId}`, {
       method: "PATCH",
@@ -14,11 +29,11 @@ export async function persistMessages(sessionId: string, messages: UIMessage[]):
   }
 }
 
-export async function loadSessions(): Promise<any[]> {
+export async function loadSessions(): Promise<Conversation[]> {
   try {
     const res = await fetch("/api/chat-sessions");
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-    const data = await res.json();
+    const data = (await res.json()) as ConversationsResponse;
     return data.sessions || [];
   } catch (error) {
     console.error("[ChatAPI] Failed to load sessions:", error);
@@ -26,7 +41,7 @@ export async function loadSessions(): Promise<any[]> {
   }
 }
 
-export async function createSession(title: string): Promise<any | null> {
+export async function createSession(title: string): Promise<Conversation | null> {
   try {
     const res = await fetch("/api/chat-sessions", {
       method: "POST",
@@ -34,7 +49,7 @@ export async function createSession(title: string): Promise<any | null> {
       body: JSON.stringify({ title }),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-    const data = await res.json();
+    const data = (await res.json()) as CreateSessionResponse;
     return data.session;
   } catch (error) {
     console.error("[ChatAPI] Failed to create session:", error);
@@ -42,7 +57,7 @@ export async function createSession(title: string): Promise<any | null> {
   }
 }
 
-export async function updateSession(id: string, updates: Record<string, unknown>): Promise<void> {
+export async function updateSession(id: string, updates: UpdateSessionRequest): Promise<void> {
   try {
     const res = await fetch(`/api/chat-sessions/${id}`, {
       method: "PATCH",
@@ -62,6 +77,21 @@ export async function deleteSession(id: string): Promise<void> {
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
   } catch (error) {
     console.error("[ChatAPI] Failed to delete session:", error);
+    throw error;
+  }
+}
+
+export async function indexSession(request: IndexSessionRequest): Promise<IndexSessionResponse> {
+  try {
+    const res = await fetch("/api/chat-sessions/index", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    return (await res.json()) as IndexSessionResponse;
+  } catch (error) {
+    console.error("[ChatAPI] Failed to index session:", error);
     throw error;
   }
 }

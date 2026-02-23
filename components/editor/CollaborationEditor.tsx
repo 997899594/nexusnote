@@ -8,6 +8,7 @@
 import Collaboration from "@tiptap/extension-collaboration";
 import CollaborationCaret from "@tiptap/extension-collaboration-caret";
 import { EditorContent, useEditor } from "@tiptap/react";
+import type { Editor as TiptapEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useMemo, useState } from "react";
 import YPartyKitProvider from "y-partykit/provider";
@@ -28,8 +29,14 @@ interface Props {
 
 const DEFAULT_HOST = process.env.NEXT_PUBLIC_PARTYKIT_HOST || "localhost:1999";
 
+type ConnectionStatus = "connecting" | "connected" | "disconnected";
+
+interface AwarenessState {
+  user?: { name: string; color: string };
+}
+
 export function CollaborationEditor({ config, content = "", onChange, editable = true }: Props) {
-  const [status, setStatus] = useState<"connecting" | "connected" | "disconnected">("connecting");
+  const [status, setStatus] = useState<ConnectionStatus>("connecting");
   const [users, setUsers] = useState<Array<{ name: string; color: string }>>([]);
   const { documentId, host = DEFAULT_HOST, user } = config;
   const ydoc = useMemo(() => new Y.Doc(), []);
@@ -37,11 +44,13 @@ export function CollaborationEditor({ config, content = "", onChange, editable =
   const provider = useMemo(() => {
     const protocol = host.startsWith("localhost") ? "ws" : "wss";
     const yProvider = new YPartyKitProvider(`${protocol}://${host}`, documentId, ydoc);
-    yProvider.on("status", (e: { status: string }) => setStatus(e.status as any));
+    yProvider.on("status", (e: { status: string }) => {
+      setStatus(e.status as ConnectionStatus);
+    });
     if (yProvider.awareness) {
       yProvider.awareness.on("change", () => {
         const list: Array<{ name: string; color: string }> = [];
-        yProvider.awareness!.getStates().forEach((s: any) => {
+        yProvider.awareness!.getStates().forEach((s: AwarenessState) => {
           if (s.user) list.push(s.user);
         });
         setUsers(list);
@@ -66,7 +75,7 @@ export function CollaborationEditor({ config, content = "", onChange, editable =
     ],
     content: content || undefined,
     editable,
-    onUpdate: ({ editor: ed }: { editor: any }) => onChange?.(ed.getHTML()),
+    onUpdate: ({ editor: ed }: { editor: TiptapEditor }) => onChange?.(ed.getHTML()),
     editorProps: { attributes: { class: "prose focus:outline-none min-h-[200px] p-4" } },
   });
 
