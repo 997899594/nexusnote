@@ -5,7 +5,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 
-export const DiscoverSkillsSchema = z.object({
+export const DiscoverSkillsToolSchema = z.object({
   userId: z.string().describe("用户 ID"),
   limit: z.number().min(1).max(100).optional().default(50).describe("数据条数限制"),
   sources: z.array(
@@ -13,11 +13,11 @@ export const DiscoverSkillsSchema = z.object({
   ).optional().describe("数据来源列表"),
 });
 
-export type DiscoverSkillsInput = z.infer<typeof DiscoverSkillsSchema>;
+export type DiscoverSkillsToolInput = z.infer<typeof DiscoverSkillsToolSchema>;
 
 export const discoverSkillsTool = tool({
   description: "从用户的学习数据中发现并提取技能",
-  inputSchema: DiscoverSkillsSchema,
+  inputSchema: DiscoverSkillsToolSchema,
   execute: async ({ userId, limit = 50, sources }) => {
     try {
       const response = await fetch("/api/skills/discover", {

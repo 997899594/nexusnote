@@ -12,6 +12,8 @@ import {
   Background,
   Controls,
   MiniMap,
+  applyNodeChanges,
+  applyEdgeChanges,
   type Node,
   type Edge,
   type NodeTypes,
@@ -407,41 +409,4 @@ export function SkillGraph({ userId, className, onDiscover }: SkillGraphProps) {
       </div>
     </div>
   );
-}
-
-// Helper functions for applying changes
-function applyNodeChanges(changes: NodeChange[], nodes: Node[]): Node[] {
-  const result: Node[] = [];
-  for (const node of nodes) {
-    const change = changes.find((c) => "id" in c && c.id === node.id);
-    if (!change) {
-      result.push(node);
-      continue;
-    }
-    if (change.type === "remove") {
-      continue;
-    }
-    if (change.type === "position" && "position" in change && change.position) {
-      result.push({ ...node, position: change.position });
-    } else {
-      result.push(node);
-    }
-  }
-  return result;
-}
-
-function applyEdgeChanges(changes: EdgeChange[], edges: Edge[]): Edge[] {
-  const result: Edge[] = [];
-  for (const edge of edges) {
-    const change = changes.find((c) => "id" in c && c.id === edge.id);
-    if (!change) {
-      result.push(edge);
-      continue;
-    }
-    if (change.type === "remove") {
-      continue;
-    }
-    result.push(edge);
-  }
-  return result;
 }

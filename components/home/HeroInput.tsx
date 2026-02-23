@@ -1,11 +1,19 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronRight, Plus, Send, Sparkles, X } from "lucide-react";
+import { ChevronRight, Send, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import {
+  useFloating,
+  flip,
+  shift,
+  offset,
+  size,
+  autoUpdate,
+} from "@floating-ui/react";
 import { usePendingChatStore, useTransitionStore } from "@/stores";
-import { extractCommandContent, HOME_COMMANDS, QUICK_ACTIONS } from "@/lib/chat/commands";
+import { extractCommandContent, HOME_COMMANDS } from "@/lib/chat/commands";
 import { cn } from "@/lib/utils";
 import type { Command } from "@/types/chat";
 
@@ -18,6 +26,27 @@ export function HeroInput() {
   const [showCommands, setShowCommands] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [selectedCommand, setSelectedCommand] = useState<Command | null>(null);
+
+  const { refs, floatingStyles } = useFloating({
+    placement: "top",
+    middleware: [
+      offset(4),
+      flip({
+        fallbackPlacements: ["bottom"],
+      }),
+      shift({
+        padding: 8,
+      }),
+      size({
+        apply({ rects, elements }) {
+          Object.assign(elements.floating.style, {
+            width: `${rects.reference.width}px`,
+          });
+        },
+      }),
+    ],
+    whileElementsMounted: autoUpdate,
+  });
 
   const filteredCommands = (() => {
     if (!input.startsWith("/")) return HOME_COMMANDS;
@@ -70,12 +99,11 @@ export function HeroInput() {
       return;
     }
 
-    // 2026 乐观跳转：客户端生成 UUID，立刻跳转，零等待
     const rect = cardRef.current?.getBoundingClientRect();
     if (!rect) return;
 
     const message = input.trim();
-    const id = crypto.randomUUID(); // 浏览器原生，同步，< 1ms
+    const id = crypto.randomUUID();
 
     setPendingChat(id, message);
     startExpand(rect, `/chat/${id}`);
@@ -129,35 +157,31 @@ export function HeroInput() {
       ? "搜索命令..."
       : "描述你想学习或创建的内容...";
 
-  const hintText = selectedCommand
-    ? "Enter 跳转页面"
-    : showCommands
-      ? "↑↓ 选择, Enter 确认"
-      : "开始对话 或 / 使用命令";
-
   return (
     <div className="relative w-full">
-      {/* Command Menu */}
-      <AnimatePresence>
+      {/* 命令菜单 - Floating UI 定位 */}
+      <AnimatePresence mode="sync">
         {showCommands && !selectedCommand && filteredCommands.length > 0 && (
           <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.15 }}
-            className="absolute bottom-full left-0 right-0 mb-3 bg-white rounded-2xl shadow-[var(--shadow-elevated)] overflow-hidden z-50"
+            ref={refs.setFloating}
+            style={floatingStyles}
+            initial={{ opacity: 0, y: 8, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.95 }}
+            transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
+            className="bg-white rounded-2xl shadow-[var(--shadow-elevated)] overflow-hidden z-50"
           >
-            <div className="p-2">
-              <div className="px-3 py-2 text-xs font-medium text-zinc-400 uppercase tracking-wider">
-                命令
-              </div>
+            <div className="p-2 space-y-0.5">
               {filteredCommands.map((cmd, idx) => (
-                <button
+                <motion.button
                   type="button"
                   key={cmd.id}
                   onClick={() => handleSelectCommand(cmd)}
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: idx * 0.03, duration: 0.1 }}
                   className={cn(
-                    "w-full flex items-center px-3 py-3 rounded-xl text-left transition-colors",
+                    "w-full flex items-center px-3 py-2.5 rounded-xl text-left transition-colors",
                     idx === selectedIndex
                       ? "bg-zinc-100 text-zinc-900"
                       : "text-zinc-600 hover:bg-zinc-50",
@@ -166,43 +190,32 @@ export function HeroInput() {
                   <cmd.icon className="w-4 h-4 mr-3 flex-shrink-0 text-zinc-400" />
                   <span className="flex-1 text-sm font-medium">{cmd.label}</span>
                   <ChevronRight className="w-4 h-4 text-zinc-300" />
-                </button>
+                </motion.button>
               ))}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Main Input */}
+      {/* 输入框 */}
       <motion.div
-        ref={cardRef}
-        whileHover={{ scale: 1.005 }}
+        ref={(node) => {
+          cardRef.current = node;
+          refs.setReference(node);
+        }}
+        whileHover={{ scale: showCommands ? 1 : 1.005 }}
         transition={{ duration: 0.2 }}
-        className="relative flex flex-col bg-white rounded-3xl p-6 shadow-[var(--shadow-elevated)] hover:shadow-[var(--shadow-elevated-hover)] transition-shadow"
+        className="relative bg-white shadow-[var(--shadow-elevated)] hover:shadow-[var(--shadow-elevated-hover)] transition-shadow rounded-3xl"
       >
-        <div className="flex items-start gap-4 mb-5">
-          <div className="w-11 h-11 rounded-xl bg-zinc-100 flex items-center justify-center flex-shrink-0">
-            <Sparkles className="w-5 h-5 text-zinc-400" />
-          </div>
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            rows={1}
-            className="flex-1 bg-transparent border-none outline-none text-2xl text-zinc-800 placeholder:text-zinc-400 resize-none min-h-[48px]"
-          />
-        </div>
-
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div className="p-6">
+          <div className="flex items-end gap-4">
             <AnimatePresence>
               {selectedCommand && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.9 }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 rounded-lg text-xs"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 rounded-lg text-xs flex-shrink-0"
                 >
                   <selectedCommand.modeIcon className="w-3 h-3 text-zinc-500" />
                   <span className="text-zinc-600 font-medium">{selectedCommand.modeLabel}</span>
@@ -217,25 +230,24 @@ export function HeroInput() {
               )}
             </AnimatePresence>
 
-            <button
-              type="button"
-              className="p-2.5 rounded-xl hover:bg-zinc-100 text-zinc-400 hover:text-zinc-600 transition-colors"
-            >
-              <Plus className="w-5 h-5" />
-            </button>
-          </div>
+            <div className="flex-1">
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={placeholder}
+                rows={3}
+                className="w-full bg-transparent border-none outline-none text-lg text-zinc-800 placeholder:text-zinc-400 resize-none min-h-[80px] max-h-[200px] py-2"
+              />
+            </div>
 
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-medium text-zinc-400 hidden sm:inline-block">
-              {hintText}
-            </span>
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={handleSubmit}
               disabled={!input.trim()}
               className={cn(
-                "w-10 h-10 rounded-full flex items-center justify-center transition-colors",
+                "w-10 h-10 rounded-full flex items-center justify-center transition-colors flex-shrink-0",
                 input.trim()
                   ? "bg-[var(--color-accent)] text-[var(--color-accent-fg)]"
                   : "bg-zinc-200 text-zinc-400 cursor-not-allowed",
@@ -244,20 +256,6 @@ export function HeroInput() {
               <Send className="w-5 h-5" />
             </motion.button>
           </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="flex flex-wrap gap-2 mt-5 pt-5 border-t border-zinc-100">
-          {QUICK_ACTIONS.map((action) => (
-            <button
-              type="button"
-              key={action.label}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm bg-zinc-100/80 text-zinc-500 hover:text-zinc-700 hover:bg-zinc-200/80 transition-colors"
-            >
-              <action.icon className="w-3.5 h-3.5" />
-              {action.label}
-            </button>
-          ))}
         </div>
       </motion.div>
     </div>

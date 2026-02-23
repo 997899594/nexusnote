@@ -1,6 +1,8 @@
 "use client";
 
 import { useAuthStore } from "@/stores";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 interface UserAvatarProps {
   className?: string;
@@ -9,11 +11,21 @@ interface UserAvatarProps {
 
 export function UserAvatar({ className = "", size = "md" }: UserAvatarProps) {
   const { user, isLoading } = useAuthStore();
+  const router = useRouter();
+  const { status } = useSession();
 
   const sizeClasses = {
     sm: "w-8 h-8 text-sm",
     md: "w-10 h-10 text-base",
     lg: "w-12 h-12 text-lg",
+  };
+
+  const handleClick = () => {
+    if (status === "authenticated") {
+      router.push("/profile");
+    } else {
+      router.push("/login");
+    }
   };
 
   // Generate initials from name or email
@@ -43,6 +55,7 @@ export function UserAvatar({ className = "", size = "md" }: UserAvatarProps) {
       <img
         src={user.image}
         alt={user.name || user.email}
+        onClick={handleClick}
         className={`${sizeClasses[size]} rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity ${className}`}
       />
     );
@@ -51,6 +64,7 @@ export function UserAvatar({ className = "", size = "md" }: UserAvatarProps) {
   // Fallback - show initials with accent color background
   return (
     <div
+      onClick={handleClick}
       className={`${sizeClasses[size]} rounded-full bg-[var(--color-accent)] text-[var(--color-accent-fg)] flex items-center justify-center font-medium cursor-pointer hover:opacity-80 transition-opacity ${className}`}
     >
       {getInitials()}

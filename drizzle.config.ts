@@ -1,11 +1,10 @@
-import * as path from "node:path";
 import type { Config } from "drizzle-kit";
 
 // 兼容本地开发 (如果有 .env 就加载，没有就算了)
 // 这样既能在本地跑，也能在 K8s 跑 (生产镜像无 dotenv)
 try {
   if (process.env.NODE_ENV !== "production") {
-    require("dotenv").config({ path: path.resolve(__dirname, "../../.env") });
+    require("dotenv").config();
   }
 } catch {
   // dotenv not available in production image, env vars come from K8s secrets

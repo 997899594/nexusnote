@@ -7,38 +7,10 @@ import { type NextRequest, NextResponse } from "next/server";
 import { aiUsage, conversations, db } from "@/db";
 import { aiProvider, getAgent, validateRequest } from "@/lib/ai";
 import { auth } from "@/lib/auth";
+import { handleError, APIError } from "@/lib/api";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
-
-class APIError extends Error {
-  constructor(
-    message: string,
-    public statusCode: number,
-    public code: string,
-  ) {
-    super(message);
-    this.name = "APIError";
-  }
-}
-
-function errorResponse(message: string, statusCode: number, code: string) {
-  return NextResponse.json({ error: { message, code } }, { status: statusCode });
-}
-
-function handleError(error: unknown) {
-  console.error("[API Error]", error);
-  if (error instanceof APIError) {
-    return errorResponse(error.message, error.statusCode, error.code);
-  }
-  if (error instanceof Error) {
-    if (error.name === "ZodError") {
-      return errorResponse("请求参数错误", 400, "VALIDATION_ERROR");
-    }
-    return errorResponse(error.message, 500, "INTERNAL_ERROR");
-  }
-  return errorResponse("未知错误", 500, "UNKNOWN_ERROR");
-}
 
 // Rate Limiting - 简单内存实现
 const rateLimits = new Map<string, { count: number; resetAt: number }>();
