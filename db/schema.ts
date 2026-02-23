@@ -91,6 +91,38 @@ export const userProfiles = pgTable(
   }),
 );
 
+// ============================================
+// 风格分析隐私设置 (Style Privacy Settings)
+// ============================================
+
+export const stylePrivacySettings = pgTable(
+  "style_privacy_settings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull()
+      .unique(),
+
+    // 用户同意
+    analysisEnabled: boolean("analysis_enabled").notNull().default(false),
+    consentGivenAt: timestamp("consent_given_at"),
+
+    // Big Five 分析（敏感数据）
+    bigFiveEnabled: boolean("big_five_enabled").notNull().default(false),
+    bigFiveConsentGivenAt: timestamp("big_five_consent_given_at"),
+
+    // 数据保留
+    autoDeleteAfterDays: integer("auto_delete_after_days"),
+
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => ({
+    userIdIdx: index("style_privacy_settings_user_id_idx").on(table.userId),
+  }),
+);
+
 export const workspaces = pgTable("workspaces", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
@@ -579,6 +611,8 @@ export type AIUsage = typeof aiUsage.$inferSelect;
 export type NewAIUsage = typeof aiUsage.$inferInsert;
 export type UserProfile = typeof userProfiles.$inferSelect;
 export type NewUserProfile = typeof userProfiles.$inferInsert;
+export type StylePrivacySettings = typeof stylePrivacySettings.$inferSelect;
+export type NewStylePrivacySettings = typeof stylePrivacySettings.$inferInsert;
 export type CourseProfile = typeof courseProfiles.$inferSelect;
 export type NewCourseProfile = typeof courseProfiles.$inferInsert;
 export type CourseChapter = typeof courseChapters.$inferSelect;
@@ -602,6 +636,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   conversations: many(conversations),
   knowledgeChunks: many(knowledgeChunks),
   userProfiles: many(userProfiles),
+  stylePrivacySettings: many(stylePrivacySettings),
 }));
 
 export const workspacesRelations = relations(workspaces, ({ one, many }) => ({
@@ -660,6 +695,13 @@ export const courseChaptersRelations = relations(courseChapters, ({ one }) => ({
   profile: one(courseProfiles, {
     fields: [courseChapters.profileId],
     references: [courseProfiles.id],
+  }),
+}));
+
+export const stylePrivacySettingsRelations = relations(stylePrivacySettings, ({ one }) => ({
+  user: one(users, {
+    fields: [stylePrivacySettings.userId],
+    references: [users.id],
   }),
 }));
 
