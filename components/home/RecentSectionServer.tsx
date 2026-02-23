@@ -11,7 +11,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { conversations, courseProfiles, documents } from "@/db";
 import { desc, eq, and, gt } from "drizzle-orm";
-import { RecentCard } from "@/components/shared/home/RecentCard";
+import { RecentCard } from "@/components/home";
 import {
   BookOpen,
   FileText,
