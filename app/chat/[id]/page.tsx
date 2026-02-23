@@ -31,5 +31,9 @@ export default function ChatSessionPage({ params }: ChatSessionPageProps) {
     setPendingMessage(msg);
   }, [sessionId]);
 
-  return <ChatPanel sessionId={sessionId} pendingMessage={pendingMessage} />;
+  return (
+    <div className="flex flex-col h-screen safe-top md:h-full">
+      <ChatPanel sessionId={sessionId} pendingMessage={pendingMessage} />
+    </div>
+  );
 }
