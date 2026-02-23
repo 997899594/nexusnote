@@ -8,6 +8,26 @@ import { AI } from "./ai-ui/AIProvider";
 export const metadata: Metadata = {
   title: "NexusNote - 私人学习助理",
   description: "AI 驱动的个性化学习平台",
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+    viewportFit: "cover",
+  },
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#1a1a1a" },
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "NexusNote",
+  },
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/apple-icon.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
