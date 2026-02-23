@@ -194,7 +194,8 @@
     padding-right: env(safe-area-inset-right);
   }
   .safe-all {
-    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+      env(safe-area-inset-left);
   }
 }
 
@@ -214,7 +215,7 @@
   .touch-target {
     min-width: 44px;
     min-height: 44px;
-    min-touch-action: manipulation;
+    touch-action: manipulation;
   }
 
   /* 移除 hover 延迟 */
