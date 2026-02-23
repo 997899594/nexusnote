@@ -40,8 +40,9 @@ export function RecentCard({ title, desc, iconName, time, url }: RecentCardProps
   return (
     <motion.div
       whileHover={{ y: -2 }}
+      whileTap={{ scale: 0.98 }}
       onClick={handleClick}
-      className="bg-white rounded-2xl p-5 cursor-pointer transition-all duration-200 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)]"
+      className="bg-white rounded-2xl p-4 md:p-5 cursor-pointer transition-all duration-200 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] active:scale-[0.98] touch-target"
     >
       <div className="flex items-start justify-between mb-3">
         <div className="w-10 h-10 rounded-xl bg-zinc-100 flex items-center justify-center">
