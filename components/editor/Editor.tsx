@@ -24,6 +24,7 @@ interface EditorProps {
   placeholder?: string;
   onChange?: (html: string) => void;
   editable?: boolean;
+  onReady?: (editor: TiptapEditorType) => void;
 }
 
 const SlashCommands: SlashCommand[] = [
@@ -179,6 +180,7 @@ export function Editor({
   placeholder = "输入 / 查看命令...",
   onChange,
   editable = true,
+  onReady,
 }: EditorProps) {
   const [showSlash, setShowSlash] = useState(false);
 
@@ -202,6 +204,9 @@ export function Editor({
       if (text.endsWith("/")) setShowSlash(true);
       else if (showSlash) setShowSlash(false);
       onChange?.(ed.getHTML());
+    },
+    onCreate: ({ editor: ed }) => {
+      onReady?.(ed);
     },
     editorProps: { attributes: { class: "prose focus:outline-none min-h-[200px] p-4" } },
   });
