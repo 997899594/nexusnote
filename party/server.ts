@@ -3,8 +3,8 @@
  * 使用 y-partykit 实现 Yjs 同步，支持边缘部署
  */
 
-import { onConnect } from "y-partykit";
 import type * as PartyKit from "partykit/server";
+import { onConnect } from "y-partykit";
 
 export default {
   async onConnect(conn: PartyKit.Connection, room: PartyKit.Room) {

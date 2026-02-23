@@ -5,9 +5,9 @@
  * and user preferences.
  */
 
-import { db, personas, userPersonaPreferences, personaSubscriptions } from "@/db";
-import { eq, desc, and } from "drizzle-orm";
-import type { Persona, NewPersona, UserPersonaPreference } from "@/db";
+import { and, desc, eq } from "drizzle-orm";
+import type { NewPersona, Persona, UserPersonaPreference } from "@/db";
+import { db, personaSubscriptions, personas, userPersonaPreferences } from "@/db";
 import { BUILT_IN_PERSONAS, getBuiltInPersona } from "./built-in";
 
 // ============================================
@@ -94,9 +94,7 @@ export async function getPersona(slug: string): Promise<AIPersona | null> {
  * Get all available personas for a user
  * Includes built-in personas + user's custom personas + subscribed personas
  */
-export async function getAvailablePersonas(
-  userId: string,
-): Promise<AIPersona[]> {
+export async function getAvailablePersonas(userId: string): Promise<AIPersona[]> {
   const result: AIPersona[] = [];
 
   // Add all built-in personas
@@ -174,9 +172,7 @@ export async function getAvailablePersonas(
 /**
  * Get user's persona preference
  */
-export async function getUserPersonaPreference(
-  userId: string,
-): Promise<PersonaPreference> {
+export async function getUserPersonaPreference(userId: string): Promise<PersonaPreference> {
   const pref = await db.query.userPersonaPreferences.findFirst({
     where: eq(userPersonaPreferences.userId, userId),
   });
@@ -190,10 +186,7 @@ export async function getUserPersonaPreference(
 /**
  * Set user's default persona
  */
-export async function setUserPersonaPreference(
-  userId: string,
-  personaSlug: string,
-): Promise<void> {
+export async function setUserPersonaPreference(userId: string, personaSlug: string): Promise<void> {
   // Validate persona exists
   const persona = await getPersona(personaSlug);
   if (!persona) {
@@ -349,10 +342,7 @@ export async function updateCustomPersona(
 /**
  * Delete a custom persona (only if user is the author)
  */
-export async function deleteCustomPersona(
-  userId: string,
-  slug: string,
-): Promise<void> {
+export async function deleteCustomPersona(userId: string, slug: string): Promise<void> {
   const persona = await db.query.personas.findFirst({
     where: eq(personas.slug, slug),
   });
@@ -371,10 +361,7 @@ export async function deleteCustomPersona(
 /**
  * Subscribe to a persona
  */
-export async function subscribeToPersona(
-  userId: string,
-  personaId: string,
-): Promise<void> {
+export async function subscribeToPersona(userId: string, personaId: string): Promise<void> {
   const persona = await db.query.personas.findFirst({
     where: eq(personas.id, personaId),
   });
@@ -399,17 +386,11 @@ export async function subscribeToPersona(
 /**
  * Unsubscribe from a persona
  */
-export async function unsubscribeFromPersona(
-  userId: string,
-  personaId: string,
-): Promise<void> {
+export async function unsubscribeFromPersona(userId: string, personaId: string): Promise<void> {
   await db
     .delete(personaSubscriptions)
     .where(
-      and(
-        eq(personaSubscriptions.userId, userId),
-        eq(personaSubscriptions.personaId, personaId),
-      ),
+      and(eq(personaSubscriptions.userId, userId), eq(personaSubscriptions.personaId, personaId)),
     );
 }
 

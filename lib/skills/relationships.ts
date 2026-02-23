@@ -4,11 +4,11 @@
  * 推理技能之间的关系（前置、相关、包含等）
  */
 
-import { z } from "zod";
 import { generateObject } from "ai";
+import { and, eq, inArray, or } from "drizzle-orm";
+import { z } from "zod";
 import { db } from "@/db";
-import { skills, skillRelationships, userSkillMastery } from "@/db/schema";
-import { eq, and, or, inArray } from "drizzle-orm";
+import { skillRelationships, skills, userSkillMastery } from "@/db/schema";
 import { aiProvider, safeGenerateObject } from "@/lib/ai/core";
 
 // ============================================
@@ -32,7 +32,9 @@ export type RelationshipType = (typeof RELATIONSHIP_TYPES)[keyof typeof RELATION
 const SkillRelationshipSchema = z.object({
   sourceSlug: z.string().describe("源技能的 slug"),
   targetSlug: z.string().describe("目标技能的 slug"),
-  relationshipType: z.enum(Object.keys(RELATIONSHIP_TYPES) as [RelationshipType, ...RelationshipType[]]).describe("关系类型"),
+  relationshipType: z
+    .enum(Object.keys(RELATIONSHIP_TYPES) as [RelationshipType, ...RelationshipType[]])
+    .describe("关系类型"),
   strength: z.number().min(0).max(100).describe("关系强度 0-100"),
   reason: z.string().describe("关系理由，简要说明为什么存在这个关系"),
 });
@@ -50,18 +52,13 @@ export type SkillRelationship = z.infer<typeof SkillRelationshipSchema>;
 /**
  * 使用 AI 推理技能之间的关系
  */
-export async function inferSkillRelationships(
-  skillSlugs: string[],
-): Promise<SkillRelationship[]> {
+export async function inferSkillRelationships(skillSlugs: string[]): Promise<SkillRelationship[]> {
   if (skillSlugs.length < 2) {
     return [];
   }
 
   // 获取技能信息
-  const skillsList = await db
-    .select()
-    .from(skills)
-    .where(inArray(skills.slug, skillSlugs));
+  const skillsList = await db.select().from(skills).where(inArray(skills.slug, skillSlugs));
 
   if (skillsList.length < 2) {
     return [];
@@ -102,7 +99,7 @@ export async function inferSkillRelationships(
 /**
  * 构建关系推理提示词
  */
-function buildRelationshipPrompt(skillsList: typeof skills.$inferSelect[]): string {
+function buildRelationshipPrompt(skillsList: (typeof skills.$inferSelect)[]): string {
   const skillsInfo = skillsList
     .map((s) => `- ${s.slug} (${s.name}): ${s.description || s.category || s.domain}`)
     .join("\n");
@@ -124,9 +121,7 @@ ${skillsInfo}
 /**
  * 保存推理出的技能关系到数据库
  */
-export async function saveSkillRelationships(
-  relationships: SkillRelationship[],
-): Promise<void> {
+export async function saveSkillRelationships(relationships: SkillRelationship[]): Promise<void> {
   for (const rel of relationships) {
     // 查找技能 ID
     const [sourceSkill, targetSkill] = await Promise.all([

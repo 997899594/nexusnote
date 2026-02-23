@@ -6,8 +6,7 @@
  * - `NEXTAUTH_URL` → `AUTH_URL`
  */
 
-import type { NextAuthConfig } from "next-auth";
-import type { User } from "next-auth";
+import type { NextAuthConfig, User } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { db, eq, users } from "@/db";
 

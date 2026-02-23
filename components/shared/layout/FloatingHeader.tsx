@@ -2,9 +2,9 @@
 
 import { motion } from "framer-motion";
 import { ArrowLeft, Menu, Zap } from "lucide-react";
-import { UserAvatar } from "./UserAvatar";
 import { PersonaSelector } from "@/components/chat/PersonaSelector";
 import { useUserPreferencesStore } from "@/stores";
+import { UserAvatar } from "./UserAvatar";
 
 interface FloatingHeaderProps {
   showBackHint?: boolean;

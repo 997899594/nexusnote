@@ -3,7 +3,7 @@
  * 参考 app/api/chat/route.ts
  */
 
-import { type NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 
 export class APIError extends Error {
@@ -17,15 +17,8 @@ export class APIError extends Error {
   }
 }
 
-export function errorResponse(
-  message: string,
-  statusCode: number,
-  code: string,
-) {
-  return NextResponse.json(
-    { error: { message, code } },
-    { status: statusCode },
-  );
+export function errorResponse(message: string, statusCode: number, code: string) {
+  return NextResponse.json({ error: { message, code } }, { status: statusCode });
 }
 
 export function handleError(error: unknown): NextResponse {

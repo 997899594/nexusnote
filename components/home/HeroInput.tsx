@@ -1,20 +1,13 @@
 "use client";
 
+import { autoUpdate, flip, offset, shift, size, useFloating } from "@floating-ui/react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronRight, Send, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import {
-  useFloating,
-  flip,
-  shift,
-  offset,
-  size,
-  autoUpdate,
-} from "@floating-ui/react";
-import { usePendingChatStore, useTransitionStore } from "@/stores";
 import { extractCommandContent, HOME_COMMANDS } from "@/lib/chat/commands";
 import { cn } from "@/lib/utils";
+import { usePendingChatStore, useTransitionStore } from "@/stores";
 import type { Command } from "@/types/chat";
 
 export function HeroInput() {

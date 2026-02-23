@@ -7,11 +7,7 @@
  * - 自动处理认证状态
  */
 
-import { auth } from "@/lib/auth";
-import { db } from "@/db";
-import { conversations, courseProfiles, documents } from "@/db";
-import { desc, eq, and, gt } from "drizzle-orm";
-import { RecentCard } from "@/components/home";
+import { and, desc, eq, gt } from "drizzle-orm";
 import {
   BookOpen,
   FileText,
@@ -20,6 +16,9 @@ import {
   MessageSquare,
   StickyNote,
 } from "lucide-react";
+import { RecentCard } from "@/components/home";
+import { conversations, courseProfiles, db, documents } from "@/db";
+import { auth } from "@/lib/auth";
 
 const ICONS = {
   course: GraduationCap,
@@ -157,9 +156,7 @@ export async function RecentSectionServer() {
         <div className="flex items-center justify-between mb-5">
           <h2 className="font-medium text-zinc-700">最近</h2>
         </div>
-        <p className="text-center py-8 text-zinc-400 text-sm">
-          登录后查看学习记录
-        </p>
+        <p className="text-center py-8 text-zinc-400 text-sm">登录后查看学习记录</p>
       </section>
     );
   }
@@ -172,9 +169,7 @@ export async function RecentSectionServer() {
         <div className="flex items-center justify-between mb-5">
           <h2 className="font-medium text-zinc-700">最近</h2>
         </div>
-        <p className="text-center py-8 text-zinc-400 text-sm">
-          还没有学习记录，开始第一次学习吧！
-        </p>
+        <p className="text-center py-8 text-zinc-400 text-sm">还没有学习记录，开始第一次学习吧！</p>
       </section>
     );
   }

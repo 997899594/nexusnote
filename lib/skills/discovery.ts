@@ -8,18 +8,18 @@
  * - Flashcards (闪卡)
  */
 
-import { z } from "zod";
 import { generateObject } from "ai";
+import { and, desc, eq, sql } from "drizzle-orm";
+import { z } from "zod";
 import { db } from "@/db";
 import {
   conversations,
-  knowledgeChunks,
   courseProfiles,
   flashcards,
+  knowledgeChunks,
   skills,
   userSkillMastery,
 } from "@/db/schema";
-import { eq, desc, and, sql } from "drizzle-orm";
 import { aiProvider, safeGenerateObject } from "@/lib/ai/core";
 
 // ============================================
@@ -85,12 +85,7 @@ async function collectUserData(
         title: conversations.title,
       })
       .from(conversations)
-      .where(
-        and(
-          eq(conversations.userId, userId),
-          sql`${conversations.messageCount} > 0`,
-        ),
-      )
+      .where(and(eq(conversations.userId, userId), sql`${conversations.messageCount} > 0`))
       .orderBy(desc(conversations.updatedAt))
       .limit(limit);
 
@@ -274,11 +269,7 @@ export async function saveDiscoveredSkills(
 ): Promise<void> {
   for (const skill of discoveredSkills) {
     // 检查技能是否已存在
-    const existing = await db
-      .select()
-      .from(skills)
-      .where(eq(skills.slug, skill.slug))
-      .limit(1);
+    const existing = await db.select().from(skills).where(eq(skills.slug, skill.slug)).limit(1);
 
     let skillId: string;
 
@@ -315,12 +306,7 @@ export async function saveDiscoveredSkills(
     const existingMastery = await db
       .select()
       .from(userSkillMastery)
-      .where(
-        and(
-          eq(userSkillMastery.userId, userId),
-          eq(userSkillMastery.skillId, skillId),
-        ),
-      )
+      .where(and(eq(userSkillMastery.userId, userId), eq(userSkillMastery.skillId, skillId)))
       .limit(1);
 
     if (existingMastery.length > 0) {

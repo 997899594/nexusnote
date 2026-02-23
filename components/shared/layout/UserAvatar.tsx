@@ -1,8 +1,8 @@
 "use client";
 
-import { useAuthStore } from "@/stores";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { useAuthStore } from "@/stores";
 
 interface UserAvatarProps {
   className?: string;

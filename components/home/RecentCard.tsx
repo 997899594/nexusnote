@@ -5,10 +5,10 @@ import {
   BookOpen,
   FileText,
   GraduationCap,
+  type LucideIcon,
   Map as MapIcon,
   MessageSquare,
   StickyNote,
-  type LucideIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 

@@ -8,7 +8,7 @@
  * - Style data deletion
  */
 
-import { db, stylePrivacySettings, userProfiles, eq } from "@/db";
+import { db, eq, stylePrivacySettings, userProfiles } from "@/db";
 
 // ============================================
 // Type Definitions
@@ -44,9 +44,7 @@ export interface PrivacySettings {
  * @param userId - User ID
  * @returns Privacy settings or null if not found
  */
-export async function getPrivacySettings(
-  userId: string
-): Promise<PrivacySettings | null> {
+export async function getPrivacySettings(userId: string): Promise<PrivacySettings | null> {
   const settings = await db.query.stylePrivacySettings.findFirst({
     where: eq(stylePrivacySettings.userId, userId),
   });
@@ -76,12 +74,12 @@ export async function getPrivacySettings(
  */
 export async function updatePrivacySettings(
   userId: string,
-  input: PrivacySettingsInput
+  input: PrivacySettingsInput,
 ): Promise<PrivacySettings> {
   const existing = await getPrivacySettings(userId);
 
   const now = new Date();
-  let result;
+  let result: PrivacySettings;
 
   if (existing) {
     // Update existing settings

@@ -5,8 +5,8 @@
  * Converts style metrics into actionable AI instructions.
  */
 
-import { db, userProfiles } from "@/db";
 import { eq } from "drizzle-orm";
+import { db, userProfiles } from "@/db";
 import type { EMAValue } from "@/lib/profile";
 
 // ============================================
@@ -75,8 +75,7 @@ export async function buildChatContext(userId: string): Promise<string | null> {
   // Only include style instructions if we have enough data
   const minSamples = 3;
   const hasStyleData =
-    profile.vocabularyComplexity &&
-    profile.vocabularyComplexity.samples >= minSamples;
+    profile.vocabularyComplexity && profile.vocabularyComplexity.samples >= minSamples;
 
   if (!hasStyleData) {
     return parts.length > 0 ? parts.join("\n") : null;
@@ -95,9 +94,7 @@ export async function buildChatContext(userId: string): Promise<string | null> {
     .filter((v) => v)
     .map((v) => v.confidence);
   const avgConfidence =
-    confidences.length > 0
-      ? confidences.reduce((sum, c) => sum + c, 0) / confidences.length
-      : 0;
+    confidences.length > 0 ? confidences.reduce((sum, c) => sum + c, 0) / confidences.length : 0;
 
   // Vocabulary complexity
   if (vocab.value > 0.7) {
@@ -162,9 +159,7 @@ export async function buildChatContext(userId: string): Promise<string | null> {
 /**
  * Build a simplified context object (for UI display)
  */
-export async function buildChatContextObject(
-  userId: string,
-): Promise<ChatContext | null> {
+export async function buildChatContextObject(userId: string): Promise<ChatContext | null> {
   const profile = await db.query.userProfiles.findFirst({
     where: eq(userProfiles.userId, userId),
   });
@@ -182,29 +177,31 @@ export async function buildChatContextObject(
   const emotional = profile.emotionalIntensity as EMAValue | null;
 
   // Calculate average confidence
-  const values = [vocab, sentence, abstraction, directness, conciseness, formality, emotional].filter(
-    (v) => v !== null,
-  ) as EMAValue[];
+  const values = [
+    vocab,
+    sentence,
+    abstraction,
+    directness,
+    conciseness,
+    formality,
+    emotional,
+  ].filter((v) => v !== null) as EMAValue[];
   const avgConfidence =
-    values.length > 0
-      ? values.reduce((sum, v) => sum + v.confidence, 0) / values.length
-      : 0;
+    values.length > 0 ? values.reduce((sum, v) => sum + v.confidence, 0) / values.length : 0;
   const samples = vocab?.samples || 0;
 
   return {
-    learningStyle: profile.learningStyle as {
-      preferredFormat?: string;
-      pace?: string;
-    } | undefined,
+    learningStyle: profile.learningStyle as
+      | {
+          preferredFormat?: string;
+          pace?: string;
+        }
+      | undefined,
     style:
       vocab && vocab.samples >= 3
         ? {
             vocabularyLevel:
-              vocab.value > 0.7
-                ? "advanced"
-                : vocab.value < 0.3
-                  ? "basic"
-                  : "intermediate",
+              vocab.value > 0.7 ? "advanced" : vocab.value < 0.3 ? "basic" : "intermediate",
             sentenceComplexity:
               sentence?.value && sentence.value > 0.7
                 ? "complex"
@@ -235,8 +232,7 @@ export async function buildChatContextObject(
                 : formality?.value && formality.value < 0.3
                   ? "casual"
                   : "neutral",
-            emotionalTone:
-              emotional?.value && emotional.value > 0.7 ? "expressive" : "neutral",
+            emotionalTone: emotional?.value && emotional.value > 0.7 ? "expressive" : "neutral",
           }
         : undefined,
     confidence: avgConfidence,

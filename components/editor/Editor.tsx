@@ -12,12 +12,12 @@ import Placeholder from "@tiptap/extension-placeholder";
 import TaskList from "@tiptap/extension-task-list";
 import { TextStyle } from "@tiptap/extension-text-style";
 import Underline from "@tiptap/extension-underline";
+import type { Editor as TiptapEditorType } from "@tiptap/react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import type { Editor as TiptapEditorType } from "@tiptap/react";
 import { useEffect, useState } from "react";
-import { Callout } from "./Callout";
 import type { SlashCommand } from "@/types/editor";
+import { Callout } from "./Callout";
 
 interface EditorProps {
   content?: string;

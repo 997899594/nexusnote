@@ -61,22 +61,58 @@ export const userProfiles = pgTable(
 
     // ========== 风格分析字段（AI 推断）==========
     // 语言复杂度 (0-1)
-    vocabularyComplexity: jsonb("vocabulary_complexity").$type<{ value: number; confidence: number; samples: number }>(),
-    sentenceComplexity: jsonb("sentence_complexity").$type<{ value: number; confidence: number; samples: number }>(),
-    abstractionLevel: jsonb("abstraction_level").$type<{ value: number; confidence: number; samples: number }>(),
+    vocabularyComplexity: jsonb("vocabulary_complexity").$type<{
+      value: number;
+      confidence: number;
+      samples: number;
+    }>(),
+    sentenceComplexity: jsonb("sentence_complexity").$type<{
+      value: number;
+      confidence: number;
+      samples: number;
+    }>(),
+    abstractionLevel: jsonb("abstraction_level").$type<{
+      value: number;
+      confidence: number;
+      samples: number;
+    }>(),
 
     // 沟通风格 (0-1)
     directness: jsonb("directness").$type<{ value: number; confidence: number; samples: number }>(),
-    conciseness: jsonb("conciseness").$type<{ value: number; confidence: number; samples: number }>(),
+    conciseness: jsonb("conciseness").$type<{
+      value: number;
+      confidence: number;
+      samples: number;
+    }>(),
     formality: jsonb("formality").$type<{ value: number; confidence: number; samples: number }>(),
-    emotionalIntensity: jsonb("emotional_intensity").$type<{ value: number; confidence: number; samples: number }>(),
+    emotionalIntensity: jsonb("emotional_intensity").$type<{
+      value: number;
+      confidence: number;
+      samples: number;
+    }>(),
 
     // Big Five 特质 (0-1) - 敏感数据，需用户同意
     openness: jsonb("openness").$type<{ value: number; confidence: number; samples: number }>(),
-    conscientiousness: jsonb("conscientiousness").$type<{ value: number; confidence: number; samples: number }>(),
-    extraversion: jsonb("extraversion").$type<{ value: number; confidence: number; samples: number }>(),
-    agreeableness: jsonb("agreeableness").$type<{ value: number; confidence: number; samples: number }>(),
-    neuroticism: jsonb("neuroticism").$type<{ value: number; confidence: number; samples: number }>(),
+    conscientiousness: jsonb("conscientiousness").$type<{
+      value: number;
+      confidence: number;
+      samples: number;
+    }>(),
+    extraversion: jsonb("extraversion").$type<{
+      value: number;
+      confidence: number;
+      samples: number;
+    }>(),
+    agreeableness: jsonb("agreeableness").$type<{
+      value: number;
+      confidence: number;
+      samples: number;
+    }>(),
+    neuroticism: jsonb("neuroticism").$type<{
+      value: number;
+      confidence: number;
+      samples: number;
+    }>(),
 
     // 分析元数据
     totalMessagesAnalyzed: integer("total_messages_analyzed").notNull().default(0),
@@ -168,9 +204,7 @@ export const userPersonaPreferences = pgTable(
       .unique(),
     // Note: No foreign key to personas.slug because built-in personas
     // are stored in code, not in the database. Validation happens at application layer.
-    defaultPersonaSlug: text("default_persona_slug")
-      .notNull()
-      .default("default"),
+    defaultPersonaSlug: text("default_persona_slug").notNull().default("default"),
     lastSwitchedAt: timestamp("last_switched_at"),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
@@ -194,10 +228,7 @@ export const personaSubscriptions = pgTable(
     subscribedAt: timestamp("subscribed_at").defaultNow(),
   },
   (table) => ({
-    uniqueUserPersona: index("persona_subscriptions_unique_idx").on(
-      table.userId,
-      table.personaId,
-    ),
+    uniqueUserPersona: index("persona_subscriptions_unique_idx").on(table.userId, table.personaId),
   }),
 );
 
@@ -843,23 +874,18 @@ export const personasRelations = relations(personas, ({ one, many }) => ({
   subscriptions: many(personaSubscriptions),
 }));
 
-export const userPersonaPreferencesRelations = relations(
-  userPersonaPreferences,
-  ({ one }) => ({
-    user: one(users, {
-      fields: [userPersonaPreferences.userId],
-      references: [users.id],
-    }),
-    defaultPersona: one(personas, {
-      fields: [userPersonaPreferences.defaultPersonaSlug],
-      references: [personas.slug],
-    }),
+export const userPersonaPreferencesRelations = relations(userPersonaPreferences, ({ one }) => ({
+  user: one(users, {
+    fields: [userPersonaPreferences.userId],
+    references: [users.id],
   }),
-);
+  defaultPersona: one(personas, {
+    fields: [userPersonaPreferences.defaultPersonaSlug],
+    references: [personas.slug],
+  }),
+}));
 
-export const personaSubscriptionsRelations = relations(personaSubscriptions, ({
-  one,
-}) => ({
+export const personaSubscriptionsRelations = relations(personaSubscriptions, ({ one }) => ({
   user: one(users, {
     fields: [personaSubscriptions.userId],
     references: [users.id],

@@ -1,7 +1,7 @@
 "use server";
 
-import { streamUI } from "@ai-sdk/rsc";
 import { openai } from "@ai-sdk/openai";
+import { streamUI } from "@ai-sdk/rsc";
 import { z } from "zod";
 
 // ============ Props 类型定义 ============
@@ -41,12 +41,16 @@ function FlashcardPreview({ front, back }: FlashcardPreviewProps) {
     <div className="border rounded-lg p-6 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 max-w-md">
       <div className="space-y-4">
         <div>
-          <span className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">正面</span>
+          <span className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            正面
+          </span>
           <p className="font-medium mt-1">{front}</p>
         </div>
         <div className="border-t border-gray-200 dark:border-gray-700" />
         <div>
-          <span className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">背面</span>
+          <span className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            背面
+          </span>
           <p className="mt-1">{back}</p>
         </div>
       </div>
@@ -62,9 +66,7 @@ function NotesSearchResult({ query, results }: NotesSearchResultProps) {
         {results.map((result) => (
           <li key={result.id} className="border-l-4 border-purple-500 pl-3">
             <h4 className="font-medium">{result.title}</h4>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              {result.excerpt}
-            </p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{result.excerpt}</p>
           </li>
         ))}
       </ul>
@@ -123,4 +125,3 @@ export async function generateAIResponse(userInput: string) {
 
   return result.value;
 }
- 

@@ -4,10 +4,10 @@
  * 图算法和可视化数据准备
  */
 
+import type { Edge, Node } from "@xyflow/react";
+import { and, eq, inArray, or, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { skills, skillRelationships, userSkillMastery } from "@/db/schema";
-import { eq, and, or, inArray, sql } from "drizzle-orm";
-import type { Node, Edge } from "@xyflow/react";
+import { skillRelationships, skills, userSkillMastery } from "@/db/schema";
 
 // ============================================
 // Types
@@ -94,9 +94,7 @@ export async function getUserSkillGraphData(
     .where(inArray(skills.id, Array.from(relatedSkillIds)));
 
   const skillMap = new Map(allSkills.map((s) => [s.id, s]));
-  const masteryMap = new Map(
-    userSkills.map((us) => [us.skill.id, us.mastery]),
-  );
+  const masteryMap = new Map(userSkills.map((us) => [us.skill.id, us.mastery]));
 
   const nodes: Node[] = allSkills.map((skill) => {
     const mastery = masteryMap.get(skill.id);
@@ -159,10 +157,7 @@ export async function getUserSkillGraphData(
   };
 }
 
-function calculateSimpleLayout(
-  nodes: Node[],
-  edges: Edge[],
-): Node[] {
+function calculateSimpleLayout(nodes: Node[], edges: Edge[]): Node[] {
   const centerX = 400;
   const centerY = 300;
   const radius = Math.min(nodes.length * 30, 250);

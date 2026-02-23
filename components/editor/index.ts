@@ -2,6 +2,8 @@
  * Editor Feature - Flat Export
  */
 
+// Stores (re-export from @/stores for convenience)
+export { useEditorStore } from "@/stores";
 export type { AIAction, AIMenuState } from "./AIMenu";
 export { AIMenu, AIQuickActions } from "./AIMenu";
 export type { AISuggestion } from "./AISuggestions";
@@ -17,6 +19,3 @@ export type { ExportFormat, ExportOptions } from "./ExportImport";
 export { ExportButton, exportDocument, ImportButton, importDocument } from "./ExportImport";
 export type { Snapshot } from "./Snapshot";
 export { SnapshotItem, SnapshotPanel, SnapshotProvider, useSnapshots } from "./Snapshot";
-
-// Stores (re-export from @/stores for convenience)
-export { useEditorStore } from "@/stores";

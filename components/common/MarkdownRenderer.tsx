@@ -7,11 +7,11 @@
 
 "use client";
 
-import { Streamdown } from "streamdown";
+import { cjk } from "@streamdown/cjk";
 import { code } from "@streamdown/code";
 import { math } from "@streamdown/math";
 import { mermaid } from "@streamdown/mermaid";
-import { cjk } from "@streamdown/cjk";
+import { Streamdown } from "streamdown";
 import "katex/dist/katex.min.css";
 
 interface MarkdownRendererProps {
@@ -30,10 +30,7 @@ export function MarkdownRenderer({
   try {
     return (
       <div className={`prose prose-sm max-w-none dark:prose-invert ${className}`}>
-        <Streamdown
-          plugins={{ code, math, mermaid, cjk }}
-          isAnimating={isStreaming}
-        >
+        <Streamdown plugins={{ code, math, mermaid, cjk }} isAnimating={isStreaming}>
           {content}
         </Streamdown>
       </div>

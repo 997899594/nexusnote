@@ -30,7 +30,7 @@ const DEFAULT_ALPHA = 0.3;
 export function updateEMA(
   current: { value: number; confidence: number; samples: number },
   newValue: number,
-  alpha: number = DEFAULT_ALPHA
+  alpha: number = DEFAULT_ALPHA,
 ): { value: number; confidence: number; samples: number } {
   // Clamp input to valid range
   const clampedValue = Math.max(0, Math.min(1, newValue));
@@ -62,7 +62,7 @@ export function updateEMA(
 export function updateEMABatch(
   current: Record<string, { value: number; confidence: number; samples: number }>,
   newValues: Record<string, number>,
-  alpha: number = DEFAULT_ALPHA
+  alpha: number = DEFAULT_ALPHA,
 ): Record<string, { value: number; confidence: number; samples: number }> {
   const result = { ...current };
 
@@ -107,10 +107,7 @@ export function resetEMA(initialValue: number = 0.5): {
  * @param alpha - Smoothing factor
  * @returns Effective weight of the current EMA value (0-1)
  */
-export function getEffectiveWeight(
-  samples: number,
-  alpha: number = DEFAULT_ALPHA
-): number {
+export function getEffectiveWeight(samples: number, alpha: number = DEFAULT_ALPHA): number {
   // After n samples, the effective weight is (1-alpha)^n
-  return Math.pow(1 - alpha, samples);
+  return (1 - alpha) ** samples;
 }

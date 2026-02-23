@@ -8,14 +8,10 @@
  */
 
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
-import { handleError, APIError } from "@/lib/api";
-import {
-  getPrivacySettings,
-  updatePrivacySettings,
-  deleteStyleData,
-} from "@/lib/style/privacy";
 import { z } from "zod";
+import { APIError, handleError } from "@/lib/api";
+import { auth } from "@/lib/auth";
+import { deleteStyleData, getPrivacySettings, updatePrivacySettings } from "@/lib/style/privacy";
 
 export const runtime = "nodejs";
 

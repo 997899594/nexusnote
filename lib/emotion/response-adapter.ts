@@ -68,8 +68,7 @@ const STRATEGIES: Record<EmotionType, AdaptationStrategy> = {
   },
 
   neutral: {
-    instruction:
-      "Proceed with normal communication. No special adaptation needed.",
+    instruction: "Proceed with normal communication. No special adaptation needed.",
     tone: "neutral",
     priority: "low",
   },
@@ -108,9 +107,7 @@ export function adaptResponseForEmotion(emotion: EmotionSignal): string {
  *
  * When multiple emotions are detected, prioritize by priority and intensity.
  */
-export function adaptResponseForEmotions(
-  emotions: EmotionSignal[],
-): string | null {
+export function adaptResponseForEmotions(emotions: EmotionSignal[]): string | null {
   if (emotions.length === 0) {
     return null;
   }
@@ -119,8 +116,7 @@ export function adaptResponseForEmotions(
   const priorityOrder = { high: 0, medium: 1, low: 2 };
   const sortedEmotions = [...emotions].sort((a, b) => {
     const priorityDiff =
-      priorityOrder[STRATEGIES[a.emotion].priority] -
-      priorityOrder[STRATEGIES[b.emotion].priority];
+      priorityOrder[STRATEGIES[a.emotion].priority] - priorityOrder[STRATEGIES[b.emotion].priority];
     if (priorityDiff !== 0) return priorityDiff;
     return b.intensity - a.intensity;
   });
@@ -154,26 +150,14 @@ ${adaptation}
  */
 export function getResponseOpening(emotion: EmotionType): string {
   const openings: Record<EmotionType, string[]> = {
-    confused: [
-      "让我换个方式来解释...",
-      "我来用更简单的方式说明...",
-      "也许用个例子会更容易理解...",
-    ],
-    urgent: [
-      "直接说：",
-      "简而言之：",
-      "重点是：",
-    ],
+    confused: ["让我换个方式来解释...", "我来用更简单的方式说明...", "也许用个例子会更容易理解..."],
+    urgent: ["直接说：", "简而言之：", "重点是："],
     giving_up: [
       "我知道这个问题挺棘手的...",
       "这种概念确实不容易掌握，我们换个思路...",
       "别灰心，我们试个不同的方法...",
     ],
-    satisfied: [
-      "很好！你理解得很对。",
-      "正是如此！继续保持。",
-      "你的思路完全正确。",
-    ],
+    satisfied: ["很好！你理解得很对。", "正是如此！继续保持。", "你的思路完全正确。"],
     frustrated: [
       "我理解你的挫败感，这个确实有挑战性...",
       "让我们重新梳理一下，换个角度试试...",
@@ -184,16 +168,8 @@ export function getResponseOpening(emotion: EmotionType): string {
       "这个进展很棒！接下来...",
       "你的理解完全正确！继续保持！",
     ],
-    curious: [
-      "这是个很好的探索方向！",
-      "让我来展开说明...",
-      "你可能会对以下内容感兴趣...",
-    ],
-    neutral: [
-      "好的，",
-      "让我们继续，",
-      "",
-    ],
+    curious: ["这是个很好的探索方向！", "让我来展开说明...", "你可能会对以下内容感兴趣..."],
+    neutral: ["好的，", "让我们继续，", ""],
   };
 
   const options = openings[emotion];

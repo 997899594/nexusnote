@@ -15,7 +15,12 @@ export function SkillGraphSkeleton() {
       <div className="h-[350px] bg-zinc-50 flex items-center justify-center">
         <div className="animate-pulse text-zinc-300">
           <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1}
+              d="M13 10V3L4 14h7v7l9-11h-7z"
+            />
           </svg>
         </div>
       </div>

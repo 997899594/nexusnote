@@ -91,10 +91,7 @@ const EMOTION_RULES: EmotionRule[] = [
     intensifiers: ["总是", "每次", "永远", "always", "every time", "forever"],
   },
   {
-    patterns: [
-      /太棒了|哇|天哪| amazing|awesome|incredible/gi,
-      /终于|成功了|做到了|yes.*did.*it/gi,
-    ],
+    patterns: [/太棒了|哇|天哪| amazing|awesome|incredible/gi, /终于|成功了|做到了|yes.*did.*it/gi],
     emotion: "excited",
     baseConfidence: 0.85,
     intensifiers: ["!!!", "！！！", "so", "very", "超级"],
@@ -192,9 +189,7 @@ export function detectEmotion(message: string): EmotionSignal | null {
  * Batch detect emotions from multiple messages
  */
 export function detectEmotionBatch(messages: string[]): EmotionSignal[] {
-  return messages
-    .map((msg) => detectEmotion(msg))
-    .filter((e): e is EmotionSignal => e !== null);
+  return messages.map((msg) => detectEmotion(msg)).filter((e): e is EmotionSignal => e !== null);
 }
 
 /**
@@ -202,9 +197,10 @@ export function detectEmotionBatch(messages: string[]): EmotionSignal[] {
  *
  * Returns the dominant emotion and whether it's increasing, stable, or decreasing.
  */
-export function detectEmotionTrend(
-  messages: string[],
-): { emotion: EmotionSignal | null; trend: "increasing" | "stable" | "decreasing" } {
+export function detectEmotionTrend(messages: string[]): {
+  emotion: EmotionSignal | null;
+  trend: "increasing" | "stable" | "decreasing";
+} {
   if (messages.length < 2) {
     return { emotion: detectEmotion(messages[0] || ""), trend: "stable" };
   }

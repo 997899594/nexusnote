@@ -2,6 +2,8 @@
  * Chat Feature - Flat Export
  */
 
+// Stores (re-export from @/stores for convenience)
+export { useChatStore, usePendingChatStore, useTransitionStore } from "@/stores";
 // Types (re-export from main types)
 export type { Command } from "@/types/chat";
 // Components
@@ -13,5 +15,3 @@ export { CommandMenu } from "./CommandMenu";
 export { TransitionOverlay } from "./TransitionOverlay";
 // Hooks
 export { useChatSession } from "./useChatSession";
-// Stores (re-export from @/stores for convenience)
-export { useChatStore, usePendingChatStore, useTransitionStore } from "@/stores";

@@ -2,19 +2,23 @@
  * AI Personas - Export
  */
 
-export { BUILT_IN_PERSONAS, getBuiltInPersona, getAllBuiltInPersonas, getPersonasByCategory } from "./built-in";
 export type { BuiltInPersona, PersonaSlug } from "./built-in";
-
 export {
-  getPersona,
-  getAvailablePersonas,
-  getUserPersonaPreference,
-  setUserPersonaPreference,
+  BUILT_IN_PERSONAS,
+  getAllBuiltInPersonas,
+  getBuiltInPersona,
+  getPersonasByCategory,
+} from "./built-in";
+export type { AIPersona, PersonaPreference, PersonaWithSubscription } from "./service";
+export {
   createCustomPersona,
-  updateCustomPersona,
   deleteCustomPersona,
+  getAvailablePersonas,
+  getPersona,
+  getUserPersonaPreference,
+  ratePersona,
+  setUserPersonaPreference,
   subscribeToPersona,
   unsubscribeFromPersona,
-  ratePersona,
+  updateCustomPersona,
 } from "./service";
-export type { AIPersona, PersonaPreference, PersonaWithSubscription } from "./service";

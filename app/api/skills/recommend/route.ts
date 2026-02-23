@@ -2,10 +2,10 @@
  * GET /api/skills/recommend - 获取技能推荐
  */
 
-import { NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
+import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
 import { getRecommendedSkills } from "@/lib/skills";
-import { handleError, APIError } from "@/lib/api";
 import { RecommendQuerySchema } from "@/lib/skills/validation";
 
 export async function GET(request: NextRequest) {

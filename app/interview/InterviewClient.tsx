@@ -28,7 +28,13 @@ function getMessageContent(msg: { parts?: ContentPart[] }): string {
 
 export function InterviewClient() {
   const [state, setState] = useState({
-    phase: "greeting" as "greeting" | "topic" | "background" | "difficulty" | "generating" | "complete",
+    phase: "greeting" as
+      | "greeting"
+      | "topic"
+      | "background"
+      | "difficulty"
+      | "generating"
+      | "complete",
     topic: "",
     background: "",
     difficulty: "intermediate" as "beginner" | "intermediate" | "advanced",
@@ -76,7 +82,9 @@ export function InterviewClient() {
               key={p}
               animate={{
                 backgroundColor:
-                  ["greeting", "topic", "background", "difficulty", "complete"].indexOf(state.phase) >= i
+                  ["greeting", "topic", "background", "difficulty", "complete"].indexOf(
+                    state.phase,
+                  ) >= i
                     ? "#6366f1"
                     : "#eee",
               }}

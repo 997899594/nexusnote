@@ -2,19 +2,18 @@
  * Emotion Detection & Response Adaptation - Export
  */
 
+export type { EmotionSignal, EmotionType } from "./detector";
 export {
   detectEmotion,
   detectEmotionBatch,
   detectEmotionTrend,
-  getEmotionLabel,
   getEmotionEmoji,
+  getEmotionLabel,
 } from "./detector";
-export type { EmotionSignal, EmotionType } from "./detector";
-
+export type { AdaptationStrategy } from "./response-adapter";
 export {
   adaptResponseForEmotion,
   adaptResponseForEmotions,
   buildEmotionAdaptationPrompt,
   getResponseOpening,
 } from "./response-adapter";
-export type { AdaptationStrategy } from "./response-adapter";

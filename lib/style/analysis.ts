@@ -7,9 +7,9 @@
 
 import { generateObject, type UIMessage } from "ai";
 import { z } from "zod";
-import { db, userProfiles, conversations, eq } from "@/db";
+import { conversations, db, eq, userProfiles } from "@/db";
 import { aiProvider } from "@/lib/ai/core";
-import { updateEMA, type EMAValue } from "./ema";
+import { type EMAValue, updateEMA } from "./ema";
 
 // ============================================
 // Type Definitions
@@ -103,16 +103,8 @@ const StyleMetricsSchema = z.object({
     .min(0)
     .max(1)
     .describe("Communication directness (0=indirect/circumlocutory, 1=straightforward)"),
-  conciseness: z
-    .number()
-    .min(0)
-    .max(1)
-    .describe("Brevity of expression (0=verbose, 1=concise)"),
-  formality: z
-    .number()
-    .min(0)
-    .max(1)
-    .describe("Register of speech (0=casual, 1=formal)"),
+  conciseness: z.number().min(0).max(1).describe("Brevity of expression (0=verbose, 1=concise)"),
+  formality: z.number().min(0).max(1).describe("Register of speech (0=casual, 1=formal)"),
   emotionalIntensity: z
     .number()
     .min(0)
@@ -170,7 +162,7 @@ const StyleAnalysisSchema = z.object({
  */
 export async function analyzeConversationStyle(
   messages: UIMessage[],
-  includeBigFive: boolean = false
+  includeBigFive: boolean = false,
 ): Promise<StyleAnalysisResult> {
   // Extract only user messages
   const userMessages = messages.filter((m) => m.role === "user");
@@ -224,12 +216,16 @@ Provide a comprehensive analysis following the JSON schema. Consider:
 - Formality: casual/slang vs formal/academic register
 - Emotional intensity: neutral vs expressive language
 
-${includeBigFive ? `For Big Five traits, analyze language patterns that correlate with:
+${
+  includeBigFive
+    ? `For Big Five traits, analyze language patterns that correlate with:
 - Openness: metaphor use, creative expression, topic diversity
 - Conscientiousness: structure, planning language, detail orientation
 - Extraversion: assertiveness, social language, energy
 - Agreeableness: cooperative vs competitive language, empathy indicators
-- Neuroticism: anxiety words, emotional variability, certainty markers` : `Exclude Big Five analysis.`}`;
+- Neuroticism: anxiety words, emotional variability, certainty markers`
+    : `Exclude Big Five analysis.`
+}`;
 
   try {
     const result = await generateObject({
@@ -247,7 +243,9 @@ ${includeBigFive ? `For Big Five traits, analyze language patterns that correlat
     };
   } catch (error) {
     console.error("[StyleAnalysis] AI analysis failed:", error);
-    throw new Error(`Style analysis failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+    throw new Error(
+      `Style analysis failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+    );
   }
 }
 
@@ -265,7 +263,7 @@ ${includeBigFive ? `For Big Five traits, analyze language patterns that correlat
 export async function updateUserStyleProfile(
   userId: string,
   conversationId: string,
-  includeBigFive: boolean = false
+  includeBigFive: boolean = false,
 ): Promise<void> {
   // Fetch the conversation
   const conversation = await db.query.conversations.findFirst({
@@ -292,29 +290,29 @@ export async function updateUserStyleProfile(
   // Analyze conversation style
   const analysis = await analyzeConversationStyle(
     conversation.messages as UIMessage[],
-    includeBigFive
+    includeBigFive,
   );
 
   // Build update object using EMA for smooth updates
   const updates: Record<string, EMAValue | number | Date> = {
     vocabularyComplexity: updateEMA(
       profile.vocabularyComplexity as EMAValue,
-      analysis.metrics.vocabularyComplexity
+      analysis.metrics.vocabularyComplexity,
     ),
     sentenceComplexity: updateEMA(
       profile.sentenceComplexity as EMAValue,
-      analysis.metrics.sentenceComplexity
+      analysis.metrics.sentenceComplexity,
     ),
     abstractionLevel: updateEMA(
       profile.abstractionLevel as EMAValue,
-      analysis.metrics.abstractionLevel
+      analysis.metrics.abstractionLevel,
     ),
     directness: updateEMA(profile.directness as EMAValue, analysis.metrics.directness),
     conciseness: updateEMA(profile.conciseness as EMAValue, analysis.metrics.conciseness),
     formality: updateEMA(profile.formality as EMAValue, analysis.metrics.formality),
     emotionalIntensity: updateEMA(
       profile.emotionalIntensity as EMAValue,
-      analysis.metrics.emotionalIntensity
+      analysis.metrics.emotionalIntensity,
     ),
     totalMessagesAnalyzed: (profile.totalMessagesAnalyzed || 0) + 1,
     totalConversationsAnalyzed: (profile.totalConversationsAnalyzed || 0) + 1,
@@ -327,12 +325,15 @@ export async function updateUserStyleProfile(
     updates.openness = updateEMA(profile.openness as EMAValue, analysis.bigFive.openness);
     updates.conscientiousness = updateEMA(
       profile.conscientiousness as EMAValue,
-      analysis.bigFive.conscientiousness
+      analysis.bigFive.conscientiousness,
     );
-    updates.extraversion = updateEMA(profile.extraversion as EMAValue, analysis.bigFive.extraversion);
+    updates.extraversion = updateEMA(
+      profile.extraversion as EMAValue,
+      analysis.bigFive.extraversion,
+    );
     updates.agreeableness = updateEMA(
       profile.agreeableness as EMAValue,
-      analysis.bigFive.agreeableness
+      analysis.bigFive.agreeableness,
     );
     updates.neuroticism = updateEMA(profile.neuroticism as EMAValue, analysis.bigFive.neuroticism);
   }
@@ -341,7 +342,7 @@ export async function updateUserStyleProfile(
   await db.update(userProfiles).set(updates).where(eq(userProfiles.userId, userId));
 
   console.log(
-    `[StyleAnalysis] Updated profile for user ${userId}, conversation ${conversationId}, confidence: ${analysis.confidence}`
+    `[StyleAnalysis] Updated profile for user ${userId}, conversation ${conversationId}, confidence: ${analysis.confidence}`,
   );
 }
 
@@ -353,9 +354,7 @@ export async function updateUserStyleProfile(
  * @param userId - User ID
  * @returns User style profile or null if not found
  */
-export async function getUserStyleProfile(
-  userId: string
-): Promise<UserStyleProfile | null> {
+export async function getUserStyleProfile(userId: string): Promise<UserStyleProfile | null> {
   const profile = await db.query.userProfiles.findFirst({
     where: eq(userProfiles.userId, userId),
   });
@@ -403,22 +402,17 @@ export async function getUserStyleProfile(
  * @param userId - User ID
  * @returns Simplified metrics object or null
  */
-export async function getUserStyleSummary(
-  userId: string
-): Promise<
-  | {
-      vocabularyComplexity: number;
-      sentenceComplexity: number;
-      abstractionLevel: number;
-      directness: number;
-      conciseness: number;
-      formality: number;
-      emotionalIntensity: number;
-      confidence: number;
-      samples: number;
-    }
-  | null
-> {
+export async function getUserStyleSummary(userId: string): Promise<{
+  vocabularyComplexity: number;
+  sentenceComplexity: number;
+  abstractionLevel: number;
+  directness: number;
+  conciseness: number;
+  formality: number;
+  emotionalIntensity: number;
+  confidence: number;
+  samples: number;
+} | null> {
   const profile = await getUserStyleProfile(userId);
 
   if (!profile) {
@@ -427,8 +421,7 @@ export async function getUserStyleSummary(
 
   // Average confidence across all metrics
   const confidences = Object.values(profile.metrics).map((m) => m.confidence);
-  const avgConfidence =
-    confidences.reduce((sum, c) => sum + c, 0) / confidences.length;
+  const avgConfidence = confidences.reduce((sum, c) => sum + c, 0) / confidences.length;
   const totalSamples = profile.metrics.vocabularyComplexity.samples;
 
   return {

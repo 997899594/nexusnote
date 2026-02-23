@@ -3,5 +3,5 @@
  */
 
 export * from "./discovery";
-export * from "./relationships";
 export * from "./graph";
+export * from "./relationships";

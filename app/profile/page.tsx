@@ -4,81 +4,65 @@
  * 展示用户信息、AI 学习统计、活动时间线等
  */
 
-import { redirect } from "next/navigation";
-import { Suspense } from "react";
-import { auth } from "@/lib/auth";
-import { db } from "@/db";
-import {
-  conversations,
-  documents,
-  courseProfiles,
-  flashcards,
-} from "@/db";
-import { desc, count, eq, and, gt } from "drizzle-orm";
-import { FloatingHeader } from "@/components/shared/layout";
-import { SkillGraph } from "@/components/profile/SkillGraph";
-import { SkillGraphSkeleton } from "@/components/profile/SkillGraphSkeleton";
+import { and, count, desc, eq, gt } from "drizzle-orm";
 import {
   Brain,
-  MessageSquare,
+  Clock,
   FileText,
   GraduationCap,
-  StickyNote,
-  Zap,
-  TrendingUp,
-  Clock,
-  Target,
+  MessageSquare,
   Settings,
+  StickyNote,
+  Target,
+  TrendingUp,
+  Zap,
 } from "lucide-react";
+import { redirect } from "next/navigation";
+import { Suspense } from "react";
+import { SkillGraph } from "@/components/profile/SkillGraph";
+import { SkillGraphSkeleton } from "@/components/profile/SkillGraphSkeleton";
+import { FloatingHeader } from "@/components/shared/layout";
+import { conversations, courseProfiles, db, documents, flashcards } from "@/db";
+import { auth } from "@/lib/auth";
 import { ProfileSignOut } from "./profile-client";
 
 // 获取用户统计数据
 async function getUserStats(userId: string) {
-  const [
-    conversationCount,
-    documentCount,
-    courseCount,
-    flashcardCount,
-    recentActivity,
-  ] = await Promise.all([
-    // 对话数量
-    db
-      .select({ count: count() })
-      .from(conversations)
-      .where(
-        and(eq(conversations.userId, userId), gt(conversations.messageCount, 0)),
-      ),
+  const [conversationCount, documentCount, courseCount, flashcardCount, recentActivity] =
+    await Promise.all([
+      // 对话数量
+      db
+        .select({ count: count() })
+        .from(conversations)
+        .where(and(eq(conversations.userId, userId), gt(conversations.messageCount, 0))),
 
-    // Note: documents are workspace-scoped, showing all accessible documents
-    db.select({ count: count() }).from(documents),
+      // Note: documents are workspace-scoped, showing all accessible documents
+      db.select({ count: count() }).from(documents),
 
-    // 课程数量
-    db
-      .select({ count: count() })
-      .from(courseProfiles)
-      .where(eq(courseProfiles.userId, userId)),
+      // 课程数量
+      db.select({ count: count() }).from(courseProfiles).where(eq(courseProfiles.userId, userId)),
 
-    // Note: flashcards are workspace-scoped, showing all accessible flashcards
-    db.select({ count: count() }).from(flashcards),
+      // Note: flashcards are workspace-scoped, showing all accessible flashcards
+      db.select({ count: count() }).from(flashcards),
 
-    // 最近活动
-    db
-      .select({
-        id: conversations.id,
-        title: conversations.title,
-        updatedAt: conversations.updatedAt,
-      })
-      .from(conversations)
-      .where(
-        and(
-          eq(conversations.userId, userId),
-          gt(conversations.messageCount, 0),
-          eq(conversations.isArchived, false),
-        ),
-      )
-      .orderBy(desc(conversations.updatedAt))
-      .limit(5),
-  ]);
+      // 最近活动
+      db
+        .select({
+          id: conversations.id,
+          title: conversations.title,
+          updatedAt: conversations.updatedAt,
+        })
+        .from(conversations)
+        .where(
+          and(
+            eq(conversations.userId, userId),
+            gt(conversations.messageCount, 0),
+            eq(conversations.isArchived, false),
+          ),
+        )
+        .orderBy(desc(conversations.updatedAt))
+        .limit(5),
+    ]);
 
   return {
     conversations: conversationCount[0]?.count || 0,
@@ -185,12 +169,12 @@ export default async function ProfilePage() {
                   href={card.href}
                   className="bg-white rounded-xl shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] p-5 transition-shadow cursor-pointer"
                 >
-                  <div className={`${card.color} w-10 h-10 rounded-lg flex items-center justify-center mb-3`}>
+                  <div
+                    className={`${card.color} w-10 h-10 rounded-lg flex items-center justify-center mb-3`}
+                  >
                     <Icon className="w-5 h-5 text-white" />
                   </div>
-                  <div className="text-2xl font-bold text-zinc-900 mb-1">
-                    {card.value}
-                  </div>
+                  <div className="text-2xl font-bold text-zinc-900 mb-1">{card.value}</div>
                   <div className="text-sm text-zinc-500">{card.label}</div>
                 </a>
               );
@@ -271,20 +255,15 @@ export default async function ProfilePage() {
                       <MessageSquare className="w-5 h-5 text-blue-600" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-zinc-900 truncate">
-                        {activity.title}
-                      </div>
+                      <div className="font-medium text-zinc-900 truncate">{activity.title}</div>
                       <div className="text-sm text-zinc-500">
                         {activity.updatedAt
-                          ? new Date(activity.updatedAt).toLocaleDateString(
-                              "zh-CN",
-                              {
-                                month: "short",
-                                day: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              },
-                            )
+                          ? new Date(activity.updatedAt).toLocaleDateString("zh-CN", {
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
                           : "最近"}
                       </div>
                     </div>

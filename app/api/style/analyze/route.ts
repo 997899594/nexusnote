@@ -6,10 +6,10 @@
  */
 
 import { NextResponse } from "next/server";
+import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
-import { handleError, APIError } from "@/lib/api";
-import { AnalyzeStyleSchema } from "@/lib/style/validation";
 import { updateUserStyleProfile } from "@/lib/style/analysis";
+import { AnalyzeStyleSchema } from "@/lib/style/validation";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;

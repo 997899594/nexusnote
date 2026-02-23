@@ -5,7 +5,7 @@
  * Displays available personas with avatars and descriptions.
  */
 
-import { useState, useCallback } from "react";
+import { useCallback, useState } from "react";
 import type { AIPersona } from "@/lib/ai/personas";
 
 interface PersonaSelectorProps {
@@ -67,9 +67,10 @@ export function PersonaSelector({
             disabled={disabled}
             className={`
               p-3 rounded-lg border-2 transition-all text-left
-              ${currentPersonaSlug === persona.slug
-                ? "border-blue-500 bg-blue-50"
-                : "border-gray-200 hover:border-gray-300"
+              ${
+                currentPersonaSlug === persona.slug
+                  ? "border-blue-500 bg-blue-50"
+                  : "border-gray-200 hover:border-gray-300"
               }
               ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
             `}
@@ -82,9 +83,7 @@ export function PersonaSelector({
               <span className="font-medium text-sm truncate">{persona.name}</span>
             </div>
             {persona.description && (
-              <p className="text-xs text-gray-500 line-clamp-2">
-                {persona.description}
-              </p>
+              <p className="text-xs text-gray-500 line-clamp-2">{persona.description}</p>
             )}
           </button>
         ))}
@@ -100,10 +99,7 @@ export function PersonaSelector({
             key={persona.id}
             className={`
               flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-all
-              ${currentPersonaSlug === persona.slug
-                ? "bg-blue-50"
-                : "hover:bg-gray-50"
-              }
+              ${currentPersonaSlug === persona.slug ? "bg-blue-50" : "hover:bg-gray-50"}
               ${disabled ? "opacity-50 pointer-events-none" : ""}
             `}
           >
@@ -116,9 +112,7 @@ export function PersonaSelector({
               disabled={disabled}
               className="w-4 h-4 text-blue-600"
             />
-            <span className="text-lg">
-              {persona.avatar || PERSONA_ICONS[persona.slug] || "🤖"}
-            </span>
+            <span className="text-lg">{persona.avatar || PERSONA_ICONS[persona.slug] || "🤖"}</span>
             <div className="flex-1">
               <div className="font-medium text-sm">{persona.name}</div>
               {persona.description && (
@@ -161,10 +155,7 @@ export function PersonaSelector({
 
       {isOpen && (
         <>
-          <div
-            className="fixed inset-0 z-10"
-            onClick={() => setIsOpen(false)}
-          />
+          <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
           <div className="absolute z-20 mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 max-h-80 overflow-y-auto">
             {personas.map((persona) => (
               <button
@@ -173,9 +164,10 @@ export function PersonaSelector({
                 disabled={disabled}
                 className={`
                   w-full flex items-center gap-3 px-3 py-2 text-left transition-colors
-                  ${currentPersonaSlug === persona.slug
-                    ? "bg-blue-50 text-blue-700"
-                    : "hover:bg-gray-50"
+                  ${
+                    currentPersonaSlug === persona.slug
+                      ? "bg-blue-50 text-blue-700"
+                      : "hover:bg-gray-50"
                   }
                   ${disabled ? "opacity-50 cursor-not-allowed" : ""}
                 `}
@@ -186,9 +178,7 @@ export function PersonaSelector({
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-sm truncate">{persona.name}</div>
                   {persona.description && (
-                    <div className="text-xs text-gray-500 truncate">
-                      {persona.description}
-                    </div>
+                    <div className="text-xs text-gray-500 truncate">{persona.description}</div>
                   )}
                 </div>
                 {currentPersonaSlug === persona.slug && (
@@ -212,13 +202,7 @@ export function PersonaSelector({
 /**
  * Compact persona badge for inline display
  */
-export function PersonaBadge({
-  persona,
-  onClick,
-}: {
-  persona: AIPersona;
-  onClick?: () => void;
-}) {
+export function PersonaBadge({ persona, onClick }: { persona: AIPersona; onClick?: () => void }) {
   const colorClass = PERSONA_COLORS[persona.slug] || "bg-gray-100 text-gray-700";
 
   return (

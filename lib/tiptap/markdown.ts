@@ -5,9 +5,8 @@
  * 适用于 Server Components 预处理内容
  */
 
-import { MarkdownManager } from "@tiptap/markdown";
+import { Markdown, MarkdownManager } from "@tiptap/markdown";
 import StarterKit from "@tiptap/starter-kit";
-import { Markdown } from "@tiptap/markdown";
 
 // 配置扩展
 const extensions = [

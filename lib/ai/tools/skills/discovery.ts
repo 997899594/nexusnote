@@ -8,9 +8,10 @@ import { z } from "zod";
 export const DiscoverSkillsToolSchema = z.object({
   userId: z.string().describe("用户 ID"),
   limit: z.number().min(1).max(100).optional().default(50).describe("数据条数限制"),
-  sources: z.array(
-    z.enum(["conversations", "knowledge", "courses", "flashcards"]),
-  ).optional().describe("数据来源列表"),
+  sources: z
+    .array(z.enum(["conversations", "knowledge", "courses", "flashcards"]))
+    .optional()
+    .describe("数据来源列表"),
 });
 
 export type DiscoverSkillsToolInput = z.infer<typeof DiscoverSkillsToolSchema>;

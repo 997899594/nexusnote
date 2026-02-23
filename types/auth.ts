@@ -4,7 +4,7 @@
  * 严格的类型定义，无 any
  */
 
-import type { Session, User } from "next-auth";
+import type { User } from "next-auth";
 
 declare module "next-auth" {
   interface Session {

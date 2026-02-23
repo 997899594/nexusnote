@@ -70,15 +70,21 @@ export const Callout = Node.create({
 
   addCommands() {
     return {
-      setCallout: (type: CalloutType = "info") => ({ commands }) => {
-        return commands.toggleNode(this.name, "paragraph", { type });
-      },
-      toggleCallout: (type: CalloutType = "info") => ({ commands }) => {
-        return commands.toggleNode(this.name, "paragraph", { type });
-      },
-      unsetCallout: () => ({ commands }) => {
-        return commands.lift("paragraph");
-      },
+      setCallout:
+        (type: CalloutType = "info") =>
+        ({ commands }) => {
+          return commands.toggleNode(this.name, "paragraph", { type });
+        },
+      toggleCallout:
+        (type: CalloutType = "info") =>
+        ({ commands }) => {
+          return commands.toggleNode(this.name, "paragraph", { type });
+        },
+      unsetCallout:
+        () =>
+        ({ commands }) => {
+          return commands.lift("paragraph");
+        },
     };
   },
 });

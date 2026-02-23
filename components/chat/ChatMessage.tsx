@@ -2,8 +2,8 @@
 
 import type { TextUIPart, UIMessage } from "ai";
 import { motion } from "framer-motion";
-import { StreamdownMessage } from "./StreamdownMessage";
 import { cn } from "@/lib/utils";
+import { StreamdownMessage } from "./StreamdownMessage";
 
 interface ChatMessageProps {
   message: UIMessage;

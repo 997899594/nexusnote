@@ -4,17 +4,18 @@
  * 全局状态管理 - 跨页面共享的状态
  */
 
-// Chat 相关
-export { useChatStore } from './chat';
-export { usePendingChatStore } from './pending-chat';
-export { useTransitionStore } from './transition';
-
 // Auth 相关
-export { useAuthStore } from './auth';
-
+export { useAuthStore } from "./auth";
+// Chat 相关
+export { useChatStore } from "./chat";
 // Editor 相关
-export { useEditorStore } from './editor';
-
+export { useEditorStore } from "./editor";
+export { usePendingChatStore } from "./pending-chat";
+export { useTransitionStore } from "./transition";
 // User Preferences (Personalization)
-export { useUserPreferencesStore } from './user-preferences';
-export { selectCurrentPersona, selectStyleMetrics, selectLearningStyle } from './user-preferences';
+export {
+  selectCurrentPersona,
+  selectLearningStyle,
+  selectStyleMetrics,
+  useUserPreferencesStore,
+} from "./user-preferences";

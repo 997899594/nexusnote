@@ -11,7 +11,14 @@ export interface BuiltInPersona {
   description: string;
   avatar?: string;
   systemPrompt: string;
-  style: "neutral" | "aggressive" | "playful" | "gentle" | "philosophical" | "direct" | "enthusiastic";
+  style:
+    | "neutral"
+    | "aggressive"
+    | "playful"
+    | "gentle"
+    | "philosophical"
+    | "direct"
+    | "enthusiastic";
   examples: string[];
   category: "learning" | "motivation" | "emotional" | "specialized";
 }
@@ -45,7 +52,7 @@ export const BUILT_IN_PERSONAS: readonly BuiltInPersona[] = [
   {
     slug: "best_friend",
     name: "损友",
-    description: "吐槽调侃风格，适合需要\"骂醒\"的时候",
+    description: '吐槽调侃风格，适合需要"骂醒"的时候',
     systemPrompt: `你是用户的"损友"——一位说话直白、爱吐槽但真心为用户好的朋友。
 
 你的特点：
@@ -152,11 +159,7 @@ export const BUILT_IN_PERSONAS: readonly BuiltInPersona[] = [
 - 提问比回答更有价值
 - 每个人都有智慧，需要被引导`,
     style: "philosophical",
-    examples: [
-      "你认为什么是真正的理解？",
-      "如果情况相反，你会怎么想？",
-      "这个观点的假设是什么？",
-    ],
+    examples: ["你认为什么是真正的理解？", "如果情况相反，你会怎么想？", "这个观点的假设是什么？"],
     category: "learning",
   },
 
@@ -258,7 +261,7 @@ export const BUILT_IN_PERSONAS: readonly BuiltInPersona[] = [
   },
 ] as const;
 
-export type PersonaSlug = typeof BUILT_IN_PERSONAS[number]["slug"];
+export type PersonaSlug = (typeof BUILT_IN_PERSONAS)[number]["slug"];
 
 /**
  * Get a built-in persona by slug
@@ -277,8 +280,6 @@ export function getAllBuiltInPersonas(): readonly BuiltInPersona[] {
 /**
  * Get personas by category
  */
-export function getPersonasByCategory(
-  category: BuiltInPersona["category"],
-): BuiltInPersona[] {
+export function getPersonasByCategory(category: BuiltInPersona["category"]): BuiltInPersona[] {
   return BUILT_IN_PERSONAS.filter((p) => p.category === category);
 }

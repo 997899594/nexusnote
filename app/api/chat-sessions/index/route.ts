@@ -10,9 +10,9 @@
 import type { UIMessage } from "ai";
 import { NextResponse } from "next/server";
 import { conversations, db, eq } from "@/db";
+import { auth } from "@/lib/auth";
 import { indexConversation } from "@/lib/rag/chunker";
 import { conversationToParagraphs } from "@/lib/rag/semantic-chunker";
-import { auth } from "@/lib/auth";
 
 interface IndexSessionBody {
   sessionId: string;

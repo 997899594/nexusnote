@@ -7,11 +7,7 @@ import { z } from "zod";
 
 export const AnalyzeStyleToolSchema = z.object({
   conversationId: z.string().describe("对话 ID"),
-  includeBigFive: z
-    .boolean()
-    .optional()
-    .default(false)
-    .describe("是否分析 Big Five 人格特质"),
+  includeBigFive: z.boolean().optional().default(false).describe("是否分析 Big Five 人格特质"),
 });
 
 export type AnalyzeStyleToolInput = z.infer<typeof AnalyzeStyleToolSchema>;

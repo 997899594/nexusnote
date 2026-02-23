@@ -7,11 +7,11 @@
  * 支持代码高亮、数学公式、Mermaid 图表、中文优化
  */
 
-import { Streamdown } from "streamdown";
+import { cjk } from "@streamdown/cjk";
 import { code } from "@streamdown/code";
 import { math } from "@streamdown/math";
 import { mermaid } from "@streamdown/mermaid";
-import { cjk } from "@streamdown/cjk";
+import { Streamdown } from "streamdown";
 import "katex/dist/katex.min.css";
 
 interface StreamdownMessageProps {
@@ -47,9 +47,7 @@ function SafeStreamdown({
     // 降级到纯文本
     console.error("[Streamdown] Render error:", error);
     return (
-      <pre className="whitespace-pre-wrap text-sm text-zinc-700 dark:text-zinc-300">
-        {content}
-      </pre>
+      <pre className="whitespace-pre-wrap text-sm text-zinc-700 dark:text-zinc-300">{content}</pre>
     );
   }
 }

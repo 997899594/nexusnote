@@ -6,22 +6,22 @@
  * 使用 @xyflow/react 展示用户的技能及其关系
  */
 
-import { useEffect, useState, useMemo } from "react";
 import {
-  ReactFlow,
+  applyEdgeChanges,
+  applyNodeChanges,
   Background,
   Controls,
-  MiniMap,
-  applyNodeChanges,
-  applyEdgeChanges,
-  type Node,
   type Edge,
-  type NodeTypes,
-  type OnNodesChange,
-  type OnEdgesChange,
-  type NodeChange,
   type EdgeChange,
+  MiniMap,
+  type Node,
+  type NodeChange,
+  type NodeTypes,
+  type OnEdgesChange,
+  type OnNodesChange,
+  ReactFlow,
 } from "@xyflow/react";
+import { useEffect, useMemo, useState } from "react";
 import "@xyflow/react/dist/style.css";
 import * as LucideIcons from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -71,7 +71,9 @@ interface MasteryNodeProps {
 function MasteryNode({ data, selected }: MasteryNodeProps) {
   const IconComponent = useMemo(() => {
     if (data.icon && data.icon in LucideIcons) {
-      return LucideIcons[data.icon as keyof typeof LucideIcons] as React.ComponentType<{ className?: string }>;
+      return LucideIcons[data.icon as keyof typeof LucideIcons] as React.ComponentType<{
+        className?: string;
+      }>;
     }
     return LucideIcons.Lightbulb;
   }, [data.icon]);
@@ -136,9 +138,7 @@ function MasteryNode({ data, selected }: MasteryNodeProps) {
         <span className="font-semibold text-sm truncate">{data.name}</span>
       </div>
       <div className="flex items-center justify-between text-xs opacity-75">
-        <span>
-          Lv.{data.level}
-        </span>
+        <span>Lv.{data.level}</span>
         {data.description && (
           <span className="truncate max-w-[80px]" title={data.description}>
             {data.description}
@@ -166,7 +166,9 @@ interface SuggestedNodeProps {
 function SuggestedNode({ data, selected }: SuggestedNodeProps) {
   const IconComponent = useMemo(() => {
     if (data.icon && data.icon in LucideIcons) {
-      return LucideIcons[data.icon as keyof typeof LucideIcons] as React.ComponentType<{ className?: string }>;
+      return LucideIcons[data.icon as keyof typeof LucideIcons] as React.ComponentType<{
+        className?: string;
+      }>;
     }
     return LucideIcons.Lightbulb;
   }, [data.icon]);
@@ -266,12 +268,13 @@ export function SkillGraph({ userId, className, onDiscover }: SkillGraphProps) {
     if (!graphData) return null;
     const masteryNodes = graphData.nodes.filter((n) => n.type === "masteryNode");
     const suggestedNodes = graphData.nodes.filter((n) => n.type === "suggestedNode");
-    const avgLevel = masteryNodes.length > 0
-      ? masteryNodes.reduce((sum, n) => {
-          const level = (n.data.level as number) || 0;
-          return sum + level;
-        }, 0) / masteryNodes.length
-      : 0;
+    const avgLevel =
+      masteryNodes.length > 0
+        ? masteryNodes.reduce((sum, n) => {
+            const level = (n.data.level as number) || 0;
+            return sum + level;
+          }, 0) / masteryNodes.length
+        : 0;
     return {
       totalSkills: graphData.nodes.length,
       masteredSkills: masteryNodes.length,
@@ -304,9 +307,7 @@ export function SkillGraph({ userId, className, onDiscover }: SkillGraphProps) {
         </div>
         <div className="flex flex-col items-center justify-center h-[300px] text-zinc-400">
           <LucideIcons.Network className="w-12 h-12 mb-3 opacity-50" />
-          <p className="mb-4">
-            {error || "还没有技能数据"}
-          </p>
+          <p className="mb-4">{error || "还没有技能数据"}</p>
           <button
             onClick={handleDiscover}
             className="px-4 py-2 bg-[var(--color-accent)] text-white rounded-lg hover:bg-[var(--color-accent-hover)] transition-colors flex items-center gap-2"
@@ -320,7 +321,9 @@ export function SkillGraph({ userId, className, onDiscover }: SkillGraphProps) {
   }
 
   return (
-    <div className={cn("bg-white rounded-xl shadow-[var(--shadow-card)] overflow-hidden", className)}>
+    <div
+      className={cn("bg-white rounded-xl shadow-[var(--shadow-card)] overflow-hidden", className)}
+    >
       <div className="px-6 py-4 border-b border-zinc-100">
         <div className="flex items-center justify-between">
           <div>
@@ -358,20 +361,24 @@ export function SkillGraph({ userId, className, onDiscover }: SkillGraphProps) {
           }}
         >
           <Background color="var(--color-neutral-200)" gap={16} />
-          <Controls
-            className="!bg-white !border-zinc-200 [&>button]:!bg-zinc-50 [&>button]:!border-zinc-200 [&>button]:hover:!bg-zinc-100 [&>button]:text-zinc-600"
-          />
+          <Controls className="!bg-white !border-zinc-200 [&>button]:!bg-zinc-50 [&>button]:!border-zinc-200 [&>button]:hover:!bg-zinc-100 [&>button]:text-zinc-600" />
           <MiniMap
             nodeColor={(node) => {
               if (node.type === "suggestedNode") return "var(--skill-default-bg)";
               const data = node.data;
               switch (data.category as string) {
-                case "frontend": return "var(--skill-frontend-bg)";
-                case "backend": return "var(--skill-backend-bg)";
-                case "ml": return "var(--skill-ml-bg)";
-                case "design": return "var(--skill-design-bg)";
-                case "softskill": return "var(--skill-softskill-bg)";
-                default: return "var(--skill-default-bg)";
+                case "frontend":
+                  return "var(--skill-frontend-bg)";
+                case "backend":
+                  return "var(--skill-backend-bg)";
+                case "ml":
+                  return "var(--skill-ml-bg)";
+                case "design":
+                  return "var(--skill-design-bg)";
+                case "softskill":
+                  return "var(--skill-softskill-bg)";
+                default:
+                  return "var(--skill-default-bg)";
               }
             }}
             className="!bg-white !border-zinc-200"
@@ -382,23 +389,63 @@ export function SkillGraph({ userId, className, onDiscover }: SkillGraphProps) {
       <div className="px-6 py-3 border-t border-zinc-100 bg-zinc-50/50">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-zinc-600">
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded" style={{ backgroundColor: "var(--skill-frontend-bg)", borderColor: "var(--skill-frontend-border)", borderWidth: "1px", borderStyle: "solid" }} />
+            <div
+              className="w-3 h-3 rounded"
+              style={{
+                backgroundColor: "var(--skill-frontend-bg)",
+                borderColor: "var(--skill-frontend-border)",
+                borderWidth: "1px",
+                borderStyle: "solid",
+              }}
+            />
             <span>前端</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded" style={{ backgroundColor: "var(--skill-backend-bg)", borderColor: "var(--skill-backend-border)", borderWidth: "1px", borderStyle: "solid" }} />
+            <div
+              className="w-3 h-3 rounded"
+              style={{
+                backgroundColor: "var(--skill-backend-bg)",
+                borderColor: "var(--skill-backend-border)",
+                borderWidth: "1px",
+                borderStyle: "solid",
+              }}
+            />
             <span>后端</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded" style={{ backgroundColor: "var(--skill-ml-bg)", borderColor: "var(--skill-ml-border)", borderWidth: "1px", borderStyle: "solid" }} />
+            <div
+              className="w-3 h-3 rounded"
+              style={{
+                backgroundColor: "var(--skill-ml-bg)",
+                borderColor: "var(--skill-ml-border)",
+                borderWidth: "1px",
+                borderStyle: "solid",
+              }}
+            />
             <span>机器学习</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded" style={{ backgroundColor: "var(--skill-design-bg)", borderColor: "var(--skill-design-border)", borderWidth: "1px", borderStyle: "solid" }} />
+            <div
+              className="w-3 h-3 rounded"
+              style={{
+                backgroundColor: "var(--skill-design-bg)",
+                borderColor: "var(--skill-design-border)",
+                borderWidth: "1px",
+                borderStyle: "solid",
+              }}
+            />
             <span>设计</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded" style={{ backgroundColor: "var(--skill-softskill-bg)", borderColor: "var(--skill-softskill-border)", borderWidth: "1px", borderStyle: "solid" }} />
+            <div
+              className="w-3 h-3 rounded"
+              style={{
+                backgroundColor: "var(--skill-softskill-bg)",
+                borderColor: "var(--skill-softskill-border)",
+                borderWidth: "1px",
+                borderStyle: "solid",
+              }}
+            />
             <span>软技能</span>
           </div>
           <div className="ml-auto flex items-center gap-1.5 text-zinc-400">

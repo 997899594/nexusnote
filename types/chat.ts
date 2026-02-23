@@ -4,8 +4,8 @@
  * 严格的类型定义，无 any
  */
 
-import type { LucideProps } from "lucide-react";
 import type { UIMessage } from "ai";
+import type { LucideProps } from "lucide-react";
 
 export interface Command {
   id: string;

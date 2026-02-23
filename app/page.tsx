@@ -1,7 +1,6 @@
 import { Suspense } from "react";
-import { HeroInput } from "@/components/home";
+import { HeroInput, RecentSectionServer } from "@/components/home";
 import { FloatingHeader } from "@/components/shared/layout";
-import { RecentSectionServer } from "@/components/home";
 
 export default function HomePage() {
   return (

@@ -9,8 +9,8 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { BUILT_IN_PERSONAS } from "@/lib/ai/personas/built-in";
 import type { AIPersona, PersonaPreference } from "@/lib/ai/personas";
+import { BUILT_IN_PERSONAS } from "@/lib/ai/personas/built-in";
 
 interface UserStyleProfile {
   userId: string;
@@ -209,7 +209,7 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       partialize: (state) => ({
         // Persist current persona choice and built-in personas
         currentPersonaSlug: state.currentPersonaSlug,
-        availablePersonas: state.availablePersonas.filter(p => p.isBuiltIn),
+        availablePersonas: state.availablePersonas.filter((p) => p.isBuiltIn),
         // Don't persist profile (server data)
       }),
     },

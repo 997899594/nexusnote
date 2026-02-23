@@ -9,7 +9,11 @@ import { z } from "zod";
  */
 export const AnalyzeStyleSchema = z.object({
   conversationId: z.string().uuid("Invalid conversation ID format"),
-  includeBigFive: z.boolean().optional().default(false).describe("Whether to analyze Big Five personality traits"),
+  includeBigFive: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe("Whether to analyze Big Five personality traits"),
 });
 
 export type AnalyzeStyleInput = z.infer<typeof AnalyzeStyleSchema>;

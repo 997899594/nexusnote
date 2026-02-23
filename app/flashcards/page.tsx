@@ -6,7 +6,7 @@
  */
 
 import { Suspense } from "react";
-import { FlashcardsClient, type Flashcard } from "./FlashcardsClient";
+import { type Flashcard, FlashcardsClient } from "./FlashcardsClient";
 
 // 模拟数据获取（实际应从 DB 获取）
 async function getFlashcards(): Promise<Flashcard[]> {

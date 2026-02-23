@@ -5,19 +5,12 @@
  * Requires login.
  */
 
-import { type NextRequest } from "next/server";
-import { auth } from "@/lib/auth";
-import { handleError, APIError } from "@/lib/api";
-import {
-  getUserStyleProfile,
-  type UserStyleProfile,
-} from "@/lib/style/analysis";
-import {
-  getAvailablePersonas,
-  getUserPersonaPreference,
-  type AIPersona,
-} from "@/lib/ai/personas";
+import type { NextRequest } from "next/server";
 import type { PersonaPreference } from "@/lib/ai/personas";
+import { type AIPersona, getAvailablePersonas, getUserPersonaPreference } from "@/lib/ai/personas";
+import { APIError, handleError } from "@/lib/api";
+import { auth } from "@/lib/auth";
+import { getUserStyleProfile, type UserStyleProfile } from "@/lib/style/analysis";
 
 export const runtime = "nodejs";
 
@@ -33,7 +26,7 @@ interface PreferencesResponse {
   availablePersonas: AIPersona[];
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const session = await auth();
 
@@ -44,12 +37,11 @@ export async function GET(request: NextRequest) {
     const userId = session.user.id;
 
     // Parallel fetch all personalization data
-    const [styleProfile, personaPreference, availablePersonas] =
-      await Promise.all([
-        getUserStyleProfile(userId),
-        getUserPersonaPreference(userId),
-        getAvailablePersonas(userId),
-      ]);
+    const [styleProfile, personaPreference, availablePersonas] = await Promise.all([
+      getUserStyleProfile(userId),
+      getUserPersonaPreference(userId),
+      getAvailablePersonas(userId),
+    ]);
 
     const response: PreferencesResponse = {
       profile: {

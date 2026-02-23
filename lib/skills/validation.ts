@@ -6,9 +6,10 @@ import { z } from "zod";
 
 export const DiscoverSkillsSchema = z.object({
   limit: z.number().min(1).max(100).optional().default(50),
-  sources: z.array(
-    z.enum(["conversations", "knowledge", "courses", "flashcards"]),
-  ).optional().default(["conversations", "knowledge", "courses", "flashcards"]),
+  sources: z
+    .array(z.enum(["conversations", "knowledge", "courses", "flashcards"]))
+    .optional()
+    .default(["conversations", "knowledge", "courses", "flashcards"]),
 });
 
 export const GraphQuerySchema = z.object({

@@ -7,11 +7,11 @@ import { createAgentUIStreamResponse, smoothStream, type UIMessage } from "ai";
 import { type NextRequest, NextResponse } from "next/server";
 import { aiUsage, conversations, db } from "@/db";
 import { aiProvider, getAgent, validateRequest } from "@/lib/ai";
-import { auth } from "@/lib/auth";
-import { handleError, APIError } from "@/lib/api";
 import { getPersona, getUserPersonaPreference } from "@/lib/ai/personas";
+import { APIError, handleError } from "@/lib/api";
+import { auth } from "@/lib/auth";
+import { buildEmotionAdaptationPrompt, detectEmotion } from "@/lib/emotion";
 import { buildChatContext } from "@/lib/memory/chat-context-builder";
-import { detectEmotion, buildEmotionAdaptationPrompt } from "@/lib/emotion";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -25,10 +25,12 @@ export const maxDuration = 300;
  */
 function extractTextFromMessage(message: UIMessage | undefined): string {
   if (!message?.parts) return "";
-  return message.parts
-    .filter((p) => p.type === "text" && "text" in p)
-    .map((p) => (p as { text: string }).text)
-    .join(" ") || "";
+  return (
+    message.parts
+      .filter((p) => p.type === "text" && "text" in p)
+      .map((p) => (p as { text: string }).text)
+      .join(" ") || ""
+  );
 }
 
 /**

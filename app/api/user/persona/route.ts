@@ -2,11 +2,11 @@
  * User Persona Preference API
  */
 
-import { type NextRequest } from "next/server";
-import { auth } from "@/lib/auth";
-import { handleError, APIError } from "@/lib/api";
-import { setUserPersonaPreference } from "@/lib/ai/personas";
+import type { NextRequest } from "next/server";
 import { z } from "zod";
+import { setUserPersonaPreference } from "@/lib/ai/personas";
+import { APIError, handleError } from "@/lib/api";
+import { auth } from "@/lib/auth";
 
 const SetPersonaSchema = z.object({
   personaSlug: z.string().trim().min(1),
