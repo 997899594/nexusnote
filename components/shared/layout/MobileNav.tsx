@@ -7,10 +7,11 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { BookOpen, Home, PenTool, Plus, Search, User } from "lucide-react";
+import { BookOpen, Home, Menu, PenTool, Plus, Search, User } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { DrawerMenu } from "./DrawerMenu";
 
 const navItems = [
   { icon: Home, label: "首页", href: "/" },
@@ -23,6 +24,7 @@ const navItems = [
 export function MobileNav() {
   const pathname = usePathname();
   const [createOpen, setCreateOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const createOptions = [
     { label: "新建笔记", icon: PenTool, href: "/editor/new" },
@@ -49,23 +51,25 @@ export function MobileNav() {
                 <div key="floating" className="flex justify-center h-full relative">
                   <div className="absolute -top-6">
                     <motion.button
-                      onClick={() => setCreateOpen(true)}
+                      onClick={() => setDrawerOpen(true)}
                       whileHover={{ scale: 1.08, y: -2 }}
                       whileTap={{ scale: 0.92 }}
                       animate={{
-                        boxShadow: createOpen
+                        boxShadow: drawerOpen
                           ? "0 0 0 8px rgba(99, 102, 241, 0.2)"
-                          : "0 10px 25px -5px rgba(0, 0, 0, 0.3)",
+                          : createOpen
+                            ? "0 0 0 8px rgba(99, 102, 241, 0.2)"
+                            : "0 10px 25px -5px rgba(0, 0, 0, 0.3)",
                       }}
                       transition={{ duration: 0.2 }}
-                      className="flex items-center justify-center w-14 h-14 rounded-full bg-slate-900 text-white shadow-lg"
-                      aria-label="新建"
+                      className="flex items-center justify-center w-14 h-14 rounded-full bg-slate-900 text-white shadow-lg touch-target"
+                      aria-label="菜单"
                     >
                       <motion.div
-                        animate={{ rotate: createOpen ? 45 : 0 }}
+                        animate={{ rotate: drawerOpen ? 0 : createOpen ? 45 : 0 }}
                         transition={{ duration: 0.2 }}
                       >
-                        <Icon className="w-7 h-7" />
+                        {drawerOpen ? <Menu className="w-7 h-7" /> : <Icon className="w-7 h-7" />}
                       </motion.div>
                     </motion.button>
                   </div>
@@ -133,6 +137,13 @@ export function MobileNav() {
           </>
         )}
       </AnimatePresence>
+
+      {/* Drawer Menu */}
+      <DrawerMenu
+        isOpen={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        // 用户信息将从 session 获取
+      />
     </>
   );
 }
