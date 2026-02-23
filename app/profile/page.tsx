@@ -27,7 +27,6 @@ import {
   Clock,
   Target,
   Settings,
-  LogOut,
 } from "lucide-react";
 import { ProfileSignOut } from "./profile-client";
 
@@ -48,7 +47,7 @@ async function getUserStats(userId: string) {
         and(eq(conversations.userId, userId), gt(conversations.messageCount, 0)),
       ),
 
-    // 文档数量
+    // Note: documents are workspace-scoped, showing all accessible documents
     db.select({ count: count() }).from(documents),
 
     // 课程数量
@@ -57,7 +56,7 @@ async function getUserStats(userId: string) {
       .from(courseProfiles)
       .where(eq(courseProfiles.userId, userId)),
 
-    // 闪卡数量
+    // Note: flashcards are workspace-scoped, showing all accessible flashcards
     db.select({ count: count() }).from(flashcards),
 
     // 最近活动
@@ -135,10 +134,7 @@ export default async function ProfilePage() {
 
   return (
     <main className="min-h-screen bg-slate-50">
-      <FloatingHeader
-        showBackHint
-        onLogoClick={() => (window.location.href = "/")}
-      />
+      <FloatingHeader showBackHint />
 
       <div className="max-w-4xl mx-auto px-6 pt-28 pb-20">
         {/* 用户信息卡片 */}
