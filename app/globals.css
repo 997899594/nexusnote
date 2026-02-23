@@ -175,6 +175,66 @@
   padding: 0 1rem;
 }
 
+/* ────────────────────────────────────────────────────────────────────────────
+ * Mobile Safe Area & Touch Optimization
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+/* 安全区域支持 - 刘海屏/底部指示器 */
+@supports (padding: env(safe-area-inset-top)) {
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .safe-left {
+    padding-left: env(safe-area-inset-left);
+  }
+  .safe-right {
+    padding-right: env(safe-area-inset-right);
+  }
+  .safe-all {
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+}
+
+/* 移动端底部导航安全区域 */
+.mobile-nav-spacer {
+  height: calc(64px + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 768px) {
+  .mobile-nav-spacer {
+    display: none;
+  }
+}
+
+/* 触摸优化 - 确保点击区域足够大 */
+@media (hover: none) and (pointer: coarse) {
+  .touch-target {
+    min-width: 44px;
+    min-height: 44px;
+    min-touch-action: manipulation;
+  }
+
+  /* 移除 hover 延迟 */
+  a,
+  button {
+    touch-action: manipulation;
+  }
+}
+
+/* 防止移动端双击缩放 */
+.mobile-no-tap-highlight {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 移动端滚动优化 */
+.mobile-scroll {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
