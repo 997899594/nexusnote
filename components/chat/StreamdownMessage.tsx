@@ -3,7 +3,7 @@
 /**
  * StreamdownMessage - 流式 Markdown 渲染组件
  *
- * 使用 Streamdown 替代 react-markdown，专为 AI 流式优化
+ * 使用 Streamdown，专为 AI 流式优化
  * 支持代码高亮、数学公式、Mermaid 图表、中文优化
  */
 
