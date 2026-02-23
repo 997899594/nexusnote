@@ -27,6 +27,7 @@ import {
   summarizeTool,
 } from "../tools/learning";
 import { hybridSearchTool } from "../tools/rag";
+import { discoverSkillsTool } from "../tools/skills";
 
 const DEFAULT_MAX_STEPS = 20;
 
@@ -61,6 +62,26 @@ const INSTRUCTIONS = {
   course: `你是课程内容生成助手。
 
 根据用户提供的大纲主题，生成详细的课程内容。`,
+
+  skills: `你是 NexusNote 的技能发现专家。
+
+你的任务是从用户的学习数据中自动发现和提取技能。
+
+工作流程：
+1. 收集用户的对话、笔记、课程、闪卡数据
+2. 分析这些数据，识别用户掌握或正在学习的技能
+3. 为每个技能评估掌握度 (0-5) 和置信度 (0-100)
+4. 将发现的技能保存到数据库
+
+技能分类：
+- frontend: 前端开发相关 (React, Vue, CSS, TypeScript...)
+- backend: 后端开发相关 (Node.js, Python, PostgreSQL...)
+- ml: 机器学习/AI相关 (PyTorch, TensorFlow, NLP...)
+- design: 设计相关 (UI/UX, Figma, 色彩理论...)
+- softskill: 软技能 (沟通, 团队协作, 时间管理...)
+- other: 其他领域
+
+使用 discoverSkills 工具来发现并保存技能。`,
 } as const;
 
 const chatTools = {
@@ -82,6 +103,10 @@ const chatTools = {
   editDocument: editDocumentTool,
   batchEdit: batchEditTool,
   draftContent: draftContentTool,
+} as ToolSet;
+
+const skillsTools = {
+  discoverSkills: discoverSkillsTool,
 } as ToolSet;
 
 const courseTools = {
@@ -106,7 +131,7 @@ function createAgent(
 }
 
 export function getAgent(
-  intent: "CHAT" | "INTERVIEW" | "COURSE" | "EDITOR" | "SEARCH",
+  intent: "CHAT" | "INTERVIEW" | "COURSE" | "EDITOR" | "SEARCH" | "SKILLS",
   _sessionId?: string,
 ) {
   switch (intent) {
@@ -119,6 +144,8 @@ export function getAgent(
       );
     case "COURSE":
       return createAgent("nexusnote-course", aiProvider.proModel, INSTRUCTIONS.course, courseTools);
+    case "SKILLS":
+      return createAgent("nexusnote-skills", aiProvider.proModel, INSTRUCTIONS.skills, skillsTools);
     default:
       return createAgent("nexusnote-chat", aiProvider.chatModel, INSTRUCTIONS.chat, chatTools);
   }

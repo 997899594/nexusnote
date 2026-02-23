@@ -74,51 +74,82 @@ function MasteryNode({ data, selected }: MasteryNodeProps) {
     return LucideIcons.Lightbulb;
   }, [data.icon]);
 
-  const getColor = () => {
+  const getColors = () => {
     switch (data.category) {
       case "frontend":
-        return "bg-blue-100 border-blue-300 text-blue-700";
+        return {
+          bg: "var(--skill-frontend-bg)",
+          border: "var(--skill-frontend-border)",
+          text: "var(--skill-frontend-text)",
+        };
       case "backend":
-        return "bg-emerald-100 border-emerald-300 text-emerald-700";
+        return {
+          bg: "var(--skill-backend-bg)",
+          border: "var(--skill-backend-border)",
+          text: "var(--skill-backend-text)",
+        };
       case "ml":
-        return "bg-purple-100 border-purple-300 text-purple-700";
+        return {
+          bg: "var(--skill-ml-bg)",
+          border: "var(--skill-ml-border)",
+          text: "var(--skill-ml-text)",
+        };
       case "design":
-        return "bg-pink-100 border-pink-300 text-pink-700";
+        return {
+          bg: "var(--skill-design-bg)",
+          border: "var(--skill-design-border)",
+          text: "var(--skill-design-text)",
+        };
       case "softskill":
-        return "bg-amber-100 border-amber-300 text-amber-700";
+        return {
+          bg: "var(--skill-softskill-bg)",
+          border: "var(--skill-softskill-border)",
+          text: "var(--skill-softskill-text)",
+        };
       default:
-        return "bg-zinc-100 border-zinc-300 text-zinc-700";
+        return {
+          bg: "var(--skill-default-bg)",
+          border: "var(--skill-default-border)",
+          text: "var(--skill-default-text)",
+        };
     }
   };
 
-  const colorClass = getColor();
+  const colors = getColors();
 
   return (
     <div
       className={cn(
         "px-4 py-3 rounded-xl border-2 shadow-sm transition-all min-w-[140px]",
-        colorClass,
         selected && "ring-2 ring-offset-2 ring-[var(--color-accent)]",
       )}
+      style={{
+        backgroundColor: colors.bg,
+        borderColor: colors.border,
+        color: colors.text,
+      }}
     >
       <div className="flex items-center gap-2 mb-1">
-        <IconComponent className="w-4 h-4 flex-shrink-0" />
+        <IconComponent className="w-4 h-4 flex-shrink-0" style={{ color: colors.text }} />
         <span className="font-semibold text-sm truncate">{data.name}</span>
       </div>
-      <div className="flex items-center justify-between text-xs">
-        <span className="opacity-75">
+      <div className="flex items-center justify-between text-xs opacity-75">
+        <span>
           Lv.{data.level}
         </span>
         {data.description && (
-          <span className="opacity-60 truncate max-w-[80px]" title={data.description}>
+          <span className="truncate max-w-[80px]" title={data.description}>
             {data.description}
           </span>
         )}
       </div>
       <div className="mt-2 h-1.5 bg-black/10 rounded-full overflow-hidden">
         <div
-          className="h-full bg-current opacity-70 transition-all"
-          style={{ width: `${(data.level / 5) * 100}%` }}
+          className="h-full opacity-70 transition-all"
+          style={{
+            width: `${(data.level / 5) * 100}%`,
+            backgroundColor: colors.text,
+          }}
         />
       </div>
     </div>
@@ -330,15 +361,15 @@ export function SkillGraph({ userId, className, onDiscover }: SkillGraphProps) {
           />
           <MiniMap
             nodeColor={(node) => {
-              if (node.type === "suggestedNode") return "#f4f4f5";
+              if (node.type === "suggestedNode") return "var(--skill-default-bg)";
               const data = node.data;
               switch (data.category as string) {
-                case "frontend": return "#dbeafe";
-                case "backend": return "#d1fae5";
-                case "ml": return "#f3e8ff";
-                case "design": return "#fce7f3";
-                case "softskill": return "#fef3c7";
-                default: return "#f4f4f5";
+                case "frontend": return "var(--skill-frontend-bg)";
+                case "backend": return "var(--skill-backend-bg)";
+                case "ml": return "var(--skill-ml-bg)";
+                case "design": return "var(--skill-design-bg)";
+                case "softskill": return "var(--skill-softskill-bg)";
+                default: return "var(--skill-default-bg)";
               }
             }}
             className="!bg-white !border-zinc-200"
@@ -349,23 +380,23 @@ export function SkillGraph({ userId, className, onDiscover }: SkillGraphProps) {
       <div className="px-6 py-3 border-t border-zinc-100 bg-zinc-50/50">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-zinc-600">
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded bg-blue-200 border border-blue-300" />
+            <div className="w-3 h-3 rounded" style={{ backgroundColor: "var(--skill-frontend-bg)", borderColor: "var(--skill-frontend-border)", borderWidth: "1px", borderStyle: "solid" }} />
             <span>前端</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded bg-emerald-200 border border-emerald-300" />
+            <div className="w-3 h-3 rounded" style={{ backgroundColor: "var(--skill-backend-bg)", borderColor: "var(--skill-backend-border)", borderWidth: "1px", borderStyle: "solid" }} />
             <span>后端</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded bg-purple-200 border border-purple-300" />
+            <div className="w-3 h-3 rounded" style={{ backgroundColor: "var(--skill-ml-bg)", borderColor: "var(--skill-ml-border)", borderWidth: "1px", borderStyle: "solid" }} />
             <span>机器学习</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded bg-pink-200 border border-pink-300" />
+            <div className="w-3 h-3 rounded" style={{ backgroundColor: "var(--skill-design-bg)", borderColor: "var(--skill-design-border)", borderWidth: "1px", borderStyle: "solid" }} />
             <span>设计</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded bg-amber-200 border border-amber-300" />
+            <div className="w-3 h-3 rounded" style={{ backgroundColor: "var(--skill-softskill-bg)", borderColor: "var(--skill-softskill-border)", borderWidth: "1px", borderStyle: "solid" }} />
             <span>软技能</span>
           </div>
           <div className="ml-auto flex items-center gap-1.5 text-zinc-400">

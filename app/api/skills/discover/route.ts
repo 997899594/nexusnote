@@ -4,23 +4,22 @@
  * 从用户数据中发现技能并保存到数据库
  */
 
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { discoverAndSaveSkills, discoverAndSaveRelationships } from "@/lib/skills";
+import { handleError, APIError } from "@/lib/api";
+import { DiscoverSkillsSchema } from "@/lib/skills/validation";
 
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
 
     if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
     }
 
     const body = await request.json();
-    const options = {
-      limit: body.limit || 50,
-      sources: body.sources as Array<"conversations" | "knowledge" | "courses" | "flashcards"> | undefined,
-    };
+    const options = DiscoverSkillsSchema.parse(body);
 
     // 发现技能
     const discoveredSkills = await discoverAndSaveSkills(session.user.id, options);
@@ -30,16 +29,12 @@ export async function POST(request: NextRequest) {
       console.error("[API] /api/skills/discover relationships error:", error);
     });
 
-    return NextResponse.json({
+    return Response.json({
       success: true,
       skills: discoveredSkills,
       count: discoveredSkills.length,
     });
   } catch (error) {
-    console.error("[API] /api/skills/discover error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return handleError(error);
   }
 }

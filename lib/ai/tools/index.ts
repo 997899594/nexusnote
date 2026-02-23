@@ -8,3 +8,5 @@ export * from "./chat";
 export * from "./learning";
 // RAG Tools
 export * from "./rag";
+// Skills Tools
+export * from "./skills";

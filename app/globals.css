@@ -96,6 +96,31 @@
   --shadow-elevated: 0 4px 24px -4px oklch(0% 0 0 / 10%), 0 8px 48px -8px oklch(0% 0 0 / 6%);
   --shadow-elevated-hover: 0 8px 32px -4px oklch(0% 0 0 / 12%), 0 16px 64px -8px oklch(0% 0 0 / 8%);
 
+  /* 技能图颜色 (OKLCH) */
+  --skill-frontend-bg: oklch(0.95 0.03 250);
+  --skill-frontend-border: oklch(0.85 0.05 250);
+  --skill-frontend-text: oklch(0.45 0.12 250);
+
+  --skill-backend-bg: oklch(0.95 0.04 150);
+  --skill-backend-border: oklch(0.85 0.06 150);
+  --skill-backend-text: oklch(0.45 0.15 150);
+
+  --skill-ml-bg: oklch(0.94 0.06 300);
+  --skill-ml-border: oklch(0.82 0.10 300);
+  --skill-ml-text: oklch(0.40 0.18 300);
+
+  --skill-design-bg: oklch(0.95 0.05 350);
+  --skill-design-border: oklch(0.85 0.08 350);
+  --skill-design-text: oklch(0.45 0.15 350);
+
+  --skill-softskill-bg: oklch(0.96 0.04 90);
+  --skill-softskill-border: oklch(0.88 0.08 90);
+  --skill-softskill-text: oklch(0.50 0.12 90);
+
+  --skill-default-bg: oklch(0.97 0 0);
+  --skill-default-border: oklch(0.90 0 0);
+  --skill-default-text: oklch(0.40 0 0);
+
   /* Layout */
   --header-height: 56px;
   --sidebar-width: 280px;
