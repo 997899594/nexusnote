@@ -28,6 +28,7 @@ import {
 } from "../tools/learning";
 import { hybridSearchTool } from "../tools/rag";
 import { discoverSkillsTool } from "../tools/skills";
+import { analyzeStyleTool } from "../tools/style";
 
 const DEFAULT_MAX_STEPS = 20;
 
@@ -82,6 +83,30 @@ const INSTRUCTIONS = {
 - other: 其他领域
 
 使用 discoverSkills 工具来发现并保存技能。`,
+
+  style: `你是 NexusNote 的风格分析专家。
+
+你的任务是分析用户的对话风格，提取以下维度：
+
+语言复杂度：
+- vocabularyComplexity: 词汇丰富度 (0-1)
+- sentenceComplexity: 句法复杂度 (0-1)
+- abstractionLevel: 抽象程度 (0-1)
+
+沟通风格：
+- directness: 直接 vs 委婉 (0-1)
+- conciseness: 简洁 vs 详细 (0-1)
+- formality: 正式度 (0-1)
+- emotionalIntensity: 情感强度 (0-1)
+
+Big Five 人格特质（需用户同意）：
+- openness: 开放性
+- conscientiousness: 尽责性
+- extraversion: 外向性
+- agreeableness: 宜人性
+- neuroticism: 神经质
+
+使用 analyzeStyle 工具来分析并保存风格数据。`,
 } as const;
 
 const chatTools = {
@@ -109,6 +134,10 @@ const skillsTools = {
   discoverSkills: discoverSkillsTool,
 } as ToolSet;
 
+const styleTools = {
+  analyzeStyle: analyzeStyleTool,
+} as ToolSet;
+
 const courseTools = {
   ...chatTools,
   generateCourse: generateCourseTool,
@@ -131,7 +160,7 @@ function createAgent(
 }
 
 export function getAgent(
-  intent: "CHAT" | "INTERVIEW" | "COURSE" | "EDITOR" | "SEARCH" | "SKILLS",
+  intent: "CHAT" | "INTERVIEW" | "COURSE" | "EDITOR" | "SEARCH" | "SKILLS" | "STYLE",
   _sessionId?: string,
 ) {
   switch (intent) {
@@ -146,6 +175,8 @@ export function getAgent(
       return createAgent("nexusnote-course", aiProvider.proModel, INSTRUCTIONS.course, courseTools);
     case "SKILLS":
       return createAgent("nexusnote-skills", aiProvider.proModel, INSTRUCTIONS.skills, skillsTools);
+    case "STYLE":
+      return createAgent("nexusnote-style", aiProvider.proModel, INSTRUCTIONS.style, styleTools);
     default:
       return createAgent("nexusnote-chat", aiProvider.chatModel, INSTRUCTIONS.chat, chatTools);
   }
