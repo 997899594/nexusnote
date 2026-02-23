@@ -7,7 +7,7 @@
  */
 
 import { Suspense } from "react";
-import { InterviewClient } from "./interview-client";
+import { InterviewClient } from "./InterviewClient";
 
 export default function InterviewPage() {
   return (

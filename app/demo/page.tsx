@@ -6,7 +6,7 @@
  */
 
 import { Suspense } from "react";
-import { DemoClient } from "./demo-client";
+import { DemoClient } from "./DemoClient";
 
 export const dynamic = "force-static";
 
