@@ -1,19 +1,37 @@
 "use client";
 
 import { motion } from "framer-motion";
-import type { LucideIcon } from "lucide-react";
+import {
+  BookOpen,
+  FileText,
+  GraduationCap,
+  Map as MapIcon,
+  MessageSquare,
+  StickyNote,
+  type LucideIcon,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
+
+const ICONS: Record<string, LucideIcon> = {
+  course: GraduationCap,
+  flashcard: StickyNote,
+  quiz: BookOpen,
+  note: FileText,
+  chat: MessageSquare,
+  mindmap: MapIcon,
+};
 
 export interface RecentCardProps {
   title: string;
   desc: string;
-  icon: LucideIcon;
+  iconName: keyof typeof ICONS;
   time: string;
   url?: string;
 }
 
-export function RecentCard({ title, desc, icon: Icon, time, url }: RecentCardProps) {
+export function RecentCard({ title, desc, iconName, time, url }: RecentCardProps) {
   const router = useRouter();
+  const Icon = ICONS[iconName] || FileText;
 
   const handleClick = () => {
     if (url) router.push(url);

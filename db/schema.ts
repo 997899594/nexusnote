@@ -123,6 +123,84 @@ export const stylePrivacySettings = pgTable(
   }),
 );
 
+// ============================================
+// AI 角色系统 (AI Personas)
+// ============================================
+
+// AI 角色定义（内置 + 用户自定义）
+export const personas = pgTable(
+  "personas",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    slug: text("slug").notNull().unique(),
+    name: text("name").notNull(),
+    description: text("description"),
+    avatar: text("avatar"),
+    systemPrompt: text("system_prompt").notNull(),
+    style: text("style"), // neutral, aggressive, playful, gentle, etc.
+    examples: jsonb("examples").$type<string[]>().default([]),
+    authorId: uuid("author_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    isBuiltIn: boolean("is_built_in").notNull().default(false),
+    isEnabled: boolean("is_enabled").notNull().default(true),
+    version: text("version").default("1.0.0"),
+    usageCount: integer("usage_count").notNull().default(0),
+    rating: jsonb("rating").$type<{ total: number; count: number }>(),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => ({
+    slugIdx: index("personas_slug_idx").on(table.slug),
+    authorIdIdx: index("personas_author_id_idx").on(table.authorId),
+    isEnabledIdx: index("personas_is_enabled_idx").on(table.isEnabled),
+  }),
+);
+
+// 用户角色偏好
+export const userPersonaPreferences = pgTable(
+  "user_persona_preferences",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull()
+      .unique(),
+    // Note: No foreign key to personas.slug because built-in personas
+    // are stored in code, not in the database. Validation happens at application layer.
+    defaultPersonaSlug: text("default_persona_slug")
+      .notNull()
+      .default("default"),
+    lastSwitchedAt: timestamp("last_switched_at"),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => ({
+    userIdIdx: index("user_persona_preferences_user_id_idx").on(table.userId),
+  }),
+);
+
+// 角色订阅（用户可订阅其他人创建的角色）
+export const personaSubscriptions = pgTable(
+  "persona_subscriptions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    personaId: uuid("persona_id")
+      .references(() => personas.id, { onDelete: "cascade" })
+      .notNull(),
+    subscribedAt: timestamp("subscribed_at").defaultNow(),
+  },
+  (table) => ({
+    uniqueUserPersona: index("persona_subscriptions_unique_idx").on(
+      table.userId,
+      table.personaId,
+    ),
+  }),
+);
+
 export const workspaces = pgTable("workspaces", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
@@ -613,6 +691,12 @@ export type UserProfile = typeof userProfiles.$inferSelect;
 export type NewUserProfile = typeof userProfiles.$inferInsert;
 export type StylePrivacySettings = typeof stylePrivacySettings.$inferSelect;
 export type NewStylePrivacySettings = typeof stylePrivacySettings.$inferInsert;
+export type Persona = typeof personas.$inferSelect;
+export type NewPersona = typeof personas.$inferInsert;
+export type UserPersonaPreference = typeof userPersonaPreferences.$inferSelect;
+export type NewUserPersonaPreference = typeof userPersonaPreferences.$inferInsert;
+export type PersonaSubscription = typeof personaSubscriptions.$inferSelect;
+export type NewPersonaSubscription = typeof personaSubscriptions.$inferInsert;
 export type CourseProfile = typeof courseProfiles.$inferSelect;
 export type NewCourseProfile = typeof courseProfiles.$inferInsert;
 export type CourseChapter = typeof courseChapters.$inferSelect;
@@ -637,6 +721,9 @@ export const usersRelations = relations(users, ({ many }) => ({
   knowledgeChunks: many(knowledgeChunks),
   userProfiles: many(userProfiles),
   stylePrivacySettings: many(stylePrivacySettings),
+  createdPersonas: many(personas),
+  personaPreference: many(userPersonaPreferences),
+  personaSubscriptions: many(personaSubscriptions),
 }));
 
 export const workspacesRelations = relations(workspaces, ({ one, many }) => ({
@@ -740,5 +827,45 @@ export const userSkillMasteryRelations = relations(userSkillMastery, ({ one }) =
   skill: one(skills, {
     fields: [userSkillMastery.skillId],
     references: [skills.id],
+  }),
+}));
+
+// ============================================
+// Persona Relations
+// ============================================
+
+export const personasRelations = relations(personas, ({ one, many }) => ({
+  author: one(users, {
+    fields: [personas.authorId],
+    references: [users.id],
+  }),
+  userPreferences: many(userPersonaPreferences),
+  subscriptions: many(personaSubscriptions),
+}));
+
+export const userPersonaPreferencesRelations = relations(
+  userPersonaPreferences,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [userPersonaPreferences.userId],
+      references: [users.id],
+    }),
+    defaultPersona: one(personas, {
+      fields: [userPersonaPreferences.defaultPersonaSlug],
+      references: [personas.slug],
+    }),
+  }),
+);
+
+export const personaSubscriptionsRelations = relations(personaSubscriptions, ({
+  one,
+}) => ({
+  user: one(users, {
+    fields: [personaSubscriptions.userId],
+    references: [users.id],
+  }),
+  persona: one(personas, {
+    fields: [personaSubscriptions.personaId],
+    references: [personas.id],
   }),
 }));

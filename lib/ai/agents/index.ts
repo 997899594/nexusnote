@@ -149,20 +149,46 @@ function createAgent(
   model: ReturnType<typeof aiProvider.getModel>,
   instructions: string,
   tools: ToolSet,
+  additionalInstructions?: string,
 ) {
+  const fullInstructions = additionalInstructions
+    ? `${additionalInstructions}\n\n${instructions}`
+    : instructions;
+
   return new ToolLoopAgent({
     id,
     model,
-    instructions,
+    instructions: fullInstructions,
     tools,
     stopWhen: stepCountIs(DEFAULT_MAX_STEPS),
   });
 }
 
+interface PersonalizationOptions {
+  personaPrompt?: string;
+  userContext?: string;
+  emotionAdaptation?: string;
+}
+
 export function getAgent(
   intent: "CHAT" | "INTERVIEW" | "COURSE" | "EDITOR" | "SEARCH" | "SKILLS" | "STYLE",
   _sessionId?: string,
+  personalization?: PersonalizationOptions,
 ) {
+  // Build additional instructions from personalization data
+  const additionalInstructions =
+    personalization?.personaPrompt ||
+    personalization?.userContext ||
+    personalization?.emotionAdaptation
+      ? [
+          personalization.personaPrompt || "",
+          personalization.userContext || "",
+          personalization.emotionAdaptation || "",
+        ]
+          .filter((s) => s)
+          .join("\n")
+      : undefined;
+
   switch (intent) {
     case "INTERVIEW":
       return createAgent(
@@ -170,14 +196,39 @@ export function getAgent(
         aiProvider.chatModel,
         INSTRUCTIONS.interview,
         chatTools,
+        additionalInstructions,
       );
     case "COURSE":
-      return createAgent("nexusnote-course", aiProvider.proModel, INSTRUCTIONS.course, courseTools);
+      return createAgent(
+        "nexusnote-course",
+        aiProvider.proModel,
+        INSTRUCTIONS.course,
+        courseTools,
+        additionalInstructions,
+      );
     case "SKILLS":
-      return createAgent("nexusnote-skills", aiProvider.proModel, INSTRUCTIONS.skills, skillsTools);
+      return createAgent(
+        "nexusnote-skills",
+        aiProvider.proModel,
+        INSTRUCTIONS.skills,
+        skillsTools,
+        additionalInstructions,
+      );
     case "STYLE":
-      return createAgent("nexusnote-style", aiProvider.proModel, INSTRUCTIONS.style, styleTools);
+      return createAgent(
+        "nexusnote-style",
+        aiProvider.proModel,
+        INSTRUCTIONS.style,
+        styleTools,
+        additionalInstructions,
+      );
     default:
-      return createAgent("nexusnote-chat", aiProvider.chatModel, INSTRUCTIONS.chat, chatTools);
+      return createAgent(
+        "nexusnote-chat",
+        aiProvider.chatModel,
+        INSTRUCTIONS.chat,
+        chatTools,
+        additionalInstructions,
+      );
   }
 }

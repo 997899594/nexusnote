@@ -14,3 +14,7 @@ export { useAuthStore } from './auth';
 
 // Editor 相关
 export { useEditorStore } from './editor';
+
+// User Preferences (Personalization)
+export { useUserPreferencesStore } from './user-preferences';
+export { selectCurrentPersona, selectStyleMetrics, selectLearningStyle } from './user-preferences';

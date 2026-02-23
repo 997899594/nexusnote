@@ -10,12 +10,14 @@
 
 import { useSession } from "next-auth/react";
 import { useEffect } from "react";
-import { useAuthStore } from "@/stores";
+import { useAuthStore, useUserPreferencesStore } from "@/stores";
 
 export function AuthSync() {
   const { data: session, status } = useSession();
   const setUser = useAuthStore((s) => s.setUser);
   const setLoading = useAuthStore((s) => s.setLoading);
+  const loadPreferences = useUserPreferencesStore((s) => s.loadPreferences);
+  const resetPreferences = useUserPreferencesStore((s) => s.reset);
 
   useEffect(() => {
     if (status === "loading") {
@@ -23,18 +25,33 @@ export function AuthSync() {
       return;
     }
 
-    if (session?.user) {
-      setUser({
-        id: session.user.id || "",
-        email: session.user.email || "",
-        name: session.user.name || "",
-        image: session.user.image || undefined,
-      });
-    } else {
-      setUser(null);
-    }
-    setLoading(false);
-  }, [session, status, setUser, setLoading]);
+    let cancelled = false;
+
+    const load = async () => {
+      if (session?.user) {
+        setUser({
+          id: session.user.id || "",
+          email: session.user.email || "",
+          name: session.user.name || "",
+          image: session.user.image || undefined,
+        });
+        // Load user preferences (personas, style profile, etc.)
+        await loadPreferences().catch((err) => {
+          if (!cancelled) console.error("Failed to load user preferences:", err);
+        });
+      } else {
+        setUser(null);
+        resetPreferences();
+      }
+      if (!cancelled) setLoading(false);
+    };
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session, status, setUser, setLoading, loadPreferences, resetPreferences]);
 
   return null;
 }

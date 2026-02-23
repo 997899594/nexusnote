@@ -1,5 +1,6 @@
 /**
  * AI Chat API - 2026 Modern Architecture
+ * Enhanced with Personalization: Personas, Long-term Memory, Emotion Detection
  */
 
 import { createAgentUIStreamResponse, smoothStream, type UIMessage } from "ai";
@@ -8,9 +9,42 @@ import { aiUsage, conversations, db } from "@/db";
 import { aiProvider, getAgent, validateRequest } from "@/lib/ai";
 import { auth } from "@/lib/auth";
 import { handleError, APIError } from "@/lib/api";
+import { getPersona, getUserPersonaPreference } from "@/lib/ai/personas";
+import { buildChatContext } from "@/lib/memory/chat-context-builder";
+import { detectEmotion, buildEmotionAdaptationPrompt } from "@/lib/emotion";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
+
+// ============================================
+// Helper Functions
+// ============================================
+
+/**
+ * Extract text content from a UIMessage
+ */
+function extractTextFromMessage(message: UIMessage | undefined): string {
+  if (!message?.parts) return "";
+  return message.parts
+    .filter((p) => p.type === "text" && "text" in p)
+    .map((p) => (p as { text: string }).text)
+    .join(" ") || "";
+}
+
+/**
+ * Get explicitly requested persona or user's default
+ */
+async function getExplicitOrDefaultPersona(
+  userId: string,
+  explicitPersonaSlug: string | undefined,
+) {
+  if (explicitPersonaSlug) {
+    return getPersona(explicitPersonaSlug);
+  }
+  // Get user's default persona preference
+  const pref = await getUserPersonaPreference(userId);
+  return getPersona(pref.defaultPersonaSlug);
+}
 
 // Rate Limiting - 简单内存实现
 const rateLimits = new Map<string, { count: number; resetAt: number }>();
@@ -86,15 +120,51 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { messages, intent, sessionId } = validation.data;
+    const { messages, intent, sessionId, personaSlug } = validation.data;
 
     if (!aiProvider.isConfigured()) {
       throw new APIError("AI 服务未配置", 503, "AI_NOT_CONFIGURED");
     }
 
+    // ============================================
+    // Personalization: Load persona, context, emotion
+    // ============================================
+
+    // Get last user message for emotion detection
+    const uiMessages = messages as UIMessage[];
+    const lastUserMessage = uiMessages.filter((m) => m.role === "user").pop();
+    const lastMessageText = extractTextFromMessage(lastUserMessage);
+
+    // Parallel fetch personalization data for logged-in users
+    let personaSystemPrompt = "";
+    let userContext = "";
+    let emotionAdaptation = "";
+
+    if (userId && userId !== "anonymous") {
+      const [persona, context, emotion] = await Promise.all([
+        // Get persona (explicit or user's default)
+        getExplicitOrDefaultPersona(userId, personaSlug),
+        // Build user context from style analysis
+        buildChatContext(userId),
+        // Detect emotion from last message
+        Promise.resolve(detectEmotion(lastMessageText)),
+      ]);
+
+      if (persona) {
+        personaSystemPrompt = `\n=== AI Persona ===\n${persona.name}\n${persona.systemPrompt}\n`;
+      }
+
+      if (context) {
+        userContext = `\n${context}\n`;
+      }
+
+      if (emotion) {
+        emotionAdaptation = buildEmotionAdaptationPrompt(emotion);
+      }
+    }
+
     // 2026 架构：首条消息时 upsert 会话（幂等，支持客户端生成的 nanoid）
     if (sessionId && userId && userId !== "anonymous") {
-      const uiMessages = messages as UIMessage[];
       const firstUserMessage = uiMessages.find((m) => m.role === "user");
       let title = "新对话";
 
@@ -117,7 +187,12 @@ export async function POST(request: NextRequest) {
         .onConflictDoNothing();
     }
 
-    const agent = getAgent(intent, sessionId);
+    // Get agent with personalized instructions
+    const agent = getAgent(intent, sessionId, {
+      personaPrompt: personaSystemPrompt,
+      userContext,
+      emotionAdaptation,
+    });
 
     const response = await createAgentUIStreamResponse({
       agent,

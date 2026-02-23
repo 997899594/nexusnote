@@ -3,8 +3,8 @@
   "version": "2.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --port 3000",
-    "build": "next build",
+    "dev": "bun ./node_modules/.bin/next dev --turbo --port 3000",
+    "build": "bun ./node_modules/.bin/next build",
     "start": "next start",
     "lint": "biome check .",
     "typecheck": "tsc --noEmit",

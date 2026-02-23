@@ -48,6 +48,7 @@ export function ChatLayout({ onExit, children }: ChatLayoutProps) {
     <div className="h-screen flex flex-col bg-white">
       <FloatingHeader
         showMenuButton
+        showPersonaSelector
         onLogoClick={onExit}
         onMenuClick={() => setSidebarOpen(!sidebarOpen)}
       />

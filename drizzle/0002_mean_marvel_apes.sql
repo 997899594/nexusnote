@@ -1,0 +1,1 @@
+ALTER TABLE "user_persona_preferences" DROP CONSTRAINT "user_persona_preferences_default_persona_slug_personas_slug_fk";

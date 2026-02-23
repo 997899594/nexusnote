@@ -16,7 +16,7 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useEffect } from "react";
 import { persistMessages } from "@/lib/chat/api";
-import { usePendingChatStore } from "@/stores";
+import { usePendingChatStore, useUserPreferencesStore } from "@/stores";
 
 /**
  * Trigger indexing of a conversation for RAG search
@@ -47,12 +47,13 @@ const sentSessions = new Set<string>();
 
 export function useChatSession({ sessionId, pendingMessage }: UseChatSessionOptions) {
   const clearPending = usePendingChatStore((state) => state.clear);
+  const currentPersonaSlug = useUserPreferencesStore((state) => state.currentPersonaSlug);
 
   const chat = useChat({
     id: sessionId ?? undefined,
     transport: new DefaultChatTransport({
       api: "/api/chat",
-      body: { sessionId },
+      body: { sessionId, personaSlug: currentPersonaSlug },
     }),
 
     // ✅ 对话结束时持久化一次（架构正确，streaming 结束后 SDK 回调）

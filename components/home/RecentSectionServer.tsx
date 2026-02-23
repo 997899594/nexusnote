@@ -186,19 +186,16 @@ export async function RecentSectionServer() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {items.map((item, i) => {
-          const Icon = ICONS[item.type];
-          return (
-            <RecentCard
-              key={item.id}
-              title={item.title}
-              desc={item.desc}
-              icon={Icon}
-              time={item.time}
-              url={item.url}
-            />
-          );
-        })}
+        {items.map((item) => (
+          <RecentCard
+            key={item.id}
+            title={item.title}
+            desc={item.desc}
+            iconName={item.type}
+            time={item.time}
+            url={item.url}
+          />
+        ))}
       </div>
     </section>
   );

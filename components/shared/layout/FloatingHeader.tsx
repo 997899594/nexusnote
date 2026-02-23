@@ -3,12 +3,15 @@
 import { motion } from "framer-motion";
 import { ArrowLeft, Menu, Zap } from "lucide-react";
 import { UserAvatar } from "./UserAvatar";
+import { PersonaSelector } from "@/components/chat/PersonaSelector";
+import { useUserPreferencesStore } from "@/stores";
 
 interface FloatingHeaderProps {
   showBackHint?: boolean;
   showMenuButton?: boolean;
   onLogoClick?: () => void;
   onMenuClick?: () => void;
+  showPersonaSelector?: boolean;
 }
 
 export function FloatingHeader({
@@ -16,7 +19,12 @@ export function FloatingHeader({
   showMenuButton = false,
   onLogoClick,
   onMenuClick,
+  showPersonaSelector = false,
 }: FloatingHeaderProps) {
+  const availablePersonas = useUserPreferencesStore((state) => state.availablePersonas);
+  const currentPersonaSlug = useUserPreferencesStore((state) => state.currentPersonaSlug);
+  const setCurrentPersona = useUserPreferencesStore((state) => state.setCurrentPersona);
+
   return (
     <header className="fixed top-6 left-6 right-6 z-50">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -45,6 +53,14 @@ export function FloatingHeader({
         </motion.button>
 
         <div className="flex items-center gap-3">
+          {showPersonaSelector && availablePersonas.length > 0 && (
+            <PersonaSelector
+              personas={availablePersonas}
+              currentPersonaSlug={currentPersonaSlug}
+              onPersonaChange={setCurrentPersona}
+              variant="dropdown"
+            />
+          )}
           {showMenuButton && (
             <motion.button
               onClick={onMenuClick}
