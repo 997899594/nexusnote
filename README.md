@@ -93,12 +93,15 @@ NexusNote uses a **single Next.js fullstack application** deployed as three Kube
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
-| **Framework** | Next.js 16 | Unified fullstack framework |
+| **Framework** | Next.js 16 + React 19 | Unified fullstack framework |
 | **Editor** | Tiptap v3, Yjs | Rich text editing, CRDT sync |
 | **Realtime** | Hocuspocus | WebSocket collaboration server |
 | **Database** | PostgreSQL 16, pgvector | Relational data, vector search |
 | **Queue** | BullMQ, Redis 7 | Async job processing |
 | **AI** | Vercel AI SDK 6.x | Unified AI interface |
+| **Markdown** | Streamdown | Streaming markdown renderer |
+| **Animation** | Framer Motion 12 | Smooth animations |
+| **Styles** | Tailwind CSS 4 | Utility-first CSS |
 | **ORM** | Drizzle | Type-safe SQL queries |
 | **CI/CD** | GitHub Actions, ArgoCD | Build + GitOps deployment |
 | **Secrets** | Infisical Cloud | Centralized secret management |
@@ -287,6 +290,33 @@ pnpm db:generate   # Generate migration files
 - [ ] Multi-modal support (images, PDFs)
 - [ ] Mobile responsive design
 - [ ] Plugin system
+
+---
+
+## 开发指南
+
+### RSC 架构
+
+本项目采用 Server Components + Client Components 分层架构：
+
+- **Server Components**: 数据获取、初始渲染
+- **Client Components**: 交互、动画、状态管理
+
+### 添加新页面
+
+1. 创建 `app/your-page/page.tsx` (Server Component)
+2. 创建 `app/your-page/your-page-client.tsx` (Client Component)
+3. Server 获取数据，传递给 Client
+
+### 流式 Markdown
+
+使用 `StreamdownMessage` 组件渲染 AI 响应：
+
+```tsx
+import { StreamdownMessage } from "@/components/chat/StreamdownMessage";
+
+<StreamdownMessage content={aiResponse} isStreaming={true} />
+```
 
 ---
 
