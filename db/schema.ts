@@ -6,6 +6,7 @@ import {
   integer,
   jsonb,
   pgTable,
+  real,
   text,
   timestamp,
   uuid,
@@ -287,6 +288,29 @@ export const tags = pgTable(
   },
   (table) => ({
     nameIdx: index("tags_name_idx").on(table.name),
+  }),
+);
+
+export const documentTags = pgTable(
+  "document_tags",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => documents.id, { onDelete: "cascade" }),
+    tagId: uuid("tag_id")
+      .notNull()
+      .references(() => tags.id, { onDelete: "cascade" }),
+    confidence: real("confidence").notNull(),
+    status: text("status").notNull().default("pending"), // 'confirmed' | 'pending' | 'rejected'
+    createdAt: timestamp("created_at").defaultNow(),
+    confirmedAt: timestamp("confirmed_at"),
+  },
+  (table) => ({
+    documentIdx: index("document_tags_document_idx").on(table.documentId),
+    tagIdx: index("document_tags_tag_idx").on(table.tagId),
+    statusIdx: index("document_tags_status_idx").on(table.status),
+    uniqueDocumentTag: index("document_tags_unique_idx").on(table.documentId, table.tagId),
   }),
 );
 
@@ -715,6 +739,8 @@ export type NewDocumentSnapshot = typeof documentSnapshots.$inferInsert;
 
 export type Tag = typeof tags.$inferSelect;
 export type NewTag = typeof tags.$inferInsert;
+export type DocumentTag = typeof documentTags.$inferSelect;
+export type NewDocumentTag = typeof documentTags.$inferInsert;
 
 export type Conversation = typeof conversations.$inferSelect;
 export type NewConversation = typeof conversations.$inferInsert;
@@ -787,10 +813,26 @@ export const workspacesRelations = relations(workspaces, ({ one, many }) => ({
   documents: many(documents),
 }));
 
-export const documentsRelations = relations(documents, ({ one }) => ({
+export const documentsRelations = relations(documents, ({ one, many }) => ({
   workspace: one(workspaces, {
     fields: [documents.workspaceId],
     references: [workspaces.id],
+  }),
+  tags: many(documentTags),
+}));
+
+export const tagsRelations = relations(tags, ({ many }) => ({
+  documentTags: many(documentTags),
+}));
+
+export const documentTagsRelations = relations(documentTags, ({ one }) => ({
+  document: one(documents, {
+    fields: [documentTags.documentId],
+    references: [documents.id],
+  }),
+  tag: one(tags, {
+    fields: [documentTags.tagId],
+    references: [tags.id],
   }),
 }));
 
