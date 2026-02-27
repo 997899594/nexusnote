@@ -9,10 +9,12 @@ import {
   MobileEditorMoreMenu,
 } from "@/components/editor/MobileEditorToolbar";
 import { MobileHeader } from "@/components/shared/layout";
+import { TagBar, TagGenerationTrigger } from "@/components/tags";
 import type { Editor as TiptapEditorType } from "@tiptap/react";
 
 export default function EditorPage() {
   const params = useParams();
+  const documentId = params.id as string;
   const [content, setContent] = useState("");
   const [title, setTitle] = useState("");
   const [loading, setLoading] = useState(true);
@@ -20,8 +22,7 @@ export default function EditorPage() {
   const [editorInstance, setEditorInstance] = useState<TiptapEditorType | null>(null);
 
   useEffect(() => {
-    const noteId = params.id as string;
-    if (noteId) {
+    if (documentId) {
       // Mock load - 实际应调用 API
       setTimeout(() => {
         setTitle("我的笔记");
@@ -29,7 +30,7 @@ export default function EditorPage() {
         setLoading(false);
       }, 500);
     }
-  }, [params.id]);
+  }, [documentId]);
 
   const handleSave = async () => {
     // TODO: 保存到数据库
@@ -88,7 +89,11 @@ export default function EditorPage() {
             保存
           </motion.button>
         </header>
+        {/* 标签栏 */}
+        <TagBar documentId={documentId} />
         <Editor content={content} onChange={setContent} placeholder="开始写作..." />
+        {/* 标签自动生成触发器 */}
+        <TagGenerationTrigger documentId={documentId} content={content} />
       </motion.div>
 
       {/* 移动端全屏编辑 */}
@@ -101,6 +106,10 @@ export default function EditorPage() {
             placeholder="无标题"
             className="w-full text-lg font-semibold bg-transparent border-none outline-none"
           />
+          {/* 移动端标签栏 */}
+          <div className="pt-2">
+            <TagBar documentId={documentId} />
+          </div>
         </div>
 
         {/* 编辑区域 */}
@@ -112,6 +121,9 @@ export default function EditorPage() {
             onReady={setEditorInstance}
           />
         </div>
+
+        {/* 标签自动生成触发器 */}
+        <TagGenerationTrigger documentId={documentId} content={content} />
 
         {/* 移动端工具栏 */}
         {editorInstance && (
