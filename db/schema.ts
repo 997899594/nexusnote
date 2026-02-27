@@ -272,6 +272,25 @@ export const documentSnapshots = pgTable("document_snapshots", {
 });
 
 // ============================================
+// 标签系统 (Tags System)
+// ============================================
+
+export const tags = pgTable(
+  "tags",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull().unique(),
+    nameEmbedding: halfvec("name_embedding"),
+    usageCount: integer("usage_count").notNull().default(0),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => ({
+    nameIdx: index("tags_name_idx").on(table.name),
+  }),
+);
+
+// ============================================
 // 聊天会话 (Chat Conversations)
 // ============================================
 
@@ -693,6 +712,9 @@ export type Document = typeof documents.$inferSelect;
 export type NewDocument = typeof documents.$inferInsert;
 export type DocumentSnapshot = typeof documentSnapshots.$inferSelect;
 export type NewDocumentSnapshot = typeof documentSnapshots.$inferInsert;
+
+export type Tag = typeof tags.$inferSelect;
+export type NewTag = typeof tags.$inferInsert;
 
 export type Conversation = typeof conversations.$inferSelect;
 export type NewConversation = typeof conversations.$inferInsert;
