@@ -5,10 +5,12 @@
  * EMA gives more weight to recent observations while smoothing out fluctuations.
  */
 
+import type { EMAValue } from "@/types/profile";
+
 /**
- * Re-export EMAValue from profile.ts for convenience
+ * Re-export EMAValue from types/profile for convenience
  */
-export type { EMAValue } from "../profile";
+export type { EMAValue } from "@/types/profile";
 
 /**
  * Default smoothing factor (alpha)
@@ -25,13 +27,13 @@ const DEFAULT_ALPHA = 0.3;
  * @param current - Current EMA value with confidence and sample count
  * @param newValue - New observation (0-1)
  * @param alpha - Smoothing factor (0-1), default 0.3
- * @returns Updated EMA value
+ * @returns Updated EMA value with lastAnalyzedAt set to current time
  */
 export function updateEMA(
-  current: { value: number; confidence: number; samples: number },
+  current: { value: number; confidence: number; samples: number; lastAnalyzedAt?: string },
   newValue: number,
   alpha: number = DEFAULT_ALPHA,
-): { value: number; confidence: number; samples: number } {
+): EMAValue {
   // Clamp input to valid range
   const clampedValue = Math.max(0, Math.min(1, newValue));
 
@@ -48,6 +50,7 @@ export function updateEMA(
     value: Math.max(0, Math.min(1, newEMA)),
     confidence: newConfidence,
     samples: newSamples,
+    lastAnalyzedAt: new Date().toISOString(),
   };
 }
 
@@ -60,10 +63,10 @@ export function updateEMA(
  * @returns Updated EMA values record
  */
 export function updateEMABatch(
-  current: Record<string, { value: number; confidence: number; samples: number }>,
+  current: Record<string, EMAValue>,
   newValues: Record<string, number>,
   alpha: number = DEFAULT_ALPHA,
-): Record<string, { value: number; confidence: number; samples: number }> {
+): Record<string, EMAValue> {
   const result = { ...current };
 
   for (const [key, newValue] of Object.entries(newValues)) {
@@ -75,6 +78,7 @@ export function updateEMABatch(
         value: Math.max(0, Math.min(1, newValue)),
         confidence: 0.1,
         samples: 1,
+        lastAnalyzedAt: new Date().toISOString(),
       };
     }
   }
@@ -86,17 +90,14 @@ export function updateEMABatch(
  * Reset an EMA value to initial state
  *
  * @param initialValue - Initial value (0-1), default 0.5
- * @returns Reset EMA value
+ * @returns Reset EMA value with lastAnalyzedAt as empty string (never analyzed)
  */
-export function resetEMA(initialValue: number = 0.5): {
-  value: number;
-  confidence: number;
-  samples: number;
-} {
+export function resetEMA(initialValue: number = 0.5): EMAValue {
   return {
     value: Math.max(0, Math.min(1, initialValue)),
     confidence: 0,
     samples: 0,
+    lastAnalyzedAt: "",
   };
 }
 

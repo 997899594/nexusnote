@@ -7,15 +7,8 @@
 
 import { db, eq, userProfiles } from "@/db";
 
-/**
- * EMA (Exponential Moving Average) value structure
- * Used for style analysis metrics
- */
-export interface EMAValue {
-  value: number; // Current value (0-1)
-  confidence: number; // Confidence level (0-1)
-  samples: number; // Number of samples analyzed
-}
+// Re-export EMAValue from types for backward compatibility
+export type { EMAValue } from "@/types/profile";
 
 /**
  * Learning style preferences (user-set, not AI-inferred)
