@@ -5,8 +5,7 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { setUserPersonaPreference } from "@/lib/ai/personas";
-import { APIError, handleError } from "@/lib/api";
-import { auth } from "@/lib/auth";
+import { withAuth } from "@/lib/api";
 
 const SetPersonaSchema = z.object({
   personaSlug: z.string().trim().min(1),
@@ -14,21 +13,11 @@ const SetPersonaSchema = z.object({
 
 export const runtime = "nodejs";
 
-export async function PUT(request: NextRequest) {
-  try {
-    const session = await auth();
+export const PUT = withAuth(async (request, { userId }) => {
+  const body = await request.json();
+  const { personaSlug } = SetPersonaSchema.parse(body);
 
-    if (!session?.user?.id) {
-      throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
-    }
+  await setUserPersonaPreference(userId, personaSlug);
 
-    const body = await request.json();
-    const { personaSlug } = SetPersonaSchema.parse(body);
-
-    await setUserPersonaPreference(session.user.id, personaSlug);
-
-    return Response.json({ success: true, personaSlug });
-  } catch (error) {
-    return handleError(error);
-  }
-}
+  return Response.json({ success: true, personaSlug });
+});
