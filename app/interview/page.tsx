@@ -1,17 +1,16 @@
 "use client";
 
 import type { UIMessage } from "ai";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { ArrowLeft, GraduationCap, Loader2, Send } from "lucide-react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatMessage, LoadingDots } from "@/components/chat/ChatMessage";
-import { cn } from "@/lib/utils";
 import { useInterview } from "@/hooks/useInterview";
+import { cn } from "@/lib/utils";
 
 export default function InterviewPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const initialMessage = searchParams.get("msg");
 
@@ -86,9 +85,7 @@ export default function InterviewPage() {
                 <GraduationCap className="w-8 h-8 text-white" />
               </div>
               <h2 className="text-lg font-medium text-zinc-700 mb-2">你想学什么？</h2>
-              <p className="text-sm text-zinc-400 mb-6">
-                告诉我你的学习目标，我会为你定制课程
-              </p>
+              <p className="text-sm text-zinc-400 mb-6">告诉我你的学习目标，我会为你定制课程</p>
               <div className="flex flex-wrap justify-center gap-2">
                 {["我想学 Python", "我想学做 PPT", "考研数学怎么准备", "教我做川菜"].map(
                   (example) => (
@@ -107,11 +104,7 @@ export default function InterviewPage() {
           )}
 
           {chatMessages.map((msg) => (
-            <ChatMessage
-              key={msg.id}
-              message={msg}
-              onSendReply={(text) => sendMessage({ text })}
-            />
+            <ChatMessage key={msg.id} message={msg} onSendReply={(text) => sendMessage({ text })} />
           ))}
 
           {isAILoading && <LoadingDots />}

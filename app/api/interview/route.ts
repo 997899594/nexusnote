@@ -18,19 +18,6 @@ import { auth } from "@/lib/auth";
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-/**
- * Extract text content from a UIMessage
- */
-function extractTextFromMessage(message: UIMessage | undefined): string {
-  if (!message?.parts) return "";
-  return (
-    message.parts
-      .filter((p) => p.type === "text" && "text" in p)
-      .map((p) => (p as { text: string }).text)
-      .join(" ") || ""
-  );
-}
-
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
 
