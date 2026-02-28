@@ -7,10 +7,9 @@
  * - DELETE: Delete all style data and disable analysis
  */
 
-import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { z } from "zod";
-import { APIError, handleError } from "@/lib/api";
-import { auth } from "@/lib/auth";
+import { withAuth } from "@/lib/api";
 import { deleteStyleData, getPrivacySettings, updatePrivacySettings } from "@/lib/style/privacy";
 
 export const runtime = "nodejs";
@@ -29,78 +28,45 @@ const UpdatePrivacySettingsSchema = z.object({
 // GET - Retrieve Privacy Settings
 // ============================================
 
-export async function GET() {
-  try {
-    // Authenticate user
-    const session = await auth();
+export const GET = withAuth(async (_request, { userId }) => {
+  // Get privacy settings
+  const settings = await getPrivacySettings(userId);
 
-    if (!session?.user) {
-      throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
-    }
-
-    // Get privacy settings
-    const settings = await getPrivacySettings(session.user.id);
-
-    // Return default values if no settings exist
-    return NextResponse.json({
-      analysisEnabled: settings?.analysisEnabled ?? false,
-      bigFiveEnabled: settings?.bigFiveEnabled ?? false,
-      autoDeleteAfterDays: settings?.autoDeleteAfterDays ?? null,
-      consentGivenAt: settings?.consentGivenAt ?? null,
-      bigFiveConsentGivenAt: settings?.bigFiveConsentGivenAt ?? null,
-    });
-  } catch (error) {
-    return handleError(error);
-  }
-}
+  // Return default values if no settings exist
+  return Response.json({
+    analysisEnabled: settings?.analysisEnabled ?? false,
+    bigFiveEnabled: settings?.bigFiveEnabled ?? false,
+    autoDeleteAfterDays: settings?.autoDeleteAfterDays ?? null,
+    consentGivenAt: settings?.consentGivenAt ?? null,
+    bigFiveConsentGivenAt: settings?.bigFiveConsentGivenAt ?? null,
+  });
+});
 
 // ============================================
 // PUT - Update Privacy Settings
 // ============================================
 
-export async function PUT(request: Request) {
-  try {
-    // Authenticate user
-    const session = await auth();
+export const PUT = withAuth(async (request, { userId }) => {
+  // Parse and validate request body
+  const body = await request.json();
+  const input = UpdatePrivacySettingsSchema.parse(body);
 
-    if (!session?.user) {
-      throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
-    }
+  // Update privacy settings
+  const settings = await updatePrivacySettings(userId, input);
 
-    // Parse and validate request body
-    const body = await request.json();
-    const input = UpdatePrivacySettingsSchema.parse(body);
-
-    // Update privacy settings
-    const settings = await updatePrivacySettings(session.user.id, input);
-
-    return NextResponse.json(settings);
-  } catch (error) {
-    return handleError(error);
-  }
-}
+  return Response.json(settings);
+});
 
 // ============================================
 // DELETE - Delete Style Data
 // ============================================
 
-export async function DELETE() {
-  try {
-    // Authenticate user
-    const session = await auth();
+export const DELETE = withAuth(async (_request, { userId }) => {
+  // Delete all style data and disable analysis
+  await deleteStyleData(userId);
 
-    if (!session?.user) {
-      throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
-    }
-
-    // Delete all style data and disable analysis
-    await deleteStyleData(session.user.id);
-
-    return NextResponse.json({
-      success: true,
-      message: "Style data deleted and analysis disabled",
-    });
-  } catch (error) {
-    return handleError(error);
-  }
-}
+  return Response.json({
+    success: true,
+    message: "Style data deleted and analysis disabled",
+  });
+});

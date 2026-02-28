@@ -5,36 +5,24 @@
  * using exponential moving average for smooth metric updates.
  */
 
-import { NextResponse } from "next/server";
-import { APIError, handleError } from "@/lib/api";
-import { auth } from "@/lib/auth";
+import type { NextRequest } from "next/server";
+import { withAuth } from "@/lib/api";
 import { updateUserStyleProfile } from "@/lib/style/analysis";
 import { AnalyzeStyleSchema } from "@/lib/style/validation";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-export async function POST(request: Request) {
-  try {
-    // Authenticate user
-    const session = await auth();
+export const POST = withAuth(async (request, { userId }) => {
+  // Parse and validate request body
+  const body = await request.json();
+  const { conversationId, includeBigFive } = AnalyzeStyleSchema.parse(body);
 
-    if (!session?.user) {
-      throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
-    }
+  // Update user style profile
+  await updateUserStyleProfile(userId, conversationId, includeBigFive);
 
-    // Parse and validate request body
-    const body = await request.json();
-    const { conversationId, includeBigFive } = AnalyzeStyleSchema.parse(body);
-
-    // Update user style profile
-    await updateUserStyleProfile(session.user.id, conversationId, includeBigFive);
-
-    return NextResponse.json({
-      success: true,
-      message: "Style analysis completed",
-    });
-  } catch (error) {
-    return handleError(error);
-  }
-}
+  return Response.json({
+    success: true,
+    message: "Style analysis completed",
+  });
+});
