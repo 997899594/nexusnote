@@ -11,12 +11,12 @@ import { APIError, handleError } from "./errors";
 type RouteHandler<T = unknown> = (
   request: NextRequest,
   context: { userId: string }
-) => Promise<NextResponse<T>>;
+) => Promise<Response | NextResponse<T>>;
 
 type OptionalAuthHandler<T = unknown> = (
   request: NextRequest,
   context: { userId: string | null }
-) => Promise<NextResponse<T>>;
+) => Promise<Response | NextResponse<T>>;
 
 /**
  * 认证路由高阶函数
@@ -30,8 +30,8 @@ type OptionalAuthHandler<T = unknown> = (
  */
 export function withAuth<T>(
   handler: RouteHandler<T>
-): (request: NextRequest) => Promise<NextResponse<T>> {
-  return async (request: NextRequest): Promise<NextResponse<T>> => {
+): (request: NextRequest) => Promise<Response | NextResponse<T>> {
+  return async (request: NextRequest): Promise<Response | NextResponse<T>> => {
     try {
       const session = await auth();
       if (!session?.user) {
@@ -39,7 +39,7 @@ export function withAuth<T>(
       }
       return handler(request, { userId: session.user.id });
     } catch (error) {
-      return handleError(error) as NextResponse<T>;
+      return handleError(error);
     }
   };
 }
@@ -56,15 +56,15 @@ export function withAuth<T>(
  */
 export function withOptionalAuth<T>(
   handler: OptionalAuthHandler<T>
-): (request: NextRequest) => Promise<NextResponse<T>> {
-  return async (request: NextRequest): Promise<NextResponse<T>> => {
+): (request: NextRequest) => Promise<Response | NextResponse<T>> {
+  return async (request: NextRequest): Promise<Response | NextResponse<T>> => {
     try {
       const session = await auth();
       return handler(request, {
         userId: session?.user?.id ?? null,
       });
     } catch (error) {
-      return handleError(error) as NextResponse<T>;
+      return handleError(error);
     }
   };
 }
