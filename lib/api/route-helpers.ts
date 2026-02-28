@@ -68,3 +68,68 @@ export function withOptionalAuth<T>(
     }
   };
 }
+
+// Dynamic route types (for routes with params)
+type DynamicRouteHandler<T = unknown, P = Record<string, string>> = (
+  request: NextRequest,
+  context: { userId: string; params: P }
+) => Promise<Response | NextResponse<T>>;
+
+type DynamicOptionalAuthHandler<T = unknown, P = Record<string, string>> = (
+  request: NextRequest,
+  context: { userId: string | null; params: P }
+) => Promise<Response | NextResponse<T>>;
+
+/**
+ * 动态路由认证高阶函数
+ * 用于带 params 参数的动态路由
+ *
+ * @example
+ * export const GET = withDynamicAuth(async (request, { userId, params }) => {
+ *   const data = await getData(userId, params.id);
+ *   return Response.json(data);
+ * });
+ */
+export function withDynamicAuth<T, P = Record<string, string>>(
+  handler: DynamicRouteHandler<T, P>
+): (request: NextRequest, context: { params: Promise<P> }) => Promise<Response | NextResponse<T>> {
+  return async (request: NextRequest, context: { params: Promise<P> }): Promise<Response | NextResponse<T>> => {
+    try {
+      const session = await auth();
+      if (!session?.user) {
+        throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
+      }
+      const params = await context.params;
+      return handler(request, { userId: session.user.id, params });
+    } catch (error) {
+      return handleError(error);
+    }
+  };
+}
+
+/**
+ * 动态路由可选认证高阶函数
+ * 允许匿名访问，但提供用户信息和 params
+ *
+ * @example
+ * export const GET = withDynamicOptionalAuth(async (request, { userId, params }) => {
+ *   const data = userId ? await getPrivateData(userId, params.id) : await getPublicData(params.id);
+ *   return Response.json(data);
+ * });
+ */
+export function withDynamicOptionalAuth<T, P = Record<string, string>>(
+  handler: DynamicOptionalAuthHandler<T, P>
+): (request: NextRequest, context: { params: Promise<P> }) => Promise<Response | NextResponse<T>> {
+  return async (request: NextRequest, context: { params: Promise<P> }): Promise<Response | NextResponse<T>> => {
+    try {
+      const session = await auth();
+      const params = await context.params;
+      return handler(request, {
+        userId: session?.user?.id ?? null,
+        params,
+      });
+    } catch (error) {
+      return handleError(error);
+    }
+  };
+}
