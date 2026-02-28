@@ -12,4 +12,4 @@ export { aiProvider, CircuitBreaker, PromptRegistry, safeGenerateObject } from "
 export * from "./tools";
 export type { ChatRequest, Intent } from "./validation";
 // Validation
-export { ChatRequestSchema, MessageSchema, sanitizeInput, validateRequest } from "./validation";
+export { ChatRequestSchema, validateRequest } from "./validation";
