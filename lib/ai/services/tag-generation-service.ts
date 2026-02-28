@@ -150,7 +150,7 @@ class TagGenerationService {
     }
 
     const { embedding } = await embed({
-      model: aiProvider.embeddingModel as any,
+      model: aiProvider.embeddingModel,
       value: text,
     });
 
