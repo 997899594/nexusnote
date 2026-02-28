@@ -48,7 +48,7 @@ async function vectorSearch(
 
   try {
     const { embeddings } = await embedMany({
-      model: aiProvider.embeddingModel as any,
+      model: aiProvider.embeddingModel,
       values: [query],
     });
 

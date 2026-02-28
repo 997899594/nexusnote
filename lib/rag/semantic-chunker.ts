@@ -100,7 +100,7 @@ export async function semanticChunk(
 
   try {
     const { embeddings } = await embedMany({
-      model: aiProvider.embeddingModel as any,
+      model: aiProvider.embeddingModel,
       values: sentences,
     });
 

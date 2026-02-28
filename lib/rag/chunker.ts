@@ -88,7 +88,7 @@ export async function indexDocument(
     }
 
     const { embeddings } = await embedMany({
-      model: aiProvider.embeddingModel as any,
+      model: aiProvider.embeddingModel,
       values: chunks,
     });
 
@@ -153,7 +153,7 @@ export async function indexConversation(
     console.log("[Chunker] Starting embedMany...", { count: chunks.length });
     const startTime = Date.now();
     const { embeddings } = await embedMany({
-      model: aiProvider.embeddingModel as any,
+      model: aiProvider.embeddingModel,
       values: chunks,
     });
     console.log(
