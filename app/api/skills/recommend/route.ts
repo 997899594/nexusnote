@@ -3,29 +3,18 @@
  */
 
 import type { NextRequest } from "next/server";
-import { APIError, handleError } from "@/lib/api";
-import { auth } from "@/lib/auth";
+import { withAuth } from "@/lib/api";
 import { getRecommendedSkills } from "@/lib/skills";
 import { RecommendQuerySchema } from "@/lib/skills/validation";
 
-export async function GET(request: NextRequest) {
-  try {
-    const session = await auth();
+export const GET = withAuth(async (request, { userId }) => {
+  const searchParams = Object.fromEntries(request.nextUrl.searchParams);
+  const { limit } = RecommendQuerySchema.parse(searchParams);
 
-    if (!session?.user) {
-      throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
-    }
+  const recommendations = await getRecommendedSkills(userId, limit);
 
-    const searchParams = Object.fromEntries(request.nextUrl.searchParams);
-    const { limit } = RecommendQuerySchema.parse(searchParams);
-
-    const recommendations = await getRecommendedSkills(session.user.id, limit);
-
-    return Response.json({
-      recommendations,
-      count: recommendations.length,
-    });
-  } catch (error) {
-    return handleError(error);
-  }
-}
+  return Response.json({
+    recommendations,
+    count: recommendations.length,
+  });
+});
