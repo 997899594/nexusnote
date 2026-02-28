@@ -3,7 +3,6 @@
  */
 
 import { createAgentUIStreamResponse, smoothStream, type UIMessage } from "ai";
-import type { NextRequest } from "next/server";
 import { getAgent } from "@/lib/ai";
 import { withAuth } from "@/lib/api";
 import { DiscoverSkillsSchema } from "@/lib/skills/validation";

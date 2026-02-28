@@ -17,23 +17,21 @@ interface UpdateSessionBody {
   isArchived?: boolean;
 }
 
-export const GET = withDynamicOptionalAuth<{ id: string }>(
-  async (_request, { userId, params }) => {
-    const { id } = params;
+export const GET = withDynamicOptionalAuth<{ id: string }>(async (_request, { userId, params }) => {
+  const { id } = params;
 
-    const [conv] = await db.select().from(conversations).where(eq(conversations.id, id)).limit(1);
+  const [conv] = await db.select().from(conversations).where(eq(conversations.id, id)).limit(1);
 
-    if (!conv) {
-      return Response.json({ error: "Session not found" }, { status: 404 });
-    }
-
-    if (userId && conv.userId !== userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 403 });
-    }
-
-    return Response.json({ session: conv });
+  if (!conv) {
+    return Response.json({ error: "Session not found" }, { status: 404 });
   }
-);
+
+  if (userId && conv.userId !== userId) {
+    return Response.json({ error: "Unauthorized" }, { status: 403 });
+  }
+
+  return Response.json({ session: conv });
+});
 
 export const PATCH = withDynamicOptionalAuth<{ id: string }>(
   async (request, { userId, params }) => {
@@ -76,7 +74,7 @@ export const PATCH = withDynamicOptionalAuth<{ id: string }>(
       .returning();
 
     return Response.json({ session: updated });
-  }
+  },
 );
 
 export const DELETE = withDynamicOptionalAuth<{ id: string }>(
@@ -100,5 +98,5 @@ export const DELETE = withDynamicOptionalAuth<{ id: string }>(
     await db.delete(conversations).where(eq(conversations.id, id));
 
     return Response.json({ success: true });
-  }
+  },
 );

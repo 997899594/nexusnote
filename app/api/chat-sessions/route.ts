@@ -5,7 +5,6 @@
  * POST: 创建新会话（不保存消息，返回 pendingMessage 让前端发送）
  */
 
-import type { NextRequest } from "next/server";
 import { conversations, db, desc, eq, sql } from "@/db";
 import { withOptionalAuth } from "@/lib/api";
 

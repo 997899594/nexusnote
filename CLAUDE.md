@@ -7,10 +7,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 
 NexusNote is an AI-native knowledge management system with real-time collaboration. It combines:
-- **Multi-model AI**: Gemini 3 (via 302.ai) for chat/reasoning, Qwen3 for embeddings
+- **Multi-model AI**: Gemini 3 (via 302.ai) for chat/reasoning, BGE/Baai for embeddings
 - **RAG System**: Vector search with pgvector, semantic chunking, reranking
 - **Real-time Collaboration**: Tiptap editor with Yjs CRDT (via PartyKit)
-- **Learning System**: FSRS-5 spaced repetition, AI-generated flashcards
+- **Learning System**: FSRS-5 spaced repetition, AI-generated courses
+- **Personalization**: Style analysis, emotion detection, AI personas
 - **Offline-First**: IndexedDB sync, works without internet
 
 **Tech Stack**: Next.js 16, React 19, AI SDK v6, Drizzle ORM, PostgreSQL 16 + pgvector, Redis 7
@@ -66,20 +67,53 @@ cp .env.example .env  # Configure environment variables
 ### AI System Architecture
 
 **Model Strategy** (via `lib/ai/core.ts`):
-- **Primary**: 302.ai Gemini 3 Flash/Pro (set `AI_302_API_KEY`)
-- **Fallback**: DeepSeek V3, OpenAI (automatic degradation via CircuitBreaker)
+- **chatModel**: Gemini 3 Flash for general conversations
+- **proModel**: Gemini 3 Pro for complex tasks
+- **webSearchModel**: Model with web search capabilities
+- **embeddingModel**: BAAI/bge-base-zh-v1.5 for text embeddings
+
+**CircuitBreaker Pattern**: Three-state circuit breaker (closed → open → half-open) for automatic provider failover. Fallback providers: DeepSeek V3, OpenAI.
 
 **AI SDK v6 Patterns**:
+- `ToolLoopAgent` for structured AI agents with tool calling
 - `streamText()` for streaming responses with tools
 - `smoothStream()` with `Intl.Segmenter` for Chinese word boundaries
-- Tool-first generative UI: AI calls tools → frontend renders components
+- `safeGenerateObject()` for schema-validated structured output with retry
 - Temperature varies by task: Router (0.0), Interview (0.2), Chat (0.7)
 
+**Agent System** (`lib/ai/agents/index.ts`):
+```typescript
+new ToolLoopAgent({
+  id: "nexusnote-chat",
+  model: aiProvider.chatModel,
+  instructions: "...",
+  tools: chatTools,
+  stopWhen: stepCountIs(20),
+})
+```
+
+**Chat API Flow** (`app/api/chat/route.ts`):
+1. Auth validation → 2. Rate limiting (100 req/min per user) → 3. Request validation (Zod)
+4. Load personalization (persona, user context, emotion detection)
+5. Session upsert → 6. Agent selection based on intent → 7. Stream response → 8. Usage tracking
+
 **Key Files**:
-- `lib/ai/core.ts` - AIProvider singleton with CircuitBreaker
+- `lib/ai/core.ts` - AIProvider singleton with CircuitBreaker, PromptRegistry
+- `lib/ai/agents/` - ToolLoopAgent definitions for different intents
 - `lib/ai/tools/` - All AI tool definitions (chat, learning, RAG, editor)
 - `lib/ai/personas/` - AI personality system
 - `app/api/chat/route.ts` - Main chat endpoint with streaming
+
+### Personalization Layer
+
+The system personalizes AI responses based on user context:
+
+- `lib/memory/` - User context building from style analysis and history
+- `lib/emotion/` - Emotion detection from user messages
+- `lib/style/` - Writing style analysis (Big Five personality, communication style)
+- `lib/ai/personas/` - Explicit persona selection
+
+**Flow**: User message → Emotion detection → Load user context → Build personalized prompt
 
 ### Database Schema
 
@@ -92,6 +126,9 @@ cp .env.example .env  # Configure environment variables
 - `knowledge_chunks` - Unified RAG index (supports: document, conversation, note, course, flashcard)
 - `personas` - AI personality definitions
 - `course_profiles` - AI-generated learning courses
+- `tags`, `document_tags` - Tagging system with embeddings
+- `skills`, `skill_relationships`, `user_skill_mastery` - Skill graph for learning paths
+- `ai_usage` - Token/cost tracking
 
 **Vector Search**: Uses `halfvec(4000)` for 50% storage savings (requires pgvector 0.5.0+)
 
@@ -114,7 +151,21 @@ Located in `lib/rag/`:
 - `hybrid-search.ts` - Vector + keyword search
 - `query-rewriter.ts` - Query enhancement (optional, flag-controlled)
 
-**Embedding Model**: Qwen/Qwen3-Embedding-8B (4000 dimensions)
+### Interview System
+
+Uses FSM (Finite State Machine) pattern for structured interview flows:
+
+- `app/interview/` - Interview page routes
+- Interview state machine manages conversation phases
+- Lower temperature (0.2) for consistent interview behavior
+
+### Skill Graph System
+
+Located in `lib/skills/`:
+
+- Skill discovery from user content
+- Skill relationships and prerequisites
+- User mastery tracking with `user_skill_mastery` table
 
 ---
 
@@ -167,6 +218,12 @@ Base UI components using Radix UI primitives + Tailwind:
 - `StreamdownMessage.tsx` - Streaming markdown renderer
 - `PersonaSelector.tsx` - AI personality switcher
 
+### Tags Components (`components/tags/`)
+
+- `TagBar.tsx` - Tag display and management
+- `TagGenerationTrigger.tsx` - AI-powered tag generation
+- `PendingTagsPopover.tsx` - Review pending tags
+
 ### Layout Components (`components/shared/layout/`)
 
 - `AppSidebar.tsx` - Main navigation sidebar
@@ -175,18 +232,15 @@ Base UI components using Radix UI primitives + Tailwind:
 
 ---
 
-## Key Libraries
+## State Management
 
-| Library | Purpose | Notes |
-|---------|---------|-------|
-| `@ai-sdk/react` | AI chat hooks | `useChat()` with custom transport |
-| `@tiptap/react` | Rich text editor | Extensible, collaborative |
-| `y-partykit` | CRDT sync | PartyKit integration for Yjs |
-| `streamdown` | Streaming markdown | Optimized for real-time AI |
-| `framer-motion` | Animations | Use sparingly with React Compiler |
-| `drizzle-orm` | Database | Type-safe SQL |
-| `bullmq` | Job queue | For RAG indexing (when implemented) |
-| `zustand` | State management | Lightweight global state |
+**Zustand Stores** (`stores/`):
+
+- `stores/chat.ts` - Chat session list management
+- `stores/editor.ts` - Editor state
+- `stores/auth.ts` - Authentication state
+
+**Pattern**: Lightweight global state with Zustand, local state with React hooks. React Compiler handles optimization automatically.
 
 ---
 
@@ -196,8 +250,9 @@ Base UI components using Radix UI primitives + Tailwind:
 
 AI behavior is controlled by code logic, not prompt engineering. The system uses:
 - State machines for interview flow (FSM pattern)
-- Tool definitions for AI capabilities
-- Explicit agent routing based on intent
+- `ToolLoopAgent` with explicit tool definitions
+- Intent-based agent routing via `routeIntent()`
+- `stopWhen: stepCountIs(N)` for controlled tool loops
 
 ### Schema-First Development
 
@@ -215,6 +270,7 @@ All data structures have Zod schemas:
 "@/components/*"→ components/
 "@/types"       → types/
 "@/db"          → db/
+"@/db/*"        → db/*
 ```
 
 ### React Compiler Enabled
@@ -231,6 +287,13 @@ Use granular Suspense for progressive loading:
 <Suspense fallback={<Skeleton />}>
   <AsyncComponent />
 </Suspense>
+```
+
+### Streaming Markdown
+
+Use `StreamdownMessage` component for AI responses:
+```tsx
+<StreamdownMessage content={aiResponse} isStreaming={true} />
 ```
 
 ---
@@ -271,8 +334,10 @@ Located in `lib/ai/tools/`:
 - `components/` - React components organized by feature
 - `lib/` - Business logic, utilities, services
 - `db/` - Database schema and Drizzle config
+- `stores/` - Zustand state management stores
 - `types/` - TypeScript type definitions
 - `config/` - Environment and configuration
+- `party/` - PartyKit collaboration server
 - `docs/` - Extensive documentation (AI.md, ARCHITECTURE_2026.md)
 - `deploy/` - Kubernetes manifests and deployment scripts
 
@@ -284,4 +349,23 @@ Located in `lib/ai/tools/`:
 2. **Build Phase**: `SKIP_ENV_VALIDATION=true` or `NEXT_PHASE=phase-production-build` needed for builds
 3. **pgvector halfvec**: Manual migration fix needed: `sed -i 's/"halfvec(4000)"/halfvec(4000)/g' drizzle/*.sql`
 4. **Client Env Access**: Server env vars are proxied and throw warnings if accessed on client
-5. **Chinese Streaming**: Use `smoothStream()` with `Intl.Segmenter('zh-Hans')` for proper word chunking
+5. **Chinese Streaming**: Use `smoothStream()` with `Intl.Segmenter('zh-CN')` for proper word chunking
+6. **Rate Limiting**: Chat API has 100 requests/min per user limit
+7. **State Management**: Uses Zustand (not Jotai, despite some docs mentioning it)
+8. **Collaboration Server**: Uses PartyKit (not Hocuspocus, despite some docs mentioning it)
+
+---
+
+## Key Libraries
+
+| Library | Purpose | Notes |
+|---------|---------|-------|
+| `@ai-sdk/react` | AI chat hooks | `useChat()` with custom transport |
+| `@tiptap/react` | Rich text editor | Extensible, collaborative |
+| `y-partykit` | CRDT sync | PartyKit integration for Yjs |
+| `streamdown` | Streaming markdown | Optimized for real-time AI |
+| `framer-motion` | Animations | Use sparingly with React Compiler |
+| `drizzle-orm` | Database | Type-safe SQL |
+| `bullmq` | Job queue | For RAG indexing |
+| `zustand` | State management | Lightweight global state |
+| `zod` | Validation | Schema-first development |

@@ -9,11 +9,10 @@
  * - 返回更新数量
  */
 
-import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { conversations, db, eq } from "@/db";
-import { withOptionalAuth } from "@/lib/api";
 import { aiProvider, safeGenerateObject } from "@/lib/ai/core";
+import { withOptionalAuth } from "@/lib/api";
 
 // Title generation schema
 const titleSchema = z.object({

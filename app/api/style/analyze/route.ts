@@ -5,7 +5,6 @@
  * using exponential moving average for smooth metric updates.
  */
 
-import type { NextRequest } from "next/server";
 import { withAuth } from "@/lib/api";
 import { updateUserStyleProfile } from "@/lib/style/analysis";
 import { AnalyzeStyleSchema } from "@/lib/style/validation";

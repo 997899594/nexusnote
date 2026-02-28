@@ -2,7 +2,6 @@
  * GET /api/skills/graph - 获取用户技能图数据
  */
 
-import type { NextRequest } from "next/server";
 import { withAuth } from "@/lib/api";
 import { getUserSkillGraphData } from "@/lib/skills";
 import { GraphQuerySchema } from "@/lib/skills/validation";

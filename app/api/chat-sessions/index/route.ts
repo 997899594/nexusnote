@@ -8,7 +8,6 @@
  */
 
 import type { UIMessage } from "ai";
-import type { NextRequest } from "next/server";
 import { conversations, db, eq } from "@/db";
 import { withAuth } from "@/lib/api";
 import { indexConversation } from "@/lib/rag/chunker";

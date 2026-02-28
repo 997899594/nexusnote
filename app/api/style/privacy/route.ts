@@ -7,7 +7,6 @@
  * - DELETE: Delete all style data and disable analysis
  */
 
-import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { withAuth } from "@/lib/api";
 import { deleteStyleData, getPrivacySettings, updatePrivacySettings } from "@/lib/style/privacy";

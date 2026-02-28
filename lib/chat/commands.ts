@@ -26,7 +26,7 @@ export const CHAT_COMMANDS: Command[] = [
     icon: GraduationCap,
     modeLabel: "生成课程",
     modeIcon: GraduationCap,
-    targetPath: "/courses/new",
+    targetPath: "/interview",
     getQueryParams: (input: string) => ({ msg: input.trim() }),
   },
   {

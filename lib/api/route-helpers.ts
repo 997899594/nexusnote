@@ -3,19 +3,18 @@
  * 提供认证和错误处理的高阶函数封装
  */
 
-import type { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
+import type { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { APIError, handleError } from "./errors";
 
 type RouteHandler<T = unknown> = (
   request: NextRequest,
-  context: { userId: string }
+  context: { userId: string },
 ) => Promise<Response | NextResponse<T>>;
 
 type OptionalAuthHandler<T = unknown> = (
   request: NextRequest,
-  context: { userId: string | null }
+  context: { userId: string | null },
 ) => Promise<Response | NextResponse<T>>;
 
 /**
@@ -29,7 +28,7 @@ type OptionalAuthHandler<T = unknown> = (
  * });
  */
 export function withAuth<T>(
-  handler: RouteHandler<T>
+  handler: RouteHandler<T>,
 ): (request: NextRequest) => Promise<Response | NextResponse<T>> {
   return async (request: NextRequest): Promise<Response | NextResponse<T>> => {
     try {
@@ -55,7 +54,7 @@ export function withAuth<T>(
  * });
  */
 export function withOptionalAuth<T>(
-  handler: OptionalAuthHandler<T>
+  handler: OptionalAuthHandler<T>,
 ): (request: NextRequest) => Promise<Response | NextResponse<T>> {
   return async (request: NextRequest): Promise<Response | NextResponse<T>> => {
     try {
@@ -72,12 +71,12 @@ export function withOptionalAuth<T>(
 // Dynamic route types (for routes with params)
 type DynamicRouteHandler<T = unknown, P = Record<string, string>> = (
   request: NextRequest,
-  context: { userId: string; params: P }
+  context: { userId: string; params: P },
 ) => Promise<Response | NextResponse<T>>;
 
 type DynamicOptionalAuthHandler<T = unknown, P = Record<string, string>> = (
   request: NextRequest,
-  context: { userId: string | null; params: P }
+  context: { userId: string | null; params: P },
 ) => Promise<Response | NextResponse<T>>;
 
 /**
@@ -91,9 +90,12 @@ type DynamicOptionalAuthHandler<T = unknown, P = Record<string, string>> = (
  * });
  */
 export function withDynamicAuth<T, P = Record<string, string>>(
-  handler: DynamicRouteHandler<T, P>
+  handler: DynamicRouteHandler<T, P>,
 ): (request: NextRequest, context: { params: Promise<P> }) => Promise<Response | NextResponse<T>> {
-  return async (request: NextRequest, context: { params: Promise<P> }): Promise<Response | NextResponse<T>> => {
+  return async (
+    request: NextRequest,
+    context: { params: Promise<P> },
+  ): Promise<Response | NextResponse<T>> => {
     try {
       const session = await auth();
       if (!session?.user) {
@@ -118,9 +120,12 @@ export function withDynamicAuth<T, P = Record<string, string>>(
  * });
  */
 export function withDynamicOptionalAuth<T, P = Record<string, string>>(
-  handler: DynamicOptionalAuthHandler<T, P>
+  handler: DynamicOptionalAuthHandler<T, P>,
 ): (request: NextRequest, context: { params: Promise<P> }) => Promise<Response | NextResponse<T>> {
-  return async (request: NextRequest, context: { params: Promise<P> }): Promise<Response | NextResponse<T>> => {
+  return async (
+    request: NextRequest,
+    context: { params: Promise<P> },
+  ): Promise<Response | NextResponse<T>> => {
     try {
       const session = await auth();
       const params = await context.params;

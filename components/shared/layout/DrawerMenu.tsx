@@ -11,7 +11,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { BookOpen, FileText, Home, Layers, LogOut, Settings, User, Zap } from "lucide-react";
+import { BookOpen, FileText, Home, Layers, LogOut, Settings, User } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
@@ -38,8 +38,7 @@ const navItems = [
 
 const quickActions = [
   { icon: FileText, label: "新建笔记", href: "/editor/new" },
-  { icon: BookOpen, label: "闪卡复习", href: "/flashcards" },
-  { icon: User, label: "模拟面试", href: "/interview" },
+  { icon: BookOpen, label: "AI 课程", href: "/interview" },
 ];
 
 export function DrawerMenu({ isOpen, onClose, userName, userEmail }: DrawerMenuProps) {

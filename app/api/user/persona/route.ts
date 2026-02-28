@@ -2,7 +2,6 @@
  * User Persona Preference API
  */
 
-import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { setUserPersonaPreference } from "@/lib/ai/personas";
 import { withAuth } from "@/lib/api";

@@ -5,7 +5,6 @@
  * Requires login.
  */
 
-import type { NextRequest } from "next/server";
 import type { PersonaPreference } from "@/lib/ai/personas";
 import { type AIPersona, getAvailablePersonas, getUserPersonaPreference } from "@/lib/ai/personas";
 import { withAuth } from "@/lib/api";

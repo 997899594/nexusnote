@@ -181,8 +181,8 @@ export class PromptRegistry {
  * 4. 达到 maxRetries 后抛出最终错误
  */
 
-import { generateObject } from "ai";
 import type { LanguageModel } from "ai";
+import { generateObject } from "ai";
 import type { ZodSchema } from "zod";
 
 export interface SafeGenerateOptions<T> {

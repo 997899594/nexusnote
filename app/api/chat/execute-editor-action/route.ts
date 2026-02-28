@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: "Document not found" }, { status: 404 });
         }
 
-        const updatedContent = doc.plainText + "\n\n" + newContent;
+        const updatedContent = `${doc.plainText}\n\n${newContent}`;
 
         await db
           .update(documents)
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
           });
 
           if (doc) {
-            const updatedContent = doc.plainText + "\n\n" + content;
+            const updatedContent = `${doc.plainText}\n\n${content}`;
             await db
               .update(documents)
               .set({ plainText: updatedContent, updatedAt: new Date() })

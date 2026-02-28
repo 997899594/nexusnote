@@ -31,7 +31,7 @@ export function TagBar({ documentId }: TagBarProps) {
 
   useEffect(() => {
     fetchTags();
-  }, [documentId]);
+  }, [fetchTags]);
 
   const handleConfirm = async (documentTagId: string) => {
     await fetch(`/api/document-tags/${documentTagId}`, {

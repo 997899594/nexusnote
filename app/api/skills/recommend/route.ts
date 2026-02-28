@@ -2,7 +2,6 @@
  * GET /api/skills/recommend - 获取技能推荐
  */
 
-import type { NextRequest } from "next/server";
 import { withAuth } from "@/lib/api";
 import { getRecommendedSkills } from "@/lib/skills";
 import { RecommendQuerySchema } from "@/lib/skills/validation";

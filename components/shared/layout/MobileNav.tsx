@@ -28,9 +28,8 @@ export function MobileNav() {
 
   const createOptions = [
     { label: "新建笔记", icon: PenTool, href: "/editor/new" },
+    { label: "AI 课程", icon: BookOpen, href: "/interview" },
     { label: "AI 对话", icon: Home, href: "/" },
-    { label: "闪卡复习", icon: BookOpen, href: "/flashcards" },
-    { label: "模拟面试", icon: User, href: "/interview" },
   ];
 
   return (

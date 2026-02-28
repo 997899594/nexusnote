@@ -8,7 +8,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { AlertCircle, AlertTriangle, CheckCircle, Info, X } from "lucide-react";
-import { createContext, type ReactNode, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
 
 type ToastType = "success" | "error" | "warning" | "info";
 

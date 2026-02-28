@@ -19,21 +19,21 @@ export interface EMAValue {
 
 /** 写作风格维度 */
 export type StyleDimension =
-  | 'vocabularyComplexity'
-  | 'sentenceComplexity'
-  | 'abstractionLevel'
-  | 'directness'
-  | 'conciseness'
-  | 'formality'
-  | 'emotionalIntensity';
+  | "vocabularyComplexity"
+  | "sentenceComplexity"
+  | "abstractionLevel"
+  | "directness"
+  | "conciseness"
+  | "formality"
+  | "emotionalIntensity";
 
 /** Big Five 人格维度 */
 export type BigFiveDimension =
-  | 'openness'
-  | 'conscientiousness'
-  | 'extraversion'
-  | 'agreeableness'
-  | 'neuroticism';
+  | "openness"
+  | "conscientiousness"
+  | "extraversion"
+  | "agreeableness"
+  | "neuroticism";
 
 /** 所有可追踪维度 */
 export type TrackableDimension = StyleDimension | BigFiveDimension;

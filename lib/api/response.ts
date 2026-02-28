@@ -33,7 +33,7 @@ export function apiNoContent() {
  */
 export function apiPaginated<T>(
   items: T[],
-  pagination: { page: number; pageSize: number; total: number }
+  pagination: { page: number; pageSize: number; total: number },
 ) {
   return NextResponse.json({
     items,
