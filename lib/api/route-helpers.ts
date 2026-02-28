@@ -28,8 +28,10 @@ type OptionalAuthHandler<T = unknown> = (
  *   return Response.json(data);
  * });
  */
-export function withAuth<T>(handler: RouteHandler<T>) {
-  return async (request: NextRequest) => {
+export function withAuth<T>(
+  handler: RouteHandler<T>
+): (request: NextRequest) => Promise<NextResponse<T>> {
+  return async (request: NextRequest): Promise<NextResponse<T>> => {
     try {
       const session = await auth();
       if (!session?.user) {
@@ -37,7 +39,7 @@ export function withAuth<T>(handler: RouteHandler<T>) {
       }
       return handler(request, { userId: session.user.id });
     } catch (error) {
-      return handleError(error);
+      return handleError(error) as NextResponse<T>;
     }
   };
 }
@@ -45,16 +47,24 @@ export function withAuth<T>(handler: RouteHandler<T>) {
 /**
  * 可选认证路由高阶函数
  * 允许匿名访问，但提供用户信息（如有）
+ *
+ * @example
+ * export const GET = withOptionalAuth(async (request, { userId }) => {
+ *   const data = userId ? await getPrivateData(userId) : await getPublicData();
+ *   return Response.json(data);
+ * });
  */
-export function withOptionalAuth<T>(handler: OptionalAuthHandler<T>) {
-  return async (request: NextRequest) => {
+export function withOptionalAuth<T>(
+  handler: OptionalAuthHandler<T>
+): (request: NextRequest) => Promise<NextResponse<T>> {
+  return async (request: NextRequest): Promise<NextResponse<T>> => {
     try {
       const session = await auth();
       return handler(request, {
         userId: session?.user?.id ?? null,
       });
     } catch (error) {
-      return handleError(error);
+      return handleError(error) as NextResponse<T>;
     }
   };
 }
