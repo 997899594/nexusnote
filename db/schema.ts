@@ -12,6 +12,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { env } from "@/config/env";
+import type { EMAValue } from "@/types/profile";
 
 const bytea = customType<{ data: Buffer }>({
   dataType() {
@@ -51,80 +52,20 @@ export const userProfiles = pgTable(
 
     learningStyle: jsonb("learning_style"),
 
-    vocabularyComplexity: jsonb("vocabulary_complexity").$type<{
-      value: number;
-      confidence: number;
-      samples: number;
-      lastAnalyzedAt: string;
-    }>(),
-    sentenceComplexity: jsonb("sentence_complexity").$type<{
-      value: number;
-      confidence: number;
-      samples: number;
-      lastAnalyzedAt: string;
-    }>(),
-    abstractionLevel: jsonb("abstraction_level").$type<{
-      value: number;
-      confidence: number;
-      samples: number;
-      lastAnalyzedAt: string;
-    }>(),
+    vocabularyComplexity: jsonb("vocabulary_complexity").$type<EMAValue>(),
+    sentenceComplexity: jsonb("sentence_complexity").$type<EMAValue>(),
+    abstractionLevel: jsonb("abstraction_level").$type<EMAValue>(),
 
-    directness: jsonb("directness").$type<{
-      value: number;
-      confidence: number;
-      samples: number;
-      lastAnalyzedAt: string;
-    }>(),
-    conciseness: jsonb("conciseness").$type<{
-      value: number;
-      confidence: number;
-      samples: number;
-      lastAnalyzedAt: string;
-    }>(),
-    formality: jsonb("formality").$type<{
-      value: number;
-      confidence: number;
-      samples: number;
-      lastAnalyzedAt: string;
-    }>(),
-    emotionalIntensity: jsonb("emotional_intensity").$type<{
-      value: number;
-      confidence: number;
-      samples: number;
-      lastAnalyzedAt: string;
-    }>(),
+    directness: jsonb("directness").$type<EMAValue>(),
+    conciseness: jsonb("conciseness").$type<EMAValue>(),
+    formality: jsonb("formality").$type<EMAValue>(),
+    emotionalIntensity: jsonb("emotional_intensity").$type<EMAValue>(),
 
-    openness: jsonb("openness").$type<{
-      value: number;
-      confidence: number;
-      samples: number;
-      lastAnalyzedAt: string;
-    }>(),
-    conscientiousness: jsonb("conscientiousness").$type<{
-      value: number;
-      confidence: number;
-      samples: number;
-      lastAnalyzedAt: string;
-    }>(),
-    extraversion: jsonb("extraversion").$type<{
-      value: number;
-      confidence: number;
-      samples: number;
-      lastAnalyzedAt: string;
-    }>(),
-    agreeableness: jsonb("agreeableness").$type<{
-      value: number;
-      confidence: number;
-      samples: number;
-      lastAnalyzedAt: string;
-    }>(),
-    neuroticism: jsonb("neuroticism").$type<{
-      value: number;
-      confidence: number;
-      samples: number;
-      lastAnalyzedAt: string;
-    }>(),
+    openness: jsonb("openness").$type<EMAValue>(),
+    conscientiousness: jsonb("conscientiousness").$type<EMAValue>(),
+    extraversion: jsonb("extraversion").$type<EMAValue>(),
+    agreeableness: jsonb("agreeableness").$type<EMAValue>(),
+    neuroticism: jsonb("neuroticism").$type<EMAValue>(),
 
     totalMessagesAnalyzed: integer("total_messages_analyzed").notNull().default(0),
     totalConversationsAnalyzed: integer("total_conversations_analyzed").notNull().default(0),
