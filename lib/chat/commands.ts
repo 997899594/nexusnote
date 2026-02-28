@@ -1,4 +1,4 @@
-import { Globe, GraduationCap, Map as MapIcon, Plus, Search } from "lucide-react";
+import { Globe, GraduationCap, Map as MapIcon, MessageCircle, Plus, Search } from "lucide-react";
 import type { Command } from "@/types/chat";
 
 export const CHAT_COMMANDS: Command[] = [
@@ -19,6 +19,15 @@ export const CHAT_COMMANDS: Command[] = [
     modeIcon: Plus,
     targetPath: "/notes/new",
     getQueryParams: () => ({}),
+  },
+  {
+    id: "interview",
+    label: "Interview Mode",
+    icon: MessageCircle,
+    modeLabel: "课程访谈",
+    modeIcon: MessageCircle,
+    targetPath: "/interview",
+    getQueryParams: (input: string) => ({ msg: input.trim() }),
   },
   {
     id: "generate-course",
@@ -58,6 +67,7 @@ export const HOME_COMMANDS: Command[] = [
 export const QUICK_ACTIONS = [
   { icon: Search, label: "搜索笔记" },
   { icon: Plus, label: "创建笔记" },
+  { icon: MessageCircle, label: "课程访谈" },
   { icon: GraduationCap, label: "生成课程" },
   { icon: MapIcon, label: "思维导图" },
 ] as const;

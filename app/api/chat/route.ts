@@ -1,6 +1,10 @@
 /**
  * AI Chat API - 2026 Modern Architecture
- * Enhanced with Personalization: Personas, Long-term Memory, Emotion Detection
+ *
+ * 2026 架构：
+ * - Chat 专注通用对话
+ * - INTERVIEW 意图由客户端跳转到 /interview 页面
+ * - 无 Persona 冲突
  */
 
 import { createAgentUIStreamResponse, smoothStream, type UIMessage } from "ai";
@@ -122,14 +126,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { messages, intent, sessionId, personaSlug } = validation.data;
+    const { messages, intent: clientIntent, sessionId, personaSlug } = validation.data;
 
-    console.log(
-      "[Chat] Request received, personaSlug:",
-      personaSlug,
-      "body:",
-      JSON.stringify(validation.data),
-    );
+    // 客户端显式指定的 intent（如 /interview 命令）
+    // 如果是 INTERVIEW，说明客户端没有正确跳转
+    if (clientIntent === "INTERVIEW") {
+      throw new APIError("INTERVIEW 意图应跳转到 /interview 页面", 400, "INVALID_INTENT");
+    }
+
+    // Chat 只处理 CHAT intent
+    const intent = clientIntent || "CHAT";
+    const uiMessages = messages as UIMessage[];
+    const lastUserMessage = uiMessages.filter((m) => m.role === "user").pop();
+    const lastMessageText = extractTextFromMessage(lastUserMessage);
+
+    console.log("[Chat] Request received, personaSlug:", personaSlug, "intent:", intent);
 
     if (!aiProvider.isConfigured()) {
       throw new APIError("AI 服务未配置", 503, "AI_NOT_CONFIGURED");
@@ -139,23 +150,14 @@ export async function POST(request: NextRequest) {
     // Personalization: Load persona, context, emotion
     // ============================================
 
-    // Get last user message for emotion detection
-    const uiMessages = messages as UIMessage[];
-    const lastUserMessage = uiMessages.filter((m) => m.role === "user").pop();
-    const lastMessageText = extractTextFromMessage(lastUserMessage);
-
-    // Parallel fetch personalization data for logged-in users
     let personaSystemPrompt = "";
     let userContext = "";
     let emotionAdaptation = "";
 
     if (userId && userId !== "anonymous") {
       const [persona, context, emotion] = await Promise.all([
-        // Get persona (explicit or user's default)
         getExplicitOrDefaultPersona(userId, personaSlug),
-        // Build user context from style analysis
         buildChatContext(userId),
-        // Detect emotion from last message
         Promise.resolve(detectEmotion(lastMessageText)),
       ]);
 
@@ -173,7 +175,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 2026 架构：首条消息时 upsert 会话（幂等，支持客户端生成的 nanoid）
+    // upsert conversation
     if (sessionId && userId && userId !== "anonymous") {
       const firstUserMessage = uiMessages.find((m) => m.role === "user");
       let title = "新对话";
@@ -192,16 +194,22 @@ export async function POST(request: NextRequest) {
             id: sessionId,
             userId,
             title,
-            intent,
+            intent: "CHAT",
             messageCount: uiMessages.length,
           })
-          .onConflictDoNothing();
+          .onConflictDoUpdate({
+            target: conversations.id,
+            set: {
+              messageCount: uiMessages.length,
+              lastMessageAt: new Date(),
+            },
+          });
       } catch (insertError) {
-        console.warn("[ChatSession] Failed to create session record:", insertError);
+        console.warn("[ChatSession] Failed to upsert session:", insertError);
       }
     }
 
-    // Get agent with personalized instructions
+    // Get agent with personalization
     const agent = getAgent(intent, sessionId, {
       personaPrompt: personaSystemPrompt,
       userContext,
@@ -217,11 +225,9 @@ export async function POST(request: NextRequest) {
     });
 
     const durationMs = Date.now() - startTime;
-    const model = intent === "COURSE" ? "gemini-3-pro-preview" : "gemini-3-flash-preview";
 
-    // 只有登录用户才记录用量 (userId 是有效 UUID)
     if (userId && userId !== "anonymous") {
-      trackUsage(userId, intent, model, 0, 0, durationMs).catch(console.error);
+      trackUsage(userId, intent, "gemini-3-flash-preview", 0, 0, durationMs).catch(console.error);
     }
 
     if (sessionId) {

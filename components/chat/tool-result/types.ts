@@ -184,6 +184,60 @@ export interface CheckCourseProgressOutput {
   error?: string;
 }
 
+// ============================================
+// Interview Tool Types
+// ============================================
+
+export interface SuggestOptionsOutput {
+  question: string;
+  options: string[];
+  allowCustom: boolean;
+  allowSkip: boolean;
+  multiSelect: boolean;
+}
+
+export interface CourseOutlineModule {
+  id?: string;
+  title: string;
+  description?: string;
+  chapters: string[];
+  estimatedMinutes?: number;
+}
+
+export interface ProposeOutlineOutput {
+  title: string;
+  description?: string;
+  difficulty: "beginner" | "intermediate" | "advanced";
+  estimatedMinutes: number;
+  modules: CourseOutlineModule[];
+  reasoning?: string;
+}
+
+export interface AssessComplexityOutput {
+  success: boolean;
+  topic: string;
+  domain: string;
+  initialContext?: string;
+  message?: string;
+  error?: string;
+}
+
+export interface UpdateProfileOutput {
+  success: boolean;
+  profile?: unknown;
+  message?: string;
+  error?: string;
+}
+
+export interface ConfirmOutlineOutput {
+  success: boolean;
+  courseProfileId: string;
+  title: string;
+  moduleCount: number;
+  message?: string;
+  error?: string;
+}
+
 export type ToolOutputMap = {
   mindMap: MindMapOutput;
   searchNotes: SearchNotesOutput;
@@ -200,4 +254,10 @@ export type ToolOutputMap = {
   discoverSkills: DiscoverSkillsOutput;
   analyzeStyle: AnalyzeStyleOutput;
   checkCourseProgress: CheckCourseProgressOutput;
+  // Interview tools
+  suggestOptions: SuggestOptionsOutput;
+  proposeOutline: ProposeOutlineOutput;
+  assessComplexity: AssessComplexityOutput;
+  updateProfile: UpdateProfileOutput;
+  confirmOutline: ConfirmOutlineOutput;
 };

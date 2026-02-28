@@ -8,6 +8,7 @@ import { ToolResultRenderer } from "./tool-result/ToolResultRenderer";
 
 interface ChatMessageProps {
   message: UIMessage;
+  onSendReply?: (text: string) => void;
 }
 
 function isTextPart(part: { type: string }): part is TextUIPart {
@@ -29,7 +30,7 @@ function getToolParts(message: UIMessage): ToolUIPart[] {
   return message.parts.filter(isToolPart) as ToolUIPart[];
 }
 
-export function ChatMessage({ message }: ChatMessageProps) {
+export function ChatMessage({ message, onSendReply }: ChatMessageProps) {
   const isUser = message.role === "user";
   const content = getTextContent(message);
   const toolParts = getToolParts(message);
@@ -55,7 +56,11 @@ export function ChatMessage({ message }: ChatMessageProps) {
           <>
             {content && <StreamdownMessage content={content} />}
             {toolParts.map((toolPart) => (
-              <ToolResultRenderer key={toolPart.toolCallId} toolPart={toolPart} />
+              <ToolResultRenderer
+                key={toolPart.toolCallId}
+                toolPart={toolPart}
+                onSendReply={onSendReply}
+              />
             ))}
           </>
         )}

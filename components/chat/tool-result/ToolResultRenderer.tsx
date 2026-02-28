@@ -8,6 +8,7 @@ import type { ToolUIPart } from "ai";
 import { CourseOutlineCard } from "./CourseOutlineCard";
 import { EditorConfirmDialog } from "./EditorConfirmDialog";
 import { GenericToolResult } from "./GenericToolResult";
+import { InterviewOptions } from "./InterviewOptions";
 import { MindMapResult } from "./MindMapResult";
 import { NoteLink } from "./NoteLink";
 import { SearchResults } from "./SearchResults";
@@ -26,9 +27,10 @@ function getOutput<T extends keyof ToolOutputMap>(part: ToolPart): ToolOutputMap
 
 interface ToolResultRendererProps {
   toolPart: ToolPart;
+  onSendReply?: (text: string) => void;
 }
 
-export function ToolResultRenderer({ toolPart }: ToolResultRendererProps) {
+export function ToolResultRenderer({ toolPart, onSendReply }: ToolResultRendererProps) {
   if (toolPart.state !== "output-available") {
     return null;
   }
@@ -113,6 +115,57 @@ export function ToolResultRenderer({ toolPart }: ToolResultRendererProps) {
 
     case "checkCourseProgress": {
       const output = getOutput<"checkCourseProgress">(toolPart);
+      return <GenericToolResult output={output} />;
+    }
+
+    // Interview Tools
+    case "suggestOptions": {
+      const output = getOutput<"suggestOptions">(toolPart);
+      if (!output) return null;
+      return (
+        <InterviewOptions
+          question={output.question}
+          options={output.options}
+          allowCustom={output.allowCustom ?? true}
+          allowSkip={output.allowSkip ?? false}
+          multiSelect={output.multiSelect ?? false}
+          onSelect={(selection) => {
+            const replyText =
+              typeof selection === "string"
+                ? selection === "__skip__"
+                  ? "[跳过]"
+                  : selection
+                : (selection as string[]).join("、");
+            onSendReply?.(replyText);
+          }}
+        />
+      );
+    }
+
+    case "proposeOutline": {
+      const output = getOutput<"proposeOutline">(toolPart);
+      if (!output) return null;
+      return (
+        <CourseOutlineCard
+          output={{
+            success: true,
+            title: output.title,
+            outline: {
+              chapters: output.modules.map((module) => ({
+                title: module.title,
+                description: module.description || "",
+                topics: module.chapters,
+              })),
+            },
+          }}
+        />
+      );
+    }
+
+    case "assessComplexity":
+    case "updateProfile":
+    case "confirmOutline": {
+      const output = toolPart.output;
       return <GenericToolResult output={output} />;
     }
 

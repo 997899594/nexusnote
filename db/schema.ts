@@ -352,6 +352,33 @@ export const documentChunks = knowledgeChunks;
 // AI 生成课程 (Course Profiles)
 // ============================================
 
+// 访谈画像类型 - 2026 自适应访谈系统
+export type DomainComplexity = "trivial" | "simple" | "moderate" | "complex" | "expert";
+export type LearningLevel = "none" | "beginner" | "intermediate" | "advanced";
+
+export interface InterviewProfile {
+  // 核心信息（所有领域通用）
+  goal: string | null;
+  domain: string | null;
+  complexity: DomainComplexity;
+
+  // 背景信息（按需收集）
+  background: string | null;
+  currentLevel: LearningLevel;
+
+  // 目标信息（按需收集）
+  targetOutcome: string | null;
+  timeConstraints: string | null;
+
+  // AI 推断
+  insights: string[];
+  readiness: number; // 0-100
+
+  // 元数据
+  estimatedTurns: number;
+  currentTurn: number;
+}
+
 export const courseProfiles = pgTable(
   "course_profiles",
   {
@@ -365,15 +392,7 @@ export const courseProfiles = pgTable(
     difficulty: text("difficulty").default("intermediate"),
     estimatedMinutes: integer("estimated_minutes"),
 
-    interviewProfile: jsonb("interview_profile").$type<{
-      goal: string;
-      background: string;
-      targetOutcome: string;
-      cognitiveStyle: "visual" | "auditory" | "reading" | "kinesthetic";
-      difficulty: "beginner" | "intermediate" | "advanced";
-      preferredPace: "slow" | "medium" | "fast";
-      targetAudience: string;
-    }>(),
+    interviewProfile: jsonb("interview_profile").$type<InterviewProfile>(),
     interviewMessages: jsonb("interview_messages"),
     interviewStatus: text("interview_status").default("interviewing"),
 

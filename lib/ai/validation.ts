@@ -11,13 +11,14 @@ export const MessageSchema = z.object({
 
 export const ChatRequestSchema = z.object({
   messages: z.array(z.unknown()).min(1),
-  intent: z.enum(["CHAT", "INTERVIEW", "COURSE", "EDITOR", "SEARCH"]).default("CHAT"),
+  intent: z.enum(["CHAT", "INTERVIEW", "COURSE", "EDITOR", "SEARCH", "SKILLS", "STYLE"]).optional(), // 可选，API 会自动检测
   sessionId: z.string().optional(),
   personaSlug: z
     .string()
     .regex(/^[a-z0-9_-]+$/)
     .min(1)
-    .optional(), // AI persona slug
+    .optional(),
+  courseProfileId: z.string().uuid().optional(), // 关联的课程画像
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
 

@@ -4,7 +4,7 @@
  * 基于 ToolLoopAgent 的现代化 Agent 实现
  */
 
-import { stepCountIs, ToolLoopAgent, type ToolSet } from "ai";
+import { hasToolCall, type StopCondition, stepCountIs, ToolLoopAgent, type ToolSet } from "ai";
 
 // 导入 aiProvider 从同级的 core.ts
 import { aiProvider } from "../core";
@@ -19,6 +19,14 @@ import {
 } from "../tools/chat";
 import { batchEditTool, draftContentTool, editDocumentTool } from "../tools/editor";
 import {
+  assessComplexityTool,
+  confirmOutlineTool,
+  createCourseProfileTool,
+  proposeOutlineTool,
+  suggestOptionsTool,
+  updateProfileTool,
+} from "../tools/interview";
+import {
   checkCourseProgressTool,
   generateCourseTool,
   mindMapTool,
@@ -29,6 +37,7 @@ import { discoverSkillsTool } from "../tools/skills";
 import { analyzeStyleTool } from "../tools/style";
 
 const DEFAULT_MAX_STEPS = 20;
+const INTERVIEW_MAX_STEPS = 12;
 
 const INSTRUCTIONS = {
   chat: `你是 NexusNote 智能助手。
@@ -37,7 +46,7 @@ const INSTRUCTIONS = {
 - 搜索和管理用户的笔记 (使用 searchNotes、hybridSearch、getNote)
 - 创建/编辑/删除笔记 (使用 createNote、updateNote、deleteNote)
 - 文档编辑 (使用 editDocument、batchEdit、draftContent)
-  - 生成思维导图 (使用 mindMap)
+- 生成思维导图 (使用 mindMap)
 - 生成摘要 (使用 summarize)
 - 互联网搜索 (使用 webSearch)
 
@@ -46,15 +55,61 @@ const INSTRUCTIONS = {
 - 需要用户确认的操作（如删除）必须先询问
 - 使用工具获取信息，不要编造`,
 
-  interview: `你是学习需求访谈助手。
+  interview: `你是 NexusNote 的课程规划师。
 
-你的任务是通过对话了解用户的学习目标，并生成课程大纲。
+## 核心任务
+通过自然对话了解用户的学习需求，生成个性化的课程大纲。
 
-访谈流程：
-1. 了解用户想学习什么（主题）
-2. 了解用户的学习背景和目标
-3. 确定课程难度和深度
-4. 生成课程大纲`,
+## 工作流程
+
+### 第一轮：评估复杂度
+1. 分析用户想学习的主题
+2. 调用 assessComplexity 工具评估复杂度
+3. 创建课程画像（如果需要）
+4. 根据复杂度决定访谈深度：
+   - trivial: 直接 proposeOutline（如：炒西红柿）
+   - simple: 1 轮确认后 proposeOutline（如：做 PPT）
+   - moderate: 2-3 轮（如：Python 入门）
+   - complex: 4-5 轮（如：考研数学）
+   - expert: 5-6 轮（如：机器学习）
+
+### 每轮必须
+1. 调用 updateProfile 更新收集的信息
+2. 调用 suggestOptions 展示 3-4 个简洁选项（每个 5-15 字）
+3. 等待用户选择或输入
+
+### 访谈完成条件
+- readiness >= 80，或
+- 已收集足够信息，或
+- 达到预计轮数
+
+完成后调用 proposeOutline 生成大纲。
+
+## 行为准则
+
+1. **自适应提问**：
+   - 技能类（烹饪、编程）：问基础水平、实践环境
+   - 知识类（考试、学科）：问背景、时间、目标
+   - 简单主题快速通过，复杂主题才深入
+
+2. **简洁高效**：
+   - 每个问题都有明确目的
+   - 选项简短明了
+   - 允许用户自由输入
+   - 不问不需要的问题
+
+3. **友好自然**：
+   - 像朋友聊天，不要审问式
+   - 根据用户回答灵活调整
+   - 适当鼓励和确认
+
+## 必须使用工具
+- assessComplexity: 首轮评估
+- createCourseProfile: 创建画像
+- updateProfile: 每轮更新
+- suggestOptions: 每轮展示选项
+- proposeOutline: 访谈完成生成大纲
+- confirmOutline: 用户确认后保存`,
 
   course: `你是课程内容生成助手。
 
@@ -105,6 +160,7 @@ Big Five 人格特质（需用户同意）：
 使用 analyzeStyle 工具来分析并保存风格数据。`,
 } as const;
 
+// Chat Tools - 轻量级，专注通用对话
 const chatTools = {
   // Notes CRUD
   createNote: createNoteTool,
@@ -138,12 +194,22 @@ const courseTools = {
   checkCourseProgress: checkCourseProgressTool,
 } as ToolSet;
 
+const interviewTools = {
+  assessComplexity: assessComplexityTool,
+  createCourseProfile: createCourseProfileTool,
+  updateProfile: updateProfileTool,
+  suggestOptions: suggestOptionsTool,
+  proposeOutline: proposeOutlineTool,
+  confirmOutline: confirmOutlineTool,
+} as ToolSet;
+
 function createAgent(
   id: string,
   model: ReturnType<typeof aiProvider.getModel>,
   instructions: string,
   tools: ToolSet,
   additionalInstructions?: string,
+  stopWhen?: StopCondition<ToolSet> | StopCondition<ToolSet>[],
 ) {
   const fullInstructions = additionalInstructions
     ? `${additionalInstructions}\n\n${instructions}`
@@ -154,7 +220,7 @@ function createAgent(
     model,
     instructions: fullInstructions,
     tools,
-    stopWhen: stepCountIs(DEFAULT_MAX_STEPS),
+    stopWhen: stopWhen ?? stepCountIs(DEFAULT_MAX_STEPS),
   });
 }
 
@@ -162,6 +228,7 @@ interface PersonalizationOptions {
   personaPrompt?: string;
   userContext?: string;
   emotionAdaptation?: string;
+  interviewContext?: string;
 }
 
 export function getAgent(
@@ -173,11 +240,13 @@ export function getAgent(
   const additionalInstructions =
     personalization?.personaPrompt ||
     personalization?.userContext ||
-    personalization?.emotionAdaptation
+    personalization?.emotionAdaptation ||
+    personalization?.interviewContext
       ? [
           personalization.personaPrompt || "",
           personalization.userContext || "",
           personalization.emotionAdaptation || "",
+          personalization.interviewContext || "",
         ]
           .filter((s) => s)
           .join("\n")
@@ -187,10 +256,16 @@ export function getAgent(
     case "INTERVIEW":
       return createAgent(
         "nexusnote-interview",
-        aiProvider.chatModel,
+        aiProvider.proModel, // 使用 Pro 模型进行访谈
         INSTRUCTIONS.interview,
-        chatTools,
+        interviewTools,
         additionalInstructions,
+        // 停止条件：展示选项、提出大纲、或达到最大轮数
+        [
+          hasToolCall("suggestOptions"),
+          hasToolCall("proposeOutline"),
+          stepCountIs(INTERVIEW_MAX_STEPS),
+        ],
       );
     case "COURSE":
       return createAgent(

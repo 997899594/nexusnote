@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useInputProtection } from "@/components/common/useInputProtection";
 import { CHAT_COMMANDS, extractCommandContent } from "@/lib/chat/commands";
+import { quickIntentDetect } from "@/lib/ai/intent-router";
 import { cn } from "@/lib/utils";
 import { useChatStore } from "@/stores";
 import type { Command } from "@/types/chat";
@@ -107,6 +108,14 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
       return;
     }
 
+    // 检测学习意图 → 跳转到访谈页面
+    const intentResult = quickIntentDetect(input.trim());
+    if (intentResult?.intent === "INTERVIEW") {
+      const encodedMsg = encodeURIComponent(input.trim());
+      router.push(`/interview?msg=${encodedMsg}`);
+      return;
+    }
+
     await sendMessage({ text: input.trim() });
     setInput("");
   };
@@ -179,7 +188,7 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
           )}
 
           {chatMessages.map((msg) => (
-            <ChatMessage key={msg.id} message={msg} />
+            <ChatMessage key={msg.id} message={msg} onSendReply={(text) => sendMessage({ text })} />
           ))}
 
           {isAILoading && <LoadingDots />}
