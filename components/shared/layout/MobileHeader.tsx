@@ -87,7 +87,7 @@ export function MobileHeader({
       className={cn(
         "fixed top-0 left-0 right-0 z-50 safe-top md:hidden",
         backgroundStyles,
-        className
+        className,
       )}
     >
       <div className="flex items-center justify-between h-14 px-4">
@@ -108,9 +108,7 @@ export function MobileHeader({
         {/* 中间 - 标题 */}
         <div className="flex-1 text-center">
           {title && (
-            <h1 className="text-base font-semibold text-zinc-900 truncate px-4">
-              {title}
-            </h1>
+            <h1 className="text-base font-semibold text-zinc-900 truncate px-4">{title}</h1>
           )}
         </div>
 

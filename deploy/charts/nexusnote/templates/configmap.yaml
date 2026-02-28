@@ -1,7 +1,7 @@
 # ===========================================
 # NexusNote ConfigMap (Non-Sensitive)
 # ===========================================
-# 所有敏感信息通过 Sealed Secrets 注入
+# 所有敏感信息通过 Infisical 注入
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -9,8 +9,6 @@ metadata:
   namespace: {{ .Values.namespace }}
   labels:
     {{- include "nexusnote.labels" . | nindent 4 }}
-  annotations:
-    argocd.argoproj.io/sync-wave: "-3"
 data:
   # 运行环境
   NODE_ENV: {{ .Values.env.NODE_ENV | default "production" | quote }}

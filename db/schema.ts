@@ -1,4 +1,4 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   boolean,
   customType,
@@ -13,23 +13,17 @@ import {
 } from "drizzle-orm/pg-core";
 import { env } from "@/config/env";
 
-// 自定义 bytea 类型
 const bytea = customType<{ data: Buffer }>({
   dataType() {
     return "bytea";
   },
 });
 
-// halfvec: 半精度向量，4000 维度，省 50% 存储
-// 需要 pgvector 0.5.0+
-//
-// ⚠️ Drizzle bug: customType 会给类型名加引号导致迁移失败
-// 生成迁移后需手动修复：sed -i 's/"halfvec(4000)"/halfvec(4000)/g' drizzle/*.sql
 const EMBEDDING_DIMENSIONS = env.EMBEDDING_DIMENSIONS || 4000;
 
 export const halfvec = customType<{ data: number[] }>({
   dataType() {
-    return `halfvec(${EMBEDDING_DIMENSIONS})`;
+    return `vector(${EMBEDDING_DIMENSIONS})`;
   },
 });
 
@@ -46,7 +40,6 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// User profile - 风格分析 + 学习偏好
 export const userProfiles = pgTable(
   "user_profiles",
   {
@@ -56,66 +49,83 @@ export const userProfiles = pgTable(
       .notNull()
       .unique(),
 
-    // ========== 手动设置的学习偏好 ==========
-    // 用户主动设置，非 AI 推断
-    learningStyle: jsonb("learning_style"), // { preferredFormat, pace }
+    learningStyle: jsonb("learning_style"),
 
-    // ========== 风格分析字段（AI 推断）==========
-    // 语言复杂度 (0-1)
     vocabularyComplexity: jsonb("vocabulary_complexity").$type<{
       value: number;
       confidence: number;
       samples: number;
+      lastAnalyzedAt: string;
     }>(),
     sentenceComplexity: jsonb("sentence_complexity").$type<{
       value: number;
       confidence: number;
       samples: number;
+      lastAnalyzedAt: string;
     }>(),
     abstractionLevel: jsonb("abstraction_level").$type<{
       value: number;
       confidence: number;
       samples: number;
+      lastAnalyzedAt: string;
     }>(),
 
-    // 沟通风格 (0-1)
-    directness: jsonb("directness").$type<{ value: number; confidence: number; samples: number }>(),
+    directness: jsonb("directness").$type<{
+      value: number;
+      confidence: number;
+      samples: number;
+      lastAnalyzedAt: string;
+    }>(),
     conciseness: jsonb("conciseness").$type<{
       value: number;
       confidence: number;
       samples: number;
+      lastAnalyzedAt: string;
     }>(),
-    formality: jsonb("formality").$type<{ value: number; confidence: number; samples: number }>(),
+    formality: jsonb("formality").$type<{
+      value: number;
+      confidence: number;
+      samples: number;
+      lastAnalyzedAt: string;
+    }>(),
     emotionalIntensity: jsonb("emotional_intensity").$type<{
       value: number;
       confidence: number;
       samples: number;
+      lastAnalyzedAt: string;
     }>(),
 
-    // Big Five 特质 (0-1) - 敏感数据，需用户同意
-    openness: jsonb("openness").$type<{ value: number; confidence: number; samples: number }>(),
+    openness: jsonb("openness").$type<{
+      value: number;
+      confidence: number;
+      samples: number;
+      lastAnalyzedAt: string;
+    }>(),
     conscientiousness: jsonb("conscientiousness").$type<{
       value: number;
       confidence: number;
       samples: number;
+      lastAnalyzedAt: string;
     }>(),
     extraversion: jsonb("extraversion").$type<{
       value: number;
       confidence: number;
       samples: number;
+      lastAnalyzedAt: string;
     }>(),
     agreeableness: jsonb("agreeableness").$type<{
       value: number;
       confidence: number;
       samples: number;
+      lastAnalyzedAt: string;
     }>(),
     neuroticism: jsonb("neuroticism").$type<{
       value: number;
       confidence: number;
       samples: number;
+      lastAnalyzedAt: string;
     }>(),
 
-    // 分析元数据
     totalMessagesAnalyzed: integer("total_messages_analyzed").notNull().default(0),
     totalConversationsAnalyzed: integer("total_conversations_analyzed").notNull().default(0),
     lastAnalyzedAt: timestamp("last_analyzed_at"),
@@ -129,7 +139,7 @@ export const userProfiles = pgTable(
 );
 
 // ============================================
-// 风格分析隐私设置 (Style Privacy Settings)
+// 风格分析隐私设置
 // ============================================
 
 export const stylePrivacySettings = pgTable(
@@ -141,15 +151,12 @@ export const stylePrivacySettings = pgTable(
       .notNull()
       .unique(),
 
-    // 用户同意
     analysisEnabled: boolean("analysis_enabled").notNull().default(false),
     consentGivenAt: timestamp("consent_given_at"),
 
-    // Big Five 分析（敏感数据）
     bigFiveEnabled: boolean("big_five_enabled").notNull().default(false),
     bigFiveConsentGivenAt: timestamp("big_five_consent_given_at"),
 
-    // 数据保留
     autoDeleteAfterDays: integer("auto_delete_after_days"),
 
     createdAt: timestamp("created_at").defaultNow(),
@@ -161,10 +168,9 @@ export const stylePrivacySettings = pgTable(
 );
 
 // ============================================
-// AI 角色系统 (AI Personas)
+// AI 角色系统
 // ============================================
 
-// AI 角色定义（内置 + 用户自定义）
 export const personas = pgTable(
   "personas",
   {
@@ -174,7 +180,7 @@ export const personas = pgTable(
     description: text("description"),
     avatar: text("avatar"),
     systemPrompt: text("system_prompt").notNull(),
-    style: text("style"), // neutral, aggressive, playful, gentle, etc.
+    style: text("style"),
     examples: jsonb("examples").$type<string[]>().default([]),
     authorId: uuid("author_id").references(() => users.id, {
       onDelete: "set null",
@@ -194,7 +200,6 @@ export const personas = pgTable(
   }),
 );
 
-// 用户角色偏好
 export const userPersonaPreferences = pgTable(
   "user_persona_preferences",
   {
@@ -203,8 +208,6 @@ export const userPersonaPreferences = pgTable(
       .references(() => users.id, { onDelete: "cascade" })
       .notNull()
       .unique(),
-    // Note: No foreign key to personas.slug because built-in personas
-    // are stored in code, not in the database. Validation happens at application layer.
     defaultPersonaSlug: text("default_persona_slug").notNull().default("default"),
     lastSwitchedAt: timestamp("last_switched_at"),
     createdAt: timestamp("created_at").defaultNow(),
@@ -215,7 +218,6 @@ export const userPersonaPreferences = pgTable(
   }),
 );
 
-// 角色订阅（用户可订阅其他人创建的角色）
 export const personaSubscriptions = pgTable(
   "persona_subscriptions",
   {
@@ -242,19 +244,44 @@ export const workspaces = pgTable("workspaces", {
 });
 
 // ============================================
-// 文档系统
+// 文档系统（统一：document | course_chapter）
 // ============================================
 
-export const documents = pgTable("documents", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  title: text("title").notNull().default("Untitled"),
-  workspaceId: uuid("workspace_id").references(() => workspaces.id),
-  content: bytea("content"),
-  plainText: text("plain_text"),
-  isVault: boolean("is_vault").notNull().default(false),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
+export const documents = pgTable(
+  "documents",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    type: text("type").notNull().default("document"),
+    title: text("title").notNull().default("Untitled"),
+    workspaceId: uuid("workspace_id").references(() => workspaces.id),
+
+    content: bytea("content"),
+    plainText: text("plain_text"),
+
+    courseProfileId: uuid("course_profile_id"),
+    outlineNodeId: text("outline_node_id"),
+    learningObjectives: jsonb("learning_objectives").$type<string[]>(),
+
+    summaries:
+      jsonb("summaries").$type<
+        {
+          type: "summary" | "note";
+          content: string;
+          tags: string[];
+          createdAt: string;
+        }[]
+      >(),
+
+    isVault: boolean("is_vault").notNull().default(false),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => ({
+    typeIdx: index("documents_type_idx").on(table.type),
+    courseProfileIdIdx: index("documents_course_profile_id_idx").on(table.courseProfileId),
+  }),
+);
 
 export const documentSnapshots = pgTable("document_snapshots", {
   id: text("id").primaryKey(),
@@ -273,7 +300,7 @@ export const documentSnapshots = pgTable("document_snapshots", {
 });
 
 // ============================================
-// 标签系统 (Tags System)
+// 标签系统
 // ============================================
 
 export const tags = pgTable(
@@ -302,7 +329,7 @@ export const documentTags = pgTable(
       .notNull()
       .references(() => tags.id, { onDelete: "cascade" }),
     confidence: real("confidence").notNull(),
-    status: text("status").notNull().default("pending"), // 'confirmed' | 'pending' | 'rejected'
+    status: text("status").notNull().default("pending"),
     createdAt: timestamp("created_at").defaultNow(),
     confirmedAt: timestamp("confirmed_at"),
   },
@@ -315,7 +342,7 @@ export const documentTags = pgTable(
 );
 
 // ============================================
-// 聊天会话 (Chat Conversations)
+// 聊天会话
 // ============================================
 
 export const conversations = pgTable(
@@ -339,6 +366,8 @@ export const conversations = pgTable(
     isArchived: boolean("is_archived").default(false),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
+
+    titleGeneratedAt: timestamp("title_generated_at"),
   },
   (table) => ({
     userIdIdx: index("conversations_user_id_idx").on(table.userId),
@@ -348,7 +377,6 @@ export const conversations = pgTable(
 
 // ============================================
 // 统一知识库 (Knowledge Chunks)
-// 支持多来源：document | conversation | note | course | flashcard
 // ============================================
 
 export const knowledgeChunks = pgTable(
@@ -377,58 +405,10 @@ export const knowledgeChunks = pgTable(
   }),
 );
 
-// 向后兼容别名
 export const documentChunks = knowledgeChunks;
 
 // ============================================
-// 学习模块 (Learning Module)
-// ============================================
-
-export const learningContents = pgTable("learning_contents", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  title: text("title").notNull(),
-  type: text("type").notNull().default("book"),
-  author: text("author"),
-  coverUrl: text("cover_url"),
-  sourceUrl: text("source_url"),
-  totalChapters: integer("total_chapters").default(1),
-  difficulty: text("difficulty").default("intermediate"),
-  estimatedMinutes: integer("estimated_minutes"),
-  tags: jsonb("tags"),
-  summary: text("summary"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
-
-export const learningChapters = pgTable("learning_chapters", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  contentId: uuid("content_id").references(() => learningContents.id, {
-    onDelete: "cascade",
-  }),
-  documentId: uuid("document_id").references(() => documents.id),
-  chapterIndex: integer("chapter_index").notNull(),
-  title: text("title").notNull(),
-  summary: text("summary"),
-  keyPoints: jsonb("key_points"),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-export const learningProgress = pgTable("learning_progress", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  contentId: uuid("content_id").references(() => learningContents.id, {
-    onDelete: "cascade",
-  }),
-  currentChapter: integer("current_chapter").default(0),
-  completedChapters: jsonb("completed_chapters"),
-  totalTimeSpent: integer("total_time_spent").default(0),
-  lastAccessedAt: timestamp("last_accessed_at").defaultNow(),
-  startedAt: timestamp("started_at").defaultNow(),
-  completedAt: timestamp("completed_at"),
-  masteryLevel: integer("mastery_level").default(0),
-});
-
-// ============================================
-// AI 生成课程 (AI-Generated Courses)
+// AI 生成课程 (Course Profiles)
 // ============================================
 
 export const courseProfiles = pgTable(
@@ -444,21 +424,31 @@ export const courseProfiles = pgTable(
     difficulty: text("difficulty").default("intermediate"),
     estimatedMinutes: integer("estimated_minutes"),
 
-    outlineData: jsonb("outline_data"),
-    outlineMarkdown: text("outline_markdown"),
-    designReason: text("design_reason"),
-
-    interviewProfile: jsonb("interview_profile"),
+    interviewProfile: jsonb("interview_profile").$type<{
+      goal: string;
+      background: string;
+      targetOutcome: string;
+      cognitiveStyle: "visual" | "auditory" | "reading" | "kinesthetic";
+      difficulty: "beginner" | "intermediate" | "advanced";
+      preferredPace: "slow" | "medium" | "fast";
+      targetAudience: string;
+    }>(),
     interviewMessages: jsonb("interview_messages"),
     interviewStatus: text("interview_status").default("interviewing"),
 
-    // Course lifecycle status and progress tracking
-    status: text("status").default("idle"),
-    currentStep: jsonb("current_step"),
+    outlineVersion: integer("outline_version").notNull().default(1),
+    outlineData: jsonb("outline_data"),
+    outlineMarkdown: text("outline_markdown"),
 
-    currentChapter: integer("current_chapter").default(0),
-    currentSection: integer("current_section").default(1),
-    isCompleted: boolean("is_completed").default(false),
+    status: text("status").notNull().default("idle"),
+
+    progress: jsonb("progress").$type<{
+      currentChapter: number;
+      completedChapters: number[];
+      totalChapters: number;
+      startedAt: string;
+      completedAt: string;
+    }>(),
 
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
@@ -468,101 +458,8 @@ export const courseProfiles = pgTable(
   }),
 );
 
-export const courseChapters = pgTable(
-  "course_chapters",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    profileId: uuid("profile_id").references(() => courseProfiles.id, {
-      onDelete: "cascade",
-    }),
-    chapterIndex: integer("chapter_index").notNull(),
-    sectionIndex: integer("section_index").notNull(),
-
-    title: text("title").notNull(),
-    contentMarkdown: text("content_markdown").notNull(),
-
-    isGenerated: boolean("is_generated").default(true),
-    generatedAt: timestamp("generated_at").defaultNow(),
-
-    createdAt: timestamp("created_at").defaultNow(),
-    updatedAt: timestamp("updated_at").defaultNow(),
-  },
-  (table) => ({
-    profileIdIdx: index("course_chapters_profile_id_idx").on(table.profileId),
-    chapterIdx: index("course_chapters_chapter_idx").on(table.chapterIndex),
-  }),
-);
-
-export const learningHighlights = pgTable("learning_highlights", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  chapterId: uuid("chapter_id").references(() => learningChapters.id, {
-    onDelete: "cascade",
-  }),
-  content: text("content").notNull(),
-  note: text("note"),
-  color: text("color").default("yellow"),
-  position: integer("position"),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
 // ============================================
-// SRS 间隔重复系统 (Spaced Repetition System)
-// ============================================
-
-export const flashcards = pgTable(
-  "flashcards",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-
-    highlightId: uuid("highlight_id").references(() => learningHighlights.id, {
-      onDelete: "cascade",
-    }),
-    documentId: uuid("document_id").references(() => documents.id, {
-      onDelete: "cascade",
-    }),
-
-    front: text("front").notNull(),
-    back: text("back").notNull(),
-    context: text("context"),
-    tags: jsonb("tags"),
-
-    state: integer("state").notNull().default(0),
-    due: timestamp("due").notNull().defaultNow(),
-    stability: integer("stability").notNull().default(0),
-    difficulty: integer("difficulty").notNull().default(50),
-    elapsedDays: integer("elapsed_days").notNull().default(0),
-    scheduledDays: integer("scheduled_days").notNull().default(0),
-    reps: integer("reps").notNull().default(0),
-    lapses: integer("lapses").notNull().default(0),
-
-    suspended: timestamp("suspended"),
-    createdAt: timestamp("created_at").defaultNow(),
-    updatedAt: timestamp("updated_at").defaultNow(),
-  },
-  (table) => ({
-    dueIdx: index("flashcards_due_idx").on(table.due),
-    stateIdx: index("flashcards_state_idx").on(table.state),
-  }),
-);
-
-export const reviewLogs = pgTable("review_logs", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  flashcardId: uuid("flashcard_id").references(() => flashcards.id, {
-    onDelete: "cascade",
-  }),
-  rating: integer("rating").notNull(),
-  state: integer("state").notNull(),
-  due: timestamp("due").notNull(),
-  stability: integer("stability").notNull(),
-  difficulty: integer("difficulty").notNull(),
-  elapsedDays: integer("elapsed_days").notNull(),
-  scheduledDays: integer("scheduled_days").notNull(),
-  reviewDuration: integer("review_duration"),
-  reviewedAt: timestamp("reviewed_at").defaultNow(),
-});
-
-// ============================================
-// 液态知识系统 (Liquid Knowledge System)
+// 液态知识系统
 // ============================================
 
 export const topics = pgTable(
@@ -598,9 +495,6 @@ export const extractedNotes = pgTable(
     sourceDocumentId: uuid("source_document_id").references(() => documents.id, {
       onDelete: "set null",
     }),
-    sourceChapterId: uuid("source_chapter_id").references(() => learningChapters.id, {
-      onDelete: "set null",
-    }),
     sourcePosition: jsonb("source_position"),
 
     topicId: uuid("topic_id").references(() => topics.id, {
@@ -618,7 +512,7 @@ export const extractedNotes = pgTable(
 );
 
 // ============================================
-// 技能图系统 (Skill Graph System)
+// 技能图系统
 // ============================================
 
 export const skills = pgTable(
@@ -678,7 +572,7 @@ export const userSkillMastery = pgTable(
       .notNull(),
     level: integer("level").notNull().default(0),
     experience: integer("experience").notNull().default(0),
-    evidence: jsonb("evidence").notNull().default("[]"),
+    evidence: jsonb("evidence").$type<string[]>().notNull().default([]),
     confidence: integer("confidence").notNull().default(0),
     unlockedAt: timestamp("unlocked_at"),
     createdAt: timestamp("created_at").defaultNow(),
@@ -692,7 +586,7 @@ export const userSkillMastery = pgTable(
 );
 
 // ============================================
-// AI 使用量追踪 (AI Usage Tracking)
+// AI 使用量追踪
 // ============================================
 
 export const aiUsage = pgTable(
@@ -751,15 +645,6 @@ export type NewKnowledgeChunk = typeof knowledgeChunks.$inferInsert;
 export type DocumentChunk = KnowledgeChunk;
 export type NewDocumentChunk = NewKnowledgeChunk;
 
-export type LearningContent = typeof learningContents.$inferSelect;
-export type NewLearningContent = typeof learningContents.$inferInsert;
-export type LearningChapter = typeof learningChapters.$inferSelect;
-export type LearningProgress = typeof learningProgress.$inferSelect;
-export type LearningHighlight = typeof learningHighlights.$inferSelect;
-export type Flashcard = typeof flashcards.$inferSelect;
-export type NewFlashcard = typeof flashcards.$inferInsert;
-export type ReviewLog = typeof reviewLogs.$inferSelect;
-export type NewReviewLog = typeof reviewLogs.$inferInsert;
 export type Topic = typeof topics.$inferSelect;
 export type NewTopic = typeof topics.$inferInsert;
 export type ExtractedNote = typeof extractedNotes.$inferSelect;
@@ -778,8 +663,6 @@ export type PersonaSubscription = typeof personaSubscriptions.$inferSelect;
 export type NewPersonaSubscription = typeof personaSubscriptions.$inferInsert;
 export type CourseProfile = typeof courseProfiles.$inferSelect;
 export type NewCourseProfile = typeof courseProfiles.$inferInsert;
-export type CourseChapter = typeof courseChapters.$inferSelect;
-export type NewCourseChapter = typeof courseChapters.$inferInsert;
 export type Skill = typeof skills.$inferSelect;
 export type NewSkill = typeof skills.$inferInsert;
 export type SkillRelationship = typeof skillRelationships.$inferSelect;
@@ -865,18 +748,10 @@ export const extractedNotesRelations = relations(extractedNotes, ({ one }) => ({
   }),
 }));
 
-export const courseProfilesRelations = relations(courseProfiles, ({ one, many }) => ({
+export const courseProfilesRelations = relations(courseProfiles, ({ one }) => ({
   user: one(users, {
     fields: [courseProfiles.userId],
     references: [users.id],
-  }),
-  chapters: many(courseChapters),
-}));
-
-export const courseChaptersRelations = relations(courseChapters, ({ one }) => ({
-  profile: one(courseProfiles, {
-    fields: [courseChapters.profileId],
-    references: [courseProfiles.id],
   }),
 }));
 
@@ -886,10 +761,6 @@ export const stylePrivacySettingsRelations = relations(stylePrivacySettings, ({ 
     references: [users.id],
   }),
 }));
-
-// ============================================
-// Skills Relations
-// ============================================
 
 export const skillsRelations = relations(skills, ({ many }) => ({
   sourceRelationships: many(skillRelationships, {
@@ -925,10 +796,6 @@ export const userSkillMasteryRelations = relations(userSkillMastery, ({ one }) =
   }),
 }));
 
-// ============================================
-// Persona Relations
-// ============================================
-
 export const personasRelations = relations(personas, ({ one, many }) => ({
   author: one(users, {
     fields: [personas.authorId],
@@ -942,10 +809,6 @@ export const userPersonaPreferencesRelations = relations(userPersonaPreferences,
   user: one(users, {
     fields: [userPersonaPreferences.userId],
     references: [users.id],
-  }),
-  defaultPersona: one(personas, {
-    fields: [userPersonaPreferences.defaultPersonaSlug],
-    references: [personas.slug],
   }),
 }));
 

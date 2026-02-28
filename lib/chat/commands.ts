@@ -1,12 +1,4 @@
-import {
-  BookOpen,
-  Globe,
-  GraduationCap,
-  ListTodo,
-  Map as MapIcon,
-  Plus,
-  Search,
-} from "lucide-react";
+import { Globe, GraduationCap, Map as MapIcon, Plus, Search } from "lucide-react";
 import type { Command } from "@/types/chat";
 
 export const CHAT_COMMANDS: Command[] = [
@@ -35,24 +27,6 @@ export const CHAT_COMMANDS: Command[] = [
     modeLabel: "生成课程",
     modeIcon: GraduationCap,
     targetPath: "/courses/new",
-    getQueryParams: (input: string) => ({ msg: input.trim() }),
-  },
-  {
-    id: "create-flashcards",
-    label: "Create Flashcards",
-    icon: ListTodo,
-    modeLabel: "创建闪卡",
-    modeIcon: ListTodo,
-    targetPath: "/flashcards",
-    getQueryParams: (input: string) => ({ msg: input.trim() }),
-  },
-  {
-    id: "generate-quiz",
-    label: "Generate Quiz",
-    icon: BookOpen,
-    modeLabel: "生成测验",
-    modeIcon: BookOpen,
-    targetPath: "/interview",
     getQueryParams: (input: string) => ({ msg: input.trim() }),
   },
   {
@@ -85,8 +59,6 @@ export const QUICK_ACTIONS = [
   { icon: Search, label: "搜索笔记" },
   { icon: Plus, label: "创建笔记" },
   { icon: GraduationCap, label: "生成课程" },
-  { icon: ListTodo, label: "创建闪卡" },
-  { icon: BookOpen, label: "生成测验" },
   { icon: MapIcon, label: "思维导图" },
 ] as const;
 

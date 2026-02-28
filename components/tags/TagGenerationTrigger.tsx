@@ -13,10 +13,7 @@ interface TagGenerationTriggerProps {
   content: string;
 }
 
-export function TagGenerationTrigger({
-  documentId,
-  content,
-}: TagGenerationTriggerProps) {
+export function TagGenerationTrigger({ documentId, content }: TagGenerationTriggerProps) {
   const prevContentRef = useRef(content);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 

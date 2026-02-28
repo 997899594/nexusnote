@@ -64,8 +64,8 @@ async function getRecentItems(userId: string, limit = 6): Promise<RecentItem[]> 
       title: courseProfiles.title,
       description: courseProfiles.description,
       updatedAt: courseProfiles.updatedAt,
-      currentChapter: courseProfiles.currentChapter,
-      isCompleted: courseProfiles.isCompleted,
+      status: courseProfiles.status,
+      progress: courseProfiles.progress,
     })
     .from(courseProfiles)
     .where(eq(courseProfiles.userId, userId))
@@ -73,10 +73,13 @@ async function getRecentItems(userId: string, limit = 6): Promise<RecentItem[]> 
     .limit(limit);
 
   for (const course of courses) {
-    const progress = course.isCompleted
+    const progressData = (course.progress as { currentChapter?: number }) || {};
+    const isCompleted = course.status === "completed";
+    const currentChapter = progressData.currentChapter || 0;
+    const progress = isCompleted
       ? "已完成"
-      : course.currentChapter
-        ? `第${course.currentChapter + 1}章`
+      : currentChapter > 0
+        ? `第${currentChapter + 1}章`
         : "未开始";
     items.push({
       id: course.id,

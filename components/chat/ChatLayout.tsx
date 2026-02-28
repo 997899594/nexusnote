@@ -12,10 +12,11 @@
  */
 
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FloatingHeader } from "@/components/shared/layout";
 import { useChatStore } from "@/stores";
 import { ChatHistory } from "./ChatHistory";
+import { triggerIndex } from "./index-service";
 
 interface ChatLayoutProps {
   onExit: () => void;
@@ -28,7 +29,19 @@ export function ChatLayout({ onExit, children }: ChatLayoutProps) {
   const currentSessionId = (params?.id as string | undefined) || null;
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const { sessions, deleteSession, loadSessions } = useChatStore();
+  const { sessions, deleteSession, loadSessions, currentSessionMessages } = useChatStore();
+
+  const prevSessionRef = useRef<string | null>(null);
+
+  // 监听会话切换，索引上一个会话
+  useEffect(() => {
+    const prevId = prevSessionRef.current;
+    if (prevId && prevId !== currentSessionId && currentSessionMessages) {
+      console.log("[Index] Session switched, indexing:", prevId);
+      triggerIndex({ sessionId: prevId, messages: currentSessionMessages });
+    }
+    prevSessionRef.current = currentSessionId;
+  }, [currentSessionId, currentSessionMessages]);
 
   useEffect(() => {
     loadSessions();
@@ -41,7 +54,7 @@ export function ChatLayout({ onExit, children }: ChatLayoutProps) {
 
   const handleNewSession = () => {
     setSidebarOpen(false);
-    onExit(); // 触发 collapse 动画，返回首页
+    onExit();
   };
 
   return (

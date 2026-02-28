@@ -135,11 +135,12 @@ export async function indexConversation(
   );
 
   try {
+    console.log("[Chunker] Deleting old chunks...");
     await db.delete(knowledgeChunks).where(eq(knowledgeChunks.sourceId, conversationId));
     console.log(`[Chunker] Cleared old chunks for: ${conversationId}`);
 
     const chunks = chunkText(plainText, chunkSize, overlap);
-    console.log(`[Chunker] Created ${chunks.length} chunks`);
+    console.log(`[Chunker] Created ${chunks.length} chunks:`, chunks);
 
     if (chunks.length === 0) {
       return { success: true, chunksCount: 0 };
@@ -149,12 +150,15 @@ export async function indexConversation(
       throw new Error("[Chunker] Embedding model not configured");
     }
 
+    console.log("[Chunker] Starting embedMany...", { count: chunks.length });
+    const startTime = Date.now();
     const { embeddings } = await embedMany({
       model: aiProvider.embeddingModel as any,
       values: chunks,
     });
-
-    console.log(`[Chunker] Generated ${embeddings.length} embeddings`);
+    console.log(
+      `[Chunker] Generated ${embeddings.length} embeddings, took ${Date.now() - startTime}ms`,
+    );
 
     const newChunks = chunks.map((content, index) => ({
       sourceType: "conversation" as SourceType,

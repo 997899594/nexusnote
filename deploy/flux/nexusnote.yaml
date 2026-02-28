@@ -1,0 +1,39 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: nexusnote
+  namespace: flux-system
+spec:
+  interval: 1m0s
+  url: https://gh-proxy.com/https://github.com/997899594/nexusnote
+  ref:
+    branch: main
+  timeout: 60s
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: nexusnote
+  namespace: juanie
+spec:
+  interval: 1m0s
+  chart:
+    spec:
+      chart: ./deploy/charts/nexusnote
+      sourceRef:
+        kind: GitRepository
+        name: nexusnote
+      reconcileStrategy: Revision
+      version: "*"
+  valuesFrom:
+    - kind: ConfigMap
+      name: nexusnote-values
+      optional: true
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  rollback:
+    timeout: 5m0s

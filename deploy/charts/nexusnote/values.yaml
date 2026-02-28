@@ -39,8 +39,9 @@ env:
   AUTH_TRUST_HOST: "true"
   NEXTAUTH_URL: "http://localhost:3000"
 
-# 数据库配置（非敏感部分）
+# 数据库配置
 database:
+  enabled: true
   host: nexusnote-db
   port: 5432
   name: nexusnote
@@ -50,12 +51,18 @@ database:
 
 # Redis 配置
 redis:
+  enabled: true
   host: nexusnote-redis
   port: 6379
   storage: "1Gi"
 
 # Gateway 负载均衡 IP
 loadBalancerIP: "10.2.0.15"
+
+# 是否创建独立的 Gateway（生产环境复用 juanie 的 Gateway）
+gateway:
+  enabled: true
+  name: "nexusnote-gateway"
 
 # 服务配置
 services:

@@ -247,7 +247,7 @@ const MODELS = {
   chat: "gemini-3-flash-preview",
   pro: "gemini-3-pro-preview",
   webSearch: "gemini-3-flash-preview-web-search",
-  embedding: "Qwen/Qwen3-Embedding-8B",
+  embedding: "BAAI/bge-base-zh-v1.5",
 } as const;
 
 type ModelType = keyof typeof MODELS;

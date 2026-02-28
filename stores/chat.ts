@@ -11,22 +11,26 @@
  * - Pending 消息（由 usePendingChatStore 管理）
  */
 
+import type { UIMessage } from "ai";
 import { create } from "zustand";
 import type { Conversation } from "@/db";
 import * as chatApi from "@/lib/chat/api";
 
 interface ChatStore {
   sessions: Conversation[];
+  currentSessionMessages: UIMessage[] | null;
 
   loadSessions: () => Promise<void>;
   generateBatchTitles: () => Promise<number>;
   createSession: (title: string) => Promise<Conversation | null>;
   updateSession: (id: string, updates: Partial<Conversation>) => Promise<void>;
   deleteSession: (id: string) => Promise<void>;
+  setCurrentSessionMessages: (messages: UIMessage[] | null) => void;
 }
 
 export const useChatStore = create<ChatStore>((set) => ({
   sessions: [],
+  currentSessionMessages: null,
 
   loadSessions: async () => {
     const sessions = await chatApi.loadSessions();
@@ -87,5 +91,9 @@ export const useChatStore = create<ChatStore>((set) => ({
     set((state) => ({
       sessions: state.sessions.filter((s) => s.id !== id),
     }));
+  },
+
+  setCurrentSessionMessages: (messages: UIMessage[] | null) => {
+    set({ currentSessionMessages: messages });
   },
 }));

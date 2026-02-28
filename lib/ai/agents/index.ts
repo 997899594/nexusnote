@@ -10,7 +10,6 @@ import { stepCountIs, ToolLoopAgent, type ToolSet } from "ai";
 import { aiProvider } from "../core";
 
 import {
-  createFlashcardsTool,
   createNoteTool,
   deleteNoteTool,
   getNoteTool,
@@ -22,7 +21,6 @@ import { batchEditTool, draftContentTool, editDocumentTool } from "../tools/edit
 import {
   checkCourseProgressTool,
   generateCourseTool,
-  generateQuizTool,
   mindMapTool,
   summarizeTool,
 } from "../tools/learning";
@@ -39,9 +37,7 @@ const INSTRUCTIONS = {
 - 搜索和管理用户的笔记 (使用 searchNotes、hybridSearch、getNote)
 - 创建/编辑/删除笔记 (使用 createNote、updateNote、deleteNote)
 - 文档编辑 (使用 editDocument、batchEdit、draftContent)
-- 创建学习闪卡 (使用 createFlashcards)
-- 生成测验 (使用 generateQuiz)
-- 生成思维导图 (使用 mindMap)
+  - 生成思维导图 (使用 mindMap)
 - 生成摘要 (使用 summarize)
 - 互联网搜索 (使用 webSearch)
 
@@ -120,8 +116,6 @@ const chatTools = {
   hybridSearch: hybridSearchTool,
   webSearch: webSearchTool,
   // Learning
-  createFlashcards: createFlashcardsTool,
-  generateQuiz: generateQuizTool,
   mindMap: mindMapTool,
   summarize: summarizeTool,
   // Editor

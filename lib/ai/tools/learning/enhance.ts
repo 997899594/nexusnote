@@ -5,43 +5,6 @@
 import { tool } from "ai";
 import { z } from "zod";
 
-export const generateQuizTool = tool({
-  description: `用于将被动阅读转化为主动回忆 (Active Recall)。
-  适用于：1. 用户刚阅读完长难章节；2. 用户表示"懂了"但你怀疑其掌握程度时。
-  **请主动使用此工具来验证用户的理解，无需等待指令。**`,
-  inputSchema: z.object({
-    content: z.string().describe("要测试的内容或主题"),
-    questionCount: z.number().min(1).max(10).default(5).describe("题目数量"),
-    difficulty: z.enum(["easy", "medium", "hard"]).default("medium").describe("难度级别"),
-    types: z
-      .array(z.enum(["multiple_choice", "true_false", "fill_blank"]))
-      .optional()
-      .describe("题型"),
-  }),
-  execute: async ({ content, questionCount, difficulty }) => {
-    // TODO: 调用 LLM 生成真实测验
-    console.log("[Tool] generateQuiz:", { content, questionCount, difficulty });
-    return {
-      success: true,
-      quiz: {
-        topic: content.slice(0, 50),
-        difficulty,
-        questionCount,
-        questions: [
-          {
-            id: 1,
-            type: "multiple_choice",
-            question: "这是示例题目？",
-            options: ["A. 选项1", "B. 选项2", "C. 选项3", "D. 选项4"],
-            answer: 0,
-            explanation: "这是解释",
-          },
-        ],
-      },
-    };
-  },
-});
-
 export const mindMapTool = tool({
   description: `用于将非结构化的文本转化为结构化图谱。
   适用于：1. 解释复杂的系统架构或家族树；2. 用户似乎迷失在长文本中，需要全局视角时。`,

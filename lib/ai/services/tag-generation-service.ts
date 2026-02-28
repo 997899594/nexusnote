@@ -8,15 +8,15 @@
  */
 
 import { embed } from "ai";
-import { eq, and, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { documents, documentTags, tags } from "@/db/schema";
 import { aiProvider, safeGenerateObject } from "@/lib/ai";
 import {
   TAG_GENERATION_SYSTEM_PROMPT,
   TAG_GENERATION_USER_PROMPT,
-  TagGenerationResultSchema,
   type TagGenerationResult,
+  TagGenerationResultSchema,
 } from "../prompts/tag-generation";
 
 // 配置参数
@@ -100,11 +100,7 @@ class TagGenerationService {
     const normalizedName = tagName.trim().slice(0, CONFIG.MAX_TAG_LENGTH);
 
     // 1. 先精确匹配名称
-    const [exactMatch] = await db
-      .select()
-      .from(tags)
-      .where(eq(tags.name, normalizedName))
-      .limit(1);
+    const [exactMatch] = await db.select().from(tags).where(eq(tags.name, normalizedName)).limit(1);
 
     if (exactMatch) {
       await this.incrementTagUsage(exactMatch.id);
@@ -121,8 +117,8 @@ class TagGenerationService {
       .where(
         and(
           sql`name_embedding IS NOT NULL`,
-          sql`cosine_distance(name_embedding, ${JSON.stringify(embedding)}) < ${CONFIG.TAG_MERGE_THRESHOLD}`
-        )
+          sql`cosine_distance(name_embedding, ${JSON.stringify(embedding)}) < ${CONFIG.TAG_MERGE_THRESHOLD}`,
+        ),
       )
       .limit(1);
 
@@ -180,7 +176,7 @@ class TagGenerationService {
   private async linkDocumentTag(
     documentId: string,
     tagId: string,
-    confidence: number
+    confidence: number,
   ): Promise<void> {
     const status = confidence >= CONFIG.AUTO_CONFIRM_THRESHOLD ? "confirmed" : "pending";
     const confirmedAt = status === "confirmed" ? new Date() : null;

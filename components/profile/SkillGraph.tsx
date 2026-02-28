@@ -204,7 +204,7 @@ interface SkillGraphProps {
   onDiscover?: () => void;
 }
 
-export function SkillGraph({ userId, className, onDiscover }: SkillGraphProps) {
+export function SkillGraph({ userId: _userId, className, onDiscover }: SkillGraphProps) {
   const [graphData, setGraphData] = useState<SkillGraphResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

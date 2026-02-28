@@ -1,16 +1,13 @@
 "use client";
 
+import type { Editor as TiptapEditorType } from "@tiptap/react";
 import { motion } from "framer-motion";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Editor } from "@/components/editor";
-import {
-  MobileEditorToolbar,
-  MobileEditorMoreMenu,
-} from "@/components/editor/MobileEditorToolbar";
+import { MobileEditorMoreMenu, MobileEditorToolbar } from "@/components/editor/MobileEditorToolbar";
 import { MobileHeader } from "@/components/shared/layout";
 import { TagBar, TagGenerationTrigger } from "@/components/tags";
-import type { Editor as TiptapEditorType } from "@tiptap/react";
 
 export default function EditorPage() {
   const params = useParams();

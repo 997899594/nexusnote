@@ -9,8 +9,6 @@ import type {
   Conversation,
   ConversationsResponse,
   CreateSessionResponse,
-  IndexSessionRequest,
-  IndexSessionResponse,
   UpdateSessionRequest,
 } from "@/types/chat";
 
@@ -76,21 +74,6 @@ export async function deleteSession(id: string): Promise<void> {
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
   } catch (error) {
     console.error("[ChatAPI] Failed to delete session:", error);
-    throw error;
-  }
-}
-
-export async function indexSession(request: IndexSessionRequest): Promise<IndexSessionResponse> {
-  try {
-    const res = await fetch("/api/chat-sessions/index", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(request),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-    return (await res.json()) as IndexSessionResponse;
-  } catch (error) {
-    console.error("[ChatAPI] Failed to index session:", error);
     throw error;
   }
 }

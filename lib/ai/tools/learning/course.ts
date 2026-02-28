@@ -4,7 +4,7 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import { courseChapters, courseProfiles, db, eq } from "@/db";
+import { courseProfiles, db, documents, eq } from "@/db";
 
 export const GenerateCourseSchema = z.object({
   title: z.string().min(1).max(200),
@@ -21,7 +21,6 @@ export const generateCourseTool = tool({
   inputSchema: GenerateCourseSchema,
   execute: async (args) => {
     try {
-      // 创建课程配置
       const [profile] = await db
         .insert(courseProfiles)
         .values({
@@ -29,31 +28,47 @@ export const generateCourseTool = tool({
           description: args.description,
           difficulty: args.difficulty,
           interviewStatus: "generating",
+          status: "chapter_generating",
         })
         .returning();
 
-      // 生成章节内容
-      const chapters = [];
       for (let i = 0; i < args.chapters; i++) {
-        const [chapter] = await db
-          .insert(courseChapters)
-          .values({
-            profileId: profile.id,
-            chapterIndex: i,
-            sectionIndex: 1,
-            title: `第 ${i + 1} 章：${args.title} - 章节 ${i + 1}`,
-            contentMarkdown: `# 第 ${i + 1} 章\n\n本章节将深入讲解...\n\n## 主要内容\n\n- 知识点 1\n- 知识点 2\n- 知识点 3\n\n## 小结\n\n本章学习了...`,
-          })
-          .returning();
-        chapters.push(chapter);
+        await db.insert(documents).values({
+          type: "course_chapter",
+          title: `第 ${i + 1} 章`,
+          courseProfileId: profile.id,
+          outlineNodeId: `chapter-${i + 1}`,
+          content: Buffer.from(
+            JSON.stringify({
+              type: "doc",
+              content: [
+                {
+                  type: "heading",
+                  attrs: { level: 1 },
+                  content: [{ type: "text", text: `第 ${i + 1} 章` }],
+                },
+                {
+                  type: "paragraph",
+                  content: [{ type: "text", text: "本章节内容生成中..." }],
+                },
+              ],
+            }),
+          ),
+        });
       }
 
-      // 更新状态
       await db
         .update(courseProfiles)
         .set({
           interviewStatus: "completed",
-          isCompleted: true,
+          status: "completed",
+          progress: {
+            currentChapter: args.chapters,
+            completedChapters: [],
+            totalChapters: args.chapters,
+            startedAt: new Date().toISOString(),
+            completedAt: new Date().toISOString(),
+          },
         })
         .where(eq(courseProfiles.id, profile.id));
 
@@ -61,7 +76,7 @@ export const generateCourseTool = tool({
         success: true,
         courseId: profile.id,
         title: profile.title,
-        chapters: chapters.length,
+        chapters: args.chapters,
       };
     } catch (error) {
       console.error("[Tool] generateCourse error:", error);
@@ -82,27 +97,36 @@ export const checkCourseProgressTool = tool({
   inputSchema: CheckCourseProgressSchema,
   execute: async (args) => {
     try {
-      const profile = await db.query.courseProfiles.findFirst({
-        where: eq(courseProfiles.id, args.courseId),
-        with: {
-          chapters: true,
-        },
-      });
+      const [profile] = await db
+        .select()
+        .from(courseProfiles)
+        .where(eq(courseProfiles.id, args.courseId))
+        .limit(1);
 
       if (!profile) {
         return { success: false, error: "课程不存在" };
       }
 
-      const generatedChapters = profile.chapters.filter((c) => c.isGenerated).length;
-      const totalChapters = profile.chapters.length;
+      const chapters = await db
+        .select()
+        .from(documents)
+        .where(eq(documents.courseProfileId, profile.id));
+
+      const generatedChapters = chapters.filter((c) => c.content && c.content.length > 0).length;
+      const totalChapters = chapters.length;
+      const progressData = profile.progress as {
+        currentChapter?: number;
+        completedChapters?: number[];
+      } | null;
 
       return {
         success: true,
         courseId: profile.id,
         title: profile.title,
-        status: profile.interviewStatus,
+        status: profile.status,
         progress: `${generatedChapters}/${totalChapters}`,
-        isCompleted: profile.isCompleted,
+        isCompleted: profile.status === "completed",
+        currentChapter: progressData?.currentChapter || 0,
       };
     } catch (error) {
       console.error("[Tool] checkCourseProgress error:", error);

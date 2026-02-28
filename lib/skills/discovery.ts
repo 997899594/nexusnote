@@ -14,7 +14,6 @@ import { db } from "@/db";
 import {
   conversations,
   courseProfiles,
-  flashcards,
   knowledgeChunks,
   skills,
   userSkillMastery,
@@ -68,7 +67,7 @@ async function collectUserData(
   userId: string,
   options: {
     limit?: number;
-    sources?: Array<"conversations" | "knowledge" | "courses" | "flashcards">;
+    sources?: Array<"conversations" | "knowledge" | "courses">;
   } = {},
 ): Promise<DataSource[]> {
   const { limit = 50, sources = ["conversations", "knowledge", "courses", "flashcards"] } = options;
@@ -154,33 +153,6 @@ async function collectUserData(
     }
   }
 
-  // 4. Flashcards - 闪卡
-  if (sources.includes("flashcards")) {
-    const userFlashcards = await db
-      .select({
-        id: flashcards.id,
-        front: flashcards.front,
-        back: flashcards.back,
-        context: flashcards.context,
-      })
-      .from(flashcards)
-      .limit(limit);
-
-    // Note: flashcards doesn't have userId in the current schema
-    // We'll skip this for now or join with documents
-
-    const flashcardsContent = userFlashcards
-      .map((f) => ({
-        id: f.id,
-        content: `[闪卡]\n问题: ${f.front}\n答案: ${f.back}\n${f.context || ""}`,
-      }))
-      .filter((c) => c.content.length > 20);
-
-    if (flashcardsContent.length > 0) {
-      sourcesData.push({ type: "flashcards", items: flashcardsContent });
-    }
-  }
-
   return sourcesData;
 }
 
@@ -191,7 +163,7 @@ export async function extractSkillsFromData(
   userId: string,
   options: {
     limit?: number;
-    sources?: Array<"conversations" | "knowledge" | "courses" | "flashcards">;
+    sources?: Array<"conversations" | "knowledge" | "courses">;
   } = {},
 ): Promise<DiscoveredSkill[]> {
   const dataSources = await collectUserData(userId, options);
@@ -340,7 +312,7 @@ export async function discoverAndSaveSkills(
   userId: string,
   options: {
     limit?: number;
-    sources?: Array<"conversations" | "knowledge" | "courses" | "flashcards">;
+    sources?: Array<"conversations" | "knowledge" | "courses">;
   } = {},
 ): Promise<DiscoveredSkill[]> {
   const discoveredSkills = await extractSkillsFromData(userId, options);

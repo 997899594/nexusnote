@@ -8,7 +8,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { AlertCircle, AlertTriangle, CheckCircle, Info, X } from "lucide-react";
-import { createContext, type ReactNode, useContext, useState } from "react";
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useState } from "react";
 
 type ToastType = "success" | "error" | "warning" | "info";
 
@@ -64,6 +64,11 @@ const toastVariants = {
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const addToast = (message: string, type: ToastType = "info") => {
     const id = crypto.randomUUID();
@@ -78,37 +83,39 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ toasts, addToast, removeToast }}>
       {children}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
-        <AnimatePresence mode="popLayout">
-          {toasts.map((toast) => {
-            const Icon = icons[toast.type];
-            return (
-              <motion.div
-                key={toast.id}
-                variants={toastVariants}
-                initial="hidden"
-                animate="visible"
-                exit="exit"
-                layout
-                className={`flex items-center gap-3 px-4 py-3 rounded-2xl shadow-xl border min-w-[300px] max-w-md ${styles[toast.type]}`}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <Icon className="w-5 h-5 flex-shrink-0" />
-                <p className="flex-1 text-sm font-medium">{toast.message}</p>
-                <motion.button
-                  whileHover={{ scale: 1.2 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => removeToast(toast.id)}
-                  className="flex-shrink-0 opacity-60 hover:opacity-100"
+      {mounted && (
+        <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
+          <AnimatePresence mode="popLayout">
+            {toasts.map((toast) => {
+              const Icon = icons[toast.type];
+              return (
+                <motion.div
+                  key={toast.id}
+                  variants={toastVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                  layout
+                  className={`flex items-center gap-3 px-4 py-3 rounded-2xl shadow-xl border min-w-[300px] max-w-md ${styles[toast.type]}`}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                 >
-                  <X className="w-4 h-4" />
-                </motion.button>
-              </motion.div>
-            );
-          })}
-        </AnimatePresence>
-      </div>
+                  <Icon className="w-5 h-5 flex-shrink-0" />
+                  <p className="flex-1 text-sm font-medium">{toast.message}</p>
+                  <motion.button
+                    whileHover={{ scale: 1.2 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => removeToast(toast.id)}
+                    className="flex-shrink-0 opacity-60 hover:opacity-100"
+                  >
+                    <X className="w-4 h-4" />
+                  </motion.button>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        </div>
+      )}
     </ToastContext.Provider>
   );
 }

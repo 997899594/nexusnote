@@ -6,7 +6,7 @@
  */
 
 import { and, eq, ne } from "drizzle-orm";
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { documentTags, tags } from "@/db/schema";
 import { tagGenerationService } from "@/lib/ai/services/tag-generation-service";
@@ -16,7 +16,7 @@ interface RouteParams {
 }
 
 // GET /api/documents/[id]/tags
-export async function GET(request: NextRequest, { params }: RouteParams) {
+export async function GET(_request: NextRequest, { params }: RouteParams) {
   const { id: documentId } = await params;
 
   try {
@@ -34,9 +34,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       })
       .from(documentTags)
       .innerJoin(tags, eq(documentTags.tagId, tags.id))
-      .where(
-        and(eq(documentTags.documentId, documentId), ne(documentTags.status, "rejected"))
-      );
+      .where(and(eq(documentTags.documentId, documentId), ne(documentTags.status, "rejected")));
 
     return NextResponse.json({ tags: result });
   } catch (error) {
@@ -46,7 +44,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 }
 
 // POST /api/documents/[id]/tags
-export async function POST(request: NextRequest, { params }: RouteParams) {
+export async function POST(_request: NextRequest, { params }: RouteParams) {
   const { id: documentId } = await params;
 
   try {

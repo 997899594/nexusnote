@@ -12,7 +12,6 @@ import {
   GraduationCap,
   MessageSquare,
   Settings,
-  StickyNote,
   Target,
   TrendingUp,
   Zap,
@@ -22,53 +21,48 @@ import { Suspense } from "react";
 import { SkillGraph } from "@/components/profile/SkillGraph";
 import { SkillGraphSkeleton } from "@/components/profile/SkillGraphSkeleton";
 import { FloatingHeader } from "@/components/shared/layout";
-import { conversations, courseProfiles, db, documents, flashcards } from "@/db";
+import { conversations, courseProfiles, db, documents } from "@/db";
 import { auth } from "@/lib/auth";
 import { ProfileSignOut } from "./profile-client";
 
 // 获取用户统计数据
 async function getUserStats(userId: string) {
-  const [conversationCount, documentCount, courseCount, flashcardCount, recentActivity] =
-    await Promise.all([
-      // 对话数量
-      db
-        .select({ count: count() })
-        .from(conversations)
-        .where(and(eq(conversations.userId, userId), gt(conversations.messageCount, 0))),
+  const [conversationCount, documentCount, courseCount, recentActivity] = await Promise.all([
+    // 对话数量
+    db
+      .select({ count: count() })
+      .from(conversations)
+      .where(and(eq(conversations.userId, userId), gt(conversations.messageCount, 0))),
 
-      // Note: documents are workspace-scoped, showing all accessible documents
-      db.select({ count: count() }).from(documents),
+    // Note: documents are workspace-scoped, showing all accessible documents
+    db.select({ count: count() }).from(documents),
 
-      // 课程数量
-      db.select({ count: count() }).from(courseProfiles).where(eq(courseProfiles.userId, userId)),
+    // 课程数量
+    db.select({ count: count() }).from(courseProfiles).where(eq(courseProfiles.userId, userId)),
 
-      // Note: flashcards are workspace-scoped, showing all accessible flashcards
-      db.select({ count: count() }).from(flashcards),
-
-      // 最近活动
-      db
-        .select({
-          id: conversations.id,
-          title: conversations.title,
-          updatedAt: conversations.updatedAt,
-        })
-        .from(conversations)
-        .where(
-          and(
-            eq(conversations.userId, userId),
-            gt(conversations.messageCount, 0),
-            eq(conversations.isArchived, false),
-          ),
-        )
-        .orderBy(desc(conversations.updatedAt))
-        .limit(5),
-    ]);
+    // 最近活动
+    db
+      .select({
+        id: conversations.id,
+        title: conversations.title,
+        updatedAt: conversations.updatedAt,
+      })
+      .from(conversations)
+      .where(
+        and(
+          eq(conversations.userId, userId),
+          gt(conversations.messageCount, 0),
+          eq(conversations.isArchived, false),
+        ),
+      )
+      .orderBy(desc(conversations.updatedAt))
+      .limit(5),
+  ]);
 
   return {
     conversations: conversationCount[0]?.count || 0,
     documents: documentCount[0]?.count || 0,
     courses: courseCount[0]?.count || 0,
-    flashcards: flashcardCount[0]?.count || 0,
     recentActivity,
     aiUsage: {
       totalTokens: 0,
@@ -109,13 +103,6 @@ export default async function ProfilePage() {
       color: "bg-purple-500",
       href: "/interview",
     },
-    {
-      label: "闪卡复习",
-      value: stats.flashcards,
-      icon: StickyNote,
-      color: "bg-amber-500",
-      href: "/flashcards",
-    },
   ];
 
   return (
@@ -142,7 +129,9 @@ export default async function ProfilePage() {
                 <h1 className="text-lg md:text-2xl font-bold text-zinc-900 mb-1 truncate">
                   {session.user.name || "学习者"}
                 </h1>
-                <p className="text-sm md:text-base text-zinc-500 mb-3 md:mb-4 truncate">{session.user.email}</p>
+                <p className="text-sm md:text-base text-zinc-500 mb-3 md:mb-4 truncate">
+                  {session.user.email}
+                </p>
 
                 {/* 快捷操作 */}
                 <div className="flex items-center gap-3">
@@ -174,7 +163,9 @@ export default async function ProfilePage() {
                   >
                     <Icon className="w-4 h-4 md:w-5 md:h-5 text-white" />
                   </div>
-                  <div className="text-lg md:text-2xl font-bold text-zinc-900 mb-0.5 md:mb-1">{card.value}</div>
+                  <div className="text-lg md:text-2xl font-bold text-zinc-900 mb-0.5 md:mb-1">
+                    {card.value}
+                  </div>
                   <div className="text-xs md:text-sm text-zinc-500">{card.label}</div>
                 </a>
               );

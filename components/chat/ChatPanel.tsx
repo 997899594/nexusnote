@@ -5,8 +5,10 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Loader2, Send, Sparkles, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useInputProtection } from "@/components/common/useInputProtection";
 import { CHAT_COMMANDS, extractCommandContent } from "@/lib/chat/commands";
 import { cn } from "@/lib/utils";
+import { useChatStore } from "@/stores";
 import type { Command } from "@/types/chat";
 import { ChatMessage, LoadingDots } from "./ChatMessage";
 import { CommandMenu } from "./CommandMenu";
@@ -33,7 +35,9 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
   const messages = chat.messages;
   const sendMessage = chat.sendMessage;
   const status = chat.status;
+  // @ts-expect-error AI SDK 6.0 compatibility
   const isLoading = chat.isLoading;
+  const { handlePaste } = useInputProtection();
 
   const chatMessages = messages.filter((m: UIMessage) => m.role !== "system");
 
@@ -44,6 +48,13 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
   useEffect(() => {
     scrollToBottom();
   }, [scrollToBottom]);
+
+  // 同步消息到 store，供索引使用
+  const setCurrentSessionMessages = useChatStore((s) => s.setCurrentSessionMessages);
+  useEffect(() => {
+    setCurrentSessionMessages(chatMessages);
+    return () => setCurrentSessionMessages(null);
+  }, [chatMessages, setCurrentSessionMessages]);
 
   const filteredCommands = (() => {
     if (!input.startsWith("/")) return CHAT_COMMANDS;
@@ -220,6 +231,7 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
               placeholder={placeholder}
               rows={1}
               className="flex-1 bg-transparent border-none outline-none text-sm text-zinc-800 placeholder:text-zinc-400 resize-none min-h-[24px] max-h-[120px]"

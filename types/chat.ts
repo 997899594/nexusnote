@@ -20,7 +20,7 @@ export interface Command {
 /**
  * 聊天会话状态
  */
-export type ConversationIntent = "CHAT" | "INTERVIEW" | "COURSE" | "RAG" | "FLASHCARD";
+export type ConversationIntent = "CHAT" | "INTERVIEW" | "COURSE" | "RAG";
 
 /**
  * 数据库会话类型 - 与 Drizzle schema 匹配
@@ -38,6 +38,7 @@ export interface Conversation {
   metadata: unknown; // 数据库 metadata 字段
   createdAt: Date;
   updatedAt: Date;
+  titleGeneratedAt: Date | null;
 }
 
 /**

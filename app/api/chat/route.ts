@@ -124,6 +124,13 @@ export async function POST(request: NextRequest) {
 
     const { messages, intent, sessionId, personaSlug } = validation.data;
 
+    console.log(
+      "[Chat] Request received, personaSlug:",
+      personaSlug,
+      "body:",
+      JSON.stringify(validation.data),
+    );
+
     if (!aiProvider.isConfigured()) {
       throw new APIError("AI 服务未配置", 503, "AI_NOT_CONFIGURED");
     }
@@ -153,6 +160,7 @@ export async function POST(request: NextRequest) {
       ]);
 
       if (persona) {
+        console.log("[Chat] Persona loaded:", persona.name, persona.slug);
         personaSystemPrompt = `\n=== AI Persona ===\n${persona.name}\n${persona.systemPrompt}\n`;
       }
 
@@ -177,16 +185,20 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      await db
-        .insert(conversations)
-        .values({
-          id: sessionId,
-          userId,
-          title,
-          intent,
-          messageCount: uiMessages.length,
-        })
-        .onConflictDoNothing();
+      try {
+        await db
+          .insert(conversations)
+          .values({
+            id: sessionId,
+            userId,
+            title,
+            intent,
+            messageCount: uiMessages.length,
+          })
+          .onConflictDoNothing();
+      } catch (insertError) {
+        console.warn("[ChatSession] Failed to create session record:", insertError);
+      }
     }
 
     // Get agent with personalized instructions

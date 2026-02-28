@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useAuthStore } from "@/stores";
@@ -18,6 +19,12 @@ export function UserAvatar({ className = "", size = "md" }: UserAvatarProps) {
     sm: "w-8 h-8 text-sm",
     md: "w-10 h-10 text-base",
     lg: "w-12 h-12 text-lg",
+  };
+
+  const sizeMap = {
+    sm: 32,
+    md: 40,
+    lg: 48,
   };
 
   const handleClick = () => {
@@ -52,11 +59,14 @@ export function UserAvatar({ className = "", size = "md" }: UserAvatarProps) {
   // User has image - show image
   if (user?.image) {
     return (
-      <img
+      <Image
         src={user.image}
         alt={user.name || user.email}
+        width={sizeMap[size]}
+        height={sizeMap[size]}
         onClick={handleClick}
         className={`${sizeClasses[size]} rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity ${className}`}
+        unoptimized
       />
     );
   }

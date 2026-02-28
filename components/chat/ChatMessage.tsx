@@ -1,24 +1,38 @@
 "use client";
 
-import type { TextUIPart, UIMessage } from "ai";
+import type { TextUIPart, ToolUIPart, UIMessage } from "ai";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { StreamdownMessage } from "./StreamdownMessage";
+import { ToolResultRenderer } from "./tool-result/ToolResultRenderer";
 
 interface ChatMessageProps {
   message: UIMessage;
 }
 
+function isTextPart(part: { type: string }): part is TextUIPart {
+  return part.type === "text";
+}
+
+function isToolPart(part: { type: string }): part is ToolUIPart {
+  return part.type.startsWith("tool-");
+}
+
 function getTextContent(message: UIMessage): string {
   return message.parts
-    .filter((part): part is TextUIPart => part.type === "text")
+    .filter(isTextPart)
     .map((part) => part.text)
     .join("");
+}
+
+function getToolParts(message: UIMessage): ToolUIPart[] {
+  return message.parts.filter(isToolPart) as ToolUIPart[];
 }
 
 export function ChatMessage({ message }: ChatMessageProps) {
   const isUser = message.role === "user";
   const content = getTextContent(message);
+  const toolParts = getToolParts(message);
 
   return (
     <motion.div
@@ -38,7 +52,12 @@ export function ChatMessage({ message }: ChatMessageProps) {
         {isUser ? (
           <p className="whitespace-pre-wrap">{content}</p>
         ) : (
-          <StreamdownMessage content={content} />
+          <>
+            {content && <StreamdownMessage content={content} />}
+            {toolParts.map((toolPart) => (
+              <ToolResultRenderer key={toolPart.toolCallId} toolPart={toolPart} />
+            ))}
+          </>
         )}
       </div>
     </motion.div>

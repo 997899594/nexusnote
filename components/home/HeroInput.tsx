@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ChevronRight, Send, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { useInputProtection } from "@/components/common/useInputProtection";
 import { extractCommandContent, HOME_COMMANDS } from "@/lib/chat/commands";
 import { cn } from "@/lib/utils";
 import { usePendingChatStore, useTransitionStore } from "@/stores";
@@ -19,6 +20,7 @@ export function HeroInput() {
   const [showCommands, setShowCommands] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [selectedCommand, setSelectedCommand] = useState<Command | null>(null);
+  const { handlePaste } = useInputProtection();
 
   const { refs, floatingStyles } = useFloating({
     placement: "top",
@@ -198,57 +200,54 @@ export function HeroInput() {
         }}
         whileHover={{ scale: showCommands ? 1 : 1.005 }}
         transition={{ duration: 0.2 }}
-        className="relative bg-white shadow-[var(--shadow-elevated)] hover:shadow-[var(--shadow-elevated-hover)] transition-shadow rounded-2xl md:rounded-3xl"
+        className="relative bg-white shadow-[var(--shadow-elevated)] hover:shadow-[var(--shadow-elevated-hover)] transition-shadow rounded-2xl md:rounded-3xl min-h-[140px] md:min-h-[160px]"
       >
-        <div className="p-4 md:p-6">
-          <div className="flex items-end gap-4">
-            <AnimatePresence>
-              {selectedCommand && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 rounded-lg text-xs flex-shrink-0"
+        <div className="p-5 md:p-8 relative h-full">
+          <AnimatePresence>
+            {selectedCommand && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="absolute bottom-4 left-4 md:bottom-6 md:left-6 flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 rounded-lg text-xs z-10"
+              >
+                <selectedCommand.modeIcon className="w-3 h-3 text-zinc-500" />
+                <span className="text-zinc-600 font-medium">{selectedCommand.modeLabel}</span>
+                <button
+                  type="button"
+                  onClick={handleCancelCommand}
+                  className="p-0.5 text-zinc-400 hover:text-zinc-600 transition-colors"
                 >
-                  <selectedCommand.modeIcon className="w-3 h-3 text-zinc-500" />
-                  <span className="text-zinc-600 font-medium">{selectedCommand.modeLabel}</span>
-                  <button
-                    type="button"
-                    onClick={handleCancelCommand}
-                    className="p-0.5 text-zinc-400 hover:text-zinc-600 transition-colors"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                  <X className="w-3 h-3" />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-            <div className="flex-1">
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={placeholder}
-                rows={1}
-                className="w-full bg-transparent border-none outline-none text-base md:text-lg text-zinc-800 placeholder:text-zinc-400 resize-none min-h-[44px] md:min-h-[80px] max-h-[120px] md:max-h-[200px] py-2"
-              />
-            </div>
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
+            placeholder={placeholder}
+            rows={1}
+            className="w-full bg-transparent border-none outline-none text-base md:text-lg text-zinc-800 placeholder:text-zinc-400 resize-none min-h-[72px] md:min-h-[96px] max-h-[144px] md:max-h-[240px] py-3 pr-14 md:pr-16"
+          />
 
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleSubmit}
-              disabled={!input.trim()}
-              className={cn(
-                "w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center transition-colors flex-shrink-0 touch-target",
-                input.trim()
-                  ? "bg-[var(--color-accent)] text-[var(--color-accent-fg)]"
-                  : "bg-zinc-200 text-zinc-400 cursor-not-allowed",
-              )}
-            >
-              <Send className="w-4 h-4 md:w-5 md:h-5" />
-            </motion.button>
-          </div>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleSubmit}
+            disabled={!input.trim()}
+            className={cn(
+              "absolute bottom-4 right-4 md:bottom-6 md:right-6 w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center transition-colors touch-target",
+              input.trim()
+                ? "bg-[var(--color-accent)] text-[var(--color-accent-fg)]"
+                : "bg-zinc-200 text-zinc-400 cursor-not-allowed",
+            )}
+          >
+            <Send className="w-4 h-4 md:w-5 md:h-5" />
+          </motion.button>
         </div>
       </motion.div>
     </div>

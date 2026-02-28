@@ -10,6 +10,7 @@
 
 "use client";
 
+import type { Editor as TiptapEditorType } from "@tiptap/react";
 import { motion } from "framer-motion";
 import {
   Bold,
@@ -24,7 +25,6 @@ import {
   Strikethrough,
   Undo,
 } from "lucide-react";
-import type { Editor as TiptapEditorType } from "@tiptap/react";
 import { useCallback, useMemo } from "react";
 import { cn } from "@/lib/utils";
 
@@ -87,7 +87,7 @@ export function MobileEditorToolbar({ editor, onMoreClick }: MobileEditorToolbar
           break;
       }
     },
-    [editor]
+    [editor],
   );
 
   const isActive = useCallback(
@@ -114,7 +114,7 @@ export function MobileEditorToolbar({ editor, onMoreClick }: MobileEditorToolbar
           return false;
       }
     },
-    [editor]
+    [editor],
   );
 
   const basicButtons = useMemo(() => {
@@ -129,9 +129,7 @@ export function MobileEditorToolbar({ editor, onMoreClick }: MobileEditorToolbar
           onClick={() => handleAction(btn.action)}
           className={cn(
             "touch-target flex flex-col items-center justify-center gap-1 p-2 rounded-xl transition-colors min-w-[56px]",
-            active
-              ? "bg-indigo-100 text-indigo-700"
-              : "text-zinc-600 hover:bg-zinc-100"
+            active ? "bg-indigo-100 text-indigo-700" : "text-zinc-600 hover:bg-zinc-100",
           )}
           aria-label={btn.label}
         >
@@ -194,7 +192,7 @@ export function MobileEditorMoreMenu({ editor, isOpen, onClose }: MobileEditorMo
       }
       onClose();
     },
-    [editor, onClose]
+    [editor, onClose],
   );
 
   if (!isOpen || !editor) return null;

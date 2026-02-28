@@ -1,8 +1,6 @@
 # ===========================================
-# Database Migration Job - ArgoCD Sync Wave
+# Database Migration Job
 # ===========================================
-# sync-wave: "1" 在数据库 (wave -2) 就绪后、Deployment (wave 2) 之前运行
-# Hook + BeforeHookCreation: 自动删除旧 Job 再创建新的，避免不可变字段冲突
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -10,10 +8,6 @@ metadata:
   namespace: {{ .Values.namespace }}
   labels:
     {{- include "nexusnote.labels" . | nindent 4 }}
-  annotations:
-    argocd.argoproj.io/hook: Sync
-    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
-    argocd.argoproj.io/sync-wave: "1"
 spec:
   backoffLimit: 3
   template:

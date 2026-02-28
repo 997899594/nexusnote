@@ -10,17 +10,8 @@
 
 "use client";
 
-import { AnimatePresence, motion, useMotionValue, useTransform } from "framer-motion";
-import {
-  BookOpen,
-  FileText,
-  Home,
-  Layers,
-  LogOut,
-  Settings,
-  User,
-  Zap,
-} from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { BookOpen, FileText, Home, Layers, LogOut, Settings, User, Zap } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
@@ -56,15 +47,13 @@ export function DrawerMenu({ isOpen, onClose, userName, userEmail }: DrawerMenuP
   const router = useRouter();
   const logout = useAuthStore((state) => state.logout);
 
-  const dragX = useMotionValue(0);
-
   // 处理导航点击
   const handleNavClick = useCallback(
     (href: string) => {
       onClose();
       router.push(href);
     },
-    [onClose, router]
+    [onClose, router],
   );
 
   // 处理退出登录
@@ -117,7 +106,7 @@ export function DrawerMenu({ isOpen, onClose, userName, userEmail }: DrawerMenuP
             drag="x"
             dragConstraints={{ left: 0, right: 0 }}
             dragElastic={0.2}
-            onDragEnd={(e, info) => {
+            onDragEnd={(_e, info) => {
               if (info.offset.x < -100) {
                 onClose();
               }
@@ -140,9 +129,7 @@ export function DrawerMenu({ isOpen, onClose, userName, userEmail }: DrawerMenuP
                     .slice(0, 2) || "U"}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-zinc-900 truncate">
-                    {userName || "学习者"}
-                  </div>
+                  <div className="font-semibold text-zinc-900 truncate">{userName || "学习者"}</div>
                   <div className="text-sm text-zinc-500 truncate">{userEmail}</div>
                 </div>
               </div>
@@ -186,10 +173,12 @@ export function DrawerMenu({ isOpen, onClose, userName, userEmail }: DrawerMenuP
                       "w-full flex items-center gap-3 px-3 py-3 rounded-xl mb-1 transition-colors",
                       isActive
                         ? "bg-indigo-50 text-indigo-700 font-medium"
-                        : "text-zinc-700 hover:bg-zinc-50"
+                        : "text-zinc-700 hover:bg-zinc-50",
                     )}
                   >
-                    <Icon className={cn("w-5 h-5", isActive ? "text-indigo-600" : "text-zinc-400")} />
+                    <Icon
+                      className={cn("w-5 h-5", isActive ? "text-indigo-600" : "text-zinc-400")}
+                    />
                     <span className="text-sm">{item.label}</span>
                   </motion.button>
                 );

@@ -1,7 +1,6 @@
 # ===========================================
 # NexusNote TLS Certificate
 # ===========================================
-# 使用集群级 ClusterIssuer（在 deploy/infra/cert-manager/ 定义）
 
 apiVersion: cert-manager.io/v1
 kind: Certificate
@@ -10,8 +9,6 @@ metadata:
   namespace: {{ .Values.namespace }}
   labels:
     {{- include "nexusnote.labels" . | nindent 4 }}
-  annotations:
-    argocd.argoproj.io/sync-wave: "0"
 spec:
   secretName: nexusnote-tls
   dnsNames:

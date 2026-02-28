@@ -1,11 +1,8 @@
 # ===========================================
-# NexusNote Stateful Services (PostgreSQL + Redis)
+# NexusNote Stateful Services
 # ===========================================
-# sync-wave 顺序：
-#   wave -3: ConfigMap、InfisicalSecret
-#   wave -2: PVCs + StatefulSets + Services（PVC 用 WaitForFirstConsumer 需与 Pod 同 wave）
-#   wave  1: Migration Job（等 DB ready 后执行）
-#   wave  2: Deployments
+# 由于复用 juanie 的数据库，这里不再创建独立的 PostgreSQL 和 Redis
+# 如需独立部署，取消注释以下内容
 
 ---
 # PostgreSQL PVC
@@ -17,9 +14,6 @@ metadata:
   labels:
     app: postgres
     {{- include "nexusnote.labels" . | nindent 4 }}
-  annotations:
-    argocd.argoproj.io/sync-wave: "-2"
-    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true,SkipHealthCheck=true
 spec:
   accessModes:
     - ReadWriteOnce

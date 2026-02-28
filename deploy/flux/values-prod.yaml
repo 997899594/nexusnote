@@ -1,0 +1,56 @@
+# NexusNote Flux Values - Production
+# 复用 juanie 平台的数据库和 Redis
+
+namespace: juanie
+
+image:
+  repository: ghcr.io/997899594/nexusnote
+  tag: "latest"
+
+# 禁用独立的数据库/Redis，使用 juanie 的服务
+database:
+  enabled: false
+  host: postgres.juanie.svc.cluster.local
+  port: 5432
+  name: nexusnote
+  user: postgres
+
+redis:
+  enabled: false
+  host: redis.juanie.svc.cluster.local
+  port: 6379
+
+# 使用 juanie 的 Gateway，不创建独立的
+gateway:
+  enabled: false
+  name: "juanie-gateway"
+  namespace: "juanie"
+
+loadBalancerIP: ""
+
+# 环境变量
+env:
+  NODE_ENV: "production"
+  NEXT_PUBLIC_APP_URL: "https://note.juanie.art"
+  NEXTAUTH_URL: "https://note.juanie.art"
+  AUTH_TRUST_HOST: "true"
+  PORT: "3000"
+
+# 服务配置
+services:
+  web:
+    replicaCount: 1
+    resources:
+      limits:
+        cpu: 500m
+        memory: 1Gi
+      requests:
+        cpu: 100m
+        memory: 256Mi
+
+# Infisical 配置
+infisical:
+  enabled: true
+  projectSlug: "nexusnote-ibqe"
+  envSlug: "prod"
+  resyncInterval: 60

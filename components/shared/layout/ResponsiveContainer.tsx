@@ -7,8 +7,8 @@
  * - 桌面: 居中布局
  */
 
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { ReactNode } from "react";
 
 export interface ResponsiveContainerProps {
   children: ReactNode;
@@ -41,7 +41,7 @@ export function ResponsiveContainer({
         "mx-auto",
         maxWidthClasses[maxWidth],
         mobilePadding ? "px-4 md:px-6 lg:px-8" : "md:px-6 lg:px-8",
-        className
+        className,
       )}
     >
       {children}

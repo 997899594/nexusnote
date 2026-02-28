@@ -3,6 +3,7 @@ import "./globals.css";
 import { AuthSync, SessionProvider } from "@/components/auth";
 import { TransitionOverlay } from "@/components/chat/TransitionOverlay";
 import { MobileNav } from "@/components/shared/layout";
+import { ToastProvider } from "@/components/ui/Toast";
 import { AI } from "./ai-ui/AIProvider";
 
 export const viewport: Viewport = {
@@ -34,12 +35,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <AI>
       <html lang="zh-CN" data-theme="default">
-        <body>
+        <body suppressHydrationWarning>
           <SessionProvider>
-            <AuthSync />
-            <div className="min-h-screen">{children}</div>
-            <MobileNav />
-            <TransitionOverlay />
+            <ToastProvider>
+              <AuthSync />
+              <div className="min-h-screen">{children}</div>
+              <MobileNav />
+              <TransitionOverlay />
+            </ToastProvider>
           </SessionProvider>
         </body>
       </html>

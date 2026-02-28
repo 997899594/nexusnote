@@ -2,7 +2,9 @@
 # NexusNote Gateway Infrastructure
 # ===========================================
 # 使用 Cilium Gateway API + LB-IPAM
+# 复用 juanie 的 Gateway，不需要单独创建
 
+{{- if .Values.gateway.enabled }}
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
@@ -12,8 +14,7 @@ metadata:
   labels:
     {{- include "nexusnote.labels" . | nindent 4 }}
   annotations:
-    argocd.argoproj.io/sync-wave: "-1"
-    # 使用集群级 ClusterIssuer（在 deploy/infra/cert-manager/ 中定义）
+    # 使用集群级 ClusterIssuer
     cert-manager.io/cluster-issuer: letsencrypt-prod
     # Cilium LB-IPAM 配置
     io.cilium/lb-ipam-ips: {{ .Values.loadBalancerIP | default "10.2.0.15" | quote }}
@@ -43,6 +44,7 @@ spec:
           - name: nexusnote-tls
             group: ""
             kind: Secret
+{{- end }}
 
 ---
 apiVersion: gateway.networking.k8s.io/v1
@@ -56,8 +58,8 @@ metadata:
     argocd.argoproj.io/sync-wave: "3"
 spec:
   parentRefs:
-    - name: nexusnote-gateway
-      namespace: {{ .Values.namespace }}
+    - name: {{ .Values.gateway.name }}
+      namespace: {{ .Values.gateway.namespace | default .Values.namespace }}
       group: gateway.networking.k8s.io
       kind: Gateway
       # 只绑定 HTTPS listener，HTTP 由 nexusnote-redirect 处理重定向
@@ -102,8 +104,8 @@ metadata:
     argocd.argoproj.io/sync-wave: "3"
 spec:
   parentRefs:
-    - name: nexusnote-gateway
-      namespace: {{ .Values.namespace }}
+    - name: {{ .Values.gateway.name }}
+      namespace: {{ .Values.gateway.namespace | default .Values.namespace }}
       group: gateway.networking.k8s.io
       kind: Gateway
       sectionName: http

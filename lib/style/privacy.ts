@@ -151,7 +151,7 @@ export async function updatePrivacySettings(
  */
 export async function deleteStyleData(userId: string): Promise<void> {
   // Reset all style analysis metrics to default values
-  const defaultEMA = { value: 0.5, confidence: 0, samples: 0 };
+  const defaultEMA = { value: 0.5, confidence: 0, samples: 0, lastAnalyzedAt: "" };
 
   await db
     .update(userProfiles)

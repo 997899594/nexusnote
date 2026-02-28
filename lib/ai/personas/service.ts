@@ -206,11 +206,16 @@ export async function setUserPersonaPreference(userId: string, personaSlug: stri
       })
       .where(eq(userPersonaPreferences.id, existing.id));
   } else {
-    await db.insert(userPersonaPreferences).values({
-      userId,
-      defaultPersonaSlug: personaSlug,
-      lastSwitchedAt: new Date(),
-    });
+    try {
+      await db.insert(userPersonaPreferences).values({
+        userId,
+        defaultPersonaSlug: personaSlug,
+        lastSwitchedAt: new Date(),
+      });
+    } catch (error) {
+      console.error("[setUserPersonaPreference] Failed to insert preference:", error);
+      throw new Error("Failed to save persona preference");
+    }
   }
 
   // Increment usage count for custom personas

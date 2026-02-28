@@ -7,8 +7,8 @@ export { DrawerMenu } from "../layout/DrawerMenu";
 export { FloatingHeader } from "../layout/FloatingHeader";
 export { MobileHeader } from "../layout/MobileHeader";
 export { MobileNav } from "../layout/MobileNav";
-export { UserAvatar } from "../layout/UserAvatar";
 export {
-  ResponsiveContainer,
   MobilePageContainer,
+  ResponsiveContainer,
 } from "../layout/ResponsiveContainer";
+export { UserAvatar } from "../layout/UserAvatar";

@@ -1,8 +1,5 @@
 @import "tailwindcss";
 
-/* Streamdown - 流式 Markdown 样式 */
-@source "../node_modules/streamdown/dist/*.js";
-
 /* ────────────────────────────────────────────────────────────────────────────
  * Layer 1: Brand Palette (Raw OKLCH values, theme-switchable)
  * ──────────────────────────────────────────────────────────────────────────── */
@@ -270,8 +267,10 @@
   }
 
   /* 移除移动端 hover 效果 */
-  .hover\\:bg-zinc-50:hover {
-    background-color: transparent;
+  @supports not (background-color: oklch(0.95 0 0)) {
+    .hover\:bg-zinc-50:hover {
+      background-color: transparent;
+    }
   }
 
   /* 添加 active 状态 */
