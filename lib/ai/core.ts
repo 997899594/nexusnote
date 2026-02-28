@@ -181,8 +181,8 @@ export class PromptRegistry {
  * 4. 达到 maxRetries 后抛出最终错误
  */
 
-import type { LanguageModelV3 } from "@ai-sdk/provider";
 import { generateObject } from "ai";
+import type { LanguageModel } from "ai";
 import type { ZodSchema } from "zod";
 
 export interface SafeGenerateOptions<T> {
@@ -191,7 +191,7 @@ export interface SafeGenerateOptions<T> {
   /** schema 验证失败后的重试次数（区别于网络重试） */
   maxRetries?: number;
   /** 使用的语言模型 */
-  model: LanguageModelV3;
+  model: LanguageModel;
   /** 系统提示 */
   system: string;
   /** 用户提示 */
@@ -288,7 +288,7 @@ class AIProvider {
   }
 
   /** Get a language model by type */
-  getModel(type: ModelType = "chat"): LanguageModelV3 {
+  getModel(type: ModelType = "chat"): LanguageModel {
     if (!this.client) {
       throw new Error("AI Provider not initialized. Set AI_302_API_KEY environment variable.");
     }
@@ -303,26 +303,26 @@ class AIProvider {
     });
   }
 
-  /** Get the embedding model */
+  /** Get the embedding model with correct typing */
   get embeddingModel(): EmbeddingModelV3 {
     if (!this.client) {
       throw new Error("AI Provider not initialized");
     }
-    return this.client.embedding(MODELS.embedding);
+    return this.client.embedding(MODELS.embedding) as EmbeddingModelV3;
   }
 
   /** Get the chat model */
-  get chatModel(): LanguageModelV3 {
+  get chatModel(): LanguageModel {
     return this.getModel("chat");
   }
 
   /** Get the pro model */
-  get proModel(): LanguageModelV3 {
+  get proModel(): LanguageModel {
     return this.getModel("pro");
   }
 
   /** Get the web search model */
-  get webSearchModel(): LanguageModelV3 {
+  get webSearchModel(): LanguageModel {
     return this.getModel("webSearch");
   }
 }
