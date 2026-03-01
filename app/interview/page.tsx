@@ -7,8 +7,11 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatMessage, LoadingDots } from "@/components/chat/ChatMessage";
+import { InterviewOptions } from "@/components/interview/InterviewOptions";
+import { OutlinePanel } from "@/components/interview/OutlinePanel";
 import { useInterview } from "@/hooks/useInterview";
 import { cn } from "@/lib/utils";
+import { useInterviewStore } from "@/stores/interview";
 
 export default function InterviewPage() {
   const searchParams = useSearchParams();
@@ -21,6 +24,10 @@ export default function InterviewPage() {
   const interview = useInterview({
     initialMessage: initialMessage || undefined,
   });
+
+  // 从 store 获取大纲
+  const outline = useInterviewStore((s) => s.outline);
+  const isOutlineLoading = useInterviewStore((s) => s.isOutlineLoading);
 
   // 标记是否已开始（有初始消息或用户发送了消息）
   useEffect(() => {
@@ -63,107 +70,143 @@ export default function InterviewPage() {
   const isAILoading =
     (status === "submitted" || status === "streaming") && (!lastMsg || lastMsg.role === "user");
 
+  // 从 AI 消息中提取选项
+  function extractOptionsFromMessage(message: UIMessage | undefined): Array<{ label: string }> | null {
+    if (!message?.parts) return null;
+    const textPart = message.parts.find((p) => p.type === "text");
+    if (!textPart || !("text" in textPart)) return null;
+    const text = textPart.text;
+    const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
+    if (!jsonMatch) return null;
+    try {
+      const parsed = JSON.parse(jsonMatch[1]);
+      if (parsed.options && Array.isArray(parsed.options)) {
+        return parsed.options;
+      }
+    } catch {}
+    return null;
+  }
+
+  const lastAIMessage = chatMessages.filter((m) => m.role === "assistant").pop();
+  const lastOptions = extractOptionsFromMessage(lastAIMessage);
+
+  const handleOptionSelect = (option: string) => {
+    sendMessage({ text: option });
+  };
+
   return (
-    <div className="flex flex-col h-screen bg-white">
-      {/* Header */}
-      <header className="flex items-center gap-4 px-4 md:px-6 py-4 border-b border-zinc-100">
-        <Link
-          href="/chat"
-          className="p-2 hover:bg-zinc-100 rounded-lg transition-colors"
-          aria-label="返回聊天"
-        >
-          <ArrowLeft className="w-5 h-5 text-zinc-500" />
-        </Link>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-            <GraduationCap className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h1 className="font-semibold text-zinc-800">课程访谈</h1>
-            <p className="text-xs text-zinc-400">告诉我你想学什么</p>
-          </div>
-        </div>
-      </header>
-
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto mobile-scroll px-4 md:px-6 py-4">
-        <div className="max-w-[calc(100vw-32px)] md:max-w-[var(--message-max-width)] mx-auto space-y-4">
-          {/* 空状态：没有消息、不在加载、没有初始消息 */}
-          {chatMessages.length === 0 && !isLoading && !started && (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                <GraduationCap className="w-8 h-8 text-white" />
-              </div>
-              <h2 className="text-lg font-medium text-zinc-700 mb-2">你想学什么？</h2>
-              <p className="text-sm text-zinc-400 mb-6">告诉我你的学习目标，我会为你定制课程</p>
-              <div className="flex flex-wrap justify-center gap-2">
-                {["我想学 Python", "我想学做 PPT", "考研数学怎么准备", "教我做川菜"].map(
-                  (example) => (
-                    <button
-                      key={example}
-                      type="button"
-                      onClick={() => {
-                        setStarted(true);
-                        sendMessage({ text: example });
-                      }}
-                      className="px-4 py-2 bg-zinc-100 hover:bg-zinc-200 rounded-full text-sm text-zinc-600 transition-colors"
-                    >
-                      {example}
-                    </button>
-                  ),
-                )}
-              </div>
-            </div>
-          )}
-
-          {chatMessages.map((msg) => (
-            <ChatMessage
-              key={msg.id}
-              message={msg}
-              onSendReply={(text) => sendMessage({ text })}
-              addToolOutput={addToolOutput}
-            />
-          ))}
-
-          {isAILoading && <LoadingDots />}
-
-          <div ref={messagesEndRef} />
-        </div>
+    <div className="flex h-screen bg-white">
+      {/* Left Panel - Outline */}
+      <div className="hidden md:block w-80 flex-shrink-0">
+        <OutlinePanel outline={outline} isLoading={isOutlineLoading} />
       </div>
 
-      {/* Input */}
-      <div className="border-t border-zinc-100 bg-white px-4 md:px-6 py-3 md:py-4">
-        <div className="max-w-[calc(100vw-32px)] md:max-w-[var(--message-max-width)] mx-auto">
-          <div className="flex items-end gap-2 md:gap-3 bg-zinc-50 rounded-2xl p-2 md:p-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-              <GraduationCap className="w-4 h-4 text-white" />
+      {/* Right Panel - Chat */}
+      <div className="flex flex-col flex-1 min-w-0">
+        {/* Header */}
+        <header className="flex items-center gap-4 px-4 md:px-6 py-4 border-b border-zinc-100">
+          <Link
+            href="/chat"
+            className="p-2 hover:bg-zinc-100 rounded-lg transition-colors"
+            aria-label="返回聊天"
+          >
+            <ArrowLeft className="w-5 h-5 text-zinc-500" />
+          </Link>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+              <GraduationCap className="w-5 h-5 text-white" />
             </div>
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="继续对话..."
-              rows={1}
-              className="flex-1 bg-transparent border-none outline-none text-sm text-zinc-800 placeholder:text-zinc-400 resize-none min-h-[24px] max-h-[120px]"
-            />
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleSubmit}
-              disabled={!input.trim() || isLoading}
-              className={cn(
-                "w-9 h-9 rounded-xl flex items-center justify-center transition-colors flex-shrink-0",
-                input.trim() && !isLoading
-                  ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white"
-                  : "bg-zinc-200 text-zinc-400 cursor-not-allowed",
-              )}
-            >
-              {isLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Send className="w-4 h-4" />
-              )}
-            </motion.button>
+            <div>
+              <h1 className="font-semibold text-zinc-800">课程访谈</h1>
+              <p className="text-xs text-zinc-400">告诉我你想学什么</p>
+            </div>
+          </div>
+        </header>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto mobile-scroll px-4 md:px-6 py-4">
+          <div className="max-w-[calc(100vw-32px)] md:max-w-[var(--message-max-width)] mx-auto space-y-4">
+            {/* 空状态：没有消息、不在加载、没有初始消息 */}
+            {chatMessages.length === 0 && !isLoading && !started && (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                  <GraduationCap className="w-8 h-8 text-white" />
+                </div>
+                <h2 className="text-lg font-medium text-zinc-700 mb-2">你想学什么？</h2>
+                <p className="text-sm text-zinc-400 mb-6">告诉我你的学习目标，我会为你定制课程</p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {["我想学 Python", "我想学做 PPT", "考研数学怎么准备", "教我做川菜"].map(
+                    (example) => (
+                      <button
+                        key={example}
+                        type="button"
+                        onClick={() => {
+                          setStarted(true);
+                          sendMessage({ text: example });
+                        }}
+                        className="px-4 py-2 bg-zinc-100 hover:bg-zinc-200 rounded-full text-sm text-zinc-600 transition-colors"
+                      >
+                        {example}
+                      </button>
+                    ),
+                  )}
+                </div>
+              </div>
+            )}
+
+            {chatMessages.map((msg) => (
+              <ChatMessage
+                key={msg.id}
+                message={msg}
+                onSendReply={(text) => sendMessage({ text })}
+                addToolOutput={addToolOutput}
+              />
+            ))}
+
+            {isAILoading && <LoadingDots />}
+
+            {lastOptions && lastOptions.length > 0 && !isAILoading && (
+              <InterviewOptions options={lastOptions} onSelect={handleOptionSelect} />
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
+        </div>
+
+        {/* Input */}
+        <div className="border-t border-zinc-100 bg-white px-4 md:px-6 py-3 md:py-4">
+          <div className="max-w-[calc(100vw-32px)] md:max-w-[var(--message-max-width)] mx-auto">
+            <div className="flex items-end gap-2 md:gap-3 bg-zinc-50 rounded-2xl p-2 md:p-3">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                <GraduationCap className="w-4 h-4 text-white" />
+              </div>
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="继续对话..."
+                rows={1}
+                className="flex-1 bg-transparent border-none outline-none text-sm text-zinc-800 placeholder:text-zinc-400 resize-none min-h-[24px] max-h-[120px]"
+              />
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleSubmit}
+                disabled={!input.trim() || isLoading}
+                className={cn(
+                  "w-9 h-9 rounded-xl flex items-center justify-center transition-colors flex-shrink-0",
+                  input.trim() && !isLoading
+                    ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white"
+                    : "bg-zinc-200 text-zinc-400 cursor-not-allowed",
+                )}
+              >
+                {isLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+              </motion.button>
+            </div>
           </div>
         </div>
       </div>
