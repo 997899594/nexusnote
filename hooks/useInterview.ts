@@ -95,9 +95,13 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
       ?.filter(isToolPart)
       .filter((p) => p.type === "tool-updateOutline" && p.state === "output-available");
 
+    // 调试日志
+    console.log("[Interview] Checking for tool parts:", toolParts?.length ?? 0);
+
     if (toolParts && toolParts.length > 0) {
       const lastToolPart = toolParts[toolParts.length - 1];
       const output = lastToolPart.output as { outline?: unknown } | undefined;
+      console.log("[Interview] Tool output:", output);
       if (output?.outline) {
         setOutline(output.outline as never);
         setIsOutlineLoading(false);
