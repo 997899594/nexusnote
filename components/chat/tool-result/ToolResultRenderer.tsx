@@ -8,7 +8,6 @@ import type { ToolUIPart } from "ai";
 import { CourseOutlineCard } from "./CourseOutlineCard";
 import { EditorConfirmDialog } from "./EditorConfirmDialog";
 import { GenericToolResult } from "./GenericToolResult";
-import { InterviewOptions } from "./InterviewOptions";
 import { MindMapResult } from "./MindMapResult";
 import { NoteLink } from "./NoteLink";
 import { SearchResults } from "./SearchResults";
@@ -127,49 +126,13 @@ export function ToolResultRenderer({
       return <GenericToolResult output={output} />;
     }
 
-    // Interview Tools
-    case "suggestOptions": {
-      const output = getOutput<"suggestOptions">(toolPart);
-      if (!output) return null;
-      return (
-        <InterviewOptions
-          question={output.question}
-          options={output.options}
-          allowCustom={output.allowCustom ?? true}
-          allowSkip={output.allowSkip ?? false}
-          multiSelect={output.multiSelect ?? false}
-          onSelect={(selection) => {
-            // 选项点击 = 发送文字消息（快捷方式）
-            const replyText =
-              typeof selection === "string"
-                ? selection === "__skip__"
-                  ? "[跳过]"
-                  : selection
-                : (selection as string[]).join("、");
-            onSendReply?.(replyText);
-          }}
-        />
-      );
+    // Outline tools - 大纲在左侧面板显示，对话区不显示
+    case "updateOutline": {
+      return null;
     }
 
     case "proposeOutline": {
-      const output = getOutput<"proposeOutline">(toolPart);
-      if (!output) return null;
-      return (
-        <CourseOutlineCard
-          output={{
-            success: true,
-            title: output.title,
-            outline: {
-              chapters: output.modules.map((module) => ({
-                title: module.title,
-                description: module.description || "",
-                topics: module.chapters,
-              })),
-            },
-          }}
-        />
-      );
+      return null;
     }
 
     // 内部工具 - 不显示给用户
