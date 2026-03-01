@@ -22,6 +22,7 @@ import {
   assessComplexityTool,
   confirmOutlineTool,
   createCourseProfileTool,
+  suggestOptionsTool,
   updateOutlineTool,
   updateProfileTool,
 } from "../tools/interview";
@@ -65,28 +66,25 @@ const INSTRUCTIONS = {
    - 调用 assessComplexity 评估复杂度
    - 调用 createCourseProfile 创建画像
    - 调用 updateOutline 生成初版大纲
-   - 文字确认 + 提问（附带选项）
+   - 调用 suggestOptions 提供选项
+   - 文字确认 + 提问
 
 2. **每轮**：用户回答
    - 调用 updateProfile 更新画像
    - 调用 updateOutline 更新大纲
-   - 文字回应 + 继续提问（附带选项）
+   - 调用 suggestOptions 提供选项
+   - 文字回应 + 继续提问
 
 3. **完成**：用户满意
    - 大纲即为最终版本
    - 告知用户可以开始学习
 
-## 选项格式
-在回复末尾，使用 JSON 格式提供选项：
-\`\`\`json
-{"options": [{"label": "选项1"}, {"label": "选项2"}, {"label": "自定义"}]}
-\`\`\`
-
 ## 行为准则
 - 主动、简洁、自然
 - 像朋友聊天，不审问
 - 每次回复都要有文字
-- 每轮都要调用 updateOutline 更新大纲`,
+- 每轮都要调用 updateOutline 更新大纲
+- 每轮都要调用 suggestOptions 提供 3-4 个选项`,
 
   course: `你是课程内容生成助手。
 
@@ -176,6 +174,7 @@ const interviewTools = {
   createCourseProfile: createCourseProfileTool,
   updateProfile: updateProfileTool,
   updateOutline: updateOutlineTool,
+  suggestOptions: suggestOptionsTool,
   confirmOutline: confirmOutlineTool,
 } as ToolSet;
 

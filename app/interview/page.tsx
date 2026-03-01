@@ -7,7 +7,6 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatMessage, LoadingDots } from "@/components/chat/ChatMessage";
-import { InterviewOptions } from "@/components/interview/InterviewOptions";
 import { OutlinePanel } from "@/components/interview/OutlinePanel";
 import { useInterview } from "@/hooks/useInterview";
 import { cn } from "@/lib/utils";
@@ -69,32 +68,6 @@ export default function InterviewPage() {
   const lastMsg = chatMessages[chatMessages.length - 1];
   const isAILoading =
     (status === "submitted" || status === "streaming") && (!lastMsg || lastMsg.role === "user");
-
-  // 从 AI 消息中提取选项
-  function extractOptionsFromMessage(
-    message: UIMessage | undefined,
-  ): Array<{ label: string }> | null {
-    if (!message?.parts) return null;
-    const textPart = message.parts.find((p) => p.type === "text");
-    if (!textPart || !("text" in textPart)) return null;
-    const text = textPart.text;
-    const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
-    if (!jsonMatch) return null;
-    try {
-      const parsed = JSON.parse(jsonMatch[1]);
-      if (parsed.options && Array.isArray(parsed.options)) {
-        return parsed.options;
-      }
-    } catch {}
-    return null;
-  }
-
-  const lastAIMessage = chatMessages.filter((m) => m.role === "assistant").pop();
-  const lastOptions = extractOptionsFromMessage(lastAIMessage);
-
-  const handleOptionSelect = (option: string) => {
-    sendMessage({ text: option });
-  };
 
   return (
     <div className="flex h-screen bg-white">
@@ -166,10 +139,6 @@ export default function InterviewPage() {
             ))}
 
             {isAILoading && <LoadingDots />}
-
-            {lastOptions && lastOptions.length > 0 && !isAILoading && (
-              <InterviewOptions options={lastOptions} onSelect={handleOptionSelect} />
-            )}
 
             <div ref={messagesEndRef} />
           </div>

@@ -230,6 +230,27 @@ export interface ConfirmOutlineOutput {
   error?: string;
 }
 
+export interface SuggestOptionsOutput {
+  success: boolean;
+  options: Array<{ label: string }>;
+}
+
+export interface UpdateOutlineOutput {
+  success: boolean;
+  outline?: {
+    title: string;
+    description?: string;
+    estimatedMinutes?: number;
+    chapters: Array<{
+      title: string;
+      description?: string;
+      topics?: string[];
+    }>;
+  };
+  message?: string;
+  error?: string;
+}
+
 export type ToolOutputMap = {
   mindMap: MindMapOutput;
   searchNotes: SearchNotesOutput;
@@ -250,5 +271,7 @@ export type ToolOutputMap = {
   proposeOutline: ProposeOutlineOutput;
   assessComplexity: AssessComplexityOutput;
   updateProfile: UpdateProfileOutput;
+  updateOutline: UpdateOutlineOutput;
+  suggestOptions: SuggestOptionsOutput;
   confirmOutline: ConfirmOutlineOutput;
 };

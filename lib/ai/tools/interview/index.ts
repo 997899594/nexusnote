@@ -192,7 +192,28 @@ export const updateOutlineTool = tool({
 });
 
 // ============================================
-// 4. proposeOutline - 提出课程大纲 (客户端工具)
+// 4. suggestOptions - 展示选项（服务端工具，返回数据给 UI）
+// ============================================
+
+export const SuggestOptionsSchema = z.object({
+  options: z.array(z.string()).min(2).max(6).describe("可点击的选项列表"),
+});
+
+export const suggestOptionsTool = tool({
+  description:
+    "向用户展示可点击的选项。每轮回复后调用，返回选项数据给 UI 渲染。AI 继续生成文字。",
+  inputSchema: SuggestOptionsSchema,
+  execute: async ({ options }) => {
+    // 返回选项数据，让 UI 渲染
+    return {
+      success: true,
+      options: options.map((label) => ({ label })),
+    };
+  },
+});
+
+// ============================================
+// 5. proposeOutline - 提出课程大纲 (客户端工具)
 // ============================================
 
 export const CourseOutlineModuleSchema = z.object({
@@ -322,6 +343,7 @@ export const interviewTools = {
   createCourseProfile: createCourseProfileTool,
   updateProfile: updateProfileTool,
   updateOutline: updateOutlineTool,
+  suggestOptions: suggestOptionsTool,
   confirmOutline: confirmOutlineTool,
 };
 

@@ -8,6 +8,7 @@ import type { ToolUIPart } from "ai";
 import { CourseOutlineCard } from "./CourseOutlineCard";
 import { EditorConfirmDialog } from "./EditorConfirmDialog";
 import { GenericToolResult } from "./GenericToolResult";
+import { InterviewOptions } from "@/components/interview/InterviewOptions";
 import { MindMapResult } from "./MindMapResult";
 import { NoteLink } from "./NoteLink";
 import { SearchResults } from "./SearchResults";
@@ -129,6 +130,23 @@ export function ToolResultRenderer({
 
     case "proposeOutline": {
       return null;
+    }
+
+    // Interview options - 选项按钮
+    case "suggestOptions": {
+      const output = getOutput<"suggestOptions">(toolPart);
+      if (!output?.success || !output.options) {
+        return null;
+      }
+      return (
+        <InterviewOptions
+          options={output.options}
+          onSelect={(option) => {
+            // 选项点击 = 发送文字消息
+            onSendReply?.(option);
+          }}
+        />
+      );
     }
 
     // 内部工具 - 不显示给用户
