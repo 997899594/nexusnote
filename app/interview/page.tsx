@@ -33,6 +33,7 @@ export default function InterviewPage() {
   const sendMessage = interview.sendMessage;
   const status = interview.status;
   const isLoading = interview.isLoading;
+  const addToolOutput = interview.addToolOutput;
 
   const chatMessages = messages.filter((m: UIMessage) => m.role !== "system");
 
@@ -116,7 +117,12 @@ export default function InterviewPage() {
           )}
 
           {chatMessages.map((msg) => (
-            <ChatMessage key={msg.id} message={msg} onSendReply={(text) => sendMessage({ text })} />
+            <ChatMessage
+              key={msg.id}
+              message={msg}
+              onSendReply={(text) => sendMessage({ text })}
+              addToolOutput={addToolOutput}
+            />
           ))}
 
           {isAILoading && <LoadingDots />}

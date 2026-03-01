@@ -24,6 +24,11 @@ interface UseInterviewReturn {
   status: string;
   isLoading: boolean;
   sessionId: string;
+  addToolOutput: (params: {
+    tool: string;
+    toolCallId: string;
+    output: unknown;
+  }) => Promise<void>;
 }
 
 export function useInterview(options?: UseInterviewOptions): UseInterviewReturn {
@@ -44,7 +49,7 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
     },
   });
 
-  const { sendMessage, status } = chat;
+  const { sendMessage, status, addToolOutput } = chat;
 
   // 自动发送初始消息（使用 ref 避免重复发送）
   const sentInitialRef = useRef(false);
@@ -72,5 +77,6 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
     // @ts-expect-error AI SDK 6.0 compatibility
     isLoading: chat.isLoading,
     sessionId,
+    addToolOutput,
   };
 }

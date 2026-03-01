@@ -28,9 +28,18 @@ function getOutput<T extends keyof ToolOutputMap>(part: ToolPart): ToolOutputMap
 interface ToolResultRendererProps {
   toolPart: ToolPart;
   onSendReply?: (text: string) => void;
+  addToolOutput?: (params: {
+    tool: string;
+    toolCallId: string;
+    output: unknown;
+  }) => Promise<void>;
 }
 
-export function ToolResultRenderer({ toolPart, onSendReply }: ToolResultRendererProps) {
+export function ToolResultRenderer({
+  toolPart,
+  onSendReply,
+  addToolOutput,
+}: ToolResultRendererProps) {
   if (toolPart.state !== "output-available") {
     return null;
   }
@@ -130,13 +139,23 @@ export function ToolResultRenderer({ toolPart, onSendReply }: ToolResultRenderer
           allowSkip={output.allowSkip ?? false}
           multiSelect={output.multiSelect ?? false}
           onSelect={(selection) => {
-            const replyText =
-              typeof selection === "string"
-                ? selection === "__skip__"
-                  ? "[跳过]"
-                  : selection
-                : (selection as string[]).join("、");
-            onSendReply?.(replyText);
+            // 使用 addToolOutput 返回工具结果
+            if (addToolOutput && toolPart.toolCallId) {
+              addToolOutput({
+                tool: "suggestOptions",
+                toolCallId: toolPart.toolCallId,
+                output: { selected: selection },
+              });
+            } else {
+              // 降级：发送文本消息
+              const replyText =
+                typeof selection === "string"
+                  ? selection === "__skip__"
+                    ? "[跳过]"
+                    : selection
+                  : (selection as string[]).join("、");
+              onSendReply?.(replyText);
+            }
           }}
         />
       );
