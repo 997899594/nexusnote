@@ -8,11 +8,17 @@
  */
 
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport, type UIMessage } from "ai";
+import { DefaultChatTransport, type ToolUIPart, type UIMessage } from "ai";
 import { nanoid } from "nanoid";
 import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { parseApiError } from "@/lib/api/client";
+import { useInterviewStore } from "@/stores/interview";
+
+// Type guard for tool parts
+function isToolPart(part: { type: string }): part is ToolUIPart {
+  return part.type.startsWith("tool-");
+}
 
 interface UseInterviewOptions {
   initialMessage?: string;
@@ -35,11 +41,25 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
   const { addToast } = useToast();
   const [sessionId] = useState(() => nanoid());
 
+  // Get store setters
+  const setOutline = useInterviewStore((s) => s.setOutline);
+  const setCourseProfileId = useInterviewStore((s) => s.setCourseProfileId);
+  const setIsOutlineLoading = useInterviewStore((s) => s.setIsOutlineLoading);
+
   const chat = useChat({
     id: sessionId,
     transport: new DefaultChatTransport({
       api: "/api/interview",
       body: () => ({ sessionId }),
+      // Custom fetch to capture response headers
+      fetch: async (input, init) => {
+        const response = await fetch(input, init);
+        const profileId = response.headers.get("X-Course-Profile-Id");
+        if (profileId) {
+          setCourseProfileId(profileId);
+        }
+        return response;
+      },
     }),
     onError: (error) => {
       console.error("[Interview] API Error:", error);
@@ -49,7 +69,7 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
     },
   });
 
-  const { sendMessage, status, addToolOutput } = chat;
+  const { sendMessage, status, addToolOutput, messages } = chat;
 
   // 自动发送初始消息（使用 ref 避免重复发送）
   const sentInitialRef = useRef(false);
@@ -69,6 +89,25 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
       });
     }
   }, [sendMessage]);
+
+  // Sync outline from tool output to store
+  useEffect(() => {
+    const lastMessage = messages[messages.length - 1];
+    if (!lastMessage || lastMessage.role !== "assistant") return;
+
+    const toolParts = lastMessage.parts?.filter(isToolPart).filter(
+      (p) => p.type === "tool-updateOutline" && p.state === "output-available"
+    );
+
+    if (toolParts && toolParts.length > 0) {
+      const lastToolPart = toolParts[toolParts.length - 1];
+      const output = lastToolPart.output as { outline?: unknown } | undefined;
+      if (output?.outline) {
+        setOutline(output.outline as never);
+        setIsOutlineLoading(false);
+      }
+    }
+  }, [messages, setOutline, setIsOutlineLoading]);
 
   return {
     messages: chat.messages as UIMessage[],
