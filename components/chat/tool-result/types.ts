@@ -188,14 +188,6 @@ export interface CheckCourseProgressOutput {
 // Interview Tool Types
 // ============================================
 
-export interface SuggestOptionsOutput {
-  question: string;
-  options: string[];
-  allowCustom: boolean;
-  allowSkip: boolean;
-  multiSelect: boolean;
-}
-
 export interface CourseOutlineModule {
   id?: string;
   title: string;
@@ -255,7 +247,6 @@ export type ToolOutputMap = {
   analyzeStyle: AnalyzeStyleOutput;
   checkCourseProgress: CheckCourseProgressOutput;
   // Interview tools
-  suggestOptions: SuggestOptionsOutput;
   proposeOutline: ProposeOutlineOutput;
   assessComplexity: AssessComplexityOutput;
   updateProfile: UpdateProfileOutput;

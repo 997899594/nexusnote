@@ -62,7 +62,7 @@ export function InterviewOptions({ options, onSelect }: InterviewOptionsProps) {
             "transition-colors duration-200",
             "hover:bg-purple-500 hover:text-white hover:border-purple-500",
             "focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:ring-offset-2",
-            "dark:bg-card dark:hover:bg-purple-600 dark:hover:border-purple-600"
+            "dark:bg-card dark:hover:bg-purple-600 dark:hover:border-purple-600",
           )}
         >
           <span>{option.label}</span>

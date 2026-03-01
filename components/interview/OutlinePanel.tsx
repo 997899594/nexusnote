@@ -106,8 +106,7 @@ export function OutlinePanel({ outline, isLoading }: OutlinePanelProps) {
                     <Clock className="h-4 w-4" />
                     <span>
                       预计时长: {Math.floor(outline.estimatedMinutes / 60)}小时
-                      {outline.estimatedMinutes % 60 > 0 &&
-                        ` ${outline.estimatedMinutes % 60}分钟`}
+                      {outline.estimatedMinutes % 60 > 0 && ` ${outline.estimatedMinutes % 60}分钟`}
                     </span>
                   </div>
                 )}
@@ -127,7 +126,7 @@ export function OutlinePanel({ outline, isLoading }: OutlinePanelProps) {
                         className={cn(
                           "flex h-7 w-7 shrink-0 items-center justify-center rounded-full",
                           "bg-gradient-to-br from-purple-500 to-purple-600",
-                          "text-xs font-bold text-white shadow-sm"
+                          "text-xs font-bold text-white shadow-sm",
                         )}
                       >
                         {index + 1}
@@ -135,9 +134,7 @@ export function OutlinePanel({ outline, isLoading }: OutlinePanelProps) {
 
                       {/* Chapter Content */}
                       <div className="flex-1 min-w-0">
-                        <h4 className="text-sm font-semibold text-foreground">
-                          {chapter.title}
-                        </h4>
+                        <h4 className="text-sm font-semibold text-foreground">{chapter.title}</h4>
                         {chapter.description && (
                           <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
                             {chapter.description}
@@ -150,7 +147,7 @@ export function OutlinePanel({ outline, isLoading }: OutlinePanelProps) {
                                 key={`${topic}-${topicIndex}`}
                                 className={cn(
                                   "inline-flex items-center rounded-full px-2 py-0.5 text-xs",
-                                  "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
+                                  "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
                                 )}
                               >
                                 {topic}

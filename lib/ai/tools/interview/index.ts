@@ -2,8 +2,8 @@
  * Interview Tools - 自适应访谈系统工具
  *
  * 工具分类:
- * - 服务端工具 (有 execute): assessComplexity, updateProfile
- * - 客户端工具 (无 execute): suggestOptions, proposeOutline
+ * - 服务端工具 (有 execute): assessComplexity, createCourseProfile, updateProfile, updateOutline, confirmOutline
+ * - 客户端工具 (无 execute): proposeOutline
  */
 
 import { tool } from "ai";
@@ -157,8 +157,7 @@ export const UpdateOutlineSchema = z.object({
 });
 
 export const updateOutlineTool = tool({
-  description:
-    "更新课程大纲。每轮对话后调用，生成完整的课程大纲。用户可以根据大纲反馈调整。",
+  description: "更新课程大纲。每轮对话后调用，生成完整的课程大纲。用户可以根据大纲反馈调整。",
   inputSchema: UpdateOutlineSchema,
   execute: async ({ courseProfileId, title, description, estimatedMinutes, chapters }) => {
     try {

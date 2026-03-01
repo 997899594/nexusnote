@@ -71,7 +71,9 @@ export default function InterviewPage() {
     (status === "submitted" || status === "streaming") && (!lastMsg || lastMsg.role === "user");
 
   // 从 AI 消息中提取选项
-  function extractOptionsFromMessage(message: UIMessage | undefined): Array<{ label: string }> | null {
+  function extractOptionsFromMessage(
+    message: UIMessage | undefined,
+  ): Array<{ label: string }> | null {
     if (!message?.parts) return null;
     const textPart = message.parts.find((p) => p.type === "text");
     if (!textPart || !("text" in textPart)) return null;

@@ -237,7 +237,6 @@ export function getAgent(
         interviewTools,
         additionalInstructions,
         // 只在达到最大轮数时停止
-        // suggestOptions 和 proposeOutline 不暂停，AI 继续生成文字
         stepCountIs(INTERVIEW_MAX_STEPS),
       );
     case "COURSE":

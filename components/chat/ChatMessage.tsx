@@ -9,11 +9,7 @@ import { ToolResultRenderer } from "./tool-result/ToolResultRenderer";
 interface ChatMessageProps {
   message: UIMessage;
   onSendReply?: (text: string) => void;
-  addToolOutput?: (params: {
-    tool: string;
-    toolCallId: string;
-    output: unknown;
-  }) => Promise<void>;
+  addToolOutput?: (params: { tool: string; toolCallId: string; output: unknown }) => Promise<void>;
 }
 
 function isTextPart(part: { type: string }): part is TextUIPart {

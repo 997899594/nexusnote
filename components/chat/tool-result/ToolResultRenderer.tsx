@@ -27,11 +27,7 @@ function getOutput<T extends keyof ToolOutputMap>(part: ToolPart): ToolOutputMap
 interface ToolResultRendererProps {
   toolPart: ToolPart;
   onSendReply?: (text: string) => void;
-  addToolOutput?: (params: {
-    tool: string;
-    toolCallId: string;
-    output: unknown;
-  }) => Promise<void>;
+  addToolOutput?: (params: { tool: string; toolCallId: string; output: unknown }) => Promise<void>;
 }
 
 export function ToolResultRenderer({

@@ -30,11 +30,7 @@ interface UseInterviewReturn {
   status: string;
   isLoading: boolean;
   sessionId: string;
-  addToolOutput: (params: {
-    tool: string;
-    toolCallId: string;
-    output: unknown;
-  }) => Promise<void>;
+  addToolOutput: (params: { tool: string; toolCallId: string; output: unknown }) => Promise<void>;
 }
 
 export function useInterview(options?: UseInterviewOptions): UseInterviewReturn {
@@ -95,9 +91,9 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
     const lastMessage = messages[messages.length - 1];
     if (!lastMessage || lastMessage.role !== "assistant") return;
 
-    const toolParts = lastMessage.parts?.filter(isToolPart).filter(
-      (p) => p.type === "tool-updateOutline" && p.state === "output-available"
-    );
+    const toolParts = lastMessage.parts
+      ?.filter(isToolPart)
+      .filter((p) => p.type === "tool-updateOutline" && p.state === "output-available");
 
     if (toolParts && toolParts.length > 0) {
       const lastToolPart = toolParts[toolParts.length - 1];
