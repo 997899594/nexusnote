@@ -139,7 +139,7 @@ export const updateProfileTool = tool({
 });
 
 // ============================================
-// 3. suggestOptions - 展示选项 (客户端工具)
+// 3. suggestOptions - 展示选项 (服务端工具，返回数据给UI)
 // ============================================
 
 export const SuggestOptionsSchema = z.object({
@@ -152,9 +152,13 @@ export const SuggestOptionsSchema = z.object({
 
 export const suggestOptionsTool = tool({
   description:
-    "向用户展示可点击的选项。每次访谈轮次调用，暂停等待用户选择或输入。用于收集用户信息。",
+    "向用户展示可点击的选项。返回选项数据给 UI 渲染。AI 应继续生成文字问题。",
   inputSchema: SuggestOptionsSchema,
-  // 无 execute - 这是客户端工具，会暂停 AI 循环等待用户响应
+  execute: async ({ question, options, allowCustom, allowSkip, multiSelect }) => {
+    // 直接返回输入，让 UI 渲染选项
+    // AI SDK 不会暂停，AI 继续生成文字
+    return { question, options, allowCustom, allowSkip, multiSelect };
+  },
 });
 
 // ============================================
