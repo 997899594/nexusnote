@@ -22,8 +22,7 @@ import {
   assessComplexityTool,
   confirmOutlineTool,
   createCourseProfileTool,
-  proposeOutlineTool,
-  suggestOptionsTool,
+  updateOutlineTool,
   updateProfileTool,
 } from "../tools/interview";
 import {
@@ -174,8 +173,7 @@ const interviewTools = {
   assessComplexity: assessComplexityTool,
   createCourseProfile: createCourseProfileTool,
   updateProfile: updateProfileTool,
-  suggestOptions: suggestOptionsTool,
-  proposeOutline: proposeOutlineTool,
+  updateOutline: updateOutlineTool,
   confirmOutline: confirmOutlineTool,
 } as ToolSet;
 

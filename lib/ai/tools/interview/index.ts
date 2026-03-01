@@ -139,25 +139,56 @@ export const updateProfileTool = tool({
 });
 
 // ============================================
-// 3. suggestOptions - 展示选项 (服务端工具，返回数据给UI)
+// 3. updateOutline - 更新课程大纲（每轮调用）
 // ============================================
 
-export const SuggestOptionsSchema = z.object({
-  question: z.string().describe("要询问用户的问题"),
-  options: z.array(z.string()).min(2).max(6).describe("可点击的选项列表"),
-  allowCustom: z.boolean().default(true).describe("是否允许自定义输入"),
-  allowSkip: z.boolean().default(false).describe("是否允许跳过此问题"),
-  multiSelect: z.boolean().default(false).describe("是否允许多选"),
+export const OutlineChapterSchema = z.object({
+  title: z.string().describe("章节标题"),
+  description: z.string().optional().describe("章节描述"),
+  topics: z.array(z.string()).optional().describe("章节包含的主题"),
 });
 
-export const suggestOptionsTool = tool({
+export const UpdateOutlineSchema = z.object({
+  courseProfileId: z.string().uuid().describe("课程画像 ID"),
+  title: z.string().describe("课程标题"),
+  description: z.string().optional().describe("课程描述"),
+  estimatedMinutes: z.number().optional().describe("预计学习时间(分钟)"),
+  chapters: z.array(OutlineChapterSchema).min(1).describe("章节列表"),
+});
+
+export const updateOutlineTool = tool({
   description:
-    "向用户展示可点击的选项。返回选项数据给 UI 渲染。AI 应继续生成文字问题。",
-  inputSchema: SuggestOptionsSchema,
-  execute: async ({ question, options, allowCustom, allowSkip, multiSelect }) => {
-    // 直接返回输入，让 UI 渲染选项
-    // AI SDK 不会暂停，AI 继续生成文字
-    return { question, options, allowCustom, allowSkip, multiSelect };
+    "更新课程大纲。每轮对话后调用，生成完整的课程大纲。用户可以根据大纲反馈调整。",
+  inputSchema: UpdateOutlineSchema,
+  execute: async ({ courseProfileId, title, description, estimatedMinutes, chapters }) => {
+    try {
+      const outlineData = {
+        title,
+        description,
+        estimatedMinutes,
+        chapters,
+      };
+
+      await db
+        .update(courseProfiles)
+        .set({
+          title,
+          description,
+          estimatedMinutes,
+          outlineData,
+          updatedAt: new Date(),
+        })
+        .where(eq(courseProfiles.id, courseProfileId));
+
+      return {
+        success: true,
+        outline: outlineData,
+        message: "大纲已更新",
+      };
+    } catch (error) {
+      console.error("[Tool] updateOutline error:", error);
+      return { success: false, error: "更新大纲失败" };
+    }
   },
 });
 
@@ -289,10 +320,9 @@ export const confirmOutlineTool = tool({
 
 export const interviewTools = {
   assessComplexity: assessComplexityTool,
-  updateProfile: updateProfileTool,
-  suggestOptions: suggestOptionsTool,
-  proposeOutline: proposeOutlineTool,
   createCourseProfile: createCourseProfileTool,
+  updateProfile: updateProfileTool,
+  updateOutline: updateOutlineTool,
   confirmOutline: confirmOutlineTool,
 };
 
