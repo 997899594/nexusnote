@@ -16,10 +16,18 @@ export default function InterviewPage() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [input, setInput] = useState("");
+  const [started, setStarted] = useState(false);
 
   const interview = useInterview({
     initialMessage: initialMessage || undefined,
   });
+
+  // 标记是否已开始（有初始消息或用户发送了消息）
+  useEffect(() => {
+    if (initialMessage && !started) {
+      setStarted(true);
+    }
+  }, [initialMessage, started]);
 
   const messages = interview.messages;
   const sendMessage = interview.sendMessage;
@@ -79,7 +87,8 @@ export default function InterviewPage() {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto mobile-scroll px-4 md:px-6 py-4">
         <div className="max-w-[calc(100vw-32px)] md:max-w-[var(--message-max-width)] mx-auto space-y-4">
-          {chatMessages.length === 0 && !isLoading && !initialMessage && (
+          {/* 空状态：没有消息、不在加载、没有初始消息 */}
+          {chatMessages.length === 0 && !isLoading && !started && (
             <div className="text-center py-12">
               <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
                 <GraduationCap className="w-8 h-8 text-white" />
@@ -92,7 +101,10 @@ export default function InterviewPage() {
                     <button
                       key={example}
                       type="button"
-                      onClick={() => sendMessage({ text: example })}
+                      onClick={() => {
+                        setStarted(true);
+                        sendMessage({ text: example });
+                      }}
                       className="px-4 py-2 bg-zinc-100 hover:bg-zinc-200 rounded-full text-sm text-zinc-600 transition-colors"
                     >
                       {example}

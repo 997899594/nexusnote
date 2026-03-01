@@ -46,14 +46,24 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
 
   const { sendMessage, status } = chat;
 
-  // 自动发送初始消息
-  const sentInitial = useRef(false);
+  // 自动发送初始消息（使用 ref 避免重复发送）
+  const sentInitialRef = useRef(false);
+  const initialMessageRef = useRef(options?.initialMessage);
+
   useEffect(() => {
-    if (options?.initialMessage && !sentInitial.current && chat.messages.length === 0) {
-      sentInitial.current = true;
-      sendMessage({ text: options.initialMessage });
+    initialMessageRef.current = options?.initialMessage;
+  }, [options?.initialMessage]);
+
+  useEffect(() => {
+    const msg = initialMessageRef.current;
+    if (msg && !sentInitialRef.current) {
+      sentInitialRef.current = true;
+      // 延迟一帧确保 chat 已初始化
+      requestAnimationFrame(() => {
+        sendMessage({ text: msg });
+      });
     }
-  }, [options?.initialMessage, sendMessage, chat.messages.length]);
+  }, [sendMessage]);
 
   return {
     messages: chat.messages as UIMessage[],
