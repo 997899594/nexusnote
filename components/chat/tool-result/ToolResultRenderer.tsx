@@ -139,23 +139,14 @@ export function ToolResultRenderer({
           allowSkip={output.allowSkip ?? false}
           multiSelect={output.multiSelect ?? false}
           onSelect={(selection) => {
-            // 使用 addToolOutput 返回工具结果
-            if (addToolOutput && toolPart.toolCallId) {
-              addToolOutput({
-                tool: "suggestOptions",
-                toolCallId: toolPart.toolCallId,
-                output: { selected: selection },
-              });
-            } else {
-              // 降级：发送文本消息
-              const replyText =
-                typeof selection === "string"
-                  ? selection === "__skip__"
-                    ? "[跳过]"
-                    : selection
-                  : (selection as string[]).join("、");
-              onSendReply?.(replyText);
-            }
+            // 选项点击 = 发送文字消息（快捷方式）
+            const replyText =
+              typeof selection === "string"
+                ? selection === "__skip__"
+                  ? "[跳过]"
+                  : selection
+                : (selection as string[]).join("、");
+            onSendReply?.(replyText);
           }}
         />
       );

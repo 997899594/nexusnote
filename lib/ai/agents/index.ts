@@ -251,12 +251,9 @@ export function getAgent(
         INSTRUCTIONS.interview,
         interviewTools,
         additionalInstructions,
-        // 停止条件：展示选项、提出大纲、或达到最大轮数
-        [
-          hasToolCall("suggestOptions"),
-          hasToolCall("proposeOutline"),
-          stepCountIs(INTERVIEW_MAX_STEPS),
-        ],
+        // 只在达到最大轮数时停止
+        // suggestOptions 和 proposeOutline 不暂停，AI 继续生成文字
+        stepCountIs(INTERVIEW_MAX_STEPS),
       );
     case "COURSE":
       return createAgent(
