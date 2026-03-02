@@ -300,10 +300,25 @@ export const ConfirmOutlineSchema = z.object({
 });
 
 export const confirmOutlineTool = tool({
-  description: "用户确认大纲后，正式创建课程。保存大纲数据并准备生成章节内容。",
+  description: "用户确认大纲后，正式创建课程。访谈结束时调用此工具。保存大纲数据并准备生成章节内容。",
   inputSchema: ConfirmOutlineSchema,
   execute: async ({ courseProfileId, outline }) => {
     try {
+      // 转换 modules 为 chapters 格式
+      const chapters = outline.modules.map((module, index) => ({
+        title: module.title,
+        description: module.description,
+        topics: module.chapters,
+        order: index,
+      }));
+
+      const outlineData = {
+        title: outline.title,
+        description: outline.description,
+        estimatedMinutes: outline.estimatedMinutes,
+        chapters,
+      };
+
       // 更新课程画像，保存大纲
       await db
         .update(courseSessions)
@@ -312,7 +327,7 @@ export const confirmOutlineTool = tool({
           description: outline.description,
           difficulty: outline.difficulty,
           estimatedMinutes: outline.estimatedMinutes,
-          outlineData: outline,
+          outlineData,
           interviewStatus: "completed",
           status: "outline_confirmed",
           updatedAt: new Date(),
@@ -324,6 +339,7 @@ export const confirmOutlineTool = tool({
         courseProfileId,
         title: outline.title,
         moduleCount: outline.modules.length,
+        outline: outlineData, // 返回完整大纲数据
         message: "大纲已确认，准备生成课程内容",
       };
     } catch (error) {
