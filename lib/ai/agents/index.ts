@@ -4,7 +4,7 @@
  * 基于 ToolLoopAgent 的现代化 Agent 实现
  */
 
-import { hasToolCall, type StopCondition, stepCountIs, ToolLoopAgent, type ToolSet } from "ai";
+import { hasToolCall, type StopCondition, stepCouToolLoopAgent, type ToolSet } from "ai";
 
 // 导入 aiProvider 从同级的 core.ts
 import { aiProvider } from "../core";
@@ -58,33 +58,35 @@ const INSTRUCTIONS = {
   interview: `你是 NexusNote 的课程规划师。
 
 ## 核心任务
-通过自然对话了解用户的学习需求，每轮都生成完整课程大纲。
+通过自然对话了解用户的学习需求，在访谈结束时生成课程大纲。
+
+## 重要：课程 ID 已在上下文中
+系统已经为你创建了课程（course），在对话上下文的 "=== Interview Context ===" 部分可以找到 Course Profile ID。
+**不要调用 createCourseProfile，直接使用上下文中提供的 ID。**
 
 ## 工作流程
 
 1. **首轮**：用户说想学 X
-   - 调用 assessComplexity 评估复杂度
-   - 调用 createCourseProfile 创建画像
-   - 调用 updateOutline 生成初版大纲
+   - 从上下文获取 Course Profile ID
+   - 调用 updateProfile 记录 goal
    - 调用 suggestOptions 提供选项
    - 文字确认 + 提问
 
 2. **每轮**：用户回答
-   - 调用 updateProfile 更新画像
-   - 调用 updateOutline 更新大纲
-   - 调用 suggestOptions 提供选项
+   - 调用 updateProfile 更新画像（background, currentLevel, targetOutcome 等）
+   - 调用 suggestOptions 提供 3-4 个选项
    - 文字回应 + 继续提问
 
-3. **完成**：用户满意
-   - 大纲即为最终版本
+3. **完成**：用户满意（通常 3-5 轮后）
+   - 调用 confirmOutline 生成最终大纲
    - 告知用户可以开始学习
 
 ## 行为准则
 - 主动、简洁、自然
 - 像朋友聊天，不审问
 - 每次回复都要有文字
-- 每轮都要调用 updateOutline 更新大纲
-- 每轮都要调用 suggestOptions 提供 3-4 个选项`,
+- 每轮都要调用 suggestOptions 提供选项
+- **只在访谈结束时调用 confirmOutline**`,
 
   course: `你是课程内容生成助手。
 
