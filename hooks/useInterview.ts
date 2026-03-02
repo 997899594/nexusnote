@@ -39,8 +39,9 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
 
   // Get store setters
   const setOutline = useInterviewStore((s) => s.setOutline);
-  const setCourseProfileId = useInterviewStore((s) => s.setCourseProfileId);
+  const setCourseId = useInterviewStore((s) => s.setCourseId);
   const setIsOutlineLoading = useInterviewStore((s) => s.setIsOutlineLoading);
+  const setInterviewCompleted = useInterviewStore((s) => s.setInterviewCompleted);
 
   const chat = useChat({
     id: sessionId,
@@ -50,9 +51,9 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
       // Custom fetch to capture response headers
       fetch: async (input, init) => {
         const response = await fetch(input, init);
-        const profileId = response.headers.get("X-Course-Profile-Id");
-        if (profileId) {
-          setCourseProfileId(profileId);
+        const courseId = response.headers.get("X-Course-Id");
+        if (courseId) {
+          setCourseId(courseId);
         }
         return response;
       },
@@ -86,28 +87,31 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
     }
   }, [sendMessage]);
 
-  // Sync outline from tool output to store
+  // 监听 confirmOutline 工具调用 - 访谈完成
   useEffect(() => {
     const lastMessage = messages[messages.length - 1];
     if (!lastMessage || lastMessage.role !== "assistant") return;
 
     const toolParts = lastMessage.parts
       ?.filter(isToolPart)
-      .filter((p) => p.type === "tool-updateOutline" && p.state === "output-available");
-
-    // 调试日志
-    console.log("[Interview] Checking for tool parts:", toolParts?.length ?? 0);
+      .filter((p) => p.type === "tool-confirmOutline" && p.state === "output-available");
 
     if (toolParts && toolParts.length > 0) {
       const lastToolPart = toolParts[toolParts.length - 1];
-      const output = lastToolPart.output as { outline?: unknown } | undefined;
-      console.log("[Interview] Tool output:", output);
-      if (output?.outline) {
-        setOutline(output.outline as never);
+      const output = lastToolPart.output as { outline?: unknown; outlineData?: unknown; success?: boolean } | undefined;
+
+      if (output?.success) {
+        // 访谈完成，设置大纲和完成状态
+        // confirmOutline 可能返回 outline 或 outlineData
+        const outlineData = output.outline || output.outlineData;
+        if (outlineData) {
+          setOutline(outlineData as never);
+        }
+        setInterviewCompleted(true);
         setIsOutlineLoading(false);
       }
     }
-  }, [messages, setOutline, setIsOutlineLoading]);
+  }, [messages, setOutline, setInterviewCompleted, setIsOutlineLoading]);
 
   return {
     messages: chat.messages as UIMessage[],
