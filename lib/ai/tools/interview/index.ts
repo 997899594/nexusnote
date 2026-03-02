@@ -85,28 +85,22 @@ export const assessComplexityTool = tool({
 
 export const UpdateProfileSchema = z.object({
   courseProfileId: z.string().uuid().describe("课程画像 ID"),
-  updates: z
-    .object({
-      goal: z.string().optional(),
-      domain: z.string().optional(),
-      complexity: z.enum(["trivial", "simple", "moderate", "complex", "expert"]).optional(),
-      background: z.string().optional(),
-      currentLevel: z.enum(["none", "beginner", "intermediate", "advanced"]).optional(),
-      targetOutcome: z.string().optional(),
-      timeConstraints: z.string().optional(),
-      insights: z.array(z.string()).optional(),
-      readiness: z.number().min(0).max(100).optional(),
-      estimatedTurns: z.number().optional(),
-      currentTurn: z.number().optional(),
-    })
-    .describe("要更新的画像字段"),
+  goal: z.string().optional().describe("学习目标"),
+  domain: z.string().optional().describe("学习领域"),
+  complexity: z.enum(["trivial", "simple", "moderate", "complex", "expert"]).optional().describe("复杂度"),
+  background: z.string().optional().describe("用户背景"),
+  currentLevel: z.enum(["none", "beginner", "intermediate", "advanced"]).optional().describe("当前水平"),
+  targetOutcome: z.string().optional().describe("期望的学习成果"),
+  timeConstraints: z.string().optional().describe("时间限制"),
+  insights: z.array(z.string()).optional().describe("洞察（会追加到已有洞察）"),
+  readiness: z.number().min(0).max(100).optional().describe("准备度 0-100"),
 });
 
 export const updateProfileTool = tool({
   description:
-    "更新用户的学习画像。每轮访谈后调用，累积收集用户信息。insights 数组会追加而非覆盖。",
+    "更新用户的学习画像。每轮访谈后调用，累积收集用户信息。insights 数组会追加而非覆盖。直接传入要更新的字段即可。",
   inputSchema: UpdateProfileSchema,
-  execute: async ({ courseProfileId, updates }) => {
+  execute: async ({ courseProfileId, ...updates }) => {
     try {
       // 获取当前 profile
       const [existingProfile] = await db
@@ -136,8 +130,8 @@ export const updateProfileTool = tool({
         timeConstraints: updates.timeConstraints ?? currentProfile.timeConstraints ?? null,
         insights: [...new Set([...existingInsights, ...newInsights])],
         readiness: updates.readiness ?? currentProfile.readiness ?? 0,
-        estimatedTurns: updates.estimatedTurns ?? currentProfile.estimatedTurns ?? 3,
-        currentTurn: updates.currentTurn ?? (currentProfile.currentTurn ?? 0) + 1,
+        estimatedTurns: currentProfile.estimatedTurns ?? 3, // 由 assessComplexity 设置
+        currentTurn: (currentProfile.currentTurn ?? 0) + 1, // 自动递增
       };
 
       // 更新数据库
