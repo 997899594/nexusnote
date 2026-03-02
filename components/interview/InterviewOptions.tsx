@@ -57,12 +57,11 @@ export function InterviewOptions({ options, onSelect }: InterviewOptionsProps) {
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           className={cn(
-            "inline-flex items-center gap-2 rounded-lg border border-border bg-white px-4 py-2.5",
-            "text-sm font-medium text-foreground shadow-sm",
+            "inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-4 py-2.5",
+            "text-sm font-medium text-zinc-700 shadow-sm",
             "transition-colors duration-200",
-            "hover:bg-purple-500 hover:text-white hover:border-purple-500",
-            "focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:ring-offset-2",
-            "dark:bg-card dark:hover:bg-purple-600 dark:hover:border-purple-600",
+            "hover:bg-zinc-900 hover:text-white hover:border-zinc-900",
+            "focus:outline-none focus:ring-2 focus:ring-zinc-500/50 focus:ring-offset-2",
           )}
         >
           <span>{option.label}</span>
