@@ -13,7 +13,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import {
   conversations,
-  courseProfiles,
+  courseSessions,
   knowledgeChunks,
   skills,
   userSkillMastery,
@@ -127,25 +127,29 @@ async function collectUserData(
     }
   }
 
-  // 3. Course Profiles - AI 生成的课程
+  // 3. Course Sessions - AI 生成的课程
   if (sources.includes("courses")) {
-    const userCourses = await db
+    const userCourseSessions = await db
       .select({
-        id: courseProfiles.id,
-        title: courseProfiles.title,
-        description: courseProfiles.description,
-        outlineMarkdown: courseProfiles.outlineMarkdown,
+        id: courseSessions.id,
+        title: courseSessions.title,
+        description: courseSessions.description,
+        outlineData: courseSessions.outlineData,
       })
-      .from(courseProfiles)
-      .where(eq(courseProfiles.userId, userId))
-      .orderBy(desc(courseProfiles.updatedAt))
+      .from(courseSessions)
+      .where(eq(courseSessions.userId, userId))
+      .orderBy(desc(courseSessions.updatedAt))
       .limit(Math.floor(limit / 2));
 
-    const coursesContent = userCourses
-      .map((c) => ({
-        id: c.id,
-        content: `[课程: ${c.title || "未命名"}]\n${c.description || ""}\n${c.outlineMarkdown || ""}`,
-      }))
+    const coursesContent = userCourseSessions
+      .map((c) => {
+        // 将 outlineData 转换为字符串
+        const outlineStr = c.outlineData ? JSON.stringify(c.outlineData) : "";
+        return {
+          id: c.id,
+          content: `[课程: ${c.title || "未命名"}]\n${c.description || ""}\n${outlineStr}`,
+        };
+      })
       .filter((c) => c.content.length > 50);
 
     if (coursesContent.length > 0) {

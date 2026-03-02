@@ -4,7 +4,7 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import { courseProfiles, db, documents, eq } from "@/db";
+import { courseSessions, db, documents, eq } from "@/db";
 
 export const GenerateCourseSchema = z.object({
   title: z.string().min(1).max(200),
@@ -22,7 +22,7 @@ export const generateCourseTool = tool({
   execute: async (args) => {
     try {
       const [profile] = await db
-        .insert(courseProfiles)
+        .insert(courseSessions)
         .values({
           title: args.title,
           description: args.description,
@@ -36,7 +36,7 @@ export const generateCourseTool = tool({
         await db.insert(documents).values({
           type: "course_chapter",
           title: `第 ${i + 1} 章`,
-          courseProfileId: profile.id,
+          courseId: profile.id,
           outlineNodeId: `chapter-${i + 1}`,
           content: Buffer.from(
             JSON.stringify({
@@ -58,7 +58,7 @@ export const generateCourseTool = tool({
       }
 
       await db
-        .update(courseProfiles)
+        .update(courseSessions)
         .set({
           interviewStatus: "completed",
           status: "completed",
@@ -70,7 +70,7 @@ export const generateCourseTool = tool({
             completedAt: new Date().toISOString(),
           },
         })
-        .where(eq(courseProfiles.id, profile.id));
+        .where(eq(courseSessions.id, profile.id));
 
       return {
         success: true,
@@ -99,18 +99,15 @@ export const checkCourseProgressTool = tool({
     try {
       const [profile] = await db
         .select()
-        .from(courseProfiles)
-        .where(eq(courseProfiles.id, args.courseId))
+        .from(courseSessions)
+        .where(eq(courseSessions.id, args.courseId))
         .limit(1);
 
       if (!profile) {
         return { success: false, error: "课程不存在" };
       }
 
-      const chapters = await db
-        .select()
-        .from(documents)
-        .where(eq(documents.courseProfileId, profile.id));
+      const chapters = await db.select().from(documents).where(eq(documents.courseId, profile.id));
 
       const generatedChapters = chapters.filter((c) => c.content && c.content.length > 0).length;
       const totalChapters = chapters.length;

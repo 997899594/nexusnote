@@ -1,10 +1,5 @@
 /**
  * Interview Store - Interview state management
- *
- * Responsibilities:
- * - Manage current outline data
- * - Manage courseProfileId
- * - Manage outline loading state
  */
 
 import { create } from "zustand";
@@ -24,28 +19,51 @@ export interface OutlineData {
 
 interface InterviewStore {
   outline: OutlineData | null;
-  courseProfileId: string | null;
+  courseId: string | null;
   isOutlineLoading: boolean;
+  interviewCompleted: boolean;
+  estimatedTurns: number | null; // 预计访谈轮数
 
   setOutline: (outline: OutlineData | null) => void;
-  setCourseProfileId: (id: string | null) => void;
+  setCourseId: (id: string | null) => void;
   setIsOutlineLoading: (loading: boolean) => void;
+  setInterviewCompleted: (completed: boolean) => void;
+  setEstimatedTurns: (turns: number | null) => void;
+  reset: () => void;
 }
 
-export const useInterviewStore = create<InterviewStore>((set) => ({
+const initialState = {
   outline: null,
-  courseProfileId: null,
+  courseId: null,
   isOutlineLoading: false,
+  interviewCompleted: false,
+  estimatedTurns: null,
+};
+
+export const useInterviewStore = create<InterviewStore>((set) => ({
+  ...initialState,
 
   setOutline: (outline: OutlineData | null) => {
     set({ outline });
   },
 
-  setCourseProfileId: (id: string | null) => {
-    set({ courseProfileId: id });
+  setCourseId: (id: string | null) => {
+    set({ courseId: id });
   },
 
   setIsOutlineLoading: (loading: boolean) => {
     set({ isOutlineLoading: loading });
+  },
+
+  setInterviewCompleted: (completed: boolean) => {
+    set({ interviewCompleted: completed });
+  },
+
+  setEstimatedTurns: (turns: number | null) => {
+    set({ estimatedTurns: turns });
+  },
+
+  reset: () => {
+    set(initialState);
   },
 }));

@@ -52,13 +52,13 @@ export function ZenModeToggle() {
       className={cn(
         "fixed bottom-6 right-6 z-50",
         "w-10 h-10 rounded-full flex items-center justify-center",
-        "bg-zinc-800 text-white shadow-lg",
-        "hover:bg-zinc-700 transition-colors",
+        "bg-zinc-900 text-white",
+        "shadow-lg hover:bg-zinc-800 transition-colors",
       )}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
     >
-      {isZenMode ? <Maximize2 /> : <Minimize2 />}
+      {isZenMode ? <Maximize2 className="w-5 h-5" /> : <Minimize2 className="w-5 h-5" />}
     </motion.button>
   );
 }

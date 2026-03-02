@@ -199,9 +199,8 @@ export const documents = pgTable(
     content: bytea("content"),
     plainText: text("plain_text"),
 
-    courseProfileId: uuid("course_profile_id"),
+    courseId: uuid("course_id"),
     outlineNodeId: text("outline_node_id"),
-    learningObjectives: jsonb("learning_objectives").$type<string[]>(),
 
     summaries:
       jsonb("summaries").$type<
@@ -220,7 +219,7 @@ export const documents = pgTable(
   },
   (table) => ({
     typeIdx: index("documents_type_idx").on(table.type),
-    courseProfileIdIdx: index("documents_course_profile_id_idx").on(table.courseProfileId),
+    courseIdIdx: index("documents_course_id_idx").on(table.courseId),
   }),
 );
 
@@ -379,8 +378,8 @@ export interface InterviewProfile {
   currentTurn: number;
 }
 
-export const courseProfiles = pgTable(
-  "course_profiles",
+export const courseSessions = pgTable(
+  "course_sessions",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     userId: uuid("user_id").references(() => users.id, {
@@ -393,12 +392,9 @@ export const courseProfiles = pgTable(
     estimatedMinutes: integer("estimated_minutes"),
 
     interviewProfile: jsonb("interview_profile").$type<InterviewProfile>(),
-    interviewMessages: jsonb("interview_messages"),
     interviewStatus: text("interview_status").default("interviewing"),
 
-    outlineVersion: integer("outline_version").notNull().default(1),
     outlineData: jsonb("outline_data"),
-    outlineMarkdown: text("outline_markdown"),
 
     status: text("status").notNull().default("idle"),
 
@@ -414,7 +410,7 @@ export const courseProfiles = pgTable(
     updatedAt: timestamp("updated_at").defaultNow(),
   },
   (table) => ({
-    userIdIdx: index("course_profiles_user_id_idx").on(table.userId),
+    userIdIdx: index("course_sessions_user_id_idx").on(table.userId),
   }),
 );
 
@@ -621,8 +617,8 @@ export type UserPersonaPreference = typeof userPersonaPreferences.$inferSelect;
 export type NewUserPersonaPreference = typeof userPersonaPreferences.$inferInsert;
 export type PersonaSubscription = typeof personaSubscriptions.$inferSelect;
 export type NewPersonaSubscription = typeof personaSubscriptions.$inferInsert;
-export type CourseProfile = typeof courseProfiles.$inferSelect;
-export type NewCourseProfile = typeof courseProfiles.$inferInsert;
+export type CourseSession = typeof courseSessions.$inferSelect;
+export type NewCourseSession = typeof courseSessions.$inferInsert;
 export type Skill = typeof skills.$inferSelect;
 export type NewSkill = typeof skills.$inferInsert;
 export type SkillRelationship = typeof skillRelationships.$inferSelect;
@@ -637,7 +633,7 @@ export type NewUserSkillMastery = typeof userSkillMastery.$inferInsert;
 export const usersRelations = relations(users, ({ many }) => ({
   topics: many(topics),
   extractedNotes: many(extractedNotes),
-  courseProfiles: many(courseProfiles),
+  courseSessions: many(courseSessions),
   workspaces: many(workspaces),
   conversations: many(conversations),
   knowledgeChunks: many(knowledgeChunks),
@@ -708,9 +704,9 @@ export const extractedNotesRelations = relations(extractedNotes, ({ one }) => ({
   }),
 }));
 
-export const courseProfilesRelations = relations(courseProfiles, ({ one }) => ({
+export const courseSessionsRelations = relations(courseSessions, ({ one }) => ({
   user: one(users, {
-    fields: [courseProfiles.userId],
+    fields: [courseSessions.userId],
     references: [users.id],
   }),
 }));

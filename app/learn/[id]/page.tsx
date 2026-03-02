@@ -7,7 +7,7 @@
 
 import { and, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
-import { db, documents, courseSessions } from "@/db";
+import { courseSessions, db, documents } from "@/db";
 import { auth } from "@/lib/auth";
 
 import { LearnClient } from "./LearnClient";
@@ -76,9 +76,7 @@ export default async function LearnPage({ params, searchParams }: PageProps) {
       outlineNodeId: documents.outlineNodeId,
     })
     .from(documents)
-    .where(
-      and(eq(documents.courseId, sessionId), eq(documents.type, "course_chapter"))
-    );
+    .where(and(eq(documents.courseId, sessionId), eq(documents.type, "course_chapter")));
 
   // Calculate initial chapter index (1-indexed from URL, convert to 0-indexed)
   const chapterNum = chapter ? parseInt(chapter, 10) : 1;

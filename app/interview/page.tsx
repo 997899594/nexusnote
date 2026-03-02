@@ -77,6 +77,7 @@ function InterviewContent() {
   const courseId = useInterviewStore((s) => s.courseId);
   const isOutlineLoading = useInterviewStore((s) => s.isOutlineLoading);
   const interviewCompleted = useInterviewStore((s) => s.interviewCompleted);
+  const estimatedTurns = useInterviewStore((s) => s.estimatedTurns);
 
   // 标记是否已开始
   useEffect(() => {
@@ -170,6 +171,34 @@ function InterviewContent() {
               {/* Progress indicator - 动态轮数显示 */}
               {!interviewCompleted && chatMessages.length > 0 && (() => {
                 const userMessageCount = chatMessages.filter((m) => m.role === "user").length;
+                const totalTurns = estimatedTurns ?? 0;
+
+                if (totalTurns > 0) {
+                  // 有预计轮数时显示 X/Y 格式
+                  return (
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className="flex gap-1">
+                        {Array.from({ length: totalTurns }, (_, i) => (
+                          <motion.div
+                            key={i}
+                            initial={{ scale: 0.8, opacity: 0 }}
+                            animate={{
+                              scale: i < userMessageCount ? 1 : 0.8,
+                              opacity: i < userMessageCount ? 1 : 0.3
+                            }}
+                            className={cn(
+                              "w-2 h-2 rounded-full transition-colors",
+                              i < userMessageCount ? "bg-zinc-900" : "bg-zinc-300"
+                            )}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-xs text-zinc-400">{userMessageCount}/{totalTurns} 轮</span>
+                    </div>
+                  );
+                }
+
+                // 没有预计轮数时显示简单格式
                 return (
                   <div className="flex items-center gap-2 mt-1">
                     <div className="flex gap-1">

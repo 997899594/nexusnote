@@ -42,7 +42,7 @@ export function ChapterList() {
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="p-2 space-y-1"
+      className="p-3 space-y-1"
     >
       <AnimatePresence mode="popLayout">
         {chapters.map((chapter, index) => {
@@ -57,33 +57,28 @@ export function ChapterList() {
               type="button"
               onClick={() => setCurrentChapterIndex(index)}
               className={cn(
-                "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all",
+                "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors",
                 isCurrent
-                  ? "bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
-                  : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                  ? "bg-zinc-100 text-zinc-900"
+                  : "text-zinc-600 hover:bg-zinc-50",
               )}
             >
               {/* Number or check mark */}
               <div
                 className={cn(
-                  "w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium shrink-0",
+                  "w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium shrink-0 transition-colors",
                   isCompleted
-                    ? "bg-green-500 text-white"
+                    ? "bg-zinc-900 text-white"
                     : isCurrent
-                      ? "bg-purple-500 text-white"
-                      : "bg-zinc-200 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400"
+                      ? "bg-zinc-900 text-white"
+                      : "bg-zinc-100 text-zinc-500",
                 )}
               >
                 {isCompleted ? <Check className="w-3.5 h-3.5" /> : index + 1}
               </div>
 
               {/* Title */}
-              <span
-                className={cn(
-                  "flex-1 text-sm truncate",
-                  isCurrent && "font-medium"
-                )}
-              >
+              <span className={cn("flex-1 text-sm truncate", isCurrent && "font-medium")}>
                 {chapter.title}
               </span>
             </motion.button>

@@ -21,7 +21,7 @@ import { Suspense } from "react";
 import { SkillGraph } from "@/components/profile/SkillGraph";
 import { SkillGraphSkeleton } from "@/components/profile/SkillGraphSkeleton";
 import { FloatingHeader } from "@/components/shared/layout";
-import { conversations, courseProfiles, db, documents } from "@/db";
+import { conversations, courseSessions, db, documents } from "@/db";
 import { auth } from "@/lib/auth";
 import { ProfileSignOut } from "./profile-client";
 
@@ -38,7 +38,7 @@ async function getUserStats(userId: string) {
     db.select({ count: count() }).from(documents),
 
     // 课程数量
-    db.select({ count: count() }).from(courseProfiles).where(eq(courseProfiles.userId, userId)),
+    db.select({ count: count() }).from(courseSessions).where(eq(courseSessions.userId, userId)),
 
     // 最近活动
     db
@@ -62,7 +62,7 @@ async function getUserStats(userId: string) {
   return {
     conversations: conversationCount[0]?.count || 0,
     documents: documentCount[0]?.count || 0,
-    courses: courseCount[0]?.count || 0,
+    courseSessions: courseCount[0]?.count || 0,
     recentActivity,
     aiUsage: {
       totalTokens: 0,
@@ -98,7 +98,7 @@ export default async function ProfilePage() {
     },
     {
       label: "AI 课程",
-      value: stats.courses,
+      value: stats.courseSessions,
       icon: GraduationCap,
       color: "bg-purple-500",
       href: "/interview",

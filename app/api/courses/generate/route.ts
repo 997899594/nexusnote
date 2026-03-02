@@ -6,7 +6,7 @@
 
 import { eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
-import { courseProfiles, db, documents } from "@/db";
+import { courseSessions, db, documents } from "@/db";
 import { auth } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     const chapterCount = chapters || outline?.chapters?.length || 8;
 
     const [profile] = await db
-      .insert(courseProfiles)
+      .insert(courseSessions)
       .values({
         title,
         description: outline
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       await db.insert(documents).values({
         type: "course_chapter",
         title: chapterTitle,
-        courseProfileId: profile.id,
+        courseId: profile.id,
         outlineNodeId: `chapter-${i + 1}`,
         content: Buffer.from(
           JSON.stringify({
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     }
 
     await db
-      .update(courseProfiles)
+      .update(courseSessions)
       .set({
         interviewStatus: "completed",
         status: "completed",
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
           completedAt: new Date().toISOString(),
         },
       })
-      .where(eq(courseProfiles.id, profile.id));
+      .where(eq(courseSessions.id, profile.id));
 
     return NextResponse.json({
       success: true,

@@ -1,7 +1,9 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { BookOpen, Clock, Loader2 } from "lucide-react";
+import { BookOpen, Clock, Loader2, Play } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 interface Chapter {
@@ -20,6 +22,7 @@ interface OutlineData {
 interface OutlinePanelProps {
   outline: OutlineData | null;
   isLoading?: boolean;
+  courseId?: string;
 }
 
 const containerVariants = {
@@ -44,15 +47,25 @@ const itemVariants = {
   },
 };
 
-export function OutlinePanel({ outline, isLoading }: OutlinePanelProps) {
+export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps) {
+  const router = useRouter();
+  const [isStarting, setIsStarting] = useState(false);
+
+  const handleStartLearning = async () => {
+    if (!courseId) return;
+    setIsStarting(true);
+    // 跳转到课程详情页
+    router.push(`/learn/${courseId}`);
+  };
+
   return (
-    <div className="flex h-full flex-col border-r border-border bg-background">
+    <div className="flex h-full flex-col border-r border-zinc-100 bg-white">
       {/* Header */}
-      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-900/30">
-          <BookOpen className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+      <div className="flex items-center gap-2 border-b border-zinc-100 px-4 py-4">
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-900">
+          <BookOpen className="h-4 w-4 text-white" />
         </div>
-        <h2 className="text-base font-semibold text-foreground">学习大纲</h2>
+        <h2 className="text-base font-semibold text-zinc-900">学习大纲</h2>
       </div>
 
       {/* Content */}
@@ -64,9 +77,9 @@ export function OutlinePanel({ outline, isLoading }: OutlinePanelProps) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground"
+              className="flex h-full flex-col items-center justify-center gap-3 text-zinc-500"
             >
-              <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
+              <Loader2 className="h-8 w-8 animate-spin text-zinc-400" />
               <p className="text-sm">正在生成课程大纲...</p>
             </motion.div>
           ) : !outline ? (
@@ -75,14 +88,14 @@ export function OutlinePanel({ outline, isLoading }: OutlinePanelProps) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground"
+              className="flex h-full flex-col items-center justify-center gap-3 text-zinc-500"
             >
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-                <BookOpen className="h-8 w-8" />
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-zinc-100">
+                <BookOpen className="h-8 w-8 text-zinc-400" />
               </div>
               <div className="text-center">
-                <p className="text-sm font-medium">暂无学习大纲</p>
-                <p className="mt-1 text-xs">开始对话后，AI 将为你生成个性化学习大纲</p>
+                <p className="text-sm font-medium text-zinc-700">暂无学习大纲</p>
+                <p className="mt-1 text-xs text-zinc-500">开始对话后，AI 将为你生成个性化学习大纲</p>
               </div>
             </motion.div>
           ) : (
@@ -95,14 +108,14 @@ export function OutlinePanel({ outline, isLoading }: OutlinePanelProps) {
             >
               {/* Course Title & Description */}
               <motion.div variants={itemVariants} className="space-y-2">
-                <h3 className="text-lg font-bold text-foreground">{outline.title}</h3>
+                <h3 className="text-lg font-bold text-zinc-900">{outline.title}</h3>
                 {outline.description && (
-                  <p className="text-sm text-muted-foreground leading-relaxed">
+                  <p className="text-sm text-zinc-600 leading-relaxed">
                     {outline.description}
                   </p>
                 )}
                 {outline.estimatedMinutes && (
-                  <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-1.5 text-sm text-zinc-500">
                     <Clock className="h-4 w-4" />
                     <span>
                       预计时长: {Math.floor(outline.estimatedMinutes / 60)}小时
@@ -118,15 +131,15 @@ export function OutlinePanel({ outline, isLoading }: OutlinePanelProps) {
                   <motion.div
                     key={`${chapter.title}-${index}`}
                     variants={itemVariants}
-                    className="rounded-lg border border-border bg-card p-3 transition-colors hover:bg-accent/50"
+                    className="rounded-xl border border-zinc-100 bg-zinc-50 p-3 transition-colors hover:bg-zinc-100"
                   >
                     <div className="flex items-start gap-3">
                       {/* Chapter Number */}
                       <div
                         className={cn(
                           "flex h-7 w-7 shrink-0 items-center justify-center rounded-full",
-                          "bg-gradient-to-br from-purple-500 to-purple-600",
-                          "text-xs font-bold text-white shadow-sm",
+                          "bg-zinc-900 text-white",
+                          "text-xs font-bold",
                         )}
                       >
                         {index + 1}
@@ -134,9 +147,9 @@ export function OutlinePanel({ outline, isLoading }: OutlinePanelProps) {
 
                       {/* Chapter Content */}
                       <div className="flex-1 min-w-0">
-                        <h4 className="text-sm font-semibold text-foreground">{chapter.title}</h4>
+                        <h4 className="text-sm font-semibold text-zinc-900">{chapter.title}</h4>
                         {chapter.description && (
-                          <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+                          <p className="mt-1 text-xs text-zinc-500 leading-relaxed">
                             {chapter.description}
                           </p>
                         )}
@@ -145,10 +158,7 @@ export function OutlinePanel({ outline, isLoading }: OutlinePanelProps) {
                             {chapter.topics.map((topic, topicIndex) => (
                               <span
                                 key={`${topic}-${topicIndex}`}
-                                className={cn(
-                                  "inline-flex items-center rounded-full px-2 py-0.5 text-xs",
-                                  "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
-                                )}
+                                className="inline-flex items-center rounded-full px-2 py-0.5 text-xs bg-zinc-200 text-zinc-600"
                               >
                                 {topic}
                               </span>
@@ -160,6 +170,32 @@ export function OutlinePanel({ outline, isLoading }: OutlinePanelProps) {
                   </motion.div>
                 ))}
               </div>
+
+              {/* Start Learning Button */}
+              {courseId && (
+                <motion.div variants={itemVariants} className="pt-4">
+                  <button
+                    type="button"
+                    onClick={handleStartLearning}
+                    disabled={isStarting}
+                    className={cn(
+                      "w-full flex items-center justify-center gap-2 rounded-xl px-4 py-3",
+                      "bg-zinc-900 text-white",
+                      "font-medium text-sm",
+                      "hover:bg-zinc-800",
+                      "transition-colors duration-200",
+                      "disabled:opacity-50 disabled:cursor-not-allowed",
+                    )}
+                  >
+                    {isStarting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Play className="h-4 w-4" />
+                    )}
+                    <span>{isStarting ? "准备中..." : "开始学习"}</span>
+                  </button>
+                </motion.div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

@@ -66,7 +66,7 @@ export function CourseOutlineCard({ output }: CourseOutlineCardProps) {
         </div>
         {output.courseId && (
           <a
-            href={`/courses/${output.courseId}`}
+            href={`/learn/${output.courseId}`}
             className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400"
           >
             <ExternalLink className="w-3 h-3" />

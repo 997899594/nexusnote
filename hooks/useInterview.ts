@@ -42,6 +42,7 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
   const setCourseId = useInterviewStore((s) => s.setCourseId);
   const setIsOutlineLoading = useInterviewStore((s) => s.setIsOutlineLoading);
   const setInterviewCompleted = useInterviewStore((s) => s.setInterviewCompleted);
+  const setEstimatedTurns = useInterviewStore((s) => s.setEstimatedTurns);
 
   const chat = useChat({
     id: sessionId,
@@ -112,6 +113,25 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
       }
     }
   }, [messages, setOutline, setInterviewCompleted, setIsOutlineLoading]);
+
+  // 监听 assessComplexity 工具调用 - 获取预计轮数
+  useEffect(() => {
+    const lastMessage = messages[messages.length - 1];
+    if (!lastMessage || lastMessage.role !== "assistant") return;
+
+    const toolParts = lastMessage.parts
+      ?.filter(isToolPart)
+      .filter((p) => p.type === "tool-assessComplexity" && p.state === "output-available");
+
+    if (toolParts && toolParts.length > 0) {
+      const lastToolPart = toolParts[toolParts.length - 1];
+      const output = lastToolPart.output as { estimatedTurns?: number; success?: boolean } | undefined;
+
+      if (output?.success && typeof output.estimatedTurns === "number") {
+        setEstimatedTurns(output.estimatedTurns);
+      }
+    }
+  }, [messages, setEstimatedTurns]);
 
   return {
     messages: chat.messages as UIMessage[],

@@ -5,10 +5,10 @@
  */
 
 import type { ToolUIPart } from "ai";
+import { InterviewOptions } from "@/components/interview/InterviewOptions";
 import { CourseOutlineCard } from "./CourseOutlineCard";
 import { EditorConfirmDialog } from "./EditorConfirmDialog";
 import { GenericToolResult } from "./GenericToolResult";
-import { InterviewOptions } from "@/components/interview/InterviewOptions";
 import { MindMapResult } from "./MindMapResult";
 import { NoteLink } from "./NoteLink";
 import { SearchResults } from "./SearchResults";

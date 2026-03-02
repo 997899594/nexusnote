@@ -13,7 +13,7 @@ export const ChatRequestSchema = z.object({
     .regex(/^[a-z0-9_-]+$/)
     .min(1)
     .optional(),
-  courseProfileId: z.string().uuid().optional(),
+  courseId: z.string().uuid().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
 

@@ -10,6 +10,8 @@ export { useAuthStore } from "./auth";
 export { useChatStore } from "./chat";
 // Editor 相关
 export { useEditorStore } from "./editor";
+// Learn 相关
+export { useLearnStore } from "./learn";
 export { usePendingChatStore } from "./pending-chat";
 export { useTransitionStore } from "./transition";
 // User Preferences (Personalization)

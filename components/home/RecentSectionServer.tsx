@@ -17,7 +17,7 @@ import {
   StickyNote,
 } from "lucide-react";
 import { RecentCard } from "@/components/home";
-import { conversations, courseProfiles, db, documents } from "@/db";
+import { conversations, courseSessions, db, documents } from "@/db";
 import { auth } from "@/lib/auth";
 
 const ICONS = {
@@ -58,21 +58,21 @@ async function getRecentItems(userId: string, limit = 6): Promise<RecentItem[]> 
   const items: RecentItem[] = [];
 
   // 1. 最近课程
-  const courses = await db
+  const recentCourses = await db
     .select({
-      id: courseProfiles.id,
-      title: courseProfiles.title,
-      description: courseProfiles.description,
-      updatedAt: courseProfiles.updatedAt,
-      status: courseProfiles.status,
-      progress: courseProfiles.progress,
+      id: courseSessions.id,
+      title: courseSessions.title,
+      description: courseSessions.description,
+      updatedAt: courseSessions.updatedAt,
+      status: courseSessions.status,
+      progress: courseSessions.progress,
     })
-    .from(courseProfiles)
-    .where(eq(courseProfiles.userId, userId))
-    .orderBy(desc(courseProfiles.updatedAt))
+    .from(courseSessions)
+    .where(eq(courseSessions.userId, userId))
+    .orderBy(desc(courseSessions.updatedAt))
     .limit(limit);
 
-  for (const course of courses) {
+  for (const course of recentCourses) {
     const progressData = (course.progress as { currentChapter?: number }) || {};
     const isCompleted = course.status === "completed";
     const currentChapter = progressData.currentChapter || 0;
@@ -87,7 +87,7 @@ async function getRecentItems(userId: string, limit = 6): Promise<RecentItem[]> 
       title: course.title || "未命名课程",
       desc: course.description?.slice(0, 30) || progress,
       time: formatTime(course.updatedAt),
-      url: `/courses/${course.id}`,
+      url: `/learn/${course.id}`,
     });
   }
 

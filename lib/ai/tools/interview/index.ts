@@ -16,43 +16,66 @@ import type { DomainComplexity, InterviewProfile, LearningLevel } from "@/db/sch
 // ============================================
 
 export const AssessComplexitySchema = z.object({
+  courseProfileId: z.string().uuid().describe("课程画像 ID"),
   topic: z.string().describe("用户想学习的主题"),
-  initialContext: z.string().optional().describe("用户已有的背景信息"),
+  complexity: z
+    .enum(["trivial", "simple", "moderate", "complex", "expert"])
+    .describe("AI 评估的复杂度级别"),
+  estimatedTurns: z.number().min(0).max(6).describe("预计访谈轮数"),
+  reasoning: z.string().optional().describe("复杂度评估理由"),
 });
 
 export const assessComplexityTool = tool({
   description:
-    "评估学习主题的复杂度，决定访谈深度。返回复杂度级别(trivial/simple/moderate/complex/expert)、领域、预计轮数等信息。",
+    "首轮必须调用。AI 评估学习主题复杂度，决定访谈深度。complexity 级别: trivial(0轮直接生成)/simple(1轮)/moderate(2-3轮)/complex(4-5轮)/expert(5-6轮)。",
   inputSchema: AssessComplexitySchema,
-  execute: async ({ topic, initialContext }) => {
-    // 基于主题关键词的简单领域检测
-    const domainPatterns: Record<string, string[]> = {
-      cooking: ["炒", "煮", "做", "烹饪", "菜", "饭", "食材"],
-      programming: ["编程", "代码", "开发", "python", "javascript", "react", "前端", "后端"],
-      exam: ["考研", "考试", "高考", "四级", "六级", "雅思", "托福"],
-      design: ["设计", "ui", "ux", "figma", "海报", "ppt"],
-      language: ["英语", "日语", "法语", "德语", "学习语言"],
-      music: ["吉他", "钢琴", "乐器", "音乐", "唱歌"],
-      fitness: ["健身", "减肥", "运动", "瑜伽"],
-    };
+  execute: async ({ courseProfileId, topic, complexity, estimatedTurns, reasoning }) => {
+    try {
+      // 获取当前 profile
+      const [existingProfile] = await db
+        .select()
+        .from(courseSessions)
+        .where(eq(courseSessions.id, courseProfileId))
+        .limit(1);
 
-    let detectedDomain = "general";
-    const topicLower = topic.toLowerCase();
-
-    for (const [domain, keywords] of Object.entries(domainPatterns)) {
-      if (keywords.some((k) => topicLower.includes(k))) {
-        detectedDomain = domain;
-        break;
+      if (!existingProfile) {
+        return { success: false, error: "课程画像不存在" };
       }
-    }
 
-    return {
-      success: true,
-      topic,
-      domain: detectedDomain,
-      initialContext,
-      message: `已识别学习领域: ${detectedDomain}。请根据主题复杂度决定访谈深度。`,
-    };
+      // 更新 profile 中的复杂度信息
+      const currentProfile = (existingProfile.interviewProfile as InterviewProfile) || {};
+      const updatedProfile: InterviewProfile = {
+        ...currentProfile,
+        goal: topic,
+        complexity: complexity as DomainComplexity,
+        estimatedTurns,
+        currentTurn: 0,
+        insights: reasoning ? [reasoning] : currentProfile.insights || [],
+        readiness: complexity === "trivial" ? 100 : 0,
+      };
+
+      await db
+        .update(courseSessions)
+        .set({
+          title: topic,
+          interviewProfile: updatedProfile,
+          updatedAt: new Date(),
+        })
+        .where(eq(courseSessions.id, courseProfileId));
+
+      return {
+        success: true,
+        topic,
+        complexity,
+        estimatedTurns,
+        reasoning,
+        message: `复杂度评估完成: ${complexity}，预计 ${estimatedTurns} 轮访谈。`,
+        skipInterview: complexity === "trivial", // trivial 直接跳过访谈
+      };
+    } catch (error) {
+      console.error("[Tool] assessComplexity error:", error);
+      return { success: false, error: "复杂度评估失败" };
+    }
   },
 });
 
@@ -354,7 +377,7 @@ export const confirmOutlineTool = tool({
 // ============================================
 
 export const interviewTools = {
-  createCourseProfile: createCourseProfileTool,
+  assessComplexity: assessComplexityTool,
   updateProfile: updateProfileTool,
   suggestOptions: suggestOptionsTool,
   confirmOutline: confirmOutlineTool,

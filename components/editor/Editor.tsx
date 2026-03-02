@@ -1,14 +1,14 @@
 /**
- * Editor - 2026 Modern Tiptap Editor with All Extensions
+ * Editor - 2026 Modern Tiptap Editor
  */
 
 "use client";
 
-import Details from "@tiptap/extension-details";
 import Highlight from "@tiptap/extension-highlight";
 import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
+import TaskItem from "@tiptap/extension-task-item";
 import TaskList from "@tiptap/extension-task-list";
 import { TextStyle } from "@tiptap/extension-text-style";
 import Underline from "@tiptap/extension-underline";
@@ -17,7 +17,6 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useState } from "react";
 import type { SlashCommand } from "@/types/editor";
-import { Callout } from "./Callout";
 
 interface EditorProps {
   content?: string;
@@ -185,17 +184,19 @@ export function Editor({
   const [showSlash, setShowSlash] = useState(false);
 
   const editor = useEditor({
+    immediatelyRender: false,
     extensions: [
       StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
       Placeholder.configure({ placeholder, emptyEditorClass: "is-editor-empty" }),
       Highlight,
       Image,
       Link.configure({ openOnClick: false }),
-      TaskList,
+      TaskList.configure({
+        itemTypeName: "taskItem",
+      }),
+      TaskItem,
       TextStyle,
       Underline,
-      Details,
-      Callout,
     ],
     content,
     editable,
