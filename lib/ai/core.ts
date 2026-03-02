@@ -245,7 +245,7 @@ import { extractReasoningMiddleware, wrapLanguageModel } from "ai";
 
 const MODELS = {
   chat: "gemini-3-flash-preview",
-  pro: "gemini-3-pro-preview",
+  pro: "gemini-3-flash-preview", // 临时切换到 flash 测试
   webSearch: "gemini-3-flash-preview-web-search",
   embedding: "BAAI/bge-base-zh-v1.5",
 } as const;
