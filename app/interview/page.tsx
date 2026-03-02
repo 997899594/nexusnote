@@ -167,35 +167,25 @@ function InterviewContent() {
               <p className="text-xs text-zinc-500">
                 {interviewCompleted ? "大纲已生成" : "告诉我你想学什么"}
               </p>
-              {/* Progress indicator */}
-              {!interviewCompleted && chatMessages.length > 0 && (
-                <div className="flex items-center gap-2 mt-1">
-                  <div className="flex gap-1">
-                    {[1, 2, 3, 4, 5].map((step) => {
-                      const userMessageCount = chatMessages.filter((m) => m.role === "user").length;
-                      const isCompleted = userMessageCount >= step;
-                      const isCurrent = userMessageCount === step - 1;
-                      return (
+              {/* Progress indicator - 动态轮数显示 */}
+              {!interviewCompleted && chatMessages.length > 0 && (() => {
+                const userMessageCount = chatMessages.filter((m) => m.role === "user").length;
+                return (
+                  <div className="flex items-center gap-2 mt-1">
+                    <div className="flex gap-1">
+                      {Array.from({ length: Math.min(userMessageCount, 6) }, (_, i) => (
                         <motion.div
-                          key={step}
-                          initial={{ scale: 0.8, opacity: 0 }}
-                          animate={{
-                            scale: isCompleted ? 1 : isCurrent ? 1.1 : 0.9,
-                            opacity: isCompleted ? 1 : isCurrent ? 0.8 : 0.3
-                          }}
-                          className={cn(
-                            "w-2 h-2 rounded-full transition-colors",
-                            isCompleted ? "bg-zinc-900" : isCurrent ? "bg-zinc-400" : "bg-zinc-200"
-                          )}
+                          key={i}
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          className="w-1.5 h-1.5 rounded-full bg-zinc-900"
                         />
-                      );
-                    })}
+                      ))}
+                    </div>
+                    <span className="text-xs text-zinc-400">第 {userMessageCount} 轮</span>
                   </div>
-                  <span className="text-xs text-zinc-400">
-                    {Math.min(chatMessages.filter((m) => m.role === "user").length, 5)}/5 轮
-                  </span>
-                </div>
-              )}
+                );
+              })()}
             </div>
           </div>
         </header>
