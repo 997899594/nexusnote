@@ -209,7 +209,7 @@ function createAgent(
     model,
     instructions: fullInstructions,
     tools,
-    stopWhen: stopWhen ?? stepCountIs(DEFAULT_MAX_STEPS),
+    stopWhen: stopWhen ?? [hasToolCall('confirmOutline'), stepCountIs(INTERVIEW_MAX_STEPS)],
   });
 }
 

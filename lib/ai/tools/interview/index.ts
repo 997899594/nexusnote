@@ -217,15 +217,10 @@ export const SuggestOptionsSchema = z.object({
 });
 
 export const suggestOptionsTool = tool({
-  description: "向用户展示可点击的选项。每轮回复后调用，返回选项数据给 UI 渲染。AI 继续生成文字。",
+  description: "向用户展示可点击的选项。每轮回复后必须调用此工具。",
   inputSchema: SuggestOptionsSchema,
-  execute: async ({ options }) => {
-    // 返回选项数据，让 UI 渲染
-    return {
-      success: true,
-      options: options.map((label) => ({ label })),
-    };
-  },
+  // 无 execute - 这是客户端工具
+  // 调用后 AI 会继续生成文字，然后停止等待用户点击
 });
 
 // ============================================
