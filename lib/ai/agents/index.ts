@@ -4,7 +4,7 @@
  * 基于 ToolLoopAgent 的现代化 Agent 实现
  */
 
-import { hasToolCall, type StopCondition, stepCouToolLoopAgent, type ToolSet } from "ai";
+import { hasToolCall, stepCountIs, type StopCondition, ToolLoopAgent, type ToolSet } from "ai";
 
 // 导入 aiProvider 从同级的 core.ts
 import { aiProvider } from "../core";
@@ -19,11 +19,8 @@ import {
 } from "../tools/chat";
 import { batchEditTool, draftContentTool, editDocumentTool } from "../tools/editor";
 import {
-  assessComplexityTool,
   confirmOutlineTool,
-  createCourseProfileTool,
   suggestOptionsTool,
-  updateOutlineTool,
   updateProfileTool,
 } from "../tools/interview";
 import {
@@ -172,10 +169,7 @@ const courseTools = {
 } as ToolSet;
 
 const interviewTools = {
-  assessComplexity: assessComplexityTool,
-  createCourseProfile: createCourseProfileTool,
   updateProfile: updateProfileTool,
-  updateOutline: updateOutlineTool,
   suggestOptions: suggestOptionsTool,
   confirmOutline: confirmOutlineTool,
 } as ToolSet;
