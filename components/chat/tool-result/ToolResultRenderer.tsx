@@ -29,12 +29,14 @@ interface ToolResultRendererProps {
   toolPart: ToolPart;
   onSendReply?: (text: string) => void;
   addToolOutput?: (params: { tool: string; toolCallId: string; output: unknown }) => Promise<void>;
+  isStreaming?: boolean;
 }
 
 export function ToolResultRenderer({
   toolPart,
   onSendReply,
   addToolOutput,
+  isStreaming,
 }: ToolResultRendererProps) {
   if (toolPart.state !== "output-available") {
     return null;
@@ -132,8 +134,12 @@ export function ToolResultRenderer({
       return null;
     }
 
-    // Interview options - 选项按钮
+    // Interview options - 选项按钮（流式结束后才显示）
     case "suggestOptions": {
+      // 流式进行中不显示选项
+      if (isStreaming) {
+        return null;
+      }
       const output = getOutput<"suggestOptions">(toolPart);
       if (!output?.success || !output.options) {
         return null;

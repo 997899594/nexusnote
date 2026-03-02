@@ -1,7 +1,6 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Option {
@@ -12,6 +11,7 @@ interface Option {
 interface InterviewOptionsProps {
   options: Option[];
   onSelect: (option: string) => void;
+  isStreaming?: boolean;
 }
 
 const containerVariants = {
@@ -19,25 +19,30 @@ const containerVariants = {
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.08,
+      staggerChildren: 0.05,
     },
   },
 };
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 10 },
+  hidden: { opacity: 0, y: 5 },
   visible: {
     opacity: 1,
     y: 0,
     transition: {
-      duration: 0.2,
+      duration: 0.15,
       ease: "easeOut" as const,
     },
   },
 };
 
-export function InterviewOptions({ options, onSelect }: InterviewOptionsProps) {
+export function InterviewOptions({ options, onSelect, isStreaming }: InterviewOptionsProps) {
   if (!options || options.length === 0) {
+    return null;
+  }
+
+  // 流式响应时不显示选项
+  if (isStreaming) {
     return null;
   }
 
@@ -46,7 +51,7 @@ export function InterviewOptions({ options, onSelect }: InterviewOptionsProps) {
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="flex flex-wrap gap-2"
+      className="flex flex-wrap gap-1.5 mt-2"
     >
       {options.map((option, index) => (
         <motion.button
@@ -54,18 +59,17 @@ export function InterviewOptions({ options, onSelect }: InterviewOptionsProps) {
           variants={itemVariants}
           type="button"
           onClick={() => onSelect(option.action || option.label)}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.99 }}
           className={cn(
-            "inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-4 py-2.5",
-            "text-sm font-medium text-zinc-700 shadow-sm",
-            "transition-colors duration-200",
+            "inline-flex items-center rounded-md border border-zinc-200 bg-zinc-50",
+            "px-2.5 py-1 text-xs font-medium text-zinc-600",
+            "transition-colors duration-150",
             "hover:bg-zinc-900 hover:text-white hover:border-zinc-900",
-            "focus:outline-none focus:ring-2 focus:ring-zinc-500/50 focus:ring-offset-2",
+            "focus:outline-none focus:ring-1 focus:ring-zinc-400",
           )}
         >
-          <span>{option.label}</span>
-          <ChevronRight className="h-4 w-4 opacity-70" />
+          {option.label}
         </motion.button>
       ))}
     </motion.div>

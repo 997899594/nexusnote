@@ -278,12 +278,13 @@ function InterviewContent() {
             )}
 
             {/* 消息列表 */}
-            {chatMessages.map((msg) => (
+            {chatMessages.map((msg, index) => (
               <ChatMessage
                 key={msg.id}
                 message={msg}
                 onSendReply={(text) => sendMessage({ text })}
                 addToolOutput={addToolOutput}
+                isStreaming={isLoading && index === chatMessages.length - 1}
               />
             ))}
 

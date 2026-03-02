@@ -10,6 +10,7 @@ interface ChatMessageProps {
   message: UIMessage;
   onSendReply?: (text: string) => void;
   addToolOutput?: (params: { tool: string; toolCallId: string; output: unknown }) => Promise<void>;
+  isStreaming?: boolean;
 }
 
 function isTextPart(part: { type: string }): part is TextUIPart {
@@ -31,7 +32,7 @@ function getToolParts(message: UIMessage): ToolUIPart[] {
   return message.parts.filter(isToolPart) as ToolUIPart[];
 }
 
-export function ChatMessage({ message, onSendReply, addToolOutput }: ChatMessageProps) {
+export function ChatMessage({ message, onSendReply, addToolOutput, isStreaming }: ChatMessageProps) {
   const isUser = message.role === "user";
   const content = getTextContent(message);
   const toolParts = getToolParts(message);
@@ -62,6 +63,7 @@ export function ChatMessage({ message, onSendReply, addToolOutput }: ChatMessage
                 toolPart={toolPart}
                 onSendReply={onSendReply}
                 addToolOutput={addToolOutput}
+                isStreaming={isStreaming}
               />
             ))}
           </>
