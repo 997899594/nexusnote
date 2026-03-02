@@ -8,7 +8,7 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import { courseProfiles, db, eq } from "@/db";
+import { courseSessions, db, eq } from "@/db";
 import type { DomainComplexity, InterviewProfile, LearningLevel } from "@/db/schema";
 
 // ============================================
@@ -88,8 +88,8 @@ export const updateProfileTool = tool({
       // 获取当前 profile
       const [existingProfile] = await db
         .select()
-        .from(courseProfiles)
-        .where(eq(courseProfiles.id, courseProfileId))
+        .from(courseSessions)
+        .where(eq(courseSessions.id, courseProfileId))
         .limit(1);
 
       if (!existingProfile) {
@@ -119,12 +119,12 @@ export const updateProfileTool = tool({
 
       // 更新数据库
       await db
-        .update(courseProfiles)
+        .update(courseSessions)
         .set({
           interviewProfile: updatedProfile,
           updatedAt: new Date(),
         })
-        .where(eq(courseProfiles.id, courseProfileId));
+        .where(eq(courseSessions.id, courseProfileId));
 
       return {
         success: true,
@@ -169,7 +169,7 @@ export const updateOutlineTool = tool({
       };
 
       await db
-        .update(courseProfiles)
+        .update(courseSessions)
         .set({
           title,
           description,
@@ -177,7 +177,7 @@ export const updateOutlineTool = tool({
           outlineData,
           updatedAt: new Date(),
         })
-        .where(eq(courseProfiles.id, courseProfileId));
+        .where(eq(courseSessions.id, courseProfileId));
 
       return {
         success: true,
@@ -200,8 +200,7 @@ export const SuggestOptionsSchema = z.object({
 });
 
 export const suggestOptionsTool = tool({
-  description:
-    "向用户展示可点击的选项。每轮回复后调用，返回选项数据给 UI 渲染。AI 继续生成文字。",
+  description: "向用户展示可点击的选项。每轮回复后调用，返回选项数据给 UI 渲染。AI 继续生成文字。",
   inputSchema: SuggestOptionsSchema,
   execute: async ({ options }) => {
     // 返回选项数据，让 UI 渲染
@@ -269,7 +268,7 @@ export const createCourseProfileTool = tool({
       };
 
       const [profile] = await db
-        .insert(courseProfiles)
+        .insert(courseSessions)
         .values({
           userId,
           title: goal,
@@ -307,7 +306,7 @@ export const confirmOutlineTool = tool({
     try {
       // 更新课程画像，保存大纲
       await db
-        .update(courseProfiles)
+        .update(courseSessions)
         .set({
           title: outline.title,
           description: outline.description,
@@ -318,7 +317,7 @@ export const confirmOutlineTool = tool({
           status: "outline_confirmed",
           updatedAt: new Date(),
         })
-        .where(eq(courseProfiles.id, courseProfileId));
+        .where(eq(courseSessions.id, courseProfileId));
 
       return {
         success: true,
@@ -339,10 +338,8 @@ export const confirmOutlineTool = tool({
 // ============================================
 
 export const interviewTools = {
-  assessComplexity: assessComplexityTool,
   createCourseProfile: createCourseProfileTool,
   updateProfile: updateProfileTool,
-  updateOutline: updateOutlineTool,
   suggestOptions: suggestOptionsTool,
   confirmOutline: confirmOutlineTool,
 };
