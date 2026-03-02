@@ -4,12 +4,12 @@
  * 2026 架构：
  * - 专注于 INTERVIEW intent
  * - 无 Persona 干扰
- * - 服务端管理 courseProfile 状态
+ * - 服务端管理课程状态
  */
 
 import { createAgentUIStreamResponse, smoothStream, type UIMessage } from "ai";
 import { type NextRequest, NextResponse } from "next/server";
-import { conversations, courseProfiles, db } from "@/db";
+import { conversations, courseSessions, db } from "@/db";
 import type { InterviewProfile } from "@/db/schema";
 import { aiProvider, getAgent, validateRequest } from "@/lib/ai";
 import { APIError, handleError } from "@/lib/api";
@@ -44,32 +44,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { messages, sessionId, courseProfileId } = validation.data;
+    const { messages, sessionId, courseId: inputCourseId } = validation.data;
 
     if (!aiProvider.isConfigured()) {
       throw new APIError("AI 服务未配置", 503, "AI_NOT_CONFIGURED");
     }
 
     // ============================================
-    // 获取或创建 courseProfile
+    // 获取或创建课程
     // ============================================
-    let activeCourseProfileId = courseProfileId;
+    let activeCourseId = inputCourseId;
     const uiMessages = messages as UIMessage[];
 
-    if (activeCourseProfileId) {
-      // 验证 courseProfile 存在且属于当前用户
-      const existingProfile = await db.query.courseProfiles.findFirst({
-        where: (profiles, { eq, and }) =>
-          and(eq(profiles.id, activeCourseProfileId!), eq(profiles.userId, userId)),
+    if (activeCourseId) {
+      // 验证课程存在且属于当前用户
+      const existingCourse = await db.query.courseSessions.findFirst({
+        where: (c, { eq, and }) => and(eq(c.id, activeCourseId!), eq(c.userId, userId)),
       });
 
-      if (!existingProfile) {
-        activeCourseProfileId = undefined;
+      if (!existingCourse) {
+        activeCourseId = undefined;
       }
     }
 
-    if (!activeCourseProfileId) {
-      // 创建新的课程画像
+    if (!activeCourseId) {
+      // 创建新的课程
       const firstUserMessage = uiMessages.find((m) => m.role === "user");
       let goal = "学习新知识";
 
@@ -80,8 +79,8 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      const [newProfile] = await db
-        .insert(courseProfiles)
+      const [newCourse] = await db
+        .insert(courseSessions)
         .values({
           userId,
           title: goal,
@@ -103,8 +102,8 @@ export async function POST(request: NextRequest) {
         })
         .returning();
 
-      activeCourseProfileId = newProfile.id;
-      console.log("[Interview] Created course profile:", activeCourseProfileId);
+      activeCourseId = newCourse.id;
+      console.log("[Interview] Created course:", activeCourseId);
     }
 
     // ============================================
@@ -130,14 +129,14 @@ export async function POST(request: NextRequest) {
             title,
             intent: "INTERVIEW",
             messageCount: uiMessages.length,
-            metadata: { courseProfileId: activeCourseProfileId },
+            metadata: { courseId: activeCourseId },
           })
           .onConflictDoUpdate({
             target: conversations.id,
             set: {
               messageCount: uiMessages.length,
               lastMessageAt: new Date(),
-              metadata: { courseProfileId: activeCourseProfileId },
+              metadata: { courseId: activeCourseId },
             },
           });
       } catch (insertError) {
@@ -151,10 +150,13 @@ export async function POST(request: NextRequest) {
     const interviewContext = `
 === Interview Context ===
 User ID: ${userId}
-Course Profile ID: ${activeCourseProfileId}
+Course ID: ${activeCourseId}
 
-Use the User ID when calling createCourseProfile.
-If a Course Profile ID is provided, use it for updateProfile and other tools.
+工作流程：
+1. 每轮对话后调用 updateProfile 更新用户画像
+2. 每轮对话后调用 suggestOptions 提供 3-4 个选项
+3. 访谈结束时（用户满意）调用 confirmOutline 生成最终大纲
+4. 不要每轮都调用 confirmOutline，只在访谈结束时调用
 `;
 
     const agent = getAgent("INTERVIEW", sessionId, {
@@ -175,8 +177,8 @@ If a Course Profile ID is provided, use it for updateProfile and other tools.
     if (sessionId) {
       response.headers.set("X-Session-Id", sessionId);
     }
-    if (activeCourseProfileId) {
-      response.headers.set("X-Course-Profile-Id", activeCourseProfileId);
+    if (activeCourseId) {
+      response.headers.set("X-Course-Id", activeCourseId);
     }
 
     return response;
