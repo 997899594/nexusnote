@@ -11,10 +11,9 @@ import { createAgentUIStreamResponse, smoothStream, type UIMessage } from "ai";
 import { type NextRequest, NextResponse } from "next/server";
 import { aiUsage, conversations, db } from "@/db";
 import { aiProvider, getAgent, validateRequest } from "@/lib/ai";
-import { getPersona, getUserPersonaPreference } from "@/lib/ai/personas";
+import { buildPersonalization } from "@/lib/ai/personalization";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
-import { buildChatContext } from "@/lib/memory/chat-context-builder";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -22,21 +21,6 @@ export const maxDuration = 300;
 // ============================================
 // Helper Functions
 // ============================================
-
-/**
- * Get explicitly requested persona or user's default
- */
-async function getExplicitOrDefaultPersona(
-  userId: string,
-  explicitPersonaSlug: string | undefined,
-) {
-  if (explicitPersonaSlug) {
-    return getPersona(explicitPersonaSlug);
-  }
-  // Get user's default persona preference
-  const pref = await getUserPersonaPreference(userId);
-  return getPersona(pref.defaultPersonaSlug);
-}
 
 // Rate Limiting - 简单内存实现
 const rateLimits = new Map<string, { count: number; resetAt: number }>();
@@ -138,19 +122,11 @@ export async function POST(request: NextRequest) {
     let userContext = "";
 
     if (userId && userId !== "anonymous") {
-      const [persona, context] = await Promise.all([
-        getExplicitOrDefaultPersona(userId, personaSlug),
-        buildChatContext(userId),
-      ]);
-
-      if (persona) {
-        console.log("[Chat] Persona loaded:", persona.name, persona.slug);
-        personaSystemPrompt = `\n=== AI Persona ===\n${persona.name}\n${persona.systemPrompt}\n`;
-      }
-
-      if (context) {
-        userContext = `\n${context}\n`;
-      }
+      const { systemPrompt, userContext: context } = await buildPersonalization(userId, {
+        personaSlug,
+      });
+      personaSystemPrompt = systemPrompt;
+      userContext = context;
     }
 
     // upsert conversation
