@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Check } from "lucide-react";
+import { Check, Circle, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLearnStore } from "@/stores/learn";
 
@@ -34,7 +34,12 @@ export function ChapterList() {
   const setCurrentChapterIndex = useLearnStore((state) => state.setCurrentChapterIndex);
 
   if (chapters.length === 0) {
-    return null;
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-zinc-400">
+        <Circle className="w-12 h-12 mb-3 opacity-30" />
+        <p className="text-sm">暂无章节内容</p>
+      </div>
+    );
   }
 
   return (
@@ -42,12 +47,13 @@ export function ChapterList() {
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="p-3 space-y-1"
+      className="space-y-1"
     >
       <AnimatePresence mode="popLayout">
         {chapters.map((chapter, index) => {
           const isCompleted = completedChapters.has(chapter.id);
           const isCurrent = index === currentChapterIndex;
+          const isLocked = false; // Future: implement chapter locking
 
           return (
             <motion.button
@@ -55,30 +61,81 @@ export function ChapterList() {
               variants={itemVariants}
               layout
               type="button"
-              onClick={() => setCurrentChapterIndex(index)}
+              onClick={() => !isLocked && setCurrentChapterIndex(index)}
+              disabled={isLocked}
               className={cn(
-                "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors",
-                isCurrent ? "bg-zinc-100 text-zinc-900" : "text-zinc-600 hover:bg-zinc-50",
+                "group w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-all duration-200",
+                isCurrent
+                  ? "bg-[var(--color-accent-light)] text-[var(--color-accent)] shadow-sm"
+                  : "text-zinc-600 hover:bg-zinc-50",
+                isCompleted && !isCurrent && "text-zinc-500",
+                isLocked && "opacity-50 cursor-not-allowed",
               )}
             >
-              {/* Number or check mark */}
+              {/* Status indicator */}
               <div
                 className={cn(
-                  "w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium shrink-0 transition-colors",
+                  "relative w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold shrink-0 transition-all duration-300",
                   isCompleted
-                    ? "bg-zinc-900 text-white"
+                    ? "bg-[var(--color-accent)] text-white"
                     : isCurrent
-                      ? "bg-zinc-900 text-white"
-                      : "bg-zinc-100 text-zinc-500",
+                      ? "bg-[var(--color-accent)] text-white ring-4 ring-[var(--color-accent-light)]"
+                      : "bg-zinc-100 text-zinc-400 group-hover:bg-zinc-200",
                 )}
               >
-                {isCompleted ? <Check className="w-3.5 h-3.5" /> : index + 1}
+                {isCompleted ? (
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                  >
+                    <Check className="w-4 h-4" />
+                  </motion.div>
+                ) : isCurrent ? (
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                  >
+                    <Play className="w-4 h-4 ml-0.5" />
+                  </motion.div>
+                ) : (
+                  <span>{index + 1}</span>
+                )}
+
+                {/* Current playing indicator */}
+                {isCurrent && !isCompleted && (
+                  <motion.div
+                    className="absolute inset-0 rounded-full border-2 border-[var(--color-accent)]"
+                    animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0, 0.5] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  />
+                )}
               </div>
 
               {/* Title */}
-              <span className={cn("flex-1 text-sm truncate", isCurrent && "font-medium")}>
-                {chapter.title}
-              </span>
+              <div className="flex-1 min-w-0">
+                <span
+                  className={cn(
+                    "block text-sm truncate transition-colors",
+                    isCurrent && "font-semibold",
+                    isCompleted && !isCurrent && "line-through opacity-70",
+                  )}
+                >
+                  {chapter.title}
+                </span>
+              </div>
+
+              {/* Duration indicator (placeholder) */}
+              {isCompleted && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.5 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="text-xs text-[var(--color-accent)] bg-[var(--color-accent-light)] px-2 py-0.5 rounded-full"
+                >
+                  ✓
+                </motion.div>
+              )}
             </motion.button>
           );
         })}
