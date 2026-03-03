@@ -32,7 +32,12 @@ function getToolParts(message: UIMessage): ToolUIPart[] {
   return message.parts.filter(isToolPart) as ToolUIPart[];
 }
 
-export function ChatMessage({ message, onSendReply, addToolOutput, isStreaming }: ChatMessageProps) {
+export function ChatMessage({
+  message,
+  onSendReply,
+  addToolOutput,
+  isStreaming,
+}: ChatMessageProps) {
   const isUser = message.role === "user";
   const content = getTextContent(message);
   const toolParts = getToolParts(message);

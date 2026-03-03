@@ -25,7 +25,7 @@ export const POST = withAuth(async (request, { userId }) => {
   ];
 
   return createAgentUIStreamResponse({
-    agent: getAgent("SKILLS"),
+    agent: getAgent("SKILLS") as never,
     uiMessages,
     experimental_transform: smoothStream({
       chunking: new Intl.Segmenter("zh-CN", { granularity: "grapheme" }),

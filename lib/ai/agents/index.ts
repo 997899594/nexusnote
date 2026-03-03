@@ -4,7 +4,7 @@
  * 基于 ToolLoopAgent 的现代化 Agent 实现
  */
 
-import { hasToolCall, stepCountIs, type StopCondition, ToolLoopAgent, type ToolSet } from "ai";
+import { hasToolCall, type StopCondition, stepCountIs, ToolLoopAgent, type ToolSet } from "ai";
 
 // 导入 aiProvider 从同级的 core.ts
 import { aiProvider } from "../core";
@@ -18,12 +18,7 @@ import {
   webSearchTool,
 } from "../tools/chat";
 import { batchEditTool, draftContentTool, editDocumentTool } from "../tools/editor";
-import {
-  assessComplexityTool,
-  confirmOutlineTool,
-  suggestOptionsTool,
-  updateProfileTool,
-} from "../tools/interview";
+import { createInterviewTools } from "../tools/interview";
 import {
   checkCourseProgressTool,
   generateCourseTool,
@@ -32,7 +27,6 @@ import {
 } from "../tools/learning";
 import { hybridSearchTool } from "../tools/rag";
 import { discoverSkillsTool } from "../tools/skills";
-import { analyzeStyleTool } from "../tools/style";
 
 const DEFAULT_MAX_STEPS = 20;
 const INTERVIEW_MAX_STEPS = 12;
@@ -125,30 +119,6 @@ const INSTRUCTIONS = {
 - other: 其他领域
 
 使用 discoverSkills 工具来发现并保存技能。`,
-
-  style: `你是 NexusNote 的风格分析专家。
-
-你的任务是分析用户的对话风格，提取以下维度：
-
-语言复杂度：
-- vocabularyComplexity: 词汇丰富度 (0-1)
-- sentenceComplexity: 句法复杂度 (0-1)
-- abstractionLevel: 抽象程度 (0-1)
-
-沟通风格：
-- directness: 直接 vs 委婉 (0-1)
-- conciseness: 简洁 vs 详细 (0-1)
-- formality: 正式度 (0-1)
-- emotionalIntensity: 情感强度 (0-1)
-
-Big Five 人格特质（需用户同意）：
-- openness: 开放性
-- conscientiousness: 尽责性
-- extraversion: 外向性
-- agreeableness: 宜人性
-- neuroticism: 神经质
-
-使用 analyzeStyle 工具来分析并保存风格数据。`,
 } as const;
 
 // Chat Tools - 轻量级，专注通用对话
@@ -175,22 +145,13 @@ const skillsTools = {
   discoverSkills: discoverSkillsTool,
 } as ToolSet;
 
-const styleTools = {
-  analyzeStyle: analyzeStyleTool,
-} as ToolSet;
-
 const courseTools = {
   ...chatTools,
   generateCourse: generateCourseTool,
   checkCourseProgress: checkCourseProgressTool,
 } as ToolSet;
 
-const interviewTools = {
-  assessComplexity: assessComplexityTool,
-  updateProfile: updateProfileTool,
-  suggestOptions: suggestOptionsTool,
-  confirmOutline: confirmOutlineTool,
-} as ToolSet;
+// interviewTools 动态创建，见 getAgent
 
 function createAgent(
   id: string,
@@ -209,49 +170,49 @@ function createAgent(
     model,
     instructions: fullInstructions,
     tools,
-    stopWhen: stopWhen ?? [hasToolCall('confirmOutline'), stepCountIs(INTERVIEW_MAX_STEPS)],
+    stopWhen: stopWhen ?? [hasToolCall("confirmOutline"), stepCountIs(INTERVIEW_MAX_STEPS)],
   });
 }
 
 interface PersonalizationOptions {
   personaPrompt?: string;
   userContext?: string;
-  emotionAdaptation?: string;
-  interviewContext?: string;
+}
+
+interface InterviewOptions {
+  courseProfileId: string;
 }
 
 export function getAgent(
-  intent: "CHAT" | "INTERVIEW" | "COURSE" | "EDITOR" | "SEARCH" | "SKILLS" | "STYLE",
-  _sessionId?: string,
-  personalization?: PersonalizationOptions,
+  intent: "CHAT" | "INTERVIEW" | "COURSE" | "EDITOR" | "SEARCH" | "SKILLS",
+  options?: PersonalizationOptions | InterviewOptions,
 ) {
+  // 判断是否是 Interview 模式
+  const isInterview = intent === "INTERVIEW" && options && "courseProfileId" in options;
+  const courseProfileId = isInterview ? (options as InterviewOptions).courseProfileId : undefined;
+  const personalization = isInterview ? undefined : (options as PersonalizationOptions | undefined);
+
   // Build additional instructions from personalization data
-  const additionalInstructions =
-    personalization?.personaPrompt ||
-    personalization?.userContext ||
-    personalization?.emotionAdaptation ||
-    personalization?.interviewContext
-      ? [
-          personalization.personaPrompt || "",
-          personalization.userContext || "",
-          personalization.emotionAdaptation || "",
-          personalization.interviewContext || "",
-        ]
-          .filter((s) => s)
-          .join("\n")
-      : undefined;
+  const additionalInstructions = personalization
+    ? [personalization.personaPrompt || "", personalization.userContext || ""]
+        .filter((s) => s)
+        .join("\n")
+    : undefined;
 
   switch (intent) {
-    case "INTERVIEW":
-      return createAgent(
-        "nexusnote-interview",
-        aiProvider.proModel, // 使用 Pro 模型进行访谈
-        INSTRUCTIONS.interview,
-        interviewTools,
-        additionalInstructions,
-        // 只在达到最大轮数时停止
-        stepCountIs(INTERVIEW_MAX_STEPS),
-      );
+    case "INTERVIEW": {
+      if (!courseProfileId) {
+        throw new Error("INTERVIEW agent requires courseProfileId");
+      }
+      const interviewTools = createInterviewTools(courseProfileId);
+      return new ToolLoopAgent({
+        id: "nexusnote-interview",
+        model: aiProvider.proModel,
+        instructions: INSTRUCTIONS.interview,
+        tools: interviewTools,
+        stopWhen: stepCountIs(INTERVIEW_MAX_STEPS),
+      });
+    }
     case "COURSE":
       return createAgent(
         "nexusnote-course",
@@ -266,14 +227,6 @@ export function getAgent(
         aiProvider.proModel,
         INSTRUCTIONS.skills,
         skillsTools,
-        additionalInstructions,
-      );
-    case "STYLE":
-      return createAgent(
-        "nexusnote-style",
-        aiProvider.proModel,
-        INSTRUCTIONS.style,
-        styleTools,
         additionalInstructions,
       );
     default:

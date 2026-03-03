@@ -4,11 +4,12 @@
  * 推理技能之间的关系（前置、相关、包含等）
  */
 
+import { generateObject } from "ai";
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { skillRelationships, skills, userSkillMastery } from "@/db/schema";
-import { aiProvider, safeGenerateObject } from "@/lib/ai/core";
+import { aiProvider } from "@/lib/ai/core";
 
 // ============================================
 // Relationship Types
@@ -67,7 +68,7 @@ export async function inferSkillRelationships(skillSlugs: string[]): Promise<Ski
   const prompt = buildRelationshipPrompt(skillsList);
 
   try {
-    const result = await safeGenerateObject({
+    const result = await generateObject({
       schema: RelationshipInferenceResultSchema,
       model: aiProvider.proModel,
       system: `你是一个技能图谱分析专家。你的任务是基于技术知识，分析一组技能之间的关系。
@@ -88,7 +89,7 @@ export async function inferSkillRelationships(skillSlugs: string[]): Promise<Ski
       temperature: 0.2,
     });
 
-    return result.relationships;
+    return result.object.relationships;
   } catch (error) {
     console.error("[SkillRelationships] 推理关系失败:", error);
     return [];

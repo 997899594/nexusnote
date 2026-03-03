@@ -9,9 +9,10 @@
  * - 返回更新数量
  */
 
+import { generateObject } from "ai";
 import { z } from "zod";
 import { conversations, db, eq } from "@/db";
-import { aiProvider, safeGenerateObject } from "@/lib/ai/core";
+import { aiProvider } from "@/lib/ai/core";
 import { withOptionalAuth } from "@/lib/api";
 
 // Title generation schema
@@ -49,7 +50,7 @@ export const POST = withOptionalAuth(async (_request, { userId }) => {
 
     try {
       // 3. 使用 AI 生成标题（10字以内）
-      const result = await safeGenerateObject({
+      const result = await generateObject({
         schema: titleSchema,
         model: aiProvider.chatModel,
         system:
@@ -61,7 +62,7 @@ export const POST = withOptionalAuth(async (_request, { userId }) => {
       // 4. 更新会话标题
       await db
         .update(conversations)
-        .set({ title: result.title })
+        .set({ title: result.object.title })
         .where(eq(conversations.id, conversation.id));
 
       updatedCount++;

@@ -7,11 +7,11 @@
  * - 自动合并语义相同的标签
  */
 
-import { embed } from "ai";
+import { embed, generateObject } from "ai";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { documents, documentTags, tags } from "@/db/schema";
-import { aiProvider, safeGenerateObject } from "@/lib/ai";
+import { aiProvider } from "@/lib/ai";
 import {
   TAG_GENERATION_SYSTEM_PROMPT,
   TAG_GENERATION_USER_PROMPT,
@@ -81,7 +81,7 @@ class TagGenerationService {
       throw new Error("AI Provider not configured");
     }
 
-    const result = await safeGenerateObject({
+    const result = await generateObject({
       schema: TagGenerationResultSchema,
       model: aiProvider.chatModel,
       system: TAG_GENERATION_SYSTEM_PROMPT,
@@ -90,7 +90,7 @@ class TagGenerationService {
       maxRetries: 2,
     });
 
-    return result;
+    return result.object;
   }
 
   /**

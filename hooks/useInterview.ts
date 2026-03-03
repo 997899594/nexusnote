@@ -99,7 +99,9 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
 
     if (toolParts && toolParts.length > 0) {
       const lastToolPart = toolParts[toolParts.length - 1];
-      const output = lastToolPart.output as { outline?: unknown; outlineData?: unknown; success?: boolean } | undefined;
+      const output = lastToolPart.output as
+        | { outline?: unknown; outlineData?: unknown; success?: boolean }
+        | undefined;
 
       if (output?.success) {
         // 访谈完成，设置大纲和完成状态
@@ -125,7 +127,9 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
 
     if (toolParts && toolParts.length > 0) {
       const lastToolPart = toolParts[toolParts.length - 1];
-      const output = lastToolPart.output as { estimatedTurns?: number; success?: boolean } | undefined;
+      const output = lastToolPart.output as
+        | { estimatedTurns?: number; success?: boolean }
+        | undefined;
 
       if (output?.success && typeof output.estimatedTurns === "number") {
         setEstimatedTurns(output.estimatedTurns);

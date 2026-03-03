@@ -115,11 +115,6 @@ export function ToolResultRenderer({
       return <GenericToolResult output={output} />;
     }
 
-    case "analyzeStyle": {
-      const output = getOutput<"analyzeStyle">(toolPart);
-      return <GenericToolResult output={output} />;
-    }
-
     case "checkCourseProgress": {
       const output = getOutput<"checkCourseProgress">(toolPart);
       return <GenericToolResult output={output} />;

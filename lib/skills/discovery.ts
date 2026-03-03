@@ -8,6 +8,7 @@
  * - Flashcards (闪卡)
  */
 
+import { generateObject } from "ai";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
@@ -18,7 +19,7 @@ import {
   skills,
   userSkillMastery,
 } from "@/db/schema";
-import { aiProvider, safeGenerateObject } from "@/lib/ai/core";
+import { aiProvider } from "@/lib/ai/core";
 
 // ============================================
 // Zod Schemas for Structured Output
@@ -180,7 +181,7 @@ export async function extractSkillsFromData(
   const prompt = buildExtractionPrompt(dataSources);
 
   try {
-    const result = await safeGenerateObject({
+    const result = await generateObject({
       schema: SkillExtractionResultSchema,
       model: aiProvider.proModel,
       system: `你是一个专业的技能分析专家。你的任务是从用户的学习和对话数据中提取出他们掌握或正在学习的技能。
@@ -203,7 +204,7 @@ export async function extractSkillsFromData(
       temperature: 0.3,
     });
 
-    return result.skills;
+    return result.object.skills;
   } catch (error) {
     console.error("[SkillDiscovery] 提取技能失败:", error);
     return [];

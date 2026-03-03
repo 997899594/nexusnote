@@ -5,36 +5,15 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1771878225312,
-      "tag": "0000_unusual_wildside",
+      "when": 1772502976822,
+      "tag": "0000_regular_runaways",
       "breakpoints": true
     },
     {
       "idx": 1,
       "version": "7",
-      "when": 1771880908472,
-      "tag": "0001_mean_the_spike",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1771882223891,
-      "tag": "0002_mean_marvel_apes",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1772176323204,
-      "tag": "0003_classy_johnny_storm",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1772179635465,
-      "tag": "0004_parallel_dorian_gray",
+      "when": 1772509443792,
+      "tag": "0001_remove-unused-tables",
       "breakpoints": true
     }
   ]

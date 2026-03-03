@@ -166,13 +166,6 @@ export interface DiscoverSkillsOutput {
   error?: string;
 }
 
-export interface AnalyzeStyleOutput {
-  success: boolean;
-  message?: string;
-  profile?: unknown;
-  error?: string;
-}
-
 export interface CheckCourseProgressOutput {
   success: boolean;
   courseId: string;
@@ -265,7 +258,6 @@ export type ToolOutputMap = {
   updateNote: UpdateNoteOutput;
   deleteNote: DeleteNoteOutput;
   discoverSkills: DiscoverSkillsOutput;
-  analyzeStyle: AnalyzeStyleOutput;
   checkCourseProgress: CheckCourseProgressOutput;
   // Interview tools
   proposeOutline: ProposeOutlineOutput;

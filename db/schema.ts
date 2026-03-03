@@ -159,23 +159,6 @@ export const userPersonaPreferences = pgTable(
   }),
 );
 
-export const personaSubscriptions = pgTable(
-  "persona_subscriptions",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id")
-      .references(() => users.id, { onDelete: "cascade" })
-      .notNull(),
-    personaId: uuid("persona_id")
-      .references(() => personas.id, { onDelete: "cascade" })
-      .notNull(),
-    subscribedAt: timestamp("subscribed_at").defaultNow(),
-  },
-  (table) => ({
-    uniqueUserPersona: index("persona_subscriptions_unique_idx").on(table.userId, table.personaId),
-  }),
-);
-
 export const workspaces = pgTable("workspaces", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
@@ -415,59 +398,6 @@ export const courseSessions = pgTable(
 );
 
 // ============================================
-// 液态知识系统
-// ============================================
-
-export const topics = pgTable(
-  "topics",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id").references(() => users.id, {
-      onDelete: "cascade",
-    }),
-    name: text("name").notNull(),
-    embedding: halfvec("embedding"),
-    noteCount: integer("note_count").default(0),
-    lastActiveAt: timestamp("last_active_at").defaultNow(),
-    createdAt: timestamp("created_at").defaultNow(),
-    updatedAt: timestamp("updated_at").defaultNow(),
-  },
-  (table) => ({
-    userIdIdx: index("topics_user_id_idx").on(table.userId),
-  }),
-);
-
-export const extractedNotes = pgTable(
-  "extracted_notes",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id").references(() => users.id, {
-      onDelete: "cascade",
-    }),
-    content: text("content").notNull(),
-    embedding: halfvec("embedding"),
-
-    sourceType: text("source_type").notNull(),
-    sourceDocumentId: uuid("source_document_id").references(() => documents.id, {
-      onDelete: "set null",
-    }),
-    sourcePosition: jsonb("source_position"),
-
-    topicId: uuid("topic_id").references(() => topics.id, {
-      onDelete: "set null",
-    }),
-    status: text("status").default("processing"),
-
-    createdAt: timestamp("created_at").defaultNow(),
-  },
-  (table) => ({
-    topicIdIdx: index("extracted_notes_topic_id_idx").on(table.topicId),
-    statusIdx: index("extracted_notes_status_idx").on(table.status),
-    userIdIdx: index("extracted_notes_user_id_idx").on(table.userId),
-  }),
-);
-
-// ============================================
 // 技能图系统
 // ============================================
 
@@ -601,10 +531,6 @@ export type NewKnowledgeChunk = typeof knowledgeChunks.$inferInsert;
 export type DocumentChunk = KnowledgeChunk;
 export type NewDocumentChunk = NewKnowledgeChunk;
 
-export type Topic = typeof topics.$inferSelect;
-export type NewTopic = typeof topics.$inferInsert;
-export type ExtractedNote = typeof extractedNotes.$inferSelect;
-export type NewExtractedNote = typeof extractedNotes.$inferInsert;
 export type AIUsage = typeof aiUsage.$inferSelect;
 export type NewAIUsage = typeof aiUsage.$inferInsert;
 export type UserProfile = typeof userProfiles.$inferSelect;
@@ -615,8 +541,6 @@ export type Persona = typeof personas.$inferSelect;
 export type NewPersona = typeof personas.$inferInsert;
 export type UserPersonaPreference = typeof userPersonaPreferences.$inferSelect;
 export type NewUserPersonaPreference = typeof userPersonaPreferences.$inferInsert;
-export type PersonaSubscription = typeof personaSubscriptions.$inferSelect;
-export type NewPersonaSubscription = typeof personaSubscriptions.$inferInsert;
 export type CourseSession = typeof courseSessions.$inferSelect;
 export type NewCourseSession = typeof courseSessions.$inferInsert;
 export type Skill = typeof skills.$inferSelect;
@@ -631,8 +555,6 @@ export type NewUserSkillMastery = typeof userSkillMastery.$inferInsert;
 // ============================================
 
 export const usersRelations = relations(users, ({ many }) => ({
-  topics: many(topics),
-  extractedNotes: many(extractedNotes),
   courseSessions: many(courseSessions),
   workspaces: many(workspaces),
   conversations: many(conversations),
@@ -641,7 +563,6 @@ export const usersRelations = relations(users, ({ many }) => ({
   stylePrivacySettings: many(stylePrivacySettings),
   createdPersonas: many(personas),
   personaPreference: many(userPersonaPreferences),
-  personaSubscriptions: many(personaSubscriptions),
 }));
 
 export const workspacesRelations = relations(workspaces, ({ one, many }) => ({
@@ -685,21 +606,6 @@ export const conversationsRelations = relations(conversations, ({ one }) => ({
 export const knowledgeChunksRelations = relations(knowledgeChunks, ({ one }) => ({
   user: one(users, {
     fields: [knowledgeChunks.userId],
-    references: [users.id],
-  }),
-}));
-
-export const topicsRelations = relations(topics, ({ many }) => ({
-  notes: many(extractedNotes),
-}));
-
-export const extractedNotesRelations = relations(extractedNotes, ({ one }) => ({
-  topic: one(topics, {
-    fields: [extractedNotes.topicId],
-    references: [topics.id],
-  }),
-  user: one(users, {
-    fields: [extractedNotes.userId],
     references: [users.id],
   }),
 }));
@@ -758,23 +664,11 @@ export const personasRelations = relations(personas, ({ one, many }) => ({
     references: [users.id],
   }),
   userPreferences: many(userPersonaPreferences),
-  subscriptions: many(personaSubscriptions),
 }));
 
 export const userPersonaPreferencesRelations = relations(userPersonaPreferences, ({ one }) => ({
   user: one(users, {
     fields: [userPersonaPreferences.userId],
     references: [users.id],
-  }),
-}));
-
-export const personaSubscriptionsRelations = relations(personaSubscriptions, ({ one }) => ({
-  user: one(users, {
-    fields: [personaSubscriptions.userId],
-    references: [users.id],
-  }),
-  persona: one(personas, {
-    fields: [personaSubscriptions.personaId],
-    references: [personas.id],
   }),
 }));

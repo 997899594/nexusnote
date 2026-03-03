@@ -5,9 +5,8 @@
 
 // Agents
 export { getAgent } from "./agents";
-export type { CircuitBreakerConfig, CircuitState, PromptTemplate } from "./core";
-// Core AI (CircuitBreaker, PromptRegistry, safeGenerateObject, aiProvider)
-export { aiProvider, CircuitBreaker, PromptRegistry, safeGenerateObject } from "./core";
+// Core AI (aiProvider only)
+export { aiProvider } from "./core";
 // Tools
 export * from "./tools";
 export type { ChatRequest, Intent } from "./validation";

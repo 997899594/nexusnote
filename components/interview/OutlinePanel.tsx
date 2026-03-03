@@ -95,7 +95,9 @@ export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps
               </div>
               <div className="text-center">
                 <p className="text-sm font-medium text-zinc-700">暂无学习大纲</p>
-                <p className="mt-1 text-xs text-zinc-500">开始对话后，AI 将为你生成个性化学习大纲</p>
+                <p className="mt-1 text-xs text-zinc-500">
+                  开始对话后，AI 将为你生成个性化学习大纲
+                </p>
               </div>
             </motion.div>
           ) : (
@@ -110,9 +112,7 @@ export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps
               <motion.div variants={itemVariants} className="space-y-2">
                 <h3 className="text-lg font-bold text-zinc-900">{outline.title}</h3>
                 {outline.description && (
-                  <p className="text-sm text-zinc-600 leading-relaxed">
-                    {outline.description}
-                  </p>
+                  <p className="text-sm text-zinc-600 leading-relaxed">{outline.description}</p>
                 )}
                 {outline.estimatedMinutes && (
                   <div className="flex items-center gap-1.5 text-sm text-zinc-500">

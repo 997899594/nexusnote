@@ -6,7 +6,7 @@ import { z } from "zod";
 
 export const ChatRequestSchema = z.object({
   messages: z.array(z.unknown()).min(1),
-  intent: z.enum(["CHAT", "INTERVIEW", "COURSE", "EDITOR", "SEARCH", "SKILLS", "STYLE"]).optional(),
+  intent: z.enum(["CHAT", "INTERVIEW", "COURSE", "EDITOR", "SEARCH", "SKILLS"]).optional(),
   sessionId: z.string().optional(),
   personaSlug: z
     .string()

@@ -12,5 +12,3 @@ export * from "./learning";
 export * from "./rag";
 // Skills Tools
 export * from "./skills";
-// Style Tools
-export * from "./style";

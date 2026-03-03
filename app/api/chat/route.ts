@@ -14,7 +14,6 @@ import { aiProvider, getAgent, validateRequest } from "@/lib/ai";
 import { getPersona, getUserPersonaPreference } from "@/lib/ai/personas";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
-import { buildEmotionAdaptationPrompt, detectEmotion } from "@/lib/emotion";
 import { buildChatContext } from "@/lib/memory/chat-context-builder";
 
 export const runtime = "nodejs";
@@ -23,19 +22,6 @@ export const maxDuration = 300;
 // ============================================
 // Helper Functions
 // ============================================
-
-/**
- * Extract text content from a UIMessage
- */
-function extractTextFromMessage(message: UIMessage | undefined): string {
-  if (!message?.parts) return "";
-  return (
-    message.parts
-      .filter((p) => p.type === "text" && "text" in p)
-      .map((p) => (p as { text: string }).text)
-      .join(" ") || ""
-  );
-}
 
 /**
  * Get explicitly requested persona or user's default
@@ -137,8 +123,6 @@ export async function POST(request: NextRequest) {
     // Chat 只处理 CHAT intent
     const intent = clientIntent || "CHAT";
     const uiMessages = messages as UIMessage[];
-    const lastUserMessage = uiMessages.filter((m) => m.role === "user").pop();
-    const lastMessageText = extractTextFromMessage(lastUserMessage);
 
     console.log("[Chat] Request received, personaSlug:", personaSlug, "intent:", intent);
 
@@ -147,18 +131,16 @@ export async function POST(request: NextRequest) {
     }
 
     // ============================================
-    // Personalization: Load persona, context, emotion
+    // Personalization: Load persona, context
     // ============================================
 
     let personaSystemPrompt = "";
     let userContext = "";
-    let emotionAdaptation = "";
 
     if (userId && userId !== "anonymous") {
-      const [persona, context, emotion] = await Promise.all([
+      const [persona, context] = await Promise.all([
         getExplicitOrDefaultPersona(userId, personaSlug),
         buildChatContext(userId),
-        Promise.resolve(detectEmotion(lastMessageText)),
       ]);
 
       if (persona) {
@@ -168,10 +150,6 @@ export async function POST(request: NextRequest) {
 
       if (context) {
         userContext = `\n${context}\n`;
-      }
-
-      if (emotion) {
-        emotionAdaptation = buildEmotionAdaptationPrompt(emotion);
       }
     }
 
@@ -210,14 +188,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Get agent with personalization
-    const agent = getAgent(intent, sessionId, {
+    const agent = getAgent(intent, {
       personaPrompt: personaSystemPrompt,
       userContext,
-      emotionAdaptation,
     });
 
     const response = await createAgentUIStreamResponse({
-      agent,
+      agent: agent as never,
       uiMessages: messages as never,
       experimental_transform: smoothStream({
         chunking: new Intl.Segmenter("zh-CN", { granularity: "grapheme" }),

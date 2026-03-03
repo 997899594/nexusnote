@@ -9,7 +9,7 @@ export {
   getBuiltInPersona,
   getPersonasByCategory,
 } from "./built-in";
-export type { AIPersona, PersonaPreference, PersonaWithSubscription } from "./service";
+export type { AIPersona, PersonaPreference } from "./service";
 export {
   createCustomPersona,
   deleteCustomPersona,
@@ -18,7 +18,5 @@ export {
   getUserPersonaPreference,
   ratePersona,
   setUserPersonaPreference,
-  subscribeToPersona,
-  unsubscribeFromPersona,
   updateCustomPersona,
 } from "./service";

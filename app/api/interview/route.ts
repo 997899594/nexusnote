@@ -145,26 +145,14 @@ export async function POST(request: NextRequest) {
     }
 
     // ============================================
-    // 获取 Interview Agent（无 Persona）
+    // 获取 Interview Agent
     // ============================================
-    const interviewContext = `
-=== Interview Context ===
-User ID: ${userId}
-Course ID: ${activeCourseId}
-
-工作流程：
-1. 每轮对话后调用 updateProfile 更新用户画像
-2. 每轮对话后调用 suggestOptions 提供 3-4 个选项
-3. 访谈结束时（用户满意）调用 confirmOutline 生成最终大纲
-4. 不要每轮都调用 confirmOutline，只在访谈结束时调用
-`;
-
-    const agent = getAgent("INTERVIEW", sessionId, {
-      interviewContext,
+    const agent = getAgent("INTERVIEW", {
+      courseProfileId: activeCourseId,
     });
 
     const response = await createAgentUIStreamResponse({
-      agent,
+      agent: agent as never,
       uiMessages: messages as never,
       experimental_transform: smoothStream({
         chunking: new Intl.Segmenter("zh-CN", { granularity: "grapheme" }),

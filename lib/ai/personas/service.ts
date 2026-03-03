@@ -5,8 +5,8 @@
  * and user preferences.
  */
 
-import { and, eq } from "drizzle-orm";
-import { db, personaSubscriptions, personas, userPersonaPreferences } from "@/db";
+import { eq } from "drizzle-orm";
+import { db, personas, userPersonaPreferences } from "@/db";
 import { BUILT_IN_PERSONAS, getBuiltInPersona } from "./built-in";
 
 // ============================================
@@ -31,10 +31,6 @@ export interface AIPersona {
 export interface PersonaPreference {
   defaultPersonaSlug: string;
   lastSwitchedAt: Date | null;
-}
-
-export interface PersonaWithSubscription extends AIPersona {
-  isSubscribed?: boolean;
 }
 
 // ============================================
@@ -91,7 +87,7 @@ export async function getPersona(slug: string): Promise<AIPersona | null> {
 
 /**
  * Get all available personas for a user
- * Includes built-in personas + user's custom personas + subscribed personas
+ * Includes built-in personas + user's custom personas
  */
 export async function getAvailablePersonas(userId: string): Promise<AIPersona[]> {
   const result: AIPersona[] = [];
@@ -134,33 +130,6 @@ export async function getAvailablePersonas(userId: string): Promise<AIPersona[]>
         isEnabled: p.isEnabled,
         usageCount: p.usageCount,
         rating: p.rating as { total: number; count: number } | null,
-      });
-    }
-  }
-
-  // Get subscribed personas
-  const subscriptions = await db.query.personaSubscriptions.findMany({
-    where: eq(personaSubscriptions.userId, userId),
-    with: {
-      persona: true,
-    },
-  });
-
-  for (const sub of subscriptions) {
-    if (sub.persona.isEnabled && !result.find((r) => r.slug === sub.persona.slug)) {
-      result.push({
-        id: sub.persona.id,
-        slug: sub.persona.slug,
-        name: sub.persona.name,
-        description: sub.persona.description,
-        avatar: sub.persona.avatar,
-        systemPrompt: sub.persona.systemPrompt,
-        style: sub.persona.style,
-        examples: (sub.persona.examples as string[]) || [],
-        isBuiltIn: sub.persona.isBuiltIn,
-        isEnabled: sub.persona.isEnabled,
-        usageCount: sub.persona.usageCount,
-        rating: sub.persona.rating as { total: number; count: number } | null,
       });
     }
   }
@@ -360,42 +329,6 @@ export async function deleteCustomPersona(userId: string, slug: string): Promise
   }
 
   await db.delete(personas).where(eq(personas.id, persona.id));
-}
-
-/**
- * Subscribe to a persona
- */
-export async function subscribeToPersona(userId: string, personaId: string): Promise<void> {
-  const persona = await db.query.personas.findFirst({
-    where: eq(personas.id, personaId),
-  });
-
-  if (!persona) {
-    throw new Error(`Persona not found: ${personaId}`);
-  }
-
-  if (persona.isBuiltIn) {
-    throw new Error("Cannot subscribe to built-in personas");
-  }
-
-  await db
-    .insert(personaSubscriptions)
-    .values({
-      userId,
-      personaId,
-    })
-    .onConflictDoNothing();
-}
-
-/**
- * Unsubscribe from a persona
- */
-export async function unsubscribeFromPersona(userId: string, personaId: string): Promise<void> {
-  await db
-    .delete(personaSubscriptions)
-    .where(
-      and(eq(personaSubscriptions.userId, userId), eq(personaSubscriptions.personaId, personaId)),
-    );
 }
 
 /**

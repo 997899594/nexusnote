@@ -9,7 +9,7 @@
 
 import { motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Editor } from "@/components/editor";
 import { cn } from "@/lib/utils";
 import { useLearnStore } from "@/stores/learn";
@@ -42,7 +42,10 @@ export function LearnEditor({ chapterDocs }: LearnEditorProps) {
       if (currentChapterDoc?.content) {
         // Buffer is stored as an object with type and data
         // Convert Buffer to string
-        const bufferData = currentChapterDoc.content as Buffer | { type: string; data: number[] } | string;
+        const bufferData = currentChapterDoc.content as
+          | Buffer
+          | { type: string; data: number[] }
+          | string;
         let contentString = "";
 
         if (Buffer.isBuffer(bufferData)) {
@@ -93,16 +96,9 @@ export function LearnEditor({ chapterDocs }: LearnEditorProps) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.2 }}
-      className={cn(
-        "h-full",
-        isZenMode ? "max-w-3xl mx-auto px-8 py-12" : "p-6"
-      )}
+      className={cn("h-full", isZenMode ? "max-w-3xl mx-auto px-8 py-12" : "p-6")}
     >
-      <Editor
-        content={editorContent}
-        onChange={handleContentChange}
-        placeholder="章节内容..."
-      />
+      <Editor content={editorContent} onChange={handleContentChange} placeholder="章节内容..." />
     </motion.div>
   );
 }
