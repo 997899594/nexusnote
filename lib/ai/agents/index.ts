@@ -7,7 +7,7 @@
 import { createChatAgent, type PersonalizationOptions } from "./chat";
 import { createCourseAgent } from "./course";
 import { createInterviewAgent, type InterviewOptions } from "./interview";
-import { createSkillsAgent } from "./skills";
+import { createSkillsAgent, type SkillsAgentOptions } from "./skills";
 
 // ============================================
 // Types
@@ -23,7 +23,7 @@ import { createSkillsAgent } from "./skills";
  */
 export type AgentIntent = "CHAT" | "INTERVIEW" | "COURSE" | "SKILLS" | "EDITOR" | "SEARCH";
 
-export type { PersonalizationOptions, InterviewOptions };
+export type { PersonalizationOptions, InterviewOptions, SkillsAgentOptions };
 
 // ============================================
 // Factory
@@ -35,15 +35,26 @@ export type { PersonalizationOptions, InterviewOptions };
  * @param intent - Agent 类型
  * @param options - Agent 配置
  */
-export function getAgent(intent: AgentIntent, options?: PersonalizationOptions | InterviewOptions) {
+export function getAgent(intent: AgentIntent, options?: PersonalizationOptions | InterviewOptions | SkillsAgentOptions) {
   switch (intent) {
     case "INTERVIEW": {
       return createInterviewAgent(options as InterviewOptions);
     }
     case "COURSE":
       return createCourseAgent(options as PersonalizationOptions | undefined);
-    case "SKILLS":
-      return createSkillsAgent(options as PersonalizationOptions | undefined);
+    case "SKILLS": {
+      const personalization = options as PersonalizationOptions | undefined;
+      // SKILLS agent 需要 userId
+      const userId = (options as Record<string, unknown>)?.userId as string | undefined;
+      if (!userId) {
+        // 如果没有 userId，回退到 chat agent
+        return createChatAgent(personalization);
+      }
+      return createSkillsAgent({
+        ...personalization,
+        userId,
+      });
+    }
     default:
       return createChatAgent(options as PersonalizationOptions | undefined);
   }

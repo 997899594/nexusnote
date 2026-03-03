@@ -4,8 +4,8 @@
 
 import { stepCountIs, ToolLoopAgent, type ToolSet } from "ai";
 import { aiProvider } from "../core";
-import { discoverSkillsTool } from "../tools/skills";
 import type { PersonalizationOptions } from "./chat";
+import { createDiscoverSkillsTool } from "../tools/skills";
 
 const INSTRUCTIONS = {
   skills: `你是 NexusNote 的技能发现专家。
@@ -29,21 +29,27 @@ const INSTRUCTIONS = {
 使用 discoverSkills 工具来发现并保存技能。`,
 } as const;
 
-const skillsTools = {
-  discoverSkills: discoverSkillsTool,
-} as ToolSet;
+export interface SkillsAgentOptions extends PersonalizationOptions {
+  userId: string;
+}
 
 /**
  * 创建 SKILLS Agent
  */
-export function createSkillsAgent(options?: PersonalizationOptions) {
+export function createSkillsAgent(options: SkillsAgentOptions) {
   const additionalInstructions = options
-    ? [options.personaPrompt || "", options.userContext || ""].filter((s) => s).join("\n")
+    ? [options.personaPrompt || "", options.userContext || ""]
+        .filter((s) => s)
+        .join("\n")
     : undefined;
 
   const fullInstructions = additionalInstructions
     ? `${additionalInstructions}\n\n${INSTRUCTIONS.skills}`
     : INSTRUCTIONS.skills;
+
+  const skillsTools = {
+    discoverSkills: createDiscoverSkillsTool(options.userId),
+  } as ToolSet;
 
   return new ToolLoopAgent({
     id: "nexusnote-skills",
