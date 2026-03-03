@@ -149,6 +149,15 @@ export function createInterviewTools(courseProfileId: string) {
     suggestOptions: tool({
       description: "展示选项。每轮回复后调用。",
       inputSchema: SuggestOptionsSchema,
+      execute: async ({ options }) => {
+        // 这是一个客户端展示工具，execute 只需返回选项
+        // AI SDK 会停止循环，等待用户选择
+        return {
+          success: true,
+          options,
+          message: "请选择一个选项或输入自定义内容",
+        };
+      },
     }),
 
     confirmOutline: tool({
