@@ -5,6 +5,7 @@
 import { stepCountIs, ToolLoopAgent, type ToolSet } from "ai";
 import { aiProvider } from "../core";
 import {
+  createNoteTools,
   createNoteTool,
   deleteNoteTool,
   getNoteTool,
@@ -33,29 +34,10 @@ const INSTRUCTIONS = {
 - 使用工具获取信息，不要编造`,
 } as const;
 
-// Chat Tools - 轻量级，专注通用对话
-const chatTools = {
-  // Notes CRUD
-  createNote: createNoteTool,
-  getNote: getNoteTool,
-  updateNote: updateNoteTool,
-  deleteNote: deleteNoteTool,
-  // Search
-  searchNotes: searchNotesTool,
-  hybridSearch: hybridSearchTool,
-  webSearch: webSearchTool,
-  // Learning
-  mindMap: mindMapTool,
-  summarize: summarizeTool,
-  // Editor
-  editDocument: editDocumentTool,
-  batchEdit: batchEditTool,
-  draftContent: draftContentTool,
-} as ToolSet;
-
 export interface PersonalizationOptions {
   personaPrompt?: string;
   userContext?: string;
+  userId?: string;
 }
 
 /**
@@ -70,6 +52,27 @@ export function createChatAgent(options?: PersonalizationOptions) {
     ? `${additionalInstructions}\n\n${INSTRUCTIONS.chat}`
     : INSTRUCTIONS.chat;
 
+  // 构建 chatTools - 如果有 userId，使用带权限验证的笔记工具
+  const chatTools = {
+    ...(options?.userId
+      ? createNoteTools(options.userId)
+      : {
+          createNote: createNoteTool,
+          getNote: getNoteTool,
+          updateNote: updateNoteTool,
+          deleteNote: deleteNoteTool,
+        }),
+    // 其他工具不变
+    searchNotes: searchNotesTool,
+    hybridSearch: hybridSearchTool,
+    webSearch: webSearchTool,
+    mindMap: mindMapTool,
+    summarize: summarizeTool,
+    editDocument: editDocumentTool,
+    batchEdit: batchEditTool,
+    draftContent: draftContentTool,
+  } as ToolSet;
+
   return new ToolLoopAgent({
     id: "nexusnote-chat",
     model: aiProvider.chatModel,
@@ -79,5 +82,18 @@ export function createChatAgent(options?: PersonalizationOptions) {
   });
 }
 
-// 导出 tools 供其他 agent 复用
-export { chatTools };
+// 导出工具供外部使用（deprecated - 推荐使用 createChatAgent 传入 userId）
+export const chatTools = {
+  createNote: createNoteTool,
+  getNote: getNoteTool,
+  updateNote: updateNoteTool,
+  deleteNote: deleteNoteTool,
+  searchNotes: searchNotesTool,
+  hybridSearch: hybridSearchTool,
+  webSearch: webSearchTool,
+  mindMap: mindMapTool,
+  summarize: summarizeTool,
+  editDocument: editDocumentTool,
+  batchEdit: batchEditTool,
+  draftContent: draftContentTool,
+} as ToolSet;
