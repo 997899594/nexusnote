@@ -2,8 +2,7 @@
  * Learning Tools - 学习增强工具
  */
 
-import { generateObject } from "ai";
-import { tool } from "ai";
+import { generateObject, tool } from "ai";
 import { z } from "zod";
 import { aiProvider } from "@/lib/ai/core";
 

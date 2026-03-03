@@ -57,7 +57,9 @@ export const discoverSkillsTool = tool({
   description: "[DEPRECATED] 使用 createDiscoverSkillsTool(userId) 代替",
   inputSchema: DiscoverSkillsToolSchema,
   execute: async () => {
-    console.warn("[Tool] discoverSkillsTool is deprecated. Use createDiscoverSkillsTool(userId) instead.");
+    console.warn(
+      "[Tool] discoverSkillsTool is deprecated. Use createDiscoverSkillsTool(userId) instead.",
+    );
     return {
       success: false,
       error: "Tool requires userId context. Use createDiscoverSkillsTool(userId).",

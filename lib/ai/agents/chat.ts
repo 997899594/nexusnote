@@ -5,8 +5,8 @@
 import { stepCountIs, ToolLoopAgent, type ToolSet } from "ai";
 import { aiProvider } from "../core";
 import {
-  createNoteTools,
   createNoteTool,
+  createNoteTools,
   deleteNoteTool,
   getNoteTool,
   searchNotesTool,

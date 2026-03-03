@@ -4,8 +4,8 @@
 
 import { stepCountIs, ToolLoopAgent, type ToolSet } from "ai";
 import { aiProvider } from "../core";
-import type { PersonalizationOptions } from "./chat";
 import { createDiscoverSkillsTool } from "../tools/skills";
+import type { PersonalizationOptions } from "./chat";
 
 const INSTRUCTIONS = {
   skills: `你是 NexusNote 的技能发现专家。
@@ -38,9 +38,7 @@ export interface SkillsAgentOptions extends PersonalizationOptions {
  */
 export function createSkillsAgent(options: SkillsAgentOptions) {
   const additionalInstructions = options
-    ? [options.personaPrompt || "", options.userContext || ""]
-        .filter((s) => s)
-        .join("\n")
+    ? [options.personaPrompt || "", options.userContext || ""].filter((s) => s).join("\n")
     : undefined;
 
   const fullInstructions = additionalInstructions

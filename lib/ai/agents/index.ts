@@ -35,7 +35,10 @@ export type { PersonalizationOptions, InterviewOptions, SkillsAgentOptions };
  * @param intent - Agent 类型
  * @param options - Agent 配置
  */
-export function getAgent(intent: AgentIntent, options?: PersonalizationOptions | InterviewOptions | SkillsAgentOptions) {
+export function getAgent(
+  intent: AgentIntent,
+  options?: PersonalizationOptions | InterviewOptions | SkillsAgentOptions,
+) {
   switch (intent) {
     case "INTERVIEW": {
       return createInterviewAgent(options as InterviewOptions);
