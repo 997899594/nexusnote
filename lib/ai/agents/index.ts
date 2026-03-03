@@ -5,8 +5,8 @@
  */
 
 import { createChatAgent, type PersonalizationOptions } from "./chat";
-import { createInterviewAgent, type InterviewOptions } from "./interview";
 import { createCourseAgent } from "./course";
+import { createInterviewAgent, type InterviewOptions } from "./interview";
 import { createSkillsAgent } from "./skills";
 
 // ============================================
@@ -35,10 +35,7 @@ export type { PersonalizationOptions, InterviewOptions };
  * @param intent - Agent 类型
  * @param options - Agent 配置
  */
-export function getAgent(
-  intent: AgentIntent,
-  options?: PersonalizationOptions | InterviewOptions,
-) {
+export function getAgent(intent: AgentIntent, options?: PersonalizationOptions | InterviewOptions) {
   switch (intent) {
     case "INTERVIEW": {
       return createInterviewAgent(options as InterviewOptions);

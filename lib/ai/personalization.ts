@@ -47,10 +47,7 @@ export async function buildPersonalization(
 /**
  * 获取显式指定的 persona 或用户默认 persona
  */
-async function getExplicitOrDefaultPersona(
-  userId: string,
-  explicitPersonaSlug?: string,
-) {
+async function getExplicitOrDefaultPersona(userId: string, explicitPersonaSlug?: string) {
   if (explicitPersonaSlug) {
     return getPersona(explicitPersonaSlug);
   }

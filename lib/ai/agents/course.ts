@@ -4,8 +4,8 @@
 
 import { stepCountIs, ToolLoopAgent, type ToolSet } from "ai";
 import { aiProvider } from "../core";
+import { checkCourseProgressTool, generateCourseTool } from "../tools/learning";
 import { chatTools, type PersonalizationOptions } from "./chat";
-import { generateCourseTool, checkCourseProgressTool } from "../tools/learning";
 
 const INSTRUCTIONS = {
   course: `你是课程内容生成助手。
@@ -25,9 +25,7 @@ const courseTools = {
  */
 export function createCourseAgent(options?: PersonalizationOptions) {
   const additionalInstructions = options
-    ? [options.personaPrompt || "", options.userContext || ""]
-        .filter((s) => s)
-        .join("\n")
+    ? [options.personaPrompt || "", options.userContext || ""].filter((s) => s).join("\n")
     : undefined;
 
   const fullInstructions = additionalInstructions

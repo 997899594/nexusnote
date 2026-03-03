@@ -63,9 +63,7 @@ export interface PersonalizationOptions {
  */
 export function createChatAgent(options?: PersonalizationOptions) {
   const additionalInstructions = options
-    ? [options.personaPrompt || "", options.userContext || ""]
-        .filter((s) => s)
-        .join("\n")
+    ? [options.personaPrompt || "", options.userContext || ""].filter((s) => s).join("\n")
     : undefined;
 
   const fullInstructions = additionalInstructions
