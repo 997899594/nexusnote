@@ -398,6 +398,58 @@ export const courseSessions = pgTable(
 );
 
 // ============================================
+// Topic Blueprints (动态评分蓝图)
+// ============================================
+
+export const topicBlueprints = pgTable(
+  "topic_blueprints",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    topic: text("topic").notNull(),
+    topicHash: text("topic_hash").notNull().unique(),
+
+    // 核心维度 (JSONB)
+    coreDimensions: jsonb("core_dimensions")
+      .$type<
+        Array<{
+          name: string;
+          keywords: string[];
+          weight: number;
+          suggestion: string;
+        }>
+      >()
+      .notNull(),
+
+    // 状态：pending/ready/failed
+    status: text("status").notNull().default("pending"),
+
+    // 暂存事实（冷启动期）
+    pendingFacts: jsonb("pending_facts").$type<
+      Array<{
+        dimension: string;
+        value: string | number | boolean;
+        type: "string" | "number" | "boolean";
+        confidence: number;
+        extractedAt: string;
+        topicId: string;
+        isShared: boolean;
+      }>
+    >(),
+
+    // 元数据
+    modelUsed: text("model_used").notNull().default("gemini-3-flash"),
+    errorMessage: text("error_message"),
+
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => ({
+    topicHashIdx: index("topic_blueprints_topic_hash_idx").on(table.topicHash),
+    statusIdx: index("topic_blueprints_status_idx").on(table.status),
+  }),
+);
+
+// ============================================
 // 技能图系统
 // ============================================
 
