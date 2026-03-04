@@ -7,11 +7,12 @@
  * - 服务端管理课程状态
  */
 
-import { createAgentUIStreamResponse, smoothStream, type UIMessage } from "ai";
+import type { UIMessage } from "ai";
 import { type NextRequest, NextResponse } from "next/server";
 import { conversations, courseSessions, db } from "@/db";
 import type { InterviewProfile } from "@/db/schema";
 import { aiProvider, getAgent, validateRequest } from "@/lib/ai";
+import { createNexusNoteStreamResponse } from "@/lib/ai/streaming";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
 
@@ -151,13 +152,7 @@ export async function POST(request: NextRequest) {
       courseProfileId: activeCourseId,
     });
 
-    const response = await createAgentUIStreamResponse({
-      agent: agent as never,
-      uiMessages: messages as never,
-      experimental_transform: smoothStream({
-        chunking: new Intl.Segmenter("zh-CN", { granularity: "grapheme" }),
-      }),
-    });
+    const response = await createNexusNoteStreamResponse(agent, uiMessages);
 
     const durationMs = Date.now() - startTime;
     console.log("[Interview] Request completed in", durationMs, "ms");

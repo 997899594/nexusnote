@@ -114,12 +114,12 @@ export function DrawerMenu({ isOpen, onClose, userName, userEmail }: DrawerMenuP
             animate={{ x: 0 }}
             exit={{ x: "-100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed top-0 left-0 bottom-0 w-[280px] z-50 bg-white shadow-2xl md:hidden safe-top"
+            className="fixed top-0 left-0 bottom-0 w-[280px] z-50 bg-[var(--color-surface)] shadow-2xl md:hidden safe-top"
           >
             {/* 用户信息区 */}
-            <div className="p-6 border-b border-zinc-100">
+            <div className="p-6 border-b border-[var(--color-border-subtle)]">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xl font-bold">
+                <div className="w-14 h-14 rounded-2xl bg-[var(--color-accent)] flex items-center justify-center text-[var(--color-accent-fg)] text-xl font-bold">
                   {userName
                     ?.split(" ")
                     .map((n) => n[0])
@@ -128,15 +128,15 @@ export function DrawerMenu({ isOpen, onClose, userName, userEmail }: DrawerMenuP
                     .slice(0, 2) || "U"}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-zinc-900 truncate">{userName || "学习者"}</div>
-                  <div className="text-sm text-zinc-500 truncate">{userEmail}</div>
+                  <div className="font-semibold text-[var(--color-text)] truncate">{userName || "学习者"}</div>
+                  <div className="text-sm text-[var(--color-text-tertiary)] truncate">{userEmail}</div>
                 </div>
               </div>
             </div>
 
             {/* 快速操作 */}
-            <div className="px-4 py-4 border-b border-zinc-100">
-              <div className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-3 px-2">
+            <div className="px-4 py-4 border-b border-[var(--color-border-subtle)]">
+              <div className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-3 px-2">
                 快速操作
               </div>
               <div className="space-y-1">
@@ -147,9 +147,9 @@ export function DrawerMenu({ isOpen, onClose, userName, userEmail }: DrawerMenuP
                       key={action.href}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => handleNavClick(action.href)}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-zinc-700 hover:bg-zinc-50 transition-colors"
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[var(--color-text-secondary)] hover:bg-[var(--color-hover)] transition-colors"
                     >
-                      <Icon className="w-4 h-4 text-zinc-400" />
+                      <Icon className="w-4 h-4 text-[var(--color-text-muted)]" />
                       <span className="text-sm font-medium">{action.label}</span>
                     </motion.button>
                   );
@@ -171,12 +171,12 @@ export function DrawerMenu({ isOpen, onClose, userName, userEmail }: DrawerMenuP
                     className={cn(
                       "w-full flex items-center gap-3 px-3 py-3 rounded-xl mb-1 transition-colors",
                       isActive
-                        ? "bg-indigo-50 text-indigo-700 font-medium"
-                        : "text-zinc-700 hover:bg-zinc-50",
+                        ? "bg-[var(--color-accent-light)] text-[var(--color-accent)] font-medium"
+                        : "text-[var(--color-text-secondary)] hover:bg-[var(--color-hover)]",
                     )}
                   >
                     <Icon
-                      className={cn("w-5 h-5", isActive ? "text-indigo-600" : "text-zinc-400")}
+                      className={cn("w-5 h-5", isActive ? "text-[var(--color-accent)]" : "text-[var(--color-text-muted)]")}
                     />
                     <span className="text-sm">{item.label}</span>
                   </motion.button>
@@ -185,13 +185,13 @@ export function DrawerMenu({ isOpen, onClose, userName, userEmail }: DrawerMenuP
             </nav>
 
             {/* 底部设置和退出 */}
-            <div className="p-4 border-t border-zinc-100 safe-bottom">
+            <div className="p-4 border-t border-[var(--color-border-subtle)] safe-bottom">
               <motion.button
                 whileTap={{ scale: 0.98 }}
                 onClick={() => handleNavClick("/settings")}
-                className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-zinc-700 hover:bg-zinc-50 transition-colors mb-1"
+                className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-[var(--color-text-secondary)] hover:bg-[var(--color-hover)] transition-colors mb-1"
               >
-                <Settings className="w-5 h-5 text-zinc-400" />
+                <Settings className="w-5 h-5 text-[var(--color-text-muted)]" />
                 <span className="text-sm">设置</span>
               </motion.button>
               <motion.button

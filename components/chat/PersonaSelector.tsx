@@ -28,12 +28,12 @@ const PERSONA_ICONS: Record<string, string> = {
 };
 
 const PERSONA_COLORS: Record<string, string> = {
-  default: "bg-gray-100 text-gray-700",
+  default: "bg-[var(--color-hover)] text-[var(--color-text-secondary)]",
   best_friend: "bg-orange-100 text-orange-700",
   girlfriend: "bg-pink-100 text-pink-700",
   gentle_teacher: "bg-green-100 text-green-700",
   socrates: "bg-purple-100 text-purple-700",
-  steve_jobs: "bg-black text-white",
+  steve_jobs: "bg-[var(--color-text)] text-[var(--color-accent-fg)]",
   gordon: "bg-red-100 text-red-700",
   clickbait: "bg-yellow-100 text-yellow-700",
 };
@@ -69,8 +69,8 @@ export function PersonaSelector({
               p-3 rounded-lg border-2 transition-all text-left
               ${
                 currentPersonaSlug === persona.slug
-                  ? "border-blue-500 bg-blue-50"
-                  : "border-gray-200 hover:border-gray-300"
+                  ? "border-[var(--color-accent)] bg-[var(--color-accent-light)]"
+                  : "border-[var(--color-border)] hover:border-[var(--color-accent)]"
               }
               ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
             `}
@@ -80,10 +80,10 @@ export function PersonaSelector({
               <span className="text-xl">
                 {persona.avatar || PERSONA_ICONS[persona.slug] || "🤖"}
               </span>
-              <span className="font-medium text-sm truncate">{persona.name}</span>
+              <span className="font-medium text-sm truncate text-[var(--color-text)]">{persona.name}</span>
             </div>
             {persona.description && (
-              <p className="text-xs text-gray-500 line-clamp-2">{persona.description}</p>
+              <p className="text-xs text-[var(--color-text-tertiary)] line-clamp-2">{persona.description}</p>
             )}
           </button>
         ))}
@@ -99,7 +99,7 @@ export function PersonaSelector({
             key={persona.id}
             className={`
               flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-all
-              ${currentPersonaSlug === persona.slug ? "bg-blue-50" : "hover:bg-gray-50"}
+              ${currentPersonaSlug === persona.slug ? "bg-[var(--color-accent-light)]" : "hover:bg-[var(--color-hover)]"}
               ${disabled ? "opacity-50 pointer-events-none" : ""}
             `}
           >
@@ -110,13 +110,13 @@ export function PersonaSelector({
               checked={currentPersonaSlug === persona.slug}
               onChange={() => handleSelect(persona.slug)}
               disabled={disabled}
-              className="w-4 h-4 text-blue-600"
+              className="w-4 h-4 text-[var(--color-accent)]"
             />
             <span className="text-lg">{persona.avatar || PERSONA_ICONS[persona.slug] || "🤖"}</span>
             <div className="flex-1">
-              <div className="font-medium text-sm">{persona.name}</div>
+              <div className="font-medium text-sm text-[var(--color-text)]">{persona.name}</div>
               {persona.description && (
-                <div className="text-xs text-gray-500">{persona.description}</div>
+                <div className="text-xs text-[var(--color-text-tertiary)]">{persona.description}</div>
               )}
             </div>
           </label>
@@ -135,16 +135,16 @@ export function PersonaSelector({
         className={`
           flex items-center gap-2 px-3 py-2 rounded-lg border
           ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
-          ${isOpen ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:border-gray-300"}
+          ${isOpen ? "border-[var(--color-accent)] bg-[var(--color-accent-light)]" : "border-[var(--color-border)] hover:border-[var(--color-accent)]"}
           transition-colors
         `}
       >
         <span className="text-lg">
           {currentPersona?.avatar || PERSONA_ICONS[currentPersona?.slug || ""] || "🤖"}
         </span>
-        <span className="font-medium text-sm">{currentPersona?.name}</span>
+        <span className="font-medium text-sm text-[var(--color-text)]">{currentPersona?.name}</span>
         <svg
-          className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
+          className={`w-4 h-4 transition-transform text-[var(--color-text-muted)] ${isOpen ? "rotate-180" : ""}`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -156,7 +156,7 @@ export function PersonaSelector({
       {isOpen && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
-          <div className="absolute z-20 mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 max-h-80 overflow-y-auto">
+          <div className="absolute z-20 mt-1 w-56 bg-[var(--color-surface)] rounded-lg shadow-lg border border-[var(--color-border)] py-1 max-h-80 overflow-y-auto">
             {personas.map((persona) => (
               <button
                 key={persona.id}
@@ -166,8 +166,8 @@ export function PersonaSelector({
                   w-full flex items-center gap-3 px-3 py-2 text-left transition-colors
                   ${
                     currentPersonaSlug === persona.slug
-                      ? "bg-blue-50 text-blue-700"
-                      : "hover:bg-gray-50"
+                      ? "bg-[var(--color-accent-light)] text-[var(--color-accent)]"
+                      : "hover:bg-[var(--color-hover)]"
                   }
                   ${disabled ? "opacity-50 cursor-not-allowed" : ""}
                 `}
@@ -176,13 +176,13 @@ export function PersonaSelector({
                   {persona.avatar || PERSONA_ICONS[persona.slug] || "🤖"}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm truncate">{persona.name}</div>
+                  <div className="font-medium text-sm truncate text-[var(--color-text)]">{persona.name}</div>
                   {persona.description && (
-                    <div className="text-xs text-gray-500 truncate">{persona.description}</div>
+                    <div className="text-xs text-[var(--color-text-tertiary)] truncate">{persona.description}</div>
                   )}
                 </div>
                 {currentPersonaSlug === persona.slug && (
-                  <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                  <svg className="w-4 h-4 text-[var(--color-accent)]" fill="currentColor" viewBox="0 0 20 20">
                     <path
                       fillRule="evenodd"
                       d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
@@ -203,7 +203,7 @@ export function PersonaSelector({
  * Compact persona badge for inline display
  */
 export function PersonaBadge({ persona, onClick }: { persona: AIPersona; onClick?: () => void }) {
-  const colorClass = PERSONA_COLORS[persona.slug] || "bg-gray-100 text-gray-700";
+  const colorClass = PERSONA_COLORS[persona.slug] || "bg-[var(--color-hover)] text-[var(--color-text-secondary)]";
 
   return (
     <button

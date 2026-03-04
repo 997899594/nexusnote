@@ -2,8 +2,8 @@
  * useChatSession - 会话消息管理
  *
  * 2026 架构：
- * - 历史加载：每个会话只加载一次（模块级 Set，跨 remount 持久）
- * - 首条消息：自动发送 pendingMessage（模块级 Set 防重）
+ * - 历史加载：每个会话只加载一次（Zustand Store，跨 remount 持久）
+ * - 首条消息：自动发送 pendingMessage（Zustand Store 防重）
  * - 消息持久化：通过 onFinish 回调，对话结束时触发一次（架构正确）
  * - Persona 切换：清除消息历史，避免上下文干扰
  */
@@ -14,21 +14,20 @@ import { useEffect, useRef } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { parseApiError } from "@/lib/api/client";
 import { persistMessages } from "@/lib/chat/api";
-import { usePendingChatStore, useUserPreferencesStore } from "@/stores";
+import { useChatSessionStateStore, usePendingChatStore, useUserPreferencesStore } from "@/stores";
 
 interface UseChatSessionOptions {
   sessionId: string | null;
   pendingMessage?: string | null;
 }
 
-// 模块级 Set（生命周期 = 整个 app，不随组件 remount 丢失）
-const loadedSessions = new Set<string>();
-const sentSessions = new Set<string>();
-
 export function useChatSession({ sessionId, pendingMessage }: UseChatSessionOptions) {
   const clearPending = usePendingChatStore((state) => state.clear);
   const currentPersonaSlug = useUserPreferencesStore((state) => state.currentPersonaSlug);
   const { addToast } = useToast();
+
+  // Zustand-based session state
+  const { isLoaded, markLoaded, markFailed, isSent, markSent } = useChatSessionStateStore();
 
   // 用 ref 存储最新的 personaSlug，函数 body 通过 ref.current 获取最新值
   const personaSlugRef = useRef(currentPersonaSlug);
@@ -57,11 +56,11 @@ export function useChatSession({ sessionId, pendingMessage }: UseChatSessionOpti
 
   const { setMessages, sendMessage } = chat;
 
-  // 历史恢复：每个 sessionId 只加载一次（模块级 Set 防重）
+  // 历史恢复：每个 sessionId 只加载一次（Zustand Store 防重）
   useEffect(() => {
-    if (!sessionId || loadedSessions.has(sessionId)) return;
+    if (!sessionId || isLoaded(sessionId)) return;
 
-    loadedSessions.add(sessionId);
+    markLoaded(sessionId);
 
     fetch(`/api/chat-sessions/${sessionId}`)
       .then((res) => {
@@ -77,18 +76,22 @@ export function useChatSession({ sessionId, pendingMessage }: UseChatSessionOpti
           setMessages(data.session.messages as UIMessage[]);
         }
       })
-      .catch(console.error);
-  }, [sessionId, setMessages]);
+      .catch((error) => {
+        console.error(error);
+        // Mark as failed so it can be retried
+        markFailed(sessionId);
+      });
+  }, [sessionId, setMessages, isLoaded, markLoaded, markFailed]);
 
   // 自动发送 pendingMessage（仅首次）
   useEffect(() => {
-    if (!pendingMessage || !sessionId || sentSessions.has(sessionId)) return;
+    if (!pendingMessage || !sessionId || isSent(sessionId)) return;
 
-    sentSessions.add(sessionId);
+    markSent(sessionId);
     clearPending();
 
     sendMessage({ text: pendingMessage });
-  }, [pendingMessage, sessionId, sendMessage, clearPending]);
+  }, [pendingMessage, sessionId, sendMessage, clearPending, isSent, markSent]);
 
   return chat;
 }

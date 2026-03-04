@@ -42,16 +42,16 @@ export function RecentCard({ title, desc, iconName, time, url }: RecentCardProps
       whileHover={{ y: -2 }}
       whileTap={{ scale: 0.98 }}
       onClick={handleClick}
-      className="bg-white rounded-2xl p-4 md:p-5 cursor-pointer transition-all duration-200 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] active:scale-[0.98] touch-target"
+      className="bg-[var(--color-surface)] rounded-2xl p-4 md:p-5 cursor-pointer transition-all duration-200 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] active:scale-[0.98] touch-target border border-[var(--color-border-subtle)]"
     >
       <div className="flex items-start justify-between mb-3">
-        <div className="w-10 h-10 rounded-xl bg-zinc-100 flex items-center justify-center">
-          <Icon className="w-4 h-4 text-zinc-500" />
+        <div className="w-10 h-10 rounded-xl bg-[var(--color-hover)] flex items-center justify-center">
+          <Icon className="w-4 h-4 text-[var(--color-text-tertiary)]" />
         </div>
-        <span className="text-xs text-zinc-400">{time}</span>
+        <span className="text-xs text-[var(--color-text-muted)]">{time}</span>
       </div>
-      <h3 className="font-medium text-sm text-zinc-900 mb-0.5">{title}</h3>
-      <p className="text-xs text-zinc-400">{desc}</p>
+      <h3 className="font-medium text-sm text-[var(--color-text)] mb-0.5">{title}</h3>
+      <p className="text-xs text-[var(--color-text-muted)]">{desc}</p>
     </motion.div>
   );
 }

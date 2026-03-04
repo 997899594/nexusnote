@@ -77,7 +77,7 @@ export function MobilePageContainer({
   const paddingBottom = hasNav ? "safe-bottom md:pb-6" : "pb-4 md:pb-6";
 
   return (
-    <div className={cn("min-h-screen bg-slate-50", paddingTop, paddingBottom, className)}>
+    <div className={cn("min-h-screen bg-[var(--color-bg)]", paddingTop, paddingBottom, className)}>
       {/* 移动端底部导航占位 */}
       {hasNav && <div className="mobile-nav-spacer md:hidden" />}
       {children}

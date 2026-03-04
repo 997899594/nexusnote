@@ -88,7 +88,7 @@ export function EditorConfirmDialog({ output, toolName }: EditorConfirmDialogPro
       <p className="text-xs text-amber-700 dark:text-amber-300 mb-3">{output.explanation}</p>
 
       {isDraft && output.content && (
-        <div className="mb-3 p-2 bg-white dark:bg-zinc-900 rounded text-xs text-zinc-600 dark:text-zinc-400 max-h-32 overflow-y-auto">
+        <div className="mb-3 p-2 bg-[var(--color-surface)] rounded text-xs text-[var(--color-text-secondary)] max-h-32 overflow-y-auto">
           {output.content.slice(0, 500)}
           {output.content.length > 500 && "..."}
         </div>
@@ -102,13 +102,13 @@ export function EditorConfirmDialog({ output, toolName }: EditorConfirmDialogPro
           {output.edits.slice(0, 3).map((edit, i) => (
             <div
               key={`${edit.targetId}-${i}`}
-              className="text-xs p-1 bg-white dark:bg-zinc-900 rounded"
+              className="text-xs p-1 bg-[var(--color-surface)] rounded"
             >
               {edit.action}: {edit.targetId}
             </div>
           ))}
           {output.edits.length > 3 && (
-            <p className="text-xs text-zinc-500">...还有 {output.edits.length - 3} 个修改</p>
+            <p className="text-xs text-[var(--color-text-muted)]">...还有 {output.edits.length - 3} 个修改</p>
           )}
         </div>
       )}
@@ -129,7 +129,7 @@ export function EditorConfirmDialog({ output, toolName }: EditorConfirmDialogPro
         </button>
         <button
           type="button"
-          className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-700 dark:hover:bg-zinc-600 text-zinc-700 dark:text-zinc-300 text-xs rounded transition-colors"
+          className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-[var(--color-muted)] hover:bg-[var(--color-active)] text-[var(--color-text-secondary)] text-xs rounded transition-colors"
         >
           <X className="w-3 h-3" />
           取消

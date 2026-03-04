@@ -12,6 +12,7 @@ import { DefaultChatTransport, type ToolUIPart, type UIMessage } from "ai";
 import { nanoid } from "nanoid";
 import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/ui/Toast";
+import type { ConfirmOutlineOutput } from "@/components/chat/tool-result/types";
 import { parseApiError } from "@/lib/api/client";
 import { useInterviewStore } from "@/stores/interview";
 
@@ -99,17 +100,11 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
 
     if (toolParts && toolParts.length > 0) {
       const lastToolPart = toolParts[toolParts.length - 1];
-      const output = lastToolPart.output as
-        | { outline?: unknown; outlineData?: unknown; success?: boolean }
-        | undefined;
+      const output = lastToolPart.output as ConfirmOutlineOutput | undefined;
 
-      if (output?.success) {
+      if (output?.success && output.outline) {
         // 访谈完成，设置大纲和完成状态
-        // confirmOutline 可能返回 outline 或 outlineData
-        const outlineData = output.outline || output.outlineData;
-        if (outlineData) {
-          setOutline(outlineData as never);
-        }
+        setOutline(output.outline);
         setInterviewCompleted(true);
         setIsOutlineLoading(false);
       }
@@ -137,12 +132,14 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
     }
   }, [messages, setEstimatedTurns]);
 
+  // AI SDK v6: isLoading is derived from status
+  const isLoading = status === "submitted" || status === "streaming";
+
   return {
     messages: chat.messages as UIMessage[],
     sendMessage: chat.sendMessage,
     status,
-    // @ts-expect-error AI SDK 6.0 compatibility
-    isLoading: chat.isLoading,
+    isLoading,
     sessionId,
     addToolOutput,
   };

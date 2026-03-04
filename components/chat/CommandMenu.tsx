@@ -20,10 +20,10 @@ export function CommandMenu({ commands, selectedIndex, onSelect }: CommandMenuPr
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.15 }}
-      className="absolute bottom-full left-0 right-0 mb-3 bg-white rounded-2xl shadow-[var(--shadow-elevated)] overflow-hidden z-50"
+      className="absolute bottom-full left-0 right-0 mb-3 bg-[var(--color-surface)] rounded-2xl shadow-[var(--shadow-elevated)] overflow-hidden z-50"
     >
       <div className="p-2">
-        <div className="px-3 py-2 text-xs font-medium text-zinc-400 uppercase tracking-wider">
+        <div className="px-3 py-2 text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
           命令
         </div>
         {commands.map((cmd, idx) => (
@@ -34,13 +34,13 @@ export function CommandMenu({ commands, selectedIndex, onSelect }: CommandMenuPr
             className={cn(
               "w-full flex items-center px-3 py-3 rounded-xl text-left transition-colors",
               idx === selectedIndex
-                ? "bg-zinc-100 text-zinc-900"
-                : "text-zinc-600 hover:bg-zinc-50",
+                ? "bg-[var(--color-hover)] text-[var(--color-text)]"
+                : "text-[var(--color-text-secondary)] hover:bg-[var(--color-hover)]",
             )}
           >
-            <cmd.icon className="w-4 h-4 mr-3 flex-shrink-0 text-zinc-400" />
+            <cmd.icon className="w-4 h-4 mr-3 flex-shrink-0 text-[var(--color-text-muted)]" />
             <span className="flex-1 text-sm font-medium">{cmd.label}</span>
-            <ChevronRight className="w-4 h-4 text-zinc-300" />
+            <ChevronRight className="w-4 h-4 text-[var(--color-text-muted)]" />
           </button>
         ))}
       </div>

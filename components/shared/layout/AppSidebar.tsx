@@ -22,14 +22,14 @@ export function AppSidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden md:flex flex-col w-64 h-screen sticky top-0 bg-slate-50/50 border-r border-slate-200/50">
+    <aside className="hidden md:flex flex-col w-64 h-screen sticky top-0 bg-[var(--color-bg)] border-r border-[var(--color-border-subtle)]">
       {/* Logo */}
-      <div className="h-16 flex items-center px-6 border-b border-slate-200/50">
+      <div className="h-16 flex items-center px-6 border-b border-[var(--color-border-subtle)]">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 bg-indigo-600 rounded-md flex items-center justify-center">
-            <Zap className="w-3.5 h-3.5 text-white fill-white" />
+          <div className="w-6 h-6 bg-[var(--color-accent)] rounded-md flex items-center justify-center">
+            <Zap className="w-3.5 h-3.5 text-[var(--color-accent-fg)] fill-[var(--color-accent-fg)]" />
           </div>
-          <span className="font-bold text-xl tracking-tight text-slate-900">NexusNote</span>
+          <span className="font-bold text-xl tracking-tight text-[var(--color-text)]">NexusNote</span>
         </div>
       </div>
 
@@ -50,14 +50,14 @@ export function AppSidebar() {
                 href={item.href}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 relative ${
                   isActive
-                    ? "bg-indigo-600 text-white font-medium"
-                    : "text-slate-700/70 hover:bg-slate-900/5 hover:text-slate-900"
+                    ? "bg-[var(--color-accent)] text-[var(--color-accent-fg)] font-medium"
+                    : "text-[var(--color-text-secondary)] hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]"
                 }`}
               >
                 {isActive && (
                   <motion.div
                     layoutId="activeIndicator"
-                    className="absolute left-0 w-1 h-6 bg-indigo-400 rounded-r-full"
+                    className="absolute left-0 w-1 h-6 bg-[var(--color-accent-hover)] rounded-r-full"
                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
                   />
                 )}
@@ -72,10 +72,10 @@ export function AppSidebar() {
       </nav>
 
       {/* Settings */}
-      <div className="p-3 border-t border-slate-200/50">
+      <div className="p-3 border-t border-[var(--color-border-subtle)]">
         <Link
           href="/settings"
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-700/70 hover:bg-slate-900/5 hover:text-slate-900 transition-all duration-200"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-[var(--color-text-secondary)] hover:bg-[var(--color-hover)] hover:text-[var(--color-text)] transition-all duration-200"
         >
           <Settings className="w-5 h-5" />
           <span>设置</span>

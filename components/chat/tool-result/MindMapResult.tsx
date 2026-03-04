@@ -37,15 +37,15 @@ function convertToNodesAndEdges(
     type: parentId ? "default" : "input",
     style: parentId
       ? {
-          background: "#f8fafc",
-          border: "1px solid #e2e8f0",
+          background: "var(--color-surface)",
+          border: "1px solid var(--color-border)",
           borderRadius: "8px",
           padding: "8px 12px",
           fontSize: "12px",
         }
       : {
-          background: "#6366f1",
-          color: "white",
+          background: "var(--color-accent)",
+          color: "var(--color-accent-fg)",
           border: "none",
           borderRadius: "8px",
           padding: "10px 16px",
@@ -62,7 +62,7 @@ function convertToNodesAndEdges(
       source: parentId,
       target: nodeData.id,
       type: "smoothstep",
-      style: { stroke: "#cbd5e1", strokeWidth: 1.5 },
+      style: { stroke: "var(--color-border)", strokeWidth: 1.5 },
     });
   }
 
@@ -108,16 +108,16 @@ export function MindMapResult({ output }: MindMapResultProps) {
   }
 
   return (
-    <div className="mt-2 rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-      <div className="flex items-center gap-2 px-3 py-2 bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
-        <MapIcon className="w-4 h-4 text-zinc-500" />
-        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+    <div className="mt-2 rounded-lg border border-[var(--color-border)] overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-2 bg-[var(--color-hover)] border-b border-[var(--color-border)]">
+        <MapIcon className="w-4 h-4 text-[var(--color-text-tertiary)]" />
+        <span className="text-sm font-medium text-[var(--color-text-secondary)]">
           {mindMapData?.topic}
         </span>
-        <span className="text-xs text-zinc-400 ml-auto">{mindMapData?.layout}</span>
+        <span className="text-xs text-[var(--color-text-muted)] ml-auto">{mindMapData?.layout}</span>
       </div>
 
-      <div className="h-[300px] bg-white dark:bg-zinc-950">
+      <div className="h-[300px] bg-[var(--color-surface)]">
         <ReactFlow
           nodes={nodes}
           edges={edges}

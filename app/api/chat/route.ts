@@ -7,13 +7,15 @@
  * - 无 Persona 冲突
  */
 
-import { createAgentUIStreamResponse, smoothStream, type UIMessage } from "ai";
+import type { UIMessage } from "ai";
 import { type NextRequest, NextResponse } from "next/server";
 import { aiUsage, conversations, db } from "@/db";
 import { aiProvider, getAgent, validateRequest } from "@/lib/ai";
 import { buildPersonalization } from "@/lib/ai/personalization";
+import { createNexusNoteStreamResponse } from "@/lib/ai/streaming";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
+import { checkRateLimitOrThrow } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -21,26 +23,6 @@ export const maxDuration = 300;
 // ============================================
 // Helper Functions
 // ============================================
-
-// Rate Limiting - 简单内存实现
-const rateLimits = new Map<string, { count: number; resetAt: number }>();
-
-function checkRateLimit(userId: string, limit: number, windowMs: number): void {
-  const now = Date.now();
-  const key = userId;
-  const record = rateLimits.get(key);
-
-  if (!record || record.resetAt < now) {
-    rateLimits.set(key, { count: 1, resetAt: now + windowMs });
-    return;
-  }
-
-  if (record.count >= limit) {
-    throw new APIError("请求过于频繁，请稍后再试", 429, "RATE_LIMITED");
-  }
-
-  record.count++;
-}
 
 async function trackUsage(
   userId: string,
@@ -77,8 +59,7 @@ export async function POST(request: NextRequest) {
 
     // Rate Limiting
     if (userId) {
-      const limit = 100; // 每分钟 100 次
-      checkRateLimit(userId, limit, 60 * 1000);
+      checkRateLimitOrThrow(userId, 100, 60 * 1000, "请求过于频繁，请稍后再试");
     }
 
     let body: unknown;
@@ -169,13 +150,7 @@ export async function POST(request: NextRequest) {
       userContext,
     });
 
-    const response = await createAgentUIStreamResponse({
-      agent: agent as never,
-      uiMessages: messages as never,
-      experimental_transform: smoothStream({
-        chunking: new Intl.Segmenter("zh-CN", { granularity: "grapheme" }),
-      }),
-    });
+    const response = await createNexusNoteStreamResponse(agent, uiMessages);
 
     const durationMs = Date.now() - startTime;
 

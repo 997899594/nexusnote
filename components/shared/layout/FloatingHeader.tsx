@@ -38,12 +38,12 @@ export function FloatingHeader({
             <Zap className="w-4 h-4 md:w-5 md:h-5 text-[var(--color-accent-fg)]" />
           </div>
           <div className="flex items-center gap-1 md:gap-2">
-            <span className="font-semibold text-base md:text-lg text-zinc-900">NexusNote</span>
+            <span className="font-semibold text-base md:text-lg text-[var(--color-text)]">NexusNote</span>
             {showBackHint && (
               <motion.div
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="hidden sm:flex items-center gap-1 text-xs text-zinc-400"
+                className="hidden sm:flex items-center gap-1 text-xs text-[var(--color-text-muted)]"
               >
                 <ArrowLeft className="w-3 h-3" />
                 <span>返回首页</span>
@@ -66,9 +66,9 @@ export function FloatingHeader({
               onClick={onMenuClick}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="p-2 rounded-xl bg-white/80 backdrop-blur-sm shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] transition-shadow lg:hidden"
+              className="p-2 rounded-xl bg-[var(--color-surface)]/80 backdrop-blur-sm shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] transition-shadow lg:hidden"
             >
-              <Menu className="w-5 h-5 text-zinc-600" />
+              <Menu className="w-5 h-5 text-[var(--color-text-secondary)]" />
             </motion.button>
           )}
           <UserAvatar />

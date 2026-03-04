@@ -120,7 +120,7 @@ function InterviewContent() {
     (status === "submitted" || status === "streaming") && (!lastMsg || lastMsg.role === "user");
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden">
+    <div className="flex h-screen bg-[var(--color-bg)] overflow-hidden">
       {/* 左侧大纲面板 - 只在访谈完成后显示 */}
       <AnimatePresence mode="wait">
         {interviewCompleted && (
@@ -148,24 +148,24 @@ function InterviewContent() {
         variants={mainContentVariants}
         initial="full"
         animate={interviewCompleted ? "withPanel" : "full"}
-        className="flex flex-col flex-1 min-w-0 bg-white"
+        className="flex flex-col flex-1 min-w-0 bg-[var(--color-surface)]"
       >
         {/* Header */}
-        <header className="flex items-center gap-4 px-4 md:px-6 py-4 border-b border-zinc-100">
+        <header className="flex items-center gap-4 px-4 md:px-6 py-4 border-b border-[var(--color-border-subtle)]">
           <Link
             href="/chat"
-            className="p-2 hover:bg-zinc-100 rounded-xl transition-colors"
+            className="p-2 hover:bg-[var(--color-hover)] rounded-xl transition-colors"
             aria-label="返回聊天"
           >
-            <ArrowLeft className="w-5 h-5 text-zinc-500" />
+            <ArrowLeft className="w-5 h-5 text-[var(--color-text-tertiary)]" />
           </Link>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-zinc-900 flex items-center justify-center">
-              <GraduationCap className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 rounded-xl bg-[var(--color-accent)] flex items-center justify-center">
+              <GraduationCap className="w-5 h-5 text-[var(--color-accent-fg)]" />
             </div>
             <div>
-              <h1 className="font-semibold text-zinc-900">课程访谈</h1>
-              <p className="text-xs text-zinc-500">
+              <h1 className="font-semibold text-[var(--color-text)]">课程访谈</h1>
+              <p className="text-xs text-[var(--color-text-tertiary)]">
                 {interviewCompleted ? "大纲已生成" : "告诉我你想学什么"}
               </p>
               {/* Progress indicator - 动态轮数显示 */}
@@ -190,12 +190,12 @@ function InterviewContent() {
                               }}
                               className={cn(
                                 "w-2 h-2 rounded-full transition-colors",
-                                i < userMessageCount ? "bg-zinc-900" : "bg-zinc-300",
+                                i < userMessageCount ? "bg-[var(--color-accent)]" : "bg-[var(--color-border)]",
                               )}
                             />
                           ))}
                         </div>
-                        <span className="text-xs text-zinc-400">
+                        <span className="text-xs text-[var(--color-text-muted)]">
                           {userMessageCount}/{totalTurns} 轮
                         </span>
                       </div>
@@ -211,11 +211,11 @@ function InterviewContent() {
                             key={i}
                             initial={{ scale: 0, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
-                            className="w-1.5 h-1.5 rounded-full bg-zinc-900"
+                            className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)]"
                           />
                         ))}
                       </div>
-                      <span className="text-xs text-zinc-400">第 {userMessageCount} 轮</span>
+                      <span className="text-xs text-[var(--color-text-muted)]">第 {userMessageCount} 轮</span>
                     </div>
                   );
                 })()}
@@ -233,15 +233,15 @@ function InterviewContent() {
                   initial={{ scale: 0.8, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                  className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-zinc-900 flex items-center justify-center"
+                  className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--color-accent)] flex items-center justify-center"
                 >
-                  <GraduationCap className="w-8 h-8 text-white" />
+                  <GraduationCap className="w-8 h-8 text-[var(--color-accent-fg)]" />
                 </motion.div>
                 <motion.h2
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 }}
-                  className="text-lg font-medium text-zinc-900 mb-2"
+                  className="text-lg font-medium text-[var(--color-text)] mb-2"
                 >
                   你想学什么？
                 </motion.h2>
@@ -249,7 +249,7 @@ function InterviewContent() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.15 }}
-                  className="text-sm text-zinc-500 mb-6"
+                  className="text-sm text-[var(--color-text-tertiary)] mb-6"
                 >
                   告诉我你的学习目标，我会为你定制课程
                 </motion.p>
@@ -271,7 +271,7 @@ function InterviewContent() {
                           setStarted(true);
                           sendMessage({ text: example });
                         }}
-                        className="px-4 py-2 bg-zinc-100 hover:bg-zinc-200 rounded-full text-sm text-zinc-600 transition-colors"
+                        className="px-4 py-2 bg-[var(--color-hover)] hover:bg-[var(--color-active)] rounded-full text-sm text-[var(--color-text-secondary)] transition-colors"
                       >
                         {example}
                       </motion.button>
@@ -299,11 +299,11 @@ function InterviewContent() {
         </div>
 
         {/* Input */}
-        <div className="border-t border-zinc-100 bg-white px-4 md:px-6 py-3 md:py-4">
+        <div className="border-t border-[var(--color-border-subtle)] bg-[var(--color-surface)] px-4 md:px-6 py-3 md:py-4">
           <div className="max-w-[calc(100vw-32px)] md:max-w-[var(--message-max-width)] mx-auto">
-            <div className="flex items-end gap-2 md:gap-3 bg-zinc-50 rounded-2xl p-2 md:p-3">
-              <div className="w-8 h-8 rounded-lg bg-zinc-900 flex items-center justify-center flex-shrink-0">
-                <GraduationCap className="w-4 h-4 text-white" />
+            <div className="flex items-end gap-2 md:gap-3 bg-[var(--color-hover)] rounded-2xl p-2 md:p-3">
+              <div className="w-8 h-8 rounded-lg bg-[var(--color-accent)] flex items-center justify-center flex-shrink-0">
+                <GraduationCap className="w-4 h-4 text-[var(--color-accent-fg)]" />
               </div>
               <textarea
                 value={input}
@@ -311,7 +311,7 @@ function InterviewContent() {
                 onKeyDown={handleKeyDown}
                 placeholder={interviewCompleted ? "继续调整大纲..." : "继续对话..."}
                 rows={1}
-                className="flex-1 bg-transparent border-none outline-none text-sm text-zinc-800 placeholder:text-zinc-400 resize-none min-h-[24px] max-h-[120px]"
+                className="flex-1 bg-transparent border-none outline-none text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] resize-none min-h-[24px] max-h-[120px]"
               />
               <motion.button
                 whileHover={{ scale: 1.05 }}
@@ -321,8 +321,8 @@ function InterviewContent() {
                 className={cn(
                   "w-9 h-9 rounded-full flex items-center justify-center transition-colors flex-shrink-0",
                   input.trim() && !isLoading
-                    ? "bg-zinc-900 text-white"
-                    : "bg-zinc-200 text-zinc-400 cursor-not-allowed",
+                    ? "bg-[var(--color-accent)] text-[var(--color-accent-fg)]"
+                    : "bg-[var(--color-muted)] text-[var(--color-text-muted)] cursor-not-allowed",
                 )}
               >
                 {isLoading ? (
@@ -343,8 +343,8 @@ export default function InterviewPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex h-screen items-center justify-center bg-slate-50">
-          <Loader2 className="w-8 h-8 animate-spin text-zinc-400" />
+        <div className="flex h-screen items-center justify-center bg-[var(--color-bg)]">
+          <Loader2 className="w-8 h-8 animate-spin text-[var(--color-text-muted)]" />
         </div>
       }
     >

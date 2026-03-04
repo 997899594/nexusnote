@@ -164,7 +164,7 @@ export function HeroInput() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.95 }}
             transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
-            className="bg-white rounded-2xl shadow-[var(--shadow-elevated)] overflow-hidden z-50"
+            className="bg-[var(--color-surface)] rounded-2xl shadow-[var(--shadow-elevated)] overflow-hidden z-50"
           >
             <div className="p-2 space-y-0.5">
               {filteredCommands.map((cmd, idx) => (
@@ -178,13 +178,13 @@ export function HeroInput() {
                   className={cn(
                     "w-full flex items-center px-3 py-2.5 rounded-xl text-left transition-colors",
                     idx === selectedIndex
-                      ? "bg-zinc-100 text-zinc-900"
-                      : "text-zinc-600 hover:bg-zinc-50",
+                      ? "bg-[var(--color-hover)] text-[var(--color-text)]"
+                      : "text-[var(--color-text-secondary)] hover:bg-[var(--color-hover)]",
                   )}
                 >
-                  <cmd.icon className="w-4 h-4 mr-3 flex-shrink-0 text-zinc-400" />
+                  <cmd.icon className="w-4 h-4 mr-3 flex-shrink-0 text-[var(--color-text-muted)]" />
                   <span className="flex-1 text-sm font-medium">{cmd.label}</span>
-                  <ChevronRight className="w-4 h-4 text-zinc-300" />
+                  <ChevronRight className="w-4 h-4 text-[var(--color-text-muted)]" />
                 </motion.button>
               ))}
             </div>
@@ -200,7 +200,7 @@ export function HeroInput() {
         }}
         whileHover={{ scale: showCommands ? 1 : 1.005 }}
         transition={{ duration: 0.2 }}
-        className="relative bg-white shadow-[var(--shadow-elevated)] hover:shadow-[var(--shadow-elevated-hover)] transition-shadow rounded-2xl md:rounded-3xl min-h-[140px] md:min-h-[160px]"
+        className="relative bg-[var(--color-surface)] shadow-[var(--shadow-elevated)] hover:shadow-[var(--shadow-elevated-hover)] transition-shadow rounded-2xl md:rounded-3xl min-h-[140px] md:min-h-[160px]"
       >
         <div className="p-5 md:p-8 relative h-full">
           <AnimatePresence>
@@ -209,14 +209,14 @@ export function HeroInput() {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
-                className="absolute bottom-4 left-4 md:bottom-6 md:left-6 flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 rounded-lg text-xs z-10"
+                className="absolute bottom-4 left-4 md:bottom-6 md:left-6 flex items-center gap-1.5 px-3 py-1.5 bg-[var(--color-hover)] rounded-lg text-xs z-10"
               >
-                <selectedCommand.modeIcon className="w-3 h-3 text-zinc-500" />
-                <span className="text-zinc-600 font-medium">{selectedCommand.modeLabel}</span>
+                <selectedCommand.modeIcon className="w-3 h-3 text-[var(--color-text-tertiary)]" />
+                <span className="text-[var(--color-text-secondary)] font-medium">{selectedCommand.modeLabel}</span>
                 <button
                   type="button"
                   onClick={handleCancelCommand}
-                  className="p-0.5 text-zinc-400 hover:text-zinc-600 transition-colors"
+                  className="p-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -231,7 +231,7 @@ export function HeroInput() {
             onPaste={handlePaste}
             placeholder={placeholder}
             rows={1}
-            className="w-full bg-transparent border-none outline-none text-base md:text-lg text-zinc-800 placeholder:text-zinc-400 resize-none min-h-[72px] md:min-h-[96px] max-h-[144px] md:max-h-[240px] py-3 pr-14 md:pr-16"
+            className="w-full bg-transparent border-none outline-none text-base md:text-lg text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] resize-none min-h-[72px] md:min-h-[96px] max-h-[144px] md:max-h-[240px] py-3 pr-14 md:pr-16"
           />
 
           <motion.button
@@ -243,7 +243,7 @@ export function HeroInput() {
               "absolute bottom-4 right-4 md:bottom-6 md:right-6 w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center transition-colors touch-target",
               input.trim()
                 ? "bg-[var(--color-accent)] text-[var(--color-accent-fg)]"
-                : "bg-zinc-200 text-zinc-400 cursor-not-allowed",
+                : "bg-[var(--color-muted)] text-[var(--color-text-muted)] cursor-not-allowed",
             )}
           >
             <Send className="w-4 h-4 md:w-5 md:h-5" />

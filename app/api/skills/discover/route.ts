@@ -2,8 +2,9 @@
  * POST /api/skills/discover - 流式技能发现
  */
 
-import { createAgentUIStreamResponse, smoothStream, type UIMessage } from "ai";
+import type { UIMessage } from "ai";
 import { getAgent } from "@/lib/ai";
+import { createNexusNoteStreamResponse } from "@/lib/ai/streaming";
 import { withAuth } from "@/lib/api";
 import { DiscoverSkillsSchema } from "@/lib/skills/validation";
 
@@ -24,11 +25,7 @@ export const POST = withAuth(async (request, { userId }) => {
     { id: "msg-1", role: "user", parts: [{ type: "text", text: content }] },
   ];
 
-  return createAgentUIStreamResponse({
-    agent: getAgent("SKILLS") as never,
-    uiMessages,
-    experimental_transform: smoothStream({
-      chunking: new Intl.Segmenter("zh-CN", { granularity: "grapheme" }),
-    }),
-  });
+  const agent = getAgent("SKILLS", { userId });
+
+  return createNexusNoteStreamResponse(agent, uiMessages);
 });

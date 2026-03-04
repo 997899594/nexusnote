@@ -29,12 +29,12 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[var(--color-bg)] flex items-center justify-center p-4">
       <motion.div
         initial={{ opacity: 0, y: 20, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.4, ease: "easeOut" }}
-        className="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200"
+        className="max-w-md w-full bg-[var(--color-surface)] rounded-2xl shadow-xl overflow-hidden border border-[var(--color-border)]"
       >
         <div className="p-8">
           {/* Logo */}
@@ -44,8 +44,8 @@ export default function LoginPage() {
             transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
             className="flex justify-center mb-6"
           >
-            <div className="p-3 bg-indigo-600 rounded-xl shadow-lg shadow-indigo-200">
-              <Brain className="w-8 h-8 text-white" />
+            <div className="p-3 bg-[var(--color-accent)] rounded-xl shadow-lg">
+              <Brain className="w-8 h-8 text-[var(--color-accent-fg)]" />
             </div>
           </motion.div>
 
@@ -54,7 +54,7 @@ export default function LoginPage() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="text-3xl font-bold text-center text-slate-900 mb-2"
+            className="text-3xl font-bold text-center text-[var(--color-text)] mb-2"
           >
             NexusNote
           </motion.h1>
@@ -62,7 +62,7 @@ export default function LoginPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.35 }}
-            className="text-slate-500 text-center mb-8"
+            className="text-[var(--color-text-tertiary)] text-center mb-8"
           >
             AI-Powered second brain
           </motion.p>
@@ -78,7 +78,7 @@ export default function LoginPage() {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => signIn("github", { callbackUrl: "/" })}
-              className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors font-medium text-slate-700"
+              className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-[var(--color-border)] rounded-xl hover:bg-[var(--color-hover)] transition-colors font-medium text-[var(--color-text-secondary)]"
             >
               <Github className="w-5 h-5" />
               Continue with GitHub
@@ -88,7 +88,7 @@ export default function LoginPage() {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => signIn("google", { callbackUrl: "/" })}
-              className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors font-medium text-slate-700"
+              className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-[var(--color-border)] rounded-xl hover:bg-[var(--color-hover)] transition-colors font-medium text-[var(--color-text-secondary)]"
             >
               <Mail className="w-5 h-5 text-red-500" />
               Continue with Google
@@ -98,10 +98,10 @@ export default function LoginPage() {
           {/* Divider */}
           <div className="relative my-8">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-200" />
+              <div className="w-full border-t border-[var(--color-border)]" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-3 bg-white text-slate-400">Or development login</span>
+              <span className="px-3 bg-[var(--color-surface)] text-[var(--color-text-muted)]">Or development login</span>
             </div>
           </div>
 
@@ -114,7 +114,7 @@ export default function LoginPage() {
             className="space-y-4"
           >
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1">
+              <label htmlFor="email" className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
                 Email
               </label>
               <motion.input
@@ -125,11 +125,11 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="demo@example.com"
-                className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none"
+                className="w-full px-4 py-3 rounded-xl border border-[var(--color-border)] focus:ring-2 focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)] transition-all outline-none bg-[var(--color-surface)] text-[var(--color-text)]"
               />
             </div>
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-slate-700 mb-1">
+              <label htmlFor="name" className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
                 Name (optional)
               </label>
               <motion.input
@@ -139,7 +139,7 @@ export default function LoginPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Your name"
-                className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none"
+                className="w-full px-4 py-3 rounded-xl border border-[var(--color-border)] focus:ring-2 focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)] transition-all outline-none bg-[var(--color-surface)] text-[var(--color-text)]"
               />
             </div>
             <motion.button
@@ -147,7 +147,7 @@ export default function LoginPage() {
               whileTap={email ? { scale: 0.98 } : {}}
               type="submit"
               disabled={loading || !email}
-              className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-colors"
+              className="w-full py-3 px-4 bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] disabled:bg-[var(--color-muted)] disabled:cursor-not-allowed text-[var(--color-accent-fg)] font-medium rounded-xl transition-colors"
             >
               {loading ? "Signing in..." : "Continue with Email"}
             </motion.button>

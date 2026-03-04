@@ -25,13 +25,13 @@ export function GenericToolResult({ output }: GenericToolResultProps) {
       : null;
 
   return (
-    <div className="mt-2 p-3 bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800">
+    <div className="mt-2 p-3 bg-[var(--color-hover)] rounded-lg border border-[var(--color-border)]">
       {error ? (
         <p className="text-sm text-red-500">Error: {error}</p>
       ) : isSuccess ? (
-        <p className="text-xs text-zinc-500">操作已完成</p>
+        <p className="text-xs text-[var(--color-text-muted)]">操作已完成</p>
       ) : (
-        <pre className="text-xs text-zinc-600 dark:text-zinc-400 overflow-x-auto">
+        <pre className="text-xs text-[var(--color-text-secondary)] overflow-x-auto">
           {JSON.stringify(output, null, 2)}
         </pre>
       )}

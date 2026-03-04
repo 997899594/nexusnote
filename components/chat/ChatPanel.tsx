@@ -36,8 +36,8 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
   const messages = chat.messages;
   const sendMessage = chat.sendMessage;
   const status = chat.status;
-  // @ts-expect-error AI SDK 6.0 compatibility
-  const isLoading = chat.isLoading;
+  // AI SDK v6: isLoading is derived from status
+  const isLoading = status === "submitted" || status === "streaming";
   const { handlePaste } = useInputProtection();
 
   const chatMessages = messages.filter((m: UIMessage) => m.role !== "system");
@@ -173,7 +173,7 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
 
   if (!sessionId) {
     return (
-      <div className="flex items-center justify-center h-full text-zinc-400">
+      <div className="flex items-center justify-center h-full text-[var(--color-text-muted)]">
         选择或创建一个会话开始聊天
       </div>
     );
@@ -184,7 +184,7 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
       <div className="flex-1 overflow-y-auto mobile-scroll px-4 md:px-6 py-4 safe-bottom">
         <div className="max-w-[calc(100vw-32px)] md:max-w-[var(--message-max-width)] mx-auto space-y-4">
           {chatMessages.length === 0 && !isLoading && (
-            <div className="text-center py-12 text-zinc-400 text-sm">开始对话...</div>
+            <div className="text-center py-12 text-[var(--color-text-muted)] text-sm">开始对话...</div>
           )}
 
           {chatMessages.map((msg) => (
@@ -197,7 +197,7 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
         </div>
       </div>
 
-      <div className="border-t border-zinc-100 bg-white px-4 md:px-6 py-3 md:py-4 safe-bottom">
+      <div className="border-t border-[var(--color-border-subtle)] bg-[var(--color-surface)] px-4 md:px-6 py-3 md:py-4 safe-bottom">
         <div className="max-w-[calc(100vw-32px)] md:max-w-[var(--message-max-width)] mx-auto relative">
           <AnimatePresence>
             {showCommands && !selectedCommand && filteredCommands.length > 0 && (
@@ -217,13 +217,13 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
                 exit={{ opacity: 0, scale: 0.9 }}
                 className="flex items-center gap-2 mb-3"
               >
-                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 rounded-lg text-xs">
-                  <selectedCommand.modeIcon className="w-3 h-3 text-zinc-500" />
-                  <span className="text-zinc-600 font-medium">{selectedCommand.modeLabel}</span>
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--color-hover)] rounded-lg text-xs">
+                  <selectedCommand.modeIcon className="w-3 h-3 text-[var(--color-text-tertiary)]" />
+                  <span className="text-[var(--color-text-secondary)] font-medium">{selectedCommand.modeLabel}</span>
                   <button
                     type="button"
                     onClick={handleCancelCommand}
-                    className="p-0.5 text-zinc-400 hover:text-zinc-600 transition-colors"
+                    className="p-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -232,9 +232,9 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
             )}
           </AnimatePresence>
 
-          <div className="flex items-end gap-2 md:gap-3 bg-zinc-50 rounded-2xl p-2 md:p-3">
-            <div className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center flex-shrink-0">
-              <Sparkles className="w-4 h-4 text-zinc-400" />
+          <div className="flex items-end gap-2 md:gap-3 bg-[var(--color-hover)] rounded-2xl p-2 md:p-3">
+            <div className="w-8 h-8 rounded-lg bg-[var(--color-surface)] flex items-center justify-center flex-shrink-0">
+              <Sparkles className="w-4 h-4 text-[var(--color-text-muted)]" />
             </div>
             <textarea
               value={input}
@@ -243,7 +243,7 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
               onPaste={handlePaste}
               placeholder={placeholder}
               rows={1}
-              className="flex-1 bg-transparent border-none outline-none text-sm text-zinc-800 placeholder:text-zinc-400 resize-none min-h-[24px] max-h-[120px]"
+              className="flex-1 bg-transparent border-none outline-none text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] resize-none min-h-[24px] max-h-[120px]"
             />
             <motion.button
               whileHover={{ scale: 1.05 }}
@@ -254,7 +254,7 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
                 "w-9 h-9 rounded-xl flex items-center justify-center transition-colors flex-shrink-0",
                 input.trim() && !isLoading
                   ? "bg-[var(--color-accent)] text-[var(--color-accent-fg)]"
-                  : "bg-zinc-200 text-zinc-400 cursor-not-allowed",
+                  : "bg-[var(--color-muted)] text-[var(--color-text-muted)] cursor-not-allowed",
               )}
             >
               {isLoading ? (

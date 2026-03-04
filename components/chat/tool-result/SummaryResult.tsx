@@ -31,15 +31,15 @@ export function SummaryResult({ output }: SummaryResultProps) {
   };
 
   return (
-    <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+    <div className="mt-2 p-3 bg-[var(--color-accent-light)] rounded-lg border border-[var(--color-accent)]/20">
       <div className="flex items-center gap-2 mb-2">
-        <FileText className="w-4 h-4 text-blue-600" />
-        <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
+        <FileText className="w-4 h-4 text-[var(--color-accent)]" />
+        <span className="text-sm font-medium text-[var(--color-accent)]">
           摘要 ({styleLabels[summary.style]})
         </span>
       </div>
 
-      <div className={`text-sm text-zinc-700 dark:text-zinc-300 ${!expanded && "line-clamp-3"}`}>
+      <div className={`text-sm text-[var(--color-text-secondary)] ${!expanded && "line-clamp-3"}`}>
         {summary.content}
       </div>
 
@@ -47,7 +47,7 @@ export function SummaryResult({ output }: SummaryResultProps) {
         <button
           type="button"
           onClick={() => setExpanded(!expanded)}
-          className="mt-2 flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400"
+          className="mt-2 flex items-center gap-1 text-xs text-[var(--color-accent)] hover:text-[var(--color-accent-hover)]"
         >
           {expanded ? (
             <>

@@ -8,10 +8,18 @@ interface Option {
   action?: string;
 }
 
+// 支持字符串数组或对象数组
+type OptionInput = string | Option;
+
 interface InterviewOptionsProps {
-  options: Option[];
+  options: OptionInput[];
   onSelect: (option: string) => void;
   isStreaming?: boolean;
+}
+
+// 标准化选项格式
+function normalizeOption(option: OptionInput): Option {
+  return typeof option === "string" ? { label: option } : option;
 }
 
 const containerVariants = {
@@ -53,25 +61,28 @@ export function InterviewOptions({ options, onSelect, isStreaming }: InterviewOp
       animate="visible"
       className="flex flex-wrap gap-1.5 mt-2"
     >
-      {options.map((option, index) => (
-        <motion.button
-          key={`${option.label}-${index}`}
-          variants={itemVariants}
-          type="button"
-          onClick={() => onSelect(option.action || option.label)}
-          whileHover={{ scale: 1.01 }}
-          whileTap={{ scale: 0.99 }}
-          className={cn(
-            "inline-flex items-center rounded-md border border-zinc-200 bg-zinc-50",
-            "px-2.5 py-1 text-xs font-medium text-zinc-600",
-            "transition-colors duration-150",
-            "hover:bg-zinc-900 hover:text-white hover:border-zinc-900",
-            "focus:outline-none focus:ring-1 focus:ring-zinc-400",
-          )}
-        >
-          {option.label}
-        </motion.button>
-      ))}
+      {options.map((option, index) => {
+        const normalized = normalizeOption(option);
+        return (
+          <motion.button
+            key={`${normalized.label}-${index}`}
+            variants={itemVariants}
+            type="button"
+            onClick={() => onSelect(normalized.action || normalized.label)}
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+            className={cn(
+              "inline-flex items-center rounded-md border border-zinc-200 bg-zinc-50",
+              "px-2.5 py-1 text-xs font-medium text-zinc-600",
+              "transition-colors duration-150",
+              "hover:bg-zinc-900 hover:text-white hover:border-zinc-900",
+              "focus:outline-none focus:ring-1 focus:ring-zinc-400",
+            )}
+          >
+            {normalized.label}
+          </motion.button>
+        );
+      })}
     </motion.div>
   );
 }

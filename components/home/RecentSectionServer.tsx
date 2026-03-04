@@ -157,9 +157,9 @@ export async function RecentSectionServer() {
     return (
       <section className="mb-14">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="font-medium text-zinc-700">最近</h2>
+          <h2 className="font-medium text-[var(--color-text-secondary)]">最近</h2>
         </div>
-        <p className="text-center py-8 text-zinc-400 text-sm">登录后查看学习记录</p>
+        <p className="text-center py-8 text-[var(--color-text-muted)] text-sm">登录后查看学习记录</p>
       </section>
     );
   }
@@ -170,9 +170,9 @@ export async function RecentSectionServer() {
     return (
       <section className="mb-14">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="font-medium text-zinc-700">最近</h2>
+          <h2 className="font-medium text-[var(--color-text-secondary)]">最近</h2>
         </div>
-        <p className="text-center py-8 text-zinc-400 text-sm">还没有学习记录，开始第一次学习吧！</p>
+        <p className="text-center py-8 text-[var(--color-text-muted)] text-sm">还没有学习记录，开始第一次学习吧！</p>
       </section>
     );
   }
@@ -180,7 +180,7 @@ export async function RecentSectionServer() {
   return (
     <section className="mb-14">
       <div className="flex items-center justify-between mb-5">
-        <h2 className="font-medium text-zinc-700">最近</h2>
+        <h2 className="font-medium text-[var(--color-text-secondary)]">最近</h2>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -106,13 +106,13 @@ export default async function ProfilePage() {
   ];
 
   return (
-    <main className="min-h-screen bg-slate-50 safe-top">
+    <main className="min-h-screen bg-[var(--color-bg)] safe-top">
       <FloatingHeader showBackHint />
 
       <div className="max-w-4xl mx-auto px-4 md:px-6 pt-20 md:pt-28 pb-16 md:pb-20">
         {/* 用户信息卡片 */}
         <section className="mb-8">
-          <div className="bg-white rounded-2xl shadow-[var(--shadow-elevated)] p-4 md:p-8">
+          <div className="bg-[var(--color-surface)] rounded-2xl shadow-[var(--shadow-elevated)] p-4 md:p-8">
             <div className="flex items-start gap-4 md:gap-6">
               {/* 头像 */}
               <div className="w-14 h-14 md:w-20 md:h-20 rounded-2xl bg-[var(--color-accent)] flex items-center justify-center text-[var(--color-accent-fg)] text-xl md:text-2xl font-bold flex-shrink-0">
@@ -126,16 +126,16 @@ export default async function ProfilePage() {
 
               {/* 信息 */}
               <div className="flex-1 min-w-0">
-                <h1 className="text-lg md:text-2xl font-bold text-zinc-900 mb-1 truncate">
+                <h1 className="text-lg md:text-2xl font-bold text-[var(--color-text)] mb-1 truncate">
                   {session.user.name || "学习者"}
                 </h1>
-                <p className="text-sm md:text-base text-zinc-500 mb-3 md:mb-4 truncate">
+                <p className="text-sm md:text-base text-[var(--color-text-tertiary)] mb-3 md:mb-4 truncate">
                   {session.user.email}
                 </p>
 
                 {/* 快捷操作 */}
                 <div className="flex items-center gap-3">
-                  <button className="flex items-center gap-2 px-4 py-2 text-sm text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-colors">
+                  <button className="flex items-center gap-2 px-4 py-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-hover)] rounded-lg transition-colors">
                     <Settings className="w-4 h-4" />
                     设置
                   </button>
@@ -148,7 +148,7 @@ export default async function ProfilePage() {
 
         {/* AI 学习统计 */}
         <section className="mb-8">
-          <h2 className="text-lg font-semibold text-zinc-700 mb-4">AI 学习统计</h2>
+          <h2 className="text-lg font-semibold text-[var(--color-text-secondary)] mb-4">AI 学习统计</h2>
           <div className="grid grid-cols-2 gap-3 md:gap-4 sm:grid-cols-2 md:grid-cols-4">
             {statsCards.map((card) => {
               const Icon = card.icon;
@@ -156,17 +156,17 @@ export default async function ProfilePage() {
                 <a
                   key={card.label}
                   href={card.href}
-                  className="bg-white rounded-xl shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] p-3 md:p-5 transition-shadow cursor-pointer active:scale-[0.98] touch-target"
+                  className="bg-[var(--color-surface)] rounded-xl shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] p-3 md:p-5 transition-shadow cursor-pointer active:scale-[0.98] touch-target"
                 >
                   <div
                     className={`${card.color} w-8 h-8 md:w-10 md:h-10 rounded-lg flex items-center justify-center mb-2 md:mb-3`}
                   >
                     <Icon className="w-4 h-4 md:w-5 md:h-5 text-white" />
                   </div>
-                  <div className="text-lg md:text-2xl font-bold text-zinc-900 mb-0.5 md:mb-1">
+                  <div className="text-lg md:text-2xl font-bold text-[var(--color-text)] mb-0.5 md:mb-1">
                     {card.value}
                   </div>
-                  <div className="text-xs md:text-sm text-zinc-500">{card.label}</div>
+                  <div className="text-xs md:text-sm text-[var(--color-text-tertiary)]">{card.label}</div>
                 </a>
               );
             })}
@@ -175,19 +175,19 @@ export default async function ProfilePage() {
 
         {/* AI 使用统计 */}
         <section className="mb-8">
-          <h2 className="text-lg font-semibold text-zinc-700 mb-4">
+          <h2 className="text-lg font-semibold text-[var(--color-text-secondary)] mb-4">
             <Brain className="w-5 h-5 inline mr-2 text-violet-500" />
             AI 使用情况
           </h2>
-          <div className="bg-white rounded-xl shadow-[var(--shadow-card)] p-6">
+          <div className="bg-[var(--color-surface)] rounded-xl shadow-[var(--shadow-card)] p-6">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
               <div className="flex items-center gap-3 md:gap-4">
                 <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-violet-100 flex items-center justify-center flex-shrink-0">
                   <Zap className="w-5 h-5 md:w-6 md:h-6 text-violet-600" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-xs md:text-sm text-zinc-500">请求数</div>
-                  <div className="text-base md:text-xl font-semibold text-zinc-900 truncate">
+                  <div className="text-xs md:text-sm text-[var(--color-text-tertiary)]">请求数</div>
+                  <div className="text-base md:text-xl font-semibold text-[var(--color-text)] truncate">
                     {stats.aiUsage.requestCount}
                   </div>
                 </div>
@@ -198,8 +198,8 @@ export default async function ProfilePage() {
                   <TrendingUp className="w-5 h-5 md:w-6 md:h-6 text-blue-600" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-xs md:text-sm text-zinc-500">Token 数</div>
-                  <div className="text-base md:text-xl font-semibold text-zinc-900">
+                  <div className="text-xs md:text-sm text-[var(--color-text-tertiary)]">Token 数</div>
+                  <div className="text-base md:text-xl font-semibold text-[var(--color-text)]">
                     {(stats.aiUsage.totalTokens / 1000).toFixed(1)}k
                   </div>
                 </div>
@@ -210,8 +210,8 @@ export default async function ProfilePage() {
                   <Target className="w-5 h-5 md:w-6 md:h-6 text-emerald-600" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-xs md:text-sm text-zinc-500">预估花费</div>
-                  <div className="text-base md:text-xl font-semibold text-zinc-900">
+                  <div className="text-xs md:text-sm text-[var(--color-text-tertiary)]">预估花费</div>
+                  <div className="text-base md:text-xl font-semibold text-[var(--color-text)]">
                     ${stats.aiUsage.totalCost.toFixed(2)}
                   </div>
                 </div>
@@ -229,25 +229,25 @@ export default async function ProfilePage() {
 
         {/* 最近活动 */}
         <section>
-          <h2 className="text-lg font-semibold text-zinc-700 mb-4">
-            <Clock className="w-5 h-5 inline mr-2 text-zinc-400" />
+          <h2 className="text-lg font-semibold text-[var(--color-text-secondary)] mb-4">
+            <Clock className="w-5 h-5 inline mr-2 text-[var(--color-text-muted)]" />
             最近活动
           </h2>
-          <div className="bg-white rounded-xl shadow-[var(--shadow-card)] overflow-hidden">
+          <div className="bg-[var(--color-surface)] rounded-xl shadow-[var(--shadow-card)] overflow-hidden">
             {stats.recentActivity.length > 0 ? (
-              <div className="divide-y divide-zinc-100">
+              <div className="divide-y divide-[var(--color-border-subtle)]">
                 {stats.recentActivity.map((activity) => (
                   <a
                     key={activity.id}
                     href={`/chat/${activity.id}`}
-                    className="flex items-center gap-4 p-4 hover:bg-zinc-50 transition-colors"
+                    className="flex items-center gap-4 p-4 hover:bg-[var(--color-hover)] transition-colors"
                   >
                     <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
                       <MessageSquare className="w-5 h-5 text-blue-600" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-zinc-900 truncate">{activity.title}</div>
-                      <div className="text-sm text-zinc-500">
+                      <div className="font-medium text-[var(--color-text)] truncate">{activity.title}</div>
+                      <div className="text-sm text-[var(--color-text-tertiary)]">
                         {activity.updatedAt
                           ? new Date(activity.updatedAt).toLocaleDateString("zh-CN", {
                               month: "short",
@@ -262,7 +262,7 @@ export default async function ProfilePage() {
                 ))}
               </div>
             ) : (
-              <div className="p-8 text-center text-zinc-400">
+              <div className="p-8 text-center text-[var(--color-text-muted)]">
                 <Brain className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p>开始第一次 AI 对话吧！</p>
               </div>

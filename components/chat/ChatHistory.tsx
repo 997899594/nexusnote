@@ -62,13 +62,13 @@ export function ChatHistory({
         animate={{ x: isOpen ? 0 : -280 }}
         transition={{ type: "spring", damping: 25, stiffness: 200 }}
         className={cn(
-          "fixed lg:relative w-[280px] h-full bg-white z-50 lg:z-0",
+          "fixed lg:relative w-[280px] h-full bg-[var(--color-surface)] z-50 lg:z-0",
           "flex flex-col shadow-xl lg:shadow-none",
           "lg:translate-x-0",
         )}
       >
         {/* Header */}
-        <div className="p-4 border-b border-zinc-100">
+        <div className="p-4 border-b border-[var(--color-border-subtle)]">
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
@@ -83,7 +83,7 @@ export function ChatHistory({
         {/* Session List */}
         <div className="flex-1 overflow-y-auto p-3">
           {sessions.length === 0 ? (
-            <div className="text-center py-8 text-zinc-400 text-sm">暂无对话记录</div>
+            <div className="text-center py-8 text-[var(--color-text-muted)] text-sm">暂无对话记录</div>
           ) : (
             <div className="space-y-1">
               {sessions.map((session) => (
@@ -93,14 +93,14 @@ export function ChatHistory({
                   animate={{ opacity: 1, y: 0 }}
                   className={cn(
                     "group relative flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-colors",
-                    session.id === currentSessionId ? "bg-zinc-100" : "hover:bg-zinc-50",
+                    session.id === currentSessionId ? "bg-[var(--color-hover)]" : "hover:bg-[var(--color-hover)]",
                   )}
                   onClick={() => onSelectSession(session.id)}
                 >
                   <MessageSquare
                     className={cn(
                       "w-4 h-4 mt-0.5 flex-shrink-0",
-                      session.id === currentSessionId ? "text-zinc-700" : "text-zinc-400",
+                      session.id === currentSessionId ? "text-[var(--color-text-secondary)]" : "text-[var(--color-text-muted)]",
                     )}
                   />
                   <div className="flex-1 min-w-0">
@@ -108,7 +108,7 @@ export function ChatHistory({
                       <span
                         className={cn(
                           "text-sm font-medium truncate",
-                          session.id === currentSessionId ? "text-zinc-900" : "text-zinc-700",
+                          session.id === currentSessionId ? "text-[var(--color-text)]" : "text-[var(--color-text-secondary)]",
                         )}
                       >
                         {session.title}
@@ -118,11 +118,11 @@ export function ChatHistory({
                       )}
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-xs text-zinc-400">
+                      <span className="text-xs text-[var(--color-text-muted)]">
                         {getMessageCount(session)} 条消息
                       </span>
-                      <span className="text-xs text-zinc-300">·</span>
-                      <span className="text-xs text-zinc-400">{formatTime(session.updatedAt)}</span>
+                      <span className="text-xs text-[var(--color-text-muted)]">·</span>
+                      <span className="text-xs text-[var(--color-text-muted)]">{formatTime(session.updatedAt)}</span>
                     </div>
                   </div>
                   <button
@@ -131,7 +131,7 @@ export function ChatHistory({
                       e.stopPropagation();
                       onDeleteSession(session.id);
                     }}
-                    className="opacity-0 group-hover:opacity-100 p-1 text-zinc-400 hover:text-red-500 transition-all"
+                    className="opacity-0 group-hover:opacity-100 p-1 text-[var(--color-text-muted)] hover:text-red-500 transition-all"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>

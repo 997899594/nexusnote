@@ -54,7 +54,7 @@ export function ChatMessage({
           "max-w-[var(--message-max-width)] px-4 py-3 rounded-2xl text-sm",
           isUser
             ? "bg-[var(--color-accent)] text-[var(--color-accent-fg)] rounded-br-md"
-            : "bg-zinc-100 text-zinc-800 rounded-bl-md",
+            : "bg-[var(--color-hover)] text-[var(--color-text)] rounded-bl-md",
         )}
       >
         {isUser ? (
@@ -89,14 +89,14 @@ export function LoadingDots({ className }: LoadingDotsProps) {
       animate={{ opacity: 1, y: 0 }}
       className={cn("flex justify-start", className)}
     >
-      <div className="bg-zinc-100 px-4 py-3 rounded-2xl rounded-bl-md">
+      <div className="bg-[var(--color-hover)] px-4 py-3 rounded-2xl rounded-bl-md">
         <div className="flex gap-1">
           {[0, 1, 2].map((i) => (
             <motion.span
               key={i}
               animate={{ y: [0, -4, 0] }}
               transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15 }}
-              className="w-1.5 h-1.5 bg-zinc-400 rounded-full"
+              className="w-1.5 h-1.5 bg-[var(--color-text-muted)] rounded-full"
             />
           ))}
         </div>

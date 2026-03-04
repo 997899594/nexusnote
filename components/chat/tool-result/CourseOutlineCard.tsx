@@ -67,7 +67,7 @@ export function CourseOutlineCard({ output }: CourseOutlineCardProps) {
         {output.courseId && (
           <a
             href={`/learn/${output.courseId}`}
-            className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400"
+            className="inline-flex items-center gap-1 text-sm text-[var(--color-accent)] hover:text-[var(--color-accent-hover)]"
           >
             <ExternalLink className="w-3 h-3" />
             查看课程
@@ -86,7 +86,7 @@ export function CourseOutlineCard({ output }: CourseOutlineCardProps) {
         </span>
       </div>
 
-      <h4 className="text-base font-semibold text-zinc-800 dark:text-zinc-200 mb-2">
+      <h4 className="text-base font-semibold text-[var(--color-text)] mb-2">
         {output.title}
       </h4>
 
@@ -95,26 +95,26 @@ export function CourseOutlineCard({ output }: CourseOutlineCardProps) {
           {output.outline.chapters.map((chapter, index) => (
             <div
               key={`${chapter.title}-${index}`}
-              className="p-2 bg-white dark:bg-zinc-900 rounded text-xs"
+              className="p-2 bg-[var(--color-surface)] rounded text-xs"
             >
-              <div className="font-medium text-zinc-700 dark:text-zinc-300">
+              <div className="font-medium text-[var(--color-text-secondary)]">
                 第 {index + 1} 章: {chapter.title}
               </div>
               {chapter.description && (
-                <div className="text-zinc-500 mt-1 line-clamp-2">{chapter.description}</div>
+                <div className="text-[var(--color-text-tertiary)] mt-1 line-clamp-2">{chapter.description}</div>
               )}
               {chapter.topics && chapter.topics.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-2">
                   {chapter.topics.slice(0, 3).map((topic) => (
                     <span
                       key={`topic-${index}-${topic}`}
-                      className="px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded text-xs"
+                      className="px-1.5 py-0.5 bg-[var(--color-hover)] text-[var(--color-text-secondary)] rounded text-xs"
                     >
                       {topic}
                     </span>
                   ))}
                   {chapter.topics.length > 3 && (
-                    <span className="text-zinc-400 text-xs">+{chapter.topics.length - 3}</span>
+                    <span className="text-[var(--color-text-muted)] text-xs">+{chapter.topics.length - 3}</span>
                   )}
                 </div>
               )}
@@ -124,7 +124,7 @@ export function CourseOutlineCard({ output }: CourseOutlineCardProps) {
       )}
 
       {!output.outline && output.chapters && (
-        <p className="text-xs text-zinc-500 mb-3">共 {output.chapters} 章</p>
+        <p className="text-xs text-[var(--color-text-tertiary)] mb-3">共 {output.chapters} 章</p>
       )}
 
       <div className="flex gap-2">

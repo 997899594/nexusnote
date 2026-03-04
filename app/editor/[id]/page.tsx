@@ -46,14 +46,14 @@ export default function EditorPage() {
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-          className="w-8 h-8 border-3 border-zinc-200 border-t-indigo-600 rounded-full"
+          className="w-8 h-8 border-3 border-[var(--color-border)] border-t-[var(--color-accent)] rounded-full"
         />
       </motion.div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white md:bg-slate-50">
+    <div className="min-h-screen bg-[var(--color-surface)] md:bg-[var(--color-bg)]">
       {/* 移动端顶部导航 */}
       <MobileHeader
         title={title || "无标题"}
@@ -75,13 +75,13 @@ export default function EditorPage() {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="笔记标题"
-            className="text-2xl font-bold bg-transparent border-none outline-none flex-1"
+            className="text-2xl font-bold bg-transparent border-none outline-none flex-1 text-[var(--color-text)]"
           />
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={handleSave}
-            className="px-5 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+            className="px-5 py-2 bg-[var(--color-accent)] text-[var(--color-accent-fg)] rounded-lg hover:bg-[var(--color-accent-hover)] transition-colors"
           >
             保存
           </motion.button>
@@ -96,12 +96,12 @@ export default function EditorPage() {
       {/* 移动端全屏编辑 */}
       <div className="md:hidden">
         {/* 移动端标题栏 */}
-        <div className="px-4 pt-16 pb-2 border-b border-zinc-100">
+        <div className="px-4 pt-16 pb-2 border-b border-[var(--color-border-subtle)]">
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="无标题"
-            className="w-full text-lg font-semibold bg-transparent border-none outline-none"
+            className="w-full text-lg font-semibold bg-transparent border-none outline-none text-[var(--color-text)]"
           />
           {/* 移动端标签栏 */}
           <div className="pt-2">

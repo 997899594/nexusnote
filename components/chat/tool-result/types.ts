@@ -216,16 +216,27 @@ export interface UpdateProfileOutput {
 
 export interface ConfirmOutlineOutput {
   success: boolean;
-  courseProfileId: string;
-  title: string;
-  moduleCount: number;
+  courseProfileId?: string;
+  title?: string;
+  moduleCount?: number;
+  outline?: {
+    title: string;
+    description?: string;
+    estimatedMinutes?: number;
+    chapters: Array<{
+      title: string;
+      description?: string;
+      topics?: string[];
+    }>;
+  };
   message?: string;
   error?: string;
 }
 
 export interface SuggestOptionsOutput {
   success: boolean;
-  options: Array<{ label: string }>;
+  options: string[]; // AI 返回字符串数组
+  message?: string;
 }
 
 export interface UpdateOutlineOutput {

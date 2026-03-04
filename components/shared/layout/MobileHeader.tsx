@@ -75,9 +75,9 @@ export function MobileHeader({
       case "transparent":
         return "bg-transparent";
       case "glass":
-        return "bg-white/80 backdrop-blur-xl border-b border-zinc-200/40";
+        return "bg-[var(--color-surface)]/80 backdrop-blur-xl border-b border-[var(--color-border-subtle)]";
       default:
-        return "bg-white border-b border-zinc-100";
+        return "bg-[var(--color-surface)] border-b border-[var(--color-border-subtle)]";
     }
   }, [variant]);
 
@@ -97,10 +97,10 @@ export function MobileHeader({
             <motion.button
               whileTap={{ scale: 0.9 }}
               onClick={handleBack}
-              className="touch-target mobile-no-tap-highlight flex items-center justify-center w-10 h-10 -ml-2 rounded-full active:bg-zinc-100 transition-colors"
+              className="touch-target mobile-no-tap-highlight flex items-center justify-center w-10 h-10 -ml-2 rounded-full active:bg-[var(--color-active)] transition-colors"
               aria-label="返回"
             >
-              <ArrowLeft className="w-5 h-5 text-zinc-700" />
+              <ArrowLeft className="w-5 h-5 text-[var(--color-text-secondary)]" />
             </motion.button>
           )}
         </div>
@@ -108,7 +108,7 @@ export function MobileHeader({
         {/* 中间 - 标题 */}
         <div className="flex-1 text-center">
           {title && (
-            <h1 className="text-base font-semibold text-zinc-900 truncate px-4">{title}</h1>
+            <h1 className="text-base font-semibold text-[var(--color-text)] truncate px-4">{title}</h1>
           )}
         </div>
 
@@ -118,27 +118,27 @@ export function MobileHeader({
             <motion.button
               whileTap={{ scale: 0.9 }}
               onClick={handleRightAction}
-              className="touch-target mobile-no-tap-highlight flex items-center justify-center w-10 h-10 -mr-2 rounded-full active:bg-zinc-100 transition-colors"
+              className="touch-target mobile-no-tap-highlight flex items-center justify-center w-10 h-10 -mr-2 rounded-full active:bg-[var(--color-active)] transition-colors"
               aria-label="菜单"
             >
-              <Menu className="w-5 h-5 text-zinc-700" />
+              <Menu className="w-5 h-5 text-[var(--color-text-secondary)]" />
             </motion.button>
           )}
           {rightAction === "close" && (
             <motion.button
               whileTap={{ scale: 0.9 }}
               onClick={handleRightAction}
-              className="touch-target mobile-no-tap-highlight flex items-center justify-center w-10 h-10 -mr-2 rounded-full active:bg-zinc-100 transition-colors"
+              className="touch-target mobile-no-tap-highlight flex items-center justify-center w-10 h-10 -mr-2 rounded-full active:bg-[var(--color-active)] transition-colors"
               aria-label="关闭"
             >
-              <X className="w-5 h-5 text-zinc-700" />
+              <X className="w-5 h-5 text-[var(--color-text-secondary)]" />
             </motion.button>
           )}
           {rightAction === "custom" && onRightAction && (
             <motion.button
               whileTap={{ scale: 0.9 }}
               onClick={handleRightAction}
-              className="touch-target mobile-no-tap-highlight flex items-center justify-center w-10 h-10 -mr-2 rounded-full active:bg-zinc-100 transition-colors"
+              className="touch-target mobile-no-tap-highlight flex items-center justify-center w-10 h-10 -mr-2 rounded-full active:bg-[var(--color-active)] transition-colors"
               aria-label="操作"
             >
               {/* 父组件可传入自定义内容 */}

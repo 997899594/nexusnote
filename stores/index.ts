@@ -8,6 +8,7 @@
 export { useAuthStore } from "./auth";
 // Chat 相关
 export { useChatStore } from "./chat";
+export { useChatSessionStateStore } from "./chat-session-state";
 // Editor 相关
 export { useEditorStore } from "./editor";
 // Learn 相关
