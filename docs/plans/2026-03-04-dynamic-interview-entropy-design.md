@@ -396,6 +396,188 @@ const SYSTEM_PROMPT = `
 
 ---
 
+## 工程边界补丁（2026 生产级）
+
+### 补丁 1：异步蓝图冷启动竞态条件
+
+**问题**：用户快速回复时，蓝图可能还没生成完。
+
+```
+用户: "我想学 K8s"
+      ↓ Agent 毫秒级回复
+      ↓ 后台异步生成蓝图 (1.5s)
+用户: "日常运维" (1s 后回复)
+      ↓ commitAndEvaluate
+      ↓ 蓝图还没生成完！
+      ↓ evaluateSaturationLocally 返回 score: 0
+```
+
+**解决方案**：Event-Driven Re-evaluation
+
+```typescript
+// 1. 蓝图状态跟踪
+interface BlueprintState {
+  status: 'pending' | 'ready' | 'failed';
+  pendingFacts: ExtractedFact[];  // 冷启动期暂存的事实
+}
+
+// 2. 评估函数改进
+async function evaluateSaturation(topic: string, facts: ExtractedFact[]) {
+  const blueprintState = await getBlueprintState(topic);
+
+  if (blueprintState.status === 'pending') {
+    // 暂存事实，返回 isReady: false
+    await appendPendingFacts(topic, facts);
+    return { score: 0, isReady: false, isBlueprintPending: true };
+  }
+
+  // 正常评估...
+}
+
+// 3. 蓝图生成完成时触发重算
+async function onBlueprintReady(blueprint: TopicBlueprint) {
+  const pendingFacts = await getAndClearPendingFacts(blueprint.topic);
+  if (pendingFacts.length > 0) {
+    // 重新评估所有暂存事实
+    const evaluation = evaluateSaturationLocally(blueprint, pendingFacts);
+    // 更新课程状态
+    await updateCourseSaturation(blueprint.topic, evaluation);
+  }
+}
+```
+
+### 补丁 2：Blueprint-Aware Extraction
+
+**问题**：`includes` 关键词匹配太脆弱。
+
+```typescript
+// 蓝图关键词: ["语言", "经验"]
+// 用户说: "我是前端切图仔"
+// AI 提取: dimension: "技术栈", value: "Vue/React"
+// "技术栈".includes("语言") → false → 匹配失败
+```
+
+**解决方案**：把蓝图维度直接注入 Prompt
+
+```typescript
+// 动态注入蓝图维度
+const blueprintDimensions = blueprint?.coreDimensions.map(d => d.name) || [];
+
+export const commitAndEvaluate = tool({
+  description: `提取用户事实。
+
+⚠️ 极端重要：当前的主题蓝图规定了以下核心维度：
+[${blueprintDimensions.join(", ")}]
+
+你必须优先将用户的信息归类到上述标准维度中！
+只有当信息极其特殊且重要时，才允许自创维度。`,
+  // ...
+});
+
+// 本地评估简化：直接匹配维度名
+function evaluateSaturationLocally(blueprint: TopicBlueprint, facts: ExtractedFact[]) {
+  for (const dim of blueprint.coreDimensions) {
+    // 精确匹配，不再用 includes
+    const isMatched = facts.some(fact => fact.dimension === dim.name);
+    // ...
+  }
+}
+```
+
+### 补丁 3：Topic Drift 软删除（Event Sourcing）
+
+**问题**：硬删除导致数据丢失，用户反悔时无法恢复。
+
+```
+用户: "我想学 Python" → 收集了 3 轮信息
+用户: "等等，我要学 Rust" → Topic Drift → 清空 facts
+用户: "算了太难了，还是 Python 吧" → 之前的 Python 信息全丢了
+```
+
+**解决方案**：软隔离 + 共享事实
+
+```typescript
+interface ExtractedFact {
+  dimension: string;
+  value: string | number | boolean;
+  type: 'string' | 'number' | 'boolean';
+  confidence: number;
+  extractedAt: string;
+
+  // 新增：归属主题
+  topicId: string;
+
+  // 新增：是否全局共享（如"设备=Mac"在所有技术主题都适用）
+  isShared: boolean;
+}
+
+// Topic Drift 处理
+if (args.topicDrift.isChanged && args.topicDrift.newTopic) {
+  const newTopicId = generateTopicId(args.topicDrift.newTopic);
+
+  // 不清空！只是后续 facts 打上新的 topicId
+  profile.currentTopic = args.topicDrift.newTopic;
+  profile.currentTopicId = newTopicId;
+
+  // 全局共享事实（如设备、操作系统）仍然可用
+  const sharedFacts = profile.extractedFacts.filter(f => f.isShared);
+  // 新主题可以复用这些事实
+}
+
+// 评估时按 topicId 过滤
+function getActiveFacts(profile: CourseProfileState): ExtractedFact[] {
+  const currentTopicFacts = profile.extractedFacts.filter(
+    f => f.topicId === profile.currentTopicId
+  );
+  const sharedFacts = profile.extractedFacts.filter(f => f.isShared);
+  return [...currentTopicFacts, ...sharedFacts];
+}
+```
+
+---
+
+## 更新后的数据模型
+
+```typescript
+// types/interview-v2.ts
+
+export interface ExtractedFact {
+  dimension: string;
+  value: string | number | boolean;
+  type: 'string' | 'number' | 'boolean';
+  confidence: number;
+  extractedAt: string;
+
+  // 补丁 3：归属主题
+  topicId: string;
+
+  // 补丁 3：全局共享标记
+  isShared: boolean;
+}
+
+export interface BlueprintState {
+  topicHash: string;
+  status: 'pending' | 'ready' | 'failed';
+  pendingFacts: ExtractedFact[];
+  blueprint?: TopicBlueprint;
+}
+
+export interface DynamicCourseProfile {
+  currentTopic: string;
+  currentTopicId: string;  // 补丁 3
+
+  extractedFacts: ExtractedFact[];
+
+  saturationScore: number;
+  nextHighValueDimensions: string[];
+
+  blueprintId?: string;
+  blueprintStatus: 'pending' | 'ready' | 'failed';  // 补丁 1
+}
+```
+
+---
+
 ## 参考资料
 
 - [AI SDK v6 Advanced Features](../ai-sdk-v6-advanced-features.md)
