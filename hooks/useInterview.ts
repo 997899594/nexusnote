@@ -107,6 +107,9 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
       const lastToolPart = toolParts[toolParts.length - 1];
       const output = lastToolPart.output as ConfirmOutlineOutput | undefined;
 
+      // Debug log
+      console.log("[Interview] confirmOutline output:", output);
+
       if (output?.success && output.outline) {
         // 访谈完成，设置大纲和完成状态
         setOutline(output.outline);
