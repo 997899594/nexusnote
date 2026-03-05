@@ -51,20 +51,3 @@ export function createDiscoverSkillsTool(userId: string) {
     },
   });
 }
-
-// 向后兼容：保留旧的无 userId 版本（标记为 deprecated）
-export const discoverSkillsTool = tool({
-  description: "[DEPRECATED] 使用 createDiscoverSkillsTool(userId) 代替",
-  inputSchema: DiscoverSkillsToolSchema,
-  execute: async () => {
-    console.warn(
-      "[Tool] discoverSkillsTool is deprecated. Use createDiscoverSkillsTool(userId) instead.",
-    );
-    return {
-      success: false,
-      error: "Tool requires userId context. Use createDiscoverSkillsTool(userId).",
-      skills: [],
-      count: 0,
-    };
-  },
-});

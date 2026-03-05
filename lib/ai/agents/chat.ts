@@ -4,21 +4,14 @@
 
 import { stepCountIs, ToolLoopAgent, type ToolSet } from "ai";
 import { aiProvider } from "../core";
-import {
-  createNoteTool,
-  createNoteTools,
-  deleteNoteTool,
-  getNoteTool,
-  searchNotesTool,
-  updateNoteTool,
-  webSearchTool,
-} from "../tools/chat";
+import { createNoteTools } from "../tools/chat/notes";
+import { createSearchTools } from "../tools/chat/search";
+import { webSearchTool } from "../tools/chat/web-search";
 import { batchEditTool, draftContentTool, editDocumentTool } from "../tools/editor";
-import { mindMapTool, summarizeTool } from "../tools/learning";
-import { hybridSearchTool } from "../tools/rag";
+import { mindMapTool, summarizeTool } from "../tools/learning/enhance";
+import { createRagTools } from "../tools/rag";
 
-const INSTRUCTIONS = {
-  chat: `你是 NexusNote 智能助手。
+const INSTRUCTIONS = `你是 NexusNote 智能助手。
 
 核心能力：
 - 搜索和管理用户的笔记 (使用 searchNotes、hybridSearch、getNote)
@@ -31,8 +24,7 @@ const INSTRUCTIONS = {
 行为准则：
 - 主动、简洁、有益
 - 需要用户确认的操作（如删除）必须先询问
-- 使用工具获取信息，不要编造`,
-} as const;
+- 使用工具获取信息，不要编造`;
 
 export interface PersonalizationOptions {
   personaPrompt?: string;
@@ -49,29 +41,25 @@ export function createChatAgent(options?: PersonalizationOptions) {
     : undefined;
 
   const fullInstructions = additionalInstructions
-    ? `${additionalInstructions}\n\n${INSTRUCTIONS.chat}`
-    : INSTRUCTIONS.chat;
+    ? `${additionalInstructions}\n\n${INSTRUCTIONS}`
+    : INSTRUCTIONS;
 
-  // 构建 chatTools - 如果有 userId，使用带权限验证的笔记工具
-  const chatTools = {
-    ...(options?.userId
-      ? createNoteTools(options.userId)
-      : {
-          createNote: createNoteTool,
-          getNote: getNoteTool,
-          updateNote: updateNoteTool,
-          deleteNote: deleteNoteTool,
-        }),
-    // 其他工具不变
-    searchNotes: searchNotesTool,
-    hybridSearch: hybridSearchTool,
+  // 构建工具集 - 需要 userId 的工具使用工厂模式
+  const chatTools: ToolSet = {
+    // 笔记工具（需要 userId）
+    ...createNoteTools(options?.userId || ""),
+    // 搜索工具（需要 userId）
+    ...createSearchTools(options?.userId || ""),
+    // RAG 工具（需要 userId）
+    ...createRagTools(options?.userId || ""),
+    // 其他工具（不需要 userId）
     webSearch: webSearchTool,
     mindMap: mindMapTool,
     summarize: summarizeTool,
     editDocument: editDocumentTool,
     batchEdit: batchEditTool,
     draftContent: draftContentTool,
-  } as ToolSet;
+  };
 
   return new ToolLoopAgent({
     id: "nexusnote-chat",
@@ -81,19 +69,3 @@ export function createChatAgent(options?: PersonalizationOptions) {
     stopWhen: stepCountIs(20),
   });
 }
-
-// 导出工具供外部使用（deprecated - 推荐使用 createChatAgent 传入 userId）
-export const chatTools = {
-  createNote: createNoteTool,
-  getNote: getNoteTool,
-  updateNote: updateNoteTool,
-  deleteNote: deleteNoteTool,
-  searchNotes: searchNotesTool,
-  hybridSearch: hybridSearchTool,
-  webSearch: webSearchTool,
-  mindMap: mindMapTool,
-  summarize: summarizeTool,
-  editDocument: editDocumentTool,
-  batchEdit: batchEditTool,
-  draftContent: draftContentTool,
-} as ToolSet;

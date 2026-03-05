@@ -1,5 +1,7 @@
 /**
  * RAG Tools - 混合搜索
+ *
+ * 工厂模式：通过闭包绑定 userId
  */
 
 import { tool } from "ai";
@@ -14,38 +16,46 @@ export const HybridSearchSchema = z.object({
 
 export type HybridSearchInput = z.infer<typeof HybridSearchSchema>;
 
-export const hybridSearchTool = tool({
-  description:
-    "在用户知识库中进行混合搜索（向量+关键词），获取最相关的内容片段。可指定来源类型：document（文档）或 conversation（聊天）。",
-  inputSchema: HybridSearchSchema,
-  execute: async (args) => {
-    try {
-      const results = await hybridSearch({
-        query: args.query,
-        topK: args.topK,
-        sourceTypes: args.sourceTypes,
-      });
-      return {
-        success: true,
-        query: args.query,
-        count: results.length,
-        results: results.map((r) => ({
-          id: r.id,
-          sourceId: r.sourceId,
-          sourceType: r.sourceType,
-          content: r.content.slice(0, 500),
-          score: Math.round(r.score * 100) / 100,
-          source: r.source,
-        })),
-      };
-    } catch (error) {
-      console.error("[RAG Tool] error:", error);
-      return {
-        success: false,
-        query: args.query,
-        results: [],
-        error: "搜索服务暂不可用",
-      };
-    }
-  },
-});
+/**
+ * 创建 RAG 工具（带 userId 权限验证）
+ */
+export function createRagTools(userId: string) {
+  return {
+    hybridSearch: tool({
+      description:
+        "在用户知识库中进行混合搜索（向量+关键词），获取最相关的内容片段。可指定来源类型：document（文档）或 conversation（聊天）。",
+      inputSchema: HybridSearchSchema,
+      execute: async (args) => {
+        try {
+          const results = await hybridSearch({
+            query: args.query,
+            topK: args.topK,
+            sourceTypes: args.sourceTypes,
+            userId, // 权限验证
+          });
+          return {
+            success: true,
+            query: args.query,
+            count: results.length,
+            results: results.map((r) => ({
+              id: r.id,
+              sourceId: r.sourceId,
+              sourceType: r.sourceType,
+              content: r.content.slice(0, 500),
+              score: Math.round(r.score * 100) / 100,
+              source: r.source,
+            })),
+          };
+        } catch (error) {
+          console.error("[RAG Tool] error:", error);
+          return {
+            success: false,
+            query: args.query,
+            results: [],
+            error: "搜索服务暂不可用",
+          };
+        }
+      },
+    }),
+  };
+}

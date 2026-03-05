@@ -79,14 +79,31 @@ export async function POST(request: NextRequest) {
 
     const { messages, intent: clientIntent, sessionId, personaSlug } = validation.data;
 
-    // 客户端显式指定的 intent（如 /interview 命令）
-    // 如果是 INTERVIEW，说明客户端没有正确跳转
+    // ============================================
+    // 服务端 Intent 验证
+    // ============================================
+
+    // INTERVIEW 必须跳转到 /interview 页面
     if (clientIntent === "INTERVIEW") {
       throw new APIError("INTERVIEW 意图应跳转到 /interview 页面", 400, "INVALID_INTENT");
     }
 
-    // Chat 只处理 CHAT/COURSE/SKILLS，旧 intent 映射到 CHAT
-    const intent = clientIntent === "EDITOR" || clientIntent === "SEARCH" ? "CHAT" : (clientIntent || "CHAT");
+    // SKILLS intent 需要登录
+    if (clientIntent === "SKILLS" && (!userId || userId === "anonymous")) {
+      throw new APIError("SKILLS 意图需要登录", 401, "UNAUTHORIZED");
+    }
+
+    // 允许的 intent 列表
+    const ALLOWED_INTENTS = ["CHAT", "COURSE", "SKILLS"] as const;
+    type AllowedIntent = (typeof ALLOWED_INTENTS)[number];
+
+    // 验证并规范化 intent
+    let intent: AllowedIntent = "CHAT";
+    if (clientIntent && ALLOWED_INTENTS.includes(clientIntent as AllowedIntent)) {
+      intent = clientIntent as AllowedIntent;
+    }
+    // EDITOR/SEARCH 等旧 intent 映射到 CHAT
+
     const uiMessages = messages as UIMessage[];
 
     console.log("[Chat] Request received, personaSlug:", personaSlug, "intent:", intent);
