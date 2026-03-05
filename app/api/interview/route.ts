@@ -2,22 +2,34 @@
  * Interview API - 独立的访谈接口
  *
  * 2026 架构：
- * - 专注于 INTERVIEW intent
- * - 无 Persona 干扰
- * - 服务端管理课程状态
+ * 1. 单阶段 Agent - 无 phase 逻辑
+ * 2. 简化状态机 - 仅管理 courseId
+ * 3. 隐式上下文 - ID 通过闭包绑定
  */
 
 import type { UIMessage } from "ai";
 import { type NextRequest, NextResponse } from "next/server";
-import { conversations, courseSessions, db } from "@/db";
+import { courseSessions, db } from "@/db";
 import type { InterviewProfile } from "@/db/schema";
-import { aiProvider, getAgent, validateRequest } from "@/lib/ai";
+import { aiProvider, validateRequest } from "@/lib/ai";
+import { createInterviewAgent } from "@/lib/ai/agents/interview";
 import { createNexusNoteStreamResponse } from "@/lib/ai/streaming";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
+import { and, eq } from "drizzle-orm";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
+
+// ============================================
+// Types
+// ============================================
+
+// Phase types removed - interview is now single-phase
+
+// ============================================
+// Main Handler
+// ============================================
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
@@ -52,123 +64,98 @@ export async function POST(request: NextRequest) {
     }
 
     // ============================================
-    // 获取或创建课程
+    // 状态机：获取或创建课程
     // ============================================
-    let activeCourseId = inputCourseId;
-    const uiMessages = messages as UIMessage[];
-
-    if (activeCourseId) {
-      // 验证课程存在且属于当前用户
-      const existingCourse = await db.query.courseSessions.findFirst({
-        where: (c, { eq, and }) => and(eq(c.id, activeCourseId!), eq(c.userId, userId)),
-      });
-
-      if (!existingCourse) {
-        activeCourseId = undefined;
-      }
-    }
-
-    if (!activeCourseId) {
-      // 创建新的课程
-      const firstUserMessage = uiMessages.find((m) => m.role === "user");
-      let goal = "学习新知识";
-
-      if (firstUserMessage?.parts) {
-        const textPart = firstUserMessage.parts.find((p) => p.type === "text");
-        if (textPart && "text" in textPart) {
-          goal = textPart.text.slice(0, 200);
-        }
-      }
-
-      const [newCourse] = await db
-        .insert(courseSessions)
-        .values({
-          userId,
-          title: goal,
-          interviewProfile: {
-            goal,
-            domain: null,
-            complexity: "moderate",
-            background: null,
-            currentLevel: "none",
-            targetOutcome: null,
-            timeConstraints: null,
-            insights: [],
-            readiness: 0,
-            estimatedTurns: 3,
-            currentTurn: 0,
-          } satisfies InterviewProfile,
-          interviewStatus: "interviewing",
-          status: "idle",
-        })
-        .returning();
-
-      activeCourseId = newCourse.id;
-      console.log("[Interview] Created course:", activeCourseId);
-    }
+    const state = await resolveInterviewState(userId, inputCourseId, messages as UIMessage[]);
 
     // ============================================
-    // 创建/更新 conversation 记录
+    // 创建 Agent
     // ============================================
-    if (sessionId) {
-      const firstUserMessage = uiMessages.find((m) => m.role === "user");
-      let title = "课程访谈";
-
-      if (firstUserMessage?.parts) {
-        const textPart = firstUserMessage.parts.find((p) => p.type === "text");
-        if (textPart && "text" in textPart) {
-          title = textPart.text.slice(0, 100);
-        }
-      }
-
-      try {
-        await db
-          .insert(conversations)
-          .values({
-            id: sessionId,
-            userId,
-            title,
-            intent: "INTERVIEW",
-            messageCount: uiMessages.length,
-            metadata: { courseId: activeCourseId },
-          })
-          .onConflictDoUpdate({
-            target: conversations.id,
-            set: {
-              messageCount: uiMessages.length,
-              lastMessageAt: new Date(),
-              metadata: { courseId: activeCourseId },
-            },
-          });
-      } catch (insertError) {
-        console.warn("[Interview] Failed to upsert session:", insertError);
-      }
-    }
-
-    // ============================================
-    // 获取 Interview Agent
-    // ============================================
-    const agent = getAgent("INTERVIEW", {
-      courseProfileId: activeCourseId,
+    const agent = createInterviewAgent({
+      courseProfileId: state.courseId,
     });
 
-    const response = await createNexusNoteStreamResponse(agent, uiMessages);
+    const response = await createNexusNoteStreamResponse(agent, messages as UIMessage[]);
 
     const durationMs = Date.now() - startTime;
-    console.log("[Interview] Request completed in", durationMs, "ms");
+    console.log("[Interview]", { durationMs, courseId: state.courseId });
 
     if (sessionId) {
       response.headers.set("X-Session-Id", sessionId);
     }
-    if (activeCourseId) {
-      response.headers.set("X-Course-Id", activeCourseId);
-    }
+    response.headers.set("X-Course-Id", state.courseId);
 
     return response;
   } catch (error) {
     return handleError(error);
   }
 }
+
+// ============================================
+// State Machine Logic
+// ============================================
+
+async function resolveInterviewState(
+  userId: string,
+  inputCourseId: string | undefined,
+  messages: UIMessage[],
+): Promise<{ courseId: string }> {
+  // 1. 尝试获取现有课程
+  if (inputCourseId) {
+    const existing = await db.query.courseSessions.findFirst({
+      where: (c, { eq, and }) => and(eq(c.id, inputCourseId!), eq(c.userId, userId)),
+    });
+
+    if (existing) {
+      return { courseId: existing.id };
+    }
+  }
+
+  // 2. 创建新课程
+  const firstUserMessage = messages.find((m) => m.role === "user");
+  let goal = "学习新知识";
+
+  if (firstUserMessage?.parts) {
+    const textPart = firstUserMessage.parts.find((p) => p.type === "text");
+    if (textPart && "text" in textPart) {
+      goal = textPart.text.slice(0, 200);
+    }
+  }
+
+  const [newCourse] = await db
+    .insert(courseSessions)
+    .values({
+      userId,
+      title: goal,
+      interviewProfile: {
+        goal,
+        domain: null,
+        complexity: "moderate",
+        background: null,
+        currentLevel: "none",
+        targetOutcome: null,
+        timeConstraints: null,
+        insights: [],
+        readiness: 0,
+        estimatedTurns: 3,
+        currentTurn: 0,
+      } satisfies InterviewProfile,
+      interviewStatus: "interviewing",
+      status: "idle",
+    })
+    .returning();
+
+  console.log("[Interview] Created course:", newCourse.id);
+
+  return { courseId: newCourse.id };
+}
+
+// ============================================
+// Session Tracking
+// ============================================
+
+// 注意：session upsert 移到 streamResponse 内部处理
+// 这里只负责核心的状态机逻辑
 
 export async function GET() {
   return NextResponse.json({
