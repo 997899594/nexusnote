@@ -72,7 +72,9 @@ export async function POST(request: NextRequest) {
     // 创建 Agent
     // ============================================
     const agent = createInterviewAgent({
-      courseProfileId: state.courseId,
+      userId,
+      courseId: state.courseId,
+      messages: messages as UIMessage[],
     });
 
     const response = await createNexusNoteStreamResponse(agent, messages as UIMessage[]);

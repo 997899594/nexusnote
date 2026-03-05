@@ -26,6 +26,9 @@ import { editDocumentTool, batchEditTool, draftContentTool } from "./editor";
 
 /**
  * 工具注册表
+ * 
+ * 注意：resource 目录下的工具使用 ToolContext
+ *      其他工具暂时使用 string (userId)
  */
 export const toolRegistry = {
   global: {
@@ -35,7 +38,7 @@ export const toolRegistry = {
   },
   resource: {
     interview: createInterviewTools,
-    course: createCourseTools,
+    // course: createCourseTools, // TODO: 迁移到 ToolContext
   },
   shared: {
     suggestOptions: suggestOptionsTool,
@@ -63,13 +66,13 @@ export function buildAgentTools(
   // 共享工具 - 所有 Agent 都有
   Object.assign(tools, toolRegistry.shared);
 
-  // 全局工具
-  Object.assign(tools, toolRegistry.global.search(ctx));
-  Object.assign(tools, toolRegistry.global.rag(ctx));
+  // 全局工具 - 传入 userId (string)
+  Object.assign(tools, toolRegistry.global.search(ctx.userId));
+  Object.assign(tools, toolRegistry.global.rag(ctx.userId));
 
   switch (agentType) {
     case "chat":
-      Object.assign(tools, toolRegistry.global.notes(ctx));
+      Object.assign(tools, toolRegistry.global.notes(ctx.userId));
       break;
 
     case "interview":
@@ -83,7 +86,8 @@ export function buildAgentTools(
       if (!ctx.resourceId) {
         throw new Error("Course agent requires resourceId (courseId)");
       }
-      Object.assign(tools, toolRegistry.resource.course(ctx));
+      // course tools still use string signature
+      Object.assign(tools, createCourseTools(ctx.userId));
       break;
 
     case "skills":

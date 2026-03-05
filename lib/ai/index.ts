@@ -2,7 +2,7 @@
  * AI Module - Tools, Agents, Validation, Core, Personalization
  */
 
-export type { AgentIntent, InterviewOptions, PersonalizationOptions } from "./agents";
+export type { AgentIntent, InterviewAgentOptions, PersonalizationOptions } from "./agents";
 // Agents
 export { getAgent } from "./agents";
 // Core AI (aiProvider only)

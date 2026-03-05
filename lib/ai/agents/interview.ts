@@ -1,42 +1,74 @@
 /**
- * INTERVIEW Agent - 单阶段访谈
- *
- * 简化原则：
- * 1. 无复杂度评估
- * 2. 无阶段切换
- * 3. prompt 控制行为
+ * INTERVIEW Agent - v6 状态机驱动
  */
 
-import { stepCountIs, ToolLoopAgent } from "ai";
+import { stepCountIs, ToolLoopAgent, type ToolSet } from "ai";
 import { aiProvider } from "../core";
-import { createInterviewTools } from "../tools/interview";
+import { createToolContext, type ToolContext } from "../core/tool-context";
+import { buildAgentTools } from "../tools";
+import { type InterviewState, computePhase } from "../schemas/interview";
+import { INTERVIEW_PROMPT, getPhasePrompt } from "../prompts/interview";
 
-const MAX_STEPS = 12;
+const MAX_STEPS = 15;
 
-const INSTRUCTIONS = `你是课程规划师。
+// ============================================
+// Types
+// ============================================
 
-## 核心规则（必须遵守）
-
-1. **每轮只能问一个问题** - 不要连续问多个问题
-2. **回复后调用 suggestOptions** - 提供 3-4 个选项
-3. **生成或调整大纲时调用 confirmOutline**
-
-像朋友聊天，简洁自然。`;
-
-export interface InterviewOptions {
-  courseProfileId: string;
+export interface InterviewAgentOptions {
+  userId: string;
+  courseId: string;
+  messages?: import("ai").UIMessage[];
+  personalization?: {
+    personaPrompt?: string;
+    userContext?: string;
+  };
 }
 
-export function createInterviewAgent(options: InterviewOptions) {
-  if (!options.courseProfileId) {
-    throw new Error("courseProfileId required");
+// ============================================
+// Agent Factory
+// ============================================
+
+export function createInterviewAgent(
+  options: InterviewAgentOptions,
+): ToolLoopAgent<InterviewState, ToolSet> {
+  if (!options.courseId) {
+    throw new Error("Interview agent requires courseId");
   }
 
-  return new ToolLoopAgent({
-    id: "interview",
+  const ctx: ToolContext = createToolContext({
+    userId: options.userId,
+    resourceId: options.courseId,
+    messages: options.messages,
+  });
+
+  const tools = buildAgentTools("interview", ctx) as ToolSet;
+
+  return new ToolLoopAgent<InterviewState, ToolSet>({
+    id: "nexusnote-interview",
     model: aiProvider.chatModel,
-    instructions: INSTRUCTIONS,
-    tools: createInterviewTools(options.courseProfileId),
+    tools,
+
+    // v6 标准：通过泛型定义 options 类型
+    // prepareCall 的 options 参数类型由泛型 InterviewState 推断
+
+    prepareCall: ({ options: state, ...rest }) => {
+      const currentState = state ?? {};
+      const phase = computePhase(currentState);
+
+      const instructions = `${INTERVIEW_PROMPT}\n\n${getPhasePrompt(phase, currentState)}`;
+
+      if (phase === "ready") {
+        return {
+          ...rest,
+          instructions,
+          toolChoice: { type: "tool", toolName: "confirmOutline" },
+        };
+      }
+
+      return { ...rest, instructions };
+    },
+
     stopWhen: stepCountIs(MAX_STEPS),
   });
 }

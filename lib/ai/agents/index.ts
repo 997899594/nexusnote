@@ -4,7 +4,7 @@
 
 import { createChatAgent, type PersonalizationOptions } from "./chat";
 import { createCourseAgent } from "./course";
-import { createInterviewAgent, type InterviewOptions } from "./interview";
+import { createInterviewAgent, type InterviewAgentOptions } from "./interview";
 import { createSkillsAgent, type SkillsAgentOptions } from "./skills";
 
 // ============================================
@@ -13,18 +13,18 @@ import { createSkillsAgent, type SkillsAgentOptions } from "./skills";
 
 export type AgentIntent = "CHAT" | "INTERVIEW" | "COURSE" | "SKILLS";
 
-export type { PersonalizationOptions, InterviewOptions, SkillsAgentOptions };
+export type { PersonalizationOptions, InterviewAgentOptions, SkillsAgentOptions };
 
 // ============================================
 // Factory
 // ============================================
 
-type AgentOptions = PersonalizationOptions & Partial<InterviewOptions> & Partial<SkillsAgentOptions>;
+type AgentOptions = PersonalizationOptions & Partial<InterviewAgentOptions> & Partial<SkillsAgentOptions>;
 
 export function getAgent(intent: AgentIntent, options: AgentOptions = {}) {
   switch (intent) {
     case "INTERVIEW":
-      return createInterviewAgent(options as InterviewOptions);
+      return createInterviewAgent(options as InterviewAgentOptions);
     case "COURSE":
       return createCourseAgent(options);
     case "SKILLS": {
