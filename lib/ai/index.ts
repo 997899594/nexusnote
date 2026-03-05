@@ -1,12 +1,16 @@
 /**
- * AI Module - Tools, Agents, Validation, Core, Personalization
+ * AI Module - Tools, Agents, Validation, Core, Personalization, Schemas, Prompts
  */
 
 export type { AgentIntent, InterviewAgentOptions, PersonalizationOptions } from "./agents";
 // Agents
 export { getAgent } from "./agents";
-// Core AI (aiProvider only)
-export { aiProvider } from "./core";
+// Core AI
+export * from "./core";
+// Schemas
+export * from "./schemas";
+// Prompts
+export * from "./prompts";
 export type { PersonalizationResult } from "./personalization";
 // Personalization
 export { buildPersonalization } from "./personalization";

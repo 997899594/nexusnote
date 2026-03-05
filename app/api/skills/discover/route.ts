@@ -3,8 +3,7 @@
  */
 
 import type { UIMessage } from "ai";
-import { getAgent } from "@/lib/ai";
-import { createNexusNoteStreamResponse } from "@/lib/ai/streaming";
+import { getAgent, createNexusNoteStreamResponse } from "@/lib/ai";
 import { withAuth } from "@/lib/api";
 import { DiscoverSkillsSchema } from "@/lib/skills/validation";
 

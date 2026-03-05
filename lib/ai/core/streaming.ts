@@ -4,13 +4,15 @@ import {
   createAgentUIStreamResponse,
   smoothStream,
   type UIMessage,
+  type Agent,
 } from "ai";
 
 // ============================================
 // Types
 // ============================================
 
-type AnyAgent = Parameters<typeof createAgentUIStreamResponse>[0]["agent"];
+// Use a more permissive agent type to avoid strict type parameter issues
+type AnyAgent = Agent<any, any, any>;
 
 export interface StreamOptions {
   /** 会话 ID */
