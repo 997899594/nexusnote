@@ -22,11 +22,9 @@ export function buildInstructions(
   basePrompt: string,
   personalization?: { personaPrompt?: string; userContext?: string },
 ): string {
-  const parts = [
-    personalization?.personaPrompt,
-    personalization?.userContext,
-    basePrompt,
-  ].filter(Boolean);
+  const parts = [personalization?.personaPrompt, personalization?.userContext, basePrompt].filter(
+    Boolean,
+  );
 
   return parts.join("\n\n");
 }

@@ -47,7 +47,9 @@ function SafeStreamdown({
     // 降级到纯文本
     console.error("[Streamdown] Render error:", error);
     return (
-      <pre className="whitespace-pre-wrap text-sm text-[var(--color-text-secondary)]">{content}</pre>
+      <pre className="whitespace-pre-wrap text-sm text-[var(--color-text-secondary)]">
+        {content}
+      </pre>
     );
   }
 }

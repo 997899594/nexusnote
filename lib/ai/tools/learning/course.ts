@@ -120,9 +120,14 @@ export function createCourseTools(userId: string) {
             return { success: false, error: "无权访问此课程" };
           }
 
-          const chapters = await db.select().from(documents).where(eq(documents.courseId, profile.id));
+          const chapters = await db
+            .select()
+            .from(documents)
+            .where(eq(documents.courseId, profile.id));
 
-          const generatedChapters = chapters.filter((c) => c.content && c.content.length > 0).length;
+          const generatedChapters = chapters.filter(
+            (c) => c.content && c.content.length > 0,
+          ).length;
           const totalChapters = chapters.length;
           const progressData = profile.progress as {
             currentChapter?: number;

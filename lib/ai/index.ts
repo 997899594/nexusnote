@@ -7,13 +7,13 @@ export type { AgentIntent, InterviewAgentOptions, PersonalizationOptions } from 
 export { getAgent } from "./agents";
 // Core AI
 export * from "./core";
-// Schemas
-export * from "./schemas";
-// Prompts
-export * from "./prompts";
 export type { PersonalizationResult } from "./personalization";
 // Personalization
 export { buildPersonalization } from "./personalization";
+// Prompts
+export * from "./prompts";
+// Schemas
+export * from "./schemas";
 // Tools
 export * from "./tools";
 export type { ChatRequest, Intent } from "./validation";

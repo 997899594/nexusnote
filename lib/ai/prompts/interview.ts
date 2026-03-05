@@ -1,6 +1,6 @@
 // lib/ai/prompts/interview.ts
 
-import type { InterviewState, InterviewPhase } from "@/lib/ai/schemas/interview";
+import type { InterviewPhase, InterviewState } from "@/lib/ai/schemas/interview";
 
 export const INTERVIEW_PROMPT = `你是 NexusNote 的课程规划师。
 

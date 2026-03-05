@@ -19,7 +19,9 @@ export type { PersonalizationOptions, InterviewAgentOptions, SkillsAgentOptions 
 // Factory
 // ============================================
 
-type AgentOptions = PersonalizationOptions & Partial<InterviewAgentOptions> & Partial<SkillsAgentOptions>;
+type AgentOptions = PersonalizationOptions &
+  Partial<InterviewAgentOptions> &
+  Partial<SkillsAgentOptions>;
 
 export function getAgent(intent: AgentIntent, options: AgentOptions = {}) {
   switch (intent) {

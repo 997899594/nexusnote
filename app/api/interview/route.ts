@@ -8,6 +8,7 @@
  */
 
 import type { UIMessage } from "ai";
+import { eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { courseSessions, db } from "@/db";
 import type { InterviewProfile } from "@/db/schema";
@@ -16,7 +17,6 @@ import { createInterviewAgent } from "@/lib/ai/agents/interview";
 import { createNexusNoteStreamResponse } from "@/lib/ai/core/streaming";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
-import { and, eq } from "drizzle-orm";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;

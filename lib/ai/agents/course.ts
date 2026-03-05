@@ -4,11 +4,11 @@
 
 import { stepCountIs, ToolLoopAgent, type ToolSet } from "ai";
 import { aiProvider } from "../core";
-import { createCourseTools } from "../tools/learning/course";
 import { createNoteTools } from "../tools/chat/notes";
 import { createSearchTools } from "../tools/chat/search";
 import { webSearchTool } from "../tools/chat/web-search";
 import { batchEditTool, draftContentTool, editDocumentTool } from "../tools/editor";
+import { createCourseTools } from "../tools/learning/course";
 import { mindMapTool, summarizeTool } from "../tools/learning/enhance";
 import { createRagTools } from "../tools/rag";
 import type { PersonalizationOptions } from "./chat";

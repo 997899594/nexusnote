@@ -116,8 +116,7 @@ function InterviewContent() {
 
   const lastMsg = chatMessages[chatMessages.length - 1];
   const isAILoading =
-    (status === "submitted" || status === "streaming") &&
-    (!lastMsg || lastMsg.role === "user");
+    (status === "submitted" || status === "streaming") && (!lastMsg || lastMsg.role === "user");
 
   return (
     <div className="flex h-screen bg-[var(--color-bg)] overflow-hidden">
@@ -164,9 +163,7 @@ function InterviewContent() {
               <GraduationCap className="w-5 h-5 text-[var(--color-accent-fg)]" />
             </div>
             <div>
-              <h1 className="font-semibold text-[var(--color-text)]">
-                课程访谈
-              </h1>
+              <h1 className="font-semibold text-[var(--color-text)]">课程访谈</h1>
               <p className="text-xs text-[var(--color-text-tertiary)]">
                 {interviewCompleted ? "大纲已生成" : "告诉我你想学什么"}
               </p>
@@ -174,24 +171,19 @@ function InterviewContent() {
               {!interviewCompleted &&
                 chatMessages.length > 0 &&
                 (() => {
-                  const userMessageCount = chatMessages.filter(
-                    (m) => m.role === "user",
-                  ).length;
+                  const userMessageCount = chatMessages.filter((m) => m.role === "user").length;
 
                   return (
                     <div className="flex items-center gap-2 mt-1">
                       <div className="flex gap-1">
-                        {Array.from(
-                          { length: Math.min(userMessageCount, 6) },
-                          (_, i) => (
-                            <motion.div
-                              key={i}
-                              initial={{ scale: 0, opacity: 0 }}
-                              animate={{ scale: 1, opacity: 1 }}
-                              className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)]"
-                            />
-                          ),
-                        )}
+                        {Array.from({ length: Math.min(userMessageCount, 6) }, (_, i) => (
+                          <motion.div
+                            key={i}
+                            initial={{ scale: 0, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)]"
+                          />
+                        ))}
                       </div>
                       <span className="text-xs text-[var(--color-text-muted)]">
                         第 {userMessageCount} 轮
@@ -239,27 +231,24 @@ function InterviewContent() {
                   transition={{ delay: 0.2 }}
                   className="flex flex-wrap justify-center gap-2"
                 >
-                  {[
-                    "我想学 Python",
-                    "我想学做 PPT",
-                    "考研数学怎么准备",
-                    "教我做川菜",
-                  ].map((example, index) => (
-                    <motion.button
-                      key={example}
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: 0.25 + index * 0.05 }}
-                      type="button"
-                      onClick={() => {
-                        setStarted(true);
-                        sendMessage({ text: example });
-                      }}
-                      className="px-4 py-2 bg-[var(--color-hover)] hover:bg-[var(--color-active)] rounded-full text-sm text-[var(--color-text-secondary)] transition-colors"
-                    >
-                      {example}
-                    </motion.button>
-                  ))}
+                  {["我想学 Python", "我想学做 PPT", "考研数学怎么准备", "教我做川菜"].map(
+                    (example, index) => (
+                      <motion.button
+                        key={example}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.25 + index * 0.05 }}
+                        type="button"
+                        onClick={() => {
+                          setStarted(true);
+                          sendMessage({ text: example });
+                        }}
+                        className="px-4 py-2 bg-[var(--color-hover)] hover:bg-[var(--color-active)] rounded-full text-sm text-[var(--color-text-secondary)] transition-colors"
+                      >
+                        {example}
+                      </motion.button>
+                    ),
+                  )}
                 </motion.div>
               </div>
             )}
@@ -292,9 +281,7 @@ function InterviewContent() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={
-                  interviewCompleted ? "继续调整大纲..." : "继续对话..."
-                }
+                placeholder={interviewCompleted ? "继续调整大纲..." : "继续对话..."}
                 rows={1}
                 className="flex-1 bg-transparent border-none outline-none text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] resize-none min-h-[24px] max-h-[120px]"
               />

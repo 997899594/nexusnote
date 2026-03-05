@@ -212,7 +212,9 @@ export function HeroInput() {
                 className="absolute bottom-4 left-4 md:bottom-6 md:left-6 flex items-center gap-1.5 px-3 py-1.5 bg-[var(--color-hover)] rounded-lg text-xs z-10"
               >
                 <selectedCommand.modeIcon className="w-3 h-3 text-[var(--color-text-tertiary)]" />
-                <span className="text-[var(--color-text-secondary)] font-medium">{selectedCommand.modeLabel}</span>
+                <span className="text-[var(--color-text-secondary)] font-medium">
+                  {selectedCommand.modeLabel}
+                </span>
                 <button
                   type="button"
                   onClick={handleCancelCommand}

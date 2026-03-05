@@ -5,9 +5,9 @@
 import { stepCountIs, ToolLoopAgent, type ToolSet } from "ai";
 import { aiProvider } from "../core";
 import { createToolContext, type ToolContext } from "../core/tool-context";
+import { getPhasePrompt, INTERVIEW_PROMPT } from "../prompts/interview";
+import { computePhase, type InterviewState } from "../schemas/interview";
 import { buildAgentTools } from "../tools";
-import { type InterviewState, computePhase } from "../schemas/interview";
-import { INTERVIEW_PROMPT, getPhasePrompt } from "../prompts/interview";
 
 const MAX_STEPS = 15;
 

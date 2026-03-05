@@ -30,8 +30,7 @@ AI：大约需要 20 小时
 → suggestOptions({ options: ["开始学习", "查看大纲", "试听课程", "学习计划"] })`,
 
   inputSchema: z.object({
-    options: z.array(z.string()).min(2).max(5)
-      .describe("用户最可能的意图，专业干练，2-4个"),
+    options: z.array(z.string()).min(2).max(5).describe("用户最可能的意图，专业干练，2-4个"),
   }),
 
   execute: async ({ options }) => ({

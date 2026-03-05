@@ -86,9 +86,7 @@ export function CourseOutlineCard({ output }: CourseOutlineCardProps) {
         </span>
       </div>
 
-      <h4 className="text-base font-semibold text-[var(--color-text)] mb-2">
-        {output.title}
-      </h4>
+      <h4 className="text-base font-semibold text-[var(--color-text)] mb-2">{output.title}</h4>
 
       {output.outline && (
         <div className="mb-3 space-y-2">
@@ -101,7 +99,9 @@ export function CourseOutlineCard({ output }: CourseOutlineCardProps) {
                 第 {index + 1} 章: {chapter.title}
               </div>
               {chapter.description && (
-                <div className="text-[var(--color-text-tertiary)] mt-1 line-clamp-2">{chapter.description}</div>
+                <div className="text-[var(--color-text-tertiary)] mt-1 line-clamp-2">
+                  {chapter.description}
+                </div>
               )}
               {chapter.topics && chapter.topics.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-2">
@@ -114,7 +114,9 @@ export function CourseOutlineCard({ output }: CourseOutlineCardProps) {
                     </span>
                   ))}
                   {chapter.topics.length > 3 && (
-                    <span className="text-[var(--color-text-muted)] text-xs">+{chapter.topics.length - 3}</span>
+                    <span className="text-[var(--color-text-muted)] text-xs">
+                      +{chapter.topics.length - 3}
+                    </span>
                   )}
                 </div>
               )}

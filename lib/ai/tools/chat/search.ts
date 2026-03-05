@@ -65,7 +65,8 @@ export function createSearchTools(userId: string) {
               id: r.id,
               sourceId: r.sourceId,
               sourceType: r.sourceType,
-              title: r.sourceType === "document" ? docMap.get(r.sourceId) || "未知文档" : "聊天记录",
+              title:
+                r.sourceType === "document" ? docMap.get(r.sourceId) || "未知文档" : "聊天记录",
               content: r.content.slice(0, 300),
               relevance: Math.round(r.score * 100),
               source: r.source,

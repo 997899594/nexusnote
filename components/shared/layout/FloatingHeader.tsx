@@ -38,7 +38,9 @@ export function FloatingHeader({
             <Zap className="w-4 h-4 md:w-5 md:h-5 text-[var(--color-accent-fg)]" />
           </div>
           <div className="flex items-center gap-1 md:gap-2">
-            <span className="font-semibold text-base md:text-lg text-[var(--color-text)]">NexusNote</span>
+            <span className="font-semibold text-base md:text-lg text-[var(--color-text)]">
+              NexusNote
+            </span>
             {showBackHint && (
               <motion.div
                 initial={{ opacity: 0, x: -10 }}

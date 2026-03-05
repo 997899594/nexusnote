@@ -1,7 +1,7 @@
 // lib/ai/core/nested-ai.ts
 
 import { generateText, Output } from "ai";
-import { z } from "zod";
+import type { z } from "zod";
 import { aiProvider } from "../core";
 
 // ============================================

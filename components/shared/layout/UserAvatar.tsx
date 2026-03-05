@@ -52,7 +52,9 @@ export function UserAvatar({ className = "", size = "md" }: UserAvatarProps) {
   // Loading state - show pulse
   if (isLoading) {
     return (
-      <div className={`${sizeClasses[size]} rounded-full bg-[var(--color-hover)] animate-pulse ${className}`} />
+      <div
+        className={`${sizeClasses[size]} rounded-full bg-[var(--color-hover)] animate-pulse ${className}`}
+      />
     );
   }
 

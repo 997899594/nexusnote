@@ -16,11 +16,15 @@ export const ConfirmOutlineSchema = z.object({
   description: z.string().optional(),
   difficulty: z.enum(["beginner", "intermediate", "advanced"]),
   estimatedMinutes: z.number(),
-  modules: z.array(z.object({
-    title: z.string(),
-    description: z.string().optional(),
-    chapters: z.array(z.string()),
-  })).min(1),
+  modules: z
+    .array(
+      z.object({
+        title: z.string(),
+        description: z.string().optional(),
+        chapters: z.array(z.string()),
+      }),
+    )
+    .min(1),
 });
 
 // ============================================

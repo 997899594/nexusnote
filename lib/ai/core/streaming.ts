@@ -1,11 +1,6 @@
 // lib/ai/core/streaming.ts
 
-import {
-  createAgentUIStreamResponse,
-  smoothStream,
-  type UIMessage,
-  type Agent,
-} from "ai";
+import { type Agent, createAgentUIStreamResponse, smoothStream, type UIMessage } from "ai";
 
 // ============================================
 // Types
