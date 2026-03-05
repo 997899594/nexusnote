@@ -96,22 +96,25 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
 
   // 监听 confirmOutline 工具调用 - 访谈完成
   useEffect(() => {
-    const lastMessage = messages[messages.length - 1];
-    if (!lastMessage || lastMessage.role !== "assistant") return;
+    // 遍历所有消息，找到最近的 confirmOutline 调用
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i];
+      if (msg.role !== "assistant") continue;
 
-    const toolParts = lastMessage.parts
-      ?.filter(isToolPart)
-      .filter((p) => p.type === "tool-confirmOutline" && p.state === "output-available");
+      const toolParts = msg.parts
+        ?.filter(isToolPart)
+        .filter((p) => p.type === "tool-confirmOutline" && p.state === "output-available");
 
-    if (toolParts && toolParts.length > 0) {
-      const lastToolPart = toolParts[toolParts.length - 1];
-      const output = lastToolPart.output as ConfirmOutlineOutput | undefined;
+      if (toolParts && toolParts.length > 0) {
+        const lastToolPart = toolParts[toolParts.length - 1];
+        const output = lastToolPart.output as ConfirmOutlineOutput | undefined;
 
-      if (output?.success && output.outline) {
-        // 访谈完成，设置大纲和完成状态
-        setOutline(output.outline);
-        setInterviewCompleted(true);
-        setIsOutlineLoading(false);
+        if (output?.success && output.outline) {
+          setOutline(output.outline);
+          setInterviewCompleted(true);
+          setIsOutlineLoading(false);
+          return; // 找到后立即返回
+        }
       }
     }
   }, [messages, setOutline, setInterviewCompleted, setIsOutlineLoading]);
