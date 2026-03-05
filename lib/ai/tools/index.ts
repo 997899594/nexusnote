@@ -8,25 +8,25 @@ export * from "./editor";
 export * from "./interview";
 export * from "./learning";
 export * from "./rag";
-export * from "./skills";
 export * from "./shared";
+export * from "./skills";
 
 // 新增：工具构建器
 import type { ToolContext } from "@/lib/ai/core/tool-context";
 import { createNoteTools } from "./chat/notes";
 import { createSearchTools } from "./chat/search";
-import { createRagTools } from "./rag";
+import { webSearchTool } from "./chat/web-search";
+import { batchEditTool, draftContentTool, editDocumentTool } from "./editor";
 import { createInterviewTools } from "./interview";
 import { createCourseTools } from "./learning/course";
-import { createDiscoverSkillsTool } from "./skills/discovery";
-import { suggestOptionsTool } from "./shared/suggest-options";
-import { webSearchTool } from "./chat/web-search";
 import { mindMapTool, summarizeTool } from "./learning/enhance";
-import { editDocumentTool, batchEditTool, draftContentTool } from "./editor";
+import { createRagTools } from "./rag";
+import { suggestOptionsTool } from "./shared/suggest-options";
+import { createDiscoverSkillsTool } from "./skills/discovery";
 
 /**
  * 工具注册表
- * 
+ *
  * 注意：resource 目录下的工具使用 ToolContext
  *      其他工具暂时使用 string (userId)
  */
@@ -56,6 +56,10 @@ export const toolRegistry = {
 
 /**
  * 为 Agent 构建工具集
+ *
+ * 注意：不同类型的 Agent 有不同的工具需求
+ * - chat/interview/course: 需要 shared 交互工具
+ * - skills: 静默后台运行，只需要 discoverSkills
  */
 export function buildAgentTools(
   agentType: "chat" | "interview" | "course" | "skills",
@@ -63,10 +67,14 @@ export function buildAgentTools(
 ): Record<string, unknown> {
   const tools: Record<string, unknown> = {};
 
-  // 共享工具 - 所有 Agent 都有
-  Object.assign(tools, toolRegistry.shared);
+  // skills 是静默后台任务，只需要 discoverSkills
+  if (agentType === "skills") {
+    Object.assign(tools, toolRegistry.skills.discoverSkills(ctx.userId));
+    return tools;
+  }
 
-  // 全局工具 - 传入 userId (string)
+  // 其他 Agent: 共享工具 + 全局工具
+  Object.assign(tools, toolRegistry.shared);
   Object.assign(tools, toolRegistry.global.search(ctx.userId));
   Object.assign(tools, toolRegistry.global.rag(ctx.userId));
 
@@ -88,10 +96,6 @@ export function buildAgentTools(
       }
       // course tools still use string signature
       Object.assign(tools, createCourseTools(ctx.userId));
-      break;
-
-    case "skills":
-      Object.assign(tools, toolRegistry.skills.discoverSkills(ctx.userId));
       break;
   }
 
