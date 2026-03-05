@@ -12,7 +12,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { aiUsage, conversations, db } from "@/db";
 import { aiProvider, getAgent, validateRequest } from "@/lib/ai";
 import { buildPersonalization } from "@/lib/ai/personalization";
-import { createNexusNoteStreamResponse } from "@/lib/ai/streaming";
+import { createNexusNoteStreamResponse } from "@/lib/ai/core/streaming";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
 import { checkRateLimitOrThrow } from "@/lib/rate-limit";
@@ -167,19 +167,15 @@ export async function POST(request: NextRequest) {
       userContext,
     });
 
-    const response = await createNexusNoteStreamResponse(agent, uiMessages);
+    const response = await createNexusNoteStreamResponse(agent, uiMessages, {
+      sessionId,
+    });
 
     const durationMs = Date.now() - startTime;
 
     if (userId && userId !== "anonymous") {
       trackUsage(userId, intent, "gemini-3-flash-preview", 0, 0, durationMs).catch(console.error);
     }
-
-    if (sessionId) {
-      response.headers.set("X-Session-Id", sessionId);
-    }
-    response.headers.set("X-Content-Type-Options", "nosniff");
-    response.headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
 
     return response;
   } catch (error) {

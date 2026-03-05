@@ -13,7 +13,7 @@ import { courseSessions, db } from "@/db";
 import type { InterviewProfile } from "@/db/schema";
 import { aiProvider, validateRequest } from "@/lib/ai";
 import { createInterviewAgent } from "@/lib/ai/agents/interview";
-import { createNexusNoteStreamResponse } from "@/lib/ai/streaming";
+import { createNexusNoteStreamResponse } from "@/lib/ai/core/streaming";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
 import { and, eq } from "drizzle-orm";
@@ -77,15 +77,13 @@ export async function POST(request: NextRequest) {
       messages: messages as UIMessage[],
     });
 
-    const response = await createNexusNoteStreamResponse(agent, messages as UIMessage[]);
+    const response = await createNexusNoteStreamResponse(agent, messages as UIMessage[], {
+      sessionId,
+      resourceId: state.courseId,
+    });
 
     const durationMs = Date.now() - startTime;
     console.log("[Interview]", { durationMs, courseId: state.courseId });
-
-    if (sessionId) {
-      response.headers.set("X-Session-Id", sessionId);
-    }
-    response.headers.set("X-Course-Id", state.courseId);
 
     return response;
   } catch (error) {
