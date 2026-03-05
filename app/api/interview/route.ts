@@ -8,7 +8,7 @@
  */
 
 import type { UIMessage } from "ai";
-import { eq } from "drizzle-orm";
+// eq is used in db queries
 import { type NextRequest, NextResponse } from "next/server";
 import { courseSessions, db } from "@/db";
 import type { InterviewProfile } from "@/db/schema";
