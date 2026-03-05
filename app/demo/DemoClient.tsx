@@ -170,12 +170,8 @@ export function DemoClient() {
           <h2 className="text-xl font-semibold text-[var(--color-text)] mb-6">输入框</h2>
           <motion.div
             animate={{
-              borderColor: focused
-                ? "var(--color-accent)"
-                : "var(--color-border)",
-              boxShadow: focused
-                ? "0 0 0 3px var(--color-accent-ring)"
-                : "var(--shadow-card)",
+              borderColor: focused ? "var(--color-accent)" : "var(--color-border)",
+              boxShadow: focused ? "0 0 0 3px var(--color-accent-ring)" : "var(--shadow-card)",
             }}
             className="relative bg-[var(--color-surface)] rounded-2xl border overflow-hidden transition-shadow"
           >
@@ -320,7 +316,9 @@ export function DemoClient() {
                   </div>
                   <span className="text-xs text-[var(--color-text-tertiary)]">{item.time}</span>
                 </div>
-                <h3 className="font-medium text-sm mb-0.5 text-[var(--color-text)]">{item.title}</h3>
+                <h3 className="font-medium text-sm mb-0.5 text-[var(--color-text)]">
+                  {item.title}
+                </h3>
                 <p className="text-xs text-[var(--color-text-tertiary)]">{item.desc}</p>
               </motion.div>
             ))}
@@ -337,9 +335,7 @@ export function DemoClient() {
           <div className="relative max-w-2xl mx-auto">
             <motion.div
               animate={{
-                borderColor: focused
-                  ? "var(--color-accent)"
-                  : "var(--color-border)",
+                borderColor: focused ? "var(--color-accent)" : "var(--color-border)",
                 boxShadow: focused
                   ? "0 20px 50px -20px oklch(50% 0.03 250 / 20%)"
                   : "var(--shadow-elevated)",

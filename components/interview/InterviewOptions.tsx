@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 interface Option {
@@ -45,6 +46,8 @@ const itemVariants = {
 };
 
 export function InterviewOptions({ options, onSelect, isStreaming }: InterviewOptionsProps) {
+  const [selected, setSelected] = useState(false);
+
   if (!options || options.length === 0) {
     return null;
   }
@@ -53,6 +56,12 @@ export function InterviewOptions({ options, onSelect, isStreaming }: InterviewOp
   if (isStreaming) {
     return null;
   }
+
+  const handleSelect = (option: string) => {
+    if (selected) return;
+    setSelected(true);
+    onSelect(option);
+  };
 
   return (
     <motion.div
@@ -68,15 +77,15 @@ export function InterviewOptions({ options, onSelect, isStreaming }: InterviewOp
             key={`${normalized.label}-${index}`}
             variants={itemVariants}
             type="button"
-            onClick={() => onSelect(normalized.action || normalized.label)}
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.99 }}
+            onClick={() => handleSelect(normalized.action || normalized.label)}
+            disabled={selected}
             className={cn(
-              "inline-flex items-center rounded-md border border-zinc-200 bg-zinc-50",
-              "px-2.5 py-1 text-xs font-medium text-zinc-600",
+              "inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-medium",
               "transition-colors duration-150",
-              "hover:bg-zinc-900 hover:text-white hover:border-zinc-900",
               "focus:outline-none focus:ring-1 focus:ring-zinc-400",
+              selected
+                ? "border-zinc-200 bg-zinc-100 text-zinc-400 cursor-not-allowed"
+                : "border-zinc-200 bg-zinc-50 text-zinc-600 hover:bg-zinc-900 hover:text-white hover:border-zinc-900",
             )}
           >
             {normalized.label}

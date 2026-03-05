@@ -114,7 +114,9 @@ export function MindMapResult({ output }: MindMapResultProps) {
         <span className="text-sm font-medium text-[var(--color-text-secondary)]">
           {mindMapData?.topic}
         </span>
-        <span className="text-xs text-[var(--color-text-muted)] ml-auto">{mindMapData?.layout}</span>
+        <span className="text-xs text-[var(--color-text-muted)] ml-auto">
+          {mindMapData?.layout}
+        </span>
       </div>
 
       <div className="h-[300px] bg-[var(--color-surface)]">

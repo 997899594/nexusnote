@@ -128,8 +128,12 @@ export function DrawerMenu({ isOpen, onClose, userName, userEmail }: DrawerMenuP
                     .slice(0, 2) || "U"}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-[var(--color-text)] truncate">{userName || "学习者"}</div>
-                  <div className="text-sm text-[var(--color-text-tertiary)] truncate">{userEmail}</div>
+                  <div className="font-semibold text-[var(--color-text)] truncate">
+                    {userName || "学习者"}
+                  </div>
+                  <div className="text-sm text-[var(--color-text-tertiary)] truncate">
+                    {userEmail}
+                  </div>
                 </div>
               </div>
             </div>
@@ -176,7 +180,10 @@ export function DrawerMenu({ isOpen, onClose, userName, userEmail }: DrawerMenuP
                     )}
                   >
                     <Icon
-                      className={cn("w-5 h-5", isActive ? "text-[var(--color-accent)]" : "text-[var(--color-text-muted)]")}
+                      className={cn(
+                        "w-5 h-5",
+                        isActive ? "text-[var(--color-accent)]" : "text-[var(--color-text-muted)]",
+                      )}
                     />
                     <span className="text-sm">{item.label}</span>
                   </motion.button>

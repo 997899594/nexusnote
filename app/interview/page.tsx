@@ -190,7 +190,9 @@ function InterviewContent() {
                               }}
                               className={cn(
                                 "w-2 h-2 rounded-full transition-colors",
-                                i < userMessageCount ? "bg-[var(--color-accent)]" : "bg-[var(--color-border)]",
+                                i < userMessageCount
+                                  ? "bg-[var(--color-accent)]"
+                                  : "bg-[var(--color-border)]",
                               )}
                             />
                           ))}
@@ -215,7 +217,9 @@ function InterviewContent() {
                           />
                         ))}
                       </div>
-                      <span className="text-xs text-[var(--color-text-muted)]">第 {userMessageCount} 轮</span>
+                      <span className="text-xs text-[var(--color-text-muted)]">
+                        第 {userMessageCount} 轮
+                      </span>
                     </div>
                   );
                 })()}

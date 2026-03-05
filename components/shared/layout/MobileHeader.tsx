@@ -108,7 +108,9 @@ export function MobileHeader({
         {/* 中间 - 标题 */}
         <div className="flex-1 text-center">
           {title && (
-            <h1 className="text-base font-semibold text-[var(--color-text)] truncate px-4">{title}</h1>
+            <h1 className="text-base font-semibold text-[var(--color-text)] truncate px-4">
+              {title}
+            </h1>
           )}
         </div>
 

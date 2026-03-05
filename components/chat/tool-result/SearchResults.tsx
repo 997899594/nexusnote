@@ -25,7 +25,9 @@ export function SearchResults({ output, type }: SearchResultsProps) {
   if (!output.success || output.results.length === 0) {
     return (
       <div className="mt-2 p-3 bg-[var(--color-hover)] rounded-lg">
-        <p className="text-sm text-[var(--color-text-tertiary)]">未找到相关{type === "webSearch" ? "网页" : "笔记"}</p>
+        <p className="text-sm text-[var(--color-text-tertiary)]">
+          未找到相关{type === "webSearch" ? "网页" : "笔记"}
+        </p>
       </div>
     );
   }

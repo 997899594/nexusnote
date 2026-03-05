@@ -101,7 +101,9 @@ export default function LoginPage() {
               <div className="w-full border-t border-[var(--color-border)]" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-3 bg-[var(--color-surface)] text-[var(--color-text-muted)]">Or development login</span>
+              <span className="px-3 bg-[var(--color-surface)] text-[var(--color-text-muted)]">
+                Or development login
+              </span>
             </div>
           </div>
 
@@ -114,7 +116,10 @@ export default function LoginPage() {
             className="space-y-4"
           >
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1"
+              >
                 Email
               </label>
               <motion.input
@@ -129,7 +134,10 @@ export default function LoginPage() {
               />
             </div>
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
+              <label
+                htmlFor="name"
+                className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1"
+              >
                 Name (optional)
               </label>
               <motion.input

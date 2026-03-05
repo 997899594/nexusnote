@@ -148,7 +148,9 @@ export default async function ProfilePage() {
 
         {/* AI 学习统计 */}
         <section className="mb-8">
-          <h2 className="text-lg font-semibold text-[var(--color-text-secondary)] mb-4">AI 学习统计</h2>
+          <h2 className="text-lg font-semibold text-[var(--color-text-secondary)] mb-4">
+            AI 学习统计
+          </h2>
           <div className="grid grid-cols-2 gap-3 md:gap-4 sm:grid-cols-2 md:grid-cols-4">
             {statsCards.map((card) => {
               const Icon = card.icon;
@@ -166,7 +168,9 @@ export default async function ProfilePage() {
                   <div className="text-lg md:text-2xl font-bold text-[var(--color-text)] mb-0.5 md:mb-1">
                     {card.value}
                   </div>
-                  <div className="text-xs md:text-sm text-[var(--color-text-tertiary)]">{card.label}</div>
+                  <div className="text-xs md:text-sm text-[var(--color-text-tertiary)]">
+                    {card.label}
+                  </div>
                 </a>
               );
             })}
@@ -198,7 +202,9 @@ export default async function ProfilePage() {
                   <TrendingUp className="w-5 h-5 md:w-6 md:h-6 text-blue-600" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-xs md:text-sm text-[var(--color-text-tertiary)]">Token 数</div>
+                  <div className="text-xs md:text-sm text-[var(--color-text-tertiary)]">
+                    Token 数
+                  </div>
                   <div className="text-base md:text-xl font-semibold text-[var(--color-text)]">
                     {(stats.aiUsage.totalTokens / 1000).toFixed(1)}k
                   </div>
@@ -210,7 +216,9 @@ export default async function ProfilePage() {
                   <Target className="w-5 h-5 md:w-6 md:h-6 text-emerald-600" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-xs md:text-sm text-[var(--color-text-tertiary)]">预估花费</div>
+                  <div className="text-xs md:text-sm text-[var(--color-text-tertiary)]">
+                    预估花费
+                  </div>
                   <div className="text-base md:text-xl font-semibold text-[var(--color-text)]">
                     ${stats.aiUsage.totalCost.toFixed(2)}
                   </div>
@@ -246,7 +254,9 @@ export default async function ProfilePage() {
                       <MessageSquare className="w-5 h-5 text-blue-600" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-[var(--color-text)] truncate">{activity.title}</div>
+                      <div className="font-medium text-[var(--color-text)] truncate">
+                        {activity.title}
+                      </div>
                       <div className="text-sm text-[var(--color-text-tertiary)]">
                         {activity.updatedAt
                           ? new Date(activity.updatedAt).toLocaleDateString("zh-CN", {

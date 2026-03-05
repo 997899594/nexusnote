@@ -80,10 +80,14 @@ export function PersonaSelector({
               <span className="text-xl">
                 {persona.avatar || PERSONA_ICONS[persona.slug] || "🤖"}
               </span>
-              <span className="font-medium text-sm truncate text-[var(--color-text)]">{persona.name}</span>
+              <span className="font-medium text-sm truncate text-[var(--color-text)]">
+                {persona.name}
+              </span>
             </div>
             {persona.description && (
-              <p className="text-xs text-[var(--color-text-tertiary)] line-clamp-2">{persona.description}</p>
+              <p className="text-xs text-[var(--color-text-tertiary)] line-clamp-2">
+                {persona.description}
+              </p>
             )}
           </button>
         ))}
@@ -116,7 +120,9 @@ export function PersonaSelector({
             <div className="flex-1">
               <div className="font-medium text-sm text-[var(--color-text)]">{persona.name}</div>
               {persona.description && (
-                <div className="text-xs text-[var(--color-text-tertiary)]">{persona.description}</div>
+                <div className="text-xs text-[var(--color-text-tertiary)]">
+                  {persona.description}
+                </div>
               )}
             </div>
           </label>
@@ -176,13 +182,21 @@ export function PersonaSelector({
                   {persona.avatar || PERSONA_ICONS[persona.slug] || "🤖"}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm truncate text-[var(--color-text)]">{persona.name}</div>
+                  <div className="font-medium text-sm truncate text-[var(--color-text)]">
+                    {persona.name}
+                  </div>
                   {persona.description && (
-                    <div className="text-xs text-[var(--color-text-tertiary)] truncate">{persona.description}</div>
+                    <div className="text-xs text-[var(--color-text-tertiary)] truncate">
+                      {persona.description}
+                    </div>
                   )}
                 </div>
                 {currentPersonaSlug === persona.slug && (
-                  <svg className="w-4 h-4 text-[var(--color-accent)]" fill="currentColor" viewBox="0 0 20 20">
+                  <svg
+                    className="w-4 h-4 text-[var(--color-accent)]"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
                     <path
                       fillRule="evenodd"
                       d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
@@ -203,7 +217,8 @@ export function PersonaSelector({
  * Compact persona badge for inline display
  */
 export function PersonaBadge({ persona, onClick }: { persona: AIPersona; onClick?: () => void }) {
-  const colorClass = PERSONA_COLORS[persona.slug] || "bg-[var(--color-hover)] text-[var(--color-text-secondary)]";
+  const colorClass =
+    PERSONA_COLORS[persona.slug] || "bg-[var(--color-hover)] text-[var(--color-text-secondary)]";
 
   return (
     <button

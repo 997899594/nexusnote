@@ -150,6 +150,12 @@ export function ToolResultRenderer({
       );
     }
 
+    // commitAndEvaluate - 内部工具，suggestedNextQuestions 是给 Agent 的提示，不显示
+    case "commitAndEvaluate": {
+      // 这是给 AI Agent 看的内部建议，不是给用户的 UI 按钮
+      return null;
+    }
+
     // 内部工具 - 不显示给用户
     case "assessComplexity":
     case "createCourseProfile":

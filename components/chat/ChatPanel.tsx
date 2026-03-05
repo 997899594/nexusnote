@@ -184,11 +184,18 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
       <div className="flex-1 overflow-y-auto mobile-scroll px-4 md:px-6 py-4 safe-bottom">
         <div className="max-w-[calc(100vw-32px)] md:max-w-[var(--message-max-width)] mx-auto space-y-4">
           {chatMessages.length === 0 && !isLoading && (
-            <div className="text-center py-12 text-[var(--color-text-muted)] text-sm">开始对话...</div>
+            <div className="text-center py-12 text-[var(--color-text-muted)] text-sm">
+              开始对话...
+            </div>
           )}
 
           {chatMessages.map((msg) => (
-            <ChatMessage key={msg.id} message={msg} onSendReply={(text) => sendMessage({ text })} />
+            <ChatMessage
+              key={msg.id}
+              message={msg}
+              onSendReply={(text) => sendMessage({ text })}
+              isStreaming={isLoading}
+            />
           ))}
 
           {isAILoading && <LoadingDots />}
@@ -219,7 +226,9 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
               >
                 <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--color-hover)] rounded-lg text-xs">
                   <selectedCommand.modeIcon className="w-3 h-3 text-[var(--color-text-tertiary)]" />
-                  <span className="text-[var(--color-text-secondary)] font-medium">{selectedCommand.modeLabel}</span>
+                  <span className="text-[var(--color-text-secondary)] font-medium">
+                    {selectedCommand.modeLabel}
+                  </span>
                   <button
                     type="button"
                     onClick={handleCancelCommand}

@@ -29,7 +29,9 @@ export function AppSidebar() {
           <div className="w-6 h-6 bg-[var(--color-accent)] rounded-md flex items-center justify-center">
             <Zap className="w-3.5 h-3.5 text-[var(--color-accent-fg)] fill-[var(--color-accent-fg)]" />
           </div>
-          <span className="font-bold text-xl tracking-tight text-[var(--color-text)]">NexusNote</span>
+          <span className="font-bold text-xl tracking-tight text-[var(--color-text)]">
+            NexusNote
+          </span>
         </div>
       </div>
 
