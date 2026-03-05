@@ -78,7 +78,16 @@ export const createInterviewTools = (ctx: ToolContext) => {
           })
           .where(eq(courseSessions.id, courseId));
 
-        return { success: true, outline };
+        // 返回组件期望的格式（OutlineData）
+        return {
+          success: true,
+          outline: {
+            title: outline.title,
+            description: outline.description,
+            estimatedMinutes: outline.estimatedMinutes,
+            chapters,
+          },
+        };
       },
     }),
   };
