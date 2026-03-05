@@ -85,8 +85,8 @@ export async function POST(request: NextRequest) {
       throw new APIError("INTERVIEW 意图应跳转到 /interview 页面", 400, "INVALID_INTENT");
     }
 
-    // Chat 只处理 CHAT intent
-    const intent = clientIntent || "CHAT";
+    // Chat 只处理 CHAT/COURSE/SKILLS，旧 intent 映射到 CHAT
+    const intent = clientIntent === "EDITOR" || clientIntent === "SEARCH" ? "CHAT" : (clientIntent || "CHAT");
     const uiMessages = messages as UIMessage[];
 
     console.log("[Chat] Request received, personaSlug:", personaSlug, "intent:", intent);

@@ -22,13 +22,11 @@ interface InterviewStore {
   courseId: string | null;
   isOutlineLoading: boolean;
   interviewCompleted: boolean;
-  estimatedTurns: number | null; // 预计访谈轮数
 
   setOutline: (outline: OutlineData | null) => void;
   setCourseId: (id: string | null) => void;
   setIsOutlineLoading: (loading: boolean) => void;
   setInterviewCompleted: (completed: boolean) => void;
-  setEstimatedTurns: (turns: number | null) => void;
   reset: () => void;
 }
 
@@ -37,7 +35,6 @@ const initialState = {
   courseId: null,
   isOutlineLoading: false,
   interviewCompleted: false,
-  estimatedTurns: null,
 };
 
 export const useInterviewStore = create<InterviewStore>((set) => ({
@@ -57,10 +54,6 @@ export const useInterviewStore = create<InterviewStore>((set) => ({
 
   setInterviewCompleted: (completed: boolean) => {
     set({ interviewCompleted: completed });
-  },
-
-  setEstimatedTurns: (turns: number | null) => {
-    set({ estimatedTurns: turns });
   },
 
   reset: () => {

@@ -181,32 +181,6 @@ export interface CheckCourseProgressOutput {
 // Interview Tool Types
 // ============================================
 
-export interface CourseOutlineModule {
-  id?: string;
-  title: string;
-  description?: string;
-  chapters: string[];
-  estimatedMinutes?: number;
-}
-
-export interface ProposeOutlineOutput {
-  title: string;
-  description?: string;
-  difficulty: "beginner" | "intermediate" | "advanced";
-  estimatedMinutes: number;
-  modules: CourseOutlineModule[];
-  reasoning?: string;
-}
-
-export interface AssessComplexityOutput {
-  success: boolean;
-  topic: string;
-  domain: string;
-  initialContext?: string;
-  message?: string;
-  error?: string;
-}
-
 export interface UpdateProfileOutput {
   success: boolean;
   profile?: unknown;
@@ -235,24 +209,8 @@ export interface ConfirmOutlineOutput {
 
 export interface SuggestOptionsOutput {
   success: boolean;
-  options: string[]; // AI 返回字符串数组
+  options: string[];
   message?: string;
-}
-
-export interface UpdateOutlineOutput {
-  success: boolean;
-  outline?: {
-    title: string;
-    description?: string;
-    estimatedMinutes?: number;
-    chapters: Array<{
-      title: string;
-      description?: string;
-      topics?: string[];
-    }>;
-  };
-  message?: string;
-  error?: string;
 }
 
 export type ToolOutputMap = {
@@ -271,10 +229,7 @@ export type ToolOutputMap = {
   discoverSkills: DiscoverSkillsOutput;
   checkCourseProgress: CheckCourseProgressOutput;
   // Interview tools
-  proposeOutline: ProposeOutlineOutput;
-  assessComplexity: AssessComplexityOutput;
   updateProfile: UpdateProfileOutput;
-  updateOutline: UpdateOutlineOutput;
   suggestOptions: SuggestOptionsOutput;
   confirmOutline: ConfirmOutlineOutput;
 };
