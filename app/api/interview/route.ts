@@ -1,23 +1,40 @@
 /**
- * Interview API - 独立的访谈接口
+ * Interview API - 动态访谈接口
  *
- * 2026 架构：
- * - 专注于 INTERVIEW intent
- * - 无 Persona 干扰
- * - 服务端管理课程状态
+ * 熵驱动架构：
+ * - 本地关键词匹配（零延迟评估）
+ * - 异步蓝图生成
+ * - 原生话题漂移支持
+ * - 纯 EAV 模式（无固定槽位）
  */
 
 import type { UIMessage } from "ai";
 import { type NextRequest, NextResponse } from "next/server";
-import { conversations, courseSessions, db } from "@/db";
+import { conversations, courseSessions, db, eq } from "@/db";
 import type { InterviewProfile } from "@/db/schema";
 import { aiProvider, getAgent, validateRequest } from "@/lib/ai";
+import { getBlueprint, triggerBlueprintGeneration } from "@/lib/ai/blueprint";
 import { createNexusNoteStreamResponse } from "@/lib/ai/streaming";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
+import type { PendingFact } from "@/types/interview";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
+
+/**
+ * 创建新的动态访谈 profile
+ */
+function createNewProfile(topic: string): InterviewProfile {
+  return {
+    currentTopic: topic,
+    currentTopicId: crypto.randomUUID(),
+    extractedFacts: [],
+    saturationScore: 0,
+    nextHighValueDimensions: [],
+    blueprintStatus: "pending",
+  };
+}
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
@@ -52,13 +69,25 @@ export async function POST(request: NextRequest) {
     }
 
     // ============================================
+    // 从第一条用户消息提取主题
+    // ============================================
+    const uiMessages = messages as UIMessage[];
+    const firstUserMessage = uiMessages.find((m) => m.role === "user");
+    let topic = "学习新知识";
+
+    if (firstUserMessage?.parts) {
+      const textPart = firstUserMessage.parts.find((p) => p.type === "text");
+      if (textPart && "text" in textPart) {
+        topic = textPart.text.slice(0, 200);
+      }
+    }
+
+    // ============================================
     // 获取或创建课程
     // ============================================
     let activeCourseId = inputCourseId;
-    const uiMessages = messages as UIMessage[];
 
     if (activeCourseId) {
-      // 验证课程存在且属于当前用户
       const existingCourse = await db.query.courseSessions.findFirst({
         where: (c, { eq, and }) => and(eq(c.id, activeCourseId!), eq(c.userId, userId)),
       });
@@ -69,65 +98,70 @@ export async function POST(request: NextRequest) {
     }
 
     if (!activeCourseId) {
-      // 创建新的课程
-      const firstUserMessage = uiMessages.find((m) => m.role === "user");
-      let goal = "学习新知识";
-
-      if (firstUserMessage?.parts) {
-        const textPart = firstUserMessage.parts.find((p) => p.type === "text");
-        if (textPart && "text" in textPart) {
-          goal = textPart.text.slice(0, 200);
-        }
-      }
-
+      // 创建新的课程会话
       const [newCourse] = await db
         .insert(courseSessions)
         .values({
           userId,
-          title: goal,
-          interviewProfile: {
-            goal,
-            domain: null,
-            complexity: "moderate",
-            background: null,
-            currentLevel: "none",
-            targetOutcome: null,
-            timeConstraints: null,
-            insights: [],
-            readiness: 0,
-            estimatedTurns: 3,
-            currentTurn: 0,
-          } satisfies InterviewProfile,
+          title: topic,
+          interviewProfile: createNewProfile(topic),
           interviewStatus: "interviewing",
           status: "idle",
         })
         .returning();
 
       activeCourseId = newCourse.id;
-      console.log("[Interview] Created course:", activeCourseId);
+
+      // 触发蓝图生成（异步）
+      triggerBlueprintGeneration(topic);
+
+      console.log("[Interview] Created course:", activeCourseId, "topic:", topic);
+    } else {
+      // 检查现有课程的 profile
+      const existingCourse = await db.query.courseSessions.findFirst({
+        where: (c, { eq }) => eq(c.id, activeCourseId!),
+      });
+
+      if (existingCourse) {
+        const profile = existingCourse.interviewProfile as InterviewProfile | null;
+
+        // 如果没有 profile 或没有 currentTopic，初始化
+        if (!profile?.currentTopic) {
+          await db
+            .update(courseSessions)
+            .set({
+              interviewProfile: createNewProfile(topic),
+              updatedAt: new Date(),
+            })
+            .where(eq(courseSessions.id, activeCourseId!));
+
+          triggerBlueprintGeneration(topic);
+        }
+      }
     }
+
+    // 获取最新的课程状态
+    const course = await db.query.courseSessions.findFirst({
+      where: (c, { eq }) => eq(c.id, activeCourseId!),
+    });
+
+    const profile = course?.interviewProfile as InterviewProfile | null;
+    const currentTopic = profile?.currentTopic ?? topic;
+    const currentTopicId = profile?.currentTopicId ?? crypto.randomUUID();
+    const existingFacts = profile?.extractedFacts ?? [];
+    const blueprintStatus = profile?.blueprintStatus ?? "pending";
 
     // ============================================
     // 创建/更新 conversation 记录
     // ============================================
     if (sessionId) {
-      const firstUserMessage = uiMessages.find((m) => m.role === "user");
-      let title = "课程访谈";
-
-      if (firstUserMessage?.parts) {
-        const textPart = firstUserMessage.parts.find((p) => p.type === "text");
-        if (textPart && "text" in textPart) {
-          title = textPart.text.slice(0, 100);
-        }
-      }
-
       try {
         await db
           .insert(conversations)
           .values({
             id: sessionId,
             userId,
-            title,
+            title: topic.slice(0, 100),
             intent: "INTERVIEW",
             messageCount: uiMessages.length,
             metadata: { courseId: activeCourseId },
@@ -146,10 +180,93 @@ export async function POST(request: NextRequest) {
     }
 
     // ============================================
-    // 获取 Interview Agent
+    // 获取 Blueprint
+    // ============================================
+    const blueprint = await getBlueprint(currentTopic);
+
+    // ============================================
+    // 获取 Interview Agent（传入动态上下文 + DB 回调）
     // ============================================
     const agent = getAgent("INTERVIEW", {
       courseProfileId: activeCourseId,
+      currentTopic,
+      currentTopicId,
+      existingFacts,
+      blueprint,
+      blueprintStatus,
+
+      // 依赖注入：DB 操作回调
+      // 【幽灵回滚修复】绝不使用闭包变量，始终从数据库获取最新状态
+      onFactsUpdate: async (facts: PendingFact[]) => {
+        // 始终查询最新状态（避免闭包陷阱）
+        const existingCourse = await db.query.courseSessions.findFirst({
+          where: (c, { eq }) => eq(c.id, activeCourseId!),
+        });
+        const existingProfile = existingCourse?.interviewProfile as InterviewProfile | null;
+
+        // 【核心修复】使用 spread operator 继承数据库中【最新】的所有状态
+        // 只覆盖需要更新的字段，绝不触碰 currentTopic/currentTopicId
+        const updatedProfile: InterviewProfile = {
+          ...existingProfile, // 继承最新状态（包括刚被漂移改掉的 Topic）
+          extractedFacts: facts,
+          saturationScore: existingProfile?.saturationScore ?? 0,
+          nextHighValueDimensions: existingProfile?.nextHighValueDimensions ?? [],
+          blueprintStatus: existingProfile?.blueprintStatus ?? "pending",
+          blueprintId: existingProfile?.blueprintId,
+        } as InterviewProfile;
+
+        await db
+          .update(courseSessions)
+          .set({
+            interviewProfile: updatedProfile,
+            updatedAt: new Date(),
+          })
+          .where(eq(courseSessions.id, activeCourseId!));
+      },
+
+      onTopicChange: async (newTopic: string): Promise<string> => {
+        const newTopicId = crypto.randomUUID();
+
+        // 触发新主题的蓝图生成
+        triggerBlueprintGeneration(newTopic);
+
+        // 获取现有 profile（始终查询最新）
+        const existingCourse = await db.query.courseSessions.findFirst({
+          where: (c, { eq }) => eq(c.id, activeCourseId!),
+        });
+        const existingProfile = existingCourse?.interviewProfile as InterviewProfile | null;
+
+        // 保留共享事实
+        const sharedFacts = (existingProfile?.extractedFacts ?? [])
+          .filter((f) => f.isShared)
+          .map((f) => ({
+            ...f,
+            topicId: newTopicId,
+            extractedAt: new Date().toISOString(),
+          }));
+
+        // 更新 profile
+        const updatedProfile: InterviewProfile = {
+          ...existingProfile, // 继承其他属性
+          currentTopic: newTopic,
+          currentTopicId: newTopicId,
+          extractedFacts: sharedFacts,
+          saturationScore: 0,
+          nextHighValueDimensions: [],
+          blueprintStatus: "pending",
+          blueprintId: undefined,
+        } as InterviewProfile;
+
+        await db
+          .update(courseSessions)
+          .set({
+            interviewProfile: updatedProfile,
+            updatedAt: new Date(),
+          })
+          .where(eq(courseSessions.id, activeCourseId!));
+
+        return newTopicId;
+      },
     });
 
     const response = await createNexusNoteStreamResponse(agent, uiMessages);

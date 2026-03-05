@@ -108,7 +108,9 @@ export function EditorConfirmDialog({ output, toolName }: EditorConfirmDialogPro
             </div>
           ))}
           {output.edits.length > 3 && (
-            <p className="text-xs text-[var(--color-text-muted)]">...还有 {output.edits.length - 3} 个修改</p>
+            <p className="text-xs text-[var(--color-text-muted)]">
+              ...还有 {output.edits.length - 3} 个修改
+            </p>
           )}
         </div>
       )}

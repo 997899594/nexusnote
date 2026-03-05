@@ -334,31 +334,30 @@ export const documentChunks = knowledgeChunks;
 // AI 生成课程 (Course Profiles)
 // ============================================
 
-// 访谈画像类型 - 2026 自适应访谈系统
-export type DomainComplexity = "trivial" | "simple" | "moderate" | "complex" | "expert";
-export type LearningLevel = "none" | "beginner" | "intermediate" | "advanced";
-
+// 访谈画像类型 - 2026 动态访谈系统（纯 EAV 模式）
 export interface InterviewProfile {
-  // 核心信息（所有领域通用）
-  goal: string | null;
-  domain: string | null;
-  complexity: DomainComplexity;
+  // 当前主题
+  currentTopic: string;
+  currentTopicId: string;
 
-  // 背景信息（按需收集）
-  background: string | null;
-  currentLevel: LearningLevel;
+  // 动态提取的事实（EAV 模式）
+  extractedFacts: Array<{
+    dimension: string;
+    value: string | number | boolean;
+    type: "string" | "number" | "boolean";
+    confidence: number;
+    extractedAt: string;
+    topicId: string;
+    isShared: boolean;
+  }>;
 
-  // 目标信息（按需收集）
-  targetOutcome: string | null;
-  timeConstraints: string | null;
+  // 饱和度评估
+  saturationScore: number;
+  nextHighValueDimensions: string[];
 
-  // AI 推断
-  insights: string[];
-  readiness: number; // 0-100
-
-  // 元数据
-  estimatedTurns: number;
-  currentTurn: number;
+  // 蓝图状态
+  blueprintId?: string;
+  blueprintStatus: "pending" | "ready" | "failed";
 }
 
 export const courseSessions = pgTable(
@@ -424,17 +423,18 @@ export const topicBlueprints = pgTable(
     status: text("status").notNull().default("pending"),
 
     // 暂存事实（冷启动期）
-    pendingFacts: jsonb("pending_facts").$type<
-      Array<{
-        dimension: string;
-        value: string | number | boolean;
-        type: "string" | "number" | "boolean";
-        confidence: number;
-        extractedAt: string;
-        topicId: string;
-        isShared: boolean;
-      }>
-    >(),
+    pendingFacts:
+      jsonb("pending_facts").$type<
+        Array<{
+          dimension: string;
+          value: string | number | boolean;
+          type: "string" | "number" | "boolean";
+          confidence: number;
+          extractedAt: string;
+          topicId: string;
+          isShared: boolean;
+        }>
+      >(),
 
     // 元数据
     modelUsed: text("model_used").notNull().default("gemini-3-flash"),

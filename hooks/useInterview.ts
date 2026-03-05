@@ -1,10 +1,14 @@
 /**
  * useInterview - 独立访谈 Hook
  *
- * 2026 架构：
- * - 调用 /api/interview
- * - 无 Persona 干扰
- * - 服务端管理 courseProfileId（存在 conversation.metadata）
+ * 2026 终极架构：前端状态接力流 (Frontend Handoff Streaming)
+ *
+ * 流程：
+ * 1. useChat 监听访谈对话
+ * 2. 当 generateOutline 返回 HANDOFF_TO_ARCHITECT 信号
+ * 3. 触发 onOutlineReady 回调
+ * 4. 前端切换到 OutlineBuilder 组件
+ * 5. OutlineBuilder 向独立 API 流式获取大纲
  */
 
 import { useChat } from "@ai-sdk/react";
@@ -12,7 +16,6 @@ import { DefaultChatTransport, type ToolUIPart, type UIMessage } from "ai";
 import { nanoid } from "nanoid";
 import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/ui/Toast";
-import type { ConfirmOutlineOutput } from "@/components/chat/tool-result/types";
 import { parseApiError } from "@/lib/api/client";
 import { useInterviewStore } from "@/stores/interview";
 
@@ -21,8 +24,17 @@ function isToolPart(part: { type: string }): part is ToolUIPart {
   return part.type.startsWith("tool-");
 }
 
+// 生成大纲工具的返回类型
+interface GenerateOutlineOutput {
+  success: boolean;
+  signal: string;
+  message: string;
+  courseId: string;
+}
+
 interface UseInterviewOptions {
   initialMessage?: string;
+  onOutlineReady?: (courseId: string) => void;
 }
 
 interface UseInterviewReturn {
@@ -32,6 +44,7 @@ interface UseInterviewReturn {
   isLoading: boolean;
   sessionId: string;
   addToolOutput: (params: { tool: string; toolCallId: string; output: unknown }) => Promise<void>;
+  isOutlineGenerating: boolean;
 }
 
 export function useInterview(options?: UseInterviewOptions): UseInterviewReturn {
@@ -39,11 +52,12 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
   const [sessionId] = useState(() => nanoid());
 
   // Get store setters
-  const setOutline = useInterviewStore((s) => s.setOutline);
   const setCourseId = useInterviewStore((s) => s.setCourseId);
   const setIsOutlineLoading = useInterviewStore((s) => s.setIsOutlineLoading);
   const setInterviewCompleted = useInterviewStore((s) => s.setInterviewCompleted);
-  const setEstimatedTurns = useInterviewStore((s) => s.setEstimatedTurns);
+
+  // 大纲生成状态
+  const [isOutlineGenerating, setIsOutlineGenerating] = useState(false);
 
   const chat = useChat({
     id: sessionId,
@@ -68,6 +82,32 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
     },
   });
 
+  // AI SDK v6: 监听消息变化，查找 generateOutline 工具的输出
+  useEffect(() => {
+    for (const message of chat.messages) {
+      if (message.role !== "assistant") continue;
+
+      for (const part of message.parts) {
+        if (part.type === "tool-generateOutline" && part.state === "output-available") {
+          const output = part.output as GenerateOutlineOutput | undefined;
+          if (output?.success && output.signal === "HANDOFF_TO_ARCHITECT") {
+            console.log("[useInterview] Received HANDOFF signal, courseId:", output.courseId);
+
+            // 设置大纲生成中状态
+            setIsOutlineGenerating(true);
+            setIsOutlineLoading(true);
+
+            // 触发回调
+            if (options?.onOutlineReady) {
+              options.onOutlineReady(output.courseId);
+            }
+            return; // 只触发一次
+          }
+        }
+      }
+    }
+  }, [chat.messages, options, setIsOutlineLoading]);
+
   const { sendMessage, status, addToolOutput, messages } = chat;
 
   // 自动发送初始消息（使用 ref 避免重复发送）
@@ -89,49 +129,6 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
     }
   }, [sendMessage]);
 
-  // 监听 confirmOutline 工具调用 - 访谈完成
-  useEffect(() => {
-    const lastMessage = messages[messages.length - 1];
-    if (!lastMessage || lastMessage.role !== "assistant") return;
-
-    const toolParts = lastMessage.parts
-      ?.filter(isToolPart)
-      .filter((p) => p.type === "tool-confirmOutline" && p.state === "output-available");
-
-    if (toolParts && toolParts.length > 0) {
-      const lastToolPart = toolParts[toolParts.length - 1];
-      const output = lastToolPart.output as ConfirmOutlineOutput | undefined;
-
-      if (output?.success && output.outline) {
-        // 访谈完成，设置大纲和完成状态
-        setOutline(output.outline);
-        setInterviewCompleted(true);
-        setIsOutlineLoading(false);
-      }
-    }
-  }, [messages, setOutline, setInterviewCompleted, setIsOutlineLoading]);
-
-  // 监听 assessComplexity 工具调用 - 获取预计轮数
-  useEffect(() => {
-    const lastMessage = messages[messages.length - 1];
-    if (!lastMessage || lastMessage.role !== "assistant") return;
-
-    const toolParts = lastMessage.parts
-      ?.filter(isToolPart)
-      .filter((p) => p.type === "tool-assessComplexity" && p.state === "output-available");
-
-    if (toolParts && toolParts.length > 0) {
-      const lastToolPart = toolParts[toolParts.length - 1];
-      const output = lastToolPart.output as
-        | { estimatedTurns?: number; success?: boolean }
-        | undefined;
-
-      if (output?.success && typeof output.estimatedTurns === "number") {
-        setEstimatedTurns(output.estimatedTurns);
-      }
-    }
-  }, [messages, setEstimatedTurns]);
-
   // AI SDK v6: isLoading is derived from status
   const isLoading = status === "submitted" || status === "streaming";
 
@@ -142,5 +139,6 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
     isLoading,
     sessionId,
     addToolOutput,
+    isOutlineGenerating,
   };
 }

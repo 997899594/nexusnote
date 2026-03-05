@@ -1,89 +1,135 @@
 /**
- * INTERVIEW Agent - 课程访谈
- */
+
+Dynamic Interview Agent
+
+熵驱动连续状态评估 Agent
+
+零延迟本地关键词匹配评估
+
+原生话题漂移支持
+
+异步蓝图生成
+
+动态上下文注入
+
+【架构原则】访谈 Agent 只负责收集信息，不生成大纲
+
+大纲生成由后台 Architect Agent 异步处理
+*/
 
 import { stepCountIs, ToolLoopAgent } from "ai";
+import type { PendingFact, TopicBlueprint } from "@/types/interview";
 import { aiProvider } from "../core";
-import { createInterviewTools } from "../tools/interview";
+import {
+  createGenerateOutlineTool,
+  createInterviewTools,
+  createSuggestOptionsTool,
+} from "../tools/interview";
 
-const INTERVIEW_MAX_STEPS = 12;
+const INTERVIEW_MAX_STEPS = 15;
 
-const INSTRUCTIONS = {
-  interview: `你是 NexusNote 的课程规划师。
+// ============================================
+// Agent Configuration (彻底解耦的 Prompt)
+// ============================================
 
-## 核心任务
-通过自然对话了解用户的学习需求，根据复杂度自适应调整访谈深度，最后生成课程大纲。
+const INTERVIEW_SYSTEM_PROMPT = `你是一位专业的 NexusNote 学习顾问。你的唯一目标是通过结构化访谈，了解用户的真实学习需求。
 
-## 重要：课程 ID 已在上下文中
-系统已经为你创建了课程（course），在对话上下文的 "=== Interview Context ===" 部分可以找到 Course Profile ID。
-**不要调用 createCourseProfile，直接使用上下文中提供的 ID。**
+核心职责
 
-## 工作流程
+自然对话：用轻松友好的方式交流，像朋友一样，绝对不要像审问犯人一样连珠炮式提问。
 
-### 首轮：评估复杂度（必须）
-用户说想学 X 时：
-1. 从上下文获取 Course Profile ID
-2. **调用 assessComplexity** 评估复杂度，参数：
-   - courseProfileId: 上下文中的 ID
-   - topic: 用户想学的主题
-   - complexity: 你的评估（trivial/simple/moderate/complex/expert）
-   - estimatedTurns: 预计访谈轮数
-   - reasoning: 评估理由
+信息提取：每次用户回复后，必须调用 commitAndEvaluate 提交提取的事实。
 
-复杂度标准：
-- **trivial** (0轮): 单一技能、无前置、几分钟可会，如"炒西红柿"
-- **simple** (1轮): 少量步骤、基础工具，如"做PPT"
-- **moderate** (2-3轮): 需要基础、多步骤，如"Python入门"
-- **complex** (4-5轮): 需要系统学习、有前置，如"考研数学"
-- **expert** (5-6轮): 深度领域、长期投入，如"机器学习"
+话题追踪：如果用户突然想学别的，不要反驳，立即顺着新话题聊，并在工具中标记 topicDrift。
 
-3. 如果 assessComplexity 返回 skipInterview=true（trivial），直接调用 confirmOutline
-4. 否则调用 suggestOptions 提供选项，继续访谈
+工作流纪律 (Strict Workflow)
 
-### 每轮：收集信息
-1. 调用 updateProfile 更新画像（background, currentLevel, targetOutcome 等）
-2. 调用 suggestOptions 提供 3-4 个选项
-3. 文字回应 + 继续提问
+观察工具返回的 suggestedNextQuestions，挑取最核心的一个方向，用你自然的话术向用户提问。
 
-### 完成：生成大纲
-当达到预计轮数或用户满意时：
-1. 调用 confirmOutline 生成最终大纲
-2. 告知用户可以开始学习
+展示选项：当你希望用户快速选择答案时，调用 suggestOptions 工具展示可点击的选项按钮。选项应该是用户的可能回答，而不是问题描述。例如：
 
-## 行为准则
-- 主动、简洁、自然
-- 像朋友聊天，不审问
-- **每次回复必须先输出文字内容，再调用工具**
-- **绝不能只调用工具不输出文字**
-- 每轮都要调用 suggestOptions 提供选项
-- **首轮必须调用 assessComplexity**
-- **只在访谈结束时调用 confirmOutline**
+❌ 错误："您有编程基础吗？"（这是问题）
 
-## 重要提醒
-调用 suggestOptions 之前，必须先输出对用户的文字回应！
-错误示例：只调用 suggestOptions，没有文字
-正确示例：先说"好的，让我来帮你规划..."，然后调用 suggestOptions`,
-} as const;
+✅ 正确：["完全零基础", "学过一点 Python", "有其他语言经验"]（这是用户的可能回答）
+
+当系统返回 isReadyForOutline: true 时，说明信息已经足够（通常饱和度 > 80%）。
+
+【极其重要】一旦饱和，立即调用 generateOutline 工具。调用后，只需对用户说："我已经完全了解您的需求了！核心教研引擎正在为您生成专属大纲，请稍候..."，然后结束对话。绝对不允许你自行生成、猜测或输出任何大纲内容！
+
+提取规则
+
+维度命名必须严格遵守工具描述中提示的已有维度。
+
+一次只问一个问题。鼓励用户分享细节。
+
+置信度 (confidence) 表示提取的可靠程度（0-1）。
+
+isGlobalContext 用于标记跨主题通用的信息（如：设备、操作系统、时间预算）。`;
+
+// ============================================
+// Agent Factory
+// ============================================
 
 export interface InterviewOptions {
   courseProfileId: string;
+  currentTopic?: string;
+  currentTopicId?: string;
+  existingFacts?: PendingFact[];
+  blueprint: TopicBlueprint | null;
+  blueprintStatus?: "pending" | "ready" | "failed";
+
+  // 最佳实践：将 DB 操作作为回调注入，保证 Agent 层的纯函数特性
+  onFactsUpdate: (facts: PendingFact[]) => Promise<void>;
+  onTopicChange: (newTopic: string) => Promise<string>;
 }
 
 /**
- * 创建 INTERVIEW Agent
- */
+
+创建 Interview Agent
+*/
 export function createInterviewAgent(options: InterviewOptions) {
-  if (!options.courseProfileId) {
-    throw new Error("INTERVIEW agent requires courseProfileId");
-  }
+  const {
+    courseProfileId,
+    currentTopic = "",
+    currentTopicId = "",
+    existingFacts = [],
+    blueprint,
+    blueprintStatus = "pending",
+    onFactsUpdate,
+    onTopicChange,
+  } = options;
 
-  const interviewTools = createInterviewTools(options.courseProfileId);
-
-  return new ToolLoopAgent({
-    id: "nexusnote-interview",
-    model: aiProvider.proModel,
-    instructions: INSTRUCTIONS.interview,
-    tools: interviewTools,
-    stopWhen: stepCountIs(INTERVIEW_MAX_STEPS),
+  // 完美注入 Dynamic Context 和 DB 操作回调
+  const interviewTools = createInterviewTools({
+    sessionId: courseProfileId,
+    currentTopic,
+    currentTopicId,
+    existingFacts,
+    blueprint,
+    blueprintStatus,
+    onFactsUpdate,
+    onTopicChange,
   });
+
+  // Handoff 工具（触发后台大纲生成）
+  const outlineTools = createGenerateOutlineTool({ courseId: courseProfileId });
+
+  // 选项展示工具（供 Agent 主动展示可点击选项）
+  const optionsTools = createSuggestOptionsTool();
+
+  const tools = {
+    ...interviewTools,
+    ...outlineTools,
+    ...optionsTools,
+  };
+
+  const agent = new ToolLoopAgent({
+    id: "nexusnote-dynamic-interviewer",
+    model: aiProvider.chatModel,
+    instructions: INTERVIEW_SYSTEM_PROMPT,
+    tools,
+    stopWhen: stepCountIs(INTERVIEW_MAX_STEPS), // 兜底：15 轮后强制停止
+  });
+
+  return agent;
 }

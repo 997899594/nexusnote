@@ -12,7 +12,9 @@ export default function HomePage() {
           <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-[var(--color-text)] mb-2 md:mb-3 tracking-tight">
             你的私人学习顾问
           </h1>
-          <p className="text-base md:text-lg text-[var(--color-text-tertiary)]">让 AI 为你规划、记忆、测评</p>
+          <p className="text-base md:text-lg text-[var(--color-text-tertiary)]">
+            让 AI 为你规划、记忆、测评
+          </p>
         </header>
 
         <div className="mb-10 md:mb-14">

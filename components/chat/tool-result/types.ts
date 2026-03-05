@@ -235,8 +235,20 @@ export interface ConfirmOutlineOutput {
 
 export interface SuggestOptionsOutput {
   success: boolean;
-  options: string[]; // AI 返回字符串数组
-  message?: string;
+  options: string[]; // 用户可点击的选项
+  prompt?: string; // 选项前的引导语
+}
+
+// commitAndEvaluate 工具输出
+export interface CommitAndEvaluateOutput {
+  success: boolean;
+  currentSaturation: number;
+  isReadyForOutline: boolean;
+  isBlueprintPending: boolean;
+  suggestedNextQuestions: string[];
+  matchedDimensions: string[];
+  missingDimensions: string[];
+  error?: string;
 }
 
 export interface UpdateOutlineOutput {
@@ -277,4 +289,5 @@ export type ToolOutputMap = {
   updateOutline: UpdateOutlineOutput;
   suggestOptions: SuggestOptionsOutput;
   confirmOutline: ConfirmOutlineOutput;
+  commitAndEvaluate: CommitAndEvaluateOutput;
 };

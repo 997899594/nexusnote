@@ -83,7 +83,9 @@ export function ChatHistory({
         {/* Session List */}
         <div className="flex-1 overflow-y-auto p-3">
           {sessions.length === 0 ? (
-            <div className="text-center py-8 text-[var(--color-text-muted)] text-sm">暂无对话记录</div>
+            <div className="text-center py-8 text-[var(--color-text-muted)] text-sm">
+              暂无对话记录
+            </div>
           ) : (
             <div className="space-y-1">
               {sessions.map((session) => (
@@ -93,14 +95,18 @@ export function ChatHistory({
                   animate={{ opacity: 1, y: 0 }}
                   className={cn(
                     "group relative flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-colors",
-                    session.id === currentSessionId ? "bg-[var(--color-hover)]" : "hover:bg-[var(--color-hover)]",
+                    session.id === currentSessionId
+                      ? "bg-[var(--color-hover)]"
+                      : "hover:bg-[var(--color-hover)]",
                   )}
                   onClick={() => onSelectSession(session.id)}
                 >
                   <MessageSquare
                     className={cn(
                       "w-4 h-4 mt-0.5 flex-shrink-0",
-                      session.id === currentSessionId ? "text-[var(--color-text-secondary)]" : "text-[var(--color-text-muted)]",
+                      session.id === currentSessionId
+                        ? "text-[var(--color-text-secondary)]"
+                        : "text-[var(--color-text-muted)]",
                     )}
                   />
                   <div className="flex-1 min-w-0">
@@ -108,7 +114,9 @@ export function ChatHistory({
                       <span
                         className={cn(
                           "text-sm font-medium truncate",
-                          session.id === currentSessionId ? "text-[var(--color-text)]" : "text-[var(--color-text-secondary)]",
+                          session.id === currentSessionId
+                            ? "text-[var(--color-text)]"
+                            : "text-[var(--color-text-secondary)]",
                         )}
                       >
                         {session.title}
@@ -122,7 +130,9 @@ export function ChatHistory({
                         {getMessageCount(session)} 条消息
                       </span>
                       <span className="text-xs text-[var(--color-text-muted)]">·</span>
-                      <span className="text-xs text-[var(--color-text-muted)]">{formatTime(session.updatedAt)}</span>
+                      <span className="text-xs text-[var(--color-text-muted)]">
+                        {formatTime(session.updatedAt)}
+                      </span>
                     </div>
                   </div>
                   <button
