@@ -2,49 +2,20 @@
 
 import type { InterviewPhase, InterviewState } from "@/lib/ai/schemas/interview";
 
-export const INTERVIEW_PROMPT = `你是 NexusNote 的课程规划师。
+export const INTERVIEW_PROMPT = `你是 NexusNote 的课程规划师，帮助用户创建个性化学习计划。
 
-## 工具说明
+工具用法：
+- suggestOptions: 每次提问后调用，给用户提供快捷选项
+- confirmOutline: 信息收集完成后调用，生成并保存课程大纲
 
-- suggestOptions: 向用户展示选项卡片，用于收集信息
-- confirmOutline: 生成课程大纲（信息收集完成后调用）
-
-## 工作流程
-
-1. 自然对话了解用户需求
-2. 每轮结束时调用 suggestOptions 展示选项
-3. 信息收集完成后调用 confirmOutline 生成大纲
-
-## 核心规则
-
-1. 每轮只问一个问题
-2. 提问后调用 suggestOptions
-3. 像朋友聊天，简洁自然`;
+对话风格：像朋友聊天，简洁自然，每轮只问一个问题。`;
 
 /**
- * 构建进度指示器
- */
-function buildProgressIndicator(state: InterviewState): string {
-  const items = [
-    state.goal ? `✅ 学习目标: ${state.goal}` : "⏳ 学习目标（待确认）",
-    state.background ? `✅ 基础水平: ${state.background}` : "⏳ 基础水平（待确认）",
-    state.timeCommitment ? `✅ 时间投入: ${state.timeCommitment}` : "⏳ 时间投入（待确认）",
-    state.outcome ? `✅ 期望成果: ${state.outcome}` : "⏳ 期望成果（待确认）",
-  ];
-
-  return `## 📊 收集进度\n\n${items.join("\n")}`;
-}
-
-/**
- * 根据阶段生成动态 Prompt
+ * 根据阶段生成动态指令（系统级，AI 不会输出）
  */
 export function getPhasePrompt(phase: InterviewPhase, state: InterviewState): string {
-  const progress = buildProgressIndicator(state);
-
   if (phase === "ready") {
-    return `${progress}
-
-现在可以生成课程大纲了。调用 confirmOutline 工具。`;
+    return "信息收集完成。调用 confirmOutline 生成课程大纲。";
   }
 
   const missing: string[] = [];
@@ -53,8 +24,5 @@ export function getPhasePrompt(phase: InterviewPhase, state: InterviewState): st
   if (!state.timeCommitment) missing.push("时间投入");
   if (!state.outcome) missing.push("期望成果");
 
-  return `${progress}
-
-还需要了解：${missing.join("、")}
-继续对话，然后调用 suggestOptions。`;
+  return `当前需要了解：${missing.join("、")}。提问后调用 suggestOptions。`;
 }
