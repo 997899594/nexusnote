@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
 
 async function resolveInterviewState(
   userId: string,
-  inputCourseId: string | undefined,
+  inputCourseId: string | null | undefined,
   messages: UIMessage[],
 ): Promise<{ courseId: string }> {
   // 1. 尝试获取现有课程
