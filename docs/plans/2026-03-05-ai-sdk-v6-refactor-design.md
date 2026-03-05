@@ -138,18 +138,48 @@ export function buildAgentTools(
 ```typescript
 // lib/ai/core/agent-factory.ts
 
+import { ToolLoopAgent, type ToolSet, type Output } from "ai";
+
+// Agent 类型定义
 export type AgentType = "chat" | "interview" | "course" | "skills";
 
-export function createAgent(type: "chat", options: ChatAgentOptions): ToolLoopAgent;
-export function createAgent(type: "interview", options: InterviewAgentOptions): ToolLoopAgent;
-export function createAgent(type: "course", options: CourseAgentOptions): ToolLoopAgent;
-export function createAgent(type: "skills", options: AgentOptions): ToolLoopAgent;
+// 带泛型的返回类型
+export function createAgent(type: "chat", options: ChatAgentOptions): ToolLoopAgent<never, ToolSet, Output>;
+export function createAgent(type: "interview", options: InterviewAgentOptions): ToolLoopAgent<InterviewState, ToolSet, Output>;
+export function createAgent(type: "course", options: CourseAgentOptions): ToolLoopAgent<never, ToolSet, Output>;
+export function createAgent(type: "skills", options: AgentOptions): ToolLoopAgent<never, ToolSet, Output>;
+
+// 统一实现
+export function createAgent(type: AgentType, options: AgentOptions): ToolLoopAgent<unknown, ToolSet, Output> {
+  const ctx = createToolContext({
+    userId: options.userId,
+    sessionId: options.sessionId,
+    resourceId: options.resourceId,
+    messages: options.messages,
+  });
+
+  switch (type) {
+    case "chat":
+      return createChatAgentImpl(ctx, options as ChatAgentOptions);
+    case "interview":
+      return createInterviewAgentImpl(ctx, options as InterviewAgentOptions);
+    case "course":
+      return createCourseAgentImpl(ctx, options as CourseAgentOptions);
+    case "skills":
+      return createSkillsAgentImpl(ctx, options);
+    default:
+      throw new Error(`Unknown agent type: ${type}`);
+  }
+}
 ```
 
 ### Chat Agent 示例
 
 ```typescript
-function createChatAgentImpl(ctx: ToolContext, options: ChatAgentOptions): ToolLoopAgent {
+function createChatAgentImpl(
+  ctx: ToolContext,
+  options: ChatAgentOptions,
+): ToolLoopAgent<never, ToolSet, Output> {
   const instructions = buildInstructions(CHAT_PROMPT, options.personalization);
   const tools = buildAgentTools("chat", ctx) as ToolSet;
 
@@ -161,6 +191,7 @@ function createChatAgentImpl(ctx: ToolContext, options: ChatAgentOptions): ToolL
     stopWhen: stepCountIs(options.maxSteps ?? 20),
   });
 }
+```
 ```
 
 ---
@@ -189,18 +220,20 @@ export function computePhase(state: InterviewState): InterviewPhase;
 ```typescript
 // lib/ai/agents/interview.ts
 
-export function createInterviewAgent(options: InterviewAgentOptions): ToolLoopAgent {
-  return new ToolLoopAgent({
+export function createInterviewAgent(
+  options: InterviewAgentOptions,
+): ToolLoopAgent<InterviewState, ToolSet, Output> {
+  return new ToolLoopAgent<InterviewState>({
     id: "nexusnote-interview",
     model: aiProvider.chatModel,
     tools: buildAgentTools("interview", ctx),
 
-    // v6 标准：声明状态 schema
-    callOptionsSchema: InterviewStateSchema,
+    // v6 标准：通过泛型定义 options 类型，不是 schema
+    // prepareCall 的 options 参数类型由泛型 InterviewState 推断
 
-    // v6 标准：prepareCall 控制流程
-    prepareCall: ({ options: callOptions, ...rest }) => {
-      const state = (callOptions ?? {}) as InterviewState;
+    prepareCall: ({ options, ...rest }) => {
+      // options 类型是 InterviewState | undefined
+      const state = options ?? {};
       const phase = computePhase(state);
 
       const instructions = `${INTERVIEW_PROMPT}\n\n${getPhasePrompt(phase, state)}`;
@@ -219,6 +252,14 @@ export function createInterviewAgent(options: InterviewAgentOptions): ToolLoopAg
     stopWhen: stepCountIs(15),
   });
 }
+
+// 调用方式：前端传递 options
+await createAgentUIStreamResponse({
+  agent: interviewAgent,
+  uiMessages: messages,        // ← 消息历史
+  options: interviewState,     // ← 前端传递的状态
+});
+```
 ```
 
 ### Interview 工具（仅 1 个）
@@ -397,6 +438,63 @@ const FALLBACK_MESSAGES = {
   rate_limit: "请求过于频繁，请稍后再试。",
   model_error: "AI 模型暂时不可用，请稍后重试。",
   unknown: "抱歉，AI 服务出现异常，请稍后重试。",
+};
+
+/**
+ * 创建 fallback 文本流
+ *
+ * AI SDK v6 stream 格式：
+ * - 0:"文字"\n 表示文本内容
+ * - d:{"finishReason":"stop"}\n 表示结束
+ */
+function createFallbackStream(
+  message: string,
+  headers: { sessionId?: string; resourceId?: string },
+): Response {
+  const encoder = new TextEncoder();
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      // 逐字符发送，模拟流式输出
+      for (const char of message) {
+        controller.enqueue(encoder.encode(`0:"${char}"\n`));
+      }
+      // 结束标记
+      controller.enqueue(encoder.encode(`d:{"finishReason":"stop"}\n`));
+      controller.close();
+    },
+  });
+
+  const response = new Response(stream, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "X-Stream-Error": "true",
+    },
+  });
+
+  if (headers.sessionId) response.headers.set("X-Session-Id", headers.sessionId);
+  if (headers.resourceId) response.headers.set("X-Resource-Id", headers.resourceId);
+
+  return response;
+}
+```
+
+### 前端集成
+
+```typescript
+// 前端需要在每次 sendMessage 时传递最新的 interviewState
+
+// hooks/useInterview.ts
+const handleSelectOption = (field: string, value: string) => {
+  // 同步计算最新状态
+  const newState = { ...interviewState, [field]: value };
+  setInterviewState(newState);  // 更新本地状态
+
+  // 发送消息时传递最新状态
+  sendMessage({ text: value }, {
+    body: { options: newState },  // ← 关键：同步传递
+  });
 };
 ```
 
