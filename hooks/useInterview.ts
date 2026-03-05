@@ -55,7 +55,7 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
     id: sessionId,
     transport: new DefaultChatTransport({
       api: "/api/interview",
-      body: () => ({ sessionId, courseId: courseIdRef.current }),
+      body: () => ({ sessionId, courseId: courseIdRef.current ?? undefined }),
       fetch: async (input, init) => {
         const response = await fetch(input, init);
         const newCourseId = response.headers.get("X-Course-Id");
