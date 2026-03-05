@@ -43,19 +43,24 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
   const setCourseId = useInterviewStore((s) => s.setCourseId);
   const setIsOutlineLoading = useInterviewStore((s) => s.setIsOutlineLoading);
   const setInterviewCompleted = useInterviewStore((s) => s.setInterviewCompleted);
-  const setEstimatedTurns = useInterviewStore((s) => s.setEstimatedTurns);
+
+  // 用 ref 确保获取最新值
+  const courseIdRef = useRef<string | null>(null);
+  const courseId = useInterviewStore((s) => s.courseId);
+  useEffect(() => {
+    courseIdRef.current = courseId;
+  }, [courseId]);
 
   const chat = useChat({
     id: sessionId,
     transport: new DefaultChatTransport({
       api: "/api/interview",
-      body: () => ({ sessionId }),
-      // Custom fetch to capture response headers
+      body: () => ({ sessionId, courseId: courseIdRef.current }),
       fetch: async (input, init) => {
         const response = await fetch(input, init);
-        const courseId = response.headers.get("X-Course-Id");
-        if (courseId) {
-          setCourseId(courseId);
+        const newCourseId = response.headers.get("X-Course-Id");
+        if (newCourseId) {
+          setCourseId(newCourseId);
         }
         return response;
       },
@@ -110,27 +115,6 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
       }
     }
   }, [messages, setOutline, setInterviewCompleted, setIsOutlineLoading]);
-
-  // 监听 assessComplexity 工具调用 - 获取预计轮数
-  useEffect(() => {
-    const lastMessage = messages[messages.length - 1];
-    if (!lastMessage || lastMessage.role !== "assistant") return;
-
-    const toolParts = lastMessage.parts
-      ?.filter(isToolPart)
-      .filter((p) => p.type === "tool-assessComplexity" && p.state === "output-available");
-
-    if (toolParts && toolParts.length > 0) {
-      const lastToolPart = toolParts[toolParts.length - 1];
-      const output = lastToolPart.output as
-        | { estimatedTurns?: number; success?: boolean }
-        | undefined;
-
-      if (output?.success && typeof output.estimatedTurns === "number") {
-        setEstimatedTurns(output.estimatedTurns);
-      }
-    }
-  }, [messages, setEstimatedTurns]);
 
   // AI SDK v6: isLoading is derived from status
   const isLoading = status === "submitted" || status === "streaming";
