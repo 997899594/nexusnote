@@ -16,12 +16,12 @@ export const ConfirmOutlineSchema = z.object({
   description: z.string().optional(),
   difficulty: z.enum(["beginner", "intermediate", "advanced"]),
   estimatedMinutes: z.number(),
-  modules: z
+  chapters: z
     .array(
       z.object({
         title: z.string(),
         description: z.string().optional(),
-        chapters: z.array(z.string()),
+        topics: z.array(z.string()).optional(),
       }),
     )
     .min(1),
@@ -56,14 +56,7 @@ export const createInterviewTools = (ctx: ToolContext) => {
           return { success: false, error: "无权修改此课程" };
         }
 
-        // 保存大纲
-        const chapters = outline.modules.map((m, i) => ({
-          title: m.title,
-          description: m.description,
-          topics: m.chapters,
-          order: i,
-        }));
-
+        // 直接保存 outline（格式已统一）
         await db
           .update(courseSessions)
           .set({
@@ -71,23 +64,14 @@ export const createInterviewTools = (ctx: ToolContext) => {
             description: outline.description,
             difficulty: outline.difficulty,
             estimatedMinutes: outline.estimatedMinutes,
-            outlineData: { title: outline.title, chapters },
+            outlineData: outline,
             interviewStatus: "completed",
             status: "outline_confirmed",
             updatedAt: new Date(),
           })
           .where(eq(courseSessions.id, courseId));
 
-        // 返回组件期望的格式（OutlineData）
-        return {
-          success: true,
-          outline: {
-            title: outline.title,
-            description: outline.description,
-            estimatedMinutes: outline.estimatedMinutes,
-            chapters,
-          },
-        };
+        return { success: true, outline };
       },
     }),
   };
