@@ -1,24 +1,45 @@
 /**
- * useInterview - 独立访谈 Hook
+ * useInterview - 简化版访谈 Hook
  *
  * 2026 架构：
  * - 调用 /api/interview
- * - 无 Persona 干扰
- * - 服务端管理 courseProfileId（存在 conversation.metadata）
+ * - 监听 updateProfile 和 confirmOutline 工具结果
+ * - 工具返回数据直接更新 store，不额外请求接口
  */
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type ToolUIPart, type UIMessage } from "ai";
 import { nanoid } from "nanoid";
 import { useEffect, useRef, useState } from "react";
-import type { ConfirmOutlineOutput } from "@/components/chat/tool-result/types";
 import { useToast } from "@/components/ui/Toast";
 import { parseApiError } from "@/lib/api/client";
-import { useInterviewStore } from "@/stores/interview";
+import {
+  type InterviewProfileState,
+  type LearningLevel,
+  type OutlineData,
+  useInterviewStore,
+} from "@/stores/interview";
 
 // Type guard for tool parts
 function isToolPart(part: { type: string }): part is ToolUIPart {
   return part.type.startsWith("tool-");
+}
+
+// Tool output types - match lib/ai/tools/interview/index.ts
+interface UpdateProfileOutput {
+  success: boolean;
+  profile?: {
+    goal: string | null;
+    background: LearningLevel;
+    outcome: string | null;
+  };
+  error?: string;
+}
+
+interface ConfirmOutlineOutput {
+  success: boolean;
+  outline?: OutlineData;
+  error?: string;
 }
 
 interface UseInterviewOptions {
@@ -39,6 +60,7 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
   const [sessionId] = useState(() => nanoid());
 
   // Get store setters
+  const setProfile = useInterviewStore((s) => s.setProfile);
   const setOutline = useInterviewStore((s) => s.setOutline);
   const setCourseId = useInterviewStore((s) => s.setCourseId);
   const setIsOutlineLoading = useInterviewStore((s) => s.setIsOutlineLoading);
@@ -94,30 +116,48 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
     }
   }, [sendMessage]);
 
-  // 监听 confirmOutline 工具调用 - 访谈完成
+  // 监听工具调用结果
   useEffect(() => {
-    // 遍历所有消息，找到最近的 confirmOutline 调用
+    // 遍历所有消息，找到最近的工具调用
     for (let i = messages.length - 1; i >= 0; i--) {
       const msg = messages[i];
       if (msg.role !== "assistant") continue;
 
-      const toolParts = msg.parts
-        ?.filter(isToolPart)
-        .filter((p) => p.type === "tool-confirmOutline" && p.state === "output-available");
+      const toolParts = msg.parts?.filter(isToolPart);
 
-      if (toolParts && toolParts.length > 0) {
-        const lastToolPart = toolParts[toolParts.length - 1];
-        const output = lastToolPart.output as ConfirmOutlineOutput | undefined;
+      if (!toolParts || toolParts.length === 0) continue;
 
+      // 检查 confirmOutline
+      const confirmPart = toolParts.find(
+        (p) => p.type === "tool-confirmOutline" && p.state === "output-available",
+      );
+      if (confirmPart) {
+        const output = confirmPart.output as ConfirmOutlineOutput | undefined;
         if (output?.success && output.outline) {
           setOutline(output.outline);
           setInterviewCompleted(true);
           setIsOutlineLoading(false);
-          return; // 找到后立即返回
+          return;
+        }
+      }
+
+      // 检查 updateProfile
+      const updatePart = toolParts.find(
+        (p) => p.type === "tool-updateProfile" && p.state === "output-available",
+      );
+      if (updatePart) {
+        const output = updatePart.output as UpdateProfileOutput | undefined;
+        if (output?.success && output.profile) {
+          setProfile({
+            goal: output.profile.goal,
+            background: output.profile.background,
+            outcome: output.profile.outcome,
+          });
+          return;
         }
       }
     }
-  }, [messages, setOutline, setInterviewCompleted, setIsOutlineLoading]);
+  }, [messages, setProfile, setOutline, setInterviewCompleted, setIsOutlineLoading]);
 
   // AI SDK v6: isLoading is derived from status
   const isLoading = status === "submitted" || status === "streaming";

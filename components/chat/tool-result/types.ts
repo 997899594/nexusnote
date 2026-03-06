@@ -181,29 +181,33 @@ export interface CheckCourseProgressOutput {
 // Interview Tool Types
 // ============================================
 
+export type LearningLevel = "none" | "beginner" | "intermediate" | "advanced";
+
+export interface InterviewProfile {
+  goal: string | null;
+  background: LearningLevel;
+  outcome: string | null;
+}
+
 export interface UpdateProfileOutput {
   success: boolean;
-  profile?: unknown;
-  message?: string;
+  profile?: InterviewProfile;
   error?: string;
 }
 
 export interface ConfirmOutlineOutput {
   success: boolean;
-  courseProfileId?: string;
-  title?: string;
-  moduleCount?: number;
   outline?: {
     title: string;
     description?: string;
-    estimatedMinutes?: number;
+    difficulty: "beginner" | "intermediate" | "advanced";
+    estimatedMinutes: number;
     chapters: Array<{
       title: string;
       description?: string;
       topics?: string[];
     }>;
   };
-  message?: string;
   error?: string;
 }
 

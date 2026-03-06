@@ -1,15 +1,28 @@
 /**
- * Interview Tools - 仅 confirmOutline
+ * Interview Tools - updateProfile + confirmOutline
+ *
+ * 简化版：2 个工具
+ * - updateProfile: 更新访谈画像（3 个指标）
+ * - confirmOutline: 生成/更新课程大纲
  */
 
 import { tool } from "ai";
 import { z } from "zod";
 import { courseSessions, db, eq } from "@/db";
+import type { InterviewProfile } from "@/db/schema";
 import type { ToolContext } from "@/lib/ai/core/tool-context";
 
 // ============================================
 // Schemas
 // ============================================
+
+const LearningLevelSchema = z.enum(["none", "beginner", "intermediate", "advanced"]);
+
+export const UpdateProfileSchema = z.object({
+  goal: z.string().optional().describe("学习目标"),
+  background: LearningLevelSchema.optional().describe("基础水平"),
+  outcome: z.string().optional().describe("期望成果"),
+});
 
 export const ConfirmOutlineSchema = z.object({
   title: z.string().describe("课程标题"),
@@ -28,6 +41,22 @@ export const ConfirmOutlineSchema = z.object({
 });
 
 // ============================================
+// Types
+// ============================================
+
+export interface UpdateProfileOutput {
+  success: boolean;
+  profile?: InterviewProfile;
+  error?: string;
+}
+
+export interface ConfirmOutlineOutput {
+  success: boolean;
+  outline?: z.infer<typeof ConfirmOutlineSchema>;
+  error?: string;
+}
+
+// ============================================
 // Tool Factory
 // ============================================
 
@@ -39,11 +68,17 @@ export const createInterviewTools = (ctx: ToolContext) => {
   }
 
   return {
-    confirmOutline: tool({
-      description: "生成并保存课程大纲，访谈结束时调用",
-      inputSchema: ConfirmOutlineSchema,
-      execute: async (outline) => {
-        // 权限验证：确保课程属于当前用户
+    /**
+     * updateProfile: 更新访谈画像
+     * - 更新数据库 interviewProfile 字段
+     * - 返回更新后的 profile（前端直接使用）
+     */
+    updateProfile: tool({
+      description:
+        "更新用户访谈画像。收集到 goal、background 或 outcome 时调用。返回更新后的完整 profile。",
+      inputSchema: UpdateProfileSchema,
+      execute: async (input): Promise<UpdateProfileOutput> => {
+        // 权限验证
         const course = await db.query.courseSessions.findFirst({
           where: eq(courseSessions.id, courseId),
         });
@@ -56,7 +91,56 @@ export const createInterviewTools = (ctx: ToolContext) => {
           return { success: false, error: "无权修改此课程" };
         }
 
-        // 直接保存 outline（格式已统一）
+        // 合并现有 profile 和新输入
+        const currentProfile = (course.interviewProfile as InterviewProfile) ?? {
+          goal: null,
+          background: "none",
+          outcome: null,
+        };
+
+        const updatedProfile: InterviewProfile = {
+          goal: input.goal ?? currentProfile.goal,
+          background: input.background ?? currentProfile.background,
+          outcome: input.outcome ?? currentProfile.outcome,
+        };
+
+        // 更新数据库
+        await db
+          .update(courseSessions)
+          .set({
+            interviewProfile: updatedProfile,
+            updatedAt: new Date(),
+          })
+          .where(eq(courseSessions.id, courseId));
+
+        return { success: true, profile: updatedProfile };
+      },
+    }),
+
+    /**
+     * confirmOutline: 生成/更新课程大纲
+     * - 更新数据库 outlineData 字段
+     * - 返回完整 outline（前端直接使用，不重新请求）
+     */
+    confirmOutline: tool({
+      description:
+        "生成或更新课程大纲。三个指标收集完成后首次调用，用户提出修改建议时再次调用更新。返回完整 outline。",
+      inputSchema: ConfirmOutlineSchema,
+      execute: async (outline): Promise<ConfirmOutlineOutput> => {
+        // 权限验证
+        const course = await db.query.courseSessions.findFirst({
+          where: eq(courseSessions.id, courseId),
+        });
+
+        if (!course) {
+          return { success: false, error: "课程不存在" };
+        }
+
+        if (course.userId !== ctx.userId) {
+          return { success: false, error: "无权修改此课程" };
+        }
+
+        // 保存 outline 到数据库
         await db
           .update(courseSessions)
           .set({

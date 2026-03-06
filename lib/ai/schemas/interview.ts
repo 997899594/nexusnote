@@ -3,12 +3,11 @@
 import { z } from "zod";
 
 /**
- * 访谈阶段
+ * 访谈阶段 - 简化版
  */
 export const InterviewPhaseSchema = z.enum([
   "collecting_goal",
   "collecting_background",
-  "collecting_time",
   "collecting_outcome",
   "ready",
   "completed",
@@ -17,13 +16,13 @@ export const InterviewPhaseSchema = z.enum([
 export type InterviewPhase = z.infer<typeof InterviewPhaseSchema>;
 
 /**
- * 访谈状态 - 前端传递给 Agent
+ * 访谈状态 - 3 个指标
+ * 与数据库 InterviewProfile 保持一致
  */
 export const InterviewStateSchema = z.object({
-  goal: z.string().optional(),
-  background: z.enum(["none", "beginner", "intermediate", "advanced"]).optional(),
-  timeCommitment: z.enum(["casual", "moderate", "intensive"]).optional(),
-  outcome: z.string().optional(),
+  goal: z.string().nullable(),
+  background: z.enum(["none", "beginner", "intermediate", "advanced"]).nullable(),
+  outcome: z.string().nullable(),
 });
 
 export type InterviewState = z.infer<typeof InterviewStateSchema>;
@@ -31,10 +30,17 @@ export type InterviewState = z.infer<typeof InterviewStateSchema>;
 /**
  * 计算当前阶段
  */
-export function computePhase(state: InterviewState): InterviewPhase {
+export function computePhase(state: InterviewState | null | undefined): InterviewPhase {
+  if (!state) return "collecting_goal";
   if (!state.goal) return "collecting_goal";
   if (!state.background) return "collecting_background";
-  if (!state.timeCommitment) return "collecting_time";
   if (!state.outcome) return "collecting_outcome";
   return "ready";
+}
+
+/**
+ * 判断是否收集完成
+ */
+export function isProfileComplete(state: InterviewState | null | undefined): boolean {
+  return computePhase(state) === "ready";
 }

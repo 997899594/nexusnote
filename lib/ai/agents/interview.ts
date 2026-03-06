@@ -1,5 +1,7 @@
 /**
- * INTERVIEW Agent - v6 状态机驱动
+ * INTERVIEW Agent - 简化版状态机
+ *
+ * 从数据库读取 interviewProfile，判断收集阶段
  */
 
 import { stepCountIs, ToolLoopAgent, type ToolSet } from "ai";
@@ -19,6 +21,8 @@ export interface InterviewAgentOptions {
   userId: string;
   courseId: string;
   messages?: import("ai").UIMessage[];
+  // 从数据库读取的 profile，用于判断阶段
+  profile?: InterviewState | null;
   personalization?: {
     personaPrompt?: string;
     userContext?: string;
@@ -44,29 +48,36 @@ export function createInterviewAgent(
 
   const tools = buildAgentTools("interview", ctx) as ToolSet;
 
+  // 将 profile 存储在闭包中，供 prepareCall 使用
+  const initialProfile: InterviewState = options.profile ?? {
+    goal: null,
+    background: null,
+    outcome: null,
+  };
+
   return new ToolLoopAgent<InterviewState, ToolSet>({
     id: "nexusnote-interview",
     model: aiProvider.chatModel,
     tools,
 
-    // v6 标准：通过泛型定义 options 类型
-    // prepareCall 的 options 参数类型由泛型 InterviewState 推断
-
     prepareCall: ({ options: state, ...rest }) => {
-      const currentState = state ?? {};
+      // 首次调用时使用从数据库读取的 profile
+      // 后续调用时 state 会被更新（通过 updateProfile 工具）
+      const currentState: InterviewState = state ?? initialProfile;
       const phase = computePhase(currentState);
-
       const instructions = `${INTERVIEW_PROMPT}\n\n${getPhasePrompt(phase, currentState)}`;
 
+      // 三个指标收集完成，强制调用 confirmOutline
       if (phase === "ready") {
         return {
           ...rest,
+          options: currentState,
           instructions,
           toolChoice: { type: "tool", toolName: "confirmOutline" },
         };
       }
 
-      return { ...rest, instructions };
+      return { ...rest, options: currentState, instructions };
     },
 
     stopWhen: stepCountIs(MAX_STEPS),

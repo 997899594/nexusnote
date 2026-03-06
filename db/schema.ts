@@ -334,31 +334,15 @@ export const documentChunks = knowledgeChunks;
 // AI 生成课程 (Course Profiles)
 // ============================================
 
-// 访谈画像类型 - 2026 自适应访谈系统
-export type DomainComplexity = "trivial" | "simple" | "moderate" | "complex" | "expert";
+// 访谈画像类型 - 2026 简化版
+// 只收集 3 个指标：goal、background、outcome
 export type LearningLevel = "none" | "beginner" | "intermediate" | "advanced";
 
 export interface InterviewProfile {
-  // 核心信息（所有领域通用）
-  goal: string | null;
-  domain: string | null;
-  complexity: DomainComplexity;
-
-  // 背景信息（按需收集）
-  background: string | null;
-  currentLevel: LearningLevel;
-
-  // 目标信息（按需收集）
-  targetOutcome: string | null;
-  timeConstraints: string | null;
-
-  // AI 推断
-  insights: string[];
-  readiness: number; // 0-100
-
-  // 元数据
-  estimatedTurns: number;
-  currentTurn: number;
+  // 三个核心指标
+  goal: string | null; // 学习目标
+  background: LearningLevel; // 基础水平
+  outcome: string | null; // 期望成果
 }
 
 export const courseSessions = pgTable(
