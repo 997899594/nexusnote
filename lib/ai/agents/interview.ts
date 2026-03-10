@@ -23,6 +23,8 @@ export interface InterviewAgentOptions {
   messages?: import("ai").UIMessage[];
   // 从数据库读取的 profile，用于判断阶段
   profile?: InterviewState | null;
+  // 是否已生成大纲
+  hasOutline?: boolean;
   personalization?: {
     personaPrompt?: string;
     userContext?: string;
@@ -48,12 +50,13 @@ export function createInterviewAgent(
 
   const tools = buildAgentTools("interview", ctx) as ToolSet;
 
-  // 将 profile 存储在闭包中，供 prepareCall 使用
+  // 将 profile 和 hasOutline 存储在闭包中，供 prepareCall 使用
   const initialProfile: InterviewState = options.profile ?? {
     goal: null,
     background: null,
     outcome: null,
   };
+  const hasOutline = options.hasOutline ?? false;
 
   return new ToolLoopAgent<InterviewState, ToolSet>({
     id: "nexusnote-interview",
@@ -64,10 +67,10 @@ export function createInterviewAgent(
       // 首次调用时使用从数据库读取的 profile
       // 后续调用时 state 会被更新（通过 updateProfile 工具）
       const currentState: InterviewState = state ?? initialProfile;
-      const phase = computePhase(currentState);
+      const phase = computePhase(currentState, hasOutline);
       const instructions = `${INTERVIEW_PROMPT}\n\n${getPhasePrompt(phase, currentState)}`;
 
-      // 三个指标收集完成，强制调用 confirmOutline
+      // 三个指标收集完成且未生成大纲，强制调用 confirmOutline
       if (phase === "ready") {
         return {
           ...rest,

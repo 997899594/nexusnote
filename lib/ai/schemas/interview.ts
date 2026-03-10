@@ -29,18 +29,27 @@ export type InterviewState = z.infer<typeof InterviewStateSchema>;
 
 /**
  * 计算当前阶段
+ * @param state - 访谈状态（goal, background, outcome）
+ * @param hasOutline - 是否已生成大纲
  */
-export function computePhase(state: InterviewState | null | undefined): InterviewPhase {
+export function computePhase(
+  state: InterviewState | null | undefined,
+  hasOutline?: boolean,
+): InterviewPhase {
   if (!state) return "collecting_goal";
   if (!state.goal) return "collecting_goal";
   if (!state.background) return "collecting_background";
   if (!state.outcome) return "collecting_outcome";
+
+  // 三个指标收集完成后，检查是否已生成大纲
+  if (hasOutline) return "completed";
   return "ready";
 }
 
 /**
- * 判断是否收集完成
+ * 判断是否收集完成（三个指标都已填写）
  */
 export function isProfileComplete(state: InterviewState | null | undefined): boolean {
-  return computePhase(state) === "ready";
+  if (!state) return false;
+  return !!state.goal && !!state.background && !!state.outcome;
 }

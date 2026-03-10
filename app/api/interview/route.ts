@@ -58,22 +58,23 @@ export async function POST(request: NextRequest) {
     }
 
     // ============================================
-    // 获取或创建课程，读取 profile
+    // 获取或创建课程，读取 profile 和 outline
     // ============================================
-    const { courseId, profile } = await resolveInterviewState(
+    const { courseId, profile, hasOutline } = await resolveInterviewState(
       userId,
       inputCourseId,
       messages as UIMessage[],
     );
 
     // ============================================
-    // 创建 Agent，传入 profile
+    // 创建 Agent，传入 profile 和 hasOutline
     // ============================================
     const agent = createInterviewAgent({
       userId,
       courseId,
       messages: messages as UIMessage[],
       profile,
+      hasOutline,
     });
 
     const response = await createNexusNoteStreamResponse(agent, messages as UIMessage[], {
@@ -98,7 +99,7 @@ async function resolveInterviewState(
   userId: string,
   inputCourseId: string | null | undefined,
   messages: UIMessage[],
-): Promise<{ courseId: string; profile: InterviewState | null }> {
+): Promise<{ courseId: string; profile: InterviewState | null; hasOutline: boolean }> {
   // 1. 尝试获取现有课程
   if (inputCourseId) {
     const existing = await db.query.courseSessions.findFirst({
@@ -115,7 +116,10 @@ async function resolveInterviewState(
           }
         : null;
 
-      return { courseId: existing.id, profile };
+      // 检查是否已生成大纲
+      const hasOutline = existing.outlineData != null;
+
+      return { courseId: existing.id, profile, hasOutline };
     }
   }
 
@@ -156,6 +160,7 @@ async function resolveInterviewState(
       background: initialProfile.background,
       outcome: initialProfile.outcome,
     },
+    hasOutline: false,
   };
 }
 
