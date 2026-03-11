@@ -15,11 +15,11 @@ export * from "./skills";
 import type { ToolContext } from "@/lib/ai/core/tool-context";
 import { createNoteTools } from "./chat/notes";
 import { createSearchTools } from "./chat/search";
-import { webSearchTool } from "./chat/web-search";
+import { createWebSearchTool } from "./chat/web-search";
 import { batchEditTool, draftContentTool, editDocumentTool } from "./editor";
 import { createInterviewTools } from "./interview";
 import { createCourseTools } from "./learning/course";
-import { mindMapTool, summarizeTool } from "./learning/enhance";
+import { createEnhanceTools } from "./learning/enhance";
 import { createRagTools } from "./rag";
 import { suggestOptionsTool } from "./shared/suggest-options";
 import { createDiscoverSkillsTool } from "./skills/discovery";
@@ -27,24 +27,25 @@ import { createDiscoverSkillsTool } from "./skills/discovery";
 /**
  * 工具注册表
  *
- * 注意：resource 目录下的工具使用 ToolContext
- *      其他工具暂时使用 string (userId)
+ * global: 工厂函数，接受 userId，返回工具对象
+ * resource: 工厂函数，接受完整 ToolContext，返回工具对象
+ * shared: 不依赖用户身份的纯功能工具（raw objects）
+ * skills: 工厂函数，接受 userId
  */
 export const toolRegistry = {
   global: {
     search: createSearchTools,
     rag: createRagTools,
     notes: createNoteTools,
+    webSearch: createWebSearchTool,
+    enhance: createEnhanceTools,
   },
   resource: {
     interview: createInterviewTools,
-    // course: createCourseTools, // TODO: 迁移到 ToolContext
+    course: createCourseTools,
   },
   shared: {
     suggestOptions: suggestOptionsTool,
-    webSearch: webSearchTool,
-    mindMap: mindMapTool,
-    summarize: summarizeTool,
     editDocument: editDocumentTool,
     batchEdit: batchEditTool,
     draftContent: draftContentTool,
@@ -57,9 +58,8 @@ export const toolRegistry = {
 /**
  * 为 Agent 构建工具集
  *
- * 注意：不同类型的 Agent 有不同的工具需求
- * - chat/interview/course: 需要 shared 交互工具
- * - skills: 静默后台运行，只需要 discoverSkills
+ * - skills: 静默后台运行，只有 discoverSkills
+ * - chat/interview/course: shared 编辑工具 + global 用户工具 + 特定工具
  */
 export function buildAgentTools(
   agentType: "chat" | "interview" | "course" | "skills",
@@ -67,16 +67,18 @@ export function buildAgentTools(
 ): Record<string, unknown> {
   const tools: Record<string, unknown> = {};
 
-  // skills 是静默后台任务，只需要 discoverSkills
+  // skills 是静默后台任务
   if (agentType === "skills") {
-    Object.assign(tools, toolRegistry.skills.discoverSkills(ctx.userId));
+    Object.assign(tools, { discoverSkills: toolRegistry.skills.discoverSkills(ctx.userId) });
     return tools;
   }
 
-  // 其他 Agent: 共享工具 + 全局工具
+  // 所有对话型 Agent 共有：编辑工具（无需 userId）+ 搜索/RAG/网页搜索/增强工具
   Object.assign(tools, toolRegistry.shared);
   Object.assign(tools, toolRegistry.global.search(ctx.userId));
   Object.assign(tools, toolRegistry.global.rag(ctx.userId));
+  Object.assign(tools, toolRegistry.global.webSearch(ctx.userId));
+  Object.assign(tools, toolRegistry.global.enhance(ctx.userId));
 
   switch (agentType) {
     case "chat":
@@ -91,13 +93,11 @@ export function buildAgentTools(
       break;
 
     case "course":
-      if (!ctx.resourceId) {
-        throw new Error("Course agent requires resourceId (courseId)");
-      }
-      // course tools still use string signature
-      Object.assign(tools, createCourseTools(ctx.userId));
+      Object.assign(tools, toolRegistry.global.notes(ctx.userId));
+      Object.assign(tools, toolRegistry.resource.course(ctx.userId));
       break;
   }
 
   return tools;
 }
+

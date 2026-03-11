@@ -4,12 +4,8 @@
 
 import { stepCountIs, ToolLoopAgent, type ToolSet } from "ai";
 import { aiProvider } from "../core";
-import { createNoteTools } from "../tools/chat/notes";
-import { createSearchTools } from "../tools/chat/search";
-import { webSearchTool } from "../tools/chat/web-search";
-import { batchEditTool, draftContentTool, editDocumentTool } from "../tools/editor";
-import { mindMapTool, summarizeTool } from "../tools/learning/enhance";
-import { createRagTools } from "../tools/rag";
+import { createToolContext } from "../core/tool-context";
+import { buildAgentTools } from "../tools";
 
 const INSTRUCTIONS = `你是 NexusNote 智能助手。
 
@@ -36,30 +32,20 @@ export interface PersonalizationOptions {
  * 创建 CHAT Agent
  */
 export function createChatAgent(options?: PersonalizationOptions) {
-  const additionalInstructions = options
-    ? [options.personaPrompt || "", options.userContext || ""].filter((s) => s).join("\n")
-    : undefined;
+  if (!options?.userId) {
+    throw new Error("Chat agent requires userId");
+  }
+
+  const additionalInstructions = [options.personaPrompt || "", options.userContext || ""]
+    .filter((s) => s)
+    .join("\n");
 
   const fullInstructions = additionalInstructions
     ? `${additionalInstructions}\n\n${INSTRUCTIONS}`
     : INSTRUCTIONS;
 
-  // 构建工具集 - 需要 userId 的工具使用工厂模式
-  const chatTools: ToolSet = {
-    // 笔记工具（需要 userId）
-    ...createNoteTools(options?.userId || ""),
-    // 搜索工具（需要 userId）
-    ...createSearchTools(options?.userId || ""),
-    // RAG 工具（需要 userId）
-    ...createRagTools(options?.userId || ""),
-    // 其他工具（不需要 userId）
-    webSearch: webSearchTool,
-    mindMap: mindMapTool,
-    summarize: summarizeTool,
-    editDocument: editDocumentTool,
-    batchEdit: batchEditTool,
-    draftContent: draftContentTool,
-  };
+  const ctx = createToolContext({ userId: options.userId });
+  const chatTools = buildAgentTools("chat", ctx) as ToolSet;
 
   return new ToolLoopAgent({
     id: "nexusnote-chat",

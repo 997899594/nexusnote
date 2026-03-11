@@ -1,5 +1,7 @@
 /**
  * Chat Tools - 网页搜索
+ *
+ * 工厂模式：绑定 userId 用于用量追踪和日志归属
  */
 
 import { tool } from "ai";
@@ -12,50 +14,49 @@ export const WebSearchSchema = z.object({
 
 export type WebSearchInput = z.infer<typeof WebSearchSchema>;
 
-export const webSearchTool = tool({
-  description: "搜索互联网获取最新信息",
-  inputSchema: WebSearchSchema,
-  execute: async (args) => {
-    // 检查是否配置了搜索 API
-    const searchApiKey = process.env.TAVILY_API_KEY || process.env.SERPER_API_KEY;
+/**
+ * 创建网页搜索工具（绑定 userId）
+ */
+export function createWebSearchTool(userId: string) {
+  return {
+    webSearch: tool({
+      description: "搜索互联网获取最新信息",
+      inputSchema: WebSearchSchema,
+      execute: async (args) => {
+        const searchApiKey = process.env.TAVILY_API_KEY || process.env.SERPER_API_KEY;
 
-    if (!searchApiKey) {
-      // 未配置时返回明确错误，而不是假数据
-      console.warn("[Tool] webSearch: No search API key configured");
-      return {
-        success: false,
-        error: "搜索服务未配置。请联系管理员配置 TAVILY_API_KEY 或 SERPER_API_KEY。",
-        query: args.query,
-        results: [],
-      };
-    }
+        if (!searchApiKey) {
+          console.warn("[Tool] webSearch: No search API key configured", { userId });
+          return {
+            success: false,
+            error: "搜索服务未配置。请联系管理员配置 TAVILY_API_KEY 或 SERPER_API_KEY。",
+            query: args.query,
+            results: [],
+          };
+        }
 
-    try {
-      // 使用 Tavily API (优先)
-      if (process.env.TAVILY_API_KEY) {
-        return await searchWithTavily(args.query, args.limit);
-      }
+        try {
+          if (process.env.TAVILY_API_KEY) {
+            return await searchWithTavily(args.query, args.limit);
+          }
 
-      // 回退到 Serper
-      if (process.env.SERPER_API_KEY) {
-        return await searchWithSerper(args.query, args.limit);
-      }
+          if (process.env.SERPER_API_KEY) {
+            return await searchWithSerper(args.query, args.limit);
+          }
 
-      return {
-        success: false,
-        error: "搜索服务配置错误",
-        results: [],
-      };
-    } catch (error) {
-      console.error("[Tool] webSearch error:", error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "搜索服务暂不可用",
-        results: [],
-      };
-    }
-  },
-});
+          return { success: false, error: "搜索服务配置错误", results: [] };
+        } catch (error) {
+          console.error("[Tool] webSearch error:", error, { userId });
+          return {
+            success: false,
+            error: error instanceof Error ? error.message : "搜索服务暂不可用",
+            results: [],
+          };
+        }
+      },
+    }),
+  };
+}
 
 /**
  * 使用 Tavily API 搜索

@@ -163,6 +163,7 @@ export async function POST(request: NextRequest) {
 
     // Get agent with personalization
     const agent = getAgent(intent, {
+      userId,
       personaPrompt: personaSystemPrompt,
       userContext,
     });

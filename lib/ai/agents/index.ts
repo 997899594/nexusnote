@@ -30,7 +30,7 @@ export function getAgent(intent: AgentIntent, options: AgentOptions = {}) {
     case "COURSE":
       return createCourseAgent(options);
     case "SKILLS": {
-      if (!options.userId) return createChatAgent(options);
+      if (!options.userId) throw new Error("Skills agent requires userId");
       return createSkillsAgent(options as SkillsAgentOptions);
     }
     default:
