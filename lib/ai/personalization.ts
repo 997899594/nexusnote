@@ -34,9 +34,7 @@ export async function buildPersonalization(
     buildChatContext(userId),
   ]);
 
-  const systemPrompt = persona
-    ? `\n=== AI Persona ===\n${persona.name}\n${persona.systemPrompt}\n`
-    : "";
+  const systemPrompt = persona ? `${persona.systemPrompt}` : "";
 
   return {
     systemPrompt,

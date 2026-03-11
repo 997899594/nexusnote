@@ -12,7 +12,7 @@ export type LearningLevel = "none" | "beginner" | "intermediate" | "advanced";
 
 export interface InterviewProfileState {
   goal: string | null;
-  background: LearningLevel;
+  background: LearningLevel | null;
   outcome: string | null;
 }
 
@@ -53,7 +53,7 @@ interface InterviewStore {
 const initialState = {
   profile: {
     goal: null,
-    background: "none" as LearningLevel,
+    background: null as LearningLevel | null,
     outcome: null,
   },
   outline: null,

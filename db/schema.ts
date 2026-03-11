@@ -341,7 +341,7 @@ export type LearningLevel = "none" | "beginner" | "intermediate" | "advanced";
 export interface InterviewProfile {
   // 三个核心指标
   goal: string | null; // 学习目标
-  background: LearningLevel; // 基础水平
+  background: LearningLevel | null; // 基础水平（null = 未收集）
   outcome: string | null; // 期望成果
 }
 

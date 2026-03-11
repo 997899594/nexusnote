@@ -94,7 +94,7 @@ export const createInterviewTools = (ctx: ToolContext) => {
         // 合并现有 profile 和新输入
         const currentProfile = (course.interviewProfile as InterviewProfile) ?? {
           goal: null,
-          background: "none",
+          background: null,
           outcome: null,
         };
 

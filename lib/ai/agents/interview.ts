@@ -5,6 +5,8 @@
  */
 
 import { stepCountIs, ToolLoopAgent, type ToolSet } from "ai";
+import { courseSessions, db, eq } from "@/db";
+import type { InterviewProfile } from "@/db/schema";
 import { aiProvider } from "../core";
 import { createToolContext, type ToolContext } from "../core/tool-context";
 import { getPhasePrompt, INTERVIEW_PROMPT } from "../prompts/interview";
@@ -21,10 +23,6 @@ export interface InterviewAgentOptions {
   userId: string;
   courseId: string;
   messages?: import("ai").UIMessage[];
-  // 从数据库读取的 profile，用于判断阶段
-  profile?: InterviewState | null;
-  // 是否已生成大纲
-  hasOutline?: boolean;
   personalization?: {
     personaPrompt?: string;
     userContext?: string;
@@ -50,24 +48,31 @@ export function createInterviewAgent(
 
   const tools = buildAgentTools("interview", ctx) as ToolSet;
 
-  // 将 profile 和 hasOutline 存储在闭包中，供 prepareCall 使用
-  const initialProfile: InterviewState = options.profile ?? {
-    goal: null,
-    background: null,
-    outcome: null,
-  };
-  const hasOutline = options.hasOutline ?? false;
+  const courseId = options.courseId;
 
   return new ToolLoopAgent<InterviewState, ToolSet>({
     id: "nexusnote-interview",
     model: aiProvider.chatModel,
     tools,
 
-    prepareCall: ({ options: state, ...rest }) => {
-      // 首次调用时使用从数据库读取的 profile
-      // 后续调用时 state 会被更新（通过 updateProfile 工具）
-      const currentState: InterviewState = state ?? initialProfile;
-      const phase = computePhase(currentState, hasOutline);
+    prepareCall: async ({ ...rest }) => {
+      // 每步重新从数据库读取最新状态，确保工具更新后能正确推进阶段
+      const session = await db.query.courseSessions.findFirst({
+        where: eq(courseSessions.id, courseId),
+        columns: { interviewProfile: true, outlineData: true },
+      });
+
+      const dbProfile = session?.interviewProfile as InterviewProfile | null;
+      const currentState: InterviewState = dbProfile
+        ? {
+            goal: dbProfile.goal ?? null,
+            background: dbProfile.background ?? null,
+            outcome: dbProfile.outcome ?? null,
+          }
+        : { goal: null, background: null, outcome: null };
+
+      const currentHasOutline = session?.outlineData != null;
+      const phase = computePhase(currentState, currentHasOutline);
       const instructions = `${INTERVIEW_PROMPT}\n\n${getPhasePrompt(phase, currentState)}`;
 
       // 三个指标收集完成且未生成大纲，强制调用 confirmOutline

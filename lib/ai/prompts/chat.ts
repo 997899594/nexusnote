@@ -17,12 +17,15 @@ export const CHAT_PROMPT = `你是 NexusNote 智能助手。
 
 /**
  * 构建个性化指令
+ *
+ * 顺序：系统行为规则 → persona 风格 → 用户上下文
+ * 保证系统规则优先级最高，不被 persona 覆盖
  */
 export function buildInstructions(
   basePrompt: string,
   personalization?: { personaPrompt?: string; userContext?: string },
 ): string {
-  const parts = [personalization?.personaPrompt, personalization?.userContext, basePrompt].filter(
+  const parts = [basePrompt, personalization?.personaPrompt, personalization?.userContext].filter(
     Boolean,
   );
 

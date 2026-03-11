@@ -30,7 +30,7 @@ interface UpdateProfileOutput {
   success: boolean;
   profile?: {
     goal: string | null;
-    background: LearningLevel;
+    background: LearningLevel | null;
     outcome: string | null;
   };
   error?: string;
@@ -66,21 +66,16 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
   const setIsOutlineLoading = useInterviewStore((s) => s.setIsOutlineLoading);
   const setInterviewCompleted = useInterviewStore((s) => s.setInterviewCompleted);
 
-  // 用 ref 确保获取最新值
-  const courseIdRef = useRef<string | null>(null);
-  const courseId = useInterviewStore((s) => s.courseId);
-  useEffect(() => {
-    courseIdRef.current = courseId;
-  }, [courseId]);
-
   const chat = useChat({
     id: sessionId,
     transport: new DefaultChatTransport({
       api: "/api/interview",
-      body: () => ({ sessionId, courseId: courseIdRef.current ?? undefined }),
+      // 直接从 store 读取最新 courseId，避免 useEffect 更新延迟导致的竞态条件
+      body: () => ({ sessionId, courseId: useInterviewStore.getState().courseId ?? undefined }),
       fetch: async (input, init) => {
         const response = await fetch(input, init);
-        const newCourseId = response.headers.get("X-Course-Id");
+        // 服务端通过 X-Resource-Id 返回新创建的 courseId
+        const newCourseId = response.headers.get("X-Resource-Id");
         if (newCourseId) {
           setCourseId(newCourseId);
         }
