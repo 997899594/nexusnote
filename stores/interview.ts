@@ -1,10 +1,15 @@
 // stores/interview.ts
 import { create } from "zustand";
 
+export interface Section {
+  title: string;        // e.g., "变量与常量"
+  description: string;  // e.g., "理解 Python 中变量的声明、赋值和命名规范"
+}
+
 export interface Chapter {
   title: string;
   description: string;
-  topics: string[];
+  sections: Section[];           // replaces topics: string[]
   estimatedMinutes?: number;
   practiceType?: "exercise" | "project" | "quiz" | "none";
 }
