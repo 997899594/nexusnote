@@ -3,7 +3,7 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, isToolUIPart, getToolName, type UIMessage } from "ai";
 import { nanoid } from "nanoid";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { parseApiError } from "@/lib/api/client";
 import { type OutlineData, useInterviewStore } from "@/stores/interview";
@@ -26,6 +26,30 @@ interface UseInterviewReturn {
   sessionId: string;
 }
 
+/**
+ * 从消息列表中提取最新的 confirmOutline 输出
+ */
+function findLatestOutline(messages: UIMessage[]): OutlineData | null {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (msg.role !== "assistant" || !msg.parts) continue;
+
+    for (const part of msg.parts) {
+      if (
+        isToolUIPart(part) &&
+        getToolName(part) === "confirmOutline" &&
+        part.state === "output-available"
+      ) {
+        const output = part.output as ConfirmOutlineOutput | undefined;
+        if (output?.success && output.outline) {
+          return output.outline;
+        }
+      }
+    }
+  }
+  return null;
+}
+
 export function useInterview(options?: UseInterviewOptions): UseInterviewReturn {
   const { addToast } = useToast();
   const [sessionId] = useState(() => nanoid());
@@ -34,6 +58,10 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
   const setCourseId = useInterviewStore((s) => s.setCourseId);
   const setIsOutlineLoading = useInterviewStore((s) => s.setIsOutlineLoading);
   const setInterviewCompleted = useInterviewStore((s) => s.setInterviewCompleted);
+
+  // 稳定引用，供 onFinish 使用
+  const storeActionsRef = useRef({ setOutline, setInterviewCompleted, setIsOutlineLoading });
+  storeActionsRef.current = { setOutline, setInterviewCompleted, setIsOutlineLoading };
 
   const chat = useChat({
     id: sessionId,
@@ -49,6 +77,16 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
         return response;
       },
     }),
+    // 流结束时可靠检测 confirmOutline（主要检测入口）
+    onFinish: ({ messages: finishedMessages }) => {
+      const outline = findLatestOutline(finishedMessages);
+      if (outline) {
+        const actions = storeActionsRef.current;
+        actions.setOutline(outline);
+        actions.setInterviewCompleted(true);
+        actions.setIsOutlineLoading(false);
+      }
+    },
     onError: (error) => {
       console.error("[Interview] API Error:", error);
       parseApiError(error).then(({ message }) => {
@@ -77,31 +115,15 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
     }
   }, [sendMessage]);
 
-  // Monitor confirmOutline tool output
+  // 备用检测：流式过程中也尝试检测（增加 status 依赖确保流结束时触发）
   useEffect(() => {
-    for (let i = messages.length - 1; i >= 0; i--) {
-      const msg = messages[i];
-      if (msg.role !== "assistant") continue;
-      if (!msg.parts) continue;
-
-      const confirmPart = msg.parts.find(
-        (p) =>
-          isToolUIPart(p) &&
-          getToolName(p) === "confirmOutline" &&
-          p.state === "output-available",
-      );
-
-      if (confirmPart && isToolUIPart(confirmPart)) {
-        const output = confirmPart.output as ConfirmOutlineOutput | undefined;
-        if (output?.success && output.outline) {
-          setOutline(output.outline);
-          setInterviewCompleted(true);
-          setIsOutlineLoading(false);
-          return;
-        }
-      }
+    const outline = findLatestOutline(messages);
+    if (outline) {
+      setOutline(outline);
+      setInterviewCompleted(true);
+      setIsOutlineLoading(false);
     }
-  }, [messages, setOutline, setInterviewCompleted, setIsOutlineLoading]);
+  }, [messages, status, setOutline, setInterviewCompleted, setIsOutlineLoading]);
 
   const isLoading = status === "submitted" || status === "streaming";
 
