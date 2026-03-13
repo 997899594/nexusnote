@@ -2,7 +2,8 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import { courseSessions, db, eq } from "@/db";
+import { and, courseSessions, db, documents, eq } from "@/db";
+
 import type { ToolContext } from "@/lib/ai/core/tool-context";
 
 // ============================================
@@ -21,7 +22,15 @@ export const ConfirmOutlineSchema = z.object({
       z.object({
         title: z.string().describe("章节标题"),
         description: z.string().describe("章节简介"),
-        topics: z.array(z.string()).describe("知识点列表"),
+        sections: z
+          .array(
+            z.object({
+              title: z.string().describe("小节标题"),
+              description: z.string().describe("小节知识点描述"),
+            }),
+          )
+          .min(1)
+          .describe("小节列表"),
         estimatedMinutes: z.number().optional().describe("预计学习时长（分钟）"),
         practiceType: z
           .enum(["exercise", "project", "quiz", "none"])
@@ -73,6 +82,7 @@ export const createInterviewTools = (ctx: ToolContext) => {
           return { success: false, error: "无权修改此课程" };
         }
 
+        // Save outline to course session
         await db
           .update(courseSessions)
           .set({
@@ -86,6 +96,30 @@ export const createInterviewTools = (ctx: ToolContext) => {
             updatedAt: new Date(),
           })
           .where(eq(courseSessions.id, courseId));
+
+        // --- Eager placeholder document creation ---
+        // Clear old section documents (supports outline re-confirmation during interview)
+        await db.delete(documents).where(
+          and(eq(documents.courseId, courseId), eq(documents.type, "course_section")),
+        );
+
+        // Create one placeholder document per section
+        for (let chIdx = 0; chIdx < outline.chapters.length; chIdx++) {
+          const chapter = outline.chapters[chIdx];
+          for (let secIdx = 0; secIdx < chapter.sections.length; secIdx++) {
+            const section = chapter.sections[secIdx];
+            await db
+              .insert(documents)
+              .values({
+                type: "course_section",
+                title: section.title,
+                courseId: courseId,
+                outlineNodeId: `section-${chIdx + 1}-${secIdx + 1}`,
+                content: null,
+                plainText: null,
+              });
+          }
+        }
 
         return { success: true, outline };
       },
