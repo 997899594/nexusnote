@@ -7,7 +7,6 @@ import { useToast } from "@/components/ui/Toast";
 interface UseChapterGenerationOptions {
   courseId: string;
   chapterIndex: number;
-  chapterTitle: string;
   /** Only trigger generation when true (chapter has no existing content) */
   enabled: boolean;
 }
@@ -28,7 +27,6 @@ interface UseChapterGenerationReturn {
 export function useChapterGeneration({
   courseId,
   chapterIndex,
-  chapterTitle,
   enabled,
 }: UseChapterGenerationOptions): UseChapterGenerationReturn {
   const { addToast } = useToast();
@@ -113,8 +111,15 @@ export function useChapterGeneration({
     }
   }, [courseId, chapterIndex, addToast]);
 
-  // Trigger generation when enabled
+  // Reset state and trigger generation when chapter changes or enabled flips
+  // Consolidated into one effect to avoid race conditions between reset and generate
   useEffect(() => {
+    setStreamingContent("");
+    setHtmlContent("");
+    setIsGenerating(false);
+    setIsComplete(false);
+    setError(null);
+
     if (enabled) {
       generate();
     }
@@ -123,15 +128,6 @@ export function useChapterGeneration({
       abortRef.current?.abort();
     };
   }, [enabled, generate]);
-
-  // Reset state when chapter changes
-  useEffect(() => {
-    setStreamingContent("");
-    setHtmlContent("");
-    setIsGenerating(false);
-    setIsComplete(false);
-    setError(null);
-  }, [chapterIndex]);
 
   return {
     streamingContent,

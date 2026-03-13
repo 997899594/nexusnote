@@ -1,6 +1,6 @@
 // app/api/learn/generate/route.ts
 
-import { streamText } from "ai";
+import { smoothStream, streamText } from "ai";
 import { and, eq } from "drizzle-orm";
 import { marked } from "marked";
 import { type NextRequest, NextResponse } from "next/server";
@@ -10,6 +10,7 @@ import { aiProvider } from "@/lib/ai/core";
 import { buildChapterPrompt } from "@/lib/ai/prompts/learn";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
+import { checkRateLimitOrThrow } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -30,6 +31,9 @@ export async function POST(request: NextRequest) {
     if (!aiProvider.isConfigured()) {
       throw new APIError("AI 服务未配置", 503, "AI_NOT_CONFIGURED");
     }
+
+    // Rate limit: 20 generate requests per minute per user
+    checkRateLimitOrThrow(`learn-generate:${userId}`, 20, 60 * 1000);
 
     const body = await request.json();
     const parsed = RequestSchema.safeParse(body);
@@ -102,18 +106,22 @@ export async function POST(request: NextRequest) {
           .join("\n") ?? "",
     });
 
-    // Stream text generation
+    // Stream text generation with smoothStream for Chinese word boundaries
     const result = streamText({
       model: aiProvider.proModel,
       system: systemPrompt,
       prompt: `请为「${chapter.title}」生成完整的教学内容。`,
       temperature: 0.5,
+      experimental_transform: smoothStream({
+        chunking: new Intl.Segmenter("zh-Hans", { granularity: "word" }),
+      }),
       onFinish: async ({ text }) => {
         try {
           // Convert markdown to HTML for Tiptap Editor
           const html = await marked.parse(text, { gfm: true, breaks: true });
 
           if (existingDoc) {
+            // existingDoc may exist as a placeholder with null content
             await db
               .update(documents)
               .set({
@@ -123,14 +131,18 @@ export async function POST(request: NextRequest) {
               })
               .where(eq(documents.id, existingDoc.id));
           } else {
-            await db.insert(documents).values({
-              type: "course_chapter",
-              title: chapter.title,
-              courseId,
-              outlineNodeId,
-              content: Buffer.from(html),
-              plainText: text,
-            });
+            // Use onConflictDoNothing to prevent duplicate documents from race conditions
+            await db
+              .insert(documents)
+              .values({
+                type: "course_chapter",
+                title: chapter.title,
+                courseId,
+                outlineNodeId,
+                content: Buffer.from(html),
+                plainText: text,
+              })
+              .onConflictDoNothing();
           }
         } catch (err) {
           console.error("[Learn/Generate] Failed to persist chapter content:", err);

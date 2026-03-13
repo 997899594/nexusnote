@@ -83,13 +83,20 @@ export function ChapterContent({ courseId, chapterDocs }: ChapterContentProps) {
   const { currentChapterIndex, isZenMode, chapters, markChapterGenerated } = useLearnStore();
   const currentChapter = chapters[currentChapterIndex];
 
+  // Client-side cache for generated content (survives chapter navigation)
+  const [generatedCache, setGeneratedCache] = useState<Map<number, string>>(new Map());
+
   // Match chapter doc by outlineNodeId (not by index)
   const existingContent = useMemo(() => {
     if (!currentChapter) return "";
+    // Check client-side cache first (covers newly generated content)
+    const cached = generatedCache.get(currentChapterIndex);
+    if (cached) return cached;
+    // Fall back to server-provided chapterDocs
     const nodeId = currentChapter.nodeId;
     const doc = chapterDocs.find((d) => d.outlineNodeId === nodeId);
     return parseBufferContent(doc?.content ?? null);
-  }, [chapterDocs, currentChapter]);
+  }, [chapterDocs, currentChapter, currentChapterIndex, generatedCache]);
 
   // Determine if we need to generate
   const needsGeneration = !existingContent && !!currentChapter;
@@ -98,16 +105,16 @@ export function ChapterContent({ courseId, chapterDocs }: ChapterContentProps) {
   const { streamingContent, htmlContent, isGenerating, isComplete, error } = useChapterGeneration({
     courseId,
     chapterIndex: currentChapterIndex,
-    chapterTitle: currentChapter?.title ?? "",
     enabled: needsGeneration,
   });
 
-  // Track generated chapters
+  // Cache generated content and track completion
   useEffect(() => {
-    if (isComplete) {
+    if (isComplete && htmlContent) {
       markChapterGenerated(currentChapterIndex);
+      setGeneratedCache((prev) => new Map(prev).set(currentChapterIndex, htmlContent));
     }
-  }, [isComplete, currentChapterIndex, markChapterGenerated]);
+  }, [isComplete, htmlContent, currentChapterIndex, markChapterGenerated]);
 
   // Determine what to display
   const editorContent = existingContent || htmlContent;

@@ -25,21 +25,23 @@ export function LearnChat({ courseId, courseTitle }: LearnChatProps) {
   const currentChapter = chapters[currentChapterIndex];
   const sessionId = `learn-${courseId}-ch${currentChapterIndex}`;
 
+  const transport = new DefaultChatTransport({
+    api: "/api/chat",
+    body: () => ({
+      sessionId,
+      metadata: {
+        courseId,
+        courseTitle,
+        chapterIndex: currentChapterIndex,
+        chapterTitle: currentChapter?.title,
+        context: "learn",
+      },
+    }),
+  });
+
   const chat = useChat({
     id: sessionId,
-    transport: new DefaultChatTransport({
-      api: "/api/chat",
-      body: () => ({
-        sessionId,
-        metadata: {
-          courseId,
-          courseTitle,
-          chapterIndex: currentChapterIndex,
-          chapterTitle: currentChapter?.title,
-          context: "learn",
-        },
-      }),
-    }),
+    transport,
     onError: (error) => {
       console.error("[LearnChat] Error:", error);
       parseApiError(error).then(({ message }) => {
