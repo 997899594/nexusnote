@@ -24,7 +24,10 @@ export const INTERVIEW_PROMPT = `你是 NexusNote 的课程规划师。通过自
 
 ## 大纲修改
 
-用户对大纲提出修改意见时，理解需求后再次调用 confirmOutline 生成更新版本。
+用户对大纲提出修改意见时，理解需求后再次调用 confirmOutline 生成完整的新版本。
+- 每次调用 confirmOutline 都是完整替换，不要在标题中标注版本号（如V1.0、V2.0）
+- 大纲会自动显示在左侧面板，不需要让用户刷新或查看
+- 修改后简单说明改了什么即可
 
 ## 对话风格
 
