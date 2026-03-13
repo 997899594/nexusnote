@@ -107,10 +107,15 @@ export interface DraftContentOutput {
   error?: string;
 }
 
+export interface CourseSection {
+  title: string;
+  description: string;
+}
+
 export interface CourseChapter {
   title: string;
   description: string;
-  topics: string[];
+  sections: CourseSection[];
 }
 
 export interface CourseOutline {
@@ -193,7 +198,7 @@ export interface ConfirmOutlineOutput {
     chapters: Array<{
       title: string;
       description: string;
-      topics: string[];
+      sections: Array<{ title: string; description: string }>;
       estimatedMinutes?: number;
       practiceType?: "exercise" | "project" | "quiz" | "none";
     }>;

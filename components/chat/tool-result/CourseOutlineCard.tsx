@@ -103,19 +103,19 @@ export function CourseOutlineCard({ output }: CourseOutlineCardProps) {
                   {chapter.description}
                 </div>
               )}
-              {chapter.topics && chapter.topics.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {chapter.topics.slice(0, 3).map((topic) => (
-                    <span
-                      key={`topic-${index}-${topic}`}
-                      className="px-1.5 py-0.5 bg-[var(--color-hover)] text-[var(--color-text-secondary)] rounded text-xs"
+              {chapter.sections && chapter.sections.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {chapter.sections.slice(0, 3).map((section, secIdx) => (
+                    <div
+                      key={`section-${index}-${secIdx}`}
+                      className="text-xs text-[var(--color-text-secondary)]"
                     >
-                      {topic}
-                    </span>
+                      {index + 1}.{secIdx + 1} {section.title}
+                    </div>
                   ))}
-                  {chapter.topics.length > 3 && (
+                  {chapter.sections.length > 3 && (
                     <span className="text-[var(--color-text-muted)] text-xs">
-                      +{chapter.topics.length - 3}
+                      +{chapter.sections.length - 3} 节
                     </span>
                   )}
                 </div>
