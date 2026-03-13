@@ -153,15 +153,27 @@ export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps
                             {chapter.description}
                           </p>
                         )}
-                        {chapter.topics && chapter.topics.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-1.5">
-                            {chapter.topics.map((topic, topicIndex) => (
-                              <span
-                                key={`${topic}-${topicIndex}`}
-                                className="inline-flex items-center rounded-full px-2 py-0.5 text-xs bg-zinc-200 text-zinc-600"
+                        {chapter.sections && chapter.sections.length > 0 && (
+                          <div className="mt-2 space-y-1.5">
+                            {chapter.sections.map((section, secIndex) => (
+                              <div
+                                key={`${section.title}-${secIndex}`}
+                                className="flex items-start gap-2 pl-1"
                               >
-                                {topic}
-                              </span>
+                                <span className="text-xs text-zinc-400 mt-0.5 shrink-0">
+                                  {index + 1}.{secIndex + 1}
+                                </span>
+                                <div className="min-w-0">
+                                  <span className="text-xs font-medium text-zinc-700">
+                                    {section.title}
+                                  </span>
+                                  {section.description && (
+                                    <p className="text-xs text-zinc-400 leading-relaxed">
+                                      {section.description}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
                             ))}
                           </div>
                         )}
