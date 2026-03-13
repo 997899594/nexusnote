@@ -5,19 +5,7 @@ import { BookOpen, Clock, Loader2, Play } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-
-interface Chapter {
-  title: string;
-  description?: string;
-  topics?: string[];
-}
-
-interface OutlineData {
-  title: string;
-  description?: string;
-  estimatedMinutes?: number;
-  chapters: Chapter[];
-}
+import type { Chapter, OutlineData } from "@/stores/interview";
 
 interface OutlinePanelProps {
   outline: OutlineData | null;
@@ -114,13 +102,25 @@ export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps
                 {outline.description && (
                   <p className="text-sm text-zinc-600 leading-relaxed">{outline.description}</p>
                 )}
-                {outline.estimatedMinutes && (
+                {outline.targetAudience && (
+                  <p className="text-xs text-zinc-500">适合: {outline.targetAudience}</p>
+                )}
+                {outline.learningOutcome && (
+                  <p className="text-xs text-zinc-500">学完能: {outline.learningOutcome}</p>
+                )}
+                {outline.estimatedHours && (
                   <div className="flex items-center gap-1.5 text-sm text-zinc-500">
                     <Clock className="h-4 w-4" />
-                    <span>
-                      预计时长: {Math.floor(outline.estimatedMinutes / 60)}小时
-                      {outline.estimatedMinutes % 60 > 0 && ` ${outline.estimatedMinutes % 60}分钟`}
-                    </span>
+                    <span>预计时长: {outline.estimatedHours} 小时</span>
+                  </div>
+                )}
+                {outline.prerequisites && outline.prerequisites.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {outline.prerequisites.map((p, i) => (
+                      <span key={i} className="inline-flex items-center rounded-full px-2 py-0.5 text-xs bg-amber-100 text-amber-700">
+                        {p}
+                      </span>
+                    ))}
                   </div>
                 )}
               </motion.div>
@@ -165,6 +165,21 @@ export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps
                             ))}
                           </div>
                         )}
+                        {(chapter.estimatedMinutes || chapter.practiceType) && (
+                          <div className="mt-2 flex items-center gap-2 text-xs text-zinc-400">
+                            {chapter.estimatedMinutes && (
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {chapter.estimatedMinutes}分钟
+                              </span>
+                            )}
+                            {chapter.practiceType && chapter.practiceType !== "none" && (
+                              <span className="rounded-full bg-blue-100 px-2 py-0.5 text-blue-600">
+                                {chapter.practiceType === "exercise" ? "练习" : chapter.practiceType === "project" ? "项目" : "测验"}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </motion.div>
@@ -203,5 +218,3 @@ export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps
     </div>
   );
 }
-
-export type { OutlineData, Chapter, OutlinePanelProps };
