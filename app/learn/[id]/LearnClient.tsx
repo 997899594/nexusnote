@@ -1,11 +1,4 @@
-/**
- * LearnClient - Main client component for /learn/[sessionId]
- *
- * Manages layout with left sidebar (chapter navigation) and right editor area.
- * Supports zen mode for immersive learning (hides sidebar and header).
- *
- * 2026 UI: Modern design with accent colors and smooth animations.
- */
+// app/learn/[id]/LearnClient.tsx
 
 "use client";
 
@@ -13,7 +6,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect } from "react";
 import { useLearnStore } from "@/stores/learn";
 
-import { LearnEditor } from "./components/LearnEditor";
+import { ChapterContent } from "./components/ChapterContent";
+import { LearnChat } from "./components/LearnChat";
 import { LearnSidebar } from "./components/LearnSidebar";
 import { ZenModeToggle } from "./components/ZenModeToggle";
 
@@ -159,14 +153,21 @@ export function LearnClient({
           )}
         </AnimatePresence>
 
-        {/* Editor */}
+        {/* Chapter content (streaming generation + editor) */}
         <div className="flex-1 overflow-auto bg-[var(--color-bg)]">
-          <LearnEditor chapterDocs={chapterDocs} />
+          <ChapterContent courseId={sessionId} chapterDocs={chapterDocs} />
         </div>
 
         {/* Zen toggle */}
         <ZenModeToggle />
       </motion.div>
+
+      {/* AI Chat panel - hidden in zen mode */}
+      <AnimatePresence>
+        {!isZenMode && (
+          <LearnChat courseId={sessionId} courseTitle={courseTitle} />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
