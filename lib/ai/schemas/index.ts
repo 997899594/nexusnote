@@ -1,3 +1,3 @@
-// lib/ai/schemas/index.ts
+// lib/ai/schemas/index.ts - Schema definitions (interview schemas removed)
 
-export * from "./interview";
+// No schemas currently exported
