@@ -2,12 +2,11 @@
 
 import { smoothStream, streamText } from "ai";
 import { and, eq } from "drizzle-orm";
-import { marked } from "marked";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { courseSessions, db, documents } from "@/db";
 import { aiProvider } from "@/lib/ai/core";
-import { buildChapterPrompt } from "@/lib/ai/prompts/learn";
+import { buildSectionPrompt } from "@/lib/ai/prompts/learn";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
 import { checkRateLimitOrThrow } from "@/lib/rate-limit";
@@ -18,6 +17,7 @@ export const maxDuration = 300;
 const RequestSchema = z.object({
   courseId: z.string().uuid(),
   chapterIndex: z.number().int().min(0),
+  sectionIndex: z.number().int().min(0),
 });
 
 export async function POST(request: NextRequest) {
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
       throw new APIError("请求参数无效", 400, "VALIDATION_ERROR");
     }
 
-    const { courseId, chapterIndex } = parsed.data;
+    const { courseId, chapterIndex, sectionIndex } = parsed.data;
 
     // Verify course ownership
     const [course] = await db
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
       chapters?: Array<{
         title: string;
         description?: string;
-        topics?: string[];
+        sections?: Array<{ title: string; description: string }>;
       }>;
     } | null;
 
@@ -70,8 +70,13 @@ export async function POST(request: NextRequest) {
       throw new APIError("章节不存在", 404, "CHAPTER_NOT_FOUND");
     }
 
+    const section = chapter.sections?.[sectionIndex];
+    if (!section) {
+      throw new APIError("小节不存在", 404, "SECTION_NOT_FOUND");
+    }
+
     // Check if content already exists
-    const outlineNodeId = `chapter-${chapterIndex + 1}`;
+    const outlineNodeId = `section-${chapterIndex + 1}-${sectionIndex + 1}`;
     const [existingDoc] = await db
       .select({ id: documents.id, content: documents.content })
       .from(documents)
@@ -89,8 +94,9 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Build prompt
-    const systemPrompt = buildChapterPrompt({
+    // Build section prompt
+    const siblingTitles = (chapter.sections ?? []).map((s) => s.title);
+    const systemPrompt = buildSectionPrompt({
       courseTitle: course.title ?? "",
       courseDescription: outline?.description ?? "",
       targetAudience: outline?.targetAudience ?? "",
@@ -98,54 +104,49 @@ export async function POST(request: NextRequest) {
       chapterIndex,
       chapterTitle: chapter.title,
       chapterDescription: chapter.description ?? "",
-      topics: chapter.topics ?? [],
+      sectionIndex,
+      sectionTitle: section.title,
+      sectionDescription: section.description,
+      siblingTitles,
       totalChapters: outline?.chapters?.length ?? 0,
-      outlineSummary:
-        outline?.chapters
-          ?.map((c: { title: string }, i: number) => `${i + 1}. ${c.title}`)
-          .join("\n") ?? "",
     });
 
     // Stream text generation with smoothStream for Chinese word boundaries
     const result = streamText({
       model: aiProvider.proModel,
       system: systemPrompt,
-      prompt: `请为「${chapter.title}」生成完整的教学内容。`,
+      prompt: `请为「${section.title}」生成教学内容。`,
       temperature: 0.5,
       experimental_transform: smoothStream({
         chunking: new Intl.Segmenter("zh-Hans", { granularity: "word" }),
       }),
       onFinish: async ({ text }) => {
         try {
-          // Convert markdown to HTML for Tiptap Editor
-          const html = await marked.parse(text, { gfm: true, breaks: true });
-
+          // Store raw Markdown (no HTML conversion) — StreamdownMessage renders Markdown directly
           if (existingDoc) {
-            // existingDoc may exist as a placeholder with null content
             await db
               .update(documents)
               .set({
-                content: Buffer.from(html),
+                content: Buffer.from(text),
                 plainText: text,
                 updatedAt: new Date(),
               })
               .where(eq(documents.id, existingDoc.id));
           } else {
-            // Use onConflictDoNothing to prevent duplicate documents from race conditions
             await db
               .insert(documents)
               .values({
-                type: "course_chapter",
-                title: chapter.title,
+                type: "course_section",
+                title: section.title,
                 courseId,
                 outlineNodeId,
-                content: Buffer.from(html),
+                content: Buffer.from(text),
                 plainText: text,
               })
               .onConflictDoNothing();
           }
         } catch (err) {
-          console.error("[Learn/Generate] Failed to persist chapter content:", err);
+          console.error("[Learn/Generate] Failed to persist section content:", err);
         }
       },
     });
@@ -172,7 +173,7 @@ export async function POST(request: NextRequest) {
         "Cache-Control": "no-cache, no-store, must-revalidate",
         "X-Content-Type-Options": "nosniff",
         "X-Course-Id": courseId,
-        "X-Chapter-Index": String(chapterIndex),
+        "X-Section-Id": outlineNodeId,
       },
     });
   } catch (error) {
