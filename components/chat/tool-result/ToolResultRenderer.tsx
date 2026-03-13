@@ -153,7 +153,6 @@ export function ToolResultRenderer({
     // 内部工具 - 不显示给用户
     case "assessComplexity":
     case "createCourseProfile":
-    case "updateProfile":
     case "confirmOutline": {
       return null;
     }
