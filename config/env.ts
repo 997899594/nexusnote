@@ -10,13 +10,6 @@ import { z } from "zod";
 // ============================================
 
 export const defaults = {
-  // JWT Authentication
-  jwt: {
-    secret: "nexusnote-dev-secret-change-in-production",
-    expiresIn: "7d",
-    issuer: "nexusnote",
-  },
-
   // RAG Pipeline
   rag: {
     timeout: 5000,
@@ -62,28 +55,6 @@ export const defaults = {
     maxPerDocument: 100,
   },
 
-  // Server
-  server: {
-    port: 3001,
-    hocuspocusPort: 1234,
-    corsOrigin: "http://localhost:3000",
-  },
-
-  // Database
-  database: {
-    // No default URL - must come from env
-  },
-
-  // Redis
-  redis: {
-    // No default URL - must come from env
-  },
-
-  // Collaboration
-  collaboration: {
-    wsUrl: "ws://localhost:1234",
-  },
-
   // Queue
   queue: {
     ragConcurrency: 3,
@@ -98,41 +69,36 @@ export const defaults = {
 
 /**
  * Server environment schema
+ *
+ * 必需变量：DATABASE_URL, REDIS_URL, AUTH_SECRET, 至少一个 AI Provider Key
+ * 其余均有合理默认值，不写也能跑
  */
 export const serverEnvSchema = z.object({
-  // Database
+  // Database (必需)
   DATABASE_URL: z.string().url().describe("PostgreSQL Connection String"),
 
-  // Redis
+  // Redis (必需)
   REDIS_URL: z.string().describe("Redis Connection String"),
 
-  // Server
-  PORT: z.coerce.number().int().positive().default(defaults.server.port),
-  CORS_ORIGIN: z.string().default(defaults.server.corsOrigin),
-  HOCUSPOCUS_PORT: z.coerce.number().int().positive().default(defaults.server.hocuspocusPort),
-
-  // JWT Authentication
-  JWT_SECRET: z.string().default(defaults.jwt.secret),
-  JWT_EXPIRES_IN: z.string().default(defaults.jwt.expiresIn),
-  JWT_ISSUER: z.string().default(defaults.jwt.issuer),
-  AUTH_SECRET: z.string().default(defaults.jwt.secret), // NextAuth Secret
+  // Auth.js v5 (session 签名，开发环境有默认值，生产必须自行配置)
+  AUTH_SECRET: z.string().default("nexusnote-dev-secret-change-in-production"),
 
   // OAuth Providers (NextAuth)
   AUTH_GITHUB_ID: z.string().optional(),
   AUTH_GITHUB_SECRET: z.string().optional(),
 
-  // AI Provider Keys
+  // AI Provider Keys (至少配置一个)
   AI_302_API_KEY: z.string().optional(),
   DEEPSEEK_API_KEY: z.string().optional(),
   SILICONFLOW_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
   TAVILY_API_KEY: z.string().optional(),
 
-  // AI Observability (2026 Modern Stack - Langfuse)
+  // AI Observability (可选 - Langfuse)
   LANGFUSE_PUBLIC_KEY: z.string().optional(),
   LANGFUSE_SECRET_KEY: z.string().optional(),
 
-  // AI Models (2026 Modern Stack - Gemini 3 优先)
+  // AI Models (有默认值)
   AI_MODEL: z.string().default(defaults.ai.model),
   AI_MODEL_PRO: z.string().default(defaults.ai.modelPro),
   AI_MODEL_WEB_SEARCH: z.string().default(defaults.ai.modelWebSearch),
@@ -173,7 +139,7 @@ export const serverEnvSchema = z.object({
   RAG_CHUNK_SIZE: z.coerce.number().int().positive().default(defaults.rag.chunkSize),
   RAG_CHUNK_OVERLAP: z.coerce.number().int().min(0).default(defaults.rag.chunkOverlap),
 
-  // RAG Advanced Features (2026 Optimizations)
+  // RAG Advanced Features
   QUERY_REWRITING_ENABLED: z
     .string()
     .default("false")
@@ -215,38 +181,11 @@ export type ServerEnv = z.infer<typeof serverEnvSchema>;
  * Client environment schema (NEXT_PUBLIC_ variables)
  */
 export const clientEnvSchema = z.object({
-  NEXT_PUBLIC_API_URL: z.string().default("http://localhost:3001"),
-  NEXT_PUBLIC_COLLAB_URL: z.string().default(defaults.collaboration.wsUrl),
-
-  // Client-side AI keys (optional, for direct API calls)
-  DEEPSEEK_API_KEY: z.string().optional(),
-  AI_302_API_KEY: z.string().optional(),
-  SILICONFLOW_API_KEY: z.string().optional(),
-  OPENAI_API_KEY: z.string().optional(),
-
-  // AI Observability (2026 Modern Stack - Langfuse)
-  LANGFUSE_PUBLIC_KEY: z.string().optional(),
-  LANGFUSE_SECRET_KEY: z.string().optional(),
-
-  // AI Models
-  AI_MODEL: z.string().default(defaults.ai.model),
-  AI_MODEL_PRO: z.string().default(defaults.ai.modelPro),
-  AI_MODEL_WEB_SEARCH: z.string().default(defaults.ai.modelWebSearch),
-
   // AI Features (client can override via user preference)
   NEXT_PUBLIC_AI_ENABLE_WEB_SEARCH: z
     .string()
     .default("false")
     .transform((v) => v === "true"),
-
-  // Embedding (client may need for dimensions)
-  EMBEDDING_MODEL: z.string().default(defaults.embedding.model),
-  EMBEDDING_DIMENSIONS: z.coerce.number().int().positive().default(defaults.embedding.dimensions),
-
-  // Development Authentication Token
-  // 用于开发环境的身份验证（生产环境应使用真实的 OAuth/JWT）
-  // 生成方式: openssl rand -base64 24
-  NEXT_PUBLIC_DEV_AUTH_TOKEN: z.string().optional(),
 
   // Environment
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
@@ -291,19 +230,12 @@ export function parseServerEnv(env: NodeJS.ProcessEnv = process.env): ServerEnv 
  * Parse and validate client environment
  */
 export function parseClientEnv(env: Record<string, string | undefined> = {}): ClientEnv {
-  // In browser, read from process.env (Next.js injects NEXT_PUBLIC_ vars)
-  // CRITICAL: We MUST explicitly access process.env properties for Next.js to replace them at build time.
-  // Destructuring {...process.env} returns an empty object in the browser.
   const processEnv = {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
-    NEXT_PUBLIC_COLLAB_URL: process.env.NEXT_PUBLIC_COLLAB_URL,
-    NEXT_PUBLIC_DEV_AUTH_TOKEN: process.env.NEXT_PUBLIC_DEV_AUTH_TOKEN,
     NEXT_PUBLIC_AI_ENABLE_WEB_SEARCH: process.env.NEXT_PUBLIC_AI_ENABLE_WEB_SEARCH ?? "false",
     NODE_ENV: process.env.NODE_ENV,
   };
 
-  const merged =
-    typeof window !== "undefined" ? { ...processEnv, ...env } : { ...processEnv, ...env }; // Same for now, can be optimized
+  const merged = { ...processEnv, ...env };
 
   const result = clientEnvSchema.safeParse(merged);
 
@@ -344,8 +276,6 @@ export const env = new Proxy({} as ServerEnv, {
   },
 });
 
-// Parse client environment (safe to call in browser as it reads from process.env populated by build)
-// Also using proxy for consistency, although client env vars are typically injected at build time
 export const clientEnv = new Proxy({} as ClientEnv, {
   get(_target, prop) {
     if (typeof prop !== "string") return undefined;
@@ -366,8 +296,6 @@ export function logServerConfig(env: ServerEnv): void {
 
   console.log("[Config] Server environment validated:");
   console.log(`  NODE_ENV: ${env.NODE_ENV}`);
-  console.log(`  PORT: ${env.PORT}`);
-  console.log(`  HOCUSPOCUS_PORT: ${env.HOCUSPOCUS_PORT}`);
   console.log(`  DATABASE_URL: ${env.DATABASE_URL.replace(/\/\/[^@]+@/, "//***@")}`);
   console.log(`  REDIS_URL: ${env.REDIS_URL}`);
   console.log(`  AI_302_API_KEY: ${maskSecret(env.AI_302_API_KEY)}`);

@@ -1,9 +1,8 @@
 /**
  * Auth.js v5 Configuration
  *
- * 环境变量变化：
- * - `NEXTAUTH_SECRET` → `AUTH_SECRET`
- * - `NEXTAUTH_URL` → `AUTH_URL`
+ * - AUTH_SECRET: 从 process.env 自动读取（必需）
+ * - trustHost: true — 自动信任请求头中的 Host，无需 AUTH_URL
  */
 
 import type { NextAuthConfig, User } from "next-auth";
@@ -11,6 +10,8 @@ import Credentials from "next-auth/providers/credentials";
 import { db, eq, users } from "@/db";
 
 export const authConfig = {
+  trustHost: true,
+
   session: {
     strategy: "jwt" as const,
     maxAge: 30 * 24 * 60 * 60,
