@@ -107,10 +107,15 @@ export interface DraftContentOutput {
   error?: string;
 }
 
+export interface CourseSection {
+  title: string;
+  description: string;
+}
+
 export interface CourseChapter {
   title: string;
   description: string;
-  topics: string[];
+  sections: CourseSection[];
 }
 
 export interface CourseOutline {
@@ -181,32 +186,23 @@ export interface CheckCourseProgressOutput {
 // Interview Tool Types
 // ============================================
 
-export type LearningLevel = "none" | "beginner" | "intermediate" | "advanced";
-
-export interface InterviewProfile {
-  goal: string | null;
-  background: LearningLevel;
-  outcome: string | null;
-}
-
-export interface UpdateProfileOutput {
-  success: boolean;
-  profile?: InterviewProfile;
-  error?: string;
-}
-
 export interface ConfirmOutlineOutput {
   success: boolean;
   outline?: {
     title: string;
-    description?: string;
+    description: string;
+    targetAudience: string;
+    prerequisites?: string[];
+    estimatedHours: number;
     difficulty: "beginner" | "intermediate" | "advanced";
-    estimatedMinutes: number;
     chapters: Array<{
       title: string;
-      description?: string;
-      topics?: string[];
+      description: string;
+      sections: Array<{ title: string; description: string }>;
+      estimatedMinutes?: number;
+      practiceType?: "exercise" | "project" | "quiz" | "none";
     }>;
+    learningOutcome: string;
   };
   error?: string;
 }
@@ -233,7 +229,6 @@ export type ToolOutputMap = {
   discoverSkills: DiscoverSkillsOutput;
   checkCourseProgress: CheckCourseProgressOutput;
   // Interview tools
-  updateProfile: UpdateProfileOutput;
   suggestOptions: SuggestOptionsOutput;
   confirmOutline: ConfirmOutlineOutput;
 };

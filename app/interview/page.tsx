@@ -89,7 +89,6 @@ function InterviewContent() {
   const sendMessage = interview.sendMessage;
   const status = interview.status;
   const isLoading = interview.isLoading;
-  const addToolOutput = interview.addToolOutput;
 
   const chatMessages = messages.filter((m: UIMessage) => m.role !== "system");
 
@@ -259,7 +258,6 @@ function InterviewContent() {
                 key={msg.id}
                 message={msg}
                 onSendReply={(text) => sendMessage({ text })}
-                addToolOutput={addToolOutput}
                 isStreaming={isLoading && index === chatMessages.length - 1}
               />
             ))}

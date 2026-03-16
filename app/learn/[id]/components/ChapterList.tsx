@@ -1,37 +1,18 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, Circle, Play } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Circle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLearnStore } from "@/stores/learn";
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.05,
-    },
-  },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, x: -10 },
-  visible: {
-    opacity: 1,
-    x: 0,
-    transition: {
-      duration: 0.2,
-      ease: "easeOut" as const,
-    },
-  },
-};
-
 export function ChapterList() {
-  const chapters = useLearnStore((state) => state.chapters);
-  const currentChapterIndex = useLearnStore((state) => state.currentChapterIndex);
-  const completedChapters = useLearnStore((state) => state.completedChapters);
-  const setCurrentChapterIndex = useLearnStore((state) => state.setCurrentChapterIndex);
+  const chapters = useLearnStore((s) => s.chapters);
+  const currentChapterIndex = useLearnStore((s) => s.currentChapterIndex);
+  const currentSectionIndex = useLearnStore((s) => s.currentSectionIndex);
+  const completedSections = useLearnStore((s) => s.completedSections);
+  const expandedChapters = useLearnStore((s) => s.expandedChapters);
+  const setCurrentChapterIndex = useLearnStore((s) => s.setCurrentChapterIndex);
+  const toggleChapterExpanded = useLearnStore((s) => s.toggleChapterExpanded);
 
   if (chapters.length === 0) {
     return (
@@ -43,103 +24,123 @@ export function ChapterList() {
   }
 
   return (
-    <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-      className="space-y-1"
-    >
-      <AnimatePresence mode="popLayout">
-        {chapters.map((chapter, index) => {
-          const isCompleted = completedChapters.has(chapter.id);
-          const isCurrent = index === currentChapterIndex;
-          const isLocked = false; // Future: implement chapter locking
+    <div className="space-y-1">
+      {chapters.map((chapter, chIdx) => {
+        const isExpanded = expandedChapters.has(chIdx);
+        const isCurrent = chIdx === currentChapterIndex;
+        const chapterSectionCount = chapter.sections.length;
+        const chapterCompletedCount = chapter.sections.filter((sec) =>
+          completedSections.has(sec.nodeId),
+        ).length;
+        const isChapterComplete = chapterCompletedCount === chapterSectionCount;
 
-          return (
-            <motion.button
-              key={chapter.id}
-              variants={itemVariants}
-              layout
+        return (
+          <div key={`ch-${chIdx}`}>
+            {/* Chapter header */}
+            <button
               type="button"
-              onClick={() => !isLocked && setCurrentChapterIndex(index)}
-              disabled={isLocked}
+              onClick={() => {
+                toggleChapterExpanded(chIdx);
+                if (chIdx !== currentChapterIndex) {
+                  setCurrentChapterIndex(chIdx);
+                }
+              }}
               className={cn(
-                "group w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-all duration-200",
+                "w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-left transition-all duration-200",
                 isCurrent
-                  ? "bg-[var(--color-accent-light)] text-[var(--color-accent)] shadow-sm"
-                  : "text-zinc-600 hover:bg-zinc-50",
-                isCompleted && !isCurrent && "text-zinc-500",
-                isLocked && "opacity-50 cursor-not-allowed",
+                  ? "bg-[var(--color-accent-light)] text-[var(--color-accent)]"
+                  : "text-zinc-700 hover:bg-zinc-50",
               )}
             >
-              {/* Status indicator */}
-              <div
+              {/* Expand/collapse icon */}
+              <span className="w-4 h-4 shrink-0 flex items-center justify-center">
+                {isExpanded ? (
+                  <ChevronDown className="w-3.5 h-3.5" />
+                ) : (
+                  <ChevronRight className="w-3.5 h-3.5" />
+                )}
+              </span>
+
+              {/* Chapter number */}
+              <span
                 className={cn(
-                  "relative w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold shrink-0 transition-all duration-300",
-                  isCompleted
+                  "w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold shrink-0",
+                  isChapterComplete
                     ? "bg-[var(--color-accent)] text-white"
                     : isCurrent
-                      ? "bg-[var(--color-accent)] text-white ring-4 ring-[var(--color-accent-light)]"
-                      : "bg-zinc-100 text-zinc-400 group-hover:bg-zinc-200",
+                      ? "bg-[var(--color-accent)] text-white"
+                      : "bg-zinc-100 text-zinc-500",
                 )}
               >
-                {isCompleted ? (
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                  >
-                    <Check className="w-4 h-4" />
-                  </motion.div>
-                ) : isCurrent ? (
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                  >
-                    <Play className="w-4 h-4 ml-0.5" />
-                  </motion.div>
-                ) : (
-                  <span>{index + 1}</span>
-                )}
+                {isChapterComplete ? <Check className="w-3.5 h-3.5" /> : chIdx + 1}
+              </span>
 
-                {/* Current playing indicator */}
-                {isCurrent && !isCompleted && (
-                  <motion.div
-                    className="absolute inset-0 rounded-full border-2 border-[var(--color-accent)]"
-                    animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0, 0.5] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                  />
-                )}
-              </div>
-
-              {/* Title */}
+              {/* Title + progress */}
               <div className="flex-1 min-w-0">
-                <span
-                  className={cn(
-                    "block text-sm truncate transition-colors",
-                    isCurrent && "font-semibold",
-                    isCompleted && !isCurrent && "line-through opacity-70",
-                  )}
-                >
+                <span className={cn("block text-sm truncate", isCurrent && "font-semibold")}>
                   {chapter.title}
                 </span>
+                <span className="text-xs text-zinc-400">
+                  {chapterCompletedCount}/{chapterSectionCount} 节
+                </span>
               </div>
+            </button>
 
-              {/* Duration indicator (placeholder) */}
-              {isCompleted && (
+            {/* Section list (expandable) */}
+            <AnimatePresence>
+              {isExpanded && (
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.5 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="text-xs text-[var(--color-accent)] bg-[var(--color-accent-light)] px-2 py-0.5 rounded-full"
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
                 >
-                  ✓
+                  <div className="pl-7 pr-2 py-1 space-y-0.5">
+                    {chapter.sections.map((sec, secIdx) => {
+                      const isCompleted = completedSections.has(sec.nodeId);
+                      const isCurrentSection =
+                        isCurrent && secIdx === currentSectionIndex;
+
+                      return (
+                        <button
+                          key={sec.nodeId}
+                          type="button"
+                          onClick={() => {
+                            if (chIdx !== currentChapterIndex) {
+                              setCurrentChapterIndex(chIdx);
+                            }
+                            // Scroll to section anchor
+                            const el = document.getElementById(sec.nodeId);
+                            el?.scrollIntoView({ behavior: "smooth", block: "start" });
+                          }}
+                          className={cn(
+                            "w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-xs transition-colors",
+                            isCurrentSection
+                              ? "bg-[var(--color-accent-light)] text-[var(--color-accent)] font-medium"
+                              : "text-zinc-600 hover:bg-zinc-50",
+                          )}
+                        >
+                          {/* Status dot */}
+                          <span
+                            className={cn(
+                              "w-2 h-2 rounded-full shrink-0",
+                              isCompleted
+                                ? "bg-[var(--color-accent)]"
+                                : "border border-zinc-300",
+                            )}
+                          />
+                          <span className="truncate">{sec.title}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </motion.div>
               )}
-            </motion.button>
-          );
-        })}
-      </AnimatePresence>
-    </motion.div>
+            </AnimatePresence>
+          </div>
+        );
+      })}
+    </div>
   );
 }

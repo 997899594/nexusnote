@@ -12,7 +12,6 @@ interface LearnSidebarProps {
   width: number;
 }
 
-// Content animation variants
 const contentVariants = {
   hidden: { opacity: 0, x: -20 },
   visible: {
@@ -29,15 +28,12 @@ const itemVariants = {
 
 export function LearnSidebar({ courseTitle, width }: LearnSidebarProps) {
   const router = useRouter();
-  const { chapters, completedChapters, currentChapterIndex } = useLearnStore();
+  const { chapters, completedSections } = useLearnStore();
 
-  const completedCount = completedChapters.size;
-  const totalCount = chapters.length;
-  const progress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-
-  const handleBack = () => {
-    router.push("/");
-  };
+  // Count total sections across all chapters
+  const totalSections = chapters.reduce((sum, ch) => sum + ch.sections.length, 0);
+  const completedCount = completedSections.size;
+  const progress = totalSections > 0 ? Math.round((completedCount / totalSections) * 100) : 0;
 
   return (
     <div
@@ -50,14 +46,14 @@ export function LearnSidebar({ courseTitle, width }: LearnSidebarProps) {
         animate="visible"
         className="flex flex-col h-full"
       >
-        {/* Header with back button and title */}
+        {/* Header */}
         <motion.div
           variants={itemVariants}
           className="flex items-center gap-3 px-5 py-5 border-b border-[var(--color-border)]"
         >
           <button
             type="button"
-            onClick={handleBack}
+            onClick={() => router.push("/")}
             className={cn(
               "flex h-10 w-10 items-center justify-center rounded-xl",
               "bg-[var(--color-bg-secondary)] text-zinc-600",
@@ -72,13 +68,13 @@ export function LearnSidebar({ courseTitle, width }: LearnSidebarProps) {
             <div className="flex items-center gap-2 mt-0.5">
               <BookOpen className="w-3 h-3 text-zinc-400" />
               <p className="text-xs text-zinc-500">
-                {completedCount} / {totalCount} 章节完成
+                {completedCount} / {totalSections} 节完成
               </p>
             </div>
           </div>
         </motion.div>
 
-        {/* Progress section */}
+        {/* Progress */}
         <motion.div
           variants={itemVariants}
           className="px-5 py-5 border-b border-[var(--color-border)]"
@@ -93,7 +89,6 @@ export function LearnSidebar({ courseTitle, width }: LearnSidebarProps) {
             <span className="text-lg font-bold text-[var(--color-accent)]">{progress}%</span>
           </div>
 
-          {/* Progress bar */}
           <div className="relative h-2 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden">
             <motion.div
               className="absolute inset-y-0 left-0 bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-accent-hover)] rounded-full"
@@ -101,7 +96,6 @@ export function LearnSidebar({ courseTitle, width }: LearnSidebarProps) {
               animate={{ width: `${progress}%` }}
               transition={{ duration: 0.8, ease: "easeOut" }}
             />
-            {/* Animated shine effect */}
             {progress > 0 && (
               <motion.div
                 className="absolute inset-y-0 w-8 bg-gradient-to-r from-transparent via-white/30 to-transparent"
@@ -111,16 +105,15 @@ export function LearnSidebar({ courseTitle, width }: LearnSidebarProps) {
             )}
           </div>
 
-          {/* Stats row */}
           <div className="flex items-center gap-4 mt-4">
             <div className="flex items-center gap-1.5 text-xs text-zinc-500">
               <Clock className="w-3.5 h-3.5" />
-              <span>预计 {totalCount * 10} 分钟</span>
+              <span>预计 {totalSections * 10} 分钟</span>
             </div>
             {completedCount > 0 && (
               <div className="flex items-center gap-1.5 text-xs text-[var(--color-accent)]">
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>已完成 {completedCount} 章</span>
+                <span>已完成 {completedCount} 节</span>
               </div>
             )}
           </div>
@@ -128,10 +121,10 @@ export function LearnSidebar({ courseTitle, width }: LearnSidebarProps) {
 
         {/* Chapter list header */}
         <motion.div variants={itemVariants} className="px-5 py-3">
-          <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">课程章节</h2>
+          <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">课程大纲</h2>
         </motion.div>
 
-        {/* Chapter list */}
+        {/* Chapter > Section list */}
         <div className="flex-1 overflow-y-auto px-3 pb-4">
           <ChapterList />
         </div>

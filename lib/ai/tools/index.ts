@@ -89,8 +89,11 @@ export function buildAgentTools(
       if (!ctx.resourceId) {
         throw new Error("Interview agent requires resourceId (courseId)");
       }
-      Object.assign(tools, toolRegistry.resource.interview(ctx));
-      break;
+      // 访谈 agent 只需要 confirmOutline + suggestOptions，不需要编辑/搜索等工具
+      return {
+        ...toolRegistry.resource.interview(ctx),
+        suggestOptions: toolRegistry.shared.suggestOptions,
+      } as Record<string, unknown>;
 
     case "course":
       Object.assign(tools, toolRegistry.global.notes(ctx.userId));

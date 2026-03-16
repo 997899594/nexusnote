@@ -12,8 +12,6 @@ export type { PersonalizationResult } from "./personalization";
 export { buildPersonalization } from "./personalization";
 // Prompts
 export * from "./prompts";
-// Schemas
-export * from "./schemas";
 // Tools
 export * from "./tools";
 export type { ChatRequest, Intent } from "./validation";

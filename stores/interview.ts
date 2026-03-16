@@ -1,48 +1,36 @@
-/**
- * Interview Store - Interview state management
- *
- * 2026 简化版：
- * - profile: 3 个指标 (goal, background, outcome)
- * - outline: 课程大纲
- */
-
+// stores/interview.ts
 import { create } from "zustand";
 
-export type LearningLevel = "none" | "beginner" | "intermediate" | "advanced";
-
-export interface InterviewProfileState {
-  goal: string | null;
-  background: LearningLevel | null;
-  outcome: string | null;
+export interface Section {
+  title: string;        // e.g., "变量与常量"
+  description: string;  // e.g., "理解 Python 中变量的声明、赋值和命名规范"
 }
 
 export interface Chapter {
   title: string;
-  description?: string;
-  topics?: string[];
+  description: string;
+  sections: Section[];           // replaces topics: string[]
+  estimatedMinutes?: number;
+  practiceType?: "exercise" | "project" | "quiz" | "none";
 }
 
 export interface OutlineData {
   title: string;
-  description?: string;
-  estimatedMinutes?: number;
+  description: string;
+  targetAudience: string;
+  prerequisites?: string[];
+  estimatedHours: number;
+  difficulty: "beginner" | "intermediate" | "advanced";
   chapters: Chapter[];
+  learningOutcome: string;
 }
 
 interface InterviewStore {
-  // 访谈画像
-  profile: InterviewProfileState;
-  // 课程大纲
   outline: OutlineData | null;
-  // 课程 ID
   courseId: string | null;
-  // 加载状态
   isOutlineLoading: boolean;
-  // 访谈是否完成
   interviewCompleted: boolean;
 
-  // Setters
-  setProfile: (profile: Partial<InterviewProfileState>) => void;
   setOutline: (outline: OutlineData | null) => void;
   setCourseId: (id: string | null) => void;
   setIsOutlineLoading: (loading: boolean) => void;
@@ -51,11 +39,6 @@ interface InterviewStore {
 }
 
 const initialState = {
-  profile: {
-    goal: null,
-    background: null as LearningLevel | null,
-    outcome: null,
-  },
   outline: null,
   courseId: null,
   isOutlineLoading: false,
@@ -64,12 +47,6 @@ const initialState = {
 
 export const useInterviewStore = create<InterviewStore>((set) => ({
   ...initialState,
-
-  setProfile: (profile: Partial<InterviewProfileState>) => {
-    set((state) => ({
-      profile: { ...state.profile, ...profile },
-    }));
-  },
 
   setOutline: (outline: OutlineData | null) => {
     set({ outline });
