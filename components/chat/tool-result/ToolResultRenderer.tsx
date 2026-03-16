@@ -28,14 +28,12 @@ function getOutput<T extends keyof ToolOutputMap>(part: ToolPart): ToolOutputMap
 interface ToolResultRendererProps {
   toolPart: ToolPart;
   onSendReply?: (text: string) => void;
-  addToolOutput?: (params: { tool: string; toolCallId: string; output: unknown }) => Promise<void>;
   isStreaming?: boolean;
 }
 
 export function ToolResultRenderer({
   toolPart,
   onSendReply,
-  addToolOutput,
   isStreaming,
 }: ToolResultRendererProps) {
   if (toolPart.state !== "output-available") {

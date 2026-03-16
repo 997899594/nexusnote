@@ -9,7 +9,6 @@ import { ToolResultRenderer } from "./tool-result/ToolResultRenderer";
 interface ChatMessageProps {
   message: UIMessage;
   onSendReply?: (text: string) => void;
-  addToolOutput?: (params: { tool: string; toolCallId: string; output: unknown }) => Promise<void>;
   isStreaming?: boolean;
 }
 
@@ -35,7 +34,6 @@ function getToolParts(message: UIMessage): ToolUIPart[] {
 export function ChatMessage({
   message,
   onSendReply,
-  addToolOutput,
   isStreaming,
 }: ChatMessageProps) {
   const isUser = message.role === "user";
@@ -67,7 +65,6 @@ export function ChatMessage({
                 key={toolPart.toolCallId}
                 toolPart={toolPart}
                 onSendReply={onSendReply}
-                addToolOutput={addToolOutput}
                 isStreaming={isStreaming}
               />
             ))}
