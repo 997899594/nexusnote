@@ -3,7 +3,7 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, getToolName, isToolUIPart, type UIMessage } from "ai";
 import { nanoid } from "nanoid";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { parseApiError } from "@/lib/api/client";
 import { type OutlineData, useInterviewStore } from "@/stores/interview";
@@ -116,6 +116,7 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
   }, [sendMessage]);
 
   // 备用检测：流式过程中也尝试检测（增加 status 依赖确保流结束时触发）
+  // biome-ignore lint/correctness/useExhaustiveDependencies: status is intentionally included to trigger detection when streaming ends
   useEffect(() => {
     const outline = findLatestOutline(messages);
     if (outline) {

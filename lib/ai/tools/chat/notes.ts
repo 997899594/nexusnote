@@ -4,7 +4,7 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import { and, db, documents, eq, workspaces } from "@/db";
+import { db, documents, eq, workspaces } from "@/db";
 
 export const CreateNoteSchema = z.object({
   title: z.string().min(1).max(200),

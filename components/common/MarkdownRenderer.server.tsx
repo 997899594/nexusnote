@@ -28,6 +28,7 @@ export async function MarkdownRenderer({ content, className = "" }: MarkdownRend
     <div
       className={className}
       suppressHydrationWarning
+      // biome-ignore lint/security/noDangerouslySetInnerHtml: markdown renderer requires innerHTML for server-rendered content
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );

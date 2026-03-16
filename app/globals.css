@@ -120,6 +120,11 @@
   --skill-default-border: oklch(0.9 0 0);
   --skill-default-text: oklch(0.4 0 0);
 
+  /* Typography */
+  --font-body:
+    system-ui, -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC",
+    sans-serif;
+
   /* Layout */
   --header-height: 56px;
   --sidebar-width: 280px;
@@ -164,9 +169,12 @@
   body {
     background-color: var(--color-bg);
     color: var(--color-text);
+    font-family: var(--font-body);
     font-feature-settings:
       "rlig" 1,
       "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 
@@ -323,11 +331,9 @@
   font-size: 1.375rem;
   font-weight: 650;
   line-height: 1.35;
-  margin-top: 2rem;
+  margin-top: 2.5rem;
   margin-bottom: 0.75rem;
   color: oklch(18% 0.013 250);
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid oklch(92% 0.005 250);
 }
 
 .learn-prose h3 {
@@ -505,9 +511,8 @@
 /* Horizontal rule */
 .learn-prose hr {
   border: none;
-  height: 1px;
-  background: linear-gradient(to right, transparent, oklch(85% 0.006 250), transparent);
-  margin: 2rem 0;
+  height: 0;
+  margin: 2.5rem 0;
 }
 
 /* Image */
@@ -521,4 +526,11 @@
 /* First element no top margin */
 .learn-prose > :first-child {
   margin-top: 0;
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Typography Utilities
+ * ──────────────────────────────────────────────────────────────────────────── */
+.font-display {
+  font-family: var(--font-instrument-serif, serif), "Songti SC", "Noto Serif SC", serif;
 }

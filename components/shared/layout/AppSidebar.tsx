@@ -22,9 +22,9 @@ export function AppSidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden md:flex flex-col w-64 h-screen sticky top-0 bg-[var(--color-bg)] border-r border-[var(--color-border-subtle)]">
+    <aside className="hidden md:flex flex-col w-64 h-screen sticky top-0 bg-[var(--color-bg)]">
       {/* Logo */}
-      <div className="h-16 flex items-center px-6 border-b border-[var(--color-border-subtle)]">
+      <div className="h-16 flex items-center px-6">
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 bg-[var(--color-accent)] rounded-md flex items-center justify-center">
             <Zap className="w-3.5 h-3.5 text-[var(--color-accent-fg)] fill-[var(--color-accent-fg)]" />
@@ -74,7 +74,7 @@ export function AppSidebar() {
       </nav>
 
       {/* Settings */}
-      <div className="p-3 border-t border-[var(--color-border-subtle)]">
+      <div className="p-3">
         <Link
           href="/settings"
           className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-[var(--color-text-secondary)] hover:bg-[var(--color-hover)] hover:text-[var(--color-text)] transition-all duration-200"

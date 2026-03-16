@@ -145,7 +145,7 @@ export function MobileEditorToolbar({ editor, onMoreClick }: MobileEditorToolbar
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/90 backdrop-blur-xl border-t border-zinc-200/40 safe-bottom md:hidden">
+    <div className="fixed bottom-0 left-0 right-0 z-40 bg-[var(--color-surface)]/90 backdrop-blur-xl shadow-[0_-2px_16px_-4px_oklch(0%_0_0/8%)] safe-bottom md:hidden">
       <div className="flex items-center justify-around px-2 py-2">
         {basicButtons}
         <motion.button

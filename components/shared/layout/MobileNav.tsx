@@ -38,7 +38,7 @@ export function MobileNav() {
       <div className="h-24 md:hidden pointer-events-none" aria-hidden="true" />
 
       <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden" aria-label="主导航菜单">
-        <div className="absolute inset-0 bg-[var(--color-surface)]/85 backdrop-blur-xl border-t border-[var(--color-border-subtle)] shadow-lg" />
+        <div className="absolute inset-0 bg-[var(--color-surface)]/85 backdrop-blur-xl shadow-[0_-2px_16px_-4px_oklch(0%_0_0/8%)]" />
 
         <div className="relative grid grid-cols-5 h-16 px-2 items-end">
           {navItems.map((item) => {

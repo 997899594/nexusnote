@@ -149,7 +149,7 @@ function InterviewContent() {
         className="flex flex-col flex-1 min-w-0 bg-[var(--color-surface)]"
       >
         {/* Header */}
-        <header className="flex items-center gap-4 px-4 md:px-6 py-4 border-b border-[var(--color-border-subtle)]">
+        <header className="flex items-center gap-4 px-4 md:px-6 py-4">
           <Link
             href="/chat"
             className="p-2 hover:bg-[var(--color-hover)] rounded-xl transition-colors"
@@ -175,9 +175,12 @@ function InterviewContent() {
                   return (
                     <div className="flex items-center gap-2 mt-1">
                       <div className="flex gap-1">
-                        {Array.from({ length: Math.min(userMessageCount, 6) }, (_, i) => (
+                        {Array.from(
+                          { length: Math.min(userMessageCount, 6) },
+                          (_, i) => `dot-${i}`,
+                        ).map((dotId) => (
                           <motion.div
-                            key={i}
+                            key={dotId}
                             initial={{ scale: 0, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)]"
@@ -269,7 +272,7 @@ function InterviewContent() {
         </div>
 
         {/* Input */}
-        <div className="border-t border-[var(--color-border-subtle)] bg-[var(--color-surface)] px-4 md:px-6 py-3 md:py-4">
+        <div className="bg-[var(--color-surface)] px-4 md:px-6 py-3 md:py-4">
           <div className="max-w-[calc(100vw-32px)] md:max-w-[var(--message-max-width)] mx-auto">
             <div className="flex items-end gap-2 md:gap-3 bg-[var(--color-hover)] rounded-2xl p-2 md:p-3">
               <div className="w-8 h-8 rounded-lg bg-[var(--color-accent)] flex items-center justify-center flex-shrink-0">

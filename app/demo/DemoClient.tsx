@@ -99,7 +99,7 @@ export function DemoClient() {
       <motion.header
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="sticky top-0 z-50 bg-[var(--color-bg)]/80 backdrop-blur-lg border-b border-[var(--color-border-subtle)]"
+        className="sticky top-0 z-50 bg-[var(--color-bg)]/80 backdrop-blur-lg shadow-[0_2px_16px_-4px_oklch(0%_0_0/6%)]"
       >
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -147,7 +147,7 @@ export function DemoClient() {
                 className="space-y-2"
               >
                 <div
-                  className="aspect-square rounded-xl shadow-sm border border-[var(--color-border-subtle)]"
+                  className="aspect-square rounded-xl shadow-[var(--shadow-card)]"
                   style={{ backgroundColor: color.value }}
                 />
                 <div className="text-center">
@@ -308,7 +308,7 @@ export function DemoClient() {
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5 + i * 0.04 }}
-                className="p-5 rounded-2xl bg-[var(--color-surface)] shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] border border-[var(--color-border-subtle)] cursor-pointer transition-all duration-200 hover:-translate-y-0.5"
+                className="p-5 rounded-2xl bg-[var(--color-surface)] shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] cursor-pointer transition-all duration-200 hover:-translate-y-0.5"
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-[var(--color-hover)]">
@@ -390,7 +390,7 @@ export function DemoClient() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.7 }}
-          className="p-8 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border-subtle)]"
+          className="p-8 rounded-2xl bg-[var(--color-surface)] shadow-[var(--shadow-card)]"
         >
           <h2 className="text-xl font-semibold text-[var(--color-text)] mb-6">设计规范</h2>
           <div className="grid md:grid-cols-2 gap-8 text-sm">

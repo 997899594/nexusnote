@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo } from "react";
 import type { Annotation } from "@/hooks/useAnnotations";
 import { useChapterSections } from "@/hooks/useChapterSections";
-import type { ChapterOutline, SectionOutline } from "@/stores/learn";
+import type { ChapterOutline } from "@/stores/learn";
 import { useLearnStore } from "@/stores/learn";
 
 import { LearnChat } from "./components/LearnChat";
@@ -76,6 +76,7 @@ export function LearnClient({
   const currentChapterIndex = useLearnStore((s) => s.currentChapterIndex);
 
   // Initialize store on mount
+  // biome-ignore lint/correctness/useExhaustiveDependencies: initialization effect, runs once on mount
   useEffect(() => {
     setChapters(chapters);
     setCurrentChapterIndex(initialChapterIndex);
@@ -103,7 +104,7 @@ export function LearnClient({
   }, [sectionDocs]);
 
   // Section generation hook
-  const { sections, currentGenerating, generateSection } = useChapterSections({
+  const { sections, generateSection } = useChapterSections({
     courseId: sessionId,
     chapterIndex: currentChapterIndex,
     sectionCount: currentChapter?.sections.length ?? 0,
@@ -151,7 +152,7 @@ export function LearnClient({
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="flex items-center justify-between px-6 py-3 border-b border-[var(--color-border-subtle)] bg-[var(--color-surface)]"
+              className="flex items-center justify-between px-6 py-3 bg-[var(--color-surface)]"
             >
               <div className="flex items-center gap-3">
                 <span className="text-[0.6875rem] font-semibold text-[var(--color-accent)] bg-[var(--color-accent-subtle)] px-2.5 py-1 rounded-md">

@@ -53,7 +53,7 @@ export async function getUserSkillGraphData(
     maxDepth?: number;
   } = {},
 ): Promise<SkillGraphData> {
-  const { includeUnlocked = true, maxDepth = 2 } = options;
+  const { includeUnlocked = true, maxDepth: _maxDepth = 2 } = options;
 
   const userSkills = await db
     .select({

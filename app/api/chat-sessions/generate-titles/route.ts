@@ -20,7 +20,7 @@ const titleSchema = z.object({
   title: z.string().max(10),
 });
 
-export const POST = withOptionalAuth(async (_request, { userId }) => {
+export const POST = withOptionalAuth(async (_request, { userId: _userId }) => {
   // 1. 查询 title = "新对话" 的会话（限制 5 条）
   const conversationsToProcess = await db
     .select({

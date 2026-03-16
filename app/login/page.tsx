@@ -34,7 +34,7 @@ export default function LoginPage() {
         initial={{ opacity: 0, y: 20, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.4, ease: "easeOut" }}
-        className="max-w-md w-full bg-[var(--color-surface)] rounded-2xl shadow-xl overflow-hidden border border-[var(--color-border)]"
+        className="max-w-md w-full bg-[var(--color-surface)] rounded-2xl shadow-[var(--shadow-elevated)] overflow-hidden"
       >
         <div className="p-8">
           {/* Logo */}
@@ -97,13 +97,8 @@ export default function LoginPage() {
 
           {/* Divider */}
           <div className="relative my-8">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-[var(--color-border)]" />
-            </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-3 bg-[var(--color-surface)] text-[var(--color-text-muted)]">
-                Or development login
-              </span>
+              <span className="px-3 text-[var(--color-text-muted)]">Or development login</span>
             </div>
           </div>
 

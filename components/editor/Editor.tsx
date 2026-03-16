@@ -220,9 +220,9 @@ export function Editor({
   };
 
   return (
-    <div className="relative border border-border rounded-lg overflow-hidden">
+    <div className="relative rounded-lg overflow-hidden shadow-[var(--shadow-card)]">
       {editable && (
-        <div className="flex flex-wrap gap-1 p-2 border-b border-border-subtle">
+        <div className="flex flex-wrap gap-1 p-2 bg-[var(--color-hover)]">
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleBold().run()}
             active={editor.isActive("bold")}

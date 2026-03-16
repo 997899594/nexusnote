@@ -62,6 +62,7 @@ export function PersonaSelector({
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {personas.map((persona) => (
           <button
+            type="button"
             key={persona.id}
             onClick={() => handleSelect(persona.slug)}
             disabled={disabled}
@@ -154,6 +155,8 @@ export function PersonaSelector({
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
+          role="img"
+          aria-label="Toggle dropdown"
         >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
@@ -161,10 +164,16 @@ export function PersonaSelector({
 
       {isOpen && (
         <>
-          <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
-          <div className="absolute z-20 mt-1 w-56 bg-[var(--color-surface)] rounded-lg shadow-lg border border-[var(--color-border)] py-1 max-h-80 overflow-y-auto">
+          <button
+            type="button"
+            className="fixed inset-0 z-10 cursor-default bg-transparent border-0"
+            onClick={() => setIsOpen(false)}
+            aria-label="Close dropdown"
+          />
+          <div className="absolute z-20 mt-1 w-56 bg-[var(--color-surface)] rounded-lg shadow-[var(--shadow-elevated)] py-1 max-h-80 overflow-y-auto">
             {personas.map((persona) => (
               <button
+                type="button"
                 key={persona.id}
                 onClick={() => handleSelect(persona.slug)}
                 disabled={disabled}
@@ -196,6 +205,8 @@ export function PersonaSelector({
                     className="w-4 h-4 text-[var(--color-accent)]"
                     fill="currentColor"
                     viewBox="0 0 20 20"
+                    role="img"
+                    aria-label="Selected"
                   >
                     <path
                       fillRule="evenodd"
@@ -222,6 +233,7 @@ export function PersonaBadge({ persona, onClick }: { persona: AIPersona; onClick
 
   return (
     <button
+      type="button"
       onClick={onClick}
       className={`
         inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium

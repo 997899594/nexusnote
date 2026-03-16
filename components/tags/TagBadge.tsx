@@ -24,6 +24,7 @@ export function TagBadge({ name, onRemove, removable = false }: TagBadgeProps) {
       {name}
       {removable && (
         <button
+          type="button"
           onClick={handleRemove}
           disabled={isRemoving}
           className="ml-1 hover:bg-secondary-foreground/20 rounded-sm p-0.5 transition-colors"

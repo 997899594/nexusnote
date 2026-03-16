@@ -77,10 +77,7 @@ export function LearnSidebar({ courseTitle, width }: LearnSidebarProps) {
   const progress = totalSections > 0 ? Math.round((completedCount / totalSections) * 100) : 0;
 
   return (
-    <div
-      className="flex flex-col h-full border-r border-[var(--color-border)] bg-[var(--color-surface)]"
-      style={{ width }}
-    >
+    <div className="flex flex-col h-full bg-[var(--color-bg)]" style={{ width }}>
       <motion.div
         variants={contentVariants}
         initial="hidden"
@@ -111,7 +108,7 @@ export function LearnSidebar({ courseTitle, width }: LearnSidebarProps) {
         {/* Progress card */}
         <motion.div
           variants={itemVariants}
-          className="mx-4 mb-4 p-4 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border-subtle)]"
+          className="mx-4 mb-4 p-4 rounded-xl bg-[var(--color-surface)] shadow-[var(--shadow-card)]"
         >
           <div className="flex items-center gap-4">
             <ProgressRing progress={progress} />

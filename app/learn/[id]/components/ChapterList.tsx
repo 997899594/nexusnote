@@ -35,7 +35,7 @@ export function ChapterList() {
         const isChapterComplete = chapterCompletedCount === chapterSectionCount;
 
         return (
-          <div key={`ch-${chIdx}`}>
+          <div key={chapter.title}>
             {/* Chapter header */}
             <button
               type="button"
@@ -60,7 +60,7 @@ export function ChapterList() {
                     ? "bg-[var(--color-accent)] text-white"
                     : isCurrent
                       ? "bg-[var(--color-accent)] text-white"
-                      : "bg-[var(--color-bg)] text-[var(--color-text-secondary)] border border-[var(--color-border)]",
+                      : "bg-[var(--color-surface)] text-[var(--color-text-secondary)]",
                 )}
               >
                 {isChapterComplete ? <Check className="w-3.5 h-3.5" /> : chIdx + 1}
@@ -111,10 +111,7 @@ export function ChapterList() {
                   transition={{ duration: 0.2 }}
                   className="overflow-hidden"
                 >
-                  <div className="relative ml-[1.3rem] pl-5 pr-2 py-1.5">
-                    {/* Vertical timeline line */}
-                    <div className="absolute left-[0.3rem] top-2 bottom-2 w-px bg-[var(--color-border)]" />
-
+                  <div className="pl-3 pr-2 py-1.5">
                     <div className="space-y-0.5">
                       {chapter.sections.map((sec, secIdx) => {
                         const isCompleted = completedSections.has(sec.nodeId);
@@ -132,23 +129,12 @@ export function ChapterList() {
                               el?.scrollIntoView({ behavior: "smooth", block: "start" });
                             }}
                             className={cn(
-                              "w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left text-[0.8125rem] transition-all duration-150 relative",
+                              "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left text-[0.8125rem] transition-all duration-150",
                               isCurrentSection
                                 ? "bg-[var(--color-accent-subtle)] text-[var(--color-accent)] font-medium"
                                 : "text-[var(--color-text-secondary)] hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]",
                             )}
                           >
-                            {/* Timeline dot */}
-                            <span
-                              className={cn(
-                                "absolute -left-[1.15rem] top-1/2 -translate-y-1/2 shrink-0 transition-all",
-                                isCompleted
-                                  ? "w-2.5 h-2.5 rounded-full bg-[var(--color-accent)] ring-2 ring-[var(--color-surface)]"
-                                  : isCurrentSection
-                                    ? "w-2.5 h-2.5 rounded-full border-2 border-[var(--color-accent)] bg-[var(--color-surface)] ring-2 ring-[var(--color-surface)]"
-                                    : "w-2 h-2 rounded-full border-[1.5px] border-[var(--color-border)] bg-[var(--color-surface)] ring-2 ring-[var(--color-surface)]",
-                              )}
-                            />
                             <span className="truncate">{sec.title}</span>
                             {isCompleted && (
                               <Check className="w-3 h-3 text-[var(--color-accent)] shrink-0 ml-auto" />

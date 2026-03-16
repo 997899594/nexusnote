@@ -38,6 +38,7 @@ export function useAnnotations({
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Reset when documentId changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally re-run on documentId change to reset annotations
   useEffect(() => {
     setAnnotations(initialAnnotations);
   }, [documentId, initialAnnotations]);

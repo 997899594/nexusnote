@@ -42,7 +42,7 @@ export function RecentCard({ title, desc, iconName, time, url }: RecentCardProps
       whileHover={{ y: -2 }}
       whileTap={{ scale: 0.98 }}
       onClick={handleClick}
-      className="bg-[var(--color-surface)] rounded-2xl p-4 md:p-5 cursor-pointer transition-all duration-200 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] active:scale-[0.98] touch-target border border-[var(--color-border-subtle)]"
+      className="bg-[var(--color-surface)] rounded-2xl p-4 md:p-5 cursor-pointer transition-all duration-200 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] active:scale-[0.98] touch-target"
     >
       <div className="flex items-start justify-between mb-3">
         <div className="w-10 h-10 rounded-xl bg-[var(--color-hover)] flex items-center justify-center">

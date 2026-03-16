@@ -101,7 +101,7 @@ export function checkRateLimitOrThrow(
 ): void {
   if (!rateLimiter.check(key, limit, windowMs)) {
     const resetIn = rateLimiter.resetIn(key);
-    const retryAfter = resetIn ? Math.ceil(resetIn / 1000) : 60;
+    const _retryAfter = resetIn ? Math.ceil(resetIn / 1000) : 60;
     const error = new Error(errorMessage) as Error & { statusCode: number; code: string };
     error.statusCode = 429;
     error.code = "RATE_LIMITED";

@@ -65,7 +65,7 @@ export function AnnotationLayer({
   containerRef,
   annotations,
   onRemove,
-  onUpdateNote,
+  _onUpdateNote,
 }: AnnotationLayerProps) {
   const [highlights, setHighlights] = useState<
     Array<{
@@ -118,9 +118,10 @@ export function AnnotationLayer({
         <div key={h.id}>
           {/* Highlight rectangles */}
           {h.rects.map((rect, i) => (
-            <div
+            <button
+              type="button"
               key={`${h.id}-${i}`}
-              className="absolute pointer-events-auto cursor-pointer"
+              className="absolute pointer-events-auto cursor-pointer border-none p-0"
               style={{
                 top: rect.top,
                 left: rect.left,

@@ -75,11 +75,12 @@ export function UserAvatar({ className = "", size = "md" }: UserAvatarProps) {
 
   // Fallback - show initials with accent color background
   return (
-    <div
+    <button
+      type="button"
       onClick={handleClick}
-      className={`${sizeClasses[size]} rounded-full bg-[var(--color-accent)] text-[var(--color-accent-fg)] flex items-center justify-center font-medium cursor-pointer hover:opacity-80 transition-opacity ${className}`}
+      className={`${sizeClasses[size]} rounded-full bg-[var(--color-accent)] text-[var(--color-accent-fg)] flex items-center justify-center font-medium border-0 p-0 hover:opacity-80 transition-opacity ${className}`}
     >
       {getInitials()}
-    </div>
+    </button>
   );
 }

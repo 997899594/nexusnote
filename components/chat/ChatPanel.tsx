@@ -199,7 +199,7 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
         </div>
       </div>
 
-      <div className="border-t border-[var(--color-border-subtle)] bg-[var(--color-surface)] px-4 md:px-6 py-3 md:py-4 safe-bottom">
+      <div className="bg-[var(--color-surface)] px-4 md:px-6 py-3 md:py-4 safe-bottom">
         <div className="max-w-[calc(100vw-32px)] md:max-w-[var(--message-max-width)] mx-auto relative">
           <AnimatePresence>
             {showCommands && !selectedCommand && filteredCommands.length > 0 && (

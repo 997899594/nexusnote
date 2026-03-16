@@ -96,7 +96,7 @@ export default function EditorPage() {
       {/* 移动端全屏编辑 */}
       <div className="md:hidden">
         {/* 移动端标题栏 */}
-        <div className="px-4 pt-16 pb-2 border-b border-[var(--color-border-subtle)]">
+        <div className="px-4 pt-16 pb-2">
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}

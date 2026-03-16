@@ -71,6 +71,7 @@ interface MasteryNodeProps {
 function MasteryNode({ data, selected }: MasteryNodeProps) {
   const IconComponent = useMemo(() => {
     if (data.icon && data.icon in LucideIcons) {
+      // biome-ignore lint/performance/noDynamicNamespaceImportAccess: dynamic icon lookup by name
       return LucideIcons[data.icon as keyof typeof LucideIcons] as React.ComponentType<{
         className?: string;
       }>;
@@ -166,6 +167,7 @@ interface SuggestedNodeProps {
 function SuggestedNode({ data, selected }: SuggestedNodeProps) {
   const IconComponent = useMemo(() => {
     if (data.icon && data.icon in LucideIcons) {
+      // biome-ignore lint/performance/noDynamicNamespaceImportAccess: dynamic icon lookup by name
       return LucideIcons[data.icon as keyof typeof LucideIcons] as React.ComponentType<{
         className?: string;
       }>;
@@ -259,10 +261,10 @@ export function SkillGraph({ userId: _userId, className, onDiscover }: SkillGrap
     }
   };
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fetchGraphData is intentionally not wrapped in useCallback; we only want to fetch on mount
   useEffect(() => {
     fetchGraphData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchGraphData]);
+  }, []);
 
   const stats = useMemo(() => {
     if (!graphData) return null;
@@ -309,6 +311,7 @@ export function SkillGraph({ userId: _userId, className, onDiscover }: SkillGrap
           <LucideIcons.Network className="w-12 h-12 mb-3 opacity-50" />
           <p className="mb-4">{error || "还没有技能数据"}</p>
           <button
+            type="button"
             onClick={handleDiscover}
             className="px-4 py-2 bg-[var(--color-accent)] text-white rounded-lg hover:bg-[var(--color-accent-hover)] transition-colors flex items-center gap-2"
           >
@@ -324,7 +327,7 @@ export function SkillGraph({ userId: _userId, className, onDiscover }: SkillGrap
     <div
       className={cn("bg-white rounded-xl shadow-[var(--shadow-card)] overflow-hidden", className)}
     >
-      <div className="px-6 py-4 border-b border-zinc-100">
+      <div className="px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-lg font-semibold text-zinc-800">技能图谱</h3>
@@ -336,6 +339,7 @@ export function SkillGraph({ userId: _userId, className, onDiscover }: SkillGrap
             )}
           </div>
           <button
+            type="button"
             onClick={handleDiscover}
             className="px-3 py-1.5 text-sm bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-lg transition-colors flex items-center gap-1.5"
           >
@@ -386,7 +390,7 @@ export function SkillGraph({ userId: _userId, className, onDiscover }: SkillGrap
         </ReactFlow>
       </div>
 
-      <div className="px-6 py-3 border-t border-zinc-100 bg-zinc-50/50">
+      <div className="px-6 py-3 bg-[var(--color-hover)]">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-zinc-600">
           <div className="flex items-center gap-1.5">
             <div

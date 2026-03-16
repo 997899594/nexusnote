@@ -52,7 +52,7 @@ export function SearchResults({ output, type }: SearchResultsProps) {
               href={isWeb ? result.url : `/notes/${result.sourceId}`}
               target={isWeb ? "_blank" : undefined}
               rel={isWeb ? "noopener noreferrer" : undefined}
-              className="block p-3 bg-[var(--color-surface)] rounded-lg border border-[var(--color-border)] hover:border-[var(--color-accent)] transition-colors"
+              className="block p-3 bg-[var(--color-surface)] rounded-lg shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] transition-all"
             >
               <div className="flex items-start gap-2">
                 {isWeb ? (

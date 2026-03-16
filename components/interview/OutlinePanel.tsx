@@ -5,7 +5,7 @@ import { BookOpen, Clock, Loader2, Play } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import type { Chapter, OutlineData } from "@/stores/interview";
+import type { OutlineData } from "@/stores/interview";
 
 interface OutlinePanelProps {
   outline: OutlineData | null;
@@ -47,9 +47,9 @@ export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps
   };
 
   return (
-    <div className="flex h-full flex-col border-r border-zinc-100 bg-white">
+    <div className="flex h-full flex-col bg-[var(--color-bg)]">
       {/* Header */}
-      <div className="flex items-center gap-2 border-b border-zinc-100 px-4 py-4">
+      <div className="flex items-center gap-2 px-4 py-4">
         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-900">
           <BookOpen className="h-4 w-4 text-white" />
         </div>
@@ -116,9 +116,9 @@ export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps
                 )}
                 {outline.prerequisites && outline.prerequisites.length > 0 && (
                   <div className="flex flex-wrap gap-1">
-                    {outline.prerequisites.map((p, i) => (
+                    {outline.prerequisites.map((p) => (
                       <span
-                        key={i}
+                        key={p}
                         className="inline-flex items-center rounded-full px-2 py-0.5 text-xs bg-amber-100 text-amber-700"
                       >
                         {p}
@@ -134,7 +134,7 @@ export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps
                   <motion.div
                     key={`${chapter.title}-${index}`}
                     variants={itemVariants}
-                    className="rounded-xl border border-zinc-100 bg-zinc-50 p-3 transition-colors hover:bg-zinc-100"
+                    className="rounded-xl bg-[var(--color-surface)] shadow-[var(--shadow-card)] p-3 transition-all hover:shadow-[var(--shadow-card-hover)]"
                   >
                     <div className="flex items-start gap-3">
                       {/* Chapter Number */}

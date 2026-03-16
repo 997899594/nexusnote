@@ -25,7 +25,7 @@ export function GenericToolResult({ output }: GenericToolResultProps) {
       : null;
 
   return (
-    <div className="mt-2 p-3 bg-[var(--color-hover)] rounded-lg border border-[var(--color-border)]">
+    <div className="mt-2 p-3 bg-[var(--color-hover)] rounded-lg">
       {error ? (
         <p className="text-sm text-red-500">Error: {error}</p>
       ) : isSuccess ? (

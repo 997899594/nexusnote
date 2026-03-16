@@ -117,7 +117,7 @@ export function DrawerMenu({ isOpen, onClose, userName, userEmail }: DrawerMenuP
             className="fixed top-0 left-0 bottom-0 w-[280px] z-50 bg-[var(--color-surface)] shadow-2xl md:hidden safe-top"
           >
             {/* 用户信息区 */}
-            <div className="p-6 border-b border-[var(--color-border-subtle)]">
+            <div className="p-6">
               <div className="flex items-center gap-4">
                 <div className="w-14 h-14 rounded-2xl bg-[var(--color-accent)] flex items-center justify-center text-[var(--color-accent-fg)] text-xl font-bold">
                   {userName
@@ -139,7 +139,7 @@ export function DrawerMenu({ isOpen, onClose, userName, userEmail }: DrawerMenuP
             </div>
 
             {/* 快速操作 */}
-            <div className="px-4 py-4 border-b border-[var(--color-border-subtle)]">
+            <div className="px-4 py-4">
               <div className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-3 px-2">
                 快速操作
               </div>
@@ -192,7 +192,7 @@ export function DrawerMenu({ isOpen, onClose, userName, userEmail }: DrawerMenuP
             </nav>
 
             {/* 底部设置和退出 */}
-            <div className="p-4 border-t border-[var(--color-border-subtle)] safe-bottom">
+            <div className="p-4 safe-bottom">
               <motion.button
                 whileTap={{ scale: 0.98 }}
                 onClick={() => handleNavClick("/settings")}

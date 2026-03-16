@@ -75,9 +75,9 @@ export function MobileHeader({
       case "transparent":
         return "bg-transparent";
       case "glass":
-        return "bg-[var(--color-surface)]/80 backdrop-blur-xl border-b border-[var(--color-border-subtle)]";
+        return "bg-[var(--color-surface)]/80 backdrop-blur-xl shadow-[0_2px_16px_-4px_oklch(0%_0_0/6%)]";
       default:
-        return "bg-[var(--color-surface)] border-b border-[var(--color-border-subtle)]";
+        return "bg-[var(--color-surface)] shadow-[0_2px_16px_-4px_oklch(0%_0_0/6%)]";
     }
   }, [variant]);
 

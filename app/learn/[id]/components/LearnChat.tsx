@@ -2,7 +2,7 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { BookOpen, Loader2, MessageSquare, Send, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatMessage, LoadingDots } from "@/components/chat/ChatMessage";
@@ -61,7 +61,7 @@ export function LearnChat({ courseId, courseTitle }: LearnChatProps) {
 
   useEffect(() => {
     scrollToBottom();
-  }, [chatMessages.length, scrollToBottom]);
+  }, [scrollToBottom]);
 
   const handleSubmit = async () => {
     if (!input.trim() || isLoading) return;
@@ -106,10 +106,10 @@ export function LearnChat({ courseId, courseTitle }: LearnChatProps) {
       animate={{ width: 400, opacity: 1 }}
       exit={{ width: 0, opacity: 0 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="flex flex-col h-full border-l border-[var(--color-border)] bg-white flex-shrink-0 overflow-hidden"
+      className="flex flex-col h-full bg-[var(--color-bg)] flex-shrink-0 overflow-hidden"
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)]">
+      <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-[var(--color-accent-light)] flex items-center justify-center">
             <BookOpen className="w-4 h-4 text-[var(--color-accent)]" />
@@ -147,7 +147,7 @@ export function LearnChat({ courseId, courseTitle }: LearnChatProps) {
       </div>
 
       {/* Input */}
-      <div className="border-t border-[var(--color-border)] px-4 py-3">
+      <div className="px-4 py-3">
         <div className="flex items-end gap-2 bg-zinc-50 rounded-xl p-2">
           <textarea
             value={input}

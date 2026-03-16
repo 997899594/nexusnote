@@ -68,7 +68,7 @@ export function ChatHistory({
         )}
       >
         {/* Header */}
-        <div className="p-4 border-b border-[var(--color-border-subtle)]">
+        <div className="p-4">
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}

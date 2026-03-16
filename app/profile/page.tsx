@@ -135,7 +135,10 @@ export default async function ProfilePage() {
 
                 {/* 快捷操作 */}
                 <div className="flex items-center gap-3">
-                  <button className="flex items-center gap-2 px-4 py-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-hover)] rounded-lg transition-colors">
+                  <button
+                    type="button"
+                    className="flex items-center gap-2 px-4 py-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-hover)] rounded-lg transition-colors"
+                  >
                     <Settings className="w-4 h-4" />
                     设置
                   </button>
@@ -243,7 +246,7 @@ export default async function ProfilePage() {
           </h2>
           <div className="bg-[var(--color-surface)] rounded-xl shadow-[var(--shadow-card)] overflow-hidden">
             {stats.recentActivity.length > 0 ? (
-              <div className="divide-y divide-[var(--color-border-subtle)]">
+              <div className="space-y-1 p-1">
                 {stats.recentActivity.map((activity) => (
                   <a
                     key={activity.id}

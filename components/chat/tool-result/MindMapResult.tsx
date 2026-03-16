@@ -108,8 +108,8 @@ export function MindMapResult({ output }: MindMapResultProps) {
   }
 
   return (
-    <div className="mt-2 rounded-lg border border-[var(--color-border)] overflow-hidden">
-      <div className="flex items-center gap-2 px-3 py-2 bg-[var(--color-hover)] border-b border-[var(--color-border)]">
+    <div className="mt-2 rounded-lg shadow-[var(--shadow-card)] overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-2 bg-[var(--color-hover)]">
         <MapIcon className="w-4 h-4 text-[var(--color-text-tertiary)]" />
         <span className="text-sm font-medium text-[var(--color-text-secondary)]">
           {mindMapData?.topic}

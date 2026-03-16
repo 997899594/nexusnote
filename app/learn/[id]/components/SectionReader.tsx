@@ -51,7 +51,6 @@ function NoteInputDialog({
           placeholder="写下你的想法..."
           rows={3}
           className="w-full border border-zinc-200 rounded-lg p-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
-          autoFocus
         />
         <div className="flex justify-end gap-2 mt-3">
           <button
@@ -108,14 +107,8 @@ function SectionBlock({
 
   return (
     <div id={anchorId} className="relative">
-      {/* Section divider */}
-      {sectionIndex > 0 && (
-        <div className="flex items-center gap-4 my-10">
-          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-[var(--color-border)] to-transparent" />
-          <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-text-tertiary)]" />
-          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-[var(--color-border)] to-transparent" />
-        </div>
-      )}
+      {/* Section spacing */}
+      {sectionIndex > 0 && <div className="pt-14" />}
 
       {/* Section content */}
       <div ref={containerRef} className="relative">
@@ -242,7 +235,7 @@ function SectionBlock({
 }
 
 export function SectionReader({
-  courseId,
+  _courseId,
   sections,
   generateSection,
   sectionDocs,
@@ -287,15 +280,6 @@ export function SectionReader({
     return () => observer.disconnect();
   }, [currentChapterIndex, currentChapter, setCurrentSectionIndex]);
 
-  // Scroll to section triggered from sidebar
-  const scrollToSection = useCallback(
-    (sectionIndex: number) => {
-      const el = document.getElementById(`section-${currentChapterIndex + 1}-${sectionIndex + 1}`);
-      el?.scrollIntoView({ behavior: "smooth", block: "start" });
-    },
-    [currentChapterIndex],
-  );
-
   if (!currentChapter) {
     return (
       <div className="flex items-center justify-center h-full text-zinc-400">
@@ -328,7 +312,7 @@ export function SectionReader({
                 {currentChapter.description}
               </p>
             )}
-            <div className="mt-6 h-px bg-gradient-to-r from-[var(--color-border)] via-[var(--color-border)] to-transparent" />
+            <div className="mt-8" />
           </div>
         )}
 

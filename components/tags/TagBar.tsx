@@ -29,9 +29,10 @@ export function TagBar({ documentId }: TagBarProps) {
     }
   };
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fetchTags is intentionally not wrapped in useCallback; we only want to fetch on mount
   useEffect(() => {
     fetchTags();
-  }, [fetchTags]);
+  }, []);
 
   const handleConfirm = async (documentTagId: string) => {
     await fetch(`/api/document-tags/${documentTagId}`, {

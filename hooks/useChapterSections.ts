@@ -196,6 +196,7 @@ export function useChapterSections({
   );
 
   // Auto-start first ungenerated section on mount
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only re-trigger on chapter change to avoid infinite generation loops
   useEffect(() => {
     // Small delay to let initial state settle
     const timer = setTimeout(() => {

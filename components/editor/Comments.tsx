@@ -127,11 +127,11 @@ export function CommentThread({ comment }: { comment: Comment; onSelect?: () => 
 
   return (
     <div
-      className={`border border-border rounded-lg mx-2 my-2 overflow-hidden ${
-        comment.resolved ? "bg-muted" : "bg-surface"
+      className={`rounded-lg mx-2 my-2 overflow-hidden shadow-[var(--shadow-card)] ${
+        comment.resolved ? "bg-[var(--color-hover)]" : "bg-[var(--color-surface)]"
       }`}
     >
-      <div className={`p-3 ${comment.replies.length > 0 ? "border-b border-border" : ""}`}>
+      <div className="p-3">
         <div className="flex items-center gap-2 mb-2">
           <div className="w-6 h-6 rounded-full bg-accent text-accent-fg flex items-center justify-center text-xs">
             {comment.author.name[0]}
@@ -181,7 +181,7 @@ export function CommentThread({ comment }: { comment: Comment; onSelect?: () => 
         </div>
       </div>
       {comment.replies.map((reply) => (
-        <div key={reply.id} className="p-2 px-3 bg-muted border-t border-border flex gap-2">
+        <div key={reply.id} className="p-2 px-3 bg-[var(--color-hover)] flex gap-2">
           <div className="w-5 h-5 rounded-full bg-text-secondary text-white flex items-center justify-center text-[10px]">
             {reply.author.name[0]}
           </div>
@@ -197,7 +197,7 @@ export function CommentThread({ comment }: { comment: Comment; onSelect?: () => 
         </div>
       ))}
       {showReply && (
-        <div className="p-2 border-t border-border flex gap-2">
+        <div className="p-2 bg-[var(--color-hover)] flex gap-2">
           <input
             value={replyText}
             onChange={(e) => setReplyText(e.target.value)}
@@ -222,7 +222,7 @@ export function CommentsPanel() {
   const unresolved = comments.filter((c) => !c.resolved);
 
   return (
-    <div className="w-[300px] border-l border-border p-4 h-full overflow-y-auto bg-muted/50">
+    <div className="w-[300px] p-4 h-full overflow-y-auto bg-[var(--color-bg)]">
       <h3 className="m-0 mb-4 text-base font-medium">评论 ({unresolved.length})</h3>
       {comments.length === 0 ? (
         <p className="text-text-tertiary text-sm">暂无评论</p>

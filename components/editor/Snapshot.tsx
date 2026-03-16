@@ -100,8 +100,8 @@ export function SnapshotItem({
   return (
     <button
       type="button"
-      className={`w-full py-3 border-b border-border text-left cursor-pointer border-none bg-transparent ${
-        isActive ? "bg-sky-50" : "bg-surface"
+      className={`w-full py-3 text-left cursor-pointer bg-transparent rounded-lg transition-colors hover:bg-[var(--color-hover)] ${
+        isActive ? "bg-[var(--color-accent-subtle)]" : ""
       }`}
       onClick={onRestore}
     >
@@ -134,7 +134,7 @@ export function SnapshotPanel({ onRestore }: { onRestore: (content: string) => v
     useSnapshots();
 
   return (
-    <div className="w-[280px] border-l border-border p-4 h-full overflow-y-auto bg-muted/50">
+    <div className="w-[280px] p-4 h-full overflow-y-auto bg-[var(--color-bg)]">
       <div className="flex items-center justify-between mb-4">
         <h3 className="m-0 text-base font-medium">版本历史</h3>
         <button

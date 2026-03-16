@@ -107,7 +107,7 @@ export function CourseOutlineCard({ output }: CourseOutlineCardProps) {
                 <div className="mt-2 space-y-1">
                   {chapter.sections.slice(0, 3).map((section, secIdx) => (
                     <div
-                      key={`section-${index}-${secIdx}`}
+                      key={`section-${index}-${section.title}`}
                       className="text-xs text-[var(--color-text-secondary)]"
                     >
                       {index + 1}.{secIdx + 1} {section.title}

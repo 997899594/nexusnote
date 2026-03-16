@@ -16,9 +16,9 @@ import type { LanguageModel } from "ai";
 import { extractReasoningMiddleware, wrapLanguageModel } from "ai";
 
 const MODELS = {
-  chat: "gemini-3-flash-preview",
-  pro: "gemini-3-pro-preview",
-  webSearch: "gemini-3-flash-preview-web-search",
+  chat: "gemini-3.1-flash-lite-preview",
+  pro: "gemini-3.1-pro-preview",
+  webSearch: "gemini-3.1-flash-preview-web-search",
   embedding: "BAAI/bge-base-zh-v1.5",
 } as const;
 

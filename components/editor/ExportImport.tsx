@@ -156,9 +156,7 @@ export function ExportButton({ content, filename }: { content: string; filename?
               type="button"
               key={format}
               onClick={() => handleExport(format)}
-              className={`block w-full px-4 py-2.5 text-left border-none bg-transparent cursor-pointer hover:bg-hover ${
-                format !== "text" ? "border-b border-border-subtle" : ""
-              }`}
+              className="block w-full px-4 py-2.5 text-left border-none bg-transparent cursor-pointer hover:bg-[var(--color-hover)] rounded-lg transition-colors"
             >
               {format.toUpperCase()}
             </button>

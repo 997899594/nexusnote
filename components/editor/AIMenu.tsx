@@ -57,8 +57,8 @@ export function AIMenu({ onAction, selectedText = "" }: AIMenuProps) {
         <span>AI</span>
       </button>
       {isOpen && (
-        <div className="absolute left-0 z-50 min-w-[240px] mt-2 overflow-hidden bg-white border rounded-xl shadow-elevated top-full">
-          <div className="px-3 py-2 text-xs font-medium text-text-secondary bg-muted border-b border-border">
+        <div className="absolute left-0 z-50 min-w-[240px] mt-2 overflow-hidden bg-[var(--color-surface)] rounded-xl shadow-[var(--shadow-elevated)] top-full">
+          <div className="px-3 py-2 text-xs font-medium text-[var(--color-text-secondary)] bg-[var(--color-hover)]">
             选择 AI 操作
           </div>
           {actions.map((action) => (
@@ -66,7 +66,7 @@ export function AIMenu({ onAction, selectedText = "" }: AIMenuProps) {
               type="button"
               key={action.id}
               onClick={() => handleAction(action.id)}
-              className="w-full inline-flex items-center gap-3 px-4 py-3 text-left border-none bg-transparent cursor-pointer hover:bg-hover border-b border-border-subtle last:border-b-0 transition-colors"
+              className="w-full inline-flex items-center gap-3 px-4 py-3 text-left border-none bg-transparent cursor-pointer hover:bg-[var(--color-hover)] transition-colors"
             >
               <span className="text-lg">{action.icon}</span>
               <div>
