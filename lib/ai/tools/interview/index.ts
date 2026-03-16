@@ -99,25 +99,23 @@ export const createInterviewTools = (ctx: ToolContext) => {
 
         // --- Eager placeholder document creation ---
         // Clear old section documents (supports outline re-confirmation during interview)
-        await db.delete(documents).where(
-          and(eq(documents.courseId, courseId), eq(documents.type, "course_section")),
-        );
+        await db
+          .delete(documents)
+          .where(and(eq(documents.courseId, courseId), eq(documents.type, "course_section")));
 
         // Create one placeholder document per section
         for (let chIdx = 0; chIdx < outline.chapters.length; chIdx++) {
           const chapter = outline.chapters[chIdx];
           for (let secIdx = 0; secIdx < chapter.sections.length; secIdx++) {
             const section = chapter.sections[secIdx];
-            await db
-              .insert(documents)
-              .values({
-                type: "course_section",
-                title: section.title,
-                courseId: courseId,
-                outlineNodeId: `section-${chIdx + 1}-${secIdx + 1}`,
-                content: null,
-                plainText: null,
-              });
+            await db.insert(documents).values({
+              type: "course_section",
+              title: section.title,
+              courseId: courseId,
+              outlineNodeId: `section-${chIdx + 1}-${secIdx + 1}`,
+              content: null,
+              plainText: null,
+            });
           }
         }
 

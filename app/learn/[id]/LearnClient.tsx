@@ -121,7 +121,7 @@ export function LearnClient({
   }, [sections, currentChapterIndex, markSectionComplete]);
 
   return (
-    <div className="flex h-screen bg-[var(--color-bg-secondary)]">
+    <div className="flex h-screen bg-[var(--color-bg)]">
       {/* Sidebar - hidden in zen mode */}
       <AnimatePresence mode="wait">
         {!isZenMode && (
@@ -142,7 +142,7 @@ export function LearnClient({
         variants={mainVariants}
         initial="full"
         animate={isZenMode ? "full" : "withSidebar"}
-        className="flex-1 flex flex-col min-w-0 relative bg-white"
+        className="flex-1 flex flex-col min-w-0 relative bg-[var(--color-surface)]"
       >
         {/* Header - hidden in zen mode */}
         <AnimatePresence>
@@ -151,17 +151,17 @@ export function LearnClient({
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-border)] bg-white"
+              className="flex items-center justify-between px-6 py-3 border-b border-[var(--color-border-subtle)] bg-[var(--color-surface)]"
             >
               <div className="flex items-center gap-3">
-                <span className="text-xs font-medium text-[var(--color-accent)] bg-[var(--color-accent-light)] px-2 py-1 rounded-full">
+                <span className="text-[0.6875rem] font-semibold text-[var(--color-accent)] bg-[var(--color-accent-subtle)] px-2.5 py-1 rounded-md">
                   第 {currentChapterIndex + 1} 章
                 </span>
-                <h1 className="font-semibold text-zinc-900 truncate max-w-md">
+                <h1 className="text-sm font-semibold text-[var(--color-text)] truncate max-w-md">
                   {currentChapter.title}
                 </h1>
               </div>
-              <div className="hidden md:flex items-center gap-2 text-sm text-zinc-500">
+              <div className="hidden md:flex items-center gap-2 text-xs text-[var(--color-text-tertiary)]">
                 <span className="truncate max-w-[200px]">{courseTitle}</span>
               </div>
             </motion.header>
@@ -169,7 +169,7 @@ export function LearnClient({
         </AnimatePresence>
 
         {/* Section content (streaming generation + read-only) */}
-        <div className="flex-1 overflow-hidden bg-[var(--color-bg)]">
+        <div className="flex-1 overflow-hidden bg-[var(--color-surface)]">
           <SectionReader
             courseId={sessionId}
             sections={sections}
@@ -184,9 +184,7 @@ export function LearnClient({
 
       {/* AI Chat panel - hidden in zen mode */}
       <AnimatePresence>
-        {!isZenMode && (
-          <LearnChat courseId={sessionId} courseTitle={courseTitle} />
-        )}
+        {!isZenMode && <LearnChat courseId={sessionId} courseTitle={courseTitle} />}
       </AnimatePresence>
     </div>
   );

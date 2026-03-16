@@ -117,7 +117,10 @@ export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps
                 {outline.prerequisites && outline.prerequisites.length > 0 && (
                   <div className="flex flex-wrap gap-1">
                     {outline.prerequisites.map((p, i) => (
-                      <span key={i} className="inline-flex items-center rounded-full px-2 py-0.5 text-xs bg-amber-100 text-amber-700">
+                      <span
+                        key={i}
+                        className="inline-flex items-center rounded-full px-2 py-0.5 text-xs bg-amber-100 text-amber-700"
+                      >
                         {p}
                       </span>
                     ))}
@@ -187,7 +190,11 @@ export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps
                             )}
                             {chapter.practiceType && chapter.practiceType !== "none" && (
                               <span className="rounded-full bg-blue-100 px-2 py-0.5 text-blue-600">
-                                {chapter.practiceType === "exercise" ? "练习" : chapter.practiceType === "project" ? "项目" : "测验"}
+                                {chapter.practiceType === "exercise"
+                                  ? "练习"
+                                  : chapter.practiceType === "project"
+                                    ? "项目"
+                                    : "测验"}
                               </span>
                             )}
                           </div>

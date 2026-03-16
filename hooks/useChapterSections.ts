@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/ui/Toast";
 
 export interface SectionState {
-  content: string;         // raw Markdown
+  content: string; // raw Markdown
   status: "idle" | "generating" | "complete" | "error";
   documentId?: string;
   error?: string;

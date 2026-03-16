@@ -5,8 +5,8 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Highlighter, StickyNote } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { cn } from "@/lib/utils";
 import type { Annotation } from "@/hooks/useAnnotations";
+import { cn } from "@/lib/utils";
 
 interface TextSelectionToolbarProps {
   containerRef: React.RefObject<HTMLDivElement | null>;

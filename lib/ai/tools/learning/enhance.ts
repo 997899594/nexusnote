@@ -137,4 +137,3 @@ ${content.slice(0, 4000)}
 
   return { mindMap, summarize };
 }
-

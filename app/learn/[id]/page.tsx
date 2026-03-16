@@ -89,14 +89,16 @@ export default async function LearnPage({ params, searchParams }: PageProps) {
     title: doc.title,
     content: doc.content ? Buffer.from(doc.content).toString("utf-8") : null,
     outlineNodeId: doc.outlineNodeId,
-    metadata: doc.metadata as { annotations?: Array<{
-      id: string;
-      type: "highlight" | "note";
-      anchor: { textContent: string; startOffset: number; endOffset: number };
-      color?: string;
-      noteContent?: string;
-      createdAt: string;
-    }> } | null,
+    metadata: doc.metadata as {
+      annotations?: Array<{
+        id: string;
+        type: "highlight" | "note";
+        anchor: { textContent: string; startOffset: number; endOffset: number };
+        color?: string;
+        noteContent?: string;
+        createdAt: string;
+      }>;
+    } | null,
   }));
 
   // Calculate initial chapter index

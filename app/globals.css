@@ -298,3 +298,227 @@
   background-color: oklch(72% 0.025 250 / 25%);
   color: oklch(26% 0.02 250);
 }
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Learn Page — Course Content Typography
+ * ──────────────────────────────────────────────────────────────────────────── */
+.learn-prose {
+  color: oklch(22% 0.012 250);
+  font-size: 1rem;
+  line-height: 1.8;
+  letter-spacing: 0.01em;
+}
+
+.learn-prose h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.3;
+  margin-top: 2.5rem;
+  margin-bottom: 1rem;
+  color: oklch(16% 0.014 250);
+  letter-spacing: -0.01em;
+}
+
+.learn-prose h2 {
+  font-size: 1.375rem;
+  font-weight: 650;
+  line-height: 1.35;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  color: oklch(18% 0.013 250);
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid oklch(92% 0.005 250);
+}
+
+.learn-prose h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.4;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: oklch(22% 0.012 250);
+}
+
+.learn-prose h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.5;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+  color: oklch(30% 0.015 250);
+}
+
+.learn-prose p {
+  margin-bottom: 1rem;
+}
+
+.learn-prose strong {
+  font-weight: 600;
+  color: oklch(18% 0.013 250);
+}
+
+.learn-prose a {
+  color: oklch(50% 0.03 250);
+  text-decoration: underline;
+  text-decoration-color: oklch(50% 0.03 250 / 30%);
+  text-underline-offset: 2px;
+  transition: text-decoration-color 0.15s;
+}
+
+.learn-prose a:hover {
+  text-decoration-color: oklch(50% 0.03 250);
+}
+
+/* Lists */
+.learn-prose ul {
+  list-style: none;
+  padding-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.learn-prose ul li {
+  position: relative;
+  margin-bottom: 0.5rem;
+  padding-left: 0.25rem;
+}
+
+.learn-prose ul li::before {
+  content: "";
+  position: absolute;
+  left: -1rem;
+  top: 0.65em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: oklch(50% 0.03 250 / 50%);
+}
+
+.learn-prose ol {
+  list-style: none;
+  padding-left: 1.5rem;
+  margin-bottom: 1rem;
+  counter-reset: item;
+}
+
+.learn-prose ol li {
+  position: relative;
+  margin-bottom: 0.5rem;
+  padding-left: 0.25rem;
+  counter-increment: item;
+}
+
+.learn-prose ol li::before {
+  content: counter(item);
+  position: absolute;
+  left: -1.5rem;
+  top: 0.1em;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: oklch(50% 0.03 250);
+  background: oklch(95% 0.01 250);
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Blockquote */
+.learn-prose blockquote {
+  border-left: 3px solid oklch(50% 0.03 250 / 40%);
+  background: oklch(98% 0.003 250);
+  padding: 0.875rem 1.25rem;
+  margin: 1.25rem 0;
+  border-radius: 0 0.5rem 0.5rem 0;
+  color: oklch(35% 0.015 250);
+  font-style: italic;
+}
+
+.learn-prose blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+/* Code inline */
+.learn-prose code:not(pre code) {
+  background: oklch(95% 0.008 250);
+  padding: 0.15em 0.4em;
+  border-radius: 0.3rem;
+  font-size: 0.875em;
+  font-weight: 500;
+  color: oklch(40% 0.03 250);
+  border: 1px solid oklch(90% 0.008 250);
+}
+
+/* Code block */
+.learn-prose pre {
+  background: oklch(18% 0.012 250);
+  border-radius: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  margin: 1.25rem 0;
+  overflow-x: auto;
+  border: 1px solid oklch(26% 0.015 250);
+}
+
+.learn-prose pre code {
+  font-size: 0.85rem;
+  line-height: 1.7;
+  color: oklch(88% 0.005 250);
+}
+
+/* Table */
+.learn-prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.25rem 0;
+  font-size: 0.9rem;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  border: 1px solid oklch(92% 0.005 250);
+}
+
+.learn-prose thead th {
+  background: oklch(96% 0.004 250);
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: oklch(40% 0.015 250);
+  border-bottom: 2px solid oklch(90% 0.006 250);
+}
+
+.learn-prose tbody td {
+  padding: 0.625rem 1rem;
+  border-bottom: 1px solid oklch(95% 0.003 250);
+}
+
+.learn-prose tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.learn-prose tbody tr:hover {
+  background: oklch(98.5% 0.002 250);
+}
+
+/* Horizontal rule */
+.learn-prose hr {
+  border: none;
+  height: 1px;
+  background: linear-gradient(to right, transparent, oklch(85% 0.006 250), transparent);
+  margin: 2rem 0;
+}
+
+/* Image */
+.learn-prose img {
+  border-radius: 0.75rem;
+  margin: 1.5rem auto;
+  max-width: 100%;
+  box-shadow: 0 2px 12px oklch(0% 0 0 / 8%);
+}
+
+/* First element no top margin */
+.learn-prose > :first-child {
+  margin-top: 0;
+}

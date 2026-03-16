@@ -3,7 +3,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { AlertCircle, Loader2, RefreshCw, Sparkles } from "lucide-react";
+import { AlertCircle, BookOpen, Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { StreamdownMessage } from "@/components/chat/StreamdownMessage";
 import type { Annotation } from "@/hooks/useAnnotations";
@@ -108,55 +108,105 @@ function SectionBlock({
 
   return (
     <div id={anchorId} className="relative">
-      {/* Section divider (not for first section) */}
+      {/* Section divider */}
       {sectionIndex > 0 && (
-        <hr className="border-t border-zinc-100 my-8" />
+        <div className="flex items-center gap-4 my-10">
+          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-[var(--color-border)] to-transparent" />
+          <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-text-tertiary)]" />
+          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-[var(--color-border)] to-transparent" />
+        </div>
       )}
 
       {/* Section content */}
       <div ref={containerRef} className="relative">
         {state.status === "idle" && (
-          <div className="flex flex-col items-center py-12 text-zinc-400">
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col items-center py-16"
+          >
+            <div className="w-14 h-14 rounded-2xl bg-[var(--color-accent-subtle)] flex items-center justify-center mb-4">
+              <BookOpen className="w-6 h-6 text-[var(--color-accent)]" />
+            </div>
+            <p className="text-sm text-[var(--color-text-secondary)] mb-4">{sectionTitle}</p>
             <button
               type="button"
               onClick={() => generateSection(sectionIndex)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-sm text-zinc-600 transition-colors"
+              className={cn(
+                "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
+                "bg-[var(--color-accent)] text-white",
+                "hover:bg-[var(--color-accent-hover)] hover:shadow-md",
+                "active:scale-[0.98]",
+              )}
             >
               <Sparkles className="w-4 h-4" />
-              生成「{sectionTitle}」
+              生成内容
             </button>
-          </div>
+          </motion.div>
         )}
 
         {state.status === "generating" && state.content.length === 0 && (
-          <div className="flex items-center gap-2 py-8 text-zinc-400">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            <span className="text-sm">正在生成「{sectionTitle}」...</span>
-          </div>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex flex-col items-center py-16 gap-3"
+          >
+            <div className="relative">
+              <div className="w-10 h-10 rounded-xl bg-[var(--color-accent-subtle)] flex items-center justify-center">
+                <Loader2 className="w-5 h-5 text-[var(--color-accent)] animate-spin" />
+              </div>
+            </div>
+            <p className="text-sm text-[var(--color-text-secondary)]">
+              正在生成「{sectionTitle}」...
+            </p>
+            <div className="flex gap-1 mt-1">
+              {[0, 1, 2].map((i) => (
+                <motion.div
+                  key={i}
+                  className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)]"
+                  animate={{ opacity: [0.3, 1, 0.3] }}
+                  transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
+                />
+              ))}
+            </div>
+          </motion.div>
         )}
 
         {(state.status === "generating" || state.status === "complete") && state.content && (
-          <StreamdownMessage
-            content={state.content}
-            isStreaming={state.status === "generating"}
-          />
+          <div className="learn-prose">
+            <StreamdownMessage
+              content={state.content}
+              isStreaming={state.status === "generating"}
+            />
+          </div>
         )}
 
         {state.status === "error" && (
-          <div className="flex items-center gap-3 py-6 px-4 bg-red-50 rounded-lg">
-            <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
-            <div className="flex-1">
-              <p className="text-sm text-red-700">{state.error ?? "生成失败"}</p>
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-4 py-5 px-5 bg-red-50 rounded-xl border border-red-100"
+          >
+            <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
+              <AlertCircle className="w-5 h-5 text-red-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-red-700">生成失败</p>
+              <p className="text-xs text-red-500 mt-0.5">{state.error ?? "请稍后重试"}</p>
             </div>
             <button
               type="button"
               onClick={() => generateSection(sectionIndex)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-white border border-red-200 rounded-lg text-red-600 hover:bg-red-50"
+              className={cn(
+                "flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg transition-all",
+                "bg-white border border-red-200 text-red-600",
+                "hover:bg-red-50 hover:border-red-300",
+              )}
             >
               <RefreshCw className="w-3.5 h-3.5" />
               重试
             </button>
-          </div>
+          </motion.div>
         )}
 
         {/* Annotation layer — only for completed sections */}
@@ -230,9 +280,7 @@ export function SectionReader({
     // Observe all section anchors
     const sectionCount = currentChapter.sections.length;
     for (let i = 0; i < sectionCount; i++) {
-      const el = document.getElementById(
-        `section-${currentChapterIndex + 1}-${i + 1}`,
-      );
+      const el = document.getElementById(`section-${currentChapterIndex + 1}-${i + 1}`);
       if (el) observer.observe(el);
     }
 
@@ -240,12 +288,13 @@ export function SectionReader({
   }, [currentChapterIndex, currentChapter, setCurrentSectionIndex]);
 
   // Scroll to section triggered from sidebar
-  const scrollToSection = useCallback((sectionIndex: number) => {
-    const el = document.getElementById(
-      `section-${currentChapterIndex + 1}-${sectionIndex + 1}`,
-    );
-    el?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [currentChapterIndex]);
+  const scrollToSection = useCallback(
+    (sectionIndex: number) => {
+      const el = document.getElementById(`section-${currentChapterIndex + 1}-${sectionIndex + 1}`);
+      el?.scrollIntoView({ behavior: "smooth", block: "start" });
+    },
+    [currentChapterIndex],
+  );
 
   if (!currentChapter) {
     return (
@@ -256,45 +305,55 @@ export function SectionReader({
   }
 
   return (
-    <div
-      ref={scrollContainerRef}
-      className={cn(
-        "h-full overflow-y-auto",
-        isZenMode ? "max-w-3xl mx-auto px-8 py-12" : "p-6 md:p-8 lg:p-10",
-      )}
-    >
-      {/* Chapter header */}
-      {!isZenMode && (
-        <div className="mb-6 pb-4 border-b border-[var(--color-border)]">
-          <div className="flex items-center gap-2 text-xs text-[var(--color-accent)] mb-2">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>第 {currentChapterIndex + 1} 章</span>
+    <div ref={scrollContainerRef} className="h-full overflow-y-auto">
+      <div
+        className={cn(
+          "max-w-3xl mx-auto",
+          isZenMode ? "px-6 md:px-8 py-12" : "px-6 md:px-10 lg:px-12 py-8 md:py-10",
+        )}
+      >
+        {/* Chapter header */}
+        {!isZenMode && (
+          <div className="mb-10">
+            <div className="flex items-center gap-2.5 mb-3">
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--color-accent)] bg-[var(--color-accent-subtle)] px-2.5 py-1 rounded-full">
+                <Sparkles className="w-3 h-3" />第 {currentChapterIndex + 1} 章
+              </span>
+            </div>
+            <h2 className="text-2xl md:text-[1.75rem] font-bold text-[var(--color-text)] leading-tight tracking-tight">
+              {currentChapter.title}
+            </h2>
+            {currentChapter.description && (
+              <p className="mt-2.5 text-base text-[var(--color-text-secondary)] leading-relaxed">
+                {currentChapter.description}
+              </p>
+            )}
+            <div className="mt-6 h-px bg-gradient-to-r from-[var(--color-border)] via-[var(--color-border)] to-transparent" />
           </div>
-          <h2 className="text-xl font-semibold text-zinc-900">{currentChapter.title}</h2>
-          {currentChapter.description && (
-            <p className="mt-1 text-sm text-zinc-500">{currentChapter.description}</p>
-          )}
-        </div>
-      )}
+        )}
 
-      {/* Sections */}
-      {currentChapter.sections.map((sec, secIdx) => {
-        const state = sections.get(secIdx) ?? { content: "", status: "idle" as const };
-        const nodeId = sec.nodeId;
-        const sectionDoc = sectionDocs.find((d) => d.outlineNodeId === nodeId);
+        {/* Sections */}
+        {currentChapter.sections.map((sec, secIdx) => {
+          const state = sections.get(secIdx) ?? { content: "", status: "idle" as const };
+          const nodeId = sec.nodeId;
+          const sectionDoc = sectionDocs.find((d) => d.outlineNodeId === nodeId);
 
-        return (
-          <SectionBlock
-            key={nodeId}
-            sectionIndex={secIdx}
-            chapterIndex={currentChapterIndex}
-            sectionTitle={sec.title}
-            state={state}
-            sectionDoc={sectionDoc}
-            generateSection={generateSection}
-          />
-        );
-      })}
+          return (
+            <SectionBlock
+              key={nodeId}
+              sectionIndex={secIdx}
+              chapterIndex={currentChapterIndex}
+              sectionTitle={sec.title}
+              state={state}
+              sectionDoc={sectionDoc}
+              generateSection={generateSection}
+            />
+          );
+        })}
+
+        {/* Bottom spacing */}
+        <div className="h-20" />
+      </div>
     </div>
   );
 }

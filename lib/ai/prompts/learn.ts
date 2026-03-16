@@ -14,7 +14,7 @@ export function buildSectionPrompt(params: {
   sectionIndex: number;
   sectionTitle: string;
   sectionDescription: string;
-  siblingTitles: string[];    // other section titles in the same chapter
+  siblingTitles: string[]; // other section titles in the same chapter
   totalChapters: number;
 }): string {
   const {

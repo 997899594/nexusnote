@@ -9,7 +9,7 @@ import { create } from "zustand";
 export interface SectionOutline {
   title: string;
   description: string;
-  nodeId: string;       // e.g., "section-1-1"
+  nodeId: string; // e.g., "section-1-1"
 }
 
 export interface ChapterOutline {
@@ -66,8 +66,7 @@ const initialState = {
 export const useLearnStore = create<LearnState>((set) => ({
   ...initialState,
 
-  setCurrentChapterIndex: (index) =>
-    set({ currentChapterIndex: index, currentSectionIndex: 0 }),
+  setCurrentChapterIndex: (index) => set({ currentChapterIndex: index, currentSectionIndex: 0 }),
 
   setCurrentSectionIndex: (index) => set({ currentSectionIndex: index }),
 

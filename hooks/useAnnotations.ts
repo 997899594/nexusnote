@@ -7,7 +7,7 @@ export interface Annotation {
   id: string;
   type: "highlight" | "note";
   anchor: {
-    textContent: string;     // ~50 chars surrounding the selection
+    textContent: string; // ~50 chars surrounding the selection
     startOffset: number;
     endOffset: number;
   };

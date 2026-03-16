@@ -116,9 +116,7 @@ export function LearnChat({ courseId, courseTitle }: LearnChatProps) {
           </div>
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-zinc-900 truncate">AI 学习助手</h3>
-            <p className="text-xs text-zinc-500 truncate">
-              {currentChapter?.title ?? courseTitle}
-            </p>
+            <p className="text-xs text-zinc-500 truncate">{currentChapter?.title ?? courseTitle}</p>
           </div>
         </div>
         <button
@@ -140,11 +138,7 @@ export function LearnChat({ courseId, courseTitle }: LearnChatProps) {
         )}
 
         {chatMessages.map((msg) => (
-          <ChatMessage
-            key={msg.id}
-            message={msg}
-            onSendReply={(text) => sendMessage({ text })}
-          />
+          <ChatMessage key={msg.id} message={msg} onSendReply={(text) => sendMessage({ text })} />
         ))}
 
         {isAILoading && <LoadingDots />}
