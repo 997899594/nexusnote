@@ -44,12 +44,13 @@ export default async function LearnPage({ params, searchParams }: PageProps) {
     notFound();
   }
 
-  // Fetch course session
+  // Fetch course session (include progress for persisted completedSections)
   const [courseSession] = await db
     .select({
       id: courseSessions.id,
       title: courseSessions.title,
       outlineData: courseSessions.outlineData,
+      progress: courseSessions.progress,
     })
     .from(courseSessions)
     .where(eq(courseSessions.id, sessionId))
@@ -105,10 +106,9 @@ export default async function LearnPage({ params, searchParams }: PageProps) {
   const chapterNum = chapter ? parseInt(chapter, 10) : 1;
   const initialChapterIndex = Number.isNaN(chapterNum) ? 0 : Math.max(0, chapterNum - 1);
 
-  // Compute initial completed sections (sections with non-null content)
-  const initialCompletedSections = sectionDocs
-    .filter((d) => d.content !== null && d.outlineNodeId !== null)
-    .map((d) => d.outlineNodeId!);
+  // Use persisted learning progress, not content existence
+  const courseProgress = courseSession.progress as { completedSections?: string[] } | null;
+  const initialCompletedSections = courseProgress?.completedSections ?? [];
 
   return (
     <LearnClient

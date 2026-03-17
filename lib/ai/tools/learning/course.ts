@@ -77,9 +77,10 @@ export function createCourseTools(userId: string) {
               progress: {
                 currentChapter: args.chapters,
                 completedChapters: [],
+                completedSections: [],
                 totalChapters: args.chapters,
                 startedAt: new Date().toISOString(),
-                completedAt: new Date().toISOString(),
+                completedAt: "",
               },
             })
             .where(eq(courseSessions.id, profile.id));

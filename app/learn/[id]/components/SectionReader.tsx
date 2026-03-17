@@ -2,8 +2,8 @@
 
 "use client";
 
-import { motion } from "framer-motion";
-import { AlertCircle, BookOpen, Loader2, RefreshCw, Sparkles } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { AlertCircle, BookOpen, CheckCircle2, Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { StreamdownMessage } from "@/components/chat/StreamdownMessage";
 import type { Annotation } from "@/hooks/useAnnotations";
@@ -80,6 +80,7 @@ function SectionBlock({
   sectionTitle,
   state,
   sectionDoc,
+  courseId,
   generateSection,
 }: {
   sectionIndex: number;
@@ -87,10 +88,15 @@ function SectionBlock({
   sectionTitle: string;
   state: SectionState;
   sectionDoc: SectionDoc | undefined;
+  courseId: string;
   generateSection: (index: number) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
   const [pendingNoteAnchor, setPendingNoteAnchor] = useState<Annotation["anchor"] | null>(null);
+  const [justCompleted, setJustCompleted] = useState(false);
+  const markSectionComplete = useLearnStore((s) => s.markSectionComplete);
+  const completedSections = useLearnStore((s) => s.completedSections);
 
   const { annotations, addHighlight, addNote, removeAnnotation, updateNote } = useAnnotations({
     documentId: sectionDoc?.id,
@@ -98,12 +104,53 @@ function SectionBlock({
   });
 
   const isComplete = state.status === "complete";
+  const anchorId = `section-${chapterIndex + 1}-${sectionIndex + 1}`;
+  const isAlreadyRead = completedSections.has(anchorId);
+
+  // Scroll-based completion detection: sentinel at section bottom
+  useEffect(() => {
+    if (!isComplete || isAlreadyRead || !sentinelRef.current) return;
+
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            // Debounce: must stay visible for 800ms
+            debounceTimer = setTimeout(() => {
+              markSectionComplete(anchorId);
+              setJustCompleted(true);
+              setTimeout(() => setJustCompleted(false), 2000);
+
+              // Persist to server
+              fetch("/api/learn/progress", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ courseId, sectionNodeId: anchorId }),
+              }).catch((err) => {
+                console.error("[SectionReader] Failed to persist progress:", err);
+              });
+            }, 800);
+          } else if (debounceTimer) {
+            clearTimeout(debounceTimer);
+            debounceTimer = null;
+          }
+        }
+      },
+      { threshold: 0.8 },
+    );
+
+    observer.observe(sentinelRef.current);
+    return () => {
+      observer.disconnect();
+      if (debounceTimer) clearTimeout(debounceTimer);
+    };
+  }, [isComplete, isAlreadyRead, anchorId, courseId, markSectionComplete]);
 
   const handleNote = useCallback((anchor: Annotation["anchor"]) => {
     setPendingNoteAnchor(anchor);
   }, []);
-
-  const anchorId = `section-${chapterIndex + 1}-${sectionIndex + 1}`;
 
   return (
     <div id={anchorId} className="relative">
@@ -218,7 +265,27 @@ function SectionBlock({
             />
           </>
         )}
+
+        {/* Scroll sentinel for read-completion detection */}
+        {isComplete && !isAlreadyRead && (
+          <div ref={sentinelRef} className="h-4" aria-hidden="true" />
+        )}
       </div>
+
+      {/* Read-completion feedback animation */}
+      <AnimatePresence>
+        {justCompleted && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            className="flex items-center justify-center gap-1.5 py-2 text-xs font-medium text-emerald-600"
+          >
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span>已学完</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Note input dialog */}
       {pendingNoteAnchor && (
@@ -235,7 +302,7 @@ function SectionBlock({
 }
 
 export function SectionReader({
-  courseId: _courseId,
+  courseId,
   sections,
   generateSection,
   sectionDocs,
@@ -330,6 +397,7 @@ export function SectionReader({
               sectionTitle={sec.title}
               state={state}
               sectionDoc={sectionDoc}
+              courseId={courseId}
               generateSection={generateSection}
             />
           );

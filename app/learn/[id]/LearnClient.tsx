@@ -122,16 +122,6 @@ export function LearnClient({
     initialContent,
   });
 
-  // Mark sections complete as they finish generating
-  useEffect(() => {
-    for (const [secIdx, state] of sections) {
-      if (state.status === "complete") {
-        const nodeId = `section-${currentChapterIndex + 1}-${secIdx + 1}`;
-        markSectionComplete(nodeId);
-      }
-    }
-  }, [sections, currentChapterIndex, markSectionComplete]);
-
   // Close overlays on ESC (mobile)
   const closeOverlays = useCallback(() => {
     setSidebarOpen(false);

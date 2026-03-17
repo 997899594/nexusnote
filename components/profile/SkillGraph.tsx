@@ -24,6 +24,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import "@xyflow/react/dist/style.css";
 import * as LucideIcons from "lucide-react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 // ============================================
@@ -68,6 +69,78 @@ interface MasteryNodeProps {
   selected?: boolean;
 }
 
+/** Level-based style: border width, opacity, glow, and label color */
+function getLevelStyle(level: number, borderColor: string) {
+  const clamped = Math.max(1, Math.min(5, level));
+  const styles: Record<
+    number,
+    { borderWidth: number; borderOpacity: number; glow: string; labelColor: string }
+  > = {
+    1: { borderWidth: 2, borderOpacity: 0.6, glow: "none", labelColor: "var(--skill-level-1)" },
+    2: { borderWidth: 2, borderOpacity: 0.8, glow: "none", labelColor: "var(--skill-level-2)" },
+    3: {
+      borderWidth: 3,
+      borderOpacity: 1,
+      glow: `0 0 8px color-mix(in oklch, ${borderColor} 30%, transparent)`,
+      labelColor: "var(--skill-level-3)",
+    },
+    4: {
+      borderWidth: 3,
+      borderOpacity: 1,
+      glow: `0 0 14px color-mix(in oklch, ${borderColor} 40%, transparent)`,
+      labelColor: "var(--skill-level-4)",
+    },
+    5: {
+      borderWidth: 4,
+      borderOpacity: 1,
+      glow: "none", // Handled by CSS animation class
+      labelColor: "var(--skill-level-5)",
+    },
+  };
+  return styles[clamped];
+}
+
+function getCategoryColors(category: string) {
+  switch (category) {
+    case "frontend":
+      return {
+        bg: "var(--skill-frontend-bg)",
+        border: "var(--skill-frontend-border)",
+        text: "var(--skill-frontend-text)",
+      };
+    case "backend":
+      return {
+        bg: "var(--skill-backend-bg)",
+        border: "var(--skill-backend-border)",
+        text: "var(--skill-backend-text)",
+      };
+    case "ml":
+      return {
+        bg: "var(--skill-ml-bg)",
+        border: "var(--skill-ml-border)",
+        text: "var(--skill-ml-text)",
+      };
+    case "design":
+      return {
+        bg: "var(--skill-design-bg)",
+        border: "var(--skill-design-border)",
+        text: "var(--skill-design-text)",
+      };
+    case "softskill":
+      return {
+        bg: "var(--skill-softskill-bg)",
+        border: "var(--skill-softskill-border)",
+        text: "var(--skill-softskill-text)",
+      };
+    default:
+      return {
+        bg: "var(--skill-default-bg)",
+        border: "var(--skill-default-border)",
+        text: "var(--skill-default-text)",
+      };
+  }
+}
+
 function MasteryNode({ data, selected }: MasteryNodeProps) {
   const IconComponent = useMemo(() => {
     if (data.icon && data.icon in LucideIcons) {
@@ -79,79 +152,47 @@ function MasteryNode({ data, selected }: MasteryNodeProps) {
     return LucideIcons.Lightbulb;
   }, [data.icon]);
 
-  const getColors = () => {
-    switch (data.category) {
-      case "frontend":
-        return {
-          bg: "var(--skill-frontend-bg)",
-          border: "var(--skill-frontend-border)",
-          text: "var(--skill-frontend-text)",
-        };
-      case "backend":
-        return {
-          bg: "var(--skill-backend-bg)",
-          border: "var(--skill-backend-border)",
-          text: "var(--skill-backend-text)",
-        };
-      case "ml":
-        return {
-          bg: "var(--skill-ml-bg)",
-          border: "var(--skill-ml-border)",
-          text: "var(--skill-ml-text)",
-        };
-      case "design":
-        return {
-          bg: "var(--skill-design-bg)",
-          border: "var(--skill-design-border)",
-          text: "var(--skill-design-text)",
-        };
-      case "softskill":
-        return {
-          bg: "var(--skill-softskill-bg)",
-          border: "var(--skill-softskill-border)",
-          text: "var(--skill-softskill-text)",
-        };
-      default:
-        return {
-          bg: "var(--skill-default-bg)",
-          border: "var(--skill-default-border)",
-          text: "var(--skill-default-text)",
-        };
-    }
-  };
-
-  const colors = getColors();
+  const colors = getCategoryColors(data.category);
+  const levelStyle = getLevelStyle(data.level, colors.border);
 
   return (
     <div
       className={cn(
-        "px-4 py-3 rounded-xl border-2 shadow-sm transition-all min-w-[140px]",
+        "px-4 py-3 rounded-xl shadow-sm transition-all min-w-[140px]",
         selected && "ring-2 ring-offset-2 ring-[var(--color-accent)]",
+        data.level >= 5 && "skill-pulse-glow",
       )}
       style={{
         backgroundColor: colors.bg,
+        borderStyle: "solid",
+        borderWidth: `${levelStyle.borderWidth}px`,
         borderColor: colors.border,
+        opacity: levelStyle.borderOpacity,
         color: colors.text,
+        boxShadow: levelStyle.glow !== "none" ? levelStyle.glow : undefined,
       }}
     >
       <div className="flex items-center gap-2 mb-1">
         <IconComponent className="w-4 h-4 flex-shrink-0" style={{ color: colors.text }} />
         <span className="font-semibold text-sm truncate">{data.name}</span>
       </div>
-      <div className="flex items-center justify-between text-xs opacity-75">
-        <span>Lv.{data.level}</span>
+      <div className="flex items-center justify-between text-xs">
+        <span className="font-semibold" style={{ color: levelStyle.labelColor }}>
+          Lv.{data.level}
+        </span>
         {data.description && (
-          <span className="truncate max-w-[80px]" title={data.description}>
+          <span className="truncate max-w-[80px] opacity-75" title={data.description}>
             {data.description}
           </span>
         )}
       </div>
       <div className="mt-2 h-1.5 bg-black/10 rounded-full overflow-hidden">
         <div
-          className="h-full opacity-70 transition-all"
+          className="h-full transition-all"
           style={{
             width: `${(data.level / 5) * 100}%`,
             backgroundColor: colors.text,
+            opacity: 0.5 + data.level * 0.1,
           }}
         />
       </div>
@@ -165,6 +206,7 @@ interface SuggestedNodeProps {
 }
 
 function SuggestedNode({ data, selected }: SuggestedNodeProps) {
+  const router = useRouter();
   const IconComponent = useMemo(() => {
     if (data.icon && data.icon in LucideIcons) {
       // biome-ignore lint/performance/noDynamicNamespaceImportAccess: dynamic icon lookup by name
@@ -176,9 +218,13 @@ function SuggestedNode({ data, selected }: SuggestedNodeProps) {
   }, [data.icon]);
 
   return (
-    <div
+    <button
+      type="button"
+      onClick={() => router.push(`/?topic=${encodeURIComponent(data.name)}`)}
       className={cn(
-        "px-3 py-2 rounded-lg border border-dashed shadow-sm transition-all min-w-[120px] bg-white/70 border-zinc-300",
+        "px-3 py-2.5 rounded-lg border border-dashed shadow-sm transition-all min-w-[120px] text-left",
+        "bg-white/70 border-zinc-300 hover:bg-white hover:border-[var(--color-accent)] hover:shadow-md",
+        "cursor-pointer",
         selected && "ring-2 ring-offset-2 ring-[var(--color-accent)]",
       )}
     >
@@ -186,8 +232,10 @@ function SuggestedNode({ data, selected }: SuggestedNodeProps) {
         <IconComponent className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />
         <span className="font-medium text-xs text-zinc-600 truncate">{data.name}</span>
       </div>
-      <div className="text-[10px] text-zinc-400 mt-0.5">推荐学习</div>
-    </div>
+      <div className="text-[10px] text-[var(--color-accent)] mt-0.5 font-medium">
+        {data.description ? `下一步: ${data.description}` : "推荐学习"}
+      </div>
+    </button>
   );
 }
 
@@ -375,22 +423,15 @@ export function SkillGraph({ userId: _userId, className, onDiscover }: SkillGrap
           <Controls className="!bg-white !border-zinc-200 [&>button]:!bg-zinc-50 [&>button]:!border-zinc-200 [&>button]:hover:!bg-zinc-100 [&>button]:text-zinc-600" />
           <MiniMap
             nodeColor={(node) => {
-              if (node.type === "suggestedNode") return "var(--skill-default-bg)";
+              if (node.type === "suggestedNode") return "var(--skill-default-border)";
               const data = node.data;
-              switch (data.category as string) {
-                case "frontend":
-                  return "var(--skill-frontend-bg)";
-                case "backend":
-                  return "var(--skill-backend-bg)";
-                case "ml":
-                  return "var(--skill-ml-bg)";
-                case "design":
-                  return "var(--skill-design-bg)";
-                case "softskill":
-                  return "var(--skill-softskill-bg)";
-                default:
-                  return "var(--skill-default-bg)";
-              }
+              // Use border color (more saturated) and level affects which color we pick
+              const level = (data.level as number) || 1;
+              // Higher level → use text color (darkest), lower → use bg color (lightest)
+              const variant = level >= 4 ? "text" : level >= 2 ? "border" : "bg";
+              const category = data.category as string;
+              const key = `--skill-${["frontend", "backend", "ml", "design", "softskill"].includes(category) ? category : "default"}-${variant}`;
+              return `var(${key})`;
             }}
             className="!bg-white !border-zinc-200"
           />
@@ -398,6 +439,7 @@ export function SkillGraph({ userId: _userId, className, onDiscover }: SkillGrap
       </div>
 
       <div className="px-6 py-3 bg-[var(--color-hover)]">
+        {/* Category legend */}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-zinc-600">
           <div className="flex items-center gap-1.5">
             <div
@@ -460,9 +502,33 @@ export function SkillGraph({ userId: _userId, className, onDiscover }: SkillGrap
             <span>软技能</span>
           </div>
           <div className="ml-auto flex items-center gap-1.5 text-zinc-400">
-            <div className="w-8 h-0.5 bg-zinc-300" />
-            <span>虚线为推荐技能</span>
+            <div className="w-8 h-[1px] border-t border-dashed border-zinc-300" />
+            <span>推荐方向</span>
           </div>
+        </div>
+        {/* Level legend */}
+        <div className="flex items-center gap-3 mt-2 text-[10px] text-zinc-400">
+          <span>等级:</span>
+          {[1, 2, 3, 4, 5].map((lv) => (
+            <div key={lv} className="flex items-center gap-1">
+              <div
+                className={cn("w-3 h-3 rounded", lv === 5 && "skill-pulse-glow")}
+                style={{
+                  borderStyle: "solid",
+                  borderWidth: `${lv >= 3 ? (lv >= 5 ? 2 : 1.5) : 1}px`,
+                  borderColor: "var(--skill-default-border)",
+                  backgroundColor: "var(--skill-default-bg)",
+                  boxShadow:
+                    lv === 3
+                      ? "0 0 4px oklch(0.7 0.1 250 / 0.3)"
+                      : lv === 4
+                        ? "0 0 6px oklch(0.65 0.15 250 / 0.4)"
+                        : "none",
+                }}
+              />
+              <span style={{ color: `var(--skill-level-${lv})` }}>Lv.{lv}</span>
+            </div>
+          ))}
         </div>
       </div>
     </div>

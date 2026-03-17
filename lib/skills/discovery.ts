@@ -9,12 +9,13 @@
  */
 
 import { generateObject } from "ai";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import {
   conversations,
   courseSessions,
+  documents,
   knowledgeChunks,
   skills,
   userSkillMastery,
@@ -128,30 +129,60 @@ async function collectUserData(
     }
   }
 
-  // 3. Course Sessions - AI 生成的课程
+  // 3. Course Sessions - Only content from completed (read) sections
   if (sources.includes("courses")) {
     const userCourseSessions = await db
       .select({
         id: courseSessions.id,
         title: courseSessions.title,
         description: courseSessions.description,
-        outlineData: courseSessions.outlineData,
+        progress: courseSessions.progress,
       })
       .from(courseSessions)
       .where(eq(courseSessions.userId, userId))
       .orderBy(desc(courseSessions.updatedAt))
       .limit(Math.floor(limit / 2));
 
-    const coursesContent = userCourseSessions
-      .map((c) => {
-        // 将 outlineData 转换为字符串
-        const outlineStr = c.outlineData ? JSON.stringify(c.outlineData) : "";
-        return {
-          id: c.id,
-          content: `[课程: ${c.title || "未命名"}]\n${c.description || ""}\n${outlineStr}`,
-        };
-      })
-      .filter((c) => c.content.length > 50);
+    // Collect all completed section nodeIds across all courses
+    const completedNodeIds: { courseId: string; nodeIds: string[] }[] = [];
+    for (const c of userCourseSessions) {
+      const progress = c.progress as { completedSections?: string[] } | null;
+      const nodeIds = progress?.completedSections ?? [];
+      if (nodeIds.length > 0) {
+        completedNodeIds.push({ courseId: c.id, nodeIds });
+      }
+    }
+
+    // Load only documents for completed sections
+    const coursesContent: { id: string; content: string }[] = [];
+    for (const { courseId, nodeIds } of completedNodeIds) {
+      const session = userCourseSessions.find((c) => c.id === courseId);
+      const sectionDocs = await db
+        .select({
+          id: documents.id,
+          plainText: documents.plainText,
+          outlineNodeId: documents.outlineNodeId,
+        })
+        .from(documents)
+        .where(
+          and(
+            eq(documents.courseId, courseId),
+            eq(documents.type, "course_section"),
+            inArray(documents.outlineNodeId, nodeIds),
+          ),
+        );
+
+      const texts = sectionDocs
+        .filter((d) => d.plainText && d.plainText.length > 20)
+        .map((d) => d.plainText!);
+
+      if (texts.length > 0) {
+        coursesContent.push({
+          id: courseId,
+          content: `[课程: ${session?.title || "未命名"}]\n${session?.description || ""}\n${texts.join("\n")}`,
+        });
+      }
+    }
 
     if (coursesContent.length > 0) {
       sourcesData.push({ type: "courses", items: coursesContent });

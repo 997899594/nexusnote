@@ -74,9 +74,10 @@ export async function POST(request: NextRequest) {
         progress: {
           currentChapter: chapterCount,
           completedChapters: [],
+          completedSections: [],
           totalChapters: chapterCount,
           startedAt: new Date().toISOString(),
-          completedAt: new Date().toISOString(),
+          completedAt: "",
         },
       })
       .where(eq(courseSessions.id, profile.id));

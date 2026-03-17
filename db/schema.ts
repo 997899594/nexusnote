@@ -368,6 +368,7 @@ export const courseSessions = pgTable(
     progress: jsonb("progress").$type<{
       currentChapter: number;
       completedChapters: number[];
+      completedSections: string[];
       totalChapters: number;
       startedAt: string;
       completedAt: string;

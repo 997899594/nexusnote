@@ -115,7 +115,7 @@ export function LearnSidebar({ courseTitle, width }: LearnSidebarProps) {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 mb-1">
                 <Trophy className="w-3.5 h-3.5 text-[var(--color-accent)]" />
-                <span className="text-xs font-semibold text-[var(--color-text)]">学习进度</span>
+                <span className="text-xs font-semibold text-[var(--color-text)]">已学进度</span>
               </div>
               <p className="text-xs text-[var(--color-text-secondary)]">
                 已完成 {completedCount} / {totalSections} 节
