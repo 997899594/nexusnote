@@ -17,7 +17,7 @@ import {
   StickyNote,
 } from "lucide-react";
 import { RecentCard } from "@/components/home";
-import { conversations, courseSessions, db, documents } from "@/db";
+import { conversations, courseSessions, db, documents, workspaces } from "@/db";
 import { auth } from "@/lib/auth";
 
 const ICONS = {
@@ -36,6 +36,7 @@ type RecentItem = {
   desc: string;
   time: string;
   url: string;
+  sortAt: number;
 };
 
 function formatTime(date: Date | null): string {
@@ -65,6 +66,7 @@ async function getRecentItems(userId: string, limit = 6): Promise<RecentItem[]> 
       description: courseSessions.description,
       updatedAt: courseSessions.updatedAt,
       status: courseSessions.status,
+      interviewStatus: courseSessions.interviewStatus,
       progress: courseSessions.progress,
     })
     .from(courseSessions)
@@ -74,20 +76,25 @@ async function getRecentItems(userId: string, limit = 6): Promise<RecentItem[]> 
 
   for (const course of recentCourses) {
     const progressData = (course.progress as { currentChapter?: number }) || {};
+    const isInterviewing = course.interviewStatus !== "completed";
     const isCompleted = course.status === "completed";
     const currentChapter = progressData.currentChapter || 0;
-    const progress = isCompleted
-      ? "已完成"
-      : currentChapter > 0
-        ? `第${currentChapter + 1}章`
-        : "未开始";
+    const progress = isInterviewing
+      ? "规划中"
+      : isCompleted
+        ? "已完成"
+        : currentChapter > 0
+          ? `第${currentChapter + 1}章`
+          : "未开始";
+    const url = isInterviewing ? `/interview?courseId=${course.id}` : `/learn/${course.id}`;
     items.push({
       id: course.id,
       type: "course",
       title: course.title || "未命名课程",
       desc: course.description?.slice(0, 30) || progress,
       time: formatTime(course.updatedAt),
-      url: `/learn/${course.id}`,
+      url,
+      sortAt: course.updatedAt?.getTime() ?? 0,
     });
   }
 
@@ -118,10 +125,11 @@ async function getRecentItems(userId: string, limit = 6): Promise<RecentItem[]> 
       desc: `${chat.messageCount} 条消息`,
       time: formatTime(chat.lastMessageAt),
       url: `/chat/${chat.id}`,
+      sortAt: chat.lastMessageAt?.getTime() ?? 0,
     });
   }
 
-  // 3. 最近文档
+  // 3. 最近文档（用户笔记，通过 workspace 过滤当前用户）
   const docs = await db
     .select({
       id: documents.id,
@@ -130,6 +138,8 @@ async function getRecentItems(userId: string, limit = 6): Promise<RecentItem[]> 
       updatedAt: documents.updatedAt,
     })
     .from(documents)
+    .innerJoin(workspaces, eq(documents.workspaceId, workspaces.id))
+    .where(and(eq(workspaces.ownerId, userId), eq(documents.type, "document")))
     .orderBy(desc(documents.updatedAt))
     .limit(limit);
 
@@ -142,10 +152,12 @@ async function getRecentItems(userId: string, limit = 6): Promise<RecentItem[]> 
       desc: preview + (preview.length >= 30 ? "..." : ""),
       time: formatTime(doc.updatedAt),
       url: `/editor/${doc.id}`,
+      sortAt: doc.updatedAt?.getTime() ?? 0,
     });
   }
 
-  // 按时间排序（简单的启发式排序）
+  // 按时间混排，取最近 N 条
+  items.sort((a, b) => b.sortAt - a.sortAt);
   return items.slice(0, limit);
 }
 
