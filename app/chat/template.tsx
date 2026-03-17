@@ -3,16 +3,20 @@
 /**
  * Chat Template - 会话切换动效
  *
- * 当用户在不同会话之间切换（/chat/[id] → /chat/[anotherId]）时的轻微 fade
- * 不做 slide，避免和 TransitionOverlay 的 expand/collapse 冲突
+ * - 会话间切换（/chat/[id] → /chat/[anotherId]）：轻微 fade-in
+ * - 从首页过渡进来时（TransitionOverlay active）：跳过 fade，避免双重动画
  */
 
 import { motion } from "framer-motion";
+import { useTransitionStore } from "@/stores";
 
 export default function ChatTemplate({ children }: { children: React.ReactNode }) {
+  const phase = useTransitionStore((s) => s.phase);
+  const skipAnimation = phase !== "idle";
+
   return (
     <motion.div
-      initial={{ opacity: 0 }}
+      initial={{ opacity: skipAnimation ? 1 : 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.15 }}
       className="h-full"

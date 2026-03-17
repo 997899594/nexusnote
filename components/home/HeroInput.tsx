@@ -101,7 +101,7 @@ export function HeroInput() {
     const id = crypto.randomUUID();
 
     setPendingChat(id, message);
-    startExpand(rect, `/chat/${id}`);
+    startExpand(rect, `/chat/${id}`, message);
     setInput("");
   };
 
