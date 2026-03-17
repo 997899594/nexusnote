@@ -18,6 +18,7 @@ import { createSearchTools } from "./chat/search";
 import { createWebSearchTool } from "./chat/web-search";
 import { batchEditTool, draftContentTool, editDocumentTool } from "./editor";
 import { createInterviewTools } from "./interview";
+import { createLearnContextTools } from "./learn";
 import { createCourseTools } from "./learning/course";
 import { createEnhanceTools } from "./learning/enhance";
 import { createRagTools } from "./rag";
@@ -43,6 +44,7 @@ export const toolRegistry = {
   resource: {
     interview: createInterviewTools,
     course: createCourseTools,
+    learn: createLearnContextTools,
   },
   shared: {
     suggestOptions: suggestOptionsTool,
@@ -83,6 +85,9 @@ export function buildAgentTools(
   switch (agentType) {
     case "chat":
       Object.assign(tools, toolRegistry.global.notes(ctx.userId));
+      if (ctx.resourceId) {
+        Object.assign(tools, toolRegistry.resource.learn(ctx));
+      }
       break;
 
     case "interview":

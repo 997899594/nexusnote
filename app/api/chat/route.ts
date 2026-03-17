@@ -77,7 +77,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { messages, intent: clientIntent, sessionId, personaSlug } = validation.data;
+    const {
+      messages,
+      intent: clientIntent,
+      sessionId,
+      personaSlug,
+      courseId,
+      metadata,
+    } = validation.data;
 
     // ============================================
     // 服务端 Intent 验证
@@ -162,10 +169,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Get agent with personalization
-    const agent = getAgent(intent, {
+    const agent = await getAgent(intent, {
       userId,
       personaPrompt: personaSystemPrompt,
       userContext,
+      courseId: courseId ?? (metadata?.context === "learn" ? metadata.courseId : undefined),
+      metadata,
     });
 
     const response = await createNexusNoteStreamResponse(agent, uiMessages, {

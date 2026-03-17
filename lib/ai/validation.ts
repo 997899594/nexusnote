@@ -3,6 +3,7 @@
  */
 
 import { z } from "zod";
+import { ChatMetadataSchema } from "@/types/metadata";
 
 export const ChatRequestSchema = z.object({
   messages: z.array(z.unknown()).min(1),
@@ -14,7 +15,7 @@ export const ChatRequestSchema = z.object({
     .min(1)
     .optional(),
   courseId: z.string().uuid().nullish(), // 允许 null 或 undefined
-  metadata: z.record(z.string(), z.unknown()).optional(),
+  metadata: ChatMetadataSchema.optional(),
 });
 
 export type ChatRequest = z.infer<typeof ChatRequestSchema>;

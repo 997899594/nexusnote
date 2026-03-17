@@ -15,7 +15,7 @@ export interface ChunkOptions {
   overlap?: number;
 }
 
-export type SourceType = "document" | "conversation";
+export type SourceType = "document" | "conversation" | "course_section";
 
 const DEFAULT_CHUNK_SIZE = 500;
 const DEFAULT_OVERLAP = 50;
@@ -184,6 +184,60 @@ export async function indexConversation(
     };
   } catch (error) {
     console.error(`[Chunker] Error indexing conversation:`, error);
+    throw error;
+  }
+}
+
+export async function indexCourseSection(
+  documentId: string,
+  plainText: string,
+  userId: string,
+  courseId: string,
+  options: IndexOptions = {},
+): Promise<{ success: boolean; chunksCount: number }> {
+  const { chunkSize = DEFAULT_CHUNK_SIZE, overlap = DEFAULT_OVERLAP, metadata } = options;
+
+  console.log(
+    `[Chunker] Indexing course section: ${documentId}, courseId: ${courseId}, text length: ${plainText.length}`,
+  );
+
+  try {
+    await db.delete(knowledgeChunks).where(eq(knowledgeChunks.sourceId, documentId));
+
+    const chunks = chunkText(plainText, chunkSize, overlap);
+    if (chunks.length === 0) {
+      return { success: true, chunksCount: 0 };
+    }
+
+    if (!aiProvider.isConfigured()) {
+      throw new Error("[Chunker] Embedding model not configured");
+    }
+
+    const { embeddings } = await embedMany({
+      model: aiProvider.embeddingModel,
+      values: chunks,
+    });
+
+    const newChunks = chunks.map((content, index) => ({
+      sourceType: "course_section" as SourceType,
+      sourceId: documentId,
+      content,
+      embedding: embeddings[index],
+      chunkIndex: index,
+      userId,
+      metadata: { ...metadata, courseId },
+    }));
+
+    const batchSize = 50;
+    for (let i = 0; i < newChunks.length; i += batchSize) {
+      const batch = newChunks.slice(i, i + batchSize);
+      await db.insert(knowledgeChunks).values(batch);
+    }
+
+    console.log(`[Chunker] Indexed ${chunks.length} course section chunks for: ${documentId}`);
+    return { success: true, chunksCount: chunks.length };
+  } catch (error) {
+    console.error(`[Chunker] Error indexing course section:`, error);
     throw error;
   }
 }

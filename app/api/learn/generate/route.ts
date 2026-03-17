@@ -9,6 +9,8 @@ import { aiProvider } from "@/lib/ai/core";
 import { buildSectionPrompt } from "@/lib/ai/prompts/learn";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
+import { invalidateChapterCache } from "@/lib/cache/course-context";
+import { ragQueue } from "@/lib/queue";
 import { checkRateLimitOrThrow } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
@@ -122,8 +124,11 @@ export async function POST(request: NextRequest) {
       }),
       onFinish: async ({ text }) => {
         try {
+          let docId: string;
+
           // Store raw Markdown (no HTML conversion) — StreamdownMessage renders Markdown directly
           if (existingDoc) {
+            docId = existingDoc.id;
             await db
               .update(documents)
               .set({
@@ -133,7 +138,7 @@ export async function POST(request: NextRequest) {
               })
               .where(eq(documents.id, existingDoc.id));
           } else {
-            await db
+            const [inserted] = await db
               .insert(documents)
               .values({
                 type: "course_section",
@@ -143,7 +148,26 @@ export async function POST(request: NextRequest) {
                 content: Buffer.from(text),
                 plainText: text,
               })
-              .onConflictDoNothing();
+              .onConflictDoNothing()
+              .returning({ id: documents.id });
+            docId = inserted?.id ?? "";
+          }
+
+          // Queue indexing to knowledge_chunks for RAG search (with retry)
+          if (docId && text.length > 0) {
+            ragQueue
+              .add("course-section", {
+                type: "course_section",
+                documentId: docId,
+                plainText: text,
+                userId,
+                courseId,
+                metadata: { chapterIndex, sectionIndex, sectionTitle: section.title },
+              })
+              .catch((err) => {
+                console.error("[Learn/Generate] Failed to enqueue index job:", err);
+              });
+            invalidateChapterCache(courseId, chapterIndex).catch(() => {});
           }
         } catch (err) {
           console.error("[Learn/Generate] Failed to persist section content:", err);

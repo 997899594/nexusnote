@@ -23,7 +23,7 @@ type AgentOptions = PersonalizationOptions &
   Partial<InterviewAgentOptions> &
   Partial<SkillsAgentOptions>;
 
-export function getAgent(intent: AgentIntent, options: AgentOptions = {}) {
+export async function getAgent(intent: AgentIntent, options: AgentOptions = {}) {
   switch (intent) {
     case "INTERVIEW":
       return createInterviewAgent(options as InterviewAgentOptions);
@@ -34,6 +34,6 @@ export function getAgent(intent: AgentIntent, options: AgentOptions = {}) {
       return createSkillsAgent(options as SkillsAgentOptions);
     }
     default:
-      return createChatAgent(options);
+      return await createChatAgent(options);
   }
 }
