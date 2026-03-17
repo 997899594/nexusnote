@@ -1,6 +1,6 @@
 // lib/ai/agents/interview.ts
 
-import { stepCountIs, ToolLoopAgent, type ToolSet } from "ai";
+import { hasToolCall, stepCountIs, ToolLoopAgent, type ToolSet } from "ai";
 import { aiProvider } from "../core";
 import { createToolContext } from "../core/tool-context";
 import { INTERVIEW_PROMPT } from "../prompts/interview";
@@ -40,6 +40,6 @@ export function createInterviewAgent(options: InterviewAgentOptions) {
     model: aiProvider.chatModel,
     instructions: INTERVIEW_PROMPT,
     tools,
-    stopWhen: stepCountIs(MAX_STEPS),
+    stopWhen: [hasToolCall("suggestOptions"), stepCountIs(MAX_STEPS)],
   });
 }
