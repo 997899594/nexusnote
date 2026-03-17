@@ -2,8 +2,8 @@
 
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
-import { AlertCircle, BookOpen, CheckCircle2, Loader2, RefreshCw, Sparkles } from "lucide-react";
+import { motion } from "framer-motion";
+import { AlertCircle, BookOpen, Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { StreamdownMessage } from "@/components/chat/StreamdownMessage";
 import type { Annotation } from "@/hooks/useAnnotations";
@@ -95,7 +95,7 @@ function SectionBlock({
   const containerRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const [pendingNoteAnchor, setPendingNoteAnchor] = useState<Annotation["anchor"] | null>(null);
-  const [justCompleted, setJustCompleted] = useState(false);
+  const [showReadLine, setShowReadLine] = useState(false);
   const markSectionComplete = useLearnStore((s) => s.markSectionComplete);
   const completedSections = useLearnStore((s) => s.completedSections);
 
@@ -121,8 +121,7 @@ function SectionBlock({
             // Debounce: must stay visible for 800ms
             debounceTimer = setTimeout(() => {
               markSectionComplete(anchorId);
-              setJustCompleted(true);
-              setTimeout(() => setJustCompleted(false), 2000);
+              setShowReadLine(true);
 
               // Persist to server
               fetch("/api/learn/progress", {
@@ -154,7 +153,16 @@ function SectionBlock({
   }, []);
 
   return (
-    <div id={anchorId} className="relative">
+    <div
+      id={anchorId}
+      className="relative transition-[border-color] duration-700 ease-out"
+      style={{
+        borderLeftWidth: "3px",
+        borderLeftStyle: "solid",
+        borderLeftColor: showReadLine || isAlreadyRead ? "var(--color-accent)" : "transparent",
+        paddingLeft: showReadLine || isAlreadyRead ? "12px" : "15px",
+      }}
+    >
       {/* Section spacing */}
       {sectionIndex > 0 && <div className="pt-14" />}
 
@@ -272,21 +280,6 @@ function SectionBlock({
           <div ref={sentinelRef} className="h-4" aria-hidden="true" />
         )}
       </div>
-
-      {/* Read-completion feedback animation */}
-      <AnimatePresence>
-        {justCompleted && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            className="flex items-center justify-center gap-1.5 py-2 text-xs font-medium text-emerald-600"
-          >
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>已学完</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Note input dialog */}
       {pendingNoteAnchor && (
