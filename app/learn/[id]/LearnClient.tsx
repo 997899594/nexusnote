@@ -34,6 +34,7 @@ export interface LearnClientProps {
   sectionDocs: SectionDoc[];
   initialChapterIndex: number;
   initialCompletedSections: string[];
+  scrollToSectionId: string | null;
 }
 
 // Sidebar width constant
@@ -71,7 +72,9 @@ export function LearnClient({
   sectionDocs,
   initialChapterIndex,
   initialCompletedSections,
+  scrollToSectionId,
 }: LearnClientProps) {
+  const setCourseId = useLearnStore((s) => s.setCourseId);
   const setChapters = useLearnStore((s) => s.setChapters);
   const setCurrentChapterIndex = useLearnStore((s) => s.setCurrentChapterIndex);
   const markSectionComplete = useLearnStore((s) => s.markSectionComplete);
@@ -89,8 +92,10 @@ export function LearnClient({
   // Initialize store on mount
   // biome-ignore lint/correctness/useExhaustiveDependencies: initialization effect, runs once on mount
   useEffect(() => {
-    setChapters(chapters);
+    // Set chapter index BEFORE loading chapters to avoid triggering PATCH
     setCurrentChapterIndex(initialChapterIndex);
+    setCourseId(sessionId);
+    setChapters(chapters);
 
     // Initialize completed sections
     for (const nodeId of initialCompletedSections) {
@@ -208,6 +213,7 @@ export function LearnClient({
             sections={sections}
             generateSection={generateSection}
             sectionDocs={sectionDocs}
+            scrollToSectionId={scrollToSectionId}
           />
         </div>
 
@@ -321,6 +327,7 @@ export function LearnClient({
             sections={sections}
             generateSection={generateSection}
             sectionDocs={sectionDocs}
+            scrollToSectionId={scrollToSectionId}
           />
         </div>
 

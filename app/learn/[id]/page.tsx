@@ -102,13 +102,32 @@ export default async function LearnPage({ params, searchParams }: PageProps) {
     } | null,
   }));
 
-  // Calculate initial chapter index
-  const chapterNum = chapter ? parseInt(chapter, 10) : 1;
-  const initialChapterIndex = Number.isNaN(chapterNum) ? 0 : Math.max(0, chapterNum - 1);
-
   // Use persisted learning progress, not content existence
-  const courseProgress = courseSession.progress as { completedSections?: string[] } | null;
+  const courseProgress = courseSession.progress as {
+    completedSections?: string[];
+    currentChapter?: number;
+  } | null;
   const initialCompletedSections = courseProgress?.completedSections ?? [];
+  const completedSet = new Set(initialCompletedSections);
+
+  // Calculate initial chapter index: explicit ?chapter= param > persisted progress > first incomplete
+  let initialChapterIndex: number;
+  if (chapter) {
+    const chapterNum = parseInt(chapter, 10);
+    initialChapterIndex = Number.isNaN(chapterNum) ? 0 : Math.max(0, chapterNum - 1);
+  } else {
+    // Resume: find first chapter with incomplete sections
+    const resumeChapter = chapters.findIndex((ch) =>
+      ch.sections.some((sec) => !completedSet.has(sec.nodeId)),
+    );
+    initialChapterIndex =
+      resumeChapter >= 0 ? resumeChapter : (courseProgress?.currentChapter ?? 0);
+  }
+
+  // Find first unread section in the resume chapter for auto-scroll
+  const resumeChapter = chapters[initialChapterIndex];
+  const firstUnreadSection = resumeChapter?.sections.find((sec) => !completedSet.has(sec.nodeId));
+  const scrollToSectionId = firstUnreadSection?.nodeId ?? null;
 
   return (
     <LearnClient
@@ -118,6 +137,7 @@ export default async function LearnPage({ params, searchParams }: PageProps) {
       sectionDocs={sectionDocs}
       initialChapterIndex={initialChapterIndex}
       initialCompletedSections={initialCompletedSections}
+      scrollToSectionId={scrollToSectionId}
     />
   );
 }

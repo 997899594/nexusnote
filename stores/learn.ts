@@ -19,6 +19,10 @@ export interface ChapterOutline {
 }
 
 interface LearnState {
+  // Course session ID (for persisting progress)
+  courseId: string;
+  setCourseId: (id: string) => void;
+
   // Current chapter index
   currentChapterIndex: number;
   setCurrentChapterIndex: (index: number) => void;
@@ -59,6 +63,7 @@ interface LearnState {
 }
 
 const initialState = {
+  courseId: "",
   currentChapterIndex: 0,
   currentSectionIndex: 0,
   chapters: [] as ChapterOutline[],
@@ -72,7 +77,20 @@ const initialState = {
 export const useLearnStore = create<LearnState>((set) => ({
   ...initialState,
 
-  setCurrentChapterIndex: (index) => set({ currentChapterIndex: index, currentSectionIndex: 0 }),
+  setCourseId: (courseId) => set({ courseId }),
+
+  setCurrentChapterIndex: (index) =>
+    set((state) => {
+      // Persist chapter position to server when user navigates (skip initial load)
+      if (state.courseId && state.currentChapterIndex !== index && state.chapters.length > 0) {
+        fetch("/api/learn/progress", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ courseId: state.courseId, currentChapter: index }),
+        }).catch(() => {});
+      }
+      return { currentChapterIndex: index, currentSectionIndex: 0 };
+    }),
 
   setCurrentSectionIndex: (index) => set({ currentSectionIndex: index }),
 

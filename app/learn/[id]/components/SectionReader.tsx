@@ -27,6 +27,7 @@ interface SectionReaderProps {
   sections: Map<number, SectionState>;
   generateSection: (index: number) => void;
   sectionDocs: SectionDoc[];
+  scrollToSectionId?: string | null;
 }
 
 function NoteInputDialog({
@@ -306,10 +307,26 @@ export function SectionReader({
   sections,
   generateSection,
   sectionDocs,
+  scrollToSectionId,
 }: SectionReaderProps) {
   const { currentChapterIndex, chapters, isZenMode, setCurrentSectionIndex } = useLearnStore();
   const currentChapter = chapters[currentChapterIndex];
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const hasScrolledToResume = useRef(false);
+
+  // Auto-scroll to resume section on mount
+  useEffect(() => {
+    if (!scrollToSectionId || hasScrolledToResume.current) return;
+    // Delay to let the DOM render section anchors
+    const timer = setTimeout(() => {
+      const el = document.getElementById(scrollToSectionId);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        hasScrolledToResume.current = true;
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [scrollToSectionId]);
 
   // Intersection Observer to track visible section
   useEffect(() => {
