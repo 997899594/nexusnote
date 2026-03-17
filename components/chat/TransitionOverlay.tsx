@@ -43,28 +43,34 @@ const EXPAND_CLIP = "inset(0% 0% 0% 0% round 0px)"; // 全屏
 export function TransitionOverlay() {
   const router = useRouter();
   const { phase, originRect, targetUrl, finish } = useTransitionStore();
-  const [isVisible, setIsVisible] = useState(false);
-  const [clipPath, setClipPath] = useState(EXPAND_CLIP);
 
-  // phase 变化时：展开动画
+  // Track the clip-path we animate FROM (initial) and TO (target) separately
+  // so Framer Motion sees a real change on mount.
+  const [initialClip, setInitialClip] = useState(EXPAND_CLIP);
+  const [targetClip, setTargetClip] = useState(EXPAND_CLIP);
+  const [isVisible, setIsVisible] = useState(false);
+
   useEffect(() => {
     if (phase === "expanding" && targetUrl) {
+      const fromClip = rectToClipPath(originRect);
+      setInitialClip(fromClip);
+      setTargetClip(fromClip); // mount at input-box shape first
+
+      // Show overlay, then animate to fullscreen on next frame
       setIsVisible(true);
-      setClipPath(rectToClipPath(originRect)); // 初始：输入框形状
-
-      // 立刻触发路由跳转（Chat 页面在 Overlay 背后加载）
-      router.push(targetUrl);
-
-      // 下一帧开始动画（React setState 异步，需要 RAF）
       requestAnimationFrame(() => {
-        setClipPath(EXPAND_CLIP); // 动画到全屏
+        setTargetClip(EXPAND_CLIP);
       });
-    } else if (phase === "collapsing") {
-      setIsVisible(true);
-      setClipPath(EXPAND_CLIP); // 初始：全屏
 
+      // Route push in background — page loads behind the overlay
+      router.push(targetUrl);
+    } else if (phase === "collapsing") {
+      setInitialClip(EXPAND_CLIP);
+      setTargetClip(EXPAND_CLIP);
+
+      setIsVisible(true);
       requestAnimationFrame(() => {
-        setClipPath(rectToClipPath(originRect)); // 动画到输入框形状
+        setTargetClip(rectToClipPath(originRect));
       });
     } else if (phase === "idle") {
       setIsVisible(false);
@@ -73,12 +79,11 @@ export function TransitionOverlay() {
 
   const handleAnimationComplete = () => {
     if (phase === "collapsing") {
-      router.push("/"); // 收缩完成，返回首页
+      router.push("/");
       finish();
     } else if (phase === "expanding") {
-      // 展开完成，等待淡出
       setTimeout(() => {
-        finish(); // finish() → phase 变 idle → isVisible 变 false → exit 动画
+        finish();
       }, 50);
     }
   };
@@ -87,20 +92,21 @@ export function TransitionOverlay() {
     <AnimatePresence>
       {isVisible && (
         <motion.div
+          key={phase} // remount on phase change so `initial` is re-read
           style={{
             position: "fixed",
             inset: 0,
-            backgroundColor: "var(--color-surface)", // 和 HeroInput 卡片同色
+            backgroundColor: "var(--color-surface)",
             zIndex: 9999,
             willChange: "clip-path, opacity",
           }}
-          initial={{ clipPath }}
-          animate={{ clipPath }}
+          initial={{ clipPath: initialClip }}
+          animate={{ clipPath: targetClip }}
           exit={{ opacity: 0 }}
           transition={{
             clipPath: {
-              duration: phase === "expanding" ? 0.28 : 0.3,
-              ease: [0.4, 0, 0.2, 1],
+              duration: phase === "expanding" ? 0.35 : 0.3,
+              ease: [0.22, 1, 0.36, 1],
             },
             opacity: { duration: 0.15 },
           }}
