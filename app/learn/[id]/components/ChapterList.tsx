@@ -13,6 +13,7 @@ export function ChapterList() {
   const expandedChapters = useLearnStore((s) => s.expandedChapters);
   const setCurrentChapterIndex = useLearnStore((s) => s.setCurrentChapterIndex);
   const toggleChapterExpanded = useLearnStore((s) => s.toggleChapterExpanded);
+  const setSidebarOpen = useLearnStore((s) => s.setSidebarOpen);
 
   if (chapters.length === 0) {
     return (
@@ -127,6 +128,7 @@ export function ChapterList() {
                               }
                               const el = document.getElementById(sec.nodeId);
                               el?.scrollIntoView({ behavior: "smooth", block: "start" });
+                              setSidebarOpen(false);
                             }}
                             className={cn(
                               "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left text-[0.8125rem] transition-all duration-150",

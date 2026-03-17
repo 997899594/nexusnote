@@ -44,6 +44,11 @@ interface LearnState {
   toggleZenMode: () => void;
   setZenMode: (isZen: boolean) => void;
 
+  // Sidebar (mobile overlay)
+  isSidebarOpen: boolean;
+  toggleSidebar: () => void;
+  setSidebarOpen: (open: boolean) => void;
+
   // Chat panel
   isChatOpen: boolean;
   toggleChat: () => void;
@@ -60,6 +65,7 @@ const initialState = {
   expandedChapters: new Set<number>(),
   completedSections: new Set<string>(),
   isZenMode: false,
+  isSidebarOpen: false,
   isChatOpen: true,
 };
 
@@ -93,6 +99,10 @@ export const useLearnStore = create<LearnState>((set) => ({
   toggleZenMode: () => set((state) => ({ isZenMode: !state.isZenMode })),
 
   setZenMode: (isZenMode) => set({ isZenMode }),
+
+  toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
+
+  setSidebarOpen: (isSidebarOpen) => set({ isSidebarOpen }),
 
   toggleChat: () => set((state) => ({ isChatOpen: !state.isChatOpen })),
 

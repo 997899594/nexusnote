@@ -21,7 +21,7 @@ import {
   type OnNodesChange,
   ReactFlow,
 } from "@xyflow/react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "@xyflow/react/dist/style.css";
 import * as LucideIcons from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -222,12 +222,12 @@ export function SkillGraph({ userId: _userId, className, onDiscover }: SkillGrap
     setEdges((eds) => applyEdgeChanges(changes, eds));
   };
 
-  const fetchGraphData = async () => {
+  const fetchGraphData = async (signal?: AbortSignal) => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch("/api/skills/graph?includeUnlocked=true&maxDepth=2");
+      const response = await fetch("/api/skills/graph?includeUnlocked=true&maxDepth=2", { signal });
       if (!response.ok) {
         throw new Error("Failed to fetch skill graph");
       }
@@ -236,6 +236,7 @@ export function SkillGraph({ userId: _userId, className, onDiscover }: SkillGrap
       setNodes(data.nodes);
       setEdges(data.edges);
     } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       console.error("[SkillGraph] Failed to fetch graph data:", err);
       setError("加载技能图失败");
     } finally {
@@ -261,9 +262,15 @@ export function SkillGraph({ userId: _userId, className, onDiscover }: SkillGrap
     }
   };
 
+  const hasFetched = useRef(false);
   // biome-ignore lint/correctness/useExhaustiveDependencies: fetchGraphData is intentionally not wrapped in useCallback; we only want to fetch on mount
   useEffect(() => {
-    fetchGraphData();
+    if (hasFetched.current) return;
+    hasFetched.current = true;
+
+    const controller = new AbortController();
+    fetchGraphData(controller.signal);
+    return () => controller.abort();
   }, []);
 
   const stats = useMemo(() => {

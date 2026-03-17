@@ -65,7 +65,7 @@ export function AnnotationLayer({
   containerRef,
   annotations,
   onRemove,
-  _onUpdateNote,
+  onUpdateNote: _onUpdateNote,
 }: AnnotationLayerProps) {
   const [highlights, setHighlights] = useState<
     Array<{

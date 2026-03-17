@@ -3,9 +3,13 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useMemo } from "react";
+import { ArrowLeft, List, MessageSquare } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo } from "react";
 import type { Annotation } from "@/hooks/useAnnotations";
 import { useChapterSections } from "@/hooks/useChapterSections";
+import { useIsMobile } from "@/hooks/useIsMobile";
+import { cn } from "@/lib/utils";
 import type { ChapterOutline } from "@/stores/learn";
 import { useLearnStore } from "@/stores/learn";
 
@@ -74,6 +78,13 @@ export function LearnClient({
   const toggleChapterExpanded = useLearnStore((s) => s.toggleChapterExpanded);
   const isZenMode = useLearnStore((s) => s.isZenMode);
   const currentChapterIndex = useLearnStore((s) => s.currentChapterIndex);
+  const isSidebarOpen = useLearnStore((s) => s.isSidebarOpen);
+  const setSidebarOpen = useLearnStore((s) => s.setSidebarOpen);
+  const isChatOpen = useLearnStore((s) => s.isChatOpen);
+  const setChatOpen = useLearnStore((s) => s.setChatOpen);
+
+  const isMobile = useIsMobile();
+  const router = useRouter();
 
   // Initialize store on mount
   // biome-ignore lint/correctness/useExhaustiveDependencies: initialization effect, runs once on mount
@@ -121,6 +132,150 @@ export function LearnClient({
     }
   }, [sections, currentChapterIndex, markSectionComplete]);
 
+  // Close overlays on ESC (mobile)
+  const closeOverlays = useCallback(() => {
+    setSidebarOpen(false);
+    setChatOpen(false);
+  }, [setSidebarOpen, setChatOpen]);
+
+  useEffect(() => {
+    if (!isMobile) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeOverlays();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isMobile, closeOverlays]);
+
+  // Lock body scroll when overlay is open (mobile)
+  useEffect(() => {
+    if (!isMobile) return;
+    if (isSidebarOpen || isChatOpen) {
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = "";
+      };
+    }
+  }, [isMobile, isSidebarOpen, isChatOpen]);
+
+  // ─── Mobile layout ───
+  if (isMobile) {
+    return (
+      <div className="flex flex-col h-screen bg-[var(--color-bg)]">
+        {/* Mobile header */}
+        <header className="flex items-center justify-between px-4 py-3 bg-[var(--color-surface)] shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="p-1.5 rounded-lg text-[var(--color-text-secondary)] hover:bg-[var(--color-hover)] transition-colors shrink-0"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div className="min-w-0">
+              <h1 className="text-sm font-semibold text-[var(--color-text)] truncate">
+                {currentChapter?.title ?? courseTitle}
+              </h1>
+              {currentChapter && (
+                <p className="text-[0.6875rem] text-[var(--color-text-tertiary)] truncate">
+                  第 {currentChapterIndex + 1} 章
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(true)}
+              className={cn(
+                "p-2 rounded-lg transition-colors",
+                isSidebarOpen
+                  ? "bg-[var(--color-accent-subtle)] text-[var(--color-accent)]"
+                  : "text-[var(--color-text-secondary)] hover:bg-[var(--color-hover)]",
+              )}
+            >
+              <List className="w-5 h-5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setChatOpen(true)}
+              className={cn(
+                "p-2 rounded-lg transition-colors",
+                isChatOpen
+                  ? "bg-[var(--color-accent-subtle)] text-[var(--color-accent)]"
+                  : "text-[var(--color-text-secondary)] hover:bg-[var(--color-hover)]",
+              )}
+            >
+              <MessageSquare className="w-5 h-5" />
+            </button>
+          </div>
+        </header>
+
+        {/* Content area */}
+        <div className="flex-1 overflow-hidden bg-[var(--color-surface)]">
+          <SectionReader
+            courseId={sessionId}
+            sections={sections}
+            generateSection={generateSection}
+            sectionDocs={sectionDocs}
+          />
+        </div>
+
+        {/* Zen toggle */}
+        <ZenModeToggle />
+
+        {/* Sidebar overlay - slide from left */}
+        <AnimatePresence>
+          {isSidebarOpen && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm"
+                onClick={() => setSidebarOpen(false)}
+              />
+              <motion.div
+                initial={{ x: -SIDEBAR_WIDTH }}
+                animate={{ x: 0 }}
+                exit={{ x: -SIDEBAR_WIDTH }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                className="fixed inset-y-0 left-0 z-50 w-[320px] bg-[var(--color-bg)] shadow-xl"
+              >
+                <LearnSidebar courseTitle={courseTitle} width={SIDEBAR_WIDTH} />
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* Chat overlay - slide from right */}
+        <AnimatePresence>
+          {isChatOpen && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm"
+                onClick={() => setChatOpen(false)}
+              />
+              <motion.div
+                initial={{ x: "100%" }}
+                animate={{ x: 0 }}
+                exit={{ x: "100%" }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                className="fixed inset-y-0 right-0 z-50 w-full bg-[var(--color-bg)] shadow-xl"
+              >
+                <LearnChat courseId={sessionId} courseTitle={courseTitle} variant="overlay" />
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  }
+
+  // ─── Desktop layout (unchanged) ───
   return (
     <div className="flex h-screen bg-[var(--color-bg)]">
       {/* Sidebar - hidden in zen mode */}

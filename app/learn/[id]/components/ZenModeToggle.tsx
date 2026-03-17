@@ -50,7 +50,7 @@ export function ZenModeToggle() {
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: tooltip container for hover/focus events
     <div
-      className="fixed bottom-6 right-6 z-50"
+      className="fixed bottom-24 md:bottom-6 right-6 z-50"
       onMouseEnter={() => setShowTooltip(true)}
       onMouseLeave={() => setShowTooltip(false)}
       onFocus={() => setShowTooltip(true)}

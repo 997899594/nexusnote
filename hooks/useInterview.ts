@@ -68,14 +68,14 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
     transport: new DefaultChatTransport({
       api: "/api/interview",
       body: () => ({ sessionId, courseId: useInterviewStore.getState().courseId ?? undefined }),
-      fetch: async (input, init) => {
+      fetch: (async (input: RequestInfo | URL, init?: RequestInit) => {
         const response = await fetch(input, init);
         const newCourseId = response.headers.get("X-Resource-Id");
         if (newCourseId) {
           setCourseId(newCourseId);
         }
         return response;
-      },
+      }) as typeof globalThis.fetch,
     }),
     // 流结束时可靠检测 confirmOutline（主要检测入口）
     onFinish: ({ messages: finishedMessages }) => {

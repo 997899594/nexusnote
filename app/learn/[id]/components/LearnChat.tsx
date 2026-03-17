@@ -14,9 +14,10 @@ import { useLearnStore } from "@/stores/learn";
 interface LearnChatProps {
   courseId: string;
   courseTitle: string;
+  variant?: "inline" | "overlay";
 }
 
-export function LearnChat({ courseId, courseTitle }: LearnChatProps) {
+export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnChatProps) {
   const { addToast } = useToast();
   const { currentChapterIndex, chapters, isChatOpen, setChatOpen } = useLearnStore();
   const [input, setInput] = useState("");
@@ -97,6 +98,81 @@ export function LearnChat({ courseId, courseTitle }: LearnChatProps) {
       >
         <MessageSquare className="w-5 h-5" />
       </motion.button>
+    );
+  }
+
+  if (variant === "overlay") {
+    return (
+      <div className="flex flex-col h-full w-full bg-[var(--color-bg)] overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-[var(--color-accent-light)] flex items-center justify-center">
+              <BookOpen className="w-4 h-4 text-[var(--color-accent)]" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-sm font-semibold text-zinc-900 truncate">AI 学习助手</h3>
+              <p className="text-xs text-zinc-500 truncate">
+                {currentChapter?.title ?? courseTitle}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setChatOpen(false)}
+            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+          {chatMessages.length === 0 && !isLoading && (
+            <div className="text-center py-8 text-zinc-400 text-sm">
+              <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-30" />
+              <p>有什么不明白的？随时问我</p>
+            </div>
+          )}
+          {chatMessages.map((msg) => (
+            <ChatMessage key={msg.id} message={msg} onSendReply={(text) => sendMessage({ text })} />
+          ))}
+          {isAILoading && <LoadingDots />}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input */}
+        <div className="px-4 py-3">
+          <div className="flex items-end gap-2 bg-zinc-50 rounded-xl p-2">
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="针对本章节提问..."
+              rows={1}
+              className="flex-1 bg-transparent border-none outline-none text-sm text-zinc-900 placeholder:text-zinc-400 resize-none min-h-[24px] max-h-[80px]"
+            />
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleSubmit}
+              disabled={!input.trim() || isLoading}
+              className={cn(
+                "w-8 h-8 rounded-lg flex items-center justify-center transition-colors flex-shrink-0",
+                input.trim() && !isLoading
+                  ? "bg-[var(--color-accent)] text-white"
+                  : "bg-zinc-200 text-zinc-400 cursor-not-allowed",
+              )}
+            >
+              {isLoading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Send className="w-3.5 h-3.5" />
+              )}
+            </motion.button>
+          </div>
+        </div>
+      </div>
     );
   }
 

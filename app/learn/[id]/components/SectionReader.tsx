@@ -235,7 +235,7 @@ function SectionBlock({
 }
 
 export function SectionReader({
-  _courseId,
+  courseId: _courseId,
   sections,
   generateSection,
   sectionDocs,
