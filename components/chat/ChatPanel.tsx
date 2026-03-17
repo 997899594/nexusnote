@@ -6,7 +6,6 @@ import { Loader2, Send, Sparkles, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useInputProtection } from "@/components/common/useInputProtection";
-import { quickIntentDetect } from "@/lib/ai/intent-router";
 import { CHAT_COMMANDS, extractCommandContent } from "@/lib/chat/commands";
 import { cn } from "@/lib/utils";
 import { useChatStore, useTransitionStore } from "@/stores";
@@ -111,14 +110,6 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
       setInput(extractCommandContent(input));
       setSelectedCommand(filteredCommands[selectedIndex]);
       setShowCommands(false);
-      return;
-    }
-
-    // 检测学习意图 → 跳转到访谈页面
-    const intentResult = quickIntentDetect(input.trim());
-    if (intentResult?.intent === "INTERVIEW") {
-      const encodedMsg = encodeURIComponent(input.trim());
-      router.push(`/interview?msg=${encodedMsg}`);
       return;
     }
 

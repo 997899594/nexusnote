@@ -17,6 +17,7 @@ export function HeroInput() {
   const startExpand = useTransitionStore((state) => state.startExpand);
   const setPendingChat = usePendingChatStore((state) => state.set);
   const [input, setInput] = useState("");
+  const [mode, setMode] = useState<"interview" | "chat">("interview");
   const [showCommands, setShowCommands] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [selectedCommand, setSelectedCommand] = useState<Command | null>(null);
@@ -94,6 +95,12 @@ export function HeroInput() {
       return;
     }
 
+    if (mode === "interview") {
+      router.push(`/interview?msg=${encodeURIComponent(input.trim())}`);
+      setInput("");
+      return;
+    }
+
     const rect = cardRef.current?.getBoundingClientRect();
     if (!rect) return;
 
@@ -150,7 +157,9 @@ export function HeroInput() {
     ? `描述你想${selectedCommand.modeLabel}的内容...`
     : showCommands
       ? "搜索命令..."
-      : "描述你想学习或创建的内容...";
+      : mode === "interview"
+        ? "描述你想学习的内容..."
+        : "随便聊点什么...";
 
   return (
     <div className="relative w-full md:w-auto">
@@ -204,8 +213,9 @@ export function HeroInput() {
       >
         <div className="p-5 md:p-8 relative h-full">
           <AnimatePresence>
-            {selectedCommand && (
+            {selectedCommand ? (
               <motion.div
+                key="command"
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
@@ -223,7 +233,22 @@ export function HeroInput() {
                   <X className="w-3 h-3" />
                 </button>
               </motion.div>
-            )}
+            ) : !showCommands ? (
+              <motion.button
+                key="mode"
+                type="button"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                onClick={() => setMode((m) => (m === "interview" ? "chat" : "interview"))}
+                className="absolute bottom-4 left-4 md:bottom-6 md:left-6 flex items-center gap-1.5 px-3 py-1.5 bg-[var(--color-hover)] hover:bg-[var(--color-muted)] rounded-lg text-xs z-10 transition-colors cursor-pointer"
+              >
+                <span>{mode === "interview" ? "🎓" : "💬"}</span>
+                <span className="text-[var(--color-text-secondary)] font-medium">
+                  {mode === "interview" ? "课程访谈" : "随便聊聊"}
+                </span>
+              </motion.button>
+            ) : null}
           </AnimatePresence>
 
           <textarea

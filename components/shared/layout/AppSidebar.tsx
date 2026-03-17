@@ -14,7 +14,7 @@ import { usePathname } from "next/navigation";
 const navItems = [
   { icon: Home, label: "首页", href: "/" },
   { icon: BookOpen, label: "学习", href: "/learn" },
-  { icon: FileText, label: "笔记", href: "/editor" },
+  { icon: FileText, label: "笔记", href: "/notes" },
   { icon: Layers, label: "资源", href: "/resources" },
 ];
 
