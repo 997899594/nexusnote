@@ -5,15 +5,11 @@
  *
  * 架构职责：
  * - 立刻展示会话（无论 ID 是客户端生成的还是持久化的）
- * - 从 usePendingChatStore 读取首条消息（如果是新会话）
+ * - 从 usePendingChatStore 同步读取首条消息（零延迟，一次渲染就绑定）
  * - 交给 ChatPanel 渲染，useChatSession 负责会话的后台 upsert
- *
- * 注意：
- * - 使用 "use client" 强制客户端渲染，避免 SSR hydration mismatch
- * - usePendingChatStore 是客户端 Zustand store，SSR 时无状态
  */
 
-import { use, useEffect, useState } from "react";
+import { use } from "react";
 import { ChatPanel } from "@/components/chat";
 import { usePendingChatStore } from "@/stores";
 
@@ -23,13 +19,12 @@ interface ChatSessionPageProps {
 
 export default function ChatSessionPage({ params }: ChatSessionPageProps) {
   const { id: sessionId } = use(params);
-  const [pendingMessage, setPendingMessage] = useState<string | null>(null);
 
-  // 在客户端挂载后才读取 pending store（避免 hydration mismatch）
-  useEffect(() => {
-    const msg = usePendingChatStore.getState().get(sessionId);
-    setPendingMessage(msg);
-  }, [sessionId]);
+  // 同步读取 — Zustand store 在 SSR 时为 null，客户端 hydration 时拿到值
+  // 不用 useEffect + setState，省掉一轮多余渲染
+  const pendingMessage = usePendingChatStore((s) =>
+    s.pending?.id === sessionId ? s.pending.message : null,
+  );
 
   return (
     <div className="flex flex-col h-screen safe-top md:h-full">

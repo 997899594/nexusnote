@@ -57,8 +57,9 @@ export function useChatSession({ sessionId, pendingMessage }: UseChatSessionOpti
   const { setMessages, sendMessage } = chat;
 
   // 历史恢复：每个 sessionId 只加载一次（Zustand Store 防重）
+  // 有 pendingMessage 说明是首页新建的会话，跳过 fetch（ID 是客户端生成的，后端必然 404）
   useEffect(() => {
-    if (!sessionId || isLoaded(sessionId)) return;
+    if (!sessionId || isLoaded(sessionId) || pendingMessage) return;
 
     markLoaded(sessionId);
 
@@ -71,17 +72,15 @@ export function useChatSession({ sessionId, pendingMessage }: UseChatSessionOpti
         return res.json();
       })
       .then((data) => {
-        // API 返回格式是 { session: { messages: [...] } }
         if (data?.session?.messages) {
           setMessages(data.session.messages as UIMessage[]);
         }
       })
       .catch((error) => {
         console.error(error);
-        // Mark as failed so it can be retried
         markFailed(sessionId);
       });
-  }, [sessionId, setMessages, isLoaded, markLoaded, markFailed]);
+  }, [sessionId, setMessages, isLoaded, markLoaded, markFailed, pendingMessage]);
 
   // 自动发送 pendingMessage（仅首次）
   useEffect(() => {
