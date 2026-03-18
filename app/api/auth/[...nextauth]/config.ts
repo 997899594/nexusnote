@@ -18,12 +18,18 @@ import { accounts, sessions, verificationTokens } from "@/db/schema";
 export const authConfig = {
   trustHost: true,
 
-  adapter: DrizzleAdapter(db, {
-    usersTable: users,
-    accountsTable: accounts,
-    sessionsTable: sessions,
-    verificationTokensTable: verificationTokens,
-  }),
+  // Only initialize adapter when db is available (runtime)
+  // Build phase with no DATABASE_URL: db is null, skip adapter
+  ...(db
+    ? {
+        adapter: DrizzleAdapter(db, {
+          usersTable: users,
+          accountsTable: accounts,
+          sessionsTable: sessions,
+          verificationTokensTable: verificationTokens,
+        }),
+      }
+    : {}),
 
   session: {
     strategy: "database" as const,

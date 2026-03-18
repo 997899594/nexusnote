@@ -17,18 +17,21 @@ const globalForDb = globalThis as unknown as {
   conn: postgres.Sql | undefined;
 };
 
-// Initialize client only on server
-const client = isServer
-  ? (globalForDb.conn ?? postgres(connectionString))
-  : (null as unknown as postgres.Sql);
+// Initialize client only on server AND when DATABASE_URL exists
+// Build phase with SKIP_ENV_VALIDATION returns undefined, skip connection
+const client =
+  isServer && connectionString
+    ? (globalForDb.conn ?? postgres(connectionString))
+    : (null as unknown as postgres.Sql);
 
-if (isServer && env.NODE_ENV !== "production") {
+if (isServer && connectionString && env.NODE_ENV !== "production") {
   globalForDb.conn = client;
 }
 
-export const db = isServer
-  ? drizzle(client, { schema })
-  : (null as unknown as ReturnType<typeof drizzle<typeof schema>>);
+export const db =
+  isServer && connectionString
+    ? drizzle(client, { schema })
+    : (null as unknown as ReturnType<typeof drizzle<typeof schema>>);
 
 // Re-export common drizzle-orm operators for consistency
 export {
