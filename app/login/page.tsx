@@ -6,10 +6,10 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, Brain, CheckCircle2, Github, Loader2, Mail } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { cn } from "@/lib/utils";
 
-export default function LoginPage() {
+function LoginForm() {
   const searchParams = useSearchParams();
   const isVerifyPage = searchParams.get("verify") === "1";
 
@@ -262,5 +262,13 @@ export default function LoginPage() {
         </div>
       </motion.div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[var(--color-bg)]" />}>
+      <LoginForm />
+    </Suspense>
   );
 }
