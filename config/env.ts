@@ -87,6 +87,10 @@ export const serverEnvSchema = z.object({
   AUTH_GITHUB_ID: z.string().optional(),
   AUTH_GITHUB_SECRET: z.string().optional(),
 
+  // Magic Link (Resend)
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().optional(),
+
   // AI Provider Keys (至少配置一个)
   AI_302_API_KEY: z.string().optional(),
   DEEPSEEK_API_KEY: z.string().optional(),
