@@ -60,6 +60,19 @@ jobs:
             buildpacksio/pack \
             pack build ${{ env.IMAGE_TAG }} --builder paketobuildpacks/builder-jammy-full --publish
 
+      - name: Sync Database Schema
+        if: success()
+        run: |
+          # Install bun
+          curl -fsSL https://bun.sh/install | bash
+          export PATH="$HOME/.bun/bin:$PATH"
+
+          # Install dependencies and sync schema
+          bun install
+          bunx drizzle-kit push --force
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
       - name: Trigger Juanie Deployment
         if: success()
         run: |
