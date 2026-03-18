@@ -13,6 +13,10 @@ import { auth as nextAuth } from "@/app/api/auth/[...nextauth]/route";
  * 如果未登录，返回 null
  */
 export async function auth() {
+  // DB session 在 build 阶段无数据库可连，直接返回 null
+  if (process.env.NEXT_PHASE === "phase-production-build") {
+    return null;
+  }
   return await nextAuth();
 }
 
