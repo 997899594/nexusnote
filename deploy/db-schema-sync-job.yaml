@@ -1,0 +1,22 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-schema-sync
+  namespace: nexusnote
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: schema-sync
+        image: ghcr.io/997899594/nexusnote:latest  # 替换为实际镜像
+        command: ["bunx", "drizzle-kit", "push", "--force"]
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: nexusnote-secrets  # 替换为实际 Secret 名称
+              key: database-url
+        - name: NODE_ENV
+          value: "production"
