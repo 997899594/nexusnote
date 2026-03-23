@@ -1,7 +1,7 @@
 /**
  * Tag Generation Service
  *
- * 自动为文档生成智能标签，支持：
+ * 自动为笔记生成智能标签，支持：
  * - AI 生成标签 + 置信度
  * - 向量搜索匹配相似标签
  * - 自动合并语义相同的标签
@@ -10,7 +10,7 @@
 import { embed, generateObject } from "ai";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { documents, documentTags, tags } from "@/db/schema";
+import { notes, noteTags, tags } from "@/db/schema";
 import { aiProvider } from "@/lib/ai";
 import {
   TAG_GENERATION_SYSTEM_PROMPT,
@@ -31,13 +31,13 @@ const CONFIG = {
 
 class TagGenerationService {
   /**
-   * 为文档生成标签
+   * 为笔记生成标签
    */
-  async generateTags(documentId: string): Promise<void> {
-    // 1. 获取文档内容
-    const content = await this.getDocumentContent(documentId);
+  async generateTags(noteId: string): Promise<void> {
+    // 1. 获取笔记内容
+    const content = await this.getNoteContent(noteId);
     if (!content || content.length < 50) {
-      console.log(`[Tags] 文档 ${documentId} 内容过短，跳过标签生成`);
+      console.log(`[Tags] 笔记 ${noteId} 内容过短，跳过标签生成`);
       return;
     }
 
@@ -51,23 +51,23 @@ class TagGenerationService {
 
       try {
         const tag = await this.findOrCreateTag(tagName);
-        await this.linkDocumentTag(documentId, tag.id, confidence);
+        await this.linkNoteTag(noteId, tag.id, confidence);
       } catch (error) {
         console.error(`[Tags] 处理标签 "${tagName}" 失败:`, error);
       }
     }
 
-    console.log(`[Tags] 文档 ${documentId} 生成 ${result.tags.length} 个标签`);
+    console.log(`[Tags] 笔记 ${noteId} 生成 ${result.tags.length} 个标签`);
   }
 
   /**
-   * 获取文档纯文本内容
+   * 获取笔记纯文本内容
    */
-  private async getDocumentContent(documentId: string): Promise<string | null> {
+  private async getNoteContent(noteId: string): Promise<string | null> {
     const [doc] = await db
-      .select({ plainText: documents.plainText })
-      .from(documents)
-      .where(eq(documents.id, documentId))
+      .select({ plainText: notes.plainText })
+      .from(notes)
+      .where(eq(notes.id, noteId))
       .limit(1);
 
     return doc?.plainText ?? null;
@@ -171,27 +171,23 @@ class TagGenerationService {
   }
 
   /**
-   * 关联文档和标签
+   * 关联笔记和标签
    */
-  private async linkDocumentTag(
-    documentId: string,
-    tagId: string,
-    confidence: number,
-  ): Promise<void> {
+  private async linkNoteTag(noteId: string, tagId: string, confidence: number): Promise<void> {
     const status = confidence >= CONFIG.AUTO_CONFIRM_THRESHOLD ? "confirmed" : "pending";
     const confirmedAt = status === "confirmed" ? new Date() : null;
 
     await db
-      .insert(documentTags)
+      .insert(noteTags)
       .values({
-        documentId,
+        noteId,
         tagId,
         confidence,
         status,
         confirmedAt,
       })
       .onConflictDoUpdate({
-        target: [documentTags.documentId, documentTags.tagId],
+        target: [noteTags.noteId, noteTags.tagId],
         set: {
           confidence,
           status,

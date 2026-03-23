@@ -14,8 +14,9 @@ import { z } from "zod";
 import { db } from "@/db";
 import {
   conversations,
-  courseSessions,
-  documents,
+  courseProgress,
+  courseSections,
+  courses,
   knowledgeChunks,
   skills,
   userSkillMastery,
@@ -131,22 +132,29 @@ async function collectUserData(
 
   // 3. Course Sessions - Only content from completed (read) sections
   if (sources.includes("courses")) {
-    const userCourseSessions = await db
+    const userCourses = await db
       .select({
-        id: courseSessions.id,
-        title: courseSessions.title,
-        description: courseSessions.description,
-        progress: courseSessions.progress,
+        id: courses.id,
+        title: courses.title,
+        description: courses.description,
       })
-      .from(courseSessions)
-      .where(eq(courseSessions.userId, userId))
-      .orderBy(desc(courseSessions.updatedAt))
+      .from(courses)
+      .where(eq(courses.userId, userId))
+      .orderBy(desc(courses.updatedAt))
       .limit(Math.floor(limit / 2));
+
+    const progressRecords = await db
+      .select({
+        courseId: courseProgress.courseId,
+        completedSections: courseProgress.completedSections,
+      })
+      .from(courseProgress)
+      .where(eq(courseProgress.userId, userId));
 
     // Collect all completed section nodeIds across all courses
     const completedNodeIds: { courseId: string; nodeIds: string[] }[] = [];
-    for (const c of userCourseSessions) {
-      const progress = c.progress as { completedSections?: string[] } | null;
+    for (const c of userCourses) {
+      const progress = progressRecords.find((p) => p.courseId === c.id);
       const nodeIds = progress?.completedSections ?? [];
       if (nodeIds.length > 0) {
         completedNodeIds.push({ courseId: c.id, nodeIds });
@@ -156,19 +164,18 @@ async function collectUserData(
     // Load only documents for completed sections
     const coursesContent: { id: string; content: string }[] = [];
     for (const { courseId, nodeIds } of completedNodeIds) {
-      const session = userCourseSessions.find((c) => c.id === courseId);
+      const course = userCourses.find((c) => c.id === courseId);
       const sectionDocs = await db
         .select({
-          id: documents.id,
-          plainText: documents.plainText,
-          outlineNodeId: documents.outlineNodeId,
+          id: courseSections.id,
+          plainText: courseSections.plainText,
+          outlineNodeId: courseSections.outlineNodeId,
         })
-        .from(documents)
+        .from(courseSections)
         .where(
           and(
-            eq(documents.courseId, courseId),
-            eq(documents.type, "course_section"),
-            inArray(documents.outlineNodeId, nodeIds),
+            eq(courseSections.courseId, courseId),
+            inArray(courseSections.outlineNodeId, nodeIds),
           ),
         );
 
@@ -179,7 +186,7 @@ async function collectUserData(
       if (texts.length > 0) {
         coursesContent.push({
           id: courseId,
-          content: `[课程: ${session?.title || "未命名"}]\n${session?.description || ""}\n${texts.join("\n")}`,
+          content: `[课程: ${course?.title || "未命名"}]\n${course?.description || ""}\n${texts.join("\n")}`,
         });
       }
     }

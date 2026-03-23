@@ -6,7 +6,7 @@
 
 import { eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
-import { db, documents } from "@/db";
+import { db, notes } from "@/db";
 import { auth } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
@@ -25,24 +25,25 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: "Missing targetId or newContent" }, { status: 400 });
         }
 
-        const doc = await db.query.documents.findFirst({
-          where: eq(documents.id, targetId),
+        const note = await db.query.notes.findFirst({
+          where: (table, { and, eq }) =>
+            and(eq(table.id, targetId), eq(table.userId, session.user.id)),
         });
 
-        if (!doc) {
-          return NextResponse.json({ error: "Document not found" }, { status: 404 });
+        if (!note) {
+          return NextResponse.json({ error: "Note not found" }, { status: 404 });
         }
 
-        const updatedContent = `${doc.plainText}\n\n${newContent}`;
+        const updatedContent = `${note.plainText ?? ""}\n\n${newContent}`;
 
         await db
-          .update(documents)
+          .update(notes)
           .set({ plainText: updatedContent, updatedAt: new Date() })
-          .where(eq(documents.id, targetId));
+          .where(eq(notes.id, targetId));
 
         return NextResponse.json({
           success: true,
-          message: "Document updated successfully",
+          message: "Note updated successfully",
         });
       }
 
@@ -63,37 +64,39 @@ export async function POST(request: NextRequest) {
         }
 
         if (targetId) {
-          const doc = await db.query.documents.findFirst({
-            where: eq(documents.id, targetId),
+          const note = await db.query.notes.findFirst({
+            where: (table, { and, eq }) =>
+              and(eq(table.id, targetId), eq(table.userId, session.user.id)),
           });
 
-          if (doc) {
-            const updatedContent = `${doc.plainText}\n\n${content}`;
+          if (note) {
+            const updatedContent = `${note.plainText ?? ""}\n\n${content}`;
             await db
-              .update(documents)
+              .update(notes)
               .set({ plainText: updatedContent, updatedAt: new Date() })
-              .where(eq(documents.id, targetId));
+              .where(eq(notes.id, targetId));
 
             return NextResponse.json({
               success: true,
-              message: "Content appended to document",
-              documentId: targetId,
+              message: "Content appended to note",
+              noteId: targetId,
             });
           }
         }
 
-        const [newDoc] = await db
-          .insert(documents)
+        const [newNote] = await db
+          .insert(notes)
           .values({
-            title: explanation || "新文档",
+            userId: session.user.id,
+            title: explanation || "新笔记",
             plainText: content,
           })
           .returning();
 
         return NextResponse.json({
           success: true,
-          message: "Document created",
-          documentId: newDoc.id,
+          message: "Note created",
+          noteId: newNote.id,
         });
       }
 

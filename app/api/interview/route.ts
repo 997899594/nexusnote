@@ -1,8 +1,9 @@
 // app/api/interview/route.ts
 
 import type { UIMessage } from "ai";
+import { eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
-import { courseSessions, db } from "@/db";
+import { courses, db } from "@/db";
 import { aiProvider, validateRequest } from "@/lib/ai";
 import { createInterviewAgent } from "@/lib/ai/agents/interview";
 import { createNexusNoteStreamResponse } from "@/lib/ai/core/streaming";
@@ -42,11 +43,20 @@ export async function POST(request: NextRequest) {
       throw new APIError("AI 服务未配置", 503, "AI_NOT_CONFIGURED");
     }
 
-    const { courseId } = await resolveOrCreateCourse(
-      userId,
-      inputCourseId,
-      messages as UIMessage[],
-    );
+    let courseId: string | undefined;
+    if (inputCourseId) {
+      const [existingCourse] = await db
+        .select({ id: courses.id, userId: courses.userId })
+        .from(courses)
+        .where(eq(courses.id, inputCourseId))
+        .limit(1);
+
+      if (!existingCourse || existingCourse.userId !== userId) {
+        throw new APIError("课程不存在", 404, "NOT_FOUND");
+      }
+
+      courseId = existingCourse.id;
+    }
 
     const agent = createInterviewAgent({
       userId,
@@ -56,53 +66,12 @@ export async function POST(request: NextRequest) {
 
     const response = await createNexusNoteStreamResponse(agent, messages as UIMessage[], {
       sessionId,
-      resourceId: courseId,
     });
 
     return response;
   } catch (error) {
     return handleError(error);
   }
-}
-
-async function resolveOrCreateCourse(
-  userId: string,
-  inputCourseId: string | null | undefined,
-  messages: UIMessage[],
-): Promise<{ courseId: string }> {
-  if (inputCourseId) {
-    const existing = await db.query.courseSessions.findFirst({
-      where: (c, { eq, and }) => and(eq(c.id, inputCourseId), eq(c.userId, userId)),
-      columns: { id: true },
-    });
-
-    if (existing) {
-      return { courseId: existing.id };
-    }
-  }
-
-  // Extract title from first user message
-  const firstUserMessage = messages.find((m) => m.role === "user");
-  let title = "新课程";
-
-  if (firstUserMessage?.parts) {
-    const textPart = firstUserMessage.parts.find((p) => p.type === "text");
-    if (textPart && "text" in textPart) {
-      title = textPart.text.slice(0, 100);
-    }
-  }
-
-  const [newCourse] = await db
-    .insert(courseSessions)
-    .values({
-      userId,
-      title,
-      interviewStatus: "interviewing",
-      status: "idle",
-    })
-    .returning();
-
-  return { courseId: newCourse.id };
 }
 
 export async function GET() {

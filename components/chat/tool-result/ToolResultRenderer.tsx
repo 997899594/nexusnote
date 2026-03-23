@@ -6,7 +6,6 @@
 
 import type { ToolUIPart } from "ai";
 import { InterviewOptions } from "@/components/interview/InterviewOptions";
-import { CourseOutlineCard } from "./CourseOutlineCard";
 import { EditorConfirmDialog } from "./EditorConfirmDialog";
 import { GenericToolResult } from "./GenericToolResult";
 import { MindMapResult } from "./MindMapResult";
@@ -78,14 +77,6 @@ export function ToolResultRenderer({
       return <EditorConfirmDialog output={output} toolName={toolName} />;
     }
 
-    case "generateCourse": {
-      const output = getOutput<"generateCourse">(toolPart);
-      if (!output?.success) {
-        return <GenericToolResult output={output} />;
-      }
-      return <CourseOutlineCard output={output} />;
-    }
-
     case "getNote": {
       const output = getOutput<"getNote">(toolPart);
       if (!output?.success) {
@@ -110,11 +101,6 @@ export function ToolResultRenderer({
 
     case "discoverSkills": {
       const output = getOutput<"discoverSkills">(toolPart);
-      return <GenericToolResult output={output} />;
-    }
-
-    case "checkCourseProgress": {
-      const output = getOutput<"checkCourseProgress">(toolPart);
       return <GenericToolResult output={output} />;
     }
 

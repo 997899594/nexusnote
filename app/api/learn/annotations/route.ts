@@ -3,7 +3,7 @@
 import { and, eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { courseSessions, db, documents } from "@/db";
+import { courseSectionAnnotations, courseSections, courses, db } from "@/db";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
 
@@ -21,7 +21,7 @@ const AnnotationSchema = z.object({
 });
 
 const RequestSchema = z.object({
-  documentId: z.string().uuid(),
+  sectionId: z.string().uuid(),
   annotations: z.array(AnnotationSchema),
 });
 
@@ -39,28 +39,42 @@ export async function PATCH(request: NextRequest) {
       throw new APIError("请求参数无效", 400, "VALIDATION_ERROR");
     }
 
-    const { documentId, annotations } = parsed.data;
+    const { sectionId, annotations } = parsed.data;
 
-    // Verify document exists and belongs to user's course (JOIN for ownership check)
-    const [doc] = await db
-      .select({ id: documents.id })
-      .from(documents)
-      .innerJoin(courseSessions, eq(documents.courseId, courseSessions.id))
-      .where(and(eq(documents.id, documentId), eq(courseSessions.userId, userId)))
+    const [section] = await db
+      .select({ id: courseSections.id })
+      .from(courseSections)
+      .innerJoin(courses, eq(courseSections.courseId, courses.id))
+      .where(and(eq(courseSections.id, sectionId), eq(courses.userId, userId)))
       .limit(1);
 
-    if (!doc) {
-      throw new APIError("文档不存在", 404, "NOT_FOUND");
+    if (!section) {
+      throw new APIError("小节不存在", 404, "NOT_FOUND");
     }
 
-    // Update metadata with full annotation replacement
     await db
-      .update(documents)
-      .set({
-        metadata: { annotations },
-        updatedAt: new Date(),
-      })
-      .where(eq(documents.id, documentId));
+      .delete(courseSectionAnnotations)
+      .where(
+        and(
+          eq(courseSectionAnnotations.courseSectionId, sectionId),
+          eq(courseSectionAnnotations.userId, userId),
+        ),
+      );
+
+    if (annotations.length > 0) {
+      await db.insert(courseSectionAnnotations).values(
+        annotations.map((annotation) => ({
+          courseSectionId: sectionId,
+          userId,
+          type: annotation.type,
+          anchor: annotation.anchor,
+          color: annotation.color ?? null,
+          noteContent: annotation.noteContent ?? null,
+          createdAt: new Date(annotation.createdAt),
+          updatedAt: new Date(),
+        })),
+      );
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

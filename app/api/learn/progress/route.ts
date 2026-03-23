@@ -3,7 +3,7 @@
 import { eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { courseSessions, db } from "@/db";
+import { courseProgress, courses, db } from "@/db";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
 
@@ -33,9 +33,8 @@ interface CourseProgress {
   currentChapter: number;
   completedChapters: number[];
   completedSections: string[];
-  totalChapters: number;
-  startedAt: string;
-  completedAt: string;
+  startedAt: Date | null;
+  completedAt: Date | null;
 }
 
 export async function POST(request: NextRequest) {
@@ -48,24 +47,34 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { courseId, sectionNodeId } = RequestSchema.parse(body);
 
-    // Fetch course session
     const [course] = await db
       .select({
-        id: courseSessions.id,
-        userId: courseSessions.userId,
-        progress: courseSessions.progress,
-        outlineData: courseSessions.outlineData,
+        id: courses.id,
+        userId: courses.userId,
+        outlineData: courses.outlineData,
       })
-      .from(courseSessions)
-      .where(eq(courseSessions.id, courseId))
+      .from(courses)
+      .where(eq(courses.id, courseId))
       .limit(1);
 
     if (!course || course.userId !== session.user.id) {
       throw new APIError("课程不存在", 404, "NOT_FOUND");
     }
 
-    // Build updated progress
-    const existing = (course.progress ?? {}) as Partial<CourseProgress>;
+    const [progressRecord] = await db
+      .select({
+        id: courseProgress.id,
+        currentChapter: courseProgress.currentChapter,
+        completedChapters: courseProgress.completedChapters,
+        completedSections: courseProgress.completedSections,
+        startedAt: courseProgress.startedAt,
+        completedAt: courseProgress.completedAt,
+      })
+      .from(courseProgress)
+      .where(eq(courseProgress.courseId, courseId))
+      .limit(1);
+
+    const existing: Partial<CourseProgress> = progressRecord ?? {};
     const completedSections = existing.completedSections ?? [];
 
     // Deduplicate: skip if already completed
@@ -97,22 +106,30 @@ export async function POST(request: NextRequest) {
     // Check full course completion
     const allChaptersDone = chapters.length > 0 && completedChapters.length >= chapters.length;
     const completedAt = allChaptersDone
-      ? (existing.completedAt ?? new Date().toISOString())
-      : (existing.completedAt ?? "");
+      ? (existing.completedAt ?? new Date())
+      : (existing.completedAt ?? null);
 
     const updatedProgress: CourseProgress = {
       currentChapter: existing.currentChapter ?? 0,
       completedChapters,
       completedSections,
-      totalChapters: chapters.length,
-      startedAt: existing.startedAt ?? new Date().toISOString(),
+      startedAt: existing.startedAt ?? new Date(),
       completedAt,
     };
 
-    await db
-      .update(courseSessions)
-      .set({ progress: updatedProgress, updatedAt: new Date() })
-      .where(eq(courseSessions.id, courseId));
+    if (progressRecord) {
+      await db
+        .update(courseProgress)
+        .set({ ...updatedProgress, updatedAt: new Date() })
+        .where(eq(courseProgress.courseId, courseId));
+    } else {
+      await db.insert(courseProgress).values({
+        courseId,
+        userId: session.user.id,
+        ...updatedProgress,
+        updatedAt: new Date(),
+      });
+    }
 
     // If course just completed, trigger skill discovery asynchronously
     if (allChaptersDone && !existing.completedAt) {
@@ -150,32 +167,51 @@ export async function PATCH(request: NextRequest) {
 
     const [course] = await db
       .select({
-        id: courseSessions.id,
-        userId: courseSessions.userId,
-        progress: courseSessions.progress,
+        id: courses.id,
+        userId: courses.userId,
       })
-      .from(courseSessions)
-      .where(eq(courseSessions.id, courseId))
+      .from(courses)
+      .where(eq(courses.id, courseId))
       .limit(1);
 
     if (!course || course.userId !== session.user.id) {
       throw new APIError("课程不存在", 404, "NOT_FOUND");
     }
 
-    const existing = (course.progress ?? {}) as Partial<CourseProgress>;
+    const [progressRecord] = await db
+      .select({
+        currentChapter: courseProgress.currentChapter,
+        completedChapters: courseProgress.completedChapters,
+        completedSections: courseProgress.completedSections,
+        startedAt: courseProgress.startedAt,
+        completedAt: courseProgress.completedAt,
+      })
+      .from(courseProgress)
+      .where(eq(courseProgress.courseId, courseId))
+      .limit(1);
+
+    const existing: Partial<CourseProgress> = progressRecord ?? {};
     const updatedProgress: CourseProgress = {
       currentChapter,
       completedChapters: existing.completedChapters ?? [],
       completedSections: existing.completedSections ?? [],
-      totalChapters: existing.totalChapters ?? 0,
-      startedAt: existing.startedAt ?? new Date().toISOString(),
-      completedAt: existing.completedAt ?? "",
+      startedAt: existing.startedAt ?? new Date(),
+      completedAt: existing.completedAt ?? null,
     };
 
-    await db
-      .update(courseSessions)
-      .set({ progress: updatedProgress, updatedAt: new Date() })
-      .where(eq(courseSessions.id, courseId));
+    if (progressRecord) {
+      await db
+        .update(courseProgress)
+        .set({ ...updatedProgress, updatedAt: new Date() })
+        .where(eq(courseProgress.courseId, courseId));
+    } else {
+      await db.insert(courseProgress).values({
+        courseId,
+        userId: session.user.id,
+        ...updatedProgress,
+        updatedAt: new Date(),
+      });
+    }
 
     return NextResponse.json({ ok: true });
   } catch (error) {

@@ -19,7 +19,7 @@ interface SectionDoc {
   title: string | null;
   content: string | null;
   outlineNodeId: string | null;
-  metadata: { annotations?: Annotation[] } | null;
+  annotations: Annotation[];
 }
 
 interface SectionReaderProps {
@@ -100,8 +100,8 @@ function SectionBlock({
   const completedSections = useLearnStore((s) => s.completedSections);
 
   const { annotations, addHighlight, addNote, removeAnnotation, updateNote } = useAnnotations({
-    documentId: sectionDoc?.id,
-    initialAnnotations: sectionDoc?.metadata?.annotations ?? [],
+    sectionId: sectionDoc?.id,
+    initialAnnotations: sectionDoc?.annotations ?? [],
   });
 
   const isComplete = state.status === "complete";

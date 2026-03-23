@@ -24,7 +24,7 @@ export interface SectionDoc {
   title: string | null;
   content: string | null;
   outlineNodeId: string | null;
-  metadata: { annotations?: Annotation[] } | null;
+  annotations: Annotation[];
 }
 
 export interface LearnClientProps {

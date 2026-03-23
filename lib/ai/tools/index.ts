@@ -19,7 +19,6 @@ import { createWebSearchTool } from "./chat/web-search";
 import { batchEditTool, draftContentTool, editDocumentTool } from "./editor";
 import { createInterviewTools } from "./interview";
 import { createLearnContextTools } from "./learn";
-import { createCourseTools } from "./learning/course";
 import { createEnhanceTools } from "./learning/enhance";
 import { createRagTools } from "./rag";
 import { suggestOptionsTool } from "./shared/suggest-options";
@@ -43,7 +42,6 @@ export const toolRegistry = {
   },
   resource: {
     interview: createInterviewTools,
-    course: createCourseTools,
     learn: createLearnContextTools,
   },
   shared: {
@@ -61,10 +59,10 @@ export const toolRegistry = {
  * 为 Agent 构建工具集
  *
  * - skills: 静默后台运行，只有 discoverSkills
- * - chat/interview/course: shared 编辑工具 + global 用户工具 + 特定工具
+ * - chat/interview: shared 编辑工具 + global 用户工具 + 特定工具
  */
 export function buildAgentTools(
-  agentType: "chat" | "interview" | "course" | "skills",
+  agentType: "chat" | "interview" | "skills",
   ctx: ToolContext,
 ): Record<string, unknown> {
   const tools: Record<string, unknown> = {};
@@ -91,19 +89,10 @@ export function buildAgentTools(
       break;
 
     case "interview":
-      if (!ctx.resourceId) {
-        throw new Error("Interview agent requires resourceId (courseId)");
-      }
-      // 访谈 agent 只需要 confirmOutline + suggestOptions，不需要编辑/搜索等工具
       return {
         ...toolRegistry.resource.interview(ctx),
         suggestOptions: toolRegistry.shared.suggestOptions,
       } as Record<string, unknown>;
-
-    case "course":
-      Object.assign(tools, toolRegistry.global.notes(ctx.userId));
-      Object.assign(tools, toolRegistry.resource.course(ctx.userId));
-      break;
   }
 
   return tools;

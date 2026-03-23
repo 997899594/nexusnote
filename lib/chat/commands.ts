@@ -17,7 +17,7 @@ export const CHAT_COMMANDS: Command[] = [
     icon: Plus,
     modeLabel: "创建笔记",
     modeIcon: Plus,
-    targetPath: "/notes/new",
+    targetPath: "/editor/new",
     getQueryParams: () => ({}),
   },
   {

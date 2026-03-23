@@ -8,7 +8,7 @@
  */
 
 // 意图类型
-export type UserIntent = "CHAT" | "INTERVIEW" | "COURSE" | "EDITOR" | "SEARCH";
+export type UserIntent = "CHAT" | "INTERVIEW" | "EDITOR" | "SEARCH";
 
 // 学习意图关键词
 const LEARNING_PATTERNS = [

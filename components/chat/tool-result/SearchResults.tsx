@@ -49,7 +49,7 @@ export function SearchResults({ output, type }: SearchResultsProps) {
           return (
             <a
               key={isWeb ? result.url : result.id || index}
-              href={isWeb ? result.url : `/notes/${result.sourceId}`}
+              href={isWeb ? result.url : `/editor/${result.sourceId}`}
               target={isWeb ? "_blank" : undefined}
               rel={isWeb ? "noopener noreferrer" : undefined}
               className="block p-3 bg-[var(--color-surface)] rounded-lg shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] transition-all"
@@ -57,7 +57,7 @@ export function SearchResults({ output, type }: SearchResultsProps) {
               <div className="flex items-start gap-2">
                 {isWeb ? (
                   <ExternalLink className="w-4 h-4 mt-0.5 text-[var(--color-text-muted)]" />
-                ) : result.sourceType === "document" ? (
+                ) : result.sourceType === "note" ? (
                   <FileText className="w-4 h-4 mt-0.5 text-[var(--color-text-muted)]" />
                 ) : (
                   <MessageSquare className="w-4 h-4 mt-0.5 text-[var(--color-text-muted)]" />

@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { PendingTagsPopover, TagBadge } from "./index";
 
-interface DocumentTag {
+interface NoteTag {
   id: string;
   confidence: number;
   status: string;
@@ -10,16 +10,16 @@ interface DocumentTag {
   tag: { id: string; name: string; usageCount: number };
 }
 interface TagBarProps {
-  documentId: string;
+  noteId: string;
 }
 
-export function TagBar({ documentId }: TagBarProps) {
-  const [tags, setTags] = useState<DocumentTag[]>([]);
+export function TagBar({ noteId }: TagBarProps) {
+  const [tags, setTags] = useState<NoteTag[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchTags = async () => {
     try {
-      const res = await fetch(`/api/documents/${documentId}/tags`);
+      const res = await fetch(`/api/notes/${noteId}/tags`);
       const data = await res.json();
       setTags(data.tags || []);
     } catch (e) {
@@ -29,13 +29,13 @@ export function TagBar({ documentId }: TagBarProps) {
     }
   };
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: fetchTags is intentionally not wrapped in useCallback; we only want to fetch on mount
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fetchTags is intentionally not wrapped in useCallback; we refetch when note changes
   useEffect(() => {
     fetchTags();
-  }, []);
+  }, [noteId]);
 
-  const handleConfirm = async (documentTagId: string) => {
-    await fetch(`/api/document-tags/${documentTagId}`, {
+  const handleConfirm = async (noteTagId: string) => {
+    await fetch(`/api/note-tags/${noteTagId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: "confirmed" }),
@@ -43,8 +43,8 @@ export function TagBar({ documentId }: TagBarProps) {
     await fetchTags();
   };
 
-  const handleReject = async (documentTagId: string) => {
-    await fetch(`/api/document-tags/${documentTagId}`, {
+  const handleReject = async (noteTagId: string) => {
+    await fetch(`/api/note-tags/${noteTagId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: "rejected" }),
@@ -52,8 +52,8 @@ export function TagBar({ documentId }: TagBarProps) {
     await fetchTags();
   };
 
-  const handleRemove = async (documentTagId: string) => {
-    await fetch(`/api/document-tags/${documentTagId}`, { method: "DELETE" });
+  const handleRemove = async (noteTagId: string) => {
+    await fetch(`/api/note-tags/${noteTagId}`, { method: "DELETE" });
     await fetchTags();
   };
 

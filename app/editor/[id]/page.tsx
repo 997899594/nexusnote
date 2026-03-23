@@ -11,7 +11,7 @@ import { TagBar, TagGenerationTrigger } from "@/components/tags";
 
 export default function EditorPage() {
   const params = useParams();
-  const documentId = params.id as string;
+  const noteId = params.id as string;
   const [content, setContent] = useState("");
   const [title, setTitle] = useState("");
   const [loading, setLoading] = useState(true);
@@ -19,7 +19,7 @@ export default function EditorPage() {
   const [editorInstance, setEditorInstance] = useState<TiptapEditorType | null>(null);
 
   useEffect(() => {
-    if (documentId) {
+    if (noteId) {
       // Mock load - 实际应调用 API
       setTimeout(() => {
         setTitle("我的笔记");
@@ -27,7 +27,7 @@ export default function EditorPage() {
         setLoading(false);
       }, 500);
     }
-  }, [documentId]);
+  }, [noteId]);
 
   const handleSave = async () => {
     // TODO: 保存到数据库
@@ -87,10 +87,10 @@ export default function EditorPage() {
           </motion.button>
         </header>
         {/* 标签栏 */}
-        <TagBar documentId={documentId} />
+        <TagBar noteId={noteId} />
         <Editor content={content} onChange={setContent} placeholder="开始写作..." />
         {/* 标签自动生成触发器 */}
-        <TagGenerationTrigger documentId={documentId} content={content} />
+        <TagGenerationTrigger noteId={noteId} content={content} />
       </motion.div>
 
       {/* 移动端全屏编辑 */}
@@ -105,7 +105,7 @@ export default function EditorPage() {
           />
           {/* 移动端标签栏 */}
           <div className="pt-2">
-            <TagBar documentId={documentId} />
+            <TagBar noteId={noteId} />
           </div>
         </div>
 
@@ -120,7 +120,7 @@ export default function EditorPage() {
         </div>
 
         {/* 标签自动生成触发器 */}
-        <TagGenerationTrigger documentId={documentId} content={content} />
+        <TagGenerationTrigger noteId={noteId} content={content} />
 
         {/* 移动端工具栏 */}
         {editorInstance && (

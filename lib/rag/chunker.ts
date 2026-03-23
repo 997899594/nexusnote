@@ -2,12 +2,12 @@
  * RAG Service - Knowledge Chunker
  *
  * Unified knowledge chunking and indexing for multiple sources:
- * - document: Documents
+ * - note: Notes
  * - conversation: Chat conversations
  */
 
 import { embedMany } from "ai";
-import { db, documents, eq, knowledgeChunks } from "@/db";
+import { db, eq, knowledgeChunks, notes } from "@/db";
 import { aiProvider } from "@/lib/ai";
 
 export interface ChunkOptions {
@@ -15,7 +15,7 @@ export interface ChunkOptions {
   overlap?: number;
 }
 
-export type SourceType = "document" | "conversation" | "course_section";
+export type SourceType = "note" | "conversation" | "course_section";
 
 const DEFAULT_CHUNK_SIZE = 500;
 const DEFAULT_OVERLAP = 50;
@@ -55,26 +55,26 @@ interface IndexOptions extends ChunkOptions {
   metadata?: Record<string, unknown>;
 }
 
-export async function indexDocument(
-  documentId: string,
+export async function indexNote(
+  noteId: string,
   plainText: string,
   options: IndexOptions = {},
 ): Promise<{ success: boolean; chunksCount: number }> {
   const { chunkSize = DEFAULT_CHUNK_SIZE, overlap = DEFAULT_OVERLAP, userId, metadata } = options;
 
-  console.log(`[Chunker] Indexing document: ${documentId}, text length: ${plainText.length}`);
+  console.log(`[Chunker] Indexing note: ${noteId}, text length: ${plainText.length}`);
 
   try {
-    const document = await db.query.documents.findFirst({
-      where: eq(documents.id, documentId),
+    const note = await db.query.notes.findFirst({
+      where: eq(notes.id, noteId),
     });
 
-    if (!document) {
-      throw new Error(`Document not found: ${documentId}`);
+    if (!note) {
+      throw new Error(`Note not found: ${noteId}`);
     }
 
-    await db.delete(knowledgeChunks).where(eq(knowledgeChunks.sourceId, documentId));
-    console.log(`[Chunker] Cleared old chunks for: ${documentId}`);
+    await db.delete(knowledgeChunks).where(eq(knowledgeChunks.sourceId, noteId));
+    console.log(`[Chunker] Cleared old chunks for: ${noteId}`);
 
     const chunks = chunkText(plainText, chunkSize, overlap);
     console.log(`[Chunker] Created ${chunks.length} chunks`);
@@ -95,8 +95,8 @@ export async function indexDocument(
     console.log(`[Chunker] Generated ${embeddings.length} embeddings`);
 
     const newChunks = chunks.map((content, index) => ({
-      sourceType: "document" as const,
-      sourceId: documentId,
+      sourceType: "note" as const,
+      sourceId: noteId,
       content,
       embedding: embeddings[index],
       chunkIndex: index,
@@ -110,14 +110,14 @@ export async function indexDocument(
       await db.insert(knowledgeChunks).values(batch);
     }
 
-    console.log(`[Chunker] Indexed ${chunks.length} chunks for: ${documentId}`);
+    console.log(`[Chunker] Indexed ${chunks.length} chunks for: ${noteId}`);
 
     return {
       success: true,
       chunksCount: chunks.length,
     };
   } catch (error) {
-    console.error(`[Chunker] Error indexing document:`, error);
+    console.error(`[Chunker] Error indexing note:`, error);
     throw error;
   }
 }
@@ -242,16 +242,16 @@ export async function indexCourseSection(
   }
 }
 
-export async function reindexAllDocuments(): Promise<{ success: boolean; processed: number }> {
-  const allDocs = await db.query.documents.findMany();
+export async function reindexAllNotes(): Promise<{ success: boolean; processed: number }> {
+  const allNotes = await db.query.notes.findMany();
 
   let processed = 0;
-  for (const doc of allDocs) {
+  for (const note of allNotes) {
     try {
-      await indexDocument(doc.id, doc.plainText || "");
+      await indexNote(note.id, note.plainText || "");
       processed++;
     } catch (error) {
-      console.error(`[Chunker] Failed to index ${doc.id}:`, error);
+      console.error(`[Chunker] Failed to index ${note.id}:`, error);
     }
   }
 

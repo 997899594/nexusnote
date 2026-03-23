@@ -4,7 +4,7 @@ import { smoothStream, streamText } from "ai";
 import { and, eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { courseSessions, db, documents } from "@/db";
+import { courseSections, courses, db } from "@/db";
 import { aiProvider } from "@/lib/ai/core";
 import { buildSectionPrompt } from "@/lib/ai/prompts/learn";
 import { APIError, handleError } from "@/lib/api";
@@ -48,8 +48,8 @@ export async function POST(request: NextRequest) {
     // Verify course ownership
     const [course] = await db
       .select()
-      .from(courseSessions)
-      .where(and(eq(courseSessions.id, courseId), eq(courseSessions.userId, userId)))
+      .from(courses)
+      .where(and(eq(courses.id, courseId), eq(courses.userId, userId)))
       .limit(1);
 
     if (!course) {
@@ -80,18 +80,17 @@ export async function POST(request: NextRequest) {
     // Check if content already exists
     const outlineNodeId = `section-${chapterIndex + 1}-${sectionIndex + 1}`;
     const [existingDoc] = await db
-      .select({ id: documents.id, content: documents.content })
-      .from(documents)
-      .where(and(eq(documents.courseId, courseId), eq(documents.outlineNodeId, outlineNodeId)))
+      .select({ id: courseSections.id, content: courseSections.contentMarkdown })
+      .from(courseSections)
+      .where(
+        and(eq(courseSections.courseId, courseId), eq(courseSections.outlineNodeId, outlineNodeId)),
+      )
       .limit(1);
 
     if (existingDoc?.content) {
-      const content = Buffer.isBuffer(existingDoc.content)
-        ? existingDoc.content.toString("utf-8")
-        : "";
       return NextResponse.json({
         exists: true,
-        content,
+        content: existingDoc.content,
         documentId: existingDoc.id,
       });
     }
@@ -130,26 +129,25 @@ export async function POST(request: NextRequest) {
           if (existingDoc) {
             docId = existingDoc.id;
             await db
-              .update(documents)
+              .update(courseSections)
               .set({
-                content: Buffer.from(text),
+                contentMarkdown: text,
                 plainText: text,
                 updatedAt: new Date(),
               })
-              .where(eq(documents.id, existingDoc.id));
+              .where(eq(courseSections.id, existingDoc.id));
           } else {
             const [inserted] = await db
-              .insert(documents)
+              .insert(courseSections)
               .values({
-                type: "course_section",
                 title: section.title,
                 courseId,
                 outlineNodeId,
-                content: Buffer.from(text),
+                contentMarkdown: text,
                 plainText: text,
               })
               .onConflictDoNothing()
-              .returning({ id: documents.id });
+              .returning({ id: courseSections.id });
             docId = inserted?.id ?? "";
           }
 

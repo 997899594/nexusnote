@@ -2,9 +2,8 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import { and, courseSessions, db, documents, eq } from "@/db";
-
 import type { ToolContext } from "@/lib/ai/core/tool-context";
+import { saveCourseFromOutline } from "@/lib/learning/course-service";
 
 // ============================================
 // Schema
@@ -49,6 +48,7 @@ export const ConfirmOutlineSchema = z.object({
 
 export interface ConfirmOutlineOutput {
   success: boolean;
+  courseId?: string;
   outline?: z.infer<typeof ConfirmOutlineSchema>;
   error?: string;
 }
@@ -58,68 +58,31 @@ export interface ConfirmOutlineOutput {
 // ============================================
 
 export const createInterviewTools = (ctx: ToolContext) => {
-  const courseId = ctx.resourceId;
-
-  if (!courseId) {
-    throw new Error("Interview tools require resourceId (courseId)");
-  }
-
   return {
     confirmOutline: tool({
       description:
         "生成或更新课程大纲。当你对用户需求了解充分时调用。用户提出修改建议时再次调用更新。",
       inputSchema: ConfirmOutlineSchema,
       execute: async (outline): Promise<ConfirmOutlineOutput> => {
-        const course = await db.query.courseSessions.findFirst({
-          where: eq(courseSessions.id, courseId),
-        });
+        try {
+          const result = await saveCourseFromOutline({
+            userId: ctx.userId,
+            courseId: ctx.resourceId,
+            outline,
+          });
 
-        if (!course) {
-          return { success: false, error: "课程不存在" };
+          return {
+            success: true,
+            courseId: result.courseId,
+            outline,
+          };
+        } catch (error) {
+          console.error("[Interview] Failed to save outline:", error);
+          return {
+            success: false,
+            error: error instanceof Error ? error.message : "保存课程失败",
+          };
         }
-
-        if (course.userId !== ctx.userId) {
-          return { success: false, error: "无权修改此课程" };
-        }
-
-        // Save outline to course session
-        await db
-          .update(courseSessions)
-          .set({
-            title: outline.title,
-            description: outline.description,
-            difficulty: outline.difficulty,
-            estimatedMinutes: Math.round(outline.estimatedHours * 60),
-            outlineData: outline,
-            interviewStatus: "completed",
-            status: "outline_confirmed",
-            updatedAt: new Date(),
-          })
-          .where(eq(courseSessions.id, courseId));
-
-        // --- Eager placeholder document creation ---
-        // Clear old section documents (supports outline re-confirmation during interview)
-        await db
-          .delete(documents)
-          .where(and(eq(documents.courseId, courseId), eq(documents.type, "course_section")));
-
-        // Create one placeholder document per section
-        for (let chIdx = 0; chIdx < outline.chapters.length; chIdx++) {
-          const chapter = outline.chapters[chIdx];
-          for (let secIdx = 0; secIdx < chapter.sections.length; secIdx++) {
-            const section = chapter.sections[secIdx];
-            await db.insert(documents).values({
-              type: "course_section",
-              title: section.title,
-              courseId: courseId,
-              outlineNodeId: `section-${chIdx + 1}-${secIdx + 1}`,
-              content: null,
-              plainText: null,
-            });
-          }
-        }
-
-        return { success: true, outline };
       },
     }),
   };

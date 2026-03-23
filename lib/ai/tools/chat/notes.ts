@@ -4,7 +4,7 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import { db, documents, eq, workspaces } from "@/db";
+import { db, eq, notes } from "@/db";
 
 export const CreateNoteSchema = z.object({
   title: z.string().min(1).max(200),
@@ -29,30 +29,20 @@ export const DeleteNoteSchema = z.object({
 
 /**
  * 创建笔记工具集（绑定 userId，带权限验证）
- * 通过 workspace.ownerId 验证文档所有权
  */
 export function createNoteTools(userId: string) {
   return {
     createNote: tool({
-      description: "创建新笔记（需要用户有 workspace）",
+      description: "创建新笔记",
       inputSchema: CreateNoteSchema,
       execute: async (args) => {
         try {
-          // 获取用户的 workspace
-          const workspace = await db.query.workspaces.findFirst({
-            where: eq(workspaces.ownerId, userId),
-          });
-
-          if (!workspace) {
-            return { success: false, error: "用户没有可用的 workspace" };
-          }
-
           const [note] = await db
-            .insert(documents)
+            .insert(notes)
             .values({
+              userId,
               title: args.title,
               plainText: args.content,
-              workspaceId: workspace.id,
             })
             .returning();
 
@@ -73,15 +63,11 @@ export function createNoteTools(userId: string) {
       inputSchema: GetNoteSchema,
       execute: async (args) => {
         try {
-          // 验证所有权：通过 workspace.ownerId
-          const note = await db.query.documents.findFirst({
-            where: eq(documents.id, args.noteId),
-            with: {
-              workspace: true,
-            },
+          const note = await db.query.notes.findFirst({
+            where: (table, { and, eq }) => and(eq(table.id, args.noteId), eq(table.userId, userId)),
           });
 
-          if (!note || note.workspace?.ownerId !== userId) {
+          if (!note) {
             return { success: false, error: "笔记不存在或无权访问" };
           }
 
@@ -104,26 +90,22 @@ export function createNoteTools(userId: string) {
       inputSchema: UpdateNoteSchema,
       execute: async (args) => {
         try {
-          // 验证所有权：通过 workspace.ownerId
-          const existing = await db.query.documents.findFirst({
-            where: eq(documents.id, args.noteId),
-            with: {
-              workspace: true,
-            },
+          const existing = await db.query.notes.findFirst({
+            where: (table, { and, eq }) => and(eq(table.id, args.noteId), eq(table.userId, userId)),
           });
 
-          if (!existing || existing.workspace?.ownerId !== userId) {
+          if (!existing) {
             return { success: false, error: "笔记不存在或无权修改" };
           }
 
           await db
-            .update(documents)
+            .update(notes)
             .set({
               ...(args.title && { title: args.title }),
               ...(args.content && { plainText: args.content }),
               updatedAt: new Date(),
             })
-            .where(eq(documents.id, args.noteId));
+            .where(eq(notes.id, args.noteId));
 
           return { success: true, id: args.noteId };
         } catch (error) {
@@ -138,19 +120,15 @@ export function createNoteTools(userId: string) {
       inputSchema: DeleteNoteSchema,
       execute: async (args) => {
         try {
-          // 验证所有权：通过 workspace.ownerId
-          const existing = await db.query.documents.findFirst({
-            where: eq(documents.id, args.noteId),
-            with: {
-              workspace: true,
-            },
+          const existing = await db.query.notes.findFirst({
+            where: (table, { and, eq }) => and(eq(table.id, args.noteId), eq(table.userId, userId)),
           });
 
-          if (!existing || existing.workspace?.ownerId !== userId) {
+          if (!existing) {
             return { success: false, error: "笔记不存在或无权删除" };
           }
 
-          await db.delete(documents).where(eq(documents.id, args.noteId));
+          await db.delete(notes).where(eq(notes.id, args.noteId));
           return { success: true, id: args.noteId };
         } catch (error) {
           console.error("[Tool] deleteNote error:", error);

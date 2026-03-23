@@ -7,7 +7,7 @@ import { ChatMetadataSchema } from "@/types/metadata";
 
 export const ChatRequestSchema = z.object({
   messages: z.array(z.unknown()).min(1),
-  intent: z.enum(["CHAT", "INTERVIEW", "COURSE", "EDITOR", "SEARCH", "SKILLS"]).optional(),
+  intent: z.enum(["CHAT", "INTERVIEW", "EDITOR", "SEARCH", "SKILLS"]).optional(),
   sessionId: z.string().optional(),
   personaSlug: z
     .string()

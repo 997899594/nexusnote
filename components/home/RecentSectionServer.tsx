@@ -7,26 +7,14 @@
  * - 自动处理认证状态
  */
 
-import { and, desc, eq, gt } from "drizzle-orm";
-import {
-  BookOpen,
-  FileText,
-  GraduationCap,
-  Map as MapIcon,
-  MessageSquare,
-  StickyNote,
-} from "lucide-react";
+import { desc, eq } from "drizzle-orm";
+import { GraduationCap } from "lucide-react";
 import { RecentCard } from "@/components/home";
-import { conversations, courseSessions, db, documents, workspaces } from "@/db";
+import { courseProgress, courses, db } from "@/db";
 import { auth } from "@/lib/auth";
 
 const ICONS = {
   course: GraduationCap,
-  flashcard: StickyNote,
-  quiz: BookOpen,
-  note: FileText,
-  chat: MessageSquare,
-  mindmap: MapIcon,
 } as const;
 
 type RecentItem = {
@@ -56,109 +44,41 @@ function formatTime(date: Date | null): string {
 }
 
 async function getRecentItems(userId: string, limit = 6): Promise<RecentItem[]> {
-  const items: RecentItem[] = [];
-
-  // 1. 最近课程
   const recentCourses = await db
     .select({
-      id: courseSessions.id,
-      title: courseSessions.title,
-      description: courseSessions.description,
-      updatedAt: courseSessions.updatedAt,
-      status: courseSessions.status,
-      interviewStatus: courseSessions.interviewStatus,
-      progress: courseSessions.progress,
+      id: courses.id,
+      title: courses.title,
+      description: courses.description,
+      updatedAt: courses.updatedAt,
     })
-    .from(courseSessions)
-    .where(eq(courseSessions.userId, userId))
-    .orderBy(desc(courseSessions.updatedAt))
+    .from(courses)
+    .where(eq(courses.userId, userId))
+    .orderBy(desc(courses.updatedAt))
     .limit(limit);
 
-  for (const course of recentCourses) {
-    const progressData = (course.progress as { currentChapter?: number }) || {};
-    const isInterviewing = course.interviewStatus !== "completed";
-    const isCompleted = course.status === "completed";
-    const currentChapter = progressData.currentChapter || 0;
-    const progress = isInterviewing
-      ? "规划中"
-      : isCompleted
-        ? "已完成"
-        : currentChapter > 0
-          ? `第${currentChapter + 1}章`
-          : "未开始";
-    const url = isInterviewing ? `/interview?courseId=${course.id}` : `/learn/${course.id}`;
-    items.push({
+  const progressRows = await db
+    .select({
+      courseId: courseProgress.courseId,
+      currentChapter: courseProgress.currentChapter,
+    })
+    .from(courseProgress)
+    .where(eq(courseProgress.userId, userId));
+
+  return recentCourses.map((course) => {
+    const progressData = progressRows.find((row) => row.courseId === course.id);
+    const currentChapter = progressData?.currentChapter || 0;
+    const progress = currentChapter > 0 ? `第${currentChapter + 1}章` : "未开始";
+
+    return {
       id: course.id,
       type: "course",
       title: course.title || "未命名课程",
       desc: course.description?.slice(0, 30) || progress,
       time: formatTime(course.updatedAt),
-      url,
+      url: `/learn/${course.id}`,
       sortAt: course.updatedAt?.getTime() ?? 0,
-    });
-  }
-
-  // 2. 最近会话
-  const chats = await db
-    .select({
-      id: conversations.id,
-      title: conversations.title,
-      messageCount: conversations.messageCount,
-      lastMessageAt: conversations.lastMessageAt,
-    })
-    .from(conversations)
-    .where(
-      and(
-        eq(conversations.userId, userId),
-        gt(conversations.messageCount, 0),
-        eq(conversations.isArchived, false),
-      ),
-    )
-    .orderBy(desc(conversations.lastMessageAt))
-    .limit(limit);
-
-  for (const chat of chats) {
-    items.push({
-      id: chat.id,
-      type: "chat",
-      title: chat.title,
-      desc: `${chat.messageCount} 条消息`,
-      time: formatTime(chat.lastMessageAt),
-      url: `/chat/${chat.id}`,
-      sortAt: chat.lastMessageAt?.getTime() ?? 0,
-    });
-  }
-
-  // 3. 最近文档（用户笔记，通过 workspace 过滤当前用户）
-  const docs = await db
-    .select({
-      id: documents.id,
-      title: documents.title,
-      plainText: documents.plainText,
-      updatedAt: documents.updatedAt,
-    })
-    .from(documents)
-    .innerJoin(workspaces, eq(documents.workspaceId, workspaces.id))
-    .where(and(eq(workspaces.ownerId, userId), eq(documents.type, "document")))
-    .orderBy(desc(documents.updatedAt))
-    .limit(limit);
-
-  for (const doc of docs) {
-    const preview = doc.plainText?.slice(0, 30) || "空文档";
-    items.push({
-      id: doc.id,
-      type: "note",
-      title: doc.title,
-      desc: preview + (preview.length >= 30 ? "..." : ""),
-      time: formatTime(doc.updatedAt),
-      url: `/editor/${doc.id}`,
-      sortAt: doc.updatedAt?.getTime() ?? 0,
-    });
-  }
-
-  // 按时间混排，取最近 N 条
-  items.sort((a, b) => b.sortAt - a.sortAt);
-  return items.slice(0, limit);
+    };
+  });
 }
 
 export async function RecentSectionServer() {

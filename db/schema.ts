@@ -10,6 +10,7 @@ import {
   real,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import { env } from "@/config/env";
@@ -30,7 +31,7 @@ export const halfvec = customType<{ data: number[] }>({
 });
 
 // ============================================
-// 用户 & 工作区
+// 用户
 // ============================================
 
 export const users = pgTable("users", {
@@ -200,56 +201,30 @@ export const userPersonaPreferences = pgTable(
   }),
 );
 
-export const workspaces = pgTable("workspaces", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull(),
-  ownerId: uuid("owner_id").references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
-
 // ============================================
-// 文档系统（统一：document | course_chapter）
+// 笔记系统
 // ============================================
 
-export const documents = pgTable(
-  "documents",
+export const notes = pgTable(
+  "notes",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    type: text("type").notNull().default("document"),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
     title: text("title").notNull().default("Untitled"),
-    workspaceId: uuid("workspace_id").references(() => workspaces.id),
-
-    content: bytea("content"),
     plainText: text("plain_text"),
-
-    courseId: uuid("course_id"),
-    outlineNodeId: text("outline_node_id"),
-
-    summaries:
-      jsonb("summaries").$type<
-        {
-          type: "summary" | "note";
-          content: string;
-          tags: string[];
-          createdAt: string;
-        }[]
-      >(),
-
-    isVault: boolean("is_vault").notNull().default(false),
-    metadata: jsonb("metadata"),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
   },
   (table) => ({
-    typeIdx: index("documents_type_idx").on(table.type),
-    courseIdIdx: index("documents_course_id_idx").on(table.courseId),
+    userIdIdx: index("notes_user_id_idx").on(table.userId),
   }),
 );
 
-export const documentSnapshots = pgTable("document_snapshots", {
+export const noteSnapshots = pgTable("note_snapshots", {
   id: text("id").primaryKey(),
-  documentId: uuid("document_id").references(() => documents.id, {
+  noteId: uuid("note_id").references(() => notes.id, {
     onDelete: "cascade",
   }),
   yjsState: bytea("yjs_state"),
@@ -282,13 +257,13 @@ export const tags = pgTable(
   }),
 );
 
-export const documentTags = pgTable(
-  "document_tags",
+export const noteTags = pgTable(
+  "note_tags",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    documentId: uuid("document_id")
+    noteId: uuid("note_id")
       .notNull()
-      .references(() => documents.id, { onDelete: "cascade" }),
+      .references(() => notes.id, { onDelete: "cascade" }),
     tagId: uuid("tag_id")
       .notNull()
       .references(() => tags.id, { onDelete: "cascade" }),
@@ -298,10 +273,10 @@ export const documentTags = pgTable(
     confirmedAt: timestamp("confirmed_at"),
   },
   (table) => ({
-    documentIdx: index("document_tags_document_idx").on(table.documentId),
-    tagIdx: index("document_tags_tag_idx").on(table.tagId),
-    statusIdx: index("document_tags_status_idx").on(table.status),
-    uniqueDocumentTag: index("document_tags_unique_idx").on(table.documentId, table.tagId),
+    noteIdx: index("note_tags_note_idx").on(table.noteId),
+    tagIdx: index("note_tags_tag_idx").on(table.tagId),
+    statusIdx: index("note_tags_status_idx").on(table.status),
+    uniqueNoteTag: uniqueIndex("note_tags_note_tag_unique_idx").on(table.noteId, table.tagId),
   }),
 );
 
@@ -348,7 +323,7 @@ export const knowledgeChunks = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
 
-    sourceType: text("source_type").notNull().default("document"),
+    sourceType: text("source_type").notNull().default("note"),
     sourceId: uuid("source_id").notNull(),
 
     content: text("content").notNull(),
@@ -369,57 +344,106 @@ export const knowledgeChunks = pgTable(
   }),
 );
 
-export const documentChunks = knowledgeChunks;
+export const noteChunks = knowledgeChunks;
 
 // ============================================
-// AI 生成课程 (Course Profiles)
+// 课程系统
 // ============================================
 
-// 访谈画像类型 - 2026 简化版
-// 只收集 3 个指标：goal、background、outcome
-export type LearningLevel = "none" | "beginner" | "intermediate" | "advanced";
-
-export interface InterviewProfile {
-  // 三个核心指标
-  goal: string | null; // 学习目标
-  background: LearningLevel | null; // 基础水平（null = 未收集）
-  outcome: string | null; // 期望成果
-}
-
-export const courseSessions = pgTable(
-  "course_sessions",
+export const courses = pgTable(
+  "courses",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id").references(() => users.id, {
-      onDelete: "cascade",
-    }),
+    userId: uuid("user_id")
+      .references(() => users.id, {
+        onDelete: "cascade",
+      })
+      .notNull(),
 
-    title: text("title"),
+    title: text("title").notNull(),
     description: text("description"),
-    difficulty: text("difficulty").default("intermediate"),
+    difficulty: text("difficulty").notNull().default("intermediate"),
     estimatedMinutes: integer("estimated_minutes"),
 
-    interviewProfile: jsonb("interview_profile").$type<InterviewProfile>(),
-    interviewStatus: text("interview_status").default("interviewing"),
-
-    outlineData: jsonb("outline_data"),
-
-    status: text("status").notNull().default("idle"),
-
-    progress: jsonb("progress").$type<{
-      currentChapter: number;
-      completedChapters: number[];
-      completedSections: string[];
-      totalChapters: number;
-      startedAt: string;
-      completedAt: string;
-    }>(),
+    outlineData: jsonb("outline_data").notNull(),
 
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
   },
   (table) => ({
-    userIdIdx: index("course_sessions_user_id_idx").on(table.userId),
+    userIdIdx: index("courses_user_id_idx").on(table.userId),
+  }),
+);
+
+export const courseSections = pgTable(
+  "course_sections",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    courseId: uuid("course_id")
+      .references(() => courses.id, { onDelete: "cascade" })
+      .notNull(),
+    outlineNodeId: text("outline_node_id").notNull(),
+    title: text("title").notNull(),
+    contentMarkdown: text("content_markdown"),
+    plainText: text("plain_text"),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => ({
+    courseIdIdx: index("course_sections_course_id_idx").on(table.courseId),
+    outlineNodeIdIdx: uniqueIndex("course_sections_course_outline_idx").on(
+      table.courseId,
+      table.outlineNodeId,
+    ),
+  }),
+);
+
+export const courseProgress = pgTable(
+  "course_progress",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    courseId: uuid("course_id")
+      .references(() => courses.id, { onDelete: "cascade" })
+      .notNull(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    currentChapter: integer("current_chapter").notNull().default(0),
+    completedChapters: jsonb("completed_chapters").$type<number[]>().notNull().default([]),
+    completedSections: jsonb("completed_sections").$type<string[]>().notNull().default([]),
+    startedAt: timestamp("started_at"),
+    completedAt: timestamp("completed_at"),
+    updatedAt: timestamp("updated_at").defaultNow(),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => ({
+    courseIdUniqueIdx: uniqueIndex("course_progress_course_id_unique_idx").on(table.courseId),
+    userIdIdx: index("course_progress_user_id_idx").on(table.userId),
+  }),
+);
+
+export const courseSectionAnnotations = pgTable(
+  "course_section_annotations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    courseSectionId: uuid("course_section_id")
+      .references(() => courseSections.id, { onDelete: "cascade" })
+      .notNull(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    type: text("type").notNull(),
+    anchor: jsonb("anchor").notNull(),
+    color: text("color"),
+    noteContent: text("note_content"),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => ({
+    courseSectionIdIdx: index("course_section_annotations_section_id_idx").on(
+      table.courseSectionId,
+    ),
+    userIdIdx: index("course_section_annotations_user_id_idx").on(table.userId),
   }),
 );
 
@@ -538,15 +562,15 @@ export const aiUsage = pgTable(
 
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
-export type Document = typeof documents.$inferSelect;
-export type NewDocument = typeof documents.$inferInsert;
-export type DocumentSnapshot = typeof documentSnapshots.$inferSelect;
-export type NewDocumentSnapshot = typeof documentSnapshots.$inferInsert;
+export type Note = typeof notes.$inferSelect;
+export type NewNote = typeof notes.$inferInsert;
+export type NoteSnapshot = typeof noteSnapshots.$inferSelect;
+export type NewNoteSnapshot = typeof noteSnapshots.$inferInsert;
 
 export type Tag = typeof tags.$inferSelect;
 export type NewTag = typeof tags.$inferInsert;
-export type DocumentTag = typeof documentTags.$inferSelect;
-export type NewDocumentTag = typeof documentTags.$inferInsert;
+export type NoteTag = typeof noteTags.$inferSelect;
+export type NewNoteTag = typeof noteTags.$inferInsert;
 
 export type Conversation = typeof conversations.$inferSelect;
 export type NewConversation = typeof conversations.$inferInsert;
@@ -554,8 +578,8 @@ export type NewConversation = typeof conversations.$inferInsert;
 export type KnowledgeChunk = typeof knowledgeChunks.$inferSelect;
 export type NewKnowledgeChunk = typeof knowledgeChunks.$inferInsert;
 
-export type DocumentChunk = KnowledgeChunk;
-export type NewDocumentChunk = NewKnowledgeChunk;
+export type NoteChunk = KnowledgeChunk;
+export type NewNoteChunk = NewKnowledgeChunk;
 
 export type AIUsage = typeof aiUsage.$inferSelect;
 export type NewAIUsage = typeof aiUsage.$inferInsert;
@@ -567,8 +591,14 @@ export type Persona = typeof personas.$inferSelect;
 export type NewPersona = typeof personas.$inferInsert;
 export type UserPersonaPreference = typeof userPersonaPreferences.$inferSelect;
 export type NewUserPersonaPreference = typeof userPersonaPreferences.$inferInsert;
-export type CourseSession = typeof courseSessions.$inferSelect;
-export type NewCourseSession = typeof courseSessions.$inferInsert;
+export type Course = typeof courses.$inferSelect;
+export type NewCourse = typeof courses.$inferInsert;
+export type CourseSection = typeof courseSections.$inferSelect;
+export type NewCourseSection = typeof courseSections.$inferInsert;
+export type CourseProgress = typeof courseProgress.$inferSelect;
+export type NewCourseProgress = typeof courseProgress.$inferInsert;
+export type CourseSectionAnnotation = typeof courseSectionAnnotations.$inferSelect;
+export type NewCourseSectionAnnotation = typeof courseSectionAnnotations.$inferInsert;
 export type Skill = typeof skills.$inferSelect;
 export type NewSkill = typeof skills.$inferInsert;
 export type SkillRelationship = typeof skillRelationships.$inferSelect;
@@ -581,43 +611,46 @@ export type NewUserSkillMastery = typeof userSkillMastery.$inferInsert;
 // ============================================
 
 export const usersRelations = relations(users, ({ many }) => ({
-  courseSessions: many(courseSessions),
-  workspaces: many(workspaces),
+  courses: many(courses),
+  notes: many(notes),
   conversations: many(conversations),
   knowledgeChunks: many(knowledgeChunks),
   userProfiles: many(userProfiles),
   stylePrivacySettings: many(stylePrivacySettings),
   createdPersonas: many(personas),
   personaPreference: many(userPersonaPreferences),
+  courseProgress: many(courseProgress),
+  courseSectionAnnotations: many(courseSectionAnnotations),
+  noteTags: many(noteTags),
 }));
 
-export const workspacesRelations = relations(workspaces, ({ one, many }) => ({
-  owner: one(users, {
-    fields: [workspaces.ownerId],
+export const notesRelations = relations(notes, ({ one, many }) => ({
+  user: one(users, {
+    fields: [notes.userId],
     references: [users.id],
   }),
-  documents: many(documents),
+  snapshots: many(noteSnapshots),
+  tags: many(noteTags),
 }));
 
-export const documentsRelations = relations(documents, ({ one, many }) => ({
-  workspace: one(workspaces, {
-    fields: [documents.workspaceId],
-    references: [workspaces.id],
+export const noteSnapshotsRelations = relations(noteSnapshots, ({ one }) => ({
+  note: one(notes, {
+    fields: [noteSnapshots.noteId],
+    references: [notes.id],
   }),
-  tags: many(documentTags),
 }));
 
 export const tagsRelations = relations(tags, ({ many }) => ({
-  documentTags: many(documentTags),
+  noteTags: many(noteTags),
 }));
 
-export const documentTagsRelations = relations(documentTags, ({ one }) => ({
-  document: one(documents, {
-    fields: [documentTags.documentId],
-    references: [documents.id],
+export const noteTagsRelations = relations(noteTags, ({ one }) => ({
+  note: one(notes, {
+    fields: [noteTags.noteId],
+    references: [notes.id],
   }),
   tag: one(tags, {
-    fields: [documentTags.tagId],
+    fields: [noteTags.tagId],
     references: [tags.id],
   }),
 }));
@@ -636,9 +669,41 @@ export const knowledgeChunksRelations = relations(knowledgeChunks, ({ one }) => 
   }),
 }));
 
-export const courseSessionsRelations = relations(courseSessions, ({ one }) => ({
+export const coursesRelations = relations(courses, ({ one, many }) => ({
   user: one(users, {
-    fields: [courseSessions.userId],
+    fields: [courses.userId],
+    references: [users.id],
+  }),
+  sections: many(courseSections),
+  progress: many(courseProgress),
+}));
+
+export const courseSectionsRelations = relations(courseSections, ({ one, many }) => ({
+  course: one(courses, {
+    fields: [courseSections.courseId],
+    references: [courses.id],
+  }),
+  annotations: many(courseSectionAnnotations),
+}));
+
+export const courseProgressRelations = relations(courseProgress, ({ one }) => ({
+  course: one(courses, {
+    fields: [courseProgress.courseId],
+    references: [courses.id],
+  }),
+  user: one(users, {
+    fields: [courseProgress.userId],
+    references: [users.id],
+  }),
+}));
+
+export const courseSectionAnnotationsRelations = relations(courseSectionAnnotations, ({ one }) => ({
+  courseSection: one(courseSections, {
+    fields: [courseSectionAnnotations.courseSectionId],
+    references: [courseSections.id],
+  }),
+  user: one(users, {
+    fields: [courseSectionAnnotations.userId],
     references: [users.id],
   }),
 }));

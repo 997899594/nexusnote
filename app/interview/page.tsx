@@ -151,9 +151,9 @@ function InterviewContent() {
         {/* Header */}
         <header className="flex items-center gap-4 px-4 md:px-6 py-4">
           <Link
-            href="/chat"
+            href="/"
             className="p-2 hover:bg-[var(--color-hover)] rounded-xl transition-colors"
-            aria-label="返回聊天"
+            aria-label="返回首页"
           >
             <ArrowLeft className="w-5 h-5 text-[var(--color-text-tertiary)]" />
           </Link>

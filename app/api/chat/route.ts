@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 允许的 intent 列表
-    const ALLOWED_INTENTS = ["CHAT", "COURSE", "SKILLS"] as const;
+    const ALLOWED_INTENTS = ["CHAT", "SKILLS"] as const;
     type AllowedIntent = (typeof ALLOWED_INTENTS)[number];
 
     // 验证并规范化 intent

@@ -6,7 +6,7 @@
 
 import { and, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
-import { courseSessions, db, documents } from "@/db";
+import { courseProgress, courseSectionAnnotations, courseSections, courses, db } from "@/db";
 import { auth } from "@/lib/auth";
 
 import { LearnClient } from "./LearnClient";
@@ -47,13 +47,12 @@ export default async function LearnPage({ params, searchParams }: PageProps) {
   // Fetch course session (include progress for persisted completedSections)
   const [courseSession] = await db
     .select({
-      id: courseSessions.id,
-      title: courseSessions.title,
-      outlineData: courseSessions.outlineData,
-      progress: courseSessions.progress,
+      id: courses.id,
+      title: courses.title,
+      outlineData: courses.outlineData,
     })
-    .from(courseSessions)
-    .where(eq(courseSessions.id, sessionId))
+    .from(courses)
+    .where(and(eq(courses.id, sessionId), eq(courses.userId, session.user.id)))
     .limit(1);
 
   if (!courseSession) {
@@ -73,41 +72,84 @@ export default async function LearnPage({ params, searchParams }: PageProps) {
   }));
 
   // Load all section documents for this course
-  const rawDocs = await db
+  const [progressRecord] = await db
     .select({
-      id: documents.id,
-      title: documents.title,
-      content: documents.content,
-      outlineNodeId: documents.outlineNodeId,
-      metadata: documents.metadata,
+      currentChapter: courseProgress.currentChapter,
+      completedSections: courseProgress.completedSections,
+      completedAt: courseProgress.completedAt,
     })
-    .from(documents)
-    .where(and(eq(documents.courseId, sessionId), eq(documents.type, "course_section")));
+    .from(courseProgress)
+    .where(and(eq(courseProgress.courseId, sessionId), eq(courseProgress.userId, session.user.id)))
+    .limit(1);
 
-  // Decode Buffer to string before RSC → Client boundary
-  const sectionDocs = rawDocs.map((doc) => ({
+  const rawSections = await db
+    .select({
+      id: courseSections.id,
+      title: courseSections.title,
+      content: courseSections.contentMarkdown,
+      outlineNodeId: courseSections.outlineNodeId,
+    })
+    .from(courseSections)
+    .where(eq(courseSections.courseId, sessionId));
+
+  const annotations = await db
+    .select({
+      id: courseSectionAnnotations.id,
+      courseSectionId: courseSectionAnnotations.courseSectionId,
+      type: courseSectionAnnotations.type,
+      anchor: courseSectionAnnotations.anchor,
+      color: courseSectionAnnotations.color,
+      noteContent: courseSectionAnnotations.noteContent,
+      createdAt: courseSectionAnnotations.createdAt,
+    })
+    .from(courseSectionAnnotations)
+    .innerJoin(courseSections, eq(courseSectionAnnotations.courseSectionId, courseSections.id))
+    .where(
+      and(
+        eq(courseSectionAnnotations.userId, session.user.id),
+        eq(courseSections.courseId, sessionId),
+      ),
+    );
+
+  const annotationsBySectionId = new Map<
+    string,
+    Array<{
+      id: string;
+      type: "highlight" | "note";
+      anchor: { textContent: string; startOffset: number; endOffset: number };
+      color?: string;
+      noteContent?: string;
+      createdAt: string;
+    }>
+  >();
+
+  for (const annotation of annotations) {
+    const existing = annotationsBySectionId.get(annotation.courseSectionId) ?? [];
+    existing.push({
+      id: annotation.id,
+      type: annotation.type as "highlight" | "note",
+      anchor: annotation.anchor as {
+        textContent: string;
+        startOffset: number;
+        endOffset: number;
+      },
+      color: annotation.color ?? undefined,
+      noteContent: annotation.noteContent ?? undefined,
+      createdAt: annotation.createdAt?.toISOString() ?? new Date().toISOString(),
+    });
+    annotationsBySectionId.set(annotation.courseSectionId, existing);
+  }
+
+  const sectionDocs = rawSections.map((doc) => ({
     id: doc.id,
     title: doc.title,
-    content: doc.content ? Buffer.from(doc.content).toString("utf-8") : null,
+    content: doc.content,
     outlineNodeId: doc.outlineNodeId,
-    metadata: doc.metadata as {
-      annotations?: Array<{
-        id: string;
-        type: "highlight" | "note";
-        anchor: { textContent: string; startOffset: number; endOffset: number };
-        color?: string;
-        noteContent?: string;
-        createdAt: string;
-      }>;
-    } | null,
+    annotations: annotationsBySectionId.get(doc.id) ?? [],
   }));
 
   // Use persisted learning progress, not content existence
-  const courseProgress = courseSession.progress as {
-    completedSections?: string[];
-    currentChapter?: number;
-  } | null;
-  const initialCompletedSections = courseProgress?.completedSections ?? [];
+  const initialCompletedSections = progressRecord?.completedSections ?? [];
   const completedSet = new Set(initialCompletedSections);
 
   // Calculate initial chapter index: explicit ?chapter= param > persisted progress > first incomplete
@@ -121,7 +163,7 @@ export default async function LearnPage({ params, searchParams }: PageProps) {
       ch.sections.some((sec) => !completedSet.has(sec.nodeId)),
     );
     initialChapterIndex =
-      resumeChapter >= 0 ? resumeChapter : (courseProgress?.currentChapter ?? 0);
+      resumeChapter >= 0 ? resumeChapter : (progressRecord?.currentChapter ?? 0);
   }
 
   // Find first unread section in the resume chapter for auto-scroll

@@ -14,7 +14,7 @@ const MAX_STEPS = 15;
 
 export interface InterviewAgentOptions {
   userId: string;
-  courseId: string;
+  courseId?: string;
   messages?: import("ai").UIMessage[];
 }
 
@@ -23,10 +23,6 @@ export interface InterviewAgentOptions {
 // ============================================
 
 export function createInterviewAgent(options: InterviewAgentOptions) {
-  if (!options.courseId) {
-    throw new Error("Interview agent requires courseId");
-  }
-
   const ctx = createToolContext({
     userId: options.userId,
     resourceId: options.courseId,

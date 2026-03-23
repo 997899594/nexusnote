@@ -21,24 +21,23 @@ import { Suspense } from "react";
 import { SkillGraph } from "@/components/profile/SkillGraph";
 import { SkillGraphSkeleton } from "@/components/profile/SkillGraphSkeleton";
 import { FloatingHeader } from "@/components/shared/layout";
-import { conversations, courseSessions, db, documents } from "@/db";
+import { conversations, courses, db, notes } from "@/db";
 import { auth } from "@/lib/auth";
 import { ProfileSignOut } from "./profile-client";
 
 // 获取用户统计数据
 async function getUserStats(userId: string) {
-  const [conversationCount, documentCount, courseCount, recentActivity] = await Promise.all([
+  const [conversationCount, noteCount, courseCount, recentActivity] = await Promise.all([
     // 对话数量
     db
       .select({ count: count() })
       .from(conversations)
       .where(and(eq(conversations.userId, userId), gt(conversations.messageCount, 0))),
 
-    // Note: documents are workspace-scoped, showing all accessible documents
-    db.select({ count: count() }).from(documents),
+    db.select({ count: count() }).from(notes).where(eq(notes.userId, userId)),
 
     // 课程数量
-    db.select({ count: count() }).from(courseSessions).where(eq(courseSessions.userId, userId)),
+    db.select({ count: count() }).from(courses).where(eq(courses.userId, userId)),
 
     // 最近活动
     db
@@ -61,8 +60,8 @@ async function getUserStats(userId: string) {
 
   return {
     conversations: conversationCount[0]?.count || 0,
-    documents: documentCount[0]?.count || 0,
-    courseSessions: courseCount[0]?.count || 0,
+    documents: noteCount[0]?.count || 0,
+    courses: courseCount[0]?.count || 0,
     recentActivity,
     aiUsage: {
       totalTokens: 0,
@@ -98,7 +97,7 @@ export default async function ProfilePage() {
     },
     {
       label: "AI 课程",
-      value: stats.courseSessions,
+      value: stats.courses,
       icon: GraduationCap,
       color: "bg-purple-500",
       href: "/interview",

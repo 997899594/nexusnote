@@ -12,7 +12,7 @@ import { hybridSearch } from "@/lib/rag";
 export const SearchNotesSchema = z.object({
   query: z.string().min(1).max(500),
   limit: z.number().int().min(1).max(20).default(10),
-  sourceTypes: z.array(z.enum(["document", "conversation"])).optional(),
+  sourceTypes: z.array(z.enum(["note", "conversation"])).optional(),
 });
 
 export type SearchNotesInput = z.infer<typeof SearchNotesSchema>;
@@ -44,18 +44,19 @@ export function createSearchTools(userId: string) {
             };
           }
 
-          const documentSourceIds = results
-            .filter((r) => r.sourceType === "document")
+          const noteSourceIds = results
+            .filter((r) => r.sourceType === "note")
             .map((r) => r.sourceId);
 
-          const docs =
-            documentSourceIds.length > 0
-              ? await db.query.documents.findMany({
-                  where: (docs, { inArray }) => inArray(docs.id, documentSourceIds),
+          const foundNotes =
+            noteSourceIds.length > 0
+              ? await db.query.notes.findMany({
+                  where: (table, { and, eq, inArray }) =>
+                    and(eq(table.userId, userId), inArray(table.id, noteSourceIds)),
                 })
               : [];
 
-          const docMap = new Map(docs.map((d) => [d.id, d.title]));
+          const noteMap = new Map(foundNotes.map((note) => [note.id, note.title]));
 
           return {
             success: true,
@@ -65,8 +66,7 @@ export function createSearchTools(userId: string) {
               id: r.id,
               sourceId: r.sourceId,
               sourceType: r.sourceType,
-              title:
-                r.sourceType === "document" ? docMap.get(r.sourceId) || "未知文档" : "聊天记录",
+              title: r.sourceType === "note" ? noteMap.get(r.sourceId) || "未知笔记" : "聊天记录",
               content: r.content.slice(0, 300),
               relevance: Math.round(r.score * 100),
               source: r.source,

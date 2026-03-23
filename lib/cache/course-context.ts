@@ -6,7 +6,7 @@
  * Graceful fallback: if Redis is unavailable, queries DB directly.
  */
 
-import { and, courseSessions, db, documents, eq, inArray } from "@/db";
+import { and, courseSections, courses, db, eq, inArray } from "@/db";
 import { redis } from "@/lib/redis";
 
 const CACHE_TTL = 300; // 5 minutes
@@ -56,9 +56,9 @@ export async function getCourseOutline(courseId: string): Promise<CourseOutline 
 
   // Query DB
   const [course] = await db
-    .select({ title: courseSessions.title, outlineData: courseSessions.outlineData })
-    .from(courseSessions)
-    .where(eq(courseSessions.id, courseId))
+    .select({ title: courses.title, outlineData: courses.outlineData })
+    .from(courses)
+    .where(eq(courses.id, courseId))
     .limit(1);
 
   if (!course) return null;
@@ -125,21 +125,20 @@ export async function getChapterContent(
 
   const docs = await db
     .select({
-      title: documents.title,
-      content: documents.content,
-      outlineNodeId: documents.outlineNodeId,
+      title: courseSections.title,
+      content: courseSections.contentMarkdown,
+      outlineNodeId: courseSections.outlineNodeId,
     })
-    .from(documents)
-    .where(and(eq(documents.courseId, courseId), inArray(documents.outlineNodeId, nodeIds)));
+    .from(courseSections)
+    .where(
+      and(eq(courseSections.courseId, courseId), inArray(courseSections.outlineNodeId, nodeIds)),
+    );
 
   // Build ordered sections
   const docMap = new Map<string, { title: string; text: string }>();
   for (const doc of docs) {
     if (doc.content && doc.outlineNodeId) {
-      const text = Buffer.isBuffer(doc.content) ? doc.content.toString("utf-8") : "";
-      if (text) {
-        docMap.set(doc.outlineNodeId, { title: doc.title, text });
-      }
+      docMap.set(doc.outlineNodeId, { title: doc.title, text: doc.content });
     }
   }
 

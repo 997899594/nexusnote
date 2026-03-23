@@ -17,7 +17,7 @@ export interface Annotation {
 }
 
 interface UseAnnotationsOptions {
-  documentId: string | undefined;
+  sectionId: string | undefined;
   initialAnnotations: Annotation[];
 }
 
@@ -30,18 +30,18 @@ interface UseAnnotationsReturn {
 }
 
 export function useAnnotations({
-  documentId,
+  sectionId,
   initialAnnotations,
 }: UseAnnotationsOptions): UseAnnotationsReturn {
   const { addToast } = useToast();
   const [annotations, setAnnotations] = useState<Annotation[]>(initialAnnotations);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Reset when documentId changes
-  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally re-run on documentId change to reset annotations
+  // Reset when sectionId changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally re-run on sectionId change to reset annotations
   useEffect(() => {
     setAnnotations(initialAnnotations);
-  }, [documentId, initialAnnotations]);
+  }, [sectionId, initialAnnotations]);
 
   // Cleanup debounce timer on unmount
   useEffect(() => {
@@ -53,7 +53,7 @@ export function useAnnotations({
   // Debounced save to API
   const scheduleSave = useCallback(
     (updated: Annotation[]) => {
-      if (!documentId) return;
+      if (!sectionId) return;
 
       if (saveTimerRef.current) {
         clearTimeout(saveTimerRef.current);
@@ -64,7 +64,7 @@ export function useAnnotations({
           const response = await fetch("/api/learn/annotations", {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ documentId, annotations: updated }),
+            body: JSON.stringify({ sectionId, annotations: updated }),
           });
           if (!response.ok) {
             throw new Error("保存失败");
@@ -74,7 +74,7 @@ export function useAnnotations({
         }
       }, 500);
     },
-    [documentId, addToast],
+    [sectionId, addToast],
   );
 
   const addHighlight = useCallback(

@@ -2,7 +2,7 @@
  * RAG Service - Public API
  *
  * Retrieval-Augmented Generation service layer for knowledge indexing
- * and hybrid search across documents and conversations.
+ * and hybrid search across notes and conversations.
  */
 
 export * from "./chunker";

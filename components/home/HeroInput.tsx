@@ -1,282 +1,63 @@
 "use client";
 
-import { autoUpdate, flip, offset, shift, size, useFloating } from "@floating-ui/react";
-import { AnimatePresence, motion } from "framer-motion";
-import { ChevronRight, Send, X } from "lucide-react";
+import { motion } from "framer-motion";
+import { GraduationCap, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useInputProtection } from "@/components/common/useInputProtection";
-import { extractCommandContent, HOME_COMMANDS } from "@/lib/chat/commands";
-import { cn } from "@/lib/utils";
-import { usePendingChatStore, useTransitionStore } from "@/stores";
-import type { Command } from "@/types/chat";
 
 export function HeroInput() {
   const router = useRouter();
-  const cardRef = useRef<HTMLDivElement>(null);
-  const startExpand = useTransitionStore((state) => state.startExpand);
-  const setPendingChat = usePendingChatStore((state) => state.set);
   const [input, setInput] = useState("");
-  const [mode, setMode] = useState<"interview" | "chat">("interview");
-  const [showCommands, setShowCommands] = useState(false);
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const [selectedCommand, setSelectedCommand] = useState<Command | null>(null);
   const { handlePaste } = useInputProtection();
 
-  const { refs, floatingStyles } = useFloating({
-    placement: "top",
-    middleware: [
-      offset(4),
-      flip({
-        fallbackPlacements: ["bottom"],
-      }),
-      shift({
-        padding: 8,
-      }),
-      size({
-        apply({ rects, elements }) {
-          Object.assign(elements.floating.style, {
-            width: `${rects.reference.width}px`,
-          });
-        },
-      }),
-    ],
-    whileElementsMounted: autoUpdate,
-  });
-
-  const filteredCommands = (() => {
-    if (!input.startsWith("/")) return HOME_COMMANDS;
-    const query = input.slice(1).trim().toLowerCase();
-    if (!query) return HOME_COMMANDS;
-    return HOME_COMMANDS.filter((c) => c.label.toLowerCase().includes(query));
-  })();
-
-  useEffect(() => {
-    if (selectedCommand) {
-      setShowCommands(false);
-    } else if (input.startsWith("/")) {
-      setShowCommands(true);
-      setSelectedIndex(0);
-    } else {
-      setShowCommands(false);
-    }
-  }, [input, selectedCommand]);
-
-  const handleSelectCommand = (command: Command) => {
-    setInput(extractCommandContent(input));
-    setSelectedCommand(command);
-    setShowCommands(false);
-  };
-
-  const handleCancelCommand = () => {
-    setSelectedCommand(null);
-  };
-
   const handleSubmit = () => {
-    if (!input.trim()) return;
-
-    if (selectedCommand) {
-      const params = selectedCommand.getQueryParams(input);
-      const queryString = new URLSearchParams(params).toString();
-      const path = queryString
-        ? `${selectedCommand.targetPath}?${queryString}`
-        : selectedCommand.targetPath;
-      router.push(path);
-      setInput("");
-      setSelectedCommand(null);
-      setShowCommands(false);
-      return;
-    }
-
-    if (input.startsWith("/") && filteredCommands.length > 0) {
-      setInput(extractCommandContent(input));
-      setSelectedCommand(filteredCommands[selectedIndex]);
-      setShowCommands(false);
-      return;
-    }
-
-    if (mode === "interview") {
-      router.push(`/interview?msg=${encodeURIComponent(input.trim())}`);
-      setInput("");
-      return;
-    }
-
-    const rect = cardRef.current?.getBoundingClientRect();
-    if (!rect) return;
-
     const message = input.trim();
-    const id = crypto.randomUUID();
+    if (!message) return;
 
-    setPendingChat(id, message);
-    startExpand(rect, `/chat/${id}`, message);
+    router.push(`/interview?msg=${encodeURIComponent(message)}`);
     setInput("");
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (selectedCommand) {
-      if (e.key === "Escape") {
-        handleCancelCommand();
-        return;
-      }
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        handleSubmit();
-        return;
-      }
-    }
-
-    if (showCommands && filteredCommands.length > 0) {
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setSelectedIndex((i) => (i + 1) % filteredCommands.length);
-        return;
-      }
-      if (e.key === "ArrowUp") {
-        e.preventDefault();
-        setSelectedIndex((i) => (i - 1 + filteredCommands.length) % filteredCommands.length);
-        return;
-      }
-      if (e.key === "Enter") {
-        e.preventDefault();
-        handleSubmit();
-        return;
-      }
-      if (e.key === "Escape") {
-        setShowCommands(false);
-        return;
-      }
-    }
-
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
     }
   };
 
-  const placeholder = selectedCommand
-    ? `描述你想${selectedCommand.modeLabel}的内容...`
-    : showCommands
-      ? "搜索命令..."
-      : mode === "interview"
-        ? "描述你想学习的内容..."
-        : "随便聊点什么...";
-
   return (
-    <div className="relative w-full md:w-auto">
-      {/* 命令菜单 - Floating UI 定位 */}
-      <AnimatePresence mode="sync">
-        {showCommands && !selectedCommand && filteredCommands.length > 0 && (
-          <motion.div
-            ref={refs.setFloating}
-            style={floatingStyles}
-            initial={{ opacity: 0, y: 8, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 8, scale: 0.95 }}
-            transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
-            className="bg-[var(--color-surface)] rounded-2xl shadow-[var(--shadow-elevated)] overflow-hidden z-50"
-          >
-            <div className="p-2 space-y-0.5">
-              {filteredCommands.map((cmd, idx) => (
-                <motion.button
-                  type="button"
-                  key={cmd.id}
-                  onClick={() => handleSelectCommand(cmd)}
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: idx * 0.03, duration: 0.1 }}
-                  className={cn(
-                    "w-full flex items-center px-3 py-2.5 rounded-xl text-left transition-colors",
-                    idx === selectedIndex
-                      ? "bg-[var(--color-hover)] text-[var(--color-text)]"
-                      : "text-[var(--color-text-secondary)] hover:bg-[var(--color-hover)]",
-                  )}
-                >
-                  <cmd.icon className="w-4 h-4 mr-3 flex-shrink-0 text-[var(--color-text-muted)]" />
-                  <span className="flex-1 text-sm font-medium">{cmd.label}</span>
-                  <ChevronRight className="w-4 h-4 text-[var(--color-text-muted)]" />
-                </motion.button>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* 输入框 */}
-      <motion.div
-        ref={(node) => {
-          cardRef.current = node;
-          refs.setReference(node);
-        }}
-        whileHover={{ scale: showCommands ? 1 : 1.005 }}
-        transition={{ duration: 0.2 }}
-        className="relative bg-[var(--color-surface)] shadow-[var(--shadow-elevated)] hover:shadow-[var(--shadow-elevated-hover)] transition-shadow rounded-2xl md:rounded-3xl min-h-[140px] md:min-h-[160px]"
-      >
-        <div className="p-5 md:p-8 relative h-full">
-          <AnimatePresence>
-            {selectedCommand ? (
-              <motion.div
-                key="command"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                className="absolute bottom-4 left-4 md:bottom-6 md:left-6 flex items-center gap-1.5 px-3 py-1.5 bg-[var(--color-hover)] rounded-lg text-xs z-10"
-              >
-                <selectedCommand.modeIcon className="w-3 h-3 text-[var(--color-text-tertiary)]" />
-                <span className="text-[var(--color-text-secondary)] font-medium">
-                  {selectedCommand.modeLabel}
-                </span>
-                <button
-                  type="button"
-                  onClick={handleCancelCommand}
-                  className="p-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </motion.div>
-            ) : !showCommands ? (
-              <motion.button
-                key="mode"
-                type="button"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                onClick={() => setMode((m) => (m === "interview" ? "chat" : "interview"))}
-                className="absolute bottom-4 left-4 md:bottom-6 md:left-6 flex items-center gap-1.5 px-3 py-1.5 bg-[var(--color-hover)] hover:bg-[var(--color-muted)] rounded-lg text-xs z-10 transition-colors cursor-pointer"
-              >
-                <span>{mode === "interview" ? "🎓" : "💬"}</span>
-                <span className="text-[var(--color-text-secondary)] font-medium">
-                  {mode === "interview" ? "课程访谈" : "随便聊聊"}
-                </span>
-              </motion.button>
-            ) : null}
-          </AnimatePresence>
-
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onPaste={handlePaste}
-            placeholder={placeholder}
-            rows={1}
-            className="w-full bg-transparent border-none outline-none text-base md:text-lg text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] resize-none min-h-[72px] md:min-h-[96px] max-h-[144px] md:max-h-[240px] py-3 pr-14 md:pr-16"
-          />
-
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={handleSubmit}
-            disabled={!input.trim()}
-            className={cn(
-              "absolute bottom-4 right-4 md:bottom-6 md:right-6 w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center transition-colors touch-target",
-              input.trim()
-                ? "bg-[var(--color-accent)] text-[var(--color-accent-fg)]"
-                : "bg-[var(--color-muted)] text-[var(--color-text-muted)] cursor-not-allowed",
-            )}
-          >
-            <Send className="w-4 h-4 md:w-5 md:h-5" />
-          </motion.button>
+    <motion.div
+      whileHover={{ scale: 1.005 }}
+      transition={{ duration: 0.2 }}
+      className="relative bg-[var(--color-surface)] shadow-[var(--shadow-elevated)] hover:shadow-[var(--shadow-elevated-hover)] transition-shadow rounded-2xl md:rounded-3xl min-h-[140px] md:min-h-[160px]"
+    >
+      <div className="p-5 md:p-8 relative h-full">
+        <div className="absolute bottom-4 left-4 md:bottom-6 md:left-6 flex items-center gap-1.5 px-3 py-1.5 bg-[var(--color-hover)] rounded-lg text-xs z-10">
+          <GraduationCap className="w-3 h-3 text-[var(--color-text-tertiary)]" />
+          <span className="text-[var(--color-text-secondary)] font-medium">课程访谈</span>
         </div>
-      </motion.div>
-    </div>
+
+        <textarea
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
+          placeholder="描述你想学习的内容..."
+          rows={1}
+          className="w-full bg-transparent border-none outline-none text-base md:text-lg text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] resize-none min-h-[72px] md:min-h-[96px] max-h-[144px] md:max-h-[240px] py-3 pr-14 md:pr-16"
+        />
+
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={!input.trim()}
+          className="absolute bottom-4 right-4 md:bottom-6 md:right-6 p-2.5 md:p-3 rounded-xl bg-[var(--color-accent)] text-[var(--color-accent-fg)] hover:bg-[var(--color-accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          aria-label="开始课程访谈"
+        >
+          <Send className="w-4 h-4 md:w-5 md:h-5" />
+        </button>
+      </div>
+    </motion.div>
   );
 }

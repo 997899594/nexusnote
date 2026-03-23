@@ -11,7 +11,7 @@ import { hybridSearch } from "@/lib/rag";
 export const HybridSearchSchema = z.object({
   query: z.string().min(1).max(500),
   topK: z.number().int().min(1).max(20).default(5),
-  sourceTypes: z.array(z.enum(["document", "conversation", "course_section"])).optional(),
+  sourceTypes: z.array(z.enum(["note", "conversation", "course_section"])).optional(),
 });
 
 export type HybridSearchInput = z.infer<typeof HybridSearchSchema>;
@@ -23,7 +23,7 @@ export function createRagTools(userId: string) {
   return {
     hybridSearch: tool({
       description:
-        "在用户知识库中进行混合搜索（向量+关键词），获取最相关的内容片段。可指定来源类型：document（文档）、conversation（聊天）或 course_section（课程内容）。不指定则搜索全部类型。",
+        "在用户知识库中进行混合搜索（向量+关键词），获取最相关的内容片段。可指定来源类型：note（笔记）、conversation（聊天）或 course_section（课程内容）。不指定则搜索全部类型。",
       inputSchema: HybridSearchSchema,
       execute: async (args) => {
         try {

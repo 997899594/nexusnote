@@ -1,7 +1,7 @@
 /**
  * TagGenerationTrigger - 标签自动生成触发器
  *
- * 当文档内容变化超过阈值时，延迟触发标签生成 API
+ * 当笔记内容变化超过阈值时，延迟触发标签生成 API
  */
 
 "use client";
@@ -9,11 +9,11 @@
 import { useEffect, useRef } from "react";
 
 interface TagGenerationTriggerProps {
-  documentId: string;
+  noteId: string;
   content: string;
 }
 
-export function TagGenerationTrigger({ documentId, content }: TagGenerationTriggerProps) {
+export function TagGenerationTrigger({ noteId, content }: TagGenerationTriggerProps) {
   const prevContentRef = useRef(content);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -30,7 +30,7 @@ export function TagGenerationTrigger({ documentId, content }: TagGenerationTrigg
     // 延迟 5 秒触发，避免频繁请求
     timeoutRef.current = setTimeout(async () => {
       try {
-        await fetch(`/api/documents/${documentId}/tags`, { method: "POST" });
+        await fetch(`/api/notes/${noteId}/tags`, { method: "POST" });
         console.log("[Tags] 触发标签生成");
       } catch (error) {
         console.error("[Tags] 生成失败:", error);
@@ -41,7 +41,7 @@ export function TagGenerationTrigger({ documentId, content }: TagGenerationTrigg
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, [documentId, content]);
+  }, [noteId, content]);
 
   return null;
 }

@@ -2,7 +2,7 @@
  * RAG Service - Hybrid Search
  *
  * Combines vector search + keyword search + RRF merging + Query Rewriter
- * Supports multiple sources: document | conversation
+ * Supports multiple sources: note | conversation
  */
 
 import { embedMany } from "ai";

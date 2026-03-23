@@ -3,7 +3,6 @@
  */
 
 import { createChatAgent, type PersonalizationOptions } from "./chat";
-import { createCourseAgent } from "./course";
 import { createInterviewAgent, type InterviewAgentOptions } from "./interview";
 import { createSkillsAgent, type SkillsAgentOptions } from "./skills";
 
@@ -11,7 +10,7 @@ import { createSkillsAgent, type SkillsAgentOptions } from "./skills";
 // Types
 // ============================================
 
-export type AgentIntent = "CHAT" | "INTERVIEW" | "COURSE" | "SKILLS";
+export type AgentIntent = "CHAT" | "INTERVIEW" | "SKILLS";
 
 export type { PersonalizationOptions, InterviewAgentOptions, SkillsAgentOptions };
 
@@ -27,8 +26,6 @@ export async function getAgent(intent: AgentIntent, options: AgentOptions = {}) 
   switch (intent) {
     case "INTERVIEW":
       return createInterviewAgent(options as InterviewAgentOptions);
-    case "COURSE":
-      return createCourseAgent(options);
     case "SKILLS": {
       if (!options.userId) throw new Error("Skills agent requires userId");
       return createSkillsAgent(options as SkillsAgentOptions);

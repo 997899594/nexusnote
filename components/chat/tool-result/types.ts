@@ -33,7 +33,7 @@ export interface MindMapOutput {
 export interface SearchResultItem {
   id: string;
   sourceId: string;
-  sourceType: "document" | "conversation";
+  sourceType: "note" | "conversation";
   title: string;
   content: string;
   relevance: number;
@@ -107,30 +107,6 @@ export interface DraftContentOutput {
   error?: string;
 }
 
-export interface CourseSection {
-  title: string;
-  description: string;
-}
-
-export interface CourseChapter {
-  title: string;
-  description: string;
-  sections: CourseSection[];
-}
-
-export interface CourseOutline {
-  chapters: CourseChapter[];
-}
-
-export interface GenerateCourseOutput {
-  success: boolean;
-  courseId?: string;
-  title?: string;
-  chapters?: number;
-  outline?: CourseOutline;
-  error?: string;
-}
-
 export interface GetNoteOutput {
   success: boolean;
   id: string;
@@ -171,23 +147,13 @@ export interface DiscoverSkillsOutput {
   error?: string;
 }
 
-export interface CheckCourseProgressOutput {
-  success: boolean;
-  courseId: string;
-  title: string;
-  status: string;
-  progress: string;
-  isCompleted: boolean;
-  currentChapter: number;
-  error?: string;
-}
-
 // ============================================
 // Interview Tool Types
 // ============================================
 
 export interface ConfirmOutlineOutput {
   success: boolean;
+  courseId?: string;
   outline?: {
     title: string;
     description: string;
@@ -221,13 +187,11 @@ export type ToolOutputMap = {
   editDocument: EditDocumentOutput;
   batchEdit: BatchEditOutput;
   draftContent: DraftContentOutput;
-  generateCourse: GenerateCourseOutput;
   getNote: GetNoteOutput;
   createNote: CreateNoteOutput;
   updateNote: UpdateNoteOutput;
   deleteNote: DeleteNoteOutput;
   discoverSkills: DiscoverSkillsOutput;
-  checkCourseProgress: CheckCourseProgressOutput;
   // Interview tools
   suggestOptions: SuggestOptionsOutput;
   confirmOutline: ConfirmOutlineOutput;
