@@ -13,9 +13,9 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { BookOpen, FileText, Home, Layers, LogOut, Settings, User } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
+import { signOut, useSession } from "next-auth/react";
 import { useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { useAuthStore } from "@/stores/auth";
 
 export interface DrawerMenuProps {
   /** 是否打开 */
@@ -44,7 +44,15 @@ const quickActions = [
 export function DrawerMenu({ isOpen, onClose, userName, userEmail }: DrawerMenuProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const logout = useAuthStore((state) => state.logout);
+  const { data: session } = useSession();
+  const displayName = userName || session?.user?.name || "学习者";
+  const displayEmail = userEmail || session?.user?.email || "";
+  const avatarLabel = displayName
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
 
   // 处理导航点击
   const handleNavClick = useCallback(
@@ -57,10 +65,9 @@ export function DrawerMenu({ isOpen, onClose, userName, userEmail }: DrawerMenuP
 
   // 处理退出登录
   const handleSignOut = useCallback(() => {
-    logout();
     onClose();
-    router.push("/login");
-  }, [logout, onClose, router]);
+    void signOut({ callbackUrl: "/login" });
+  }, [onClose]);
 
   // 阻止背景滚动
   useEffect(() => {
@@ -120,19 +127,14 @@ export function DrawerMenu({ isOpen, onClose, userName, userEmail }: DrawerMenuP
             <div className="p-6">
               <div className="flex items-center gap-4">
                 <div className="w-14 h-14 rounded-2xl bg-[var(--color-accent)] flex items-center justify-center text-[var(--color-accent-fg)] text-xl font-bold">
-                  {userName
-                    ?.split(" ")
-                    .map((n) => n[0])
-                    .join("")
-                    .toUpperCase()
-                    .slice(0, 2) || "U"}
+                  {avatarLabel || displayEmail[0]?.toUpperCase() || "U"}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-[var(--color-text)] truncate">
-                    {userName || "学习者"}
+                    {displayName}
                   </div>
                   <div className="text-sm text-[var(--color-text-tertiary)] truncate">
-                    {userEmail}
+                    {displayEmail}
                   </div>
                 </div>
               </div>

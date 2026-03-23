@@ -4,8 +4,6 @@
  * 全局状态管理 - 跨页面共享的状态
  */
 
-// Auth 相关
-export { useAuthStore } from "./auth";
 // Chat 相关
 export { useChatStore } from "./chat";
 export { useChatSessionStateStore } from "./chat-session-state";

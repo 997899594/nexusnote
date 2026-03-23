@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useAuthStore } from "@/stores";
+import type { User } from "@/types";
 
 interface UserAvatarProps {
   className?: string;
@@ -11,9 +11,17 @@ interface UserAvatarProps {
 }
 
 export function UserAvatar({ className = "", size = "md" }: UserAvatarProps) {
-  const { user, isLoading } = useAuthStore();
   const router = useRouter();
-  const { status } = useSession();
+  const { data: session, status } = useSession();
+  const sessionUser = session?.user
+    ? {
+        id: session.user.id || "",
+        email: session.user.email || "",
+        name: session.user.name || "",
+        image: session.user.image || undefined,
+      }
+    : null;
+  const displayUser: User | null = status === "authenticated" ? sessionUser : null;
 
   const sizeClasses = {
     sm: "w-8 h-8 text-sm",
@@ -28,6 +36,8 @@ export function UserAvatar({ className = "", size = "md" }: UserAvatarProps) {
   };
 
   const handleClick = () => {
+    if (status === "loading") return;
+
     if (status === "authenticated") {
       router.push("/profile");
     } else {
@@ -37,20 +47,20 @@ export function UserAvatar({ className = "", size = "md" }: UserAvatarProps) {
 
   // Generate initials from name or email
   const getInitials = (): string => {
-    if (!user) return "?";
-    if (user.name) {
-      return user.name
+    if (!displayUser) return "?";
+    if (displayUser.name) {
+      return displayUser.name
         .split(" ")
         .map((n) => n[0])
         .join("")
         .toUpperCase()
         .slice(0, 2);
     }
-    return user.email[0].toUpperCase();
+    return displayUser.email[0].toUpperCase();
   };
 
   // Loading state - show pulse
-  if (isLoading) {
+  if (status === "loading") {
     return (
       <div
         className={`${sizeClasses[size]} rounded-full bg-[var(--color-hover)] animate-pulse ${className}`}
@@ -59,11 +69,11 @@ export function UserAvatar({ className = "", size = "md" }: UserAvatarProps) {
   }
 
   // User has image - show image
-  if (user?.image) {
+  if (displayUser?.image) {
     return (
       <Image
-        src={user.image}
-        alt={user.name || user.email}
+        src={displayUser.image}
+        alt={displayUser.name || displayUser.email}
         width={sizeMap[size]}
         height={sizeMap[size]}
         onClick={handleClick}

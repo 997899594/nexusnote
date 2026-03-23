@@ -4,14 +4,22 @@ export const dynamic = "force-dynamic";
 
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, Brain, CheckCircle2, Github, Loader2, Mail } from "lucide-react";
-import { useSearchParams } from "next/navigation";
-import { signIn } from "next-auth/react";
-import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { signIn, useSession } from "next-auth/react";
+import { Suspense, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+
+function getSafeCallbackUrl(callbackUrl: string | null): string {
+  if (!callbackUrl) return "/";
+  return callbackUrl.startsWith("/") && !callbackUrl.startsWith("//") ? callbackUrl : "/";
+}
 
 function LoginForm() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const { status } = useSession();
   const isVerifyPage = searchParams.get("verify") === "1";
+  const callbackUrl = getSafeCallbackUrl(searchParams.get("callbackUrl"));
 
   const [email, setEmail] = useState("");
   const [devName, setDevName] = useState("");
@@ -21,13 +29,23 @@ function LoginForm() {
   const [error, setError] = useState("");
   const [showDev, setShowDev] = useState(false);
 
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.replace(callbackUrl);
+    }
+  }, [callbackUrl, router, status]);
+
   const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
     setLoading(true);
     setError("");
     try {
-      const result = await signIn("resend", { email, redirect: false });
+      const result = await signIn("resend", {
+        email,
+        redirect: false,
+        callbackUrl,
+      });
       if (result?.error) {
         setError("发送失败，请稍后重试");
       } else {
@@ -45,7 +63,7 @@ function LoginForm() {
     e.preventDefault();
     setLoading(true);
     try {
-      await signIn("credentials", { email, name: devName, callbackUrl: "/" });
+      await signIn("credentials", { email, name: devName, callbackUrl });
     } catch {
       setError("登录失败，请重试");
     } finally {
@@ -181,7 +199,7 @@ function LoginForm() {
                       whileHover={{ scale: 1.01 }}
                       whileTap={{ scale: 0.99 }}
                       type="button"
-                      onClick={() => signIn("github", { callbackUrl: "/" })}
+                      onClick={() => signIn("github", { callbackUrl })}
                       className={cn(
                         "w-full flex items-center justify-center gap-2.5 px-4 py-3",
                         "border border-[var(--color-border)] rounded-xl",

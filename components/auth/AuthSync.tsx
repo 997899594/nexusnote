@@ -1,49 +1,35 @@
 /**
  * Auth Sync - 同步 Auth.js v5 Session 到 Zustand Store
  *
- * v5 变化：
- * - useSession 从 next-auth/react 迁移到 auth-js/react
- * - Session 类型从 next-auth 改为 auth-js
+ * 仅负责基于 session 触发个性化数据加载。
+ * 认证状态本身以 NextAuth session 为单一来源，不再镜像到客户端 store。
  */
 
 "use client";
 
 import { useSession } from "next-auth/react";
 import { useEffect } from "react";
-import { useAuthStore, useUserPreferencesStore } from "@/stores";
+import { useUserPreferencesStore } from "@/stores";
 
 export function AuthSync() {
   const { data: session, status } = useSession();
-  const setUser = useAuthStore((s) => s.setUser);
-  const setLoading = useAuthStore((s) => s.setLoading);
   const loadPreferences = useUserPreferencesStore((s) => s.loadPreferences);
   const resetPreferences = useUserPreferencesStore((s) => s.reset);
 
   useEffect(() => {
-    if (status === "loading") {
-      setLoading(true);
-      return;
-    }
-
     let cancelled = false;
 
     const load = async () => {
       if (session?.user) {
-        setUser({
-          id: session.user.id || "",
-          email: session.user.email || "",
-          name: session.user.name || "",
-          image: session.user.image || undefined,
-        });
-        // Load user preferences (personas, style profile, etc.)
         await loadPreferences().catch((err) => {
           if (!cancelled) console.error("Failed to load user preferences:", err);
         });
-      } else {
-        setUser(null);
+        return;
+      }
+
+      if (status !== "loading") {
         resetPreferences();
       }
-      if (!cancelled) setLoading(false);
     };
 
     load();
@@ -51,7 +37,7 @@ export function AuthSync() {
     return () => {
       cancelled = true;
     };
-  }, [session, status, setUser, setLoading, loadPreferences, resetPreferences]);
+  }, [session, status, loadPreferences, resetPreferences]);
 
   return null;
 }
