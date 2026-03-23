@@ -1,5 +1,19 @@
 export type EvalDomain = "interview" | "learn" | "notes";
 
+export interface InterviewEvalInput {
+  userGoal: string;
+}
+
+export interface LearnEvalInput {
+  question: string;
+  courseContext: string;
+}
+
+export interface NotesEvalInput {
+  instruction: string;
+  noteExcerpt: string;
+}
+
 export interface EvalCase<TInput = Record<string, unknown>> {
   id: string;
   title: string;
@@ -18,7 +32,18 @@ export interface EvalSuite<TInput = Record<string, unknown>> {
 
 export interface EvalExecutionResult {
   caseId: string;
+  title: string;
   score: number;
   passed: boolean;
   notes: string[];
+  output: string;
+}
+
+export interface EvalSuiteRunResult {
+  domain: EvalDomain;
+  version: string;
+  averageScore: number;
+  passedCount: number;
+  totalCount: number;
+  results: EvalExecutionResult[];
 }
