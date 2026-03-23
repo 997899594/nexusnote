@@ -12,6 +12,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { notes, noteTags, tags } from "@/db/schema";
 import { aiProvider } from "@/lib/ai";
+import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import {
   TAG_GENERATION_SYSTEM_PROMPT,
   TAG_GENERATION_USER_PROMPT,
@@ -81,16 +82,48 @@ class TagGenerationService {
       throw new Error("AI Provider not configured");
     }
 
-    const result = await generateObject({
-      schema: TagGenerationResultSchema,
-      model: aiProvider.chatModel,
-      system: TAG_GENERATION_SYSTEM_PROMPT,
-      prompt: TAG_GENERATION_USER_PROMPT(content),
-      temperature: 0.3,
-      maxRetries: 2,
+    const startedAt = Date.now();
+    const telemetry = createTelemetryContext({
+      endpoint: "notes:tag-generation",
+      intent: "note-tag-generation",
+      modelPolicy: "interactive-fast",
+      promptVersion: "note-tag-generation@v1",
+      metadata: {
+        contentLength: content.length,
+      },
     });
 
-    return result.object;
+    try {
+      const result = await generateObject({
+        schema: TagGenerationResultSchema,
+        model: aiProvider.chatModel,
+        system: TAG_GENERATION_SYSTEM_PROMPT,
+        prompt: TAG_GENERATION_USER_PROMPT(content),
+        temperature: 0.3,
+        maxRetries: 2,
+      });
+
+      await recordAIUsage({
+        ...telemetry,
+        usage: result.usage,
+        durationMs: Date.now() - startedAt,
+        success: true,
+        metadata: {
+          ...telemetry.metadata,
+          generatedTagCount: result.object.tags.length,
+        },
+      });
+
+      return result.object;
+    } catch (error) {
+      await recordAIUsage({
+        ...telemetry,
+        durationMs: Date.now() - startedAt,
+        success: false,
+        errorMessage: getErrorMessage(error),
+      });
+      throw error;
+    }
   }
 
   /**

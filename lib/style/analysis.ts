@@ -9,6 +9,7 @@ import { generateObject, type UIMessage } from "ai";
 import { z } from "zod";
 import { conversations, db, eq, userProfiles } from "@/db";
 import { aiProvider } from "@/lib/ai/core";
+import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { type EMAValue, updateEMA } from "./ema";
 
 // ============================================
@@ -227,12 +228,31 @@ ${
     : `Exclude Big Five analysis.`
 }`;
 
+  const startedAt = Date.now();
+  const telemetry = createTelemetryContext({
+    endpoint: "style:analysis",
+    intent: "style-analysis",
+    model: "gemini-3.1-pro-preview",
+    promptVersion: "style-analysis@v1",
+    metadata: {
+      messageCount: messages.length,
+      includeBigFive,
+    },
+  });
+
   try {
     const result = await generateObject({
       model: aiProvider.proModel,
       schema: StyleAnalysisSchema,
       prompt: userPrompt,
       system: systemPrompt,
+    });
+
+    await recordAIUsage({
+      ...telemetry,
+      usage: result.usage,
+      durationMs: Date.now() - startedAt,
+      success: true,
     });
 
     return {
@@ -243,6 +263,12 @@ ${
     };
   } catch (error) {
     console.error("[StyleAnalysis] AI analysis failed:", error);
+    await recordAIUsage({
+      ...telemetry,
+      durationMs: Date.now() - startedAt,
+      success: false,
+      errorMessage: getErrorMessage(error),
+    });
     throw new Error(
       `Style analysis failed: ${error instanceof Error ? error.message : "Unknown error"}`,
     );

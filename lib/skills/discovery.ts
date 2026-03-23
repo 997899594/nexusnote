@@ -22,6 +22,7 @@ import {
   userSkillMastery,
 } from "@/db/schema";
 import { aiProvider } from "@/lib/ai/core";
+import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 
 // ============================================
 // Zod Schemas for Structured Output
@@ -209,6 +210,18 @@ export async function extractSkillsFromData(
     sources?: Array<"conversations" | "knowledge" | "courses" | "flashcards">;
   } = {},
 ): Promise<DiscoveredSkill[]> {
+  const startedAt = Date.now();
+  const telemetry = createTelemetryContext({
+    endpoint: "/api/skills/discover",
+    userId,
+    workflow: "discover-skills",
+    promptVersion: "skills-discovery@v1",
+    model: "gemini-3.1-pro-preview",
+    metadata: {
+      sources: options.sources ?? ["conversations", "knowledge", "courses", "flashcards"],
+      limit: options.limit ?? 50,
+    },
+  });
   const dataSources = await collectUserData(userId, options);
 
   if (dataSources.length === 0) {
@@ -242,9 +255,31 @@ export async function extractSkillsFromData(
       temperature: 0.3,
     });
 
+    await recordAIUsage({
+      ...telemetry,
+      usage: result.usage,
+      durationMs: Date.now() - startedAt,
+      success: true,
+      metadata: {
+        ...telemetry.metadata,
+        sourceCount: dataSources.length,
+        extractedCount: result.object.skills.length,
+      },
+    });
+
     return result.object.skills;
   } catch (error) {
     console.error("[SkillDiscovery] 提取技能失败:", error);
+    await recordAIUsage({
+      ...telemetry,
+      durationMs: Date.now() - startedAt,
+      success: false,
+      errorMessage: getErrorMessage(error),
+      metadata: {
+        ...telemetry.metadata,
+        sourceCount: dataSources.length,
+      },
+    });
     return [];
   }
 }

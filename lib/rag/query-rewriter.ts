@@ -11,6 +11,7 @@
 
 import { generateText } from "ai";
 import { aiProvider } from "@/lib/ai";
+import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 
 export async function rewriteQuery(query: string, conversationContext?: string): Promise<string> {
   // Short queries (< 10 chars) with no context, return as-is
@@ -18,8 +19,20 @@ export async function rewriteQuery(query: string, conversationContext?: string):
     return query;
   }
 
+  const startedAt = Date.now();
+  const telemetry = createTelemetryContext({
+    endpoint: "rag:query-rewriter",
+    intent: "query-rewrite",
+    modelPolicy: "interactive-fast",
+    promptVersion: "query-rewriter@v1",
+    metadata: {
+      hasConversationContext: Boolean(conversationContext),
+      queryLength: query.length,
+    },
+  });
+
   try {
-    const { text } = await generateText({
+    const { text, usage } = await generateText({
       model: aiProvider.chatModel,
       temperature: 0,
       maxOutputTokens: 100,
@@ -31,6 +44,13 @@ export async function rewriteQuery(query: string, conversationContext?: string):
         : `用户查询：${query}`,
     });
 
+    await recordAIUsage({
+      ...telemetry,
+      usage,
+      durationMs: Date.now() - startedAt,
+      success: true,
+    });
+
     const rewritten = text.trim();
     if (rewritten && rewritten.length <= query.length * 3) {
       return rewritten;
@@ -38,6 +58,12 @@ export async function rewriteQuery(query: string, conversationContext?: string):
     return query;
   } catch (err) {
     console.warn("[QueryRewriter] Rewrite failed, using original query:", err);
+    await recordAIUsage({
+      ...telemetry,
+      durationMs: Date.now() - startedAt,
+      success: false,
+      errorMessage: getErrorMessage(err),
+    });
     return query;
   }
 }

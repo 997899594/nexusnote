@@ -9,13 +9,15 @@
 
 import type { UIMessage } from "ai";
 import { type NextRequest, NextResponse } from "next/server";
-import { aiUsage, conversations, db } from "@/db";
+import { conversations, db } from "@/db";
 import {
   aiProvider,
   ChatApiRequestSchema,
+  createTelemetryContext,
   getAgent,
   getCapabilityProfile,
-  getModelNameForPolicy,
+  getErrorMessage,
+  recordAIUsage,
 } from "@/lib/ai";
 import { createNexusNoteStreamResponse } from "@/lib/ai/core/streaming";
 import { buildPersonalization } from "@/lib/ai/personalization";
@@ -26,38 +28,13 @@ import { checkRateLimitOrThrow } from "@/lib/rate-limit";
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-// ============================================
-// Helper Functions
-// ============================================
-
-async function trackUsage(
-  userId: string,
-  intent: string,
-  model: string,
-  inputTokens: number,
-  outputTokens: number,
-  durationMs: number,
-) {
-  try {
-    await db.insert(aiUsage).values({
-      userId,
-      endpoint: "/api/chat",
-      intent,
-      model,
-      inputTokens,
-      outputTokens,
-      totalTokens: inputTokens + outputTokens,
-      costCents: Math.round((inputTokens * 0.00015 + outputTokens * 0.0006) * 100),
-      durationMs,
-      success: true,
-    });
-  } catch (error) {
-    console.error("[Usage] Failed to track:", error);
-  }
-}
-
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
+  const requestId = crypto.randomUUID();
+  let telemetry = createTelemetryContext({
+    requestId,
+    endpoint: "/api/chat",
+  });
 
   try {
     const session = await auth();
@@ -90,6 +67,21 @@ export async function POST(request: NextRequest) {
 
     const profileId = metadata?.context === "learn" || courseId ? "LEARN_ASSIST" : "CHAT_BASIC";
     const profile = getCapabilityProfile(profileId);
+    telemetry = createTelemetryContext({
+      requestId,
+      endpoint: "/api/chat",
+      userId,
+      profile: profileId,
+      promptVersion: profile.promptKey,
+      modelPolicy: profile.modelPolicy,
+      metadata: {
+        sessionId: sessionId ?? null,
+        courseId:
+          courseId ?? (metadata?.context === "learn" ? metadata.courseId : undefined) ?? null,
+        context: metadata?.context ?? null,
+        guest: !userId,
+      },
+    });
 
     if (profile.authRequired && !userId) {
       throw new APIError("请先登录", 401, "UNAUTHORIZED");
@@ -155,28 +147,26 @@ export async function POST(request: NextRequest) {
       userContext,
       courseId: courseId ?? (metadata?.context === "learn" ? metadata.courseId : undefined),
       metadata,
+      telemetry,
     });
 
     const response = await createNexusNoteStreamResponse(agent, uiMessages, {
       sessionId,
     });
-
-    const durationMs = Date.now() - startTime;
-
-    if (userId) {
-      trackUsage(
-        userId,
-        profileId,
-        getModelNameForPolicy(profile.modelPolicy),
-        0,
-        0,
-        durationMs,
-      ).catch(console.error);
-    }
+    response.headers.set("X-Request-Id", requestId);
 
     return response;
   } catch (error) {
-    return handleError(error);
+    await recordAIUsage({
+      ...telemetry,
+      durationMs: Date.now() - startTime,
+      success: false,
+      errorMessage: getErrorMessage(error),
+    });
+
+    const response = handleError(error);
+    response.headers.set("X-Request-Id", requestId);
+    return response;
   }
 }
 

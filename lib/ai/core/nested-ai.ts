@@ -3,6 +3,7 @@
 import { generateText, Output } from "ai";
 import type { z } from "zod";
 import { aiProvider } from "../core";
+import { createTelemetryContext, getErrorMessage, recordAIUsage } from "./telemetry";
 
 // ============================================
 // Types
@@ -15,6 +16,13 @@ export interface NestedAIOptions {
   temperature?: number;
   /** 使用 Pro 模型，默认 false */
   useProModel?: boolean;
+  telemetry?: {
+    userId?: string;
+    endpoint?: string;
+    intent?: string;
+    promptVersion?: string;
+    metadata?: Record<string, unknown>;
+  };
 }
 
 export interface NestedAIResult<T> {
@@ -45,6 +53,14 @@ export async function callNestedAI<T>(
   const { timeout = 30_000, temperature = 0.3, useProModel = false } = options;
 
   const model = useProModel ? aiProvider.proModel : aiProvider.chatModel;
+  const telemetry = createTelemetryContext({
+    endpoint: options.telemetry?.endpoint ?? "nested-ai",
+    userId: options.telemetry?.userId,
+    intent: options.telemetry?.intent ?? "nested-ai",
+    promptVersion: options.telemetry?.promptVersion,
+    modelPolicy: useProModel ? "structured-high-quality" : "interactive-fast",
+    metadata: options.telemetry?.metadata,
+  });
 
   if (!model) {
     return {
@@ -66,6 +82,12 @@ export async function callNestedAI<T>(
 
     const durationMs = Date.now() - startTime;
     console.log("[NestedAI] Success", { durationMs });
+    await recordAIUsage({
+      ...telemetry,
+      usage: result.usage,
+      durationMs,
+      success: true,
+    });
 
     return {
       success: true,
@@ -77,6 +99,12 @@ export async function callNestedAI<T>(
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
 
     console.error("[NestedAI] Error:", errorMessage, { durationMs });
+    await recordAIUsage({
+      ...telemetry,
+      durationMs,
+      success: false,
+      errorMessage: getErrorMessage(error),
+    });
 
     return {
       success: false,

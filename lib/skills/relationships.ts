@@ -10,6 +10,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { skillRelationships, skills, userSkillMastery } from "@/db/schema";
 import { aiProvider } from "@/lib/ai/core";
+import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 
 // ============================================
 // Relationship Types
@@ -66,6 +67,16 @@ export async function inferSkillRelationships(skillSlugs: string[]): Promise<Ski
 
   // 构建提示词
   const prompt = buildRelationshipPrompt(skillsList);
+  const startedAt = Date.now();
+  const telemetry = createTelemetryContext({
+    endpoint: "skills:relationships",
+    intent: "skill-relationship-inference",
+    model: "gemini-3.1-pro-preview",
+    promptVersion: "skill-relationships@v1",
+    metadata: {
+      skillCount: skillsList.length,
+    },
+  });
 
   try {
     const result = await generateObject({
@@ -89,9 +100,26 @@ export async function inferSkillRelationships(skillSlugs: string[]): Promise<Ski
       temperature: 0.2,
     });
 
+    await recordAIUsage({
+      ...telemetry,
+      usage: result.usage,
+      durationMs: Date.now() - startedAt,
+      success: true,
+      metadata: {
+        ...telemetry.metadata,
+        relationshipCount: result.object.relationships.length,
+      },
+    });
+
     return result.object.relationships;
   } catch (error) {
     console.error("[SkillRelationships] 推理关系失败:", error);
+    await recordAIUsage({
+      ...telemetry,
+      durationMs: Date.now() - startedAt,
+      success: false,
+      errorMessage: getErrorMessage(error),
+    });
     return [];
   }
 }

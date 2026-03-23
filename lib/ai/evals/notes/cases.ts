@@ -1,0 +1,40 @@
+import { createEvalSuite } from "../runner";
+
+export const notesEvalSuite = createEvalSuite({
+  domain: "notes",
+  version: "v1",
+  cases: [
+    {
+      id: "notes-summary-preserve-meaning",
+      title: "总结时保留原意",
+      domain: "notes",
+      promptVersion: "note-assist@v1",
+      input: {
+        instruction: "帮我总结这份项目复盘，保留问题和下一步。",
+        noteExcerpt: "这次上线延迟主要是 schema 变更没有提前演练；下一步要补 migration checklist。",
+      },
+      expectations: [
+        "总结必须保留失败原因和下一步动作",
+        "不能擅自引入原文没有的结论",
+        "结果应更紧凑，但语义不漂移",
+      ],
+      tags: ["rewrite", "fidelity"],
+    },
+    {
+      id: "notes-structured-rewrite",
+      title: "把散乱记录整理成结构化笔记",
+      domain: "notes",
+      promptVersion: "note-assist@v1",
+      input: {
+        instruction: "把这些碎片整理成清晰的会议纪要。",
+        noteExcerpt: "上线前要补告警；登录链路已经恢复；还差邮件投递监控；这周目标是稳定部署。",
+      },
+      expectations: [
+        "输出应更结构化，适合写回笔记",
+        "保留原始事实，不要扩展为不存在的任务",
+        "结果应适合后续继续编辑",
+      ],
+      tags: ["structure", "editing"],
+    },
+  ],
+});

@@ -4,7 +4,14 @@ import type { UIMessage } from "ai";
 import { eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { courses, db } from "@/db";
-import { aiProvider, getAgent, InterviewApiRequestSchema } from "@/lib/ai";
+import {
+  aiProvider,
+  createTelemetryContext,
+  getAgent,
+  getErrorMessage,
+  InterviewApiRequestSchema,
+  recordAIUsage,
+} from "@/lib/ai";
 import { createNexusNoteStreamResponse } from "@/lib/ai/core/streaming";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
@@ -13,6 +20,16 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
+  const startedAt = Date.now();
+  const requestId = crypto.randomUUID();
+  let telemetry = createTelemetryContext({
+    requestId,
+    endpoint: "/api/interview",
+    profile: "INTERVIEW",
+    promptVersion: "interview@v1",
+    modelPolicy: "interactive-fast",
+  });
+
   try {
     const session = await auth();
     const userId = session?.user?.id;
@@ -37,6 +54,18 @@ export async function POST(request: NextRequest) {
     }
 
     const { messages, sessionId, courseId: inputCourseId } = validation.data;
+    telemetry = createTelemetryContext({
+      requestId,
+      endpoint: "/api/interview",
+      userId,
+      profile: "INTERVIEW",
+      promptVersion: "interview@v1",
+      modelPolicy: "interactive-fast",
+      metadata: {
+        sessionId: sessionId ?? null,
+        courseId: inputCourseId ?? null,
+      },
+    });
 
     if (!aiProvider.isConfigured()) {
       throw new APIError("AI 服务未配置", 503, "AI_NOT_CONFIGURED");
@@ -61,15 +90,26 @@ export async function POST(request: NextRequest) {
       userId,
       courseId,
       messages: messages as UIMessage[],
+      telemetry,
     });
 
     const response = await createNexusNoteStreamResponse(agent, messages as UIMessage[], {
       sessionId,
     });
+    response.headers.set("X-Request-Id", requestId);
 
     return response;
   } catch (error) {
-    return handleError(error);
+    await recordAIUsage({
+      ...telemetry,
+      durationMs: Date.now() - startedAt,
+      success: false,
+      errorMessage: getErrorMessage(error),
+    });
+
+    const response = handleError(error);
+    response.headers.set("X-Request-Id", requestId);
+    return response;
   }
 }
 

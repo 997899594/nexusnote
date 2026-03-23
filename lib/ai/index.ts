@@ -7,6 +7,8 @@ export type { AgentProfile, InterviewAgentOptions, PersonalizationOptions } from
 export { getAgent } from "./agents";
 // Core AI
 export * from "./core";
+// Evals
+export * from "./evals";
 export type { PersonalizationResult } from "./personalization";
 // Personalization
 export { buildPersonalization } from "./personalization";

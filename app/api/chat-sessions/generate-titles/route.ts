@@ -13,6 +13,7 @@ import { generateObject } from "ai";
 import { z } from "zod";
 import { conversations, db, eq } from "@/db";
 import { aiProvider } from "@/lib/ai/core";
+import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { withOptionalAuth } from "@/lib/api";
 
 // Title generation schema
@@ -49,6 +50,18 @@ export const POST = withOptionalAuth(async (_request, { userId: _userId }) => {
     }
 
     try {
+      const startedAt = Date.now();
+      const telemetry = createTelemetryContext({
+        endpoint: "/api/chat-sessions/generate-titles",
+        userId: _userId ?? undefined,
+        intent: "conversation-title-generation",
+        modelPolicy: "interactive-fast",
+        promptVersion: "conversation-title@v1",
+        metadata: {
+          conversationId: conversation.id,
+        },
+      });
+
       // 3. 使用 AI 生成标题（10字以内）
       const result = await generateObject({
         schema: titleSchema,
@@ -57,6 +70,13 @@ export const POST = withOptionalAuth(async (_request, { userId: _userId }) => {
           "你是一个专业的标题生成助手。根据用户的第一条消息，生成一个简洁、准确的标题，不超过10个字。",
         prompt: `用户消息：${firstUserMessage}\n\n请生成一个简洁的标题：`,
         temperature: 0.7,
+      });
+
+      await recordAIUsage({
+        ...telemetry,
+        usage: result.usage,
+        durationMs: Date.now() - startedAt,
+        success: true,
       });
 
       // 4. 更新会话标题
@@ -71,6 +91,20 @@ export const POST = withOptionalAuth(async (_request, { userId: _userId }) => {
         `[GenerateTitles] Failed to generate title for conversation ${conversation.id}:`,
         error,
       );
+      await recordAIUsage({
+        endpoint: "/api/chat-sessions/generate-titles",
+        userId: _userId ?? undefined,
+        requestId: crypto.randomUUID(),
+        intent: "conversation-title-generation",
+        modelPolicy: "interactive-fast",
+        promptVersion: "conversation-title@v1",
+        durationMs: 0,
+        success: false,
+        errorMessage: getErrorMessage(error),
+        metadata: {
+          conversationId: conversation.id,
+        },
+      });
       // 继续处理下一个会话
     }
   }

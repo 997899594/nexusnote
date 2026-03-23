@@ -12,5 +12,7 @@ export * from "./prompt-registry";
 export * from "./provider";
 // Streaming
 export * from "./streaming";
+// Telemetry
+export * from "./telemetry";
 // Tool Context
 export * from "./tool-context";

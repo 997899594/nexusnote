@@ -2,6 +2,7 @@ import { smoothStream, streamText } from "ai";
 import { and, eq } from "drizzle-orm";
 import { courseSections, courses, db } from "@/db";
 import { getModelForPolicy } from "@/lib/ai/core/model-policy";
+import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { buildSectionPrompt } from "@/lib/ai/prompts/learn";
 import { APIError } from "@/lib/api";
 import { invalidateChapterCache } from "@/lib/cache/course-context";
@@ -31,6 +32,20 @@ export async function runGenerateCourseSectionWorkflow({
   chapterIndex,
   sectionIndex,
 }: GenerateCourseSectionWorkflowOptions): Promise<Response> {
+  const startedAt = Date.now();
+  const telemetry = createTelemetryContext({
+    endpoint: "/api/learn/generate",
+    userId,
+    workflow: "generate-course-section",
+    promptVersion: "course-section@v1",
+    modelPolicy: "structured-high-quality",
+    metadata: {
+      courseId,
+      chapterIndex,
+      sectionIndex,
+    },
+  });
+
   const [course] = await db
     .select()
     .from(courses)
@@ -93,7 +108,7 @@ export async function runGenerateCourseSectionWorkflow({
     experimental_transform: smoothStream({
       chunking: new Intl.Segmenter("zh-Hans", { granularity: "word" }),
     }),
-    onFinish: async ({ text }) => {
+    onFinish: async ({ text, totalUsage, finishReason, steps }) => {
       try {
         let sectionDocumentId = existingSection?.id ?? "";
 
@@ -137,6 +152,21 @@ export async function runGenerateCourseSectionWorkflow({
 
           invalidateChapterCache(courseId, chapterIndex).catch(() => {});
         }
+
+        await recordAIUsage({
+          ...telemetry,
+          usage: totalUsage,
+          durationMs: Date.now() - startedAt,
+          success: true,
+          metadata: {
+            ...telemetry.metadata,
+            finishReason,
+            stepCount: steps.length,
+            outlineNodeId,
+            sectionDocumentId: sectionDocumentId || null,
+            existedBefore: Boolean(existingSection?.id),
+          },
+        });
       } catch (error) {
         console.error("[GenerateCourseSectionWorkflow] Failed to persist section:", error);
       }
@@ -152,6 +182,12 @@ export async function runGenerateCourseSectionWorkflow({
         }
       } catch (error) {
         console.error("[GenerateCourseSectionWorkflow] Stream error:", error);
+        await recordAIUsage({
+          ...telemetry,
+          durationMs: Date.now() - startedAt,
+          success: false,
+          errorMessage: getErrorMessage(error),
+        });
       } finally {
         controller.close();
       }

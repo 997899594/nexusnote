@@ -6,7 +6,13 @@ import { stepCountIs, ToolLoopAgent, type ToolSet } from "ai";
 import { getCourseOutline } from "@/lib/cache/course-context";
 import type { ChatMetadata } from "@/types/metadata";
 import { isLearnMetadata } from "@/types/metadata";
-import { buildPromptInstructions, getCapabilityProfile, getModelForPolicy } from "../core";
+import {
+  type AITelemetryContext,
+  buildPromptInstructions,
+  getCapabilityProfile,
+  getModelForPolicy,
+  recordAIUsage,
+} from "../core";
 import type { AgentProfile } from "../core/capability-profiles";
 import { buildToolsForProfile } from "../tools";
 
@@ -17,6 +23,7 @@ export interface PersonalizationOptions {
   courseId?: string;
   metadata?: ChatMetadata;
   profile?: Extract<AgentProfile, "CHAT_BASIC" | "LEARN_ASSIST" | "NOTE_ASSIST">;
+  telemetry?: AITelemetryContext;
 }
 
 /**
@@ -26,6 +33,7 @@ export interface PersonalizationOptions {
  * 详细内容由 agent 按需调用 loadLearnContext 工具获取。
  */
 export async function createChatAgent(options: PersonalizationOptions = {}) {
+  const startedAt = Date.now();
   const profileId =
     options.profile ??
     (options.courseId && isLearnMetadata(options.metadata) ? "LEARN_ASSIST" : "CHAT_BASIC");
@@ -73,5 +81,31 @@ export async function createChatAgent(options: PersonalizationOptions = {}) {
     instructions,
     tools,
     stopWhen: stepCountIs(profile.maxSteps),
+    onFinish: async ({ totalUsage, steps, finishReason }) => {
+      if (!options.telemetry) {
+        return;
+      }
+
+      const toolNames = Array.from(
+        new Set(
+          steps.flatMap((step) =>
+            (step.toolCalls ?? []).map((toolCall) => String(toolCall.toolName)),
+          ),
+        ),
+      );
+
+      await recordAIUsage({
+        ...options.telemetry,
+        usage: totalUsage,
+        durationMs: Date.now() - startedAt,
+        success: true,
+        metadata: {
+          ...options.telemetry.metadata,
+          finishReason,
+          stepCount: steps.length,
+          toolNames,
+        },
+      });
+    },
   });
 }

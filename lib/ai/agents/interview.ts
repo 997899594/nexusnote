@@ -1,7 +1,13 @@
 // lib/ai/agents/interview.ts
 
 import { hasToolCall, stepCountIs, ToolLoopAgent, type ToolSet } from "ai";
-import { buildPromptInstructions, getCapabilityProfile, getModelForPolicy } from "../core";
+import {
+  type AITelemetryContext,
+  buildPromptInstructions,
+  getCapabilityProfile,
+  getModelForPolicy,
+  recordAIUsage,
+} from "../core";
 import { buildToolsForProfile } from "../tools";
 
 const MAX_STEPS = 15;
@@ -14,6 +20,7 @@ export interface InterviewAgentOptions {
   userId: string;
   courseId?: string;
   messages?: import("ai").UIMessage[];
+  telemetry?: AITelemetryContext;
 }
 
 // ============================================
@@ -21,6 +28,7 @@ export interface InterviewAgentOptions {
 // ============================================
 
 export function createInterviewAgent(options: InterviewAgentOptions) {
+  const startedAt = Date.now();
   const profile = getCapabilityProfile("INTERVIEW");
   const tools = buildToolsForProfile("INTERVIEW", {
     userId: options.userId,
@@ -34,5 +42,31 @@ export function createInterviewAgent(options: InterviewAgentOptions) {
     instructions: buildPromptInstructions(profile.promptKey),
     tools,
     stopWhen: [hasToolCall("suggestOptions"), stepCountIs(Math.min(MAX_STEPS, profile.maxSteps))],
+    onFinish: async ({ totalUsage, steps, finishReason }) => {
+      if (!options.telemetry) {
+        return;
+      }
+
+      const toolNames = Array.from(
+        new Set(
+          steps.flatMap((step) =>
+            (step.toolCalls ?? []).map((toolCall) => String(toolCall.toolName)),
+          ),
+        ),
+      );
+
+      await recordAIUsage({
+        ...options.telemetry,
+        usage: totalUsage,
+        durationMs: Date.now() - startedAt,
+        success: true,
+        metadata: {
+          ...options.telemetry.metadata,
+          finishReason,
+          stepCount: steps.length,
+          toolNames,
+        },
+      });
+    },
   });
 }
