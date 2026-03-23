@@ -1,7 +1,7 @@
 /**
  * Chat Tools - 网页搜索
  *
- * 工厂模式：绑定 userId 用于用量追踪和日志归属
+ * 工厂模式：可绑定 userId 用于用量追踪和日志归属
  */
 
 import { tool } from "ai";
@@ -17,7 +17,7 @@ export type WebSearchInput = z.infer<typeof WebSearchSchema>;
 /**
  * 创建网页搜索工具（绑定 userId）
  */
-export function createWebSearchTool(userId: string) {
+export function createWebSearchTool(userId?: string) {
   return {
     webSearch: tool({
       description: "搜索互联网获取最新信息",
@@ -26,7 +26,9 @@ export function createWebSearchTool(userId: string) {
         const searchApiKey = process.env.TAVILY_API_KEY || process.env.SERPER_API_KEY;
 
         if (!searchApiKey) {
-          console.warn("[Tool] webSearch: No search API key configured", { userId });
+          console.warn("[Tool] webSearch: No search API key configured", {
+            userId: userId ?? null,
+          });
           return {
             success: false,
             error: "搜索服务未配置。请联系管理员配置 TAVILY_API_KEY 或 SERPER_API_KEY。",
@@ -46,7 +48,7 @@ export function createWebSearchTool(userId: string) {
 
           return { success: false, error: "搜索服务配置错误", results: [] };
         } catch (error) {
-          console.error("[Tool] webSearch error:", error, { userId });
+          console.error("[Tool] webSearch error:", error, { userId: userId ?? null });
           return {
             success: false,
             error: error instanceof Error ? error.message : "搜索服务暂不可用",

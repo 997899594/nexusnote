@@ -3,7 +3,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import type { ToolContext } from "@/lib/ai/core/tool-context";
-import { saveCourseFromOutline } from "@/lib/learning/course-service";
+import { runCreateCourseWorkflow } from "@/lib/ai/workflows";
 
 // ============================================
 // Schema
@@ -65,7 +65,7 @@ export const createInterviewTools = (ctx: ToolContext) => {
       inputSchema: ConfirmOutlineSchema,
       execute: async (outline): Promise<ConfirmOutlineOutput> => {
         try {
-          const result = await saveCourseFromOutline({
+          const result = await runCreateCourseWorkflow({
             userId: ctx.userId,
             courseId: ctx.resourceId,
             outline,

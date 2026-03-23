@@ -2,98 +2,73 @@
  * AI Tools - 统一导出
  */
 
-// 现有导出保持不变
 export * from "./chat";
 export * from "./editor";
 export * from "./interview";
 export * from "./learning";
 export * from "./rag";
 export * from "./shared";
-export * from "./skills";
 
-// 新增：工具构建器
-import type { ToolContext } from "@/lib/ai/core/tool-context";
+import type { UIMessage } from "ai";
+import type { AgentProfile } from "@/lib/ai/core/capability-profiles";
+import { createToolContext } from "@/lib/ai/core/tool-context";
 import { createNoteTools } from "./chat/notes";
 import { createSearchTools } from "./chat/search";
 import { createWebSearchTool } from "./chat/web-search";
-import { batchEditTool, draftContentTool, editDocumentTool } from "./editor";
 import { createInterviewTools } from "./interview";
 import { createLearnContextTools } from "./learn";
 import { createEnhanceTools } from "./learning/enhance";
 import { createRagTools } from "./rag";
 import { suggestOptionsTool } from "./shared/suggest-options";
-import { createDiscoverSkillsTool } from "./skills/discovery";
 
-/**
- * 工具注册表
- *
- * global: 工厂函数，接受 userId，返回工具对象
- * resource: 工厂函数，接受完整 ToolContext，返回工具对象
- * shared: 不依赖用户身份的纯功能工具（raw objects）
- * skills: 工厂函数，接受 userId
- */
-export const toolRegistry = {
-  global: {
-    search: createSearchTools,
-    rag: createRagTools,
-    notes: createNoteTools,
-    webSearch: createWebSearchTool,
-    enhance: createEnhanceTools,
-  },
-  resource: {
-    interview: createInterviewTools,
-    learn: createLearnContextTools,
-  },
-  shared: {
-    suggestOptions: suggestOptionsTool,
-    editDocument: editDocumentTool,
-    batchEdit: batchEditTool,
-    draftContent: draftContentTool,
-  },
-  skills: {
-    discoverSkills: createDiscoverSkillsTool,
-  },
-} as const;
+interface ProfileToolBuilderInput {
+  userId?: string;
+  resourceId?: string;
+  messages?: UIMessage[];
+}
 
-/**
- * 为 Agent 构建工具集
- *
- * - skills: 静默后台运行，只有 discoverSkills
- * - chat/interview: shared 编辑工具 + global 用户工具 + 特定工具
- */
-export function buildAgentTools(
-  agentType: "chat" | "interview" | "skills",
-  ctx: ToolContext,
+export function buildToolsForProfile(
+  profile: AgentProfile,
+  input: ProfileToolBuilderInput = {},
 ): Record<string, unknown> {
-  const tools: Record<string, unknown> = {};
-
-  // skills 是静默后台任务
-  if (agentType === "skills") {
-    Object.assign(tools, { discoverSkills: toolRegistry.skills.discoverSkills(ctx.userId) });
-    return tools;
-  }
-
-  // 所有对话型 Agent 共有：编辑工具（无需 userId）+ 搜索/RAG/网页搜索/增强工具
-  Object.assign(tools, toolRegistry.shared);
-  Object.assign(tools, toolRegistry.global.search(ctx.userId));
-  Object.assign(tools, toolRegistry.global.rag(ctx.userId));
-  Object.assign(tools, toolRegistry.global.webSearch(ctx.userId));
-  Object.assign(tools, toolRegistry.global.enhance(ctx.userId));
-
-  switch (agentType) {
-    case "chat":
-      Object.assign(tools, toolRegistry.global.notes(ctx.userId));
-      if (ctx.resourceId) {
-        Object.assign(tools, toolRegistry.resource.learn(ctx));
-      }
-      break;
-
-    case "interview":
+  switch (profile) {
+    case "CHAT_BASIC":
       return {
-        ...toolRegistry.resource.interview(ctx),
-        suggestOptions: toolRegistry.shared.suggestOptions,
-      } as Record<string, unknown>;
+        ...createWebSearchTool(input.userId),
+      };
+    case "LEARN_ASSIST": {
+      const ctx = createToolContext({
+        userId: input.userId,
+        resourceId: input.resourceId,
+        messages: input.messages,
+      });
+      return {
+        ...createLearnContextTools(ctx),
+        ...createRagTools(ctx.userId),
+        ...createWebSearchTool(ctx.userId),
+      };
+    }
+    case "NOTE_ASSIST": {
+      const ctx = createToolContext({
+        userId: input.userId,
+        messages: input.messages,
+      });
+      return {
+        ...createSearchTools(ctx.userId),
+        ...createNoteTools(ctx.userId),
+        ...createEnhanceTools(ctx.userId),
+      };
+    }
+    case "INTERVIEW": {
+      const ctx = createToolContext({
+        userId: input.userId,
+        resourceId: input.resourceId,
+        messages: input.messages,
+      });
+      return {
+        ...createInterviewTools(ctx),
+        suggestOptions: suggestOptionsTool,
+      };
+    }
   }
-
-  return tools;
 }

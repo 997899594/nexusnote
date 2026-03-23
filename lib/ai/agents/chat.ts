@@ -1,15 +1,14 @@
 /**
- * CHAT Agent - 通用对话
+ * Conversation Agent - 面向对话型 profile 的统一工厂
  */
 
 import { stepCountIs, ToolLoopAgent, type ToolSet } from "ai";
 import { getCourseOutline } from "@/lib/cache/course-context";
 import type { ChatMetadata } from "@/types/metadata";
 import { isLearnMetadata } from "@/types/metadata";
-import { aiProvider } from "../core";
-import { createToolContext } from "../core/tool-context";
-import { buildInstructions, CHAT_PROMPT } from "../prompts/chat";
-import { buildAgentTools } from "../tools";
+import { buildPromptInstructions, getCapabilityProfile, getModelForPolicy } from "../core";
+import type { AgentProfile } from "../core/capability-profiles";
+import { buildToolsForProfile } from "../tools";
 
 export interface PersonalizationOptions {
   personaPrompt?: string;
@@ -17,23 +16,32 @@ export interface PersonalizationOptions {
   userId?: string;
   courseId?: string;
   metadata?: ChatMetadata;
+  profile?: Extract<AgentProfile, "CHAT_BASIC" | "LEARN_ASSIST" | "NOTE_ASSIST">;
 }
 
 /**
- * 创建 CHAT Agent
+ * 创建对话型 Agent
  *
  * 学习页面：只注入轻量 outline hint（~200 字符），
  * 详细内容由 agent 按需调用 loadLearnContext 工具获取。
  */
-export async function createChatAgent(options?: PersonalizationOptions) {
-  if (!options?.userId) {
-    throw new Error("Chat agent requires userId");
+export async function createChatAgent(options: PersonalizationOptions = {}) {
+  const profileId =
+    options.profile ??
+    (options.courseId && isLearnMetadata(options.metadata) ? "LEARN_ASSIST" : "CHAT_BASIC");
+  const profile = getCapabilityProfile(profileId);
+
+  if (profile.authRequired && !options.userId) {
+    throw new Error(`${profileId} requires authenticated user`);
+  }
+  if (profile.resourceRequired && !options.courseId) {
+    throw new Error(`${profileId} requires resourceId`);
   }
 
   const userContextParts = options.userContext ? [options.userContext] : [];
 
   // 学习页面：轻量 outline hint（标题+小节列表），不加载内容
-  if (options.courseId && isLearnMetadata(options.metadata)) {
+  if (profileId === "LEARN_ASSIST" && options.courseId && isLearnMetadata(options.metadata)) {
     const outline = await getCourseOutline(options.courseId);
     if (outline) {
       const chapter = outline.chapters[options.metadata.chapterIndex];
@@ -50,22 +58,20 @@ export async function createChatAgent(options?: PersonalizationOptions) {
     }
   }
 
-  const instructions = buildInstructions(CHAT_PROMPT, {
+  const instructions = buildPromptInstructions(profile.promptKey, {
     personaPrompt: options.personaPrompt,
     userContext: userContextParts.length > 0 ? userContextParts.join("\n\n") : undefined,
   });
-
-  const ctx = createToolContext({
+  const tools = buildToolsForProfile(profileId, {
     userId: options.userId,
     resourceId: options.courseId,
-  });
-  const chatTools = buildAgentTools("chat", ctx) as ToolSet;
+  }) as ToolSet;
 
   return new ToolLoopAgent({
-    id: "nexusnote-chat",
-    model: aiProvider.chatModel,
+    id: `nexusnote-${profileId.toLowerCase()}`,
+    model: getModelForPolicy(profile.modelPolicy),
     instructions,
-    tools: chatTools,
-    stopWhen: stepCountIs(20),
+    tools,
+    stopWhen: stepCountIs(profile.maxSteps),
   });
 }

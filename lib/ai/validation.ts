@@ -5,10 +5,13 @@
 import { z } from "zod";
 import { ChatMetadataSchema } from "@/types/metadata";
 
-export const ChatRequestSchema = z.object({
+const BaseConversationRequestSchema = z.object({
   messages: z.array(z.unknown()).min(1),
-  intent: z.enum(["CHAT", "INTERVIEW", "EDITOR", "SEARCH", "SKILLS"]).optional(),
   sessionId: z.string().optional(),
+});
+
+export const ChatApiRequestSchema = BaseConversationRequestSchema.extend({
+  intent: z.literal("CHAT").optional(),
   personaSlug: z
     .string()
     .regex(/^[a-z0-9_-]+$/)
@@ -18,9 +21,9 @@ export const ChatRequestSchema = z.object({
   metadata: ChatMetadataSchema.optional(),
 });
 
-export type ChatRequest = z.infer<typeof ChatRequestSchema>;
-export type Intent = ChatRequest["intent"];
+export const InterviewApiRequestSchema = BaseConversationRequestSchema.extend({
+  courseId: z.string().uuid().nullish(),
+});
 
-export function validateRequest(data: unknown) {
-  return ChatRequestSchema.safeParse(data);
-}
+export type ChatApiRequest = z.infer<typeof ChatApiRequestSchema>;
+export type InterviewApiRequest = z.infer<typeof InterviewApiRequestSchema>;

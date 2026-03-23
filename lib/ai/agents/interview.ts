@@ -1,10 +1,8 @@
 // lib/ai/agents/interview.ts
 
 import { hasToolCall, stepCountIs, ToolLoopAgent, type ToolSet } from "ai";
-import { aiProvider } from "../core";
-import { createToolContext } from "../core/tool-context";
-import { INTERVIEW_PROMPT } from "../prompts/interview";
-import { buildAgentTools } from "../tools";
+import { buildPromptInstructions, getCapabilityProfile, getModelForPolicy } from "../core";
+import { buildToolsForProfile } from "../tools";
 
 const MAX_STEPS = 15;
 
@@ -23,19 +21,18 @@ export interface InterviewAgentOptions {
 // ============================================
 
 export function createInterviewAgent(options: InterviewAgentOptions) {
-  const ctx = createToolContext({
+  const profile = getCapabilityProfile("INTERVIEW");
+  const tools = buildToolsForProfile("INTERVIEW", {
     userId: options.userId,
-    resourceId: options.courseId,
+    resourceId: options.courseId ?? undefined,
     messages: options.messages,
-  });
-
-  const tools = buildAgentTools("interview", ctx) as ToolSet;
+  }) as ToolSet;
 
   return new ToolLoopAgent({
     id: "nexusnote-interview",
-    model: aiProvider.chatModel,
-    instructions: INTERVIEW_PROMPT,
+    model: getModelForPolicy(profile.modelPolicy),
+    instructions: buildPromptInstructions(profile.promptKey),
     tools,
-    stopWhen: [hasToolCall("suggestOptions"), stepCountIs(MAX_STEPS)],
+    stopWhen: [hasToolCall("suggestOptions"), stepCountIs(Math.min(MAX_STEPS, profile.maxSteps))],
   });
 }

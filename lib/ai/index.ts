@@ -2,7 +2,7 @@
  * AI Module - Tools, Agents, Validation, Core, Personalization, Schemas, Prompts
  */
 
-export type { AgentIntent, InterviewAgentOptions, PersonalizationOptions } from "./agents";
+export type { AgentProfile, InterviewAgentOptions, PersonalizationOptions } from "./agents";
 // Agents
 export { getAgent } from "./agents";
 // Core AI
@@ -14,6 +14,8 @@ export { buildPersonalization } from "./personalization";
 export * from "./prompts";
 // Tools
 export * from "./tools";
-export type { ChatRequest, Intent } from "./validation";
+export type { ChatApiRequest, InterviewApiRequest } from "./validation";
 // Validation
-export { ChatRequestSchema, validateRequest } from "./validation";
+export { ChatApiRequestSchema, InterviewApiRequestSchema } from "./validation";
+// Workflows
+export * from "./workflows";

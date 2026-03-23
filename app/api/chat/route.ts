@@ -10,7 +10,13 @@
 import type { UIMessage } from "ai";
 import { type NextRequest, NextResponse } from "next/server";
 import { aiUsage, conversations, db } from "@/db";
-import { aiProvider, getAgent, validateRequest } from "@/lib/ai";
+import {
+  aiProvider,
+  ChatApiRequestSchema,
+  getAgent,
+  getCapabilityProfile,
+  getModelNameForPolicy,
+} from "@/lib/ai";
 import { createNexusNoteStreamResponse } from "@/lib/ai/core/streaming";
 import { buildPersonalization } from "@/lib/ai/personalization";
 import { APIError, handleError } from "@/lib/api";
@@ -55,12 +61,13 @@ export async function POST(request: NextRequest) {
 
   try {
     const session = await auth();
-    const userId = session?.user?.id || "anonymous";
+    const userId = session?.user?.id;
+    const forwardedFor = request.headers.get("x-forwarded-for");
+    const guestKey = forwardedFor?.split(",")[0]?.trim() || "unknown";
+    const rateLimitId = userId ?? `guest:${guestKey}`;
 
     // Rate Limiting
-    if (userId) {
-      checkRateLimitOrThrow(userId, 100, 60 * 1000, "请求过于频繁，请稍后再试");
-    }
+    checkRateLimitOrThrow(rateLimitId, 100, 60 * 1000, "请求过于频繁，请稍后再试");
 
     let body: unknown;
     try {
@@ -69,7 +76,7 @@ export async function POST(request: NextRequest) {
       throw new APIError("无效的 JSON", 400, "INVALID_JSON");
     }
 
-    const validation = validateRequest(body);
+    const validation = ChatApiRequestSchema.safeParse(body);
     if (!validation.success) {
       return NextResponse.json(
         { error: { code: "VALIDATION_ERROR", details: validation.error.issues } },
@@ -77,43 +84,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const {
-      messages,
-      intent: clientIntent,
-      sessionId,
-      personaSlug,
-      courseId,
-      metadata,
-    } = validation.data;
-
-    // ============================================
-    // 服务端 Intent 验证
-    // ============================================
-
-    // INTERVIEW 必须跳转到 /interview 页面
-    if (clientIntent === "INTERVIEW") {
-      throw new APIError("INTERVIEW 意图应跳转到 /interview 页面", 400, "INVALID_INTENT");
-    }
-
-    // SKILLS intent 需要登录
-    if (clientIntent === "SKILLS" && (!userId || userId === "anonymous")) {
-      throw new APIError("SKILLS 意图需要登录", 401, "UNAUTHORIZED");
-    }
-
-    // 允许的 intent 列表
-    const ALLOWED_INTENTS = ["CHAT", "SKILLS"] as const;
-    type AllowedIntent = (typeof ALLOWED_INTENTS)[number];
-
-    // 验证并规范化 intent
-    let intent: AllowedIntent = "CHAT";
-    if (clientIntent && ALLOWED_INTENTS.includes(clientIntent as AllowedIntent)) {
-      intent = clientIntent as AllowedIntent;
-    }
-    // EDITOR/SEARCH 等旧 intent 映射到 CHAT
+    const { messages, sessionId, personaSlug, courseId, metadata } = validation.data;
 
     const uiMessages = messages as UIMessage[];
 
-    console.log("[Chat] Request received, personaSlug:", personaSlug, "intent:", intent);
+    const profileId = metadata?.context === "learn" || courseId ? "LEARN_ASSIST" : "CHAT_BASIC";
+    const profile = getCapabilityProfile(profileId);
+
+    if (profile.authRequired && !userId) {
+      throw new APIError("请先登录", 401, "UNAUTHORIZED");
+    }
 
     if (!aiProvider.isConfigured()) {
       throw new APIError("AI 服务未配置", 503, "AI_NOT_CONFIGURED");
@@ -126,7 +106,7 @@ export async function POST(request: NextRequest) {
     let personaSystemPrompt = "";
     let userContext = "";
 
-    if (userId && userId !== "anonymous") {
+    if (userId) {
       const { systemPrompt, userContext: context } = await buildPersonalization(userId, {
         personaSlug,
       });
@@ -135,7 +115,7 @@ export async function POST(request: NextRequest) {
     }
 
     // upsert conversation
-    if (sessionId && userId && userId !== "anonymous") {
+    if (sessionId && userId) {
       const firstUserMessage = uiMessages.find((m) => m.role === "user");
       let title = "新对话";
 
@@ -169,7 +149,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get agent with personalization
-    const agent = await getAgent(intent, {
+    const agent = await getAgent(profileId, {
       userId,
       personaPrompt: personaSystemPrompt,
       userContext,
@@ -183,8 +163,15 @@ export async function POST(request: NextRequest) {
 
     const durationMs = Date.now() - startTime;
 
-    if (userId && userId !== "anonymous") {
-      trackUsage(userId, intent, "gemini-3-flash-preview", 0, 0, durationMs).catch(console.error);
+    if (userId) {
+      trackUsage(
+        userId,
+        profileId,
+        getModelNameForPolicy(profile.modelPolicy),
+        0,
+        0,
+        durationMs,
+      ).catch(console.error);
     }
 
     return response;

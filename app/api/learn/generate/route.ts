@@ -1,16 +1,10 @@
 // app/api/learn/generate/route.ts
 
-import { smoothStream, streamText } from "ai";
-import { and, eq } from "drizzle-orm";
-import { type NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { z } from "zod";
-import { courseSections, courses, db } from "@/db";
-import { aiProvider } from "@/lib/ai/core";
-import { buildSectionPrompt } from "@/lib/ai/prompts/learn";
+import { aiProvider, runGenerateCourseSectionWorkflow } from "@/lib/ai";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
-import { invalidateChapterCache } from "@/lib/cache/course-context";
-import { ragQueue } from "@/lib/queue";
 import { checkRateLimitOrThrow } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
@@ -45,158 +39,11 @@ export async function POST(request: NextRequest) {
 
     const { courseId, chapterIndex, sectionIndex } = parsed.data;
 
-    // Verify course ownership
-    const [course] = await db
-      .select()
-      .from(courses)
-      .where(and(eq(courses.id, courseId), eq(courses.userId, userId)))
-      .limit(1);
-
-    if (!course) {
-      throw new APIError("课程不存在", 404, "NOT_FOUND");
-    }
-
-    const outline = course.outlineData as {
-      title?: string;
-      description?: string;
-      targetAudience?: string;
-      chapters?: Array<{
-        title: string;
-        description?: string;
-        sections?: Array<{ title: string; description: string }>;
-      }>;
-    } | null;
-
-    const chapter = outline?.chapters?.[chapterIndex];
-    if (!chapter) {
-      throw new APIError("章节不存在", 404, "CHAPTER_NOT_FOUND");
-    }
-
-    const section = chapter.sections?.[sectionIndex];
-    if (!section) {
-      throw new APIError("小节不存在", 404, "SECTION_NOT_FOUND");
-    }
-
-    // Check if content already exists
-    const outlineNodeId = `section-${chapterIndex + 1}-${sectionIndex + 1}`;
-    const [existingDoc] = await db
-      .select({ id: courseSections.id, content: courseSections.contentMarkdown })
-      .from(courseSections)
-      .where(
-        and(eq(courseSections.courseId, courseId), eq(courseSections.outlineNodeId, outlineNodeId)),
-      )
-      .limit(1);
-
-    if (existingDoc?.content) {
-      return NextResponse.json({
-        exists: true,
-        content: existingDoc.content,
-        documentId: existingDoc.id,
-      });
-    }
-
-    // Build section prompt
-    const siblingTitles = (chapter.sections ?? []).map((s) => s.title);
-    const systemPrompt = buildSectionPrompt({
-      courseTitle: course.title ?? "",
-      courseDescription: outline?.description ?? "",
-      targetAudience: outline?.targetAudience ?? "",
-      difficulty: course.difficulty ?? "beginner",
+    return await runGenerateCourseSectionWorkflow({
+      userId,
+      courseId,
       chapterIndex,
-      chapterTitle: chapter.title,
-      chapterDescription: chapter.description ?? "",
       sectionIndex,
-      sectionTitle: section.title,
-      sectionDescription: section.description,
-      siblingTitles,
-      totalChapters: outline?.chapters?.length ?? 0,
-    });
-
-    // Stream text generation with smoothStream for Chinese word boundaries
-    const result = streamText({
-      model: aiProvider.proModel,
-      system: systemPrompt,
-      prompt: `请为「${section.title}」生成教学内容。`,
-      temperature: 0.5,
-      experimental_transform: smoothStream({
-        chunking: new Intl.Segmenter("zh-Hans", { granularity: "word" }),
-      }),
-      onFinish: async ({ text }) => {
-        try {
-          let docId: string;
-
-          // Store raw Markdown (no HTML conversion) — StreamdownMessage renders Markdown directly
-          if (existingDoc) {
-            docId = existingDoc.id;
-            await db
-              .update(courseSections)
-              .set({
-                contentMarkdown: text,
-                plainText: text,
-                updatedAt: new Date(),
-              })
-              .where(eq(courseSections.id, existingDoc.id));
-          } else {
-            const [inserted] = await db
-              .insert(courseSections)
-              .values({
-                title: section.title,
-                courseId,
-                outlineNodeId,
-                contentMarkdown: text,
-                plainText: text,
-              })
-              .onConflictDoNothing()
-              .returning({ id: courseSections.id });
-            docId = inserted?.id ?? "";
-          }
-
-          // Queue indexing to knowledge_chunks for RAG search (with retry)
-          if (docId && text.length > 0) {
-            ragQueue
-              .add("course-section", {
-                type: "course_section",
-                documentId: docId,
-                plainText: text,
-                userId,
-                courseId,
-                metadata: { chapterIndex, sectionIndex, sectionTitle: section.title },
-              })
-              .catch((err) => {
-                console.error("[Learn/Generate] Failed to enqueue index job:", err);
-              });
-            invalidateChapterCache(courseId, chapterIndex).catch(() => {});
-          }
-        } catch (err) {
-          console.error("[Learn/Generate] Failed to persist section content:", err);
-        }
-      },
-    });
-
-    // Return plain text stream
-    const encoder = new TextEncoder();
-    const readableStream = new ReadableStream({
-      async start(controller) {
-        try {
-          for await (const chunk of result.textStream) {
-            controller.enqueue(encoder.encode(chunk));
-          }
-        } catch (err) {
-          console.error("[Learn/Generate] Stream error:", err);
-        } finally {
-          controller.close();
-        }
-      },
-    });
-
-    return new Response(readableStream, {
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-        "Cache-Control": "no-cache, no-store, must-revalidate",
-        "X-Content-Type-Options": "nosniff",
-        "X-Course-Id": courseId,
-        "X-Section-Id": outlineNodeId,
-      },
     });
   } catch (error) {
     return handleError(error);

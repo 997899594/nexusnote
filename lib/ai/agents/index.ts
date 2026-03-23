@@ -2,35 +2,29 @@
  * AI Agents - Factory
  */
 
+import type { AgentProfile } from "../core/capability-profiles";
 import { createChatAgent, type PersonalizationOptions } from "./chat";
 import { createInterviewAgent, type InterviewAgentOptions } from "./interview";
-import { createSkillsAgent, type SkillsAgentOptions } from "./skills";
 
 // ============================================
 // Types
 // ============================================
 
-export type AgentIntent = "CHAT" | "INTERVIEW" | "SKILLS";
+export type { AgentProfile };
 
-export type { PersonalizationOptions, InterviewAgentOptions, SkillsAgentOptions };
+export type { PersonalizationOptions, InterviewAgentOptions };
 
 // ============================================
 // Factory
 // ============================================
 
-type AgentOptions = PersonalizationOptions &
-  Partial<InterviewAgentOptions> &
-  Partial<SkillsAgentOptions>;
+type AgentOptions = PersonalizationOptions & Partial<InterviewAgentOptions>;
 
-export async function getAgent(intent: AgentIntent, options: AgentOptions = {}) {
-  switch (intent) {
+export async function getAgent(profile: AgentProfile, options: AgentOptions = {}) {
+  switch (profile) {
     case "INTERVIEW":
       return createInterviewAgent(options as InterviewAgentOptions);
-    case "SKILLS": {
-      if (!options.userId) throw new Error("Skills agent requires userId");
-      return createSkillsAgent(options as SkillsAgentOptions);
-    }
     default:
-      return await createChatAgent(options);
+      return await createChatAgent({ ...options, profile });
   }
 }

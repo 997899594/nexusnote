@@ -70,7 +70,7 @@ async function collectUserData(
   userId: string,
   options: {
     limit?: number;
-    sources?: Array<"conversations" | "knowledge" | "courses">;
+    sources?: Array<"conversations" | "knowledge" | "courses" | "flashcards">;
   } = {},
 ): Promise<DataSource[]> {
   const { limit = 50, sources = ["conversations", "knowledge", "courses", "flashcards"] } = options;
@@ -206,7 +206,7 @@ export async function extractSkillsFromData(
   userId: string,
   options: {
     limit?: number;
-    sources?: Array<"conversations" | "knowledge" | "courses">;
+    sources?: Array<"conversations" | "knowledge" | "courses" | "flashcards">;
   } = {},
 ): Promise<DiscoveredSkill[]> {
   const dataSources = await collectUserData(userId, options);
@@ -355,7 +355,7 @@ export async function discoverAndSaveSkills(
   userId: string,
   options: {
     limit?: number;
-    sources?: Array<"conversations" | "knowledge" | "courses">;
+    sources?: Array<"conversations" | "knowledge" | "courses" | "flashcards">;
   } = {},
 ): Promise<DiscoveredSkill[]> {
   const discoveredSkills = await extractSkillsFromData(userId, options);

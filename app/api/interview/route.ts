@@ -4,8 +4,7 @@ import type { UIMessage } from "ai";
 import { eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { courses, db } from "@/db";
-import { aiProvider, validateRequest } from "@/lib/ai";
-import { createInterviewAgent } from "@/lib/ai/agents/interview";
+import { aiProvider, getAgent, InterviewApiRequestSchema } from "@/lib/ai";
 import { createNexusNoteStreamResponse } from "@/lib/ai/core/streaming";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
@@ -29,7 +28,7 @@ export async function POST(request: NextRequest) {
       throw new APIError("无效的 JSON", 400, "INVALID_JSON");
     }
 
-    const validation = validateRequest(body);
+    const validation = InterviewApiRequestSchema.safeParse(body);
     if (!validation.success) {
       return NextResponse.json(
         { error: { code: "VALIDATION_ERROR", details: validation.error.issues } },
@@ -58,7 +57,7 @@ export async function POST(request: NextRequest) {
       courseId = existingCourse.id;
     }
 
-    const agent = createInterviewAgent({
+    const agent = await getAgent("INTERVIEW", {
       userId,
       courseId,
       messages: messages as UIMessage[],

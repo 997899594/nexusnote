@@ -3,15 +3,12 @@
  *
  * 2026 架构：
  * - 非流式 API（静默后台任务）
- * - 使用 generateText + tools（非 streaming）
+ * - 直接运行技能发现 workflow
  * - 返回 JSON 结果
  */
 
-import { generateText, type ToolSet } from "ai";
 import { NextResponse } from "next/server";
-import { aiProvider } from "@/lib/ai/core/provider";
-import { SKILLS_PROMPT } from "@/lib/ai/prompts/skills";
-import { buildAgentTools } from "@/lib/ai/tools";
+import { aiProvider, runDiscoverSkillsWorkflow } from "@/lib/ai";
 import { withAuth } from "@/lib/api";
 import { DiscoverSkillsSchema } from "@/lib/skills/validation";
 
@@ -30,31 +27,14 @@ export const POST = withAuth(async (request, { userId }) => {
     );
   }
 
-  // 构建提示词
-  const prompt = `${SKILLS_PROMPT}
-
-用户 ID: ${userId}
-数据源: ${options.sources?.join(", ") || "全部"}
-限制: ${options.limit} 条
-
-请使用 discoverSkills 工具来发现并保存技能。`;
-
-  // 构建工具（仅 discoverSkills，无交互工具）
-  const tools = buildAgentTools("skills", { userId }) as ToolSet;
-
-  // 非流式调用
-  const result = await generateText({
-    model: aiProvider.proModel,
-    prompt,
-    tools,
-    temperature: 0.2, // 低温度保证一致性
+  const result = await runDiscoverSkillsWorkflow({
+    userId,
+    limit: options.limit,
+    sources: options.sources,
   });
 
   // 返回 JSON 结果
   return NextResponse.json({
-    success: true,
-    finishReason: result.finishReason,
-    steps: result.steps.length,
-    usage: result.usage,
+    ...result,
   });
 });
