@@ -6,11 +6,11 @@
  * 提供 ChatLayout 组件和返回首页的处理
  */
 
+import { useRouter } from "next/navigation";
 import { ChatLayout } from "@/components/chat";
-import { useTransitionStore } from "@/stores";
 
 export default function ChatLayoutWrapper({ children }: { children: React.ReactNode }) {
-  const startCollapse = useTransitionStore((state) => state.startCollapse);
+  const router = useRouter();
 
-  return <ChatLayout onExit={startCollapse}>{children}</ChatLayout>;
+  return <ChatLayout onExit={() => router.push("/")}>{children}</ChatLayout>;
 }

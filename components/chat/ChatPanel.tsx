@@ -8,7 +8,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useInputProtection } from "@/components/common/useInputProtection";
 import { CHAT_COMMANDS, extractCommandContent } from "@/lib/chat/commands";
 import { cn } from "@/lib/utils";
-import { useChatStore, useTransitionStore } from "@/stores";
+import { useChatStore } from "@/stores";
 import type { Command } from "@/types/chat";
 import { ChatMessage, LoadingDots } from "./ChatMessage";
 import { CommandMenu } from "./CommandMenu";
@@ -38,12 +38,6 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
   // AI SDK v6: isLoading is derived from status
   const isLoading = status === "submitted" || status === "streaming";
   const { handlePaste } = useInputProtection();
-
-  // Signal TransitionOverlay that chat page is ready to show
-  const markReady = useTransitionStore((s) => s.markReady);
-  useEffect(() => {
-    markReady();
-  }, [markReady]);
 
   const chatMessages = messages.filter((m: UIMessage) => m.role !== "system");
 

@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Instrument_Serif } from "next/font/google";
 import "./globals.css";
 import { AuthSync, SessionProvider } from "@/components/auth";
-import { TransitionOverlay } from "@/components/chat/TransitionOverlay";
 import { MobileNav } from "@/components/shared/layout";
 import { ToastProvider } from "@/components/ui/Toast";
 import { AI } from "./ai-ui/AIProvider";
@@ -50,7 +49,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <AuthSync />
               <div className="min-h-screen">{children}</div>
               <MobileNav />
-              <TransitionOverlay />
             </ToastProvider>
           </SessionProvider>
         </body>
