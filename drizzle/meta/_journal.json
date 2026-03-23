@@ -15,6 +15,13 @@
       "when": 1772509443792,
       "tag": "0001_remove-unused-tables",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1774260000000,
+      "tag": "0002_add-ai-usage-telemetry-columns",
+      "breakpoints": true
     }
   ]
 }

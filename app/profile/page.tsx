@@ -4,7 +4,7 @@
  * 展示用户信息、AI 学习统计、活动时间线等
  */
 
-import { and, count, desc, eq, gt } from "drizzle-orm";
+import { and, count, desc, eq, gt, sql } from "drizzle-orm";
 import {
   Brain,
   Clock,
@@ -21,42 +21,55 @@ import { Suspense } from "react";
 import { SkillGraph } from "@/components/profile/SkillGraph";
 import { SkillGraphSkeleton } from "@/components/profile/SkillGraphSkeleton";
 import { FloatingHeader } from "@/components/shared/layout";
-import { conversations, courses, db, notes } from "@/db";
+import { aiUsage, conversations, courses, db, notes } from "@/db";
 import { auth } from "@/lib/auth";
 import { ProfileSignOut } from "./profile-client";
 
 // 获取用户统计数据
 async function getUserStats(userId: string) {
-  const [conversationCount, noteCount, courseCount, recentActivity] = await Promise.all([
-    // 对话数量
-    db
-      .select({ count: count() })
-      .from(conversations)
-      .where(and(eq(conversations.userId, userId), gt(conversations.messageCount, 0))),
+  const [conversationCount, noteCount, courseCount, recentActivity, usageStats] = await Promise.all(
+    [
+      // 对话数量
+      db
+        .select({ count: count() })
+        .from(conversations)
+        .where(and(eq(conversations.userId, userId), gt(conversations.messageCount, 0))),
 
-    db.select({ count: count() }).from(notes).where(eq(notes.userId, userId)),
+      db.select({ count: count() }).from(notes).where(eq(notes.userId, userId)),
 
-    // 课程数量
-    db.select({ count: count() }).from(courses).where(eq(courses.userId, userId)),
+      // 课程数量
+      db.select({ count: count() }).from(courses).where(eq(courses.userId, userId)),
 
-    // 最近活动
-    db
-      .select({
-        id: conversations.id,
-        title: conversations.title,
-        updatedAt: conversations.updatedAt,
-      })
-      .from(conversations)
-      .where(
-        and(
-          eq(conversations.userId, userId),
-          gt(conversations.messageCount, 0),
-          eq(conversations.isArchived, false),
-        ),
-      )
-      .orderBy(desc(conversations.updatedAt))
-      .limit(5),
-  ]);
+      // 最近活动
+      db
+        .select({
+          id: conversations.id,
+          title: conversations.title,
+          updatedAt: conversations.updatedAt,
+        })
+        .from(conversations)
+        .where(
+          and(
+            eq(conversations.userId, userId),
+            gt(conversations.messageCount, 0),
+            eq(conversations.isArchived, false),
+          ),
+        )
+        .orderBy(desc(conversations.updatedAt))
+        .limit(5),
+
+      db
+        .select({
+          requestCount: count(),
+          totalTokens: sql<number>`coalesce(sum(${aiUsage.totalTokens}), 0)`,
+          totalCostCents: sql<number>`coalesce(sum(${aiUsage.costCents}), 0)`,
+        })
+        .from(aiUsage)
+        .where(eq(aiUsage.userId, userId)),
+    ],
+  );
+
+  const usage = usageStats[0];
 
   return {
     conversations: conversationCount[0]?.count || 0,
@@ -64,9 +77,9 @@ async function getUserStats(userId: string) {
     courses: courseCount[0]?.count || 0,
     recentActivity,
     aiUsage: {
-      totalTokens: 0,
-      totalCost: 0,
-      requestCount: 0,
+      totalTokens: Number(usage?.totalTokens ?? 0),
+      totalCost: Number(usage?.totalCostCents ?? 0) / 100,
+      requestCount: usage?.requestCount || 0,
     },
   };
 }
