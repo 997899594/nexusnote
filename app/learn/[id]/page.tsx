@@ -4,6 +4,8 @@
  * Fetches course session data with section-level structure and passes to LearnClient.
  */
 
+export const dynamic = "force-dynamic";
+
 import { and, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { courseProgress, courseSectionAnnotations, courseSections, courses, db } from "@/db";

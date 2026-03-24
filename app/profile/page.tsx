@@ -4,6 +4,8 @@
  * 展示用户信息、AI 学习统计、活动时间线等
  */
 
+export const dynamic = "force-dynamic";
+
 import { and, count, desc, eq, gt, sql } from "drizzle-orm";
 import {
   Brain,
@@ -88,7 +90,7 @@ export default async function ProfilePage() {
   const session = await auth();
 
   if (!session?.user) {
-    redirect("/login");
+    redirect("/login?callbackUrl=%2Fprofile");
   }
 
   const stats = await getUserStats(session.user.id);
