@@ -10,7 +10,35 @@ env:
   IMAGE_TAG: ghcr.io/${{ github.repository }}:sha-${{ github.sha }}
 
 jobs:
+  # ============================================
+  # Quality Gate - Lint & Type Check
+  # ============================================
+  quality-gate:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Type Check
+        run: bun run typecheck
+
+  # ============================================
+  # Build & Deploy
+  # ============================================
   build:
+    needs: quality-gate
     runs-on: ubuntu-latest
     permissions:
       contents: read
