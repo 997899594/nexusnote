@@ -30,21 +30,24 @@ export function chunkText(
   }
 
   const chunks: string[] = [];
+  const safeChunkSize = Math.max(1, chunkSize);
+  const safeOverlap = Math.max(0, Math.min(overlap, safeChunkSize - 1));
+  const step = safeChunkSize - safeOverlap;
   let start = 0;
 
   while (start < text.length) {
-    const end = Math.min(start + chunkSize, text.length);
+    const end = Math.min(start + safeChunkSize, text.length);
     const chunk = text.slice(start, end).trim();
 
     if (chunk.length > 0) {
       chunks.push(chunk);
     }
 
-    start = end - overlap;
-
-    if (start >= text.length) {
+    if (end >= text.length) {
       break;
     }
+
+    start += step;
   }
 
   return chunks;
