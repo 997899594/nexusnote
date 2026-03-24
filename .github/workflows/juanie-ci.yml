@@ -63,7 +63,7 @@ jobs:
       - name: Trigger Juanie Deployment
         if: success()
         run: |
-          curl -fsSX POST "https://juanie.art/api/deployments/trigger" \
+          curl -fsSX POST "https://juanie.art/api/releases" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d '{
