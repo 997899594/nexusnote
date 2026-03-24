@@ -1,12 +1,12 @@
 "use client";
 
-import type { UIMessage } from "ai";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, GraduationCap, Loader2, Send } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
-import { ChatMessage, LoadingDots } from "@/components/chat/ChatMessage";
+import { LoadingDots } from "@/components/chat/ChatMessage";
+import { InterviewMessage } from "@/components/interview/InterviewMessage";
 import { OutlinePanel } from "@/components/interview/OutlinePanel";
 import { useInterview } from "@/hooks/useInterview";
 import { cn } from "@/lib/utils";
@@ -90,7 +90,7 @@ function InterviewContent() {
   const status = interview.status;
   const isLoading = interview.isLoading;
 
-  const chatMessages = messages.filter((m: UIMessage) => m.role !== "system");
+  const chatMessages = messages;
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -257,7 +257,7 @@ function InterviewContent() {
 
             {/* 消息列表 */}
             {chatMessages.map((msg, index) => (
-              <ChatMessage
+              <InterviewMessage
                 key={msg.id}
                 message={msg}
                 onSendReply={(text) => sendMessage({ text })}

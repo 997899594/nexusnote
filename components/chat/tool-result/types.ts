@@ -151,34 +151,6 @@ export interface DiscoverSkillsOutput {
 // Interview Tool Types
 // ============================================
 
-export interface ConfirmOutlineOutput {
-  success: boolean;
-  courseId?: string;
-  outline?: {
-    title: string;
-    description: string;
-    targetAudience: string;
-    prerequisites?: string[];
-    estimatedHours: number;
-    difficulty: "beginner" | "intermediate" | "advanced";
-    chapters: Array<{
-      title: string;
-      description: string;
-      sections: Array<{ title: string; description: string }>;
-      estimatedMinutes?: number;
-      practiceType?: "exercise" | "project" | "quiz" | "none";
-    }>;
-    learningOutcome: string;
-  };
-  error?: string;
-}
-
-export interface SuggestOptionsOutput {
-  success: boolean;
-  options: string[];
-  message?: string;
-}
-
 export type ToolOutputMap = {
   mindMap: MindMapOutput;
   searchNotes: SearchNotesOutput;
@@ -192,7 +164,4 @@ export type ToolOutputMap = {
   updateNote: UpdateNoteOutput;
   deleteNote: DeleteNoteOutput;
   discoverSkills: DiscoverSkillsOutput;
-  // Interview tools
-  suggestOptions: SuggestOptionsOutput;
-  confirmOutline: ConfirmOutlineOutput;
 };

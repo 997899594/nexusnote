@@ -5,7 +5,6 @@
  */
 
 import type { ToolUIPart } from "ai";
-import { InterviewOptions } from "@/components/interview/InterviewOptions";
 import { EditorConfirmDialog } from "./EditorConfirmDialog";
 import { GenericToolResult } from "./GenericToolResult";
 import { MindMapResult } from "./MindMapResult";
@@ -30,11 +29,7 @@ interface ToolResultRendererProps {
   isStreaming?: boolean;
 }
 
-export function ToolResultRenderer({
-  toolPart,
-  onSendReply,
-  isStreaming,
-}: ToolResultRendererProps) {
+export function ToolResultRenderer({ toolPart }: ToolResultRendererProps) {
   if (toolPart.state !== "output-available") {
     return null;
   }
@@ -113,31 +108,9 @@ export function ToolResultRenderer({
       return null;
     }
 
-    // Interview options - 选项按钮（流式结束后才显示）
-    case "suggestOptions": {
-      // 流式进行中不显示选项
-      if (isStreaming) {
-        return null;
-      }
-      const output = getOutput<"suggestOptions">(toolPart);
-      if (!output?.success || !output.options) {
-        return null;
-      }
-      return (
-        <InterviewOptions
-          options={output.options}
-          onSelect={(option) => {
-            // 选项点击 = 发送文字消息
-            onSendReply?.(option);
-          }}
-        />
-      );
-    }
-
     // 内部工具 - 不显示给用户
     case "assessComplexity":
-    case "createCourseProfile":
-    case "confirmOutline": {
+    case "createCourseProfile": {
       return null;
     }
 

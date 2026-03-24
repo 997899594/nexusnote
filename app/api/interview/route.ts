@@ -1,23 +1,38 @@
 // app/api/interview/route.ts
 
-import type { UIMessage } from "ai";
+import { consumeStream, type DeepPartial } from "ai";
 import { eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { courses, db } from "@/db";
 import {
   aiProvider,
   createTelemetryContext,
-  getAgent,
   getErrorMessage,
   InterviewApiRequestSchema,
   recordAIUsage,
 } from "@/lib/ai";
-import { createNexusNoteStreamResponse } from "@/lib/ai/core/streaming";
+import {
+  generateInterviewTurn,
+  type InterviewStreamEvent,
+  type InterviewTurn,
+  normalizeInterviewTurn,
+  normalizePartialInterviewTurn,
+} from "@/lib/ai/interview";
+import { runCreateCourseWorkflow } from "@/lib/ai/workflows";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
+
+const encoder = new TextEncoder();
+
+function writeEvent(
+  controller: ReadableStreamDefaultController<Uint8Array>,
+  event: InterviewStreamEvent,
+) {
+  controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+}
 
 export async function POST(request: NextRequest) {
   const startedAt = Date.now();
@@ -25,9 +40,9 @@ export async function POST(request: NextRequest) {
   let telemetry = createTelemetryContext({
     requestId,
     endpoint: "/api/interview",
-    profile: "INTERVIEW",
     promptVersion: "interview@v1",
-    modelPolicy: "interactive-fast",
+    modelPolicy: "structured-high-quality",
+    workflow: "interview-turn",
   });
 
   try {
@@ -53,14 +68,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { messages, sessionId, courseId: inputCourseId } = validation.data;
+    const { messages, sessionId, courseId: inputCourseId, outline } = validation.data;
     telemetry = createTelemetryContext({
       requestId,
       endpoint: "/api/interview",
       userId,
-      profile: "INTERVIEW",
       promptVersion: "interview@v1",
-      modelPolicy: "interactive-fast",
+      modelPolicy: "structured-high-quality",
+      workflow: "interview-turn",
       metadata: {
         sessionId: sessionId ?? null,
         courseId: inputCourseId ?? null,
@@ -86,19 +101,85 @@ export async function POST(request: NextRequest) {
       courseId = existingCourse.id;
     }
 
-    const agent = await getAgent("INTERVIEW", {
-      userId,
-      courseId,
-      messages: messages as UIMessage[],
-      telemetry,
+    const result = generateInterviewTurn({
+      messages,
+      currentOutline: outline ?? undefined,
     });
 
-    const response = await createNexusNoteStreamResponse(agent, messages as UIMessage[], {
-      sessionId,
-    });
-    response.headers.set("X-Request-Id", requestId);
+    const stream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        try {
+          for await (const partial of result.partialOutputStream) {
+            const turn = normalizePartialInterviewTurn(partial as DeepPartial<InterviewTurn>);
+            if (!turn) {
+              continue;
+            }
 
-    return response;
+            writeEvent(controller, {
+              type: "turn-delta",
+              turn,
+            });
+          }
+
+          const finalTurn = normalizeInterviewTurn(await result.output);
+          let generatedCourseId: string | undefined;
+
+          if (finalTurn.kind === "outline") {
+            const workflowResult = await runCreateCourseWorkflow({
+              userId,
+              courseId,
+              outline: finalTurn.outline,
+            });
+            generatedCourseId = workflowResult.courseId;
+          }
+
+          await recordAIUsage({
+            ...telemetry,
+            usage: await result.usage,
+            durationMs: Date.now() - startedAt,
+            success: true,
+            metadata: {
+              ...telemetry.metadata,
+              kind: finalTurn.kind,
+              optionCount: finalTurn.options.length,
+              generatedCourseId: generatedCourseId ?? null,
+            },
+          });
+
+          writeEvent(controller, {
+            type: "turn-complete",
+            turn: finalTurn,
+            courseId: generatedCourseId,
+          });
+          controller.close();
+        } catch (error) {
+          await consumeStream({ stream: result.textStream }).catch(() => {});
+          await recordAIUsage({
+            ...telemetry,
+            durationMs: Date.now() - startedAt,
+            success: false,
+            errorMessage: getErrorMessage(error),
+          });
+
+          writeEvent(controller, {
+            type: "error",
+            error: getErrorMessage(error),
+          });
+          controller.close();
+        }
+      },
+    });
+
+    return new Response(stream, {
+      status: 200,
+      headers: {
+        "Content-Type": "application/x-ndjson; charset=utf-8",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "X-Content-Type-Options": "nosniff",
+        "X-Request-Id": requestId,
+        ...(sessionId ? { "X-Session-Id": sessionId } : {}),
+      },
+    });
   } catch (error) {
     await recordAIUsage({
       ...telemetry,

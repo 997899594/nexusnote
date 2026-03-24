@@ -4,10 +4,8 @@
 
 export * from "./chat";
 export * from "./editor";
-export * from "./interview";
 export * from "./learning";
 export * from "./rag";
-export * from "./shared";
 
 import type { UIMessage } from "ai";
 import type { AgentProfile } from "@/lib/ai/core/capability-profiles";
@@ -15,11 +13,9 @@ import { createToolContext } from "@/lib/ai/core/tool-context";
 import { createNoteTools } from "./chat/notes";
 import { createSearchTools } from "./chat/search";
 import { createWebSearchTool } from "./chat/web-search";
-import { createInterviewTools } from "./interview";
 import { createLearnContextTools } from "./learn";
 import { createEnhanceTools } from "./learning/enhance";
 import { createRagTools } from "./rag";
-import { suggestOptionsTool } from "./shared/suggest-options";
 
 interface ProfileToolBuilderInput {
   userId?: string;
@@ -57,17 +53,6 @@ export function buildToolsForProfile(
         ...createSearchTools(ctx.userId),
         ...createNoteTools(ctx.userId),
         ...createEnhanceTools(ctx.userId),
-      };
-    }
-    case "INTERVIEW": {
-      const ctx = createToolContext({
-        userId: input.userId,
-        resourceId: input.resourceId,
-        messages: input.messages,
-      });
-      return {
-        ...createInterviewTools(ctx),
-        suggestOptions: suggestOptionsTool,
       };
     }
   }

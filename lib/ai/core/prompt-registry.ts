@@ -1,7 +1,6 @@
 import { buildInstructions, CHAT_PROMPT } from "@/lib/ai/prompts/chat";
-import { INTERVIEW_PROMPT } from "@/lib/ai/prompts/interview";
 
-export type PromptKey = "chat-basic@v1" | "learn-assist@v1" | "note-assist@v1" | "interview@v1";
+export type PromptKey = "chat-basic@v1" | "learn-assist@v1" | "note-assist@v1";
 
 interface PromptDefinition {
   key: PromptKey;
@@ -40,10 +39,6 @@ const PROMPTS: Record<PromptKey, PromptDefinition> = {
   "note-assist@v1": {
     key: "note-assist@v1",
     systemPrompt: NOTE_ASSIST_PROMPT,
-  },
-  "interview@v1": {
-    key: "interview@v1",
-    systemPrompt: INTERVIEW_PROMPT,
   },
 };
 

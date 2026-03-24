@@ -2,13 +2,14 @@
  * AI Module - Tools, Agents, Validation, Core, Personalization, Schemas, Prompts
  */
 
-export type { AgentProfile, InterviewAgentOptions, PersonalizationOptions } from "./agents";
+export type { AgentProfile, PersonalizationOptions } from "./agents";
 // Agents
 export { getAgent } from "./agents";
 // Core AI
 export * from "./core";
 // Evals
 export * from "./evals";
+export * from "./interview";
 export type { PersonalizationResult } from "./personalization";
 // Personalization
 export { buildPersonalization } from "./personalization";

@@ -4,7 +4,6 @@
 
 import type { AgentProfile } from "../core/capability-profiles";
 import { createChatAgent, type PersonalizationOptions } from "./chat";
-import { createInterviewAgent, type InterviewAgentOptions } from "./interview";
 
 // ============================================
 // Types
@@ -12,19 +11,14 @@ import { createInterviewAgent, type InterviewAgentOptions } from "./interview";
 
 export type { AgentProfile };
 
-export type { PersonalizationOptions, InterviewAgentOptions };
+export type { PersonalizationOptions };
 
 // ============================================
 // Factory
 // ============================================
 
-type AgentOptions = PersonalizationOptions & Partial<InterviewAgentOptions>;
+type AgentOptions = PersonalizationOptions;
 
 export async function getAgent(profile: AgentProfile, options: AgentOptions = {}) {
-  switch (profile) {
-    case "INTERVIEW":
-      return createInterviewAgent(options as InterviewAgentOptions);
-    default:
-      return await createChatAgent({ ...options, profile });
-  }
+  return await createChatAgent({ ...options, profile });
 }

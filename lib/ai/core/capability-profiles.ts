@@ -1,7 +1,7 @@
 import type { ModelPolicy } from "./model-policy";
 import type { PromptKey } from "./prompt-registry";
 
-export type AgentProfile = "CHAT_BASIC" | "LEARN_ASSIST" | "NOTE_ASSIST" | "INTERVIEW";
+export type AgentProfile = "CHAT_BASIC" | "LEARN_ASSIST" | "NOTE_ASSIST";
 
 export interface CapabilityProfileDefinition {
   id: AgentProfile;
@@ -36,14 +36,6 @@ const CAPABILITY_PROFILES: Record<AgentProfile, CapabilityProfileDefinition> = {
     modelPolicy: "interactive-fast",
     promptKey: "note-assist@v1",
     maxSteps: 10,
-  },
-  INTERVIEW: {
-    id: "INTERVIEW",
-    authRequired: true,
-    resourceRequired: false,
-    modelPolicy: "interactive-fast",
-    promptKey: "interview@v1",
-    maxSteps: 15,
   },
 };
 

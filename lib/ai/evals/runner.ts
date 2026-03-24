@@ -1,7 +1,12 @@
-import { generateText } from "ai";
+import { generateText, Output } from "ai";
 import { getModelForPolicy } from "@/lib/ai/core/model-policy";
 import { buildPromptInstructions } from "@/lib/ai/core/prompt-registry";
 import { createTelemetryContext, recordAIUsage } from "@/lib/ai/core/telemetry";
+import {
+  buildInterviewPrompt,
+  INTERVIEW_SYSTEM_PROMPT,
+  InterviewTurnSchema,
+} from "@/lib/ai/interview";
 import { judgeEvalOutput } from "./judge";
 import type {
   EvalCase,
@@ -17,23 +22,32 @@ export function createEvalSuite<TInput>(suite: EvalSuite<TInput>): EvalSuite<TIn
   return suite;
 }
 
-function buildEvalGenerationInput(testCase: EvalCase): {
-  instructions: string;
-  prompt: string;
-} {
+function buildEvalGenerationInput(testCase: EvalCase):
+  | {
+      mode: "structured-interview";
+      prompt: string;
+      instructions: string;
+    }
+  | {
+      mode: "text";
+      prompt: string;
+      instructions: string;
+    } {
   switch (testCase.domain) {
     case "interview": {
       const input = testCase.input as unknown as InterviewEvalInput;
       return {
-        instructions: buildPromptInstructions("interview@v1"),
-        prompt: `用户说：${input.userGoal}
-
-请给出你现在会发给用户的下一条回复。不要解释你的思考过程，也不要输出工具调用 JSON。`,
+        mode: "structured-interview",
+        instructions: INTERVIEW_SYSTEM_PROMPT,
+        prompt: buildInterviewPrompt({
+          messages: [{ role: "user", text: input.userGoal }],
+        }),
       };
     }
     case "learn": {
       const input = testCase.input as unknown as LearnEvalInput;
       return {
+        mode: "text",
         instructions: buildPromptInstructions("learn-assist@v1", {
           userContext: `## 当前课程上下文\n${input.courseContext}`,
         }),
@@ -43,6 +57,7 @@ function buildEvalGenerationInput(testCase: EvalCase): {
     case "notes": {
       const input = testCase.input as unknown as NotesEvalInput;
       return {
+        mode: "text",
         instructions: buildPromptInstructions("note-assist@v1", {
           userContext: `## 当前笔记内容\n${input.noteExcerpt}`,
         }),
@@ -67,7 +82,7 @@ function getPolicyForCase(testCase: EvalCase) {
 
 export async function runEvalCase(testCase: EvalCase): Promise<EvalExecutionResult> {
   const startedAt = Date.now();
-  const { instructions, prompt } = buildEvalGenerationInput(testCase);
+  const generationInput = buildEvalGenerationInput(testCase);
   const modelPolicy = getPolicyForCase(testCase);
   const telemetry = createTelemetryContext({
     endpoint: "eval:generate",
@@ -82,8 +97,14 @@ export async function runEvalCase(testCase: EvalCase): Promise<EvalExecutionResu
 
   const generated = await generateText({
     model: getModelForPolicy(modelPolicy),
-    system: instructions,
-    prompt,
+    system: generationInput.instructions,
+    prompt: generationInput.prompt,
+    output:
+      generationInput.mode === "structured-interview"
+        ? Output.object({
+            schema: InterviewTurnSchema,
+          })
+        : undefined,
     temperature: 0.2,
     timeout: 30_000,
   });
@@ -95,7 +116,11 @@ export async function runEvalCase(testCase: EvalCase): Promise<EvalExecutionResu
     success: true,
   });
 
-  const judgement = await judgeEvalOutput(testCase, generated.text);
+  const serializedOutput =
+    generationInput.mode === "structured-interview"
+      ? JSON.stringify(generated.output, null, 2)
+      : generated.text;
+  const judgement = await judgeEvalOutput(testCase, serializedOutput);
 
   return {
     caseId: testCase.id,
@@ -103,7 +128,7 @@ export async function runEvalCase(testCase: EvalCase): Promise<EvalExecutionResu
     score: judgement.score,
     passed: judgement.score >= 0.8,
     notes: judgement.notes,
-    output: generated.text,
+    output: serializedOutput,
   };
 }
 

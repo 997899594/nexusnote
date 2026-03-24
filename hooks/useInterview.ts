@@ -1,18 +1,17 @@
 // hooks/useInterview.ts
 
-import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport, getToolName, isToolUIPart, type UIMessage } from "ai";
 import { nanoid } from "nanoid";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/ui/Toast";
+import type { InterviewStreamEvent, InterviewTurn } from "@/lib/ai/interview";
 import { parseApiError } from "@/lib/api/client";
-import { type OutlineData, useInterviewStore } from "@/stores/interview";
+import { useInterviewStore } from "@/stores/interview";
 
-interface ConfirmOutlineOutput {
-  success: boolean;
-  courseId?: string;
-  outline?: OutlineData;
-  error?: string;
+export interface InterviewMessage {
+  id: string;
+  role: "user" | "assistant";
+  text: string;
+  options?: string[];
 }
 
 interface UseInterviewOptions {
@@ -20,40 +19,18 @@ interface UseInterviewOptions {
 }
 
 interface UseInterviewReturn {
-  messages: UIMessage[];
-  sendMessage: (params: { text: string }) => void;
+  messages: InterviewMessage[];
+  sendMessage: (params: { text: string }) => Promise<void>;
   status: string;
   isLoading: boolean;
   sessionId: string;
 }
 
-/**
- * 从消息列表中提取最新的 confirmOutline 输出
- */
-function findLatestOutline(messages: UIMessage[]): ConfirmOutlineOutput | null {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const msg = messages[i];
-    if (msg.role !== "assistant" || !msg.parts) continue;
-
-    for (const part of msg.parts) {
-      if (
-        isToolUIPart(part) &&
-        getToolName(part) === "confirmOutline" &&
-        part.state === "output-available"
-      ) {
-        const output = part.output as ConfirmOutlineOutput | undefined;
-        if (output?.success && output.outline) {
-          return output;
-        }
-      }
-    }
-  }
-  return null;
-}
-
 export function useInterview(options?: UseInterviewOptions): UseInterviewReturn {
   const { addToast } = useToast();
   const [sessionId] = useState(() => nanoid());
+  const [messages, setMessages] = useState<InterviewMessage[]>([]);
+  const [status, setStatus] = useState("ready");
 
   const setOutline = useInterviewStore((s) => s.setOutline);
   const setCourseId = useInterviewStore((s) => s.setCourseId);
@@ -61,42 +38,146 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
   const setInterviewCompleted = useInterviewStore((s) => s.setInterviewCompleted);
   const resetInterview = useInterviewStore((s) => s.reset);
 
-  // 稳定引用，供 onFinish 使用
-  const storeActionsRef = useRef({ setOutline, setInterviewCompleted, setIsOutlineLoading });
-  storeActionsRef.current = { setOutline, setInterviewCompleted, setIsOutlineLoading };
+  const messagesRef = useRef<InterviewMessage[]>([]);
+  messagesRef.current = messages;
+
+  const statusRef = useRef(status);
+  statusRef.current = status;
 
   useEffect(() => {
     resetInterview();
+    setMessages([]);
   }, [resetInterview]);
 
-  const chat = useChat({
-    id: sessionId,
-    transport: new DefaultChatTransport({
-      api: "/api/interview",
-      body: () => ({ sessionId, courseId: useInterviewStore.getState().courseId ?? undefined }),
-    }),
-    // 流结束时可靠检测 confirmOutline（主要检测入口）
-    onFinish: ({ messages: finishedMessages }) => {
-      const result = findLatestOutline(finishedMessages);
-      if (result?.outline) {
-        const actions = storeActionsRef.current;
-        if (result.courseId) {
-          setCourseId(result.courseId);
-        }
-        actions.setOutline(result.outline);
-        actions.setInterviewCompleted(true);
-        actions.setIsOutlineLoading(false);
+  const updateAssistantMessage = useCallback(
+    (assistantId: string, updater: (message: InterviewMessage) => InterviewMessage) => {
+      setMessages((currentMessages) =>
+        currentMessages.map((message) => (message.id === assistantId ? updater(message) : message)),
+      );
+    },
+    [],
+  );
+
+  const applyCompletedTurn = useCallback(
+    (turn: InterviewTurn, courseId?: string) => {
+      if (turn.kind === "outline") {
+        setOutline(turn.outline);
+        setCourseId(courseId ?? null);
+        setInterviewCompleted(true);
+        setIsOutlineLoading(false);
       }
     },
-    onError: (error) => {
-      console.error("[Interview] API Error:", error);
-      parseApiError(error).then(({ message }) => {
-        addToast(message, "error");
-      });
-    },
-  });
+    [setCourseId, setInterviewCompleted, setIsOutlineLoading, setOutline],
+  );
 
-  const { sendMessage, status, messages } = chat;
+  const sendMessage = useCallback(
+    async ({ text }: { text: string }) => {
+      if (!text.trim() || statusRef.current === "submitted" || statusRef.current === "streaming") {
+        return;
+      }
+
+      const userMessage: InterviewMessage = {
+        id: nanoid(),
+        role: "user",
+        text: text.trim(),
+      };
+      const assistantId = nanoid();
+      const assistantMessage: InterviewMessage = {
+        id: assistantId,
+        role: "assistant",
+        text: "",
+        options: [],
+      };
+      const nextMessages = [...messagesRef.current, userMessage, assistantMessage];
+
+      setMessages(nextMessages);
+      setStatus("submitted");
+
+      try {
+        const store = useInterviewStore.getState();
+        const response = await fetch("/api/interview", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            sessionId,
+            courseId: store.courseId ?? undefined,
+            outline: store.outline ?? undefined,
+            messages: nextMessages.map((message) => ({
+              id: message.id,
+              role: message.role,
+              text: message.text,
+            })),
+          }),
+        });
+
+        if (!response.ok) {
+          throw response;
+        }
+
+        if (!response.body) {
+          throw new Error("响应为空");
+        }
+
+        setStatus("streaming");
+
+        const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+        let buffer = "";
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) {
+            break;
+          }
+
+          buffer += value;
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed) {
+              continue;
+            }
+
+            const event = JSON.parse(trimmed) as InterviewStreamEvent;
+
+            if (event.type === "turn-delta") {
+              updateAssistantMessage(assistantId, (message) => ({
+                ...message,
+                text: event.turn.message ?? message.text,
+                options: event.turn.options ?? message.options,
+              }));
+              continue;
+            }
+
+            if (event.type === "turn-complete") {
+              updateAssistantMessage(assistantId, (message) => ({
+                ...message,
+                text: event.turn.message,
+                options: event.turn.options,
+              }));
+              applyCompletedTurn(event.turn, event.courseId);
+              continue;
+            }
+
+            if (event.type === "error") {
+              throw new Error(event.error);
+            }
+          }
+        }
+
+        setStatus("ready");
+      } catch (error) {
+        console.error("[Interview] API Error:", error);
+        const parsed = await parseApiError(error);
+        addToast(parsed.message, "error");
+        setStatus("error");
+      }
+    },
+    [addToast, applyCompletedTurn, sessionId, updateAssistantMessage],
+  );
 
   // Auto-send initial message
   const sentInitialRef = useRef(false);
@@ -111,31 +192,17 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
     if (msg && !sentInitialRef.current) {
       sentInitialRef.current = true;
       requestAnimationFrame(() => {
-        sendMessage({ text: msg });
+        void sendMessage({ text: msg });
       });
     }
   }, [sendMessage]);
 
-  // 备用检测：流式过程中也尝试检测（增加 status 依赖确保流结束时触发）
-  // biome-ignore lint/correctness/useExhaustiveDependencies: status is intentionally included to trigger detection when streaming ends
-  useEffect(() => {
-    const result = findLatestOutline(messages);
-    if (result?.outline) {
-      if (result.courseId) {
-        setCourseId(result.courseId);
-      }
-      setOutline(result.outline);
-      setInterviewCompleted(true);
-      setIsOutlineLoading(false);
-    }
-  }, [messages, status, setCourseId, setOutline, setInterviewCompleted, setIsOutlineLoading]);
-
   const isLoading = status === "submitted" || status === "streaming";
 
   return {
-    messages: chat.messages as UIMessage[],
-    sendMessage: chat.sendMessage,
-    status,
+    messages,
+    sendMessage,
+    status: status === "error" ? "ready" : status,
     isLoading,
     sessionId,
   };
