@@ -15,7 +15,7 @@ export interface CapabilityProfileDefinition {
 const CAPABILITY_PROFILES: Record<AgentProfile, CapabilityProfileDefinition> = {
   CHAT_BASIC: {
     id: "CHAT_BASIC",
-    authRequired: false,
+    authRequired: true,
     resourceRequired: false,
     modelPolicy: "interactive-fast",
     promptKey: "chat-basic@v1",

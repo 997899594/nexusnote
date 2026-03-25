@@ -4,6 +4,8 @@ import { buildPromptInstructions } from "@/lib/ai/core/prompt-registry";
 import { createTelemetryContext, recordAIUsage } from "@/lib/ai/core/telemetry";
 import {
   buildInterviewPrompt,
+  evaluateInterviewSufficiency,
+  extractInterviewState,
   INTERVIEW_SYSTEM_PROMPT,
   InterviewTurnSchema,
 } from "@/lib/ai/interview";
@@ -22,7 +24,7 @@ export function createEvalSuite<TInput>(suite: EvalSuite<TInput>): EvalSuite<TIn
   return suite;
 }
 
-function buildEvalGenerationInput(testCase: EvalCase):
+async function buildEvalGenerationInput(testCase: EvalCase): Promise<
   | {
       mode: "structured-interview";
       prompt: string;
@@ -32,15 +34,25 @@ function buildEvalGenerationInput(testCase: EvalCase):
       mode: "text";
       prompt: string;
       instructions: string;
-    } {
+    }
+> {
   switch (testCase.domain) {
     case "interview": {
       const input = testCase.input as unknown as InterviewEvalInput;
+      const messages = [{ role: "user" as const, text: input.userGoal }];
+      const state = await extractInterviewState({
+        messages,
+        currentOutline: input.currentOutline,
+      });
+      const sufficiency = evaluateInterviewSufficiency(state, input.currentOutline);
       return {
         mode: "structured-interview",
         instructions: INTERVIEW_SYSTEM_PROMPT,
         prompt: buildInterviewPrompt({
-          messages: [{ role: "user", text: input.userGoal }],
+          messages,
+          currentOutline: input.currentOutline,
+          state,
+          sufficiency,
         }),
       };
     }
@@ -82,7 +94,7 @@ function getPolicyForCase(testCase: EvalCase) {
 
 export async function runEvalCase(testCase: EvalCase): Promise<EvalExecutionResult> {
   const startedAt = Date.now();
-  const generationInput = buildEvalGenerationInput(testCase);
+  const generationInput = await buildEvalGenerationInput(testCase);
   const modelPolicy = getPolicyForCase(testCase);
   const telemetry = createTelemetryContext({
     endpoint: "eval:generate",

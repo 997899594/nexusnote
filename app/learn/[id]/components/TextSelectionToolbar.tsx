@@ -3,7 +3,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Highlighter, StickyNote } from "lucide-react";
+import { BookPlus, Highlighter, StickyNote } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Annotation } from "@/hooks/useAnnotations";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,7 @@ interface TextSelectionToolbarProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
   onHighlight: (anchor: Annotation["anchor"], color?: string) => void;
   onNote: (anchor: Annotation["anchor"]) => void;
+  onCapture: (anchor: Annotation["anchor"], selectedText: string) => void;
   disabled?: boolean;
 }
 
@@ -50,10 +51,12 @@ export function TextSelectionToolbar({
   containerRef,
   onHighlight,
   onNote,
+  onCapture,
   disabled = false,
 }: TextSelectionToolbarProps) {
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
   const [showColors, setShowColors] = useState(false);
+  const selectedTextRef = useRef("");
   const toolbarRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<Annotation["anchor"] | null>(null);
 
@@ -86,6 +89,7 @@ export function TextSelectionToolbar({
     const containerRect = containerRef.current.getBoundingClientRect();
 
     anchorRef.current = getSelectionAnchor(selection, containerRef.current);
+    selectedTextRef.current = selection.toString().trim();
 
     setPosition({
       top: rect.top - containerRect.top - 48,
@@ -109,6 +113,13 @@ export function TextSelectionToolbar({
   const handleNote = () => {
     if (!anchorRef.current) return;
     onNote(anchorRef.current);
+    window.getSelection()?.removeAllRanges();
+    setPosition(null);
+  };
+
+  const handleCapture = () => {
+    if (!anchorRef.current || !selectedTextRef.current) return;
+    onCapture(anchorRef.current, selectedTextRef.current);
     window.getSelection()?.removeAllRanges();
     setPosition(null);
   };
@@ -166,6 +177,18 @@ export function TextSelectionToolbar({
               >
                 <StickyNote className="w-3.5 h-3.5" />
                 <span>笔记</span>
+              </button>
+              <div className="h-4 w-px bg-black/8" />
+              <button
+                type="button"
+                onClick={handleCapture}
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs text-white",
+                  "text-[var(--color-text-secondary)] hover:bg-[#f3f5f8] transition-colors",
+                )}
+              >
+                <BookPlus className="w-3.5 h-3.5" />
+                <span>沉淀</span>
               </button>
             </>
           )}

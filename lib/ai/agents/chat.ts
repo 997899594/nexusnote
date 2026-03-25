@@ -2,7 +2,7 @@
  * Conversation Agent - 面向对话型 profile 的统一工厂
  */
 
-import { stepCountIs, ToolLoopAgent, type ToolSet } from "ai";
+import { stepCountIs, ToolLoopAgent } from "ai";
 import { getCourseOutline } from "@/lib/cache/course-context";
 import type { ChatMetadata } from "@/types/metadata";
 import { isLearnMetadata } from "@/types/metadata";
@@ -73,7 +73,7 @@ export async function createChatAgent(options: PersonalizationOptions = {}) {
   const tools = buildToolsForProfile(profileId, {
     userId: options.userId,
     resourceId: options.courseId,
-  }) as ToolSet;
+  });
 
   return new ToolLoopAgent({
     id: `nexusnote-${profileId.toLowerCase()}`,

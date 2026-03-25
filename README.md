@@ -2,9 +2,9 @@
 
 <div align="center">
 
-**AI-Native Knowledge Management System with Real-time Collaboration**
+**AI-Native Learning and Knowledge Workspace**
 
-*Build your second brain with cutting-edge AI technology*
+*Turn a learning goal into a course, notes, and ongoing progress.*
 
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-3178C6?logo=typescript)](https://www.typescriptlang.org/)
@@ -18,14 +18,13 @@
 
 ## What Makes NexusNote Special?
 
-NexusNote isn't just another note-taking app. It's a **knowledge management system** that combines:
+NexusNote is a **learning-first knowledge system** that combines:
 
-- **Multi-Model AI Architecture**: DeepSeek for reasoning, Qwen3 for embeddings, intelligent model orchestration
-- **Advanced RAG System**: Vector search with pgvector, semantic chunking, and reranking
-- **Real-time Collaboration**: Notion-like editing experience with Yjs + Hocuspocus
-- **Scientific Learning**: FSRS-5 spaced repetition algorithm, AI-generated flashcards
-- **Offline-First**: IndexedDB sync, works without internet
-- **Cost-Effective**: $1/million tokens with DeepSeek (100x cheaper than GPT-4)
+- **Structured AI course creation**: turn a goal into an outline, then into a course
+- **Context-aware chat and notes**: AI works across learning content and personal notes
+- **Advanced RAG**: pgvector search, semantic chunking, and reranking
+- **Realtime editing foundation**: collaborative editing built on Yjs + PartyKit
+- **Scientific learning support**: FSRS-5 scheduling, progress tracking, and review workflows
 
 ---
 
@@ -45,11 +44,11 @@ NexusNote isn't just another note-taking app. It's a **knowledge management syst
 
 ### Vector Search (RAG)
 ```
-Your Document → Smart Chunking → Qwen3 Embedding (4000D) → pgvector
+Your Content → Smart Chunking → Embedding (4000D) → pgvector
                                                                 ↓
 User Query → Embedding → Cosine Similarity → Reranker → Top Results
                                                                 ↓
-                                        DeepSeek Chat ← Context + Query
+                                        AI Response ← Context + Query
 ```
 
 ### Learning System
@@ -68,25 +67,23 @@ User Query → Embedding → Cosine Similarity → Reranker → Top Results
 
 ### Modern Fullstack Design
 
-NexusNote uses a **single Next.js fullstack application** deployed as three Kubernetes workloads from one Docker image:
+NexusNote uses a **single Next.js fullstack application** with specialized runtimes around it:
 
 ```
-┌──────────────────────────────────────────────────────────────────────────┐
-│                        K3s Cluster                                       │
-│                                                                          │
-│  ┌────────────────┐  ┌─────────────────┐  ┌──────────────────┐         │
-│  │  nexusnote-web │  │ nexusnote-collab│  │ nexusnote-worker │         │
-│  │  Next.js API   │  │ Hocuspocus WS   │  │ BullMQ RAG       │         │
-│  │  port 3000     │  │ port 1234       │  │ indexing          │         │
-│  └────────────────┘  └─────────────────┘  └──────────────────┘         │
-│           │                    │                    │                    │
-│  ┌────────┴────────────────────┴────────────────────┘                   │
-│  │                                                                      │
-│  ├── PostgreSQL 16 + pgvector 0.8.0  (10Gi)                           │
-│  └── Redis 7 + password auth          (1Gi)                            │
-│                                                                          │
-│  Cilium Gateway API ── https://juanie.art (Let's Encrypt TLS)          │
-└──────────────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────┐
+│                      NexusNote Runtime                        │
+│                                                               │
+│  ┌─────────────────────┐   ┌───────────────────────────────┐  │
+│  │ Next.js 16 App      │   │ Background / async workers    │  │
+│  │ pages + APIs + RSC  │   │ indexing, generation, sync    │  │
+│  └─────────────────────┘   └───────────────────────────────┘  │
+│              │                           │                    │
+│  ┌───────────┴───────────────────────────┴─────────────────┐  │
+│  │ PostgreSQL 16 + pgvector     Redis 7                   │  │
+│  └─────────────────────────────────────────────────────────┘  │
+│                                                               │
+│  Optional realtime editing runtime: PartyKit + Yjs           │
+└───────────────────────────────────────────────────────────────┘
 ```
 
 ### Tech Stack
@@ -95,7 +92,7 @@ NexusNote uses a **single Next.js fullstack application** deployed as three Kube
 |-------|-----------|---------|
 | **Framework** | Next.js 16 + React 19 | Unified fullstack framework |
 | **Editor** | Tiptap v3, Yjs | Rich text editing, CRDT sync |
-| **Realtime** | Hocuspocus | WebSocket collaboration server |
+| **Realtime** | PartyKit | Realtime collaboration runtime |
 | **Database** | PostgreSQL 16, pgvector | Relational data, vector search |
 | **Queue** | BullMQ, Redis 7 | Async job processing |
 | **AI** | Vercel AI SDK 6.x | Unified AI interface |
@@ -103,22 +100,23 @@ NexusNote uses a **single Next.js fullstack application** deployed as three Kube
 | **Animation** | Framer Motion 12 | Smooth animations |
 | **Styles** | Tailwind CSS 4 | Utility-first CSS |
 | **ORM** | Drizzle | Type-safe SQL queries |
-| **CI/CD** | GitHub Actions, ArgoCD | Build + GitOps deployment |
-| **Secrets** | Infisical Cloud | Centralized secret management |
-| **TLS** | Cert-Manager, Let's Encrypt | Automatic certificate management |
+| **CI/CD** | GitHub Actions + image deploy | Build and publish images |
+| **Secrets** | Platform environment variables | Runtime configuration |
 
 ### AI Model Strategy
 
 ```
-Chat & Reasoning:
-  Primary:  Gemini 3 Flash/Pro → Google AI Studio (free tier)
-  Fallback: DeepSeek V3        → $1/M tokens (best value)
+Chat & Generation:
+  Primary:  302.ai-backed models
+  Fallback: OpenAI / DeepSeek
 
 Embedding (4000D vectors):
-  Qwen3-Embedding-8B → 302.ai or SiliconFlow
+  BAAI/bge-base-zh-v1.5
 
-Reranking (optional):
-  Qwen3-Reranker-8B → Two-stage retrieval
+Runtime patterns:
+  ToolLoopAgent for open-ended chat
+  Structured streaming for interview
+  Workflows for course creation and generation
 ```
 
 ---
@@ -127,9 +125,9 @@ Reranking (optional):
 
 ### Prerequisites
 
+- Bun
 - Node.js >= 20
-- pnpm >= 8
-- Docker (for database services)
+- Docker (for local database services)
 
 ### Local Development
 
@@ -139,7 +137,7 @@ git clone https://github.com/997899594/nexusnote.git
 cd nexusnote
 
 # 2. Install dependencies
-pnpm install
+bun install
 
 # 3. Start database services
 docker compose up -d
@@ -149,10 +147,10 @@ cp .env.example .env
 # Edit .env and add your API keys
 
 # 5. Run database migrations
-pnpm db:push
+bun run db:push
 
 # 6. Start all services
-pnpm dev
+bun dev
 ```
 
 ### Access Services
@@ -160,7 +158,6 @@ pnpm dev
 | Service | URL | Description |
 |---------|-----|-------------|
 | Web App | http://localhost:3000 | Next.js frontend + API |
-| Collaboration | ws://localhost:1234 | Hocuspocus WebSocket |
 | PostgreSQL | localhost:5433 | Database |
 | Redis | localhost:6380 | Queue & cache |
 
@@ -168,31 +165,16 @@ pnpm dev
 
 ## Production Deployment
 
-NexusNote uses **GitOps** for production deployment:
+NexusNote deploys as a container image.
 
-```
-git push → GitHub Actions (lint + build) → GHCR → ArgoCD Image Updater → K3s
-```
-
-### One-Click Setup (first time only)
-
-```bash
-cd deploy
-cp deploy.env.example deploy.env
-vim deploy.env    # Fill in server IP, tokens, credentials
-./init.sh --config deploy.env
+```text
+git push -> CI build -> image registry -> deployment platform rollout -> database migration
 ```
 
-### Day-to-Day
+The repository no longer maintains Helm, ArgoCD, or cluster manifests.
 
-| Action | How |
-|--------|-----|
-| Deploy code | `git push` (auto) |
-| Update config | Edit `values-prod.yaml` + `git push` |
-| Update secrets | Infisical Dashboard (auto-sync) |
-| View ArgoCD | `kubectl port-forward svc/argocd-server -n argocd 8080:443` |
-
-For detailed deployment instructions, see [DEPLOYMENT.md](./DEPLOYMENT.md).
+For deployment variables and rollout notes, see [deploy/README.md](./deploy/README.md) and
+[DEPLOYMENT.md](./DEPLOYMENT.md).
 
 ---
 
@@ -218,7 +200,7 @@ nexusnote/
 ├── types/                            # TypeScript Types
 ├── db/                               # Database Schema (Drizzle)
 ├── party/                            # PartyKit Collaboration Server
-├── deploy/                           # K8s Deployment
+├── deploy/                           # Image deployment notes
 ├── docs/                             # Documentation
 └── README.md
 ```
@@ -238,9 +220,10 @@ DATABASE_URL=postgresql://user:pass@host:5432/nexusnote
 # Redis
 REDIS_URL=redis://localhost:6379
 
-# AI Provider (choose one or more)
-AI_302_API_KEY=sk-xxx              # Recommended
-DEEPSEEK_API_KEY=sk-xxx            # Alternative
+# AI Provider
+AI_302_API_KEY=sk-xxx
+OPENAI_API_KEY=sk-xxx              # Optional fallback
+DEEPSEEK_API_KEY=sk-xxx            # Optional fallback
 
 # Authentication
 AUTH_SECRET=<random-32-chars>       # openssl rand -base64 32
@@ -252,15 +235,15 @@ JWT_SECRET=<random-32-chars>
 ## Development
 
 ```bash
-pnpm dev           # Start dev server
-pnpm build         # Production build
-pnpm lint          # Run linter
-pnpm typecheck     # Type check
+bun dev           # Start dev server
+bun run build     # Production build
+bun run lint      # Run linter
+bun run typecheck # Type check
 
 # Database
-pnpm db:push       # Run migrations
-pnpm db:studio     # Open Drizzle Studio
-pnpm db:generate   # Generate migration files
+bun run db:push       # Run migrations
+bun run db:studio     # Open Drizzle Studio
+bun run db:generate   # Generate migration files
 ```
 
 ---
@@ -283,7 +266,7 @@ pnpm db:generate   # Generate migration files
 - [x] FSRS-5 spaced repetition
 - [x] Timeline & version control
 - [x] Agent system with tool calling
-- [x] GitOps production deployment
+- [x] Container image deployment pipeline
 
 ### Planned
 - [ ] Knowledge graph visualization

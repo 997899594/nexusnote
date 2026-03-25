@@ -7,7 +7,7 @@ export * from "./editor";
 export * from "./learning";
 export * from "./rag";
 
-import type { UIMessage } from "ai";
+import type { ToolSet, UIMessage } from "ai";
 import type { AgentProfile } from "@/lib/ai/core/capability-profiles";
 import { createToolContext } from "@/lib/ai/core/tool-context";
 import { createNoteTools } from "./chat/notes";
@@ -26,7 +26,7 @@ interface ProfileToolBuilderInput {
 export function buildToolsForProfile(
   profile: AgentProfile,
   input: ProfileToolBuilderInput = {},
-): Record<string, unknown> {
+): ToolSet {
   switch (profile) {
     case "CHAT_BASIC":
       return {

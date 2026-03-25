@@ -12,11 +12,14 @@ import {
   recordAIUsage,
 } from "@/lib/ai";
 import {
+  evaluateInterviewSufficiency,
+  extractInterviewState,
   generateInterviewTurn,
   type InterviewStreamEvent,
   type InterviewTurn,
   normalizeInterviewTurn,
   normalizePartialInterviewTurn,
+  validateOutlineForState,
 } from "@/lib/ai/interview";
 import { runCreateCourseWorkflow } from "@/lib/ai/workflows";
 import { APIError, handleError } from "@/lib/api";
@@ -101,9 +104,17 @@ export async function POST(request: NextRequest) {
       courseId = existingCourse.id;
     }
 
+    const interviewState = await extractInterviewState({
+      messages,
+      currentOutline: outline ?? undefined,
+    });
+    const sufficiency = evaluateInterviewSufficiency(interviewState, outline ?? undefined);
+
     const result = generateInterviewTurn({
       messages,
       currentOutline: outline ?? undefined,
+      state: interviewState,
+      sufficiency,
     });
 
     const stream = new ReadableStream<Uint8Array>({
@@ -121,16 +132,31 @@ export async function POST(request: NextRequest) {
             });
           }
 
-          const finalTurn = normalizeInterviewTurn(await result.output);
+          let finalTurn = normalizeInterviewTurn(await result.output);
           let generatedCourseId: string | undefined;
+          let outlineValidationReason: string | null = null;
 
           if (finalTurn.kind === "outline") {
-            const workflowResult = await runCreateCourseWorkflow({
-              userId,
-              courseId,
-              outline: finalTurn.outline,
-            });
-            generatedCourseId = workflowResult.courseId;
+            const outlineValidation = validateOutlineForState(finalTurn.outline, interviewState);
+
+            if (!outlineValidation.valid) {
+              outlineValidationReason = outlineValidation.reason;
+              finalTurn = normalizeInterviewTurn({
+                kind: "question",
+                message: outlineValidation.reason,
+                options:
+                  interviewState.mode === "revise"
+                    ? ["补一处重点", "缩短课程", "增强实战部分"]
+                    : ["补充学习目标", "说明当前基础", "说说使用场景"],
+              });
+            } else {
+              const workflowResult = await runCreateCourseWorkflow({
+                userId,
+                courseId,
+                outline: finalTurn.outline,
+              });
+              generatedCourseId = workflowResult.courseId;
+            }
           }
 
           await recordAIUsage({
@@ -140,9 +166,20 @@ export async function POST(request: NextRequest) {
             success: true,
             metadata: {
               ...telemetry.metadata,
+              mode: interviewState.mode,
+              confidence: interviewState.confidence,
+              allowOutline: sufficiency.allowOutline,
+              nextFocus: sufficiency.nextFocus,
+              missingCoreFields: sufficiency.missingCoreFields,
+              openQuestionCount: interviewState.openQuestions.length,
+              hasCurrentOutline: Boolean(outline),
+              goalDetected: Boolean(interviewState.goal),
+              backgroundDetected: Boolean(interviewState.background),
+              useCaseDetected: Boolean(interviewState.useCase),
               kind: finalTurn.kind,
               optionCount: finalTurn.options.length,
               generatedCourseId: generatedCourseId ?? null,
+              outlineValidationReason,
             },
           });
 

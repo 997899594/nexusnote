@@ -1,4 +1,9 @@
-import type { InterviewApiMessage, InterviewOutline } from "./schemas";
+import type {
+  InterviewApiMessage,
+  InterviewOutline,
+  InterviewState,
+  InterviewSufficiency,
+} from "./schemas";
 
 function formatConversation(messages: InterviewApiMessage[]) {
   return messages
@@ -46,7 +51,49 @@ export const INTERVIEW_SYSTEM_PROMPT = `你是 NexusNote 的课程规划师。
 - 标题简洁，描述说明学什么、为什么重要
 - 不要输出思考过程`;
 
+export const INTERVIEW_STATE_SYSTEM_PROMPT = `你是 NexusNote 的访谈状态分析器。
+
+你需要根据当前对话，提取足够驱动下一轮课程访谈的运行时状态。
+
+必须遵守：
+- mode 只能是 discover 或 revise
+- 如果已有大纲，且用户在表达修改意见，优先判断为 revise
+- goal/background/useCase 可以为空，但不要臆造
+- constraints 和 preferences 可以根据上下文做弱推断，但不要过度补全
+- openQuestions 只列最关键的 0 到 6 个问题
+- confidence 表示“现在是否足够进入课程大纲阶段”的把握度，范围 0 到 1
+- 不要输出思考过程`;
+
 export function buildInterviewPrompt(input: {
+  messages: InterviewApiMessage[];
+  currentOutline?: InterviewOutline;
+  state: InterviewState;
+  sufficiency: InterviewSufficiency;
+}) {
+  return `以下是当前课程访谈上下文。
+
+【对话历史】
+${formatConversation(input.messages)}
+
+【当前已生成大纲】
+${formatOutline(input.currentOutline)}
+
+【当前访谈状态】
+${JSON.stringify(input.state, null, 2)}
+
+【系统判定】
+${JSON.stringify(input.sufficiency, null, 2)}
+
+请基于以上上下文，输出当前这一轮的结构化结果。
+
+额外要求：
+- 如果 allowOutline 为 false，只能返回 kind="question"
+- 如果 allowOutline 为 false，这一轮的问题要优先围绕 nextFocus
+- 如果 mode 是 revise，优先处理对现有大纲的调整，不要重新从头访谈
+- 如果 allowOutline 为 true，可以返回 kind="outline"，但必须是完整课程草案`;
+}
+
+export function buildInterviewStatePrompt(input: {
   messages: InterviewApiMessage[];
   currentOutline?: InterviewOutline;
 }) {
@@ -58,5 +105,5 @@ ${formatConversation(input.messages)}
 【当前已生成大纲】
 ${formatOutline(input.currentOutline)}
 
-请基于以上上下文，输出当前这一轮的结构化结果。`;
+请提取当前访谈运行时状态。`;
 }

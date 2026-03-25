@@ -1,13 +1,18 @@
 // lib/ai/core/streaming.ts
 
-import { type Agent, createAgentUIStreamResponse, smoothStream, type UIMessage } from "ai";
+import {
+  type Agent,
+  createAgentUIStreamResponse,
+  smoothStream,
+  type ToolSet,
+  type UIMessage,
+} from "ai";
 
 // ============================================
 // Types
 // ============================================
 
-// Use a more permissive agent type to avoid strict type parameter issues
-type AnyAgent = Agent<any, any, any>;
+type StreamableAgent = Agent<never, ToolSet, never>;
 
 export interface StreamOptions {
   /** 会话 ID */
@@ -92,7 +97,7 @@ function createFallbackStream(
  * - 自动添加响应头
  */
 export async function createNexusNoteStreamResponse(
-  agent: AnyAgent,
+  agent: StreamableAgent,
   messages: UIMessage[],
   options: StreamOptions = {},
 ): Promise<Response> {

@@ -1,7 +1,10 @@
+import type { InterviewOutline } from "@/lib/ai/interview";
+
 export type EvalDomain = "interview" | "learn" | "notes";
 
 export interface InterviewEvalInput {
   userGoal: string;
+  currentOutline?: InterviewOutline;
 }
 
 export interface LearnEvalInput {

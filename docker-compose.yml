@@ -59,11 +59,9 @@ services:
       # Server Configuration
       PORT: 3000
       HOSTNAME: 0.0.0.0
-      HOCUSPOCUS_PORT: 1234
 
       # Next.js Public URLs
       NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:3000/api}
-      NEXT_PUBLIC_COLLAB_URL: ${PUBLIC_COLLAB_URL:-ws://localhost:1234}
 
       # Authentication
       AUTH_SECRET: ${AUTH_SECRET:-your-secret-change-in-production}
@@ -105,7 +103,6 @@ services:
 
     ports:
       - "3000:3000" # Next.js API Gateway
-      - "1234:1234" # Hocuspocus WebSocket
     depends_on:
       postgres:
         condition: service_healthy

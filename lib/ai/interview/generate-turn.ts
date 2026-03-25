@@ -1,18 +1,31 @@
 import { Output, streamText } from "ai";
 import { getModelForPolicy } from "@/lib/ai/core";
 import { buildInterviewPrompt, INTERVIEW_SYSTEM_PROMPT } from "./prompts";
-import { type InterviewApiMessage, type InterviewOutline, InterviewTurnSchema } from "./schemas";
+import {
+  type InterviewApiMessage,
+  type InterviewOutline,
+  type InterviewState,
+  type InterviewSufficiency,
+  InterviewTurnSchema,
+} from "./schemas";
 
 interface GenerateInterviewTurnOptions {
   messages: InterviewApiMessage[];
   currentOutline?: InterviewOutline;
+  state: InterviewState;
+  sufficiency: InterviewSufficiency;
 }
 
-export function generateInterviewTurn({ messages, currentOutline }: GenerateInterviewTurnOptions) {
+export function generateInterviewTurn({
+  messages,
+  currentOutline,
+  state,
+  sufficiency,
+}: GenerateInterviewTurnOptions) {
   return streamText({
     model: getModelForPolicy("structured-high-quality"),
     system: INTERVIEW_SYSTEM_PROMPT,
-    prompt: buildInterviewPrompt({ messages, currentOutline }),
+    prompt: buildInterviewPrompt({ messages, currentOutline, state, sufficiency }),
     output: Output.object({
       schema: InterviewTurnSchema,
     }),

@@ -1,6 +1,6 @@
 // lib/ai/core/tool-context.ts
 
-import type { UIMessage } from "ai";
+import type { ToolSet, UIMessage } from "ai";
 
 /**
  * 工具上下文
@@ -23,7 +23,7 @@ export interface ToolContext {
 /**
  * 工具工厂函数类型
  */
-export type ToolFactory<T = Record<string, unknown>> = (ctx: ToolContext) => T;
+export type ToolFactory<T extends ToolSet = ToolSet> = (ctx: ToolContext) => T;
 
 /**
  * 创建工具上下文（带验证）

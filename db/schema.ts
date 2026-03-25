@@ -215,12 +215,28 @@ export const notes = pgTable(
       .references(() => users.id, { onDelete: "cascade" })
       .notNull(),
     title: text("title").notNull().default("Untitled"),
+    sourceType: text("source_type").notNull().default("manual"),
+    sourceContext: jsonb("source_context").$type<{
+      courseId?: string;
+      courseTitle?: string;
+      sectionId?: string;
+      sectionTitle?: string;
+      selectionText?: string;
+      anchor?: {
+        textContent: string;
+        startOffset: number;
+        endOffset: number;
+      };
+      annotationId?: string;
+      noteContent?: string;
+    }>(),
     plainText: text("plain_text"),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
   },
   (table) => ({
     userIdIdx: index("notes_user_id_idx").on(table.userId),
+    sourceTypeIdx: index("notes_source_type_idx").on(table.sourceType),
   }),
 );
 

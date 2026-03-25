@@ -36,6 +36,13 @@
       "when": 1774434194987,
       "tag": "0004_add-conversation-messages",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1774603800000,
+      "tag": "0005_add-note-source-context",
+      "breakpoints": true
     }
   ]
 }

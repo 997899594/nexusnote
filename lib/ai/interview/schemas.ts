@@ -24,6 +24,41 @@ export const InterviewOutlineSchema = z.object({
   learningOutcome: z.string().min(1).max(240),
 });
 
+export const InterviewModeSchema = z.enum(["discover", "revise"]);
+
+export const InterviewStateSchema = z.object({
+  mode: InterviewModeSchema,
+  goal: z.string().min(1).max(300).nullable(),
+  background: z.string().min(1).max(300).nullable(),
+  useCase: z.string().min(1).max(300).nullable(),
+  constraints: z.object({
+    timeBudget: z.string().min(1).max(120).nullable(),
+    preferredDepth: z.string().min(1).max(120).nullable(),
+  }),
+  preferences: z.object({
+    style: z.string().min(1).max(120).nullable(),
+    focusAreas: z.array(z.string().min(1).max(80)).max(8),
+  }),
+  openQuestions: z.array(z.string().min(1).max(120)).max(6),
+  confidence: z.number().min(0).max(1),
+});
+
+export const InterviewNextFocusSchema = z.enum([
+  "goal",
+  "background",
+  "useCase",
+  "constraints",
+  "preferences",
+  "revise",
+]);
+
+export const InterviewSufficiencySchema = z.object({
+  allowOutline: z.boolean(),
+  missingCoreFields: z.array(z.enum(["goal", "background", "useCase"])).max(3),
+  nextFocus: InterviewNextFocusSchema,
+  reason: z.string().min(1).max(240),
+});
+
 export const InterviewQuestionTurnSchema = z.object({
   kind: z.literal("question"),
   message: z.string().min(1).max(1200),
@@ -76,7 +111,10 @@ export const InterviewStreamEventSchema = z.discriminatedUnion("type", [
 ]);
 
 export type InterviewApiMessage = z.infer<typeof InterviewApiMessageSchema>;
+export type InterviewMode = z.infer<typeof InterviewModeSchema>;
 export type InterviewOutline = z.infer<typeof InterviewOutlineSchema>;
 export type InterviewPartialTurn = z.infer<typeof InterviewStreamDeltaEventSchema>["turn"];
+export type InterviewState = z.infer<typeof InterviewStateSchema>;
+export type InterviewSufficiency = z.infer<typeof InterviewSufficiencySchema>;
 export type InterviewTurn = z.infer<typeof InterviewTurnSchema>;
 export type InterviewStreamEvent = z.infer<typeof InterviewStreamEventSchema>;
