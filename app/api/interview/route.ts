@@ -195,9 +195,15 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
+  const providerStatus = aiProvider.getStatus();
   return NextResponse.json({
     status: "ok",
-    ai: { configured: aiProvider.isConfigured() },
+    ai: {
+      configured: aiProvider.isConfigured(),
+      primaryProvider: providerStatus.primaryProvider,
+      providers: providerStatus.providers,
+      fallbackEnabled: providerStatus.fallbackEnabled,
+    },
     timestamp: new Date().toISOString(),
   });
 }

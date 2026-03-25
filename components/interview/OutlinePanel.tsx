@@ -47,7 +47,7 @@ export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps
   };
 
   return (
-    <div className="flex h-full flex-col bg-[var(--color-bg)]">
+    <div className="flex h-full flex-col bg-[#f6f7f9]">
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-4">
         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-900">
@@ -119,7 +119,7 @@ export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps
                     {outline.prerequisites.map((p) => (
                       <span
                         key={p}
-                        className="inline-flex items-center rounded-full px-2 py-0.5 text-xs bg-amber-100 text-amber-700"
+                        className="inline-flex items-center rounded-full bg-[#eef1f5] px-2 py-0.5 text-xs text-zinc-600"
                       >
                         {p}
                       </span>
@@ -189,7 +189,7 @@ export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps
                               </span>
                             )}
                             {chapter.practiceType && chapter.practiceType !== "none" && (
-                              <span className="rounded-full bg-blue-100 px-2 py-0.5 text-blue-600">
+                              <span className="rounded-full bg-[#eef1f5] px-2 py-0.5 text-zinc-600">
                                 {chapter.practiceType === "exercise"
                                   ? "练习"
                                   : chapter.practiceType === "project"

@@ -1,25 +1,24 @@
-import type { LanguageModel } from "ai";
-import { aiProvider } from "./provider";
+import { aiProvider, type ModelType } from "./provider";
 
 export type ModelPolicy = "interactive-fast" | "structured-high-quality" | "search-enabled";
 
-const MODEL_POLICY_NAMES: Record<ModelPolicy, string> = {
-  "interactive-fast": "gemini-3.1-flash-lite-preview",
-  "structured-high-quality": "gemini-3.1-pro-preview",
-  "search-enabled": "gemini-3.1-flash-preview-web-search",
+const POLICY_TO_MODEL_TYPE: Record<
+  ModelPolicy,
+  Extract<ModelType, "chat" | "pro" | "webSearch">
+> = {
+  "interactive-fast": "chat",
+  "structured-high-quality": "pro",
+  "search-enabled": "webSearch",
 };
 
-export function getModelForPolicy(policy: ModelPolicy): LanguageModel {
-  switch (policy) {
-    case "structured-high-quality":
-      return aiProvider.proModel;
-    case "search-enabled":
-      return aiProvider.webSearchModel;
-    default:
-      return aiProvider.chatModel;
-  }
+export function getModelForPolicy(policy: ModelPolicy) {
+  return aiProvider.getModel(POLICY_TO_MODEL_TYPE[policy]);
 }
 
 export function getModelNameForPolicy(policy: ModelPolicy): string {
-  return MODEL_POLICY_NAMES[policy];
+  return aiProvider.getModelName(POLICY_TO_MODEL_TYPE[policy]);
+}
+
+export function getProviderForPolicy(policy: ModelPolicy): string | null {
+  return aiProvider.getProviderLabel(POLICY_TO_MODEL_TYPE[policy]);
 }

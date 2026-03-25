@@ -156,58 +156,60 @@ export function LearnClient({
   // ─── Mobile layout ───
   if (isMobile) {
     return (
-      <div className="flex flex-col h-screen bg-[var(--color-bg)]">
+      <div className="flex h-screen flex-col bg-[#f6f7f9]">
         {/* Mobile header */}
-        <header className="flex items-center justify-between px-4 py-3 bg-[var(--color-surface)] shrink-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="p-1.5 rounded-lg text-[var(--color-text-secondary)] hover:bg-[var(--color-hover)] transition-colors shrink-0"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <div className="min-w-0">
-              <h1 className="text-sm font-semibold text-[var(--color-text)] truncate">
-                {currentChapter?.title ?? courseTitle}
-              </h1>
-              {currentChapter && (
-                <p className="text-[0.6875rem] text-[var(--color-text-tertiary)] truncate">
-                  第 {currentChapterIndex + 1} 章
-                </p>
-              )}
+        <header className="shrink-0 bg-white px-4 py-3 shadow-[0_16px_38px_-34px_rgba(15,23,42,0.12)]">
+          <div className="flex items-center justify-between">
+            <div className="flex min-w-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={() => router.back()}
+                className="shrink-0 rounded-lg p-1.5 text-[var(--color-text-secondary)] transition-colors hover:bg-[#f3f5f8]"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </button>
+              <div className="min-w-0">
+                <h1 className="truncate text-sm font-semibold text-[var(--color-text)]">
+                  {currentChapter?.title ?? courseTitle}
+                </h1>
+                {currentChapter && (
+                  <p className="truncate text-[0.6875rem] text-[var(--color-text-tertiary)]">
+                    第 {currentChapterIndex + 1} 章
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <button
-              type="button"
-              onClick={() => setSidebarOpen(true)}
-              className={cn(
-                "p-2 rounded-lg transition-colors",
-                isSidebarOpen
-                  ? "bg-[var(--color-accent-subtle)] text-[var(--color-accent)]"
-                  : "text-[var(--color-text-secondary)] hover:bg-[var(--color-hover)]",
-              )}
-            >
-              <List className="w-5 h-5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setChatOpen(true)}
-              className={cn(
-                "p-2 rounded-lg transition-colors",
-                isChatOpen
-                  ? "bg-[var(--color-accent-subtle)] text-[var(--color-accent)]"
-                  : "text-[var(--color-text-secondary)] hover:bg-[var(--color-hover)]",
-              )}
-            >
-              <MessageSquare className="w-5 h-5" />
-            </button>
+            <div className="flex shrink-0 items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(true)}
+                className={cn(
+                  "rounded-lg p-2 transition-colors",
+                  isSidebarOpen
+                    ? "bg-[#eef1f5] text-[#111827]"
+                    : "text-[var(--color-text-secondary)] hover:bg-[#f3f5f8]",
+                )}
+              >
+                <List className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setChatOpen(true)}
+                className={cn(
+                  "rounded-lg p-2 transition-colors",
+                  isChatOpen
+                    ? "bg-[#eef1f5] text-[#111827]"
+                    : "text-[var(--color-text-secondary)] hover:bg-[#f3f5f8]",
+                )}
+              >
+                <MessageSquare className="h-5 w-5" />
+              </button>
+            </div>
           </div>
         </header>
 
         {/* Content area */}
-        <div className="flex-1 overflow-hidden bg-[var(--color-surface)]">
+        <div className="flex-1 overflow-hidden bg-white">
           <SectionReader
             courseId={sessionId}
             sections={sections}
@@ -236,7 +238,7 @@ export function LearnClient({
                 animate={{ x: 0 }}
                 exit={{ x: -SIDEBAR_WIDTH }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className="fixed inset-y-0 left-0 z-50 w-[320px] bg-[var(--color-bg)] shadow-xl"
+                className="fixed inset-y-0 left-0 z-50 w-[320px] bg-[#f6f7f9] shadow-xl"
               >
                 <LearnSidebar courseTitle={courseTitle} width={SIDEBAR_WIDTH} />
               </motion.div>
@@ -260,7 +262,7 @@ export function LearnClient({
                 animate={{ x: 0 }}
                 exit={{ x: "100%" }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className="fixed inset-y-0 right-0 z-50 w-full bg-[var(--color-bg)] shadow-xl"
+                className="fixed inset-y-0 right-0 z-50 w-full bg-[#f6f7f9] shadow-xl"
               >
                 <LearnChat courseId={sessionId} courseTitle={courseTitle} variant="overlay" />
               </motion.div>
@@ -273,7 +275,7 @@ export function LearnClient({
 
   // ─── Desktop layout (unchanged) ───
   return (
-    <div className="flex h-screen bg-[var(--color-bg)]">
+    <div className="flex h-screen bg-[#f6f7f9]">
       {/* Sidebar - hidden in zen mode */}
       <AnimatePresence mode="wait">
         {!isZenMode && (
@@ -294,7 +296,7 @@ export function LearnClient({
         variants={mainVariants}
         initial="full"
         animate={isZenMode ? "full" : "withSidebar"}
-        className="flex-1 flex flex-col min-w-0 relative bg-[var(--color-surface)]"
+        className="relative flex min-w-0 flex-1 flex-col bg-white"
       >
         {/* Header - hidden in zen mode */}
         <AnimatePresence>
@@ -303,10 +305,10 @@ export function LearnClient({
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="flex items-center justify-between px-6 py-3 bg-[var(--color-surface)]"
+              className="flex items-center justify-between bg-white px-6 py-3 shadow-[0_16px_38px_-34px_rgba(15,23,42,0.12)]"
             >
               <div className="flex items-center gap-3">
-                <span className="text-[0.6875rem] font-semibold text-[var(--color-accent)] bg-[var(--color-accent-subtle)] px-2.5 py-1 rounded-md">
+                <span className="rounded-md bg-[#eef1f5] px-2.5 py-1 text-[0.6875rem] font-semibold text-[#111827]">
                   第 {currentChapterIndex + 1} 章
                 </span>
                 <h1 className="text-sm font-semibold text-[var(--color-text)] truncate max-w-md">
@@ -321,7 +323,7 @@ export function LearnClient({
         </AnimatePresence>
 
         {/* Section content (streaming generation + read-only) */}
-        <div className="flex-1 overflow-hidden bg-[var(--color-surface)]">
+        <div className="flex-1 overflow-hidden bg-white">
           <SectionReader
             courseId={sessionId}
             sections={sections}

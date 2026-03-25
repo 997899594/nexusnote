@@ -10,6 +10,7 @@ import { z } from "zod";
 import { conversations, db, eq, userProfiles } from "@/db";
 import { aiProvider } from "@/lib/ai/core";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
+import { loadConversationMessages } from "@/lib/chat/conversation-messages";
 import { type EMAValue, updateEMA } from "./ema";
 
 // ============================================
@@ -314,10 +315,8 @@ export async function updateUserStyleProfile(
   }
 
   // Analyze conversation style
-  const analysis = await analyzeConversationStyle(
-    conversation.messages as UIMessage[],
-    includeBigFive,
-  );
+  const messages = await loadConversationMessages(conversationId);
+  const analysis = await analyzeConversationStyle(messages, includeBigFive);
 
   // Build update object using EMA for smooth updates
   const updates: Record<string, EMAValue | number | Date> = {

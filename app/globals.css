@@ -67,6 +67,10 @@
   --color-active: oklch(92% 0.005 250);
   --color-border: oklch(92% 0.005 250);
   --color-border-subtle: oklch(96% 0.003 250);
+  --color-page-shell: oklch(97.4% 0.003 250);
+  --color-panel-soft: oklch(95.8% 0.004 250);
+  --color-panel-strong: oklch(16% 0.014 250);
+  --color-panel-strong-fg: oklch(100% 0 0);
 
   /* Shadcn/Radix Compatibility Bridge */
   --color-background: oklch(98.5% 0.002 250);
@@ -94,6 +98,10 @@
   --shadow-card-hover: 0 4px 16px -4px oklch(0% 0 0 / 10%), 0 12px 32px -8px oklch(0% 0 0 / 12%);
   --shadow-elevated: 0 4px 24px -4px oklch(0% 0 0 / 10%), 0 8px 48px -8px oklch(0% 0 0 / 6%);
   --shadow-elevated-hover: 0 8px 32px -4px oklch(0% 0 0 / 12%), 0 16px 64px -8px oklch(0% 0 0 / 8%);
+  --shadow-soft-panel: 0 20px 48px -34px rgba(15, 23, 42, 0.16);
+  --shadow-soft-panel-hover: 0 26px 56px -34px rgba(15, 23, 42, 0.2);
+  --shadow-floating-panel: 0 24px 56px -36px rgba(15, 23, 42, 0.18);
+  --shadow-strong-button: 0 18px 36px -28px rgba(15, 23, 42, 0.32);
 
   /* 技能图颜色 (OKLCH) */
   --skill-frontend-bg: oklch(0.95 0.03 250);
@@ -163,6 +171,10 @@
   --color-hover: oklch(24% 0.013 250);
   --color-active: oklch(32% 0.012 250);
   --color-muted: oklch(24% 0.013 250);
+  --color-page-shell: oklch(16% 0.01 250);
+  --color-panel-soft: oklch(22% 0.012 250);
+  --color-panel-strong: oklch(98% 0.002 250);
+  --color-panel-strong-fg: oklch(16% 0.014 250);
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -182,6 +194,50 @@
       "calt" 1;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer components {
+  .ui-page-shell {
+    background-color: var(--color-page-shell);
+  }
+
+  .ui-surface-card {
+    background-color: var(--color-surface);
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-soft-panel);
+  }
+
+  .ui-surface-card-lg {
+    background-color: var(--color-surface);
+    border-radius: var(--radius-3xl);
+    box-shadow: var(--shadow-floating-panel);
+  }
+
+  .ui-surface-soft {
+    background-color: var(--color-panel-soft);
+  }
+
+  .ui-strong-chip {
+    background-color: var(--color-panel-strong);
+    color: var(--color-panel-strong-fg);
+  }
+
+  .ui-badge-pill {
+    background-color: var(--color-surface);
+    border-radius: var(--radius-full);
+    box-shadow: 0 12px 30px -24px rgba(15, 23, 42, 0.18);
+  }
+
+  .ui-primary-button {
+    background-color: var(--color-panel-strong);
+    color: var(--color-panel-strong-fg);
+    box-shadow: var(--shadow-strong-button);
+  }
+
+  .ui-icon-chip {
+    background-color: var(--color-panel-soft);
+    border-radius: var(--radius-xl);
   }
 }
 

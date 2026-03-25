@@ -127,21 +127,21 @@ export function CommentThread({ comment }: { comment: Comment; onSelect?: () => 
 
   return (
     <div
-      className={`rounded-lg mx-2 my-2 overflow-hidden shadow-[var(--shadow-card)] ${
-        comment.resolved ? "bg-[var(--color-hover)]" : "bg-[var(--color-surface)]"
+      className={`mx-2 my-2 overflow-hidden rounded-2xl shadow-[0_20px_46px_-36px_rgba(15,23,42,0.18)] ${
+        comment.resolved ? "bg-[#f6f7f9]" : "bg-white"
       }`}
     >
       <div className="p-3">
         <div className="flex items-center gap-2 mb-2">
-          <div className="w-6 h-6 rounded-full bg-accent text-accent-fg flex items-center justify-center text-xs">
+          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#111827] text-xs text-white">
             {comment.author.name[0]}
           </div>
           <span className="text-sm font-medium">{comment.author.name}</span>
           <span className="text-xs text-text-tertiary">{comment.createdAt.toLocaleString()}</span>
-          {comment.resolved && <span className="text-xs text-green-600">已解决</span>}
+          {comment.resolved && <span className="text-xs text-zinc-600">已解决</span>}
         </div>
         <div className="text-sm mb-2">
-          <span className="bg-yellow-100 px-1 py-0.5 rounded mr-2">
+          <span className="mr-2 rounded-md bg-[#f3f5f8] px-1.5 py-0.5 text-[var(--color-text-secondary)]">
             "{comment.position.text.slice(0, 30)}..."
           </span>
         </div>
@@ -150,7 +150,7 @@ export function CommentThread({ comment }: { comment: Comment; onSelect?: () => 
           <button
             type="button"
             onClick={() => setShowReply(!showReply)}
-            className="bg-transparent border-none text-accent cursor-pointer text-sm hover:underline"
+            className="cursor-pointer border-none bg-transparent text-sm text-[#111827] hover:underline"
           >
             回复
           </button>
@@ -158,7 +158,7 @@ export function CommentThread({ comment }: { comment: Comment; onSelect?: () => 
             <button
               type="button"
               onClick={() => reopenComment(comment.id)}
-              className="bg-transparent border-none text-text-secondary cursor-pointer text-sm hover:underline"
+              className="cursor-pointer border-none bg-transparent text-sm text-[var(--color-text-secondary)] hover:underline"
             >
               重新打开
             </button>
@@ -166,7 +166,7 @@ export function CommentThread({ comment }: { comment: Comment; onSelect?: () => 
             <button
               type="button"
               onClick={() => resolveComment(comment.id)}
-              className="bg-transparent border-none text-green-600 cursor-pointer text-sm hover:underline"
+              className="cursor-pointer border-none bg-transparent text-sm text-[var(--color-text-secondary)] hover:underline"
             >
               解决
             </button>
@@ -181,8 +181,8 @@ export function CommentThread({ comment }: { comment: Comment; onSelect?: () => 
         </div>
       </div>
       {comment.replies.map((reply) => (
-        <div key={reply.id} className="p-2 px-3 bg-[var(--color-hover)] flex gap-2">
-          <div className="w-5 h-5 rounded-full bg-text-secondary text-white flex items-center justify-center text-[10px]">
+        <div key={reply.id} className="flex gap-2 bg-[#f6f7f9] p-2 px-3">
+          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-zinc-500 text-[10px] text-white">
             {reply.author.name[0]}
           </div>
           <div>
@@ -197,17 +197,17 @@ export function CommentThread({ comment }: { comment: Comment; onSelect?: () => 
         </div>
       ))}
       {showReply && (
-        <div className="p-2 bg-[var(--color-hover)] flex gap-2">
+        <div className="flex gap-2 bg-[#f6f7f9] p-2">
           <input
             value={replyText}
             onChange={(e) => setReplyText(e.target.value)}
             placeholder="写回复..."
-            className="flex-1 px-3 py-2 text-sm border border-border rounded-md"
+            className="flex-1 rounded-xl border border-transparent bg-white px-3 py-2 text-sm shadow-[0_12px_28px_-24px_rgba(15,23,42,0.14)] outline-none"
           />
           <button
             type="button"
             onClick={handleReply}
-            className="px-4 py-2 text-sm text-white bg-accent rounded-md cursor-pointer hover:bg-accent-hover"
+            className="cursor-pointer rounded-xl bg-[#111827] px-4 py-2 text-sm text-white"
           >
             发送
           </button>
@@ -222,7 +222,7 @@ export function CommentsPanel() {
   const unresolved = comments.filter((c) => !c.resolved);
 
   return (
-    <div className="w-[300px] p-4 h-full overflow-y-auto bg-[var(--color-bg)]">
+    <div className="h-full w-[300px] overflow-y-auto bg-[#f6f7f9] p-4">
       <h3 className="m-0 mb-4 text-base font-medium">评论 ({unresolved.length})</h3>
       {comments.length === 0 ? (
         <p className="text-text-tertiary text-sm">暂无评论</p>

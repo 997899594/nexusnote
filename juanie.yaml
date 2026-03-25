@@ -15,13 +15,13 @@ services:
       min: 1
       max: 5
       cpu: 80
-    databases:
-      - binding: postgres
-        role: primary
-        migrate:
-          tool: drizzle
-          workingDirectory: .
-          command: bun run db:push
+    migrate:
+      tool: drizzle
+      workingDirectory: .
+      command: bun run db:push
+      phase: preDeploy
+      autoRun: true
+      approvalPolicy: manual_in_production
 
 databases:
   - name: postgres

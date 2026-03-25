@@ -13,17 +13,17 @@
 
 import type { UIMessage } from "ai";
 import { create } from "zustand";
-import type { Conversation } from "@/db";
 import * as chatApi from "@/lib/chat/api";
+import type { ConversationSummary } from "@/types/chat";
 
 interface ChatStore {
-  sessions: Conversation[];
+  sessions: ConversationSummary[];
   currentSessionMessages: UIMessage[] | null;
 
   loadSessions: () => Promise<void>;
   generateBatchTitles: () => Promise<number>;
-  createSession: (title: string) => Promise<Conversation | null>;
-  updateSession: (id: string, updates: Partial<Conversation>) => Promise<void>;
+  createSession: (title: string) => Promise<ConversationSummary | null>;
+  updateSession: (id: string, updates: Partial<ConversationSummary>) => Promise<void>;
   deleteSession: (id: string) => Promise<void>;
   setCurrentSessionMessages: (messages: UIMessage[] | null) => void;
 }
@@ -78,7 +78,7 @@ export const useChatStore = create<ChatStore>((set) => ({
     return session;
   },
 
-  updateSession: async (id: string, updates: Partial<Conversation>) => {
+  updateSession: async (id: string, updates: Partial<ConversationSummary>) => {
     await chatApi.updateSession(id, updates as Parameters<typeof chatApi.updateSession>[1]);
     // Optimistically update local state
     set((state) => ({

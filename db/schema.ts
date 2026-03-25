@@ -24,7 +24,9 @@ const bytea = customType<{ data: Buffer }>({
 
 const EMBEDDING_DIMENSIONS = env.EMBEDDING_DIMENSIONS || 4000;
 
-export const halfvec = customType<{ data: number[] }>({
+// Production migrations currently use pgvector's vector(4000) columns.
+// Keep schema aligned with the real database type to avoid cast/index drift.
+export const embeddingVector = customType<{ data: number[] }>({
   dataType() {
     return `vector(${EMBEDDING_DIMENSIONS})`;
   },
@@ -247,7 +249,7 @@ export const tags = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     name: text("name").notNull().unique(),
-    nameEmbedding: halfvec("name_embedding"),
+    nameEmbedding: embeddingVector("name_embedding"),
     usageCount: integer("usage_count").notNull().default(0),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
@@ -299,7 +301,6 @@ export const conversations = pgTable(
     messageCount: integer("message_count").default(0),
     lastMessageAt: timestamp("last_message_at").defaultNow(),
 
-    messages: jsonb("messages").notNull().default([]),
     metadata: jsonb("metadata"),
 
     isArchived: boolean("is_archived").default(false),
@@ -311,6 +312,28 @@ export const conversations = pgTable(
   (table) => ({
     userIdIdx: index("conversations_user_id_idx").on(table.userId),
     lastMessageIdx: index("conversations_last_message_idx").on(table.lastMessageAt),
+  }),
+);
+
+export const conversationMessages = pgTable(
+  "conversation_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    conversationId: uuid("conversation_id")
+      .references(() => conversations.id, { onDelete: "cascade" })
+      .notNull(),
+    position: integer("position").notNull(),
+    role: text("role").notNull(),
+    message: jsonb("message").notNull(),
+    textContent: text("text_content").notNull().default(""),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => ({
+    conversationIdx: index("conversation_messages_conversation_idx").on(table.conversationId),
+    conversationPositionIdx: uniqueIndex("conversation_messages_conversation_position_idx").on(
+      table.conversationId,
+      table.position,
+    ),
   }),
 );
 
@@ -327,7 +350,7 @@ export const knowledgeChunks = pgTable(
     sourceId: uuid("source_id").notNull(),
 
     content: text("content").notNull(),
-    embedding: halfvec("embedding"),
+    embedding: embeddingVector("embedding"),
     chunkIndex: integer("chunk_index").notNull(),
 
     userId: uuid("user_id").references(() => users.id, {
@@ -582,6 +605,8 @@ export type NewNoteTag = typeof noteTags.$inferInsert;
 
 export type Conversation = typeof conversations.$inferSelect;
 export type NewConversation = typeof conversations.$inferInsert;
+export type ConversationMessage = typeof conversationMessages.$inferSelect;
+export type NewConversationMessage = typeof conversationMessages.$inferInsert;
 
 export type KnowledgeChunk = typeof knowledgeChunks.$inferSelect;
 export type NewKnowledgeChunk = typeof knowledgeChunks.$inferInsert;
@@ -663,10 +688,18 @@ export const noteTagsRelations = relations(noteTags, ({ one }) => ({
   }),
 }));
 
-export const conversationsRelations = relations(conversations, ({ one }) => ({
+export const conversationsRelations = relations(conversations, ({ one, many }) => ({
   user: one(users, {
     fields: [conversations.userId],
     references: [users.id],
+  }),
+  messages: many(conversationMessages),
+}));
+
+export const conversationMessagesRelations = relations(conversationMessages, ({ one }) => ({
+  conversation: one(conversations, {
+    fields: [conversationMessages.conversationId],
+    references: [conversations.id],
   }),
 }));
 

@@ -164,7 +164,7 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
 
   if (!sessionId) {
     return (
-      <div className="flex items-center justify-center h-full text-[var(--color-text-muted)]">
+      <div className="flex h-full items-center justify-center text-[var(--color-text-muted)]">
         选择或创建一个会话开始聊天
       </div>
     );
@@ -172,10 +172,10 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto mobile-scroll px-4 md:px-6 py-4 safe-bottom">
-        <div className="max-w-[calc(100vw-32px)] md:max-w-[var(--message-max-width)] mx-auto space-y-4">
+      <div className="flex-1 overflow-y-auto bg-white px-4 py-4 safe-bottom mobile-scroll md:px-6">
+        <div className="mx-auto max-w-[calc(100vw-32px)] space-y-4 md:max-w-[var(--message-max-width)]">
           {chatMessages.length === 0 && !isLoading && (
-            <div className="text-center py-12 text-[var(--color-text-muted)] text-sm">
+            <div className="py-12 text-center text-sm text-[var(--color-text-muted)]">
               开始对话...
             </div>
           )}
@@ -190,8 +190,8 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
         </div>
       </div>
 
-      <div className="bg-[var(--color-surface)] px-4 md:px-6 py-3 md:py-4 safe-bottom">
-        <div className="max-w-[calc(100vw-32px)] md:max-w-[var(--message-max-width)] mx-auto relative">
+      <div className="bg-[#f6f7f9] px-4 py-3 safe-bottom md:px-6 md:py-4">
+        <div className="relative mx-auto max-w-[calc(100vw-32px)] md:max-w-[var(--message-max-width)]">
           <AnimatePresence>
             {showCommands && !selectedCommand && filteredCommands.length > 0 && (
               <CommandMenu
@@ -208,9 +208,9 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
-                className="flex items-center gap-2 mb-3"
+                className="mb-3 flex items-center gap-2"
               >
-                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--color-hover)] rounded-lg text-xs">
+                <div className="flex items-center gap-1.5 rounded-xl bg-white px-3 py-1.5 text-xs shadow-[0_16px_34px_-28px_rgba(15,23,42,0.18)]">
                   <selectedCommand.modeIcon className="w-3 h-3 text-[var(--color-text-tertiary)]" />
                   <span className="text-[var(--color-text-secondary)] font-medium">
                     {selectedCommand.modeLabel}
@@ -227,9 +227,9 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
             )}
           </AnimatePresence>
 
-          <div className="flex items-end gap-2 md:gap-3 bg-[var(--color-hover)] rounded-2xl p-2 md:p-3">
-            <div className="w-8 h-8 rounded-lg bg-[var(--color-surface)] flex items-center justify-center flex-shrink-0">
-              <Sparkles className="w-4 h-4 text-[var(--color-text-muted)]" />
+          <div className="flex items-end gap-2 rounded-[28px] bg-white p-2 shadow-[0_24px_56px_-36px_rgba(15,23,42,0.16)] md:gap-3 md:p-3">
+            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-[#f3f5f8]">
+              <Sparkles className="h-4 w-4 text-[#111827]" />
             </div>
             <textarea
               value={input}
@@ -246,10 +246,10 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
               onClick={handleSubmit}
               disabled={!input.trim() || isLoading}
               className={cn(
-                "w-9 h-9 rounded-xl flex items-center justify-center transition-colors flex-shrink-0",
+                "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-colors",
                 input.trim() && !isLoading
-                  ? "bg-[var(--color-accent)] text-[var(--color-accent-fg)]"
-                  : "bg-[var(--color-muted)] text-[var(--color-text-muted)] cursor-not-allowed",
+                  ? "bg-[#111827] text-white"
+                  : "cursor-not-allowed bg-[#eceff3] text-[var(--color-text-muted)]",
               )}
             >
               {isLoading ? (

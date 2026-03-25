@@ -64,10 +64,10 @@ export function EditorConfirmDialog({ output, toolName }: EditorConfirmDialogPro
 
   if (isConfirmed) {
     return (
-      <div className="mt-2 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+      <div className="mt-2 rounded-2xl bg-[#f6f7f9] p-3">
         <div className="flex items-center gap-2">
-          <Check className="w-4 h-4 text-green-600" />
-          <span className="text-sm text-green-700 dark:text-green-300">操作已执行</span>
+          <Check className="h-4 w-4 text-[#111827]" />
+          <span className="text-sm text-zinc-700">操作已执行</span>
         </div>
       </div>
     );
@@ -77,18 +77,18 @@ export function EditorConfirmDialog({ output, toolName }: EditorConfirmDialogPro
   const isBatch = isBatchEdit(output);
 
   return (
-    <div className="mt-2 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+    <div className="mt-2 rounded-2xl bg-[#f6f7f9] p-3">
       <div className="flex items-center gap-2 mb-2">
-        <Edit3 className="w-4 h-4 text-amber-600" />
-        <span className="text-sm font-medium text-amber-800 dark:text-amber-200">
+        <Edit3 className="h-4 w-4 text-[#111827]" />
+        <span className="text-sm font-medium text-[#111827]">
           {isDraft ? "确认插入内容" : isBatch ? "确认批量修改" : "确认编辑"}
         </span>
       </div>
 
-      <p className="text-xs text-amber-700 dark:text-amber-300 mb-3">{output.explanation}</p>
+      <p className="mb-3 text-xs text-[var(--color-text-secondary)]">{output.explanation}</p>
 
       {isDraft && output.content && (
-        <div className="mb-3 p-2 bg-[var(--color-surface)] rounded text-xs text-[var(--color-text-secondary)] max-h-32 overflow-y-auto">
+        <div className="mb-3 max-h-32 overflow-y-auto rounded-xl bg-white p-2 text-xs text-[var(--color-text-secondary)] shadow-[0_12px_28px_-24px_rgba(15,23,42,0.14)]">
           {output.content.slice(0, 500)}
           {output.content.length > 500 && "..."}
         </div>
@@ -96,13 +96,13 @@ export function EditorConfirmDialog({ output, toolName }: EditorConfirmDialogPro
 
       {isBatch && output.edits && (
         <div className="mb-3 space-y-1">
-          <p className="text-xs text-amber-700 dark:text-amber-300">
+          <p className="text-xs text-[var(--color-text-secondary)]">
             {output.edits.length} 个修改:
           </p>
           {output.edits.slice(0, 3).map((edit, i) => (
             <div
               key={`${edit.targetId}-${i}`}
-              className="text-xs p-1 bg-[var(--color-surface)] rounded"
+              className="rounded-lg bg-white p-1 text-xs shadow-[0_12px_28px_-24px_rgba(15,23,42,0.14)]"
             >
               {edit.action}: {edit.targetId}
             </div>
@@ -120,7 +120,7 @@ export function EditorConfirmDialog({ output, toolName }: EditorConfirmDialogPro
           type="button"
           onClick={handleConfirm}
           disabled={isConfirming}
-          className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs rounded transition-colors disabled:opacity-50"
+          className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-[#111827] px-3 py-1.5 text-xs text-white transition-colors disabled:opacity-50"
         >
           {isConfirming ? (
             <Loader2 className="w-3 h-3 animate-spin" />
@@ -131,7 +131,7 @@ export function EditorConfirmDialog({ output, toolName }: EditorConfirmDialogPro
         </button>
         <button
           type="button"
-          className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-[var(--color-muted)] hover:bg-[var(--color-active)] text-[var(--color-text-secondary)] text-xs rounded transition-colors"
+          className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-white px-3 py-1.5 text-xs text-[var(--color-text-secondary)] shadow-[0_12px_28px_-24px_rgba(15,23,42,0.14)] transition-colors hover:bg-[#f8fafc]"
         >
           <X className="w-3 h-3" />
           取消

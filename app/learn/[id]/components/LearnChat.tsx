@@ -91,9 +91,9 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
         className={cn(
           "fixed right-6 bottom-20 z-50",
           "w-12 h-12 rounded-full shadow-lg",
-          "bg-[var(--color-accent)] text-white",
+          "bg-[#111827] text-white",
           "flex items-center justify-center",
-          "hover:bg-[var(--color-accent-hover)] transition-colors",
+          "transition-colors hover:bg-zinc-800",
         )}
       >
         <MessageSquare className="w-5 h-5" />
@@ -103,12 +103,12 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
 
   if (variant === "overlay") {
     return (
-      <div className="flex flex-col h-full w-full bg-[var(--color-bg)] overflow-hidden">
+      <div className="flex h-full w-full flex-col overflow-hidden bg-[#f6f7f9]">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3">
+        <div className="flex items-center justify-between bg-white px-4 py-3 shadow-[0_16px_38px_-34px_rgba(15,23,42,0.12)]">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-[var(--color-accent-light)] flex items-center justify-center">
-              <BookOpen className="w-4 h-4 text-[var(--color-accent)]" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#eef1f5]">
+              <BookOpen className="w-4 h-4 text-[#111827]" />
             </div>
             <div className="min-w-0">
               <h3 className="text-sm font-semibold text-zinc-900 truncate">AI 学习助手</h3>
@@ -127,7 +127,7 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+        <div className="flex-1 space-y-4 overflow-y-auto bg-white px-4 py-4">
           {chatMessages.length === 0 && !isLoading && (
             <div className="text-center py-8 text-zinc-400 text-sm">
               <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-30" />
@@ -142,8 +142,8 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
         </div>
 
         {/* Input */}
-        <div className="px-4 py-3">
-          <div className="flex items-end gap-2 bg-zinc-50 rounded-xl p-2">
+        <div className="bg-white px-4 py-3">
+          <div className="flex items-end gap-2 rounded-xl bg-[#f7f8fa] p-2">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -160,7 +160,7 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
               className={cn(
                 "w-8 h-8 rounded-lg flex items-center justify-center transition-colors flex-shrink-0",
                 input.trim() && !isLoading
-                  ? "bg-[var(--color-accent)] text-white"
+                  ? "bg-[#111827] text-white"
                   : "bg-zinc-200 text-zinc-400 cursor-not-allowed",
               )}
             >
@@ -182,13 +182,13 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
       animate={{ width: 400, opacity: 1 }}
       exit={{ width: 0, opacity: 0 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="flex flex-col h-full bg-[var(--color-bg)] flex-shrink-0 overflow-hidden"
+      className="flex h-full flex-shrink-0 flex-col overflow-hidden bg-[#f6f7f9]"
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3">
+      <div className="flex items-center justify-between bg-white px-4 py-3 shadow-[0_16px_38px_-34px_rgba(15,23,42,0.12)]">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-[var(--color-accent-light)] flex items-center justify-center">
-            <BookOpen className="w-4 h-4 text-[var(--color-accent)]" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#eef1f5]">
+            <BookOpen className="w-4 h-4 text-[#111827]" />
           </div>
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-zinc-900 truncate">AI 学习助手</h3>
@@ -205,7 +205,7 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+      <div className="flex-1 space-y-4 overflow-y-auto bg-white px-4 py-4">
         {chatMessages.length === 0 && !isLoading && (
           <div className="text-center py-8 text-zinc-400 text-sm">
             <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-30" />
@@ -223,8 +223,8 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
       </div>
 
       {/* Input */}
-      <div className="px-4 py-3">
-        <div className="flex items-end gap-2 bg-zinc-50 rounded-xl p-2">
+      <div className="bg-white px-4 py-3">
+        <div className="flex items-end gap-2 rounded-xl bg-[#f7f8fa] p-2">
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -241,7 +241,7 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
             className={cn(
               "w-8 h-8 rounded-lg flex items-center justify-center transition-colors flex-shrink-0",
               input.trim() && !isLoading
-                ? "bg-[var(--color-accent)] text-white"
+                ? "bg-[#111827] text-white"
                 : "bg-zinc-200 text-zinc-400 cursor-not-allowed",
             )}
           >

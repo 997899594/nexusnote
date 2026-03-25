@@ -88,12 +88,10 @@ export async function RecentSectionServer() {
   if (!userId) {
     return (
       <section className="mb-14">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="font-medium text-[var(--color-text-secondary)]">最近</h2>
-        </div>
-        <p className="text-center py-8 text-[var(--color-text-muted)] text-sm">
+        <SectionHeader />
+        <div className="ui-surface-card rounded-[28px] px-5 py-10 text-center text-sm text-[var(--color-text-muted)]">
           登录后查看学习记录
-        </p>
+        </div>
       </section>
     );
   }
@@ -103,23 +101,19 @@ export async function RecentSectionServer() {
   if (items.length === 0) {
     return (
       <section className="mb-14">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="font-medium text-[var(--color-text-secondary)]">最近</h2>
-        </div>
-        <p className="text-center py-8 text-[var(--color-text-muted)] text-sm">
+        <SectionHeader />
+        <div className="ui-surface-card rounded-[28px] px-5 py-10 text-center text-sm text-[var(--color-text-muted)]">
           还没有学习记录，开始第一次学习吧！
-        </p>
+        </div>
       </section>
     );
   }
 
   return (
     <section className="mb-14">
-      <div className="flex items-center justify-between mb-5">
-        <h2 className="font-medium text-[var(--color-text-secondary)]">最近</h2>
-      </div>
+      <SectionHeader />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((item) => (
           <RecentCard
             key={item.id}
@@ -132,5 +126,25 @@ export async function RecentSectionServer() {
         ))}
       </div>
     </section>
+  );
+}
+
+function SectionHeader() {
+  return (
+    <div className="mb-5 flex items-end justify-between gap-4">
+      <div>
+        <p className="text-[11px] uppercase tracking-[0.22em] text-[var(--color-text-muted)]">
+          最近课程
+        </p>
+        <h2 className="mt-2 text-xl font-medium text-[var(--color-text)]">继续学习</h2>
+        <p className="mt-1 text-sm text-[var(--color-text-tertiary)]">
+          从最近一次中断的位置，继续往前学。
+        </p>
+      </div>
+      <div className="ui-badge-pill hidden items-center gap-2 px-3 py-1.5 text-[11px] uppercase tracking-[0.16em] text-black/40 md:inline-flex">
+        <span className="h-1.5 w-1.5 rounded-full bg-[#111827]" />
+        学习记录
+      </div>
+    </div>
   );
 }

@@ -37,17 +37,19 @@ function convertToNodesAndEdges(
     type: parentId ? "default" : "input",
     style: parentId
       ? {
-          background: "var(--color-surface)",
-          border: "1px solid var(--color-border)",
-          borderRadius: "8px",
+          background: "#ffffff",
+          border: "1px solid #e5e7eb",
+          borderRadius: "12px",
+          boxShadow: "0 12px 28px -24px rgba(15,23,42,0.16)",
           padding: "8px 12px",
           fontSize: "12px",
         }
       : {
-          background: "var(--color-accent)",
-          color: "var(--color-accent-fg)",
+          background: "#111827",
+          color: "#ffffff",
           border: "none",
-          borderRadius: "8px",
+          borderRadius: "12px",
+          boxShadow: "0 18px 36px -28px rgba(15,23,42,0.32)",
           padding: "10px 16px",
           fontSize: "14px",
           fontWeight: 600,
@@ -101,15 +103,15 @@ export function MindMapResult({ output }: MindMapResultProps) {
 
   if (!isValid) {
     return (
-      <div className="mt-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
-        <p className="text-sm text-red-600">{output.error || "思维导图生成失败"}</p>
+      <div className="mt-2 rounded-2xl bg-[#f6f7f9] p-3">
+        <p className="text-sm text-zinc-600">{output.error || "思维导图生成失败"}</p>
       </div>
     );
   }
 
   return (
-    <div className="mt-2 rounded-lg shadow-[var(--shadow-card)] overflow-hidden">
-      <div className="flex items-center gap-2 px-3 py-2 bg-[var(--color-hover)]">
+    <div className="mt-2 overflow-hidden rounded-2xl bg-white shadow-[0_20px_46px_-34px_rgba(15,23,42,0.18)]">
+      <div className="flex items-center gap-2 bg-[#f6f7f9] px-3 py-2">
         <MapIcon className="w-4 h-4 text-[var(--color-text-tertiary)]" />
         <span className="text-sm font-medium text-[var(--color-text-secondary)]">
           {mindMapData?.topic}
@@ -119,7 +121,7 @@ export function MindMapResult({ output }: MindMapResultProps) {
         </span>
       </div>
 
-      <div className="h-[300px] bg-[var(--color-surface)]">
+      <div className="h-[300px] bg-white">
         <ReactFlow
           nodes={nodes}
           edges={edges}

@@ -129,7 +129,7 @@ export function MobileEditorToolbar({ editor, onMoreClick }: MobileEditorToolbar
           onClick={() => handleAction(btn.action)}
           className={cn(
             "touch-target flex flex-col items-center justify-center gap-1 p-2 rounded-xl transition-colors min-w-[56px]",
-            active ? "bg-indigo-100 text-indigo-700" : "text-zinc-600 hover:bg-zinc-100",
+            active ? "bg-[#eef1f5] text-[#111827]" : "text-zinc-600 hover:bg-[#f3f5f8]",
           )}
           aria-label={btn.label}
         >
@@ -145,13 +145,13 @@ export function MobileEditorToolbar({ editor, onMoreClick }: MobileEditorToolbar
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 bg-[var(--color-surface)]/90 backdrop-blur-xl shadow-[0_-2px_16px_-4px_oklch(0%_0_0/8%)] safe-bottom md:hidden">
+    <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/90 backdrop-blur-xl shadow-[0_-18px_42px_-34px_rgba(15,23,42,0.16)] safe-bottom md:hidden">
       <div className="flex items-center justify-around px-2 py-2">
         {basicButtons}
         <motion.button
           whileTap={{ scale: 0.9 }}
           onClick={onMoreClick}
-          className="touch-target flex flex-col items-center justify-center gap-1 p-2 rounded-xl text-zinc-600 hover:bg-zinc-100 min-w-[56px]"
+          className="touch-target flex min-w-[56px] flex-col items-center justify-center gap-1 rounded-xl p-2 text-zinc-600 hover:bg-[#f3f5f8]"
           aria-label="更多"
         >
           <MoreHorizontal className="w-5 h-5" />
@@ -210,7 +210,7 @@ export function MobileEditorMoreMenu({ editor, isOpen, onClose }: MobileEditorMo
         initial={{ y: 200, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 200, opacity: 0 }}
-        className="fixed bottom-16 left-4 right-4 z-50 bg-white rounded-2xl shadow-2xl p-4 md:hidden"
+        className="fixed bottom-16 left-4 right-4 z-50 rounded-[24px] bg-white p-4 shadow-[0_28px_64px_-36px_rgba(15,23,42,0.22)] md:hidden"
       >
         <div className="grid grid-cols-5 gap-2">
           {moreButtons.map((btn) => {
@@ -220,7 +220,7 @@ export function MobileEditorMoreMenu({ editor, isOpen, onClose }: MobileEditorMo
                 key={btn.action}
                 whileTap={{ scale: 0.9 }}
                 onClick={() => handleAction(btn.action)}
-                className="touch-target flex flex-col items-center justify-center gap-1 p-3 rounded-xl text-zinc-600 hover:bg-zinc-100"
+                className="touch-target flex flex-col items-center justify-center gap-1 rounded-xl p-3 text-zinc-600 hover:bg-[#f3f5f8]"
                 aria-label={btn.label}
               >
                 <Icon className="w-5 h-5" />

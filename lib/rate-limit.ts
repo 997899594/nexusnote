@@ -1,110 +1,88 @@
 /**
  * Server-Side Rate Limiter
  *
- * 内存实现，带自动清理过期条目
- * 注意：分布式环境应使用 Redis
+ * Redis-backed implementation for distributed environments.
+ * If Redis is temporarily unavailable, requests are allowed and an error is logged
+ * instead of silently falling back to per-process memory state.
  */
 
-interface RateLimitRecord {
-  count: number;
-  resetAt: number;
+import { redis } from "@/lib/redis";
+
+interface RateLimitResult {
+  allowed: boolean;
+  remaining: number;
+  resetInMs: number;
 }
 
-class RateLimiter {
-  private limits = new Map<string, RateLimitRecord>();
-  private cleanupInterval: NodeJS.Timeout | null = null;
+const INCREMENT_WITH_TTL_SCRIPT = `
+local current = redis.call("INCR", KEYS[1])
+if current == 1 then
+  redis.call("PEXPIRE", KEYS[1], ARGV[1])
+end
 
-  constructor() {
-    // 每分钟清理一次过期条目
-    this.cleanupInterval = setInterval(() => this.cleanup(), 60 * 1000);
-  }
+local ttl = redis.call("PTTL", KEYS[1])
+if ttl < 0 then
+  redis.call("PEXPIRE", KEYS[1], ARGV[1])
+  ttl = tonumber(ARGV[1])
+end
 
-  /**
-   * 检查是否超过限制
-   * @returns true 如果允许请求，false 如果被限制
-   */
-  check(key: string, limit: number, windowMs: number): boolean {
-    const now = Date.now();
-    const record = this.limits.get(key);
+return { current, ttl }
+`;
 
-    // 没有记录或已过期，创建新记录
-    if (!record || record.resetAt < now) {
-      this.limits.set(key, { count: 1, resetAt: now + windowMs });
-      return true;
-    }
+async function checkRateLimit(
+  key: string,
+  limit: number,
+  windowMs: number,
+): Promise<RateLimitResult> {
+  try {
+    const namespacedKey = `rate-limit:${key}`;
+    const result = (await redis.eval(
+      INCREMENT_WITH_TTL_SCRIPT,
+      1,
+      namespacedKey,
+      windowMs.toString(),
+    )) as [number | string, number | string];
 
-    // 检查是否超限
-    if (record.count >= limit) {
-      return false;
-    }
+    const count = Number(result[0] ?? 0);
+    const ttl = Number(result[1] ?? windowMs);
+    const remaining = Math.max(0, limit - count);
 
-    // 增加计数
-    record.count++;
-    return true;
-  }
-
-  /**
-   * 获取剩余请求次数
-   */
-  remaining(key: string, limit: number): number {
-    const record = this.limits.get(key);
-    if (!record || record.resetAt < Date.now()) {
-      return limit;
-    }
-    return Math.max(0, limit - record.count);
-  }
-
-  /**
-   * 获取重置时间（毫秒）
-   */
-  resetIn(key: string): number | null {
-    const record = this.limits.get(key);
-    if (!record) return null;
-    const remaining = record.resetAt - Date.now();
-    return remaining > 0 ? remaining : null;
-  }
-
-  /**
-   * 清理过期条目
-   */
-  private cleanup(): void {
-    const now = Date.now();
-    for (const [key, record] of this.limits) {
-      if (record.resetAt < now) {
-        this.limits.delete(key);
-      }
-    }
-  }
-
-  /**
-   * 销毁清理定时器（测试用）
-   */
-  destroy(): void {
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval);
-      this.cleanupInterval = null;
-    }
+    return {
+      allowed: count <= limit,
+      remaining,
+      resetInMs: ttl > 0 ? ttl : windowMs,
+    };
+  } catch (error) {
+    console.error("[RateLimit] Redis unavailable, allowing request:", error);
+    return {
+      allowed: true,
+      remaining: limit,
+      resetInMs: windowMs,
+    };
   }
 }
-
-// 单例实例
-export const rateLimiter = new RateLimiter();
 
 /**
  * 检查速率限制，如果超限则抛出错误
  */
-export function checkRateLimitOrThrow(
+export async function checkRateLimitOrThrow(
   key: string,
   limit: number,
   windowMs: number,
   errorMessage = "请求过于频繁，请稍后再试",
-): void {
-  if (!rateLimiter.check(key, limit, windowMs)) {
-    const resetIn = rateLimiter.resetIn(key);
-    const _retryAfter = resetIn ? Math.ceil(resetIn / 1000) : 60;
-    const error = new Error(errorMessage) as Error & { statusCode: number; code: string };
-    error.statusCode = 429;
-    error.code = "RATE_LIMITED";
-    throw error;
+): Promise<void> {
+  const result = await checkRateLimit(key, limit, windowMs);
+  if (result.allowed) {
+    return;
   }
+
+  const error = new Error(errorMessage) as Error & {
+    statusCode: number;
+    code: string;
+    retryAfter: number;
+  };
+  error.statusCode = 429;
+  error.code = "RATE_LIMITED";
+  error.retryAfter = Math.ceil(result.resetInMs / 1000);
+  throw error;
 }

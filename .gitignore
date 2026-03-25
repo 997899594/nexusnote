@@ -44,3 +44,5 @@ coverage
 *.db
 *.sqlite
 secrets-operator.tgz
+
+.codex-artifacts

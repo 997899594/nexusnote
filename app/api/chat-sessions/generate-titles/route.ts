@@ -15,6 +15,7 @@ import { conversations, db, eq } from "@/db";
 import { aiProvider } from "@/lib/ai/core";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { withOptionalAuth } from "@/lib/api";
+import { extractMessageText, loadConversationMessagesMap } from "@/lib/chat/conversation-messages";
 
 // Title generation schema
 const titleSchema = z.object({
@@ -26,7 +27,6 @@ export const POST = withOptionalAuth(async (_request, { userId: _userId }) => {
   const conversationsToProcess = await db
     .select({
       id: conversations.id,
-      messages: conversations.messages,
     })
     .from(conversations)
     .where(eq(conversations.title, "新对话"))
@@ -36,14 +36,21 @@ export const POST = withOptionalAuth(async (_request, { userId: _userId }) => {
     return Response.json({ updated: 0, message: "No conversations to process" });
   }
 
+  const messagesByConversation = await loadConversationMessagesMap(
+    conversationsToProcess.map((conversation) => conversation.id),
+  );
+
   // 2. 提取首条用户消息并生成标题
   let updatedCount = 0;
 
   for (const conversation of conversationsToProcess) {
-    const messages = conversation.messages as Array<{ role: string; content: string }>;
+    const messages = messagesByConversation.get(conversation.id) ?? [];
 
     // 找到第一条用户消息
-    const firstUserMessage = messages.find((m) => m.role === "user")?.content;
+    const firstUserMessage = messages
+      .filter((message) => message.role === "user")
+      .map(extractMessageText)
+      .find((text) => text.length > 0);
     if (!firstUserMessage) {
       console.warn(`[GenerateTitles] No user message found for conversation ${conversation.id}`);
       continue;

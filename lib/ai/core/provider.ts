@@ -1,38 +1,175 @@
 /**
- * AI Core - AI Provider Singleton
+ * AI Core - AI Provider Registry
  *
- * Centralized AI model access for the application:
- * - aiProvider: Singleton instance for model access
- * - Model configurations for different use cases
+ * Primary provider plus fallback providers for language-model calls.
+ * Embedding calls currently use the primary configured embedding provider only.
  */
 
-// ============================================
-// AI Provider - AI 基础设施
-// ============================================
-
 import { createOpenAI } from "@ai-sdk/openai";
-import type { EmbeddingModelV3 } from "@ai-sdk/provider";
-import type { LanguageModel } from "ai";
+import type {
+  EmbeddingModelV3,
+  LanguageModelV3,
+  LanguageModelV3Middleware,
+} from "@ai-sdk/provider";
 import { extractReasoningMiddleware, wrapLanguageModel } from "ai";
+import { env } from "@/config/env";
 
-const MODELS = {
-  chat: "gemini-3.1-flash-lite-preview",
-  pro: "gemini-3.1-pro-preview",
-  webSearch: "gemini-3.1-flash-preview-web-search",
-  embedding: "BAAI/bge-base-zh-v1.5",
-} as const;
+export type ModelType = "chat" | "pro" | "webSearch" | "embedding";
+type LanguageModelType = Exclude<ModelType, "embedding">;
+type ProviderId = "302" | "openai" | "deepseek";
 
-type ModelType = keyof typeof MODELS;
+interface ProviderModelConfig {
+  id: ProviderId;
+  label: string;
+  client: ReturnType<typeof createOpenAI>;
+  models: Partial<Record<ModelType, string>>;
+}
+
+const PROVIDER_PRIORITY: ProviderId[] = ["302", "openai", "deepseek"];
+
+const DEEPSEEK_BASE_URL = "https://api.deepseek.com/v1";
+
+function isRetryableModelError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return true;
+  }
+
+  const message = error.message.toLowerCase();
+  return [
+    "timeout",
+    "timed out",
+    "429",
+    "rate limit",
+    "temporarily unavailable",
+    "service unavailable",
+    "503",
+    "502",
+    "504",
+    "connection",
+    "network",
+    "fetch failed",
+    "econnreset",
+  ].some((token) => message.includes(token));
+}
+
+function createFailoverMiddleware(
+  modelType: LanguageModelType,
+  fallbackChain: ProviderModelConfig[],
+): LanguageModelV3Middleware | undefined {
+  if (fallbackChain.length === 0) {
+    return undefined;
+  }
+
+  const doGenerateOnProvider = async (
+    provider: ProviderModelConfig,
+    params: Parameters<LanguageModelV3["doGenerate"]>[0],
+  ) => {
+    const modelId = provider.models[modelType];
+    if (!modelId) {
+      throw new Error(`Provider ${provider.label} does not support model type ${modelType}`);
+    }
+
+    return provider.client.chat(modelId).doGenerate(params);
+  };
+
+  const doStreamOnProvider = async (
+    provider: ProviderModelConfig,
+    params: Parameters<LanguageModelV3["doStream"]>[0],
+  ) => {
+    const modelId = provider.models[modelType];
+    if (!modelId) {
+      throw new Error(`Provider ${provider.label} does not support model type ${modelType}`);
+    }
+
+    return provider.client.chat(modelId).doStream(params);
+  };
+
+  return {
+    specificationVersion: "v3",
+    wrapGenerate: async ({ doGenerate, params }) => {
+      try {
+        return await doGenerate();
+      } catch (error) {
+        if (!isRetryableModelError(error)) {
+          throw error;
+        }
+
+        console.warn(`[AI] Primary ${modelType} model failed, trying fallback providers:`, error);
+        let lastError = error;
+
+        for (const provider of fallbackChain) {
+          try {
+            return await doGenerateOnProvider(provider, params);
+          } catch (fallbackError) {
+            lastError = fallbackError;
+            console.warn(`[AI] Fallback provider ${provider.label} failed:`, fallbackError);
+          }
+        }
+
+        throw lastError;
+      }
+    },
+    wrapStream: async ({ doStream, params }) => {
+      try {
+        return await doStream();
+      } catch (error) {
+        if (!isRetryableModelError(error)) {
+          throw error;
+        }
+
+        console.warn(`[AI] Primary ${modelType} stream failed, trying fallback providers:`, error);
+        let lastError = error;
+
+        for (const provider of fallbackChain) {
+          try {
+            return await doStreamOnProvider(provider, params);
+          } catch (fallbackError) {
+            lastError = fallbackError;
+            console.warn(
+              `[AI] Fallback streaming provider ${provider.label} failed:`,
+              fallbackError,
+            );
+          }
+        }
+
+        throw lastError;
+      }
+    },
+  };
+}
+
+function createReasoningModel(
+  provider: ProviderModelConfig,
+  modelType: LanguageModelType,
+  fallbackChain: ProviderModelConfig[],
+) {
+  const modelId = provider.models[modelType];
+  if (!modelId) {
+    throw new Error(`Provider ${provider.label} does not support model type ${modelType}`);
+  }
+
+  const middleware = [
+    extractReasoningMiddleware({
+      tagName: "thinking",
+      separator: "\n\n---\n\n",
+    }),
+    createFailoverMiddleware(modelType, fallbackChain),
+  ].filter((item): item is LanguageModelV3Middleware => Boolean(item));
+
+  return wrapLanguageModel({
+    model: provider.client.chat(modelId),
+    middleware,
+  });
+}
 
 class AIProvider {
   private static instance: AIProvider;
-  private client: ReturnType<typeof createOpenAI> | null = null;
+  private providers: ProviderModelConfig[] = [];
 
   private constructor() {
     this.initialize();
   }
 
-  /** Get singleton instance */
   static getInstance(): AIProvider {
     if (!AIProvider.instance) {
       AIProvider.instance = new AIProvider();
@@ -40,64 +177,136 @@ class AIProvider {
     return AIProvider.instance;
   }
 
-  /** Initialize the AI provider with API credentials */
   private initialize(): void {
-    const apiKey = process.env.AI_302_API_KEY;
-    if (!apiKey) {
-      console.warn("[AI] AI_302_API_KEY not set, provider not initialized");
+    const providers: ProviderModelConfig[] = [];
+
+    if (env.AI_302_API_KEY) {
+      providers.push({
+        id: "302",
+        label: "302.ai",
+        client: createOpenAI({
+          baseURL: env.AI_302_BASE_URL,
+          apiKey: env.AI_302_API_KEY,
+        }),
+        models: {
+          chat: env.AI_MODEL,
+          pro: env.AI_MODEL_PRO,
+          webSearch: env.AI_MODEL_WEB_SEARCH,
+          embedding: env.EMBEDDING_MODEL,
+        },
+      });
+    }
+
+    if (env.OPENAI_API_KEY) {
+      providers.push({
+        id: "openai",
+        label: "OpenAI",
+        client: createOpenAI({
+          apiKey: env.OPENAI_API_KEY,
+          ...(env.OPENAI_BASE_URL ? { baseURL: env.OPENAI_BASE_URL } : {}),
+        }),
+        models: {
+          chat: env.AI_FALLBACK_MODEL,
+          pro: env.AI_FALLBACK_MODEL_PRO,
+          webSearch: env.AI_FALLBACK_MODEL_WEB_SEARCH,
+          embedding: "text-embedding-3-small",
+        },
+      });
+    }
+
+    if (env.DEEPSEEK_API_KEY) {
+      providers.push({
+        id: "deepseek",
+        label: "DeepSeek",
+        client: createOpenAI({
+          baseURL: DEEPSEEK_BASE_URL,
+          apiKey: env.DEEPSEEK_API_KEY,
+        }),
+        models: {
+          chat: "deepseek-chat",
+          pro: "deepseek-reasoner",
+          webSearch: "deepseek-chat",
+        },
+      });
+    }
+
+    this.providers = PROVIDER_PRIORITY.flatMap((providerId) =>
+      providers.filter((provider) => provider.id === providerId),
+    );
+
+    if (this.providers.length === 0) {
+      console.warn("[AI] No AI providers configured");
       return;
     }
-    this.client = createOpenAI({
-      baseURL: "https://api.302.ai/v1",
-      apiKey,
-    });
-    console.log("[AI] Initialized: 302.ai");
+
+    console.log(
+      `[AI] Providers initialized: ${this.providers.map((provider) => provider.label).join(", ")}`,
+    );
   }
 
-  /** Check if the provider is properly configured */
   isConfigured(): boolean {
-    return this.client !== null;
+    return this.providers.some((provider) => provider.models.chat);
   }
 
-  /** Get a language model by type */
-  getModel(type: ModelType = "chat"): LanguageModel {
-    if (!this.client) {
-      throw new Error("AI Provider not initialized. Set AI_302_API_KEY environment variable.");
+  getStatus() {
+    return {
+      primaryProvider: this.providers[0]?.label ?? null,
+      providers: this.providers.map((provider) => provider.label),
+      fallbackEnabled: this.providers.length > 1,
+    };
+  }
+
+  private getLanguageModelChain(modelType: LanguageModelType): ProviderModelConfig[] {
+    return this.providers.filter((provider) => provider.models[modelType]);
+  }
+
+  getModel(modelType: LanguageModelType = "chat") {
+    const providers = this.getLanguageModelChain(modelType);
+    const [primary, ...fallbackChain] = providers;
+
+    if (!primary) {
+      throw new Error(`No AI provider configured for model type: ${modelType}`);
     }
 
-    const base = this.client.chat(MODELS[type]);
-    return wrapLanguageModel({
-      model: base,
-      middleware: extractReasoningMiddleware({
-        tagName: "thinking",
-        separator: "\n\n---\n\n",
-      }),
-    });
+    return createReasoningModel(primary, modelType, fallbackChain);
   }
 
-  /** Get the embedding model with correct typing */
+  getModelName(modelType: ModelType = "chat"): string {
+    const provider = this.providers.find((item) => item.models[modelType]);
+    const modelId = provider?.models[modelType];
+    if (!provider || !modelId) {
+      throw new Error(`No AI provider configured for model type: ${modelType}`);
+    }
+    return modelId;
+  }
+
+  getProviderLabel(modelType: ModelType = "chat"): string | null {
+    const provider = this.providers.find((item) => item.models[modelType]);
+    return provider?.label ?? null;
+  }
+
   get embeddingModel(): EmbeddingModelV3 {
-    if (!this.client) {
-      throw new Error("AI Provider not initialized");
+    const provider = this.providers.find((item) => item.models.embedding);
+    const modelId = provider?.models.embedding;
+
+    if (!provider || !modelId) {
+      throw new Error("No embedding model configured");
     }
-    return this.client.embedding(MODELS.embedding) as EmbeddingModelV3;
+
+    return provider.client.embedding(modelId) as EmbeddingModelV3;
   }
 
-  /** Get the chat model */
-  get chatModel(): LanguageModel {
+  get chatModel() {
     return this.getModel("chat");
   }
 
-  /** Get the pro model */
-  get proModel(): LanguageModel {
+  get proModel() {
     return this.getModel("pro");
   }
 
-  /** Get the web search model */
-  get webSearchModel(): LanguageModel {
+  get webSearchModel() {
     return this.getModel("webSearch");
   }
 }
 
-/** Exported singleton instance for use throughout the application */
 export const aiProvider = AIProvider.getInstance();

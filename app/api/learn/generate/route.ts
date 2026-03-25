@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Rate limit: 20 generate requests per minute per user
-    checkRateLimitOrThrow(`learn-generate:${userId}`, 20, 60 * 1000);
+    await checkRateLimitOrThrow(`learn-generate:${userId}`, 20, 60 * 1000);
 
     const body = await request.json();
     const parsed = RequestSchema.safeParse(body);

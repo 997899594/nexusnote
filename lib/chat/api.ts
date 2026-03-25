@@ -6,7 +6,7 @@
  */
 
 import type {
-  Conversation,
+  ConversationSummary,
   ConversationsResponse,
   CreateSessionResponse,
   UpdateSessionRequest,
@@ -26,7 +26,7 @@ export async function persistMessages(sessionId: string, messages: unknown[]): P
   }
 }
 
-export async function loadSessions(): Promise<Conversation[]> {
+export async function loadSessions(): Promise<ConversationSummary[]> {
   try {
     const res = await fetch("/api/chat-sessions");
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
@@ -38,7 +38,7 @@ export async function loadSessions(): Promise<Conversation[]> {
   }
 }
 
-export async function createSession(title: string): Promise<Conversation | null> {
+export async function createSession(title: string): Promise<ConversationSummary | null> {
   try {
     const res = await fetch("/api/chat-sessions", {
       method: "POST",

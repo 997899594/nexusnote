@@ -41,24 +41,25 @@ export default function EditorPage() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="flex items-center justify-center min-h-screen"
+        className="flex min-h-screen items-center justify-center bg-[#f6f7f9]"
       >
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-          className="w-8 h-8 border-3 border-[var(--color-border)] border-t-[var(--color-accent)] rounded-full"
+          className="h-8 w-8 rounded-full border-[3px] border-[#d7dde6] border-t-[#111827]"
         />
       </motion.div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[var(--color-surface)] md:bg-[var(--color-bg)]">
+    <div className="min-h-screen bg-[#f6f7f9]">
       {/* 移动端顶部导航 */}
       <MobileHeader
         title={title || "无标题"}
         showBack
         rightAction="custom"
+        rightLabel="保存"
         onRightAction={handleSave}
         className="md:hidden"
       />
@@ -68,55 +69,61 @@ export default function EditorPage() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="hidden md:block max-w-3xl mx-auto px-6 py-8"
+        className="mx-auto hidden max-w-4xl px-6 py-8 md:block"
       >
-        <header className="flex justify-between items-center mb-6">
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="笔记标题"
-            className="text-2xl font-bold bg-transparent border-none outline-none flex-1 text-[var(--color-text)]"
-          />
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={handleSave}
-            className="px-5 py-2 bg-[var(--color-accent)] text-[var(--color-accent-fg)] rounded-lg hover:bg-[var(--color-accent-hover)] transition-colors"
-          >
-            保存
-          </motion.button>
-        </header>
-        {/* 标签栏 */}
-        <TagBar noteId={noteId} />
-        <Editor content={content} onChange={setContent} placeholder="开始写作..." />
-        {/* 标签自动生成触发器 */}
-        <TagGenerationTrigger noteId={noteId} content={content} />
+        <div className="rounded-[28px] bg-white px-8 py-8 shadow-[0_28px_64px_-42px_rgba(15,23,42,0.18)]">
+          <header className="mb-6 flex items-center justify-between gap-6">
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="笔记标题"
+              className="flex-1 border-none bg-transparent text-[1.75rem] font-semibold tracking-tight text-[var(--color-text)] outline-none"
+            />
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={handleSave}
+              className="rounded-2xl bg-[#111827] px-5 py-2.5 text-sm font-medium text-white shadow-[0_18px_36px_-26px_rgba(15,23,42,0.32)] transition-transform"
+            >
+              保存
+            </motion.button>
+          </header>
+          {/* 标签栏 */}
+          <TagBar noteId={noteId} />
+          <Editor content={content} onChange={setContent} placeholder="开始写作..." />
+          {/* 标签自动生成触发器 */}
+          <TagGenerationTrigger noteId={noteId} content={content} />
+        </div>
       </motion.div>
 
       {/* 移动端全屏编辑 */}
       <div className="md:hidden">
         {/* 移动端标题栏 */}
-        <div className="px-4 pt-16 pb-2">
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="无标题"
-            className="w-full text-lg font-semibold bg-transparent border-none outline-none text-[var(--color-text)]"
-          />
-          {/* 移动端标签栏 */}
-          <div className="pt-2">
-            <TagBar noteId={noteId} />
+        <div className="px-4 pb-4 pt-16">
+          <div className="rounded-[24px] bg-white px-4 py-4 shadow-[0_24px_56px_-40px_rgba(15,23,42,0.18)]">
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="无标题"
+              className="w-full border-none bg-transparent text-lg font-semibold text-[var(--color-text)] outline-none"
+            />
+            {/* 移动端标签栏 */}
+            <div className="pt-3">
+              <TagBar noteId={noteId} />
+            </div>
           </div>
         </div>
 
         {/* 编辑区域 */}
-        <div className="px-4 py-4 pb-24">
-          <Editor
-            content={content}
-            onChange={setContent}
-            placeholder="开始写作..."
-            onReady={setEditorInstance}
-          />
+        <div className="px-4 pb-24">
+          <div className="rounded-[24px] bg-white px-4 py-5 shadow-[0_24px_56px_-40px_rgba(15,23,42,0.18)]">
+            <Editor
+              content={content}
+              onChange={setContent}
+              placeholder="开始写作..."
+              onReady={setEditorInstance}
+            />
+          </div>
         </div>
 
         {/* 标签自动生成触发器 */}

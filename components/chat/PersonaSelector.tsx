@@ -29,13 +29,13 @@ const PERSONA_ICONS: Record<string, string> = {
 
 const PERSONA_COLORS: Record<string, string> = {
   default: "bg-[var(--color-hover)] text-[var(--color-text-secondary)]",
-  best_friend: "bg-orange-100 text-orange-700",
-  girlfriend: "bg-pink-100 text-pink-700",
-  gentle_teacher: "bg-green-100 text-green-700",
-  socrates: "bg-purple-100 text-purple-700",
-  steve_jobs: "bg-[var(--color-text)] text-[var(--color-accent-fg)]",
-  gordon: "bg-red-100 text-red-700",
-  clickbait: "bg-yellow-100 text-yellow-700",
+  best_friend: "bg-[#f3f5f8] text-[#111827]",
+  girlfriend: "bg-[#f3f5f8] text-[#111827]",
+  gentle_teacher: "bg-[#f3f5f8] text-[#111827]",
+  socrates: "bg-[#f3f5f8] text-[#111827]",
+  steve_jobs: "bg-[#111827] text-white",
+  gordon: "bg-[#f3f5f8] text-[#111827]",
+  clickbait: "bg-[#f3f5f8] text-[#111827]",
 };
 
 export function PersonaSelector({
@@ -70,8 +70,8 @@ export function PersonaSelector({
               p-3 rounded-lg border-2 transition-all text-left
               ${
                 currentPersonaSlug === persona.slug
-                  ? "border-[var(--color-accent)] bg-[var(--color-accent-light)]"
-                  : "border-[var(--color-border)] hover:border-[var(--color-accent)]"
+                  ? "border-[#111827] bg-[#f6f7f9]"
+                  : "border-[var(--color-border)] hover:border-[#d1d7e0]"
               }
               ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
             `}
@@ -104,7 +104,7 @@ export function PersonaSelector({
             key={persona.id}
             className={`
               flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-all
-              ${currentPersonaSlug === persona.slug ? "bg-[var(--color-accent-light)]" : "hover:bg-[var(--color-hover)]"}
+              ${currentPersonaSlug === persona.slug ? "bg-[#f6f7f9]" : "hover:bg-[#f6f7f9]"}
               ${disabled ? "opacity-50 pointer-events-none" : ""}
             `}
           >
@@ -115,7 +115,7 @@ export function PersonaSelector({
               checked={currentPersonaSlug === persona.slug}
               onChange={() => handleSelect(persona.slug)}
               disabled={disabled}
-              className="w-4 h-4 text-[var(--color-accent)]"
+              className="h-4 w-4 text-[#111827]"
             />
             <span className="text-lg">{persona.avatar || PERSONA_ICONS[persona.slug] || "🤖"}</span>
             <div className="flex-1">
@@ -140,9 +140,9 @@ export function PersonaSelector({
         onClick={() => setIsOpen(!isOpen)}
         disabled={disabled}
         className={`
-          flex items-center gap-2 px-3 py-2 rounded-lg border
+          flex items-center gap-2 rounded-2xl border bg-white px-3 py-2 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.16)]
           ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
-          ${isOpen ? "border-[var(--color-accent)] bg-[var(--color-accent-light)]" : "border-[var(--color-border)] hover:border-[var(--color-accent)]"}
+          ${isOpen ? "border-[#111827] bg-[#f6f7f9]" : "border-[var(--color-border)] hover:border-[#d1d7e0]"}
           transition-colors
         `}
       >
@@ -170,7 +170,7 @@ export function PersonaSelector({
             onClick={() => setIsOpen(false)}
             aria-label="Close dropdown"
           />
-          <div className="absolute z-20 mt-1 w-56 bg-[var(--color-surface)] rounded-lg shadow-[var(--shadow-elevated)] py-1 max-h-80 overflow-y-auto">
+          <div className="absolute z-20 mt-2 max-h-80 w-56 overflow-y-auto rounded-2xl bg-white py-1 shadow-[0_24px_56px_-36px_rgba(15,23,42,0.18)]">
             {personas.map((persona) => (
               <button
                 type="button"
@@ -181,8 +181,8 @@ export function PersonaSelector({
                   w-full flex items-center gap-3 px-3 py-2 text-left transition-colors
                   ${
                     currentPersonaSlug === persona.slug
-                      ? "bg-[var(--color-accent-light)] text-[var(--color-accent)]"
-                      : "hover:bg-[var(--color-hover)]"
+                      ? "bg-[#f6f7f9] text-[#111827]"
+                      : "hover:bg-[#f6f7f9]"
                   }
                   ${disabled ? "opacity-50 cursor-not-allowed" : ""}
                 `}
@@ -202,7 +202,7 @@ export function PersonaSelector({
                 </div>
                 {currentPersonaSlug === persona.slug && (
                   <svg
-                    className="w-4 h-4 text-[var(--color-accent)]"
+                    className="h-4 w-4 text-[#111827]"
                     fill="currentColor"
                     viewBox="0 0 20 20"
                     role="img"

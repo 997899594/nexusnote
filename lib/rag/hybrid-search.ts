@@ -74,12 +74,12 @@ async function vectorSearch(
         source_id,
         source_type,
         content,
-        1 - (embedding <=> ${JSON.stringify(queryEmbedding)}::halfvec) as similarity
+        1 - (embedding <=> ${JSON.stringify(queryEmbedding)}::vector) as similarity
       FROM knowledge_chunks
       WHERE embedding IS NOT NULL
       ${sourceTypeFilter}
       ${userFilter}
-      ORDER BY embedding <=> ${JSON.stringify(queryEmbedding)}::halfvec
+      ORDER BY embedding <=> ${JSON.stringify(queryEmbedding)}::vector
       LIMIT ${topK}
     `);
 

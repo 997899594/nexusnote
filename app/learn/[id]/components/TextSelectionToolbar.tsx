@@ -122,7 +122,7 @@ export function TextSelectionToolbar({
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 5, scale: 0.95 }}
           transition={{ duration: 0.15 }}
-          className="absolute z-50 flex items-center gap-1 bg-zinc-900 rounded-lg px-2 py-1.5 shadow-xl"
+          className="absolute z-50 flex items-center gap-1 rounded-xl bg-white px-2 py-1.5 shadow-[0_24px_56px_-36px_rgba(15,23,42,0.18)]"
           style={{
             top: position.top,
             left: position.left,
@@ -136,7 +136,7 @@ export function TextSelectionToolbar({
                   key={c.value}
                   type="button"
                   onClick={() => handleHighlight(c.value)}
-                  className="w-6 h-6 rounded-full border-2 border-white/20 hover:scale-110 transition-transform"
+                  className="h-6 w-6 rounded-full border-2 border-white/70 transition-transform hover:scale-110"
                   style={{ backgroundColor: c.value }}
                   title={c.name}
                 />
@@ -149,19 +149,19 @@ export function TextSelectionToolbar({
                 onClick={() => setShowColors(true)}
                 className={cn(
                   "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs text-white",
-                  "hover:bg-white/10 transition-colors",
+                  "text-[var(--color-text-secondary)] hover:bg-[#f3f5f8] transition-colors",
                 )}
               >
                 <Highlighter className="w-3.5 h-3.5" />
                 <span>高亮</span>
               </button>
-              <div className="w-px h-4 bg-white/20" />
+              <div className="h-4 w-px bg-black/8" />
               <button
                 type="button"
                 onClick={handleNote}
                 className={cn(
                   "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs text-white",
-                  "hover:bg-white/10 transition-colors",
+                  "text-[var(--color-text-secondary)] hover:bg-[#f3f5f8] transition-colors",
                 )}
               >
                 <StickyNote className="w-3.5 h-3.5" />

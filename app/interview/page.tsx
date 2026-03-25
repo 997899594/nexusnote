@@ -118,7 +118,7 @@ function InterviewContent() {
     (status === "submitted" || status === "streaming") && (!lastMsg || lastMsg.role === "user");
 
   return (
-    <div className="flex h-screen bg-[var(--color-bg)] overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-[#f6f7f9]">
       {/* 左侧大纲面板 - 只在访谈完成后显示 */}
       <AnimatePresence mode="wait">
         {interviewCompleted && (
@@ -146,20 +146,19 @@ function InterviewContent() {
         variants={mainContentVariants}
         initial="full"
         animate={interviewCompleted ? "withPanel" : "full"}
-        className="flex flex-col flex-1 min-w-0 bg-[var(--color-surface)]"
+        className="flex min-w-0 flex-1 flex-col bg-white"
       >
-        {/* Header */}
-        <header className="flex items-center gap-4 px-4 md:px-6 py-4">
+        <header className="flex items-center gap-4 px-4 py-4 md:px-6">
           <Link
             href="/"
-            className="p-2 hover:bg-[var(--color-hover)] rounded-xl transition-colors"
+            className="rounded-xl p-2 transition-colors hover:bg-[#f3f5f8]"
             aria-label="返回首页"
           >
             <ArrowLeft className="w-5 h-5 text-[var(--color-text-tertiary)]" />
           </Link>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[var(--color-accent)] flex items-center justify-center">
-              <GraduationCap className="w-5 h-5 text-[var(--color-accent-fg)]" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#111827]">
+              <GraduationCap className="w-5 h-5 text-white" />
             </div>
             <div>
               <h1 className="font-semibold text-[var(--color-text)]">课程访谈</h1>
@@ -183,7 +182,7 @@ function InterviewContent() {
                             key={dotId}
                             initial={{ scale: 0, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
-                            className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)]"
+                            className="h-1.5 w-1.5 rounded-full bg-[#111827]"
                           />
                         ))}
                       </div>
@@ -198,7 +197,7 @@ function InterviewContent() {
         </header>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto mobile-scroll px-4 md:px-6 py-4">
+        <div className="mobile-scroll flex-1 overflow-y-auto px-4 py-4 md:px-6">
           <div className="max-w-[calc(100vw-32px)] md:max-w-[var(--message-max-width)] mx-auto space-y-4">
             {/* 空状态 */}
             {chatMessages.length === 0 && !isLoading && !started && (
@@ -207,9 +206,9 @@ function InterviewContent() {
                   initial={{ scale: 0.8, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                  className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--color-accent)] flex items-center justify-center"
+                  className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#111827]"
                 >
-                  <GraduationCap className="w-8 h-8 text-[var(--color-accent-fg)]" />
+                  <GraduationCap className="h-8 w-8 text-white" />
                 </motion.div>
                 <motion.h2
                   initial={{ opacity: 0, y: 10 }}
@@ -223,7 +222,7 @@ function InterviewContent() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.15 }}
-                  className="text-sm text-[var(--color-text-tertiary)] mb-6"
+                  className="mb-6 text-sm text-[var(--color-text-tertiary)]"
                 >
                   告诉我你的学习目标，我会为你定制课程
                 </motion.p>
@@ -245,7 +244,7 @@ function InterviewContent() {
                           setStarted(true);
                           sendMessage({ text: example });
                         }}
-                        className="px-4 py-2 bg-[var(--color-hover)] hover:bg-[var(--color-active)] rounded-full text-sm text-[var(--color-text-secondary)] transition-colors"
+                        className="rounded-full bg-[#f3f5f8] px-4 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[#eceff3]"
                       >
                         {example}
                       </motion.button>
@@ -272,11 +271,11 @@ function InterviewContent() {
         </div>
 
         {/* Input */}
-        <div className="bg-[var(--color-surface)] px-4 md:px-6 py-3 md:py-4">
+        <div className="bg-white px-4 py-3 md:px-6 md:py-4">
           <div className="max-w-[calc(100vw-32px)] md:max-w-[var(--message-max-width)] mx-auto">
-            <div className="flex items-end gap-2 md:gap-3 bg-[var(--color-hover)] rounded-2xl p-2 md:p-3">
-              <div className="w-8 h-8 rounded-lg bg-[var(--color-accent)] flex items-center justify-center flex-shrink-0">
-                <GraduationCap className="w-4 h-4 text-[var(--color-accent-fg)]" />
+            <div className="flex items-end gap-2 rounded-2xl bg-[#f7f8fa] p-2 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.14)] md:gap-3 md:p-3">
+              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-[#111827]">
+                <GraduationCap className="w-4 h-4 text-white" />
               </div>
               <textarea
                 value={input}
@@ -294,8 +293,8 @@ function InterviewContent() {
                 className={cn(
                   "w-9 h-9 rounded-full flex items-center justify-center transition-colors flex-shrink-0",
                   input.trim() && !isLoading
-                    ? "bg-[var(--color-accent)] text-[var(--color-accent-fg)]"
-                    : "bg-[var(--color-muted)] text-[var(--color-text-muted)] cursor-not-allowed",
+                    ? "bg-[#111827] text-white"
+                    : "bg-zinc-200 text-[var(--color-text-muted)] cursor-not-allowed",
                 )}
               >
                 {isLoading ? (

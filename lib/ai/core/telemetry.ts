@@ -1,7 +1,7 @@
 import type { LanguageModelUsage } from "ai";
 import { aiUsage, db } from "@/db";
 import type { AgentProfile } from "./capability-profiles";
-import { getModelNameForPolicy, type ModelPolicy } from "./model-policy";
+import { getModelNameForPolicy, getProviderForPolicy, type ModelPolicy } from "./model-policy";
 
 const MODEL_PRICING_USD_PER_1M_TOKENS: Record<string, { input: number; output: number }> = {
   "gemini-3.1-flash-lite-preview": { input: 0.1, output: 0.4 },
@@ -73,6 +73,7 @@ export function getErrorMessage(error: unknown): string {
 export async function recordAIUsage(input: RecordAIUsageInput): Promise<void> {
   const model =
     input.model ?? (input.modelPolicy ? getModelNameForPolicy(input.modelPolicy) : null);
+  const provider = input.modelPolicy ? getProviderForPolicy(input.modelPolicy) : null;
   if (!model) {
     return;
   }
@@ -96,7 +97,10 @@ export async function recordAIUsage(input: RecordAIUsageInput): Promise<void> {
       durationMs: input.durationMs,
       success: input.success ?? true,
       errorMessage: input.errorMessage,
-      metadata: input.metadata,
+      metadata: {
+        ...input.metadata,
+        provider,
+      },
     });
   } catch (error) {
     console.error("[Telemetry] Failed to persist AI usage:", error);

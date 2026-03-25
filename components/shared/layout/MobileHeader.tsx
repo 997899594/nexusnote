@@ -27,6 +27,8 @@ export interface MobileHeaderProps {
   rightAction?: "menu" | "close" | "custom";
   /** 右侧自定义操作 */
   onRightAction?: () => void;
+  /** 右侧自定义文案 */
+  rightLabel?: string;
   /** 滚动时隐藏 (true) 或 固定显示 (false) */
   hideOnScroll?: boolean;
   /** 自定义样式类 */
@@ -41,6 +43,7 @@ export function MobileHeader({
   backConfirm = false,
   rightAction,
   onRightAction,
+  rightLabel,
   hideOnScroll = false,
   className,
   variant = "default",
@@ -75,9 +78,9 @@ export function MobileHeader({
       case "transparent":
         return "bg-transparent";
       case "glass":
-        return "bg-[var(--color-surface)]/80 backdrop-blur-xl shadow-[0_2px_16px_-4px_oklch(0%_0_0/6%)]";
+        return "bg-white/90 backdrop-blur-xl shadow-[0_18px_42px_-34px_rgba(15,23,42,0.18)]";
       default:
-        return "bg-[var(--color-surface)] shadow-[0_2px_16px_-4px_oklch(0%_0_0/6%)]";
+        return "bg-white shadow-[0_18px_42px_-34px_rgba(15,23,42,0.18)]";
     }
   }, [variant]);
 
@@ -97,10 +100,10 @@ export function MobileHeader({
             <motion.button
               whileTap={{ scale: 0.9 }}
               onClick={handleBack}
-              className="touch-target mobile-no-tap-highlight flex items-center justify-center w-10 h-10 -ml-2 rounded-full active:bg-[var(--color-active)] transition-colors"
+              className="touch-target mobile-no-tap-highlight -ml-1 flex h-10 w-10 items-center justify-center rounded-xl text-[var(--color-text-secondary)] transition-colors active:bg-[#eef1f5]"
               aria-label="返回"
             >
-              <ArrowLeft className="w-5 h-5 text-[var(--color-text-secondary)]" />
+              <ArrowLeft className="h-5 w-5" />
             </motion.button>
           )}
         </div>
@@ -120,30 +123,33 @@ export function MobileHeader({
             <motion.button
               whileTap={{ scale: 0.9 }}
               onClick={handleRightAction}
-              className="touch-target mobile-no-tap-highlight flex items-center justify-center w-10 h-10 -mr-2 rounded-full active:bg-[var(--color-active)] transition-colors"
+              className="touch-target mobile-no-tap-highlight -mr-1 flex h-10 w-10 items-center justify-center rounded-xl text-[var(--color-text-secondary)] transition-colors active:bg-[#eef1f5]"
               aria-label="菜单"
             >
-              <Menu className="w-5 h-5 text-[var(--color-text-secondary)]" />
+              <Menu className="h-5 w-5" />
             </motion.button>
           )}
           {rightAction === "close" && (
             <motion.button
               whileTap={{ scale: 0.9 }}
               onClick={handleRightAction}
-              className="touch-target mobile-no-tap-highlight flex items-center justify-center w-10 h-10 -mr-2 rounded-full active:bg-[var(--color-active)] transition-colors"
+              className="touch-target mobile-no-tap-highlight -mr-1 flex h-10 w-10 items-center justify-center rounded-xl text-[var(--color-text-secondary)] transition-colors active:bg-[#eef1f5]"
               aria-label="关闭"
             >
-              <X className="w-5 h-5 text-[var(--color-text-secondary)]" />
+              <X className="h-5 w-5" />
             </motion.button>
           )}
           {rightAction === "custom" && onRightAction && (
             <motion.button
               whileTap={{ scale: 0.9 }}
               onClick={handleRightAction}
-              className="touch-target mobile-no-tap-highlight flex items-center justify-center w-10 h-10 -mr-2 rounded-full active:bg-[var(--color-active)] transition-colors"
+              className={cn(
+                "touch-target mobile-no-tap-highlight -mr-1 flex h-10 min-w-10 items-center justify-center rounded-xl px-3 text-sm font-medium text-[#111827] transition-colors active:bg-[#eef1f5]",
+                !rightLabel && "w-10 px-0",
+              )}
               aria-label="操作"
             >
-              {/* 父组件可传入自定义内容 */}
+              {rightLabel ?? null}
             </motion.button>
           )}
         </div>

@@ -56,7 +56,6 @@ export const POST = withOptionalAuth(async (request, { userId }) => {
         ? firstMessage.slice(0, 30) + (firstMessage.length > 30 ? "..." : "")
         : title,
       intent,
-      messages: [],
       messageCount: 0,
       lastMessageAt: now,
     })

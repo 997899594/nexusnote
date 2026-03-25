@@ -22,7 +22,7 @@ export const defaults = {
 
   // Embedding
   embedding: {
-    model: "Qwen/Qwen3-Embedding-8B",
+    model: "BAAI/bge-base-zh-v1.5",
     dimensions: 4000,
   },
 
@@ -34,14 +34,18 @@ export const defaults = {
 
   // AI Models (2026 Modern Stack - Gemini 3)
   ai: {
-    // 通用模型 - Gemini 3 Flash (速度快、成本低、推理强)
-    model: "gemini-3-flash-preview",
-    // Pro 模型 - Gemini 3 Pro (复杂任务)
-    modelPro: "gemini-3-pro-preview",
+    // 通用模型 - Gemini 3.1 Flash Lite
+    model: "gemini-3.1-flash-lite-preview",
+    // Pro 模型 - Gemini 3.1 Pro
+    modelPro: "gemini-3.1-pro-preview",
     // 联网搜索模型
-    modelWebSearch: "gemini-3-flash-preview-web-search",
+    modelWebSearch: "gemini-3.1-flash-preview-web-search",
     // 302.ai 为首选 Provider
     baseURL: "https://api.302.ai/v1",
+    // Fallback provider defaults
+    fallbackModel: "gpt-4.1-mini",
+    fallbackModelPro: "gpt-4.1",
+    fallbackModelWebSearch: "gpt-4.1-mini",
   },
 
   // Notes / Liquid Knowledge
@@ -93,9 +97,11 @@ export const serverEnvSchema = z.object({
 
   // AI Provider Keys (至少配置一个)
   AI_302_API_KEY: z.string().optional(),
+  AI_302_BASE_URL: z.string().url().default(defaults.ai.baseURL),
   DEEPSEEK_API_KEY: z.string().optional(),
   SILICONFLOW_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
+  OPENAI_BASE_URL: z.string().url().optional(),
   TAVILY_API_KEY: z.string().optional(),
 
   // AI Observability (可选 - Langfuse)
@@ -106,6 +112,9 @@ export const serverEnvSchema = z.object({
   AI_MODEL: z.string().default(defaults.ai.model),
   AI_MODEL_PRO: z.string().default(defaults.ai.modelPro),
   AI_MODEL_WEB_SEARCH: z.string().default(defaults.ai.modelWebSearch),
+  AI_FALLBACK_MODEL: z.string().default(defaults.ai.fallbackModel),
+  AI_FALLBACK_MODEL_PRO: z.string().default(defaults.ai.fallbackModelPro),
+  AI_FALLBACK_MODEL_WEB_SEARCH: z.string().default(defaults.ai.fallbackModelWebSearch),
 
   // AI Features
   AI_ENABLE_WEB_SEARCH: z
@@ -254,6 +263,9 @@ export function parseClientEnv(env: Record<string, string | undefined> = {}): Cl
   return result.data;
 }
 
+let cachedServerEnv: ServerEnv | null = null;
+let cachedClientEnv: ClientEnv | null = null;
+
 export const env = new Proxy({} as ServerEnv, {
   get(_target, prop) {
     if (typeof prop !== "string") return undefined;
@@ -274,17 +286,21 @@ export const env = new Proxy({} as ServerEnv, {
       return undefined;
     }
 
-    // Lazy initialization on first access
-    const parsed = parseServerEnv(process.env);
-    return Reflect.get(parsed, prop);
+    if (!cachedServerEnv) {
+      cachedServerEnv = parseServerEnv(process.env);
+    }
+
+    return Reflect.get(cachedServerEnv, prop);
   },
 });
 
 export const clientEnv = new Proxy({} as ClientEnv, {
   get(_target, prop) {
     if (typeof prop !== "string") return undefined;
-    const parsed = parseClientEnv();
-    return Reflect.get(parsed, prop);
+    if (!cachedClientEnv) {
+      cachedClientEnv = parseClientEnv();
+    }
+    return Reflect.get(cachedClientEnv, prop);
   },
 });
 

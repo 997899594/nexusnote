@@ -47,8 +47,8 @@ export function ChatMessage({ message, onSendReply, isStreaming }: ChatMessagePr
         className={cn(
           "max-w-[var(--message-max-width)] px-4 py-3 rounded-2xl text-sm",
           isUser
-            ? "bg-[var(--color-accent)] text-[var(--color-accent-fg)] rounded-br-md"
-            : "bg-[var(--color-hover)] text-[var(--color-text)] rounded-bl-md",
+            ? "rounded-br-md bg-[#111827] text-white shadow-[0_18px_36px_-28px_rgba(15,23,42,0.28)]"
+            : "rounded-bl-md bg-[#f3f5f8] text-[var(--color-text)]",
         )}
       >
         {isUser ? (
@@ -82,7 +82,7 @@ export function LoadingDots({ className }: LoadingDotsProps) {
       animate={{ opacity: 1, y: 0 }}
       className={cn("flex justify-start", className)}
     >
-      <div className="bg-[var(--color-hover)] px-4 py-3 rounded-2xl rounded-bl-md">
+      <div className="rounded-2xl rounded-bl-md bg-[#f3f5f8] px-4 py-3">
         <div className="flex gap-1">
           {[0, 1, 2].map((i) => (
             <motion.span

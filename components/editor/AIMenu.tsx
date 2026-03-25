@@ -51,14 +51,14 @@ export function AIMenu({ onAction, selectedText = "" }: AIMenuProps) {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="inline-flex items-center gap-1.5 px-4 py-2 font-medium text-white border rounded-lg cursor-pointer bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 border-white/20"
+        className="inline-flex cursor-pointer items-center gap-1.5 rounded-2xl bg-[#111827] px-4 py-2 text-sm font-medium text-white shadow-[0_18px_36px_-28px_rgba(15,23,42,0.32)]"
       >
         <span>✨</span>
         <span>AI</span>
       </button>
       {isOpen && (
-        <div className="absolute left-0 z-50 min-w-[240px] mt-2 overflow-hidden bg-[var(--color-surface)] rounded-xl shadow-[var(--shadow-elevated)] top-full">
-          <div className="px-3 py-2 text-xs font-medium text-[var(--color-text-secondary)] bg-[var(--color-hover)]">
+        <div className="absolute left-0 top-full z-50 mt-2 min-w-[240px] overflow-hidden rounded-2xl bg-white shadow-[0_24px_56px_-36px_rgba(15,23,42,0.18)]">
+          <div className="bg-[#f6f7f9] px-3 py-2 text-xs font-medium text-[var(--color-text-secondary)]">
             选择 AI 操作
           </div>
           {actions.map((action) => (
@@ -66,12 +66,14 @@ export function AIMenu({ onAction, selectedText = "" }: AIMenuProps) {
               type="button"
               key={action.id}
               onClick={() => handleAction(action.id)}
-              className="w-full inline-flex items-center gap-3 px-4 py-3 text-left border-none bg-transparent cursor-pointer hover:bg-[var(--color-hover)] transition-colors"
+              className="inline-flex w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 py-3 text-left transition-colors hover:bg-[#f6f7f9]"
             >
               <span className="text-lg">{action.icon}</span>
               <div>
-                <div className="text-sm font-medium">{action.label}</div>
-                <div className="text-xs text-text-secondary">{action.description}</div>
+                <div className="text-sm font-medium text-[var(--color-text)]">{action.label}</div>
+                <div className="text-xs text-[var(--color-text-secondary)]">
+                  {action.description}
+                </div>
               </div>
             </button>
           ))}
@@ -97,7 +99,7 @@ export function AIQuickActions({ onAction }: { onAction: (action: AIAction) => v
           key={action.id}
           onClick={() => onAction(action.id as AIAction)}
           title={action.id}
-          className="px-2.5 py-1.5 text-base bg-white border rounded-md cursor-pointer border-border hover:bg-hover"
+          className="cursor-pointer rounded-xl bg-white px-2.5 py-1.5 text-base shadow-[0_12px_28px_-24px_rgba(15,23,42,0.18)] transition-colors hover:bg-[#f6f7f9]"
         >
           {action.icon}
         </button>

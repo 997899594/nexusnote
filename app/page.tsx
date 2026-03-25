@@ -1,5 +1,4 @@
-import { Suspense } from "react";
-import { HeroInput, RecentSectionServer } from "@/components/home";
+import { HeroInput } from "@/components/home";
 import { FloatingHeader } from "@/components/shared/layout";
 
 export default function HomePage() {
@@ -7,39 +6,32 @@ export default function HomePage() {
     <main className="min-h-screen bg-[var(--color-bg)] safe-top">
       <FloatingHeader />
 
-      <div className="max-w-4xl mx-auto px-4 md:px-6 pt-20 md:pt-28 pb-16 md:pb-20">
-        <header className="mb-10 md:mb-14">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-[var(--color-text)] mb-2 md:mb-3 tracking-tight">
-            你的私人学习顾问
-          </h1>
-          <p className="text-base md:text-lg text-[var(--color-text-tertiary)]">
-            让 AI 为你规划、记忆、测评
-          </p>
-        </header>
+      <div className="ui-page-shell relative overflow-hidden">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.85),transparent_70%)]" />
 
-        <div className="mb-10 md:mb-14">
-          <HeroInput />
+        <div className="relative mx-auto max-w-6xl px-4 pb-28 pt-20 md:px-6 md:pb-20 md:pt-32">
+          <header className="mb-8 max-w-3xl md:mb-12">
+            <div className="ui-badge-pill inline-flex items-center gap-2 px-3 py-1.5 text-[11px] uppercase tracking-[0.22em] text-black/45">
+              <span className="ui-strong-chip h-1.5 w-1.5 rounded-full" />
+              学习课程
+            </div>
+
+            <h1 className="mt-4 max-w-[10.5ch] text-[2.45rem] font-semibold leading-[0.96] tracking-[-0.06em] text-black/90 sm:text-4xl md:mt-5 md:max-w-[11.5ch] md:text-[3.4rem] lg:text-[4.2rem]">
+              输入学习目标，
+              <br />
+              直接开始课程。
+            </h1>
+
+            <p className="mt-4 max-w-2xl text-[15px] leading-7 text-black/55 md:text-lg md:leading-8">
+              NexusNote 会先通过课程访谈澄清方向，再生成课程内容，并保留你的学习进度。
+            </p>
+          </header>
+
+          <div className="mb-10 md:mb-14">
+            <HeroInput />
+          </div>
         </div>
-
-        <Suspense fallback={<RecentSkeleton />}>
-          <RecentSectionServer />
-        </Suspense>
       </div>
     </main>
-  );
-}
-
-function RecentSkeleton() {
-  return (
-    <section className="mb-14">
-      <div className="flex items-center justify-between mb-5">
-        <h2 className="font-medium text-[var(--color-text-secondary)]">最近</h2>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {[1, 2, 3, 4, 5, 6].map((i) => (
-          <div key={i} className="h-28 bg-[var(--color-hover)] rounded-xl animate-pulse" />
-        ))}
-      </div>
-    </section>
   );
 }

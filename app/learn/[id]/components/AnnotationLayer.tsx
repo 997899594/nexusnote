@@ -143,7 +143,7 @@ export function AnnotationLayer({
           {h.type === "note" && h.rects.length > 0 && (
             <button
               type="button"
-              className="absolute pointer-events-auto w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-sm hover:scale-110 transition-transform"
+              className="ui-primary-button absolute pointer-events-auto flex h-5 w-5 items-center justify-center rounded-full text-white hover:scale-110 transition-transform"
               style={{
                 top: h.rects[0].top - 4,
                 left: h.rects[0].left + h.rects[0].width + 4,
@@ -161,7 +161,7 @@ export function AnnotationLayer({
                 initial={{ opacity: 0, y: -5 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -5 }}
-                className="absolute pointer-events-auto z-40 bg-white rounded-lg shadow-lg border border-zinc-200 p-3 max-w-[280px]"
+                className="absolute pointer-events-auto z-40 max-w-[280px] rounded-2xl bg-white p-3 shadow-[0_24px_56px_-36px_rgba(15,23,42,0.18)]"
                 style={{
                   top: h.rects[0].top + h.rects[0].height + 8,
                   left: h.rects[0].left,
@@ -172,7 +172,7 @@ export function AnnotationLayer({
                   <button
                     type="button"
                     onClick={() => onRemove(h.id)}
-                    className="text-zinc-400 hover:text-red-500 transition-colors"
+                    className="text-zinc-400 transition-colors hover:text-zinc-700"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>

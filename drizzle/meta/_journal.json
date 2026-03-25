@@ -22,6 +22,20 @@
       "when": 1774260000000,
       "tag": "0002_add-ai-usage-telemetry-columns",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1774432989173,
+      "tag": "0003_add-vector-hnsw-indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1774434194987,
+      "tag": "0004_add-conversation-messages",
+      "breakpoints": true
     }
   ]
 }

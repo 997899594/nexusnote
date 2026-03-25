@@ -7,8 +7,13 @@
  */
 
 import type { UIMessage } from "ai";
-import { conversations, db, eq } from "@/db";
+import { conversationMessages, conversations, db, eq } from "@/db";
 import { withDynamicOptionalAuth } from "@/lib/api";
+import {
+  buildConversationMessageRows,
+  loadConversationMessages,
+} from "@/lib/chat/conversation-messages";
+import { buildPersistedMessageSnapshot } from "@/lib/chat/session-messages";
 
 interface UpdateSessionBody {
   title?: string;
@@ -30,7 +35,9 @@ export const GET = withDynamicOptionalAuth<{ id: string }>(async (_request, { us
     return Response.json({ error: "Unauthorized" }, { status: 403 });
   }
 
-  return Response.json({ session: conv });
+  const messages = await loadConversationMessages(id);
+
+  return Response.json({ session: { ...conv, messages } });
 });
 
 export const PATCH = withDynamicOptionalAuth<{ id: string }>(
@@ -60,18 +67,54 @@ export const PATCH = withDynamicOptionalAuth<{ id: string }>(
 
     if (title !== undefined) updates.title = title;
     if (messages !== undefined) {
-      updates.messages = messages;
+      const snapshot = buildPersistedMessageSnapshot(messages);
+
       updates.messageCount = messages.length;
       updates.lastMessageAt = new Date();
+
+      if (snapshot.trimmed && summary === undefined && !existing.summary) {
+        updates.summary = "较早的对话内容已折叠，仅保留最近消息。";
+      }
     }
     if (summary !== undefined) updates.summary = summary;
     if (isArchived !== undefined) updates.isArchived = isArchived;
 
-    const [updated] = await db
-      .update(conversations)
-      .set(updates)
-      .where(eq(conversations.id, id))
-      .returning();
+    const updated = await db.transaction(async (tx) => {
+      const [conversation] = await tx
+        .update(conversations)
+        .set(updates)
+        .where(eq(conversations.id, id))
+        .returning();
+
+      if (!conversation) {
+        return null;
+      }
+
+      if (messages !== undefined) {
+        const snapshot = buildPersistedMessageSnapshot(messages);
+        const rows = buildConversationMessageRows({
+          conversationId: id,
+          messages: snapshot.messages,
+        });
+
+        await tx.delete(conversationMessages).where(eq(conversationMessages.conversationId, id));
+
+        if (rows.length > 0) {
+          await tx.insert(conversationMessages).values(rows);
+        }
+
+        return {
+          ...conversation,
+          messages: snapshot.messages,
+        };
+      }
+
+      const persistedMessages = await loadConversationMessages(id);
+      return {
+        ...conversation,
+        messages: persistedMessages,
+      };
+    });
 
     return Response.json({ session: updated });
   },

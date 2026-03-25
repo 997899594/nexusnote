@@ -49,6 +49,10 @@ database:
   storage: "10Gi"
   backupStorage: "5Gi"
 
+# 数据库迁移 Job（迁移已由 Juanie release 编排，默认关闭）
+migrationJob:
+  enabled: false
+
 # Redis 配置
 redis:
   enabled: true

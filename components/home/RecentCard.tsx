@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import {
+  ArrowUpRight,
   BookOpen,
   FileText,
   GraduationCap,
@@ -38,20 +39,32 @@ export function RecentCard({ title, desc, iconName, time, url }: RecentCardProps
   };
 
   return (
-    <motion.div
+    <motion.button
+      type="button"
       whileHover={{ y: -2 }}
       whileTap={{ scale: 0.98 }}
       onClick={handleClick}
-      className="bg-[var(--color-surface)] rounded-2xl p-4 md:p-5 cursor-pointer transition-all duration-200 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] active:scale-[0.98] touch-target"
+      className="touch-target ui-surface-card w-full rounded-[28px] p-4 text-left transition-all duration-200 hover:[box-shadow:var(--shadow-soft-panel-hover)] active:scale-[0.98] md:p-5"
     >
-      <div className="flex items-start justify-between mb-3">
-        <div className="w-10 h-10 rounded-xl bg-[var(--color-hover)] flex items-center justify-center">
-          <Icon className="w-4 h-4 text-[var(--color-text-tertiary)]" />
+      <div className="mb-4 flex items-start justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="ui-icon-chip flex h-11 w-11 items-center justify-center">
+            <Icon className="h-4 w-4 text-[var(--color-text-tertiary)]" />
+          </div>
+          <div className="ui-surface-soft rounded-full px-2.5 py-1 text-[11px] text-[var(--color-text-secondary)]">
+            课程
+          </div>
         </div>
         <span className="text-xs text-[var(--color-text-muted)]">{time}</span>
       </div>
-      <h3 className="font-medium text-sm text-[var(--color-text)] mb-0.5">{title}</h3>
-      <p className="text-xs text-[var(--color-text-muted)]">{desc}</p>
-    </motion.div>
+
+      <h3 className="mb-2 text-sm font-medium text-[var(--color-text)] md:text-[15px]">{title}</h3>
+      <p className="text-xs leading-6 text-[var(--color-text-muted)] md:text-sm">{desc}</p>
+
+      <div className="mt-5 flex items-center justify-between text-xs text-[var(--color-text-secondary)]">
+        <span>继续学习</span>
+        <ArrowUpRight className="h-3.5 w-3.5" />
+      </div>
+    </motion.button>
   );
 }

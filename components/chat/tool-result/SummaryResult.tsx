@@ -17,8 +17,8 @@ export function SummaryResult({ output }: SummaryResultProps) {
 
   if (!output.success || !output.summary) {
     return (
-      <div className="mt-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
-        <p className="text-sm text-red-600">{output.error || "摘要生成失败"}</p>
+      <div className="mt-2 rounded-2xl bg-[#f6f7f9] p-3">
+        <p className="text-sm text-zinc-600">{output.error || "摘要生成失败"}</p>
       </div>
     );
   }
@@ -31,10 +31,10 @@ export function SummaryResult({ output }: SummaryResultProps) {
   };
 
   return (
-    <div className="mt-2 p-3 bg-[var(--color-accent-light)] rounded-lg border border-[var(--color-accent)]/20">
+    <div className="mt-2 rounded-2xl bg-[#f6f7f9] p-3">
       <div className="flex items-center gap-2 mb-2">
-        <FileText className="w-4 h-4 text-[var(--color-accent)]" />
-        <span className="text-sm font-medium text-[var(--color-accent)]">
+        <FileText className="h-4 w-4 text-[#111827]" />
+        <span className="text-sm font-medium text-[#111827]">
           摘要 ({styleLabels[summary.style]})
         </span>
       </div>
@@ -47,7 +47,7 @@ export function SummaryResult({ output }: SummaryResultProps) {
         <button
           type="button"
           onClick={() => setExpanded(!expanded)}
-          className="mt-2 flex items-center gap-1 text-xs text-[var(--color-accent)] hover:text-[var(--color-accent-hover)]"
+          className="mt-2 flex items-center gap-1 text-xs text-[#111827] hover:text-zinc-700"
         >
           {expanded ? (
             <>

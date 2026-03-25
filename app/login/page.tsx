@@ -72,23 +72,22 @@ function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg)] flex items-center justify-center p-4">
+    <div className="ui-page-shell flex min-h-screen items-center justify-center p-4">
       <motion.div
         initial={{ opacity: 0, y: 20, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.4, ease: "easeOut" }}
-        className="max-w-md w-full bg-[var(--color-surface)] rounded-2xl shadow-[var(--shadow-elevated)] overflow-hidden"
+        className="ui-surface-card-lg w-full max-w-md overflow-hidden rounded-3xl"
       >
         <div className="p-8">
-          {/* Logo */}
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.15, type: "spring", stiffness: 200 }}
             className="flex justify-center mb-6"
           >
-            <div className="p-3 bg-[var(--color-accent)] rounded-xl shadow-lg">
-              <Brain className="w-8 h-8 text-[var(--color-accent-fg)]" />
+            <div className="ui-primary-button rounded-2xl p-3">
+              <Brain className="w-8 h-8 text-white" />
             </div>
           </motion.div>
 
@@ -103,8 +102,8 @@ function LoginForm() {
                 className="text-center"
               >
                 <div className="flex justify-center mb-4">
-                  <div className="w-16 h-16 rounded-full bg-[var(--color-accent-subtle)] flex items-center justify-center">
-                    <CheckCircle2 className="w-8 h-8 text-[var(--color-accent)]" />
+                  <div className="ui-surface-soft flex h-16 w-16 items-center justify-center rounded-full">
+                    <CheckCircle2 className="w-8 h-8 text-[#111827]" />
                   </div>
                 </div>
                 <h2 className="text-xl font-bold text-[var(--color-text)] mb-2">查收邮件</h2>
@@ -129,21 +128,25 @@ function LoginForm() {
                 </button>
               </motion.div>
             ) : (
-              /* ── Login form ── */
               <motion.div
                 key="form"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
               >
-                <h1 className="text-2xl font-bold text-center text-[var(--color-text)] mb-1">
-                  NexusNote
-                </h1>
-                <p className="text-[var(--color-text-tertiary)] text-center text-sm mb-8">
-                  AI-powered second brain
-                </p>
+                <div className="mb-8 text-center">
+                  <div className="ui-surface-soft inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] uppercase tracking-[0.22em] text-black/45">
+                    <span className="ui-strong-chip h-1.5 w-1.5 rounded-full" />
+                    学习账户
+                  </div>
+                  <h1 className="mt-5 text-2xl font-semibold tracking-[-0.04em] text-[var(--color-text)]">
+                    登录后继续学习
+                  </h1>
+                  <p className="mt-2 text-sm leading-7 text-[var(--color-text-tertiary)]">
+                    登录你的 NexusNote 账户，继续课程、笔记和学习进度。
+                  </p>
+                </div>
 
-                {/* Magic Link form */}
                 <form onSubmit={handleMagicLink} className="space-y-3">
                   <div className="relative">
                     <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)]" />
@@ -154,10 +157,9 @@ function LoginForm() {
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="输入邮箱"
                       className={cn(
-                        "w-full pl-10 pr-4 py-3 rounded-xl border bg-[var(--color-surface)]",
+                        "w-full rounded-xl bg-[#f7f8fa] pl-10 pr-4 py-3",
                         "text-[var(--color-text)] placeholder:text-[var(--color-text-muted)]",
-                        "border-[var(--color-border)] focus:border-[var(--color-accent)]",
-                        "focus:ring-2 focus:ring-[var(--color-accent)]/20 outline-none transition-all",
+                        "focus:ring-2 focus:ring-[var(--color-accent)]/15 outline-none transition-all",
                       )}
                     />
                   </div>
@@ -171,8 +173,7 @@ function LoginForm() {
                     disabled={loading || !email}
                     className={cn(
                       "w-full py-3 px-4 rounded-xl font-medium text-sm transition-all",
-                      "bg-[var(--color-accent)] text-[var(--color-accent-fg)]",
-                      "hover:bg-[var(--color-accent-hover)]",
+                      "ui-primary-button",
                       "disabled:opacity-50 disabled:cursor-not-allowed",
                       "flex items-center justify-center gap-2",
                     )}
@@ -181,15 +182,14 @@ function LoginForm() {
                   </motion.button>
                 </form>
 
-                {/* GitHub OAuth */}
                 {process.env.NEXT_PUBLIC_GITHUB_ENABLED === "true" && (
                   <>
                     <div className="relative my-6">
                       <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-[var(--color-border)]" />
+                        <div className="w-full border-t border-black/8" />
                       </div>
                       <div className="relative flex justify-center">
-                        <span className="px-3 text-xs text-[var(--color-text-muted)] bg-[var(--color-surface)]">
+                        <span className="bg-white px-3 text-xs text-[var(--color-text-muted)]">
                           或
                         </span>
                       </div>
@@ -202,8 +202,7 @@ function LoginForm() {
                       onClick={() => signIn("github", { callbackUrl })}
                       className={cn(
                         "w-full flex items-center justify-center gap-2.5 px-4 py-3",
-                        "border border-[var(--color-border)] rounded-xl",
-                        "hover:bg-[var(--color-hover)] transition-colors",
+                        "rounded-xl bg-[#f7f8fa] hover:bg-[#eef1f5] transition-colors",
                         "text-sm font-medium text-[var(--color-text-secondary)]",
                       )}
                     >
@@ -213,7 +212,6 @@ function LoginForm() {
                   </>
                 )}
 
-                {/* Dev login — development only */}
                 {process.env.NODE_ENV === "development" && (
                   <div className="mt-8">
                     <button
@@ -240,8 +238,7 @@ function LoginForm() {
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="demo@example.com"
                             className={cn(
-                              "w-full px-3 py-2 rounded-lg border text-sm",
-                              "border-[var(--color-border)] bg-[var(--color-bg)]",
+                              "w-full rounded-lg bg-[#f7f8fa] px-3 py-2 text-sm",
                               "text-[var(--color-text)] placeholder:text-[var(--color-text-muted)]",
                               "focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]",
                             )}
@@ -252,8 +249,7 @@ function LoginForm() {
                             onChange={(e) => setDevName(e.target.value)}
                             placeholder="名字（可选）"
                             className={cn(
-                              "w-full px-3 py-2 rounded-lg border text-sm",
-                              "border-[var(--color-border)] bg-[var(--color-bg)]",
+                              "w-full rounded-lg bg-[#f7f8fa] px-3 py-2 text-sm",
                               "text-[var(--color-text)] placeholder:text-[var(--color-text-muted)]",
                               "focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]",
                             )}
@@ -263,8 +259,8 @@ function LoginForm() {
                             disabled={loading || !email}
                             className={cn(
                               "w-full py-2 rounded-lg text-sm font-medium transition-colors",
-                              "bg-[var(--color-muted)] text-[var(--color-text-secondary)]",
-                              "hover:bg-[var(--color-hover)] disabled:opacity-50",
+                              "bg-[#f3f5f8] text-[var(--color-text-secondary)]",
+                              "hover:bg-[#eceff3] disabled:opacity-50",
                             )}
                           >
                             直接登录（Dev）

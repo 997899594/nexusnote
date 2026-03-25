@@ -23,14 +23,13 @@ export interface Command {
 export type ConversationIntent = "CHAT" | "INTERVIEW" | "COURSE" | "RAG";
 
 /**
- * 数据库会话类型 - 与 Drizzle schema 匹配
+ * 会话列表项
  */
-export interface Conversation {
+export interface ConversationSummary {
   id: string;
   userId: string | null;
   title: string;
   intent: ConversationIntent;
-  messages: UIMessage[] | unknown; // 数据库存储为 jsonb
   messageCount: number;
   summary: string | null;
   lastMessageAt: Date | null;
@@ -42,10 +41,18 @@ export interface Conversation {
 }
 
 /**
+ * 会话详情
+ * messages 由 conversation_messages 聚合而来，不直接来自 conversations 单表
+ */
+export interface Conversation extends ConversationSummary {
+  messages: UIMessage[] | unknown;
+}
+
+/**
  * 会话列表响应
  */
 export interface ConversationsResponse {
-  sessions: Conversation[];
+  sessions: ConversationSummary[];
 }
 
 /**
@@ -61,7 +68,7 @@ export interface CreateSessionRequest {
  * 创建会话响应
  */
 export interface CreateSessionResponse {
-  session: Conversation;
+  session: ConversationSummary;
   pendingMessage: string | null;
 }
 

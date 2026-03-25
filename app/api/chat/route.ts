@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     const rateLimitId = userId ?? `guest:${guestKey}`;
 
     // Rate Limiting
-    checkRateLimitOrThrow(rateLimitId, 100, 60 * 1000, "请求过于频繁，请稍后再试");
+    await checkRateLimitOrThrow(rateLimitId, 100, 60 * 1000, "请求过于频繁，请稍后再试");
 
     let body: unknown;
     try {
@@ -171,9 +171,15 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
+  const providerStatus = aiProvider.getStatus();
   return NextResponse.json({
     status: "ok",
-    ai: { configured: aiProvider.isConfigured(), provider: "302.ai" },
+    ai: {
+      configured: aiProvider.isConfigured(),
+      primaryProvider: providerStatus.primaryProvider,
+      providers: providerStatus.providers,
+      fallbackEnabled: providerStatus.fallbackEnabled,
+    },
     timestamp: new Date().toISOString(),
   });
 }

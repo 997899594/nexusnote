@@ -32,8 +32,8 @@ export function InterviewMessage({ message, onSendReply, isStreaming }: Intervie
         className={cn(
           "max-w-[var(--message-max-width)] px-4 py-3 rounded-2xl text-sm",
           isUser
-            ? "bg-[var(--color-accent)] text-[var(--color-accent-fg)] rounded-br-md"
-            : "bg-[var(--color-hover)] text-[var(--color-text)] rounded-bl-md",
+            ? "rounded-br-md bg-[#111827] text-white"
+            : "rounded-bl-md bg-[#f3f5f8] text-[var(--color-text)]",
         )}
       >
         {isUser ? (

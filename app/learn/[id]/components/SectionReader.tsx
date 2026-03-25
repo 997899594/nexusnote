@@ -43,7 +43,7 @@ function NoteInputDialog({
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-white rounded-xl shadow-xl p-4 w-80"
+        className="w-80 rounded-2xl bg-white p-4 shadow-[0_24px_56px_-36px_rgba(15,23,42,0.18)]"
       >
         <h3 className="text-sm font-semibold text-zinc-900 mb-2">添加笔记</h3>
         <textarea
@@ -51,7 +51,7 @@ function NoteInputDialog({
           onChange={(e) => setText(e.target.value)}
           placeholder="写下你的想法..."
           rows={3}
-          className="w-full border border-zinc-200 rounded-lg p-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
+          className="w-full resize-none rounded-xl border border-zinc-200 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
         />
         <div className="flex justify-end gap-2 mt-3">
           <button
@@ -164,7 +164,7 @@ function SectionBlock({
           <div
             className={cn(
               "flex items-center gap-1.5 px-2 py-1 rounded-full",
-              "bg-[var(--color-accent-subtle)] text-[var(--color-accent)]",
+              "bg-[#eef1f5] text-[#111827]",
               "transition-all duration-200 cursor-default",
             )}
           >
@@ -191,8 +191,8 @@ function SectionBlock({
             animate={{ opacity: 1, y: 0 }}
             className="flex flex-col items-center py-16"
           >
-            <div className="w-14 h-14 rounded-2xl bg-[var(--color-accent-subtle)] flex items-center justify-center mb-4">
-              <BookOpen className="w-6 h-6 text-[var(--color-accent)]" />
+            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#eef1f5]">
+              <BookOpen className="h-6 w-6 text-[#111827]" />
             </div>
             <p className="text-sm text-[var(--color-text-secondary)] mb-4">{sectionTitle}</p>
             <button
@@ -200,8 +200,8 @@ function SectionBlock({
               onClick={() => generateSection(sectionIndex)}
               className={cn(
                 "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
-                "bg-[var(--color-accent)] text-white",
-                "hover:bg-[var(--color-accent-hover)] hover:shadow-md",
+                "bg-[#111827] text-white",
+                "hover:bg-zinc-800 hover:shadow-md",
                 "active:scale-[0.98]",
               )}
             >
@@ -218,8 +218,8 @@ function SectionBlock({
             className="flex flex-col items-center py-16 gap-3"
           >
             <div className="relative">
-              <div className="w-10 h-10 rounded-xl bg-[var(--color-accent-subtle)] flex items-center justify-center">
-                <Loader2 className="w-5 h-5 text-[var(--color-accent)] animate-spin" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#eef1f5]">
+                <Loader2 className="h-5 w-5 animate-spin text-[#111827]" />
               </div>
             </div>
             <p className="text-sm text-[var(--color-text-secondary)]">
@@ -229,7 +229,7 @@ function SectionBlock({
               {[0, 1, 2].map((i) => (
                 <motion.div
                   key={i}
-                  className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)]"
+                  className="h-1.5 w-1.5 rounded-full bg-[#111827]"
                   animate={{ opacity: [0.3, 1, 0.3] }}
                   transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
                 />
@@ -251,22 +251,21 @@ function SectionBlock({
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-4 py-5 px-5 bg-red-50 rounded-xl border border-red-100"
+            className="flex items-center gap-4 rounded-xl bg-[#f6f7f9] px-5 py-5"
           >
-            <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
-              <AlertCircle className="w-5 h-5 text-red-500" />
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-[0_12px_28px_-24px_rgba(15,23,42,0.14)]">
+              <AlertCircle className="h-5 w-5 text-zinc-500" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-red-700">生成失败</p>
-              <p className="text-xs text-red-500 mt-0.5">{state.error ?? "请稍后重试"}</p>
+              <p className="text-sm font-medium text-zinc-700">生成失败</p>
+              <p className="mt-0.5 text-xs text-zinc-500">{state.error ?? "请稍后重试"}</p>
             </div>
             <button
               type="button"
               onClick={() => generateSection(sectionIndex)}
               className={cn(
-                "flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg transition-all",
-                "bg-white border border-red-200 text-red-600",
-                "hover:bg-red-50 hover:border-red-300",
+                "flex items-center gap-1.5 rounded-xl bg-white px-4 py-2 text-xs font-medium text-[var(--color-text-secondary)] shadow-[0_12px_28px_-24px_rgba(15,23,42,0.14)] transition-all",
+                "hover:bg-[#f8fafc]",
               )}
             >
               <RefreshCw className="w-3.5 h-3.5" />
@@ -394,7 +393,7 @@ export function SectionReader({
         {!isZenMode && (
           <div className="mb-10">
             <div className="flex items-center gap-2.5 mb-3">
-              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--color-accent)] bg-[var(--color-accent-subtle)] px-2.5 py-1 rounded-full">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eef1f5] px-2.5 py-1 text-xs font-semibold text-[#111827]">
                 <Sparkles className="w-3 h-3" />第 {currentChapterIndex + 1} 章
               </span>
             </div>

@@ -159,7 +159,7 @@ function MasteryNode({ data, selected }: MasteryNodeProps) {
     <div
       className={cn(
         "px-4 py-3 rounded-xl shadow-sm transition-all min-w-[140px]",
-        selected && "ring-2 ring-offset-2 ring-[var(--color-accent)]",
+        selected && "ring-2 ring-offset-2 ring-[#111827]/20",
         data.level >= 5 && "skill-pulse-glow",
       )}
       style={{
@@ -222,17 +222,17 @@ function SuggestedNode({ data, selected }: SuggestedNodeProps) {
       type="button"
       onClick={() => router.push(`/?topic=${encodeURIComponent(data.name)}`)}
       className={cn(
-        "px-3 py-2.5 rounded-lg border border-dashed shadow-sm transition-all min-w-[120px] text-left",
-        "bg-white/70 border-zinc-300 hover:bg-white hover:border-[var(--color-accent)] hover:shadow-md",
+        "min-w-[120px] rounded-2xl border border-dashed border-zinc-300 bg-white/80 px-3 py-2.5 text-left shadow-[0_12px_28px_-24px_rgba(15,23,42,0.14)] transition-all",
+        "hover:border-zinc-400 hover:bg-white hover:shadow-[0_18px_36px_-28px_rgba(15,23,42,0.18)]",
         "cursor-pointer",
-        selected && "ring-2 ring-offset-2 ring-[var(--color-accent)]",
+        selected && "ring-2 ring-offset-2 ring-[#111827]/20",
       )}
     >
       <div className="flex items-center gap-2">
         <IconComponent className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />
         <span className="font-medium text-xs text-zinc-600 truncate">{data.name}</span>
       </div>
-      <div className="text-[10px] text-[var(--color-accent)] mt-0.5 font-medium">
+      <div className="mt-0.5 text-[10px] font-medium text-zinc-500">
         {data.description ? `下一步: ${data.description}` : "推荐学习"}
       </div>
     </button>
@@ -342,7 +342,7 @@ export function SkillGraph({ userId: _userId, className, onDiscover }: SkillGrap
 
   if (loading) {
     return (
-      <div className={cn("bg-white rounded-xl shadow-[var(--shadow-card)] p-6", className)}>
+      <div className={cn("ui-surface-card rounded-2xl p-6", className)}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-zinc-800">技能图谱</h3>
         </div>
@@ -358,7 +358,7 @@ export function SkillGraph({ userId: _userId, className, onDiscover }: SkillGrap
 
   if (error || !graphData || graphData.nodes.length === 0) {
     return (
-      <div className={cn("bg-white rounded-xl shadow-[var(--shadow-card)] p-6", className)}>
+      <div className={cn("ui-surface-card rounded-2xl p-6", className)}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-zinc-800">技能图谱</h3>
         </div>
@@ -368,7 +368,7 @@ export function SkillGraph({ userId: _userId, className, onDiscover }: SkillGrap
           <button
             type="button"
             onClick={handleDiscover}
-            className="px-4 py-2 bg-[var(--color-accent)] text-white rounded-lg hover:bg-[var(--color-accent-hover)] transition-colors flex items-center gap-2"
+            className="ui-primary-button flex items-center gap-2 rounded-xl px-4 py-2 text-white transition-opacity hover:opacity-95"
           >
             <LucideIcons.Wand2 className="w-4 h-4" />
             发现我的技能
@@ -379,9 +379,7 @@ export function SkillGraph({ userId: _userId, className, onDiscover }: SkillGrap
   }
 
   return (
-    <div
-      className={cn("bg-white rounded-xl shadow-[var(--shadow-card)] overflow-hidden", className)}
-    >
+    <div className={cn("ui-surface-card overflow-hidden rounded-2xl", className)}>
       <div className="px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
@@ -396,7 +394,7 @@ export function SkillGraph({ userId: _userId, className, onDiscover }: SkillGrap
           <button
             type="button"
             onClick={handleDiscover}
-            className="px-3 py-1.5 text-sm bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-lg transition-colors flex items-center gap-1.5"
+            className="ui-surface-soft flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm text-zinc-700 transition-colors hover:bg-[#eceff3]"
           >
             <LucideIcons.RefreshCw className="w-3.5 h-3.5" />
             重新发现
@@ -404,7 +402,7 @@ export function SkillGraph({ userId: _userId, className, onDiscover }: SkillGrap
         </div>
       </div>
 
-      <div className="h-[350px] bg-gradient-to-br from-zinc-50 to-white">
+      <div className="h-[350px] bg-[linear-gradient(180deg,rgba(248,249,251,0.95),rgba(255,255,255,1))]">
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -420,7 +418,7 @@ export function SkillGraph({ userId: _userId, className, onDiscover }: SkillGrap
           }}
         >
           <Background color="var(--color-neutral-200)" gap={16} />
-          <Controls className="!bg-white !border-zinc-200 [&>button]:!bg-zinc-50 [&>button]:!border-zinc-200 [&>button]:hover:!bg-zinc-100 [&>button]:text-zinc-600" />
+          <Controls className="!bg-white !border-zinc-200 [&>button]:!bg-[#f6f7f9] [&>button]:!border-zinc-200 [&>button]:hover:!bg-[#eef1f5] [&>button]:text-zinc-600" />
           <MiniMap
             nodeColor={(node) => {
               if (node.type === "suggestedNode") return "var(--skill-default-border)";
@@ -438,7 +436,7 @@ export function SkillGraph({ userId: _userId, className, onDiscover }: SkillGrap
         </ReactFlow>
       </div>
 
-      <div className="px-6 py-3 bg-[var(--color-hover)]">
+      <div className="bg-[#f6f7f9] px-6 py-3">
         {/* Category legend */}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-zinc-600">
           <div className="flex items-center gap-1.5">

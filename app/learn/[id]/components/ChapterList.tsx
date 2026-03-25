@@ -49,7 +49,7 @@ export function ChapterList() {
               className={cn(
                 "w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left transition-all duration-200 group",
                 isCurrent
-                  ? "bg-[var(--color-accent-subtle)] text-[var(--color-accent)]"
+                  ? "bg-[#eef1f5] text-[#111827]"
                   : "text-[var(--color-text)] hover:bg-[var(--color-hover)]",
               )}
             >
@@ -58,9 +58,9 @@ export function ChapterList() {
                 className={cn(
                   "w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 transition-colors",
                   isChapterComplete
-                    ? "bg-[var(--color-accent)] text-white"
+                    ? "bg-[#111827] text-white"
                     : isCurrent
-                      ? "bg-[var(--color-accent)] text-white"
+                      ? "bg-[#111827] text-white"
                       : "bg-[var(--color-surface)] text-[var(--color-text-secondary)]",
                 )}
               >
@@ -80,7 +80,7 @@ export function ChapterList() {
                 <span
                   className={cn(
                     "text-[0.6875rem] mt-0.5 block",
-                    isCurrent ? "text-[var(--color-accent)]" : "text-[var(--color-text-tertiary)]",
+                    isCurrent ? "text-[#111827]" : "text-[var(--color-text-tertiary)]",
                   )}
                 >
                   {chapterCompletedCount}/{chapterSectionCount} 节
@@ -133,13 +133,13 @@ export function ChapterList() {
                             className={cn(
                               "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left text-[0.8125rem] transition-all duration-150",
                               isCurrentSection
-                                ? "bg-[var(--color-accent-subtle)] text-[var(--color-accent)] font-medium"
+                                ? "bg-[#eef1f5] text-[#111827] font-medium"
                                 : "text-[var(--color-text-secondary)] hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]",
                             )}
                           >
                             <span className="truncate">{sec.title}</span>
                             {isCompleted && (
-                              <Check className="w-3 h-3 text-[var(--color-accent)] shrink-0 ml-auto" />
+                              <Check className="ml-auto h-3 w-3 shrink-0 text-[#111827]" />
                             )}
                           </button>
                         );

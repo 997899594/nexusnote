@@ -100,15 +100,17 @@ export function SnapshotItem({
   return (
     <button
       type="button"
-      className={`w-full py-3 text-left cursor-pointer bg-transparent rounded-lg transition-colors hover:bg-[var(--color-hover)] ${
-        isActive ? "bg-[var(--color-accent-subtle)]" : ""
+      className={`w-full cursor-pointer rounded-2xl bg-transparent py-3 text-left transition-colors hover:bg-[#f6f7f9] ${
+        isActive ? "bg-[#f3f5f8]" : ""
       }`}
       onClick={onRestore}
     >
       <div className="flex items-center justify-between mb-1">
         <span className="text-sm font-medium">{snapshot.name}</span>
         {snapshot.auto && (
-          <span className="text-[10px] px-1.5 py-0.5 bg-yellow-100 rounded">自动</span>
+          <span className="rounded-md bg-[#f3f5f8] px-1.5 py-0.5 text-[10px] text-zinc-600">
+            自动
+          </span>
         )}
       </div>
       <div className="text-xs text-text-secondary mb-2">{snapshot.createdAt.toLocaleString()}</div>
@@ -120,7 +122,7 @@ export function SnapshotItem({
             e.stopPropagation();
             onDelete();
           }}
-          className="bg-transparent border-none text-red-500 cursor-pointer text-xs hover:underline"
+          className="cursor-pointer border-none bg-transparent text-xs text-zinc-500 hover:underline"
         >
           删除
         </button>
@@ -134,13 +136,13 @@ export function SnapshotPanel({ onRestore }: { onRestore: (content: string) => v
     useSnapshots();
 
   return (
-    <div className="w-[280px] p-4 h-full overflow-y-auto bg-[var(--color-bg)]">
+    <div className="h-full w-[280px] overflow-y-auto bg-[#f6f7f9] p-4">
       <div className="flex items-center justify-between mb-4">
         <h3 className="m-0 text-base font-medium">版本历史</h3>
         <button
           type="button"
           onClick={() => createSnapshot()}
-          className="px-3 py-1.5 text-xs bg-white border border-border rounded-md cursor-pointer hover:bg-hover"
+          className="cursor-pointer rounded-xl bg-white px-3 py-1.5 text-xs shadow-[0_12px_28px_-24px_rgba(15,23,42,0.14)] hover:bg-[#f6f7f9]"
         >
           创建快照
         </button>

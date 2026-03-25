@@ -23,6 +23,7 @@ import {
 } from "@/db/schema";
 import { aiProvider } from "@/lib/ai/core";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
+import { extractMessageText, loadConversationMessagesMap } from "@/lib/chat/conversation-messages";
 
 // ============================================
 // Zod Schemas for Structured Output
@@ -83,7 +84,6 @@ async function collectUserData(
     const userConversations = await db
       .select({
         id: conversations.id,
-        messages: conversations.messages,
         title: conversations.title,
       })
       .from(conversations)
@@ -91,12 +91,18 @@ async function collectUserData(
       .orderBy(desc(conversations.updatedAt))
       .limit(limit);
 
+    const messagesByConversation = await loadConversationMessagesMap(
+      userConversations.map((conversation) => conversation.id),
+    );
+
     const conversationContent = userConversations
       .map((c) => {
-        const msgs = c.messages as Array<{ role: string; content: string }>;
+        const msgs = messagesByConversation.get(c.id) ?? [];
         return {
           id: c.id,
-          content: `[对话: ${c.title}]\n${msgs.map((m) => `${m.role}: ${m.content}`).join("\n")}`,
+          content: `[对话: ${c.title}]\n${msgs
+            .map((message) => `${message.role}: ${extractMessageText(message)}`)
+            .join("\n")}`,
         };
       })
       .filter((c) => c.content.length > 50);
