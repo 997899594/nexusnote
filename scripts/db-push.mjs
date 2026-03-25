@@ -1,20 +1,20 @@
-import { spawnSync } from 'node:child_process';
-import postgres from 'postgres';
+import { spawnSync } from "node:child_process";
+import postgres from "postgres";
 
 const connectionString = process.env.DATABASE_URL;
 
 if (!connectionString) {
-  throw new Error('DATABASE_URL is not set');
+  throw new Error("DATABASE_URL is not set");
 }
 
 function runCommand(command, args) {
   const result = spawnSync(command, args, {
-    stdio: 'inherit',
+    stdio: "inherit",
     env: process.env,
   });
 
   if (result.status !== 0) {
-    throw new Error(`${command} ${args.join(' ')} failed with exit code ${result.status ?? 1}`);
+    throw new Error(`${command} ${args.join(" ")} failed with exit code ${result.status ?? 1}`);
   }
 }
 
@@ -32,10 +32,10 @@ async function verifyDatabaseState() {
     `;
 
     if (extensionRows.length === 0) {
-      throw new Error('pgvector extension is missing after migration');
+      throw new Error("pgvector extension is missing after migration");
     }
 
-    const requiredTables = ['users', 'notes', 'tags'];
+    const requiredTables = ["users", "notes", "tags"];
     const tableRows = await sql`
       SELECT table_name
       FROM information_schema.tables
@@ -59,13 +59,13 @@ async function verifyDatabaseState() {
     `;
 
     if (vectorColumnRows.length === 0) {
-      throw new Error('tags.name_embedding is missing after migration');
+      throw new Error("tags.name_embedding is missing after migration");
     }
   } finally {
     await sql.end({ timeout: 5 });
   }
 }
 
-runCommand('bun', ['scripts/pre-migrate.mjs']);
-runCommand('bun', ['./node_modules/.bin/drizzle-kit', 'push', '--config', 'drizzle.config.ts']);
+runCommand("bun", ["scripts/pre-migrate.mjs"]);
+runCommand("bun", ["./node_modules/.bin/drizzle-kit", "push", "--config", "drizzle.config.ts"]);
 await verifyDatabaseState();
