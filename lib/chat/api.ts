@@ -5,12 +5,17 @@
  * 注意：在 Server Components 中应直接调用数据库操作
  */
 
+import { redirectToLogin } from "@/lib/api/client";
 import type {
   ConversationSummary,
   ConversationsResponse,
   CreateSessionResponse,
   UpdateSessionRequest,
 } from "@/types/chat";
+
+function isUnauthorizedResponse(response: Response): boolean {
+  return response.status === 401;
+}
 
 export async function persistMessages(sessionId: string, messages: unknown[]): Promise<void> {
   try {
@@ -19,6 +24,10 @@ export async function persistMessages(sessionId: string, messages: unknown[]): P
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ messages }),
     });
+    if (isUnauthorizedResponse(res)) {
+      redirectToLogin();
+      return;
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
   } catch (error) {
     console.error("[ChatAPI] Failed to persist messages:", error);
@@ -29,6 +38,10 @@ export async function persistMessages(sessionId: string, messages: unknown[]): P
 export async function loadSessions(): Promise<ConversationSummary[]> {
   try {
     const res = await fetch("/api/chat-sessions");
+    if (isUnauthorizedResponse(res)) {
+      redirectToLogin();
+      return [];
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
     const data = (await res.json()) as ConversationsResponse;
     return data.sessions || [];
@@ -45,6 +58,10 @@ export async function createSession(title: string): Promise<ConversationSummary 
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title }),
     });
+    if (isUnauthorizedResponse(res)) {
+      redirectToLogin();
+      return null;
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
     const data = (await res.json()) as CreateSessionResponse;
     return data.session;
@@ -61,6 +78,10 @@ export async function updateSession(id: string, updates: UpdateSessionRequest): 
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updates),
     });
+    if (isUnauthorizedResponse(res)) {
+      redirectToLogin();
+      return;
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
   } catch (error) {
     console.error("[ChatAPI] Failed to update session:", error);
@@ -71,6 +92,10 @@ export async function updateSession(id: string, updates: UpdateSessionRequest): 
 export async function deleteSession(id: string): Promise<void> {
   try {
     const res = await fetch(`/api/chat-sessions/${id}`, { method: "DELETE" });
+    if (isUnauthorizedResponse(res)) {
+      redirectToLogin();
+      return;
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
   } catch (error) {
     console.error("[ChatAPI] Failed to delete session:", error);

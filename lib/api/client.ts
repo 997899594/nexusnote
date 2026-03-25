@@ -1,5 +1,7 @@
 "use client";
 
+import { createLoginPath, getCurrentCallbackUrl } from "@/lib/auth-redirect";
+
 export interface ApiErrorResponse {
   error?: {
     code?: string;
@@ -41,6 +43,18 @@ export async function parseApiError(error: unknown): Promise<{
   }
 
   return { message: errorMessage, status, code };
+}
+
+export function isUnauthorizedError(status?: number, code?: string): boolean {
+  return status === 401 || code === "UNAUTHORIZED";
+}
+
+export function redirectToLogin(callbackUrl = getCurrentCallbackUrl()): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.location.assign(createLoginPath(callbackUrl));
 }
 
 export function isApiError(error: unknown, statusCode?: number): boolean {

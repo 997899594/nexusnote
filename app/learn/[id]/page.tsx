@@ -7,9 +7,10 @@
 export const dynamic = "force-dynamic";
 
 import { and, eq } from "drizzle-orm";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { courseProgress, courseSectionAnnotations, courseSections, courses, db } from "@/db";
 import { auth } from "@/lib/auth";
+import { createLoginPath } from "@/lib/auth-redirect";
 
 import { LearnClient } from "./LearnClient";
 
@@ -43,7 +44,8 @@ export default async function LearnPage({ params, searchParams }: PageProps) {
   // Verify user is authenticated
   const session = await auth();
   if (!session?.user?.id) {
-    notFound();
+    const callbackUrl = chapter ? `/learn/${sessionId}?chapter=${chapter}` : `/learn/${sessionId}`;
+    redirect(createLoginPath(callbackUrl));
   }
 
   // Fetch course session (include progress for persisted completedSections)

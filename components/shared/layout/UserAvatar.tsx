@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { createLoginPath, getCurrentCallbackUrl } from "@/lib/auth-redirect";
 import type { User } from "@/types";
 
 interface UserAvatarProps {
@@ -41,7 +42,7 @@ export function UserAvatar({ className = "", size = "md" }: UserAvatarProps) {
     if (status === "authenticated") {
       router.push("/profile");
     } else {
-      router.push("/login");
+      router.push(createLoginPath(getCurrentCallbackUrl()));
     }
   };
 

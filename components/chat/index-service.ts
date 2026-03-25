@@ -7,6 +7,7 @@
  */
 
 import type { UIMessage } from "ai";
+import { redirectToLogin } from "@/lib/api/client";
 
 interface IndexPayload {
   sessionId: string;
@@ -22,7 +23,13 @@ export function triggerIndex(payload: IndexPayload): void {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
-  }).catch((err) => {
-    console.warn("[Index] Background indexing failed:", err);
-  });
+  })
+    .then((response) => {
+      if (response.status === 401) {
+        redirectToLogin();
+      }
+    })
+    .catch((err) => {
+      console.warn("[Index] Background indexing failed:", err);
+    });
 }

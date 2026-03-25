@@ -12,7 +12,7 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useEffect, useRef } from "react";
 import { useToast } from "@/components/ui/Toast";
-import { parseApiError } from "@/lib/api/client";
+import { isUnauthorizedError, parseApiError, redirectToLogin } from "@/lib/api/client";
 import { persistMessages } from "@/lib/chat/api";
 import { useChatSessionStateStore, usePendingChatStore, useUserPreferencesStore } from "@/stores";
 
@@ -48,7 +48,11 @@ export function useChatSession({ sessionId, pendingMessage }: UseChatSessionOpti
     },
     onError: (error) => {
       console.error("[ChatSession] API Error:", error);
-      parseApiError(error).then(({ message }) => {
+      parseApiError(error).then(({ message, status, code }) => {
+        if (isUnauthorizedError(status, code)) {
+          redirectToLogin();
+          return;
+        }
         addToast(message, "error");
       });
     },
@@ -65,6 +69,10 @@ export function useChatSession({ sessionId, pendingMessage }: UseChatSessionOpti
 
     fetch(`/api/chat-sessions/${sessionId}`)
       .then((res) => {
+        if (res.status === 401) {
+          redirectToLogin();
+          return null;
+        }
         if (!res.ok) {
           if (res.status === 404) return null;
           throw new Error(`HTTP ${res.status}`);

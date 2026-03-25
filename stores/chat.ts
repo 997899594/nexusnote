@@ -13,6 +13,7 @@
 
 import type { UIMessage } from "ai";
 import { create } from "zustand";
+import { redirectToLogin } from "@/lib/api/client";
 import * as chatApi from "@/lib/chat/api";
 import type { ConversationSummary } from "@/types/chat";
 
@@ -55,6 +56,10 @@ export const useChatStore = create<ChatStore>((set) => ({
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
+      if (res.status === 401) {
+        redirectToLogin();
+        return 0;
+      }
       if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       const data = (await res.json()) as { updated: number };
       // Reload sessions to get updated titles

@@ -39,12 +39,13 @@ export async function POST(request: NextRequest) {
   try {
     const session = await auth();
     const userId = session?.user?.id;
-    const forwardedFor = request.headers.get("x-forwarded-for");
-    const guestKey = forwardedFor?.split(",")[0]?.trim() || "unknown";
-    const rateLimitId = userId ?? `guest:${guestKey}`;
+
+    if (!userId) {
+      throw new APIError("请先登录", 401, "UNAUTHORIZED");
+    }
 
     // Rate Limiting
-    await checkRateLimitOrThrow(rateLimitId, 100, 60 * 1000, "请求过于频繁，请稍后再试");
+    await checkRateLimitOrThrow(userId, 100, 60 * 1000, "请求过于频繁，请稍后再试");
 
     let body: unknown;
     try {
@@ -79,13 +80,8 @@ export async function POST(request: NextRequest) {
         courseId:
           courseId ?? (metadata?.context === "learn" ? metadata.courseId : undefined) ?? null,
         context: metadata?.context ?? null,
-        guest: !userId,
       },
     });
-
-    if (profile.authRequired && !userId) {
-      throw new APIError("请先登录", 401, "UNAUTHORIZED");
-    }
 
     if (!aiProvider.isConfigured()) {
       throw new APIError("AI 服务未配置", 503, "AI_NOT_CONFIGURED");

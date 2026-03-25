@@ -7,7 +7,7 @@ import { BookOpen, Loader2, MessageSquare, Send, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatMessage, LoadingDots } from "@/components/chat/ChatMessage";
 import { useToast } from "@/components/ui/Toast";
-import { parseApiError } from "@/lib/api/client";
+import { isUnauthorizedError, parseApiError, redirectToLogin } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 import { useLearnStore } from "@/stores/learn";
 
@@ -45,7 +45,11 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
     transport,
     onError: (error) => {
       console.error("[LearnChat] Error:", error);
-      parseApiError(error).then(({ message }) => {
+      parseApiError(error).then(({ message, status, code }) => {
+        if (isUnauthorizedError(status, code)) {
+          redirectToLogin();
+          return;
+        }
         addToast(message, "error");
       });
     },

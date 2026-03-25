@@ -4,7 +4,7 @@ import { nanoid } from "nanoid";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/ui/Toast";
 import type { InterviewStreamEvent, InterviewTurn } from "@/lib/ai/interview";
-import { parseApiError } from "@/lib/api/client";
+import { isUnauthorizedError, parseApiError, redirectToLogin } from "@/lib/api/client";
 import { useInterviewStore } from "@/stores/interview";
 
 export interface InterviewMessage {
@@ -113,6 +113,10 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
         });
 
         if (!response.ok) {
+          if (response.status === 401) {
+            redirectToLogin();
+            return;
+          }
           throw response;
         }
 
@@ -172,6 +176,10 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
       } catch (error) {
         console.error("[Interview] API Error:", error);
         const parsed = await parseApiError(error);
+        if (isUnauthorizedError(parsed.status, parsed.code)) {
+          redirectToLogin();
+          return;
+        }
         addToast(parsed.message, "error");
         setStatus("error");
       }

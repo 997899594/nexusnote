@@ -10,11 +10,12 @@
  */
 
 import { generateObject } from "ai";
+import { and } from "drizzle-orm";
 import { z } from "zod";
 import { conversations, db, eq } from "@/db";
 import { aiProvider } from "@/lib/ai/core";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
-import { withOptionalAuth } from "@/lib/api";
+import { withAuth } from "@/lib/api";
 import { extractMessageText, loadConversationMessagesMap } from "@/lib/chat/conversation-messages";
 
 // Title generation schema
@@ -22,14 +23,14 @@ const titleSchema = z.object({
   title: z.string().max(10),
 });
 
-export const POST = withOptionalAuth(async (_request, { userId: _userId }) => {
+export const POST = withAuth(async (_request, { userId }) => {
   // 1. 查询 title = "新对话" 的会话（限制 5 条）
   const conversationsToProcess = await db
     .select({
       id: conversations.id,
     })
     .from(conversations)
-    .where(eq(conversations.title, "新对话"))
+    .where(and(eq(conversations.userId, userId), eq(conversations.title, "新对话")))
     .limit(5);
 
   if (conversationsToProcess.length === 0) {
@@ -60,7 +61,7 @@ export const POST = withOptionalAuth(async (_request, { userId: _userId }) => {
       const startedAt = Date.now();
       const telemetry = createTelemetryContext({
         endpoint: "/api/chat-sessions/generate-titles",
-        userId: _userId ?? undefined,
+        userId,
         intent: "conversation-title-generation",
         modelPolicy: "interactive-fast",
         promptVersion: "conversation-title@v1",
@@ -100,7 +101,7 @@ export const POST = withOptionalAuth(async (_request, { userId: _userId }) => {
       );
       await recordAIUsage({
         endpoint: "/api/chat-sessions/generate-titles",
-        userId: _userId ?? undefined,
+        userId,
         requestId: crypto.randomUUID(),
         intent: "conversation-title-generation",
         modelPolicy: "interactive-fast",

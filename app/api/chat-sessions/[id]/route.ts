@@ -8,7 +8,7 @@
 
 import type { UIMessage } from "ai";
 import { conversationMessages, conversations, db, eq } from "@/db";
-import { withDynamicOptionalAuth } from "@/lib/api";
+import { withDynamicAuth } from "@/lib/api";
 import {
   buildConversationMessageRows,
   loadConversationMessages,
@@ -22,25 +22,27 @@ interface UpdateSessionBody {
   isArchived?: boolean;
 }
 
-export const GET = withDynamicOptionalAuth<{ id: string }>(async (_request, { userId, params }) => {
-  const { id } = params;
+export const GET = withDynamicAuth<unknown, { id: string }>(
+  async (_request, { userId, params }) => {
+    const { id } = params;
 
-  const [conv] = await db.select().from(conversations).where(eq(conversations.id, id)).limit(1);
+    const [conv] = await db.select().from(conversations).where(eq(conversations.id, id)).limit(1);
 
-  if (!conv) {
-    return Response.json({ error: "Session not found" }, { status: 404 });
-  }
+    if (!conv) {
+      return Response.json({ error: "Session not found" }, { status: 404 });
+    }
 
-  if (userId && conv.userId !== userId) {
-    return Response.json({ error: "Unauthorized" }, { status: 403 });
-  }
+    if (conv.userId !== userId) {
+      return Response.json({ error: "Unauthorized" }, { status: 403 });
+    }
 
-  const messages = await loadConversationMessages(id);
+    const messages = await loadConversationMessages(id);
 
-  return Response.json({ session: { ...conv, messages } });
-});
+    return Response.json({ session: { ...conv, messages } });
+  },
+);
 
-export const PATCH = withDynamicOptionalAuth<{ id: string }>(
+export const PATCH = withDynamicAuth<unknown, { id: string }>(
   async (request, { userId, params }) => {
     const { id } = params;
 
@@ -54,7 +56,7 @@ export const PATCH = withDynamicOptionalAuth<{ id: string }>(
       return Response.json({ error: "Session not found" }, { status: 404 });
     }
 
-    if (userId && existing.userId !== userId) {
+    if (existing.userId !== userId) {
       return Response.json({ error: "Unauthorized" }, { status: 403 });
     }
 
@@ -120,7 +122,7 @@ export const PATCH = withDynamicOptionalAuth<{ id: string }>(
   },
 );
 
-export const DELETE = withDynamicOptionalAuth<{ id: string }>(
+export const DELETE = withDynamicAuth<unknown, { id: string }>(
   async (_request, { userId, params }) => {
     const { id } = params;
 
@@ -134,7 +136,7 @@ export const DELETE = withDynamicOptionalAuth<{ id: string }>(
       return Response.json({ error: "Session not found" }, { status: 404 });
     }
 
-    if (userId && existing.userId !== userId) {
+    if (existing.userId !== userId) {
       return Response.json({ error: "Unauthorized" }, { status: 403 });
     }
 

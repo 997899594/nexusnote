@@ -5,8 +5,8 @@
  * POST: 创建新会话（不保存消息，返回 pendingMessage 让前端发送）
  */
 
-import { conversations, db, desc, eq, sql } from "@/db";
-import { withOptionalAuth } from "@/lib/api";
+import { conversations, db, desc, eq } from "@/db";
+import { withAuth } from "@/lib/api";
 
 interface CreateSessionBody {
   title?: string;
@@ -14,7 +14,7 @@ interface CreateSessionBody {
   firstMessage?: string;
 }
 
-export const GET = withOptionalAuth(async (request, { userId }) => {
+export const GET = withAuth(async (request, { userId }) => {
   const { searchParams } = new URL(request.url);
   const limit = Math.min(parseInt(searchParams.get("limit") || "20", 10), 50);
   const offset = parseInt(searchParams.get("offset") || "0", 10);
@@ -32,7 +32,7 @@ export const GET = withOptionalAuth(async (request, { userId }) => {
       updatedAt: conversations.updatedAt,
     })
     .from(conversations)
-    .where(userId ? eq(conversations.userId, userId) : sql`1=1`)
+    .where(eq(conversations.userId, userId))
     .orderBy(desc(conversations.lastMessageAt))
     .limit(limit)
     .offset(offset);
@@ -40,7 +40,7 @@ export const GET = withOptionalAuth(async (request, { userId }) => {
   return Response.json({ sessions: list });
 });
 
-export const POST = withOptionalAuth(async (request, { userId }) => {
+export const POST = withAuth(async (request, { userId }) => {
   const body: CreateSessionBody = await request.json();
   const { title = "新对话", intent = "CHAT", firstMessage } = body;
 

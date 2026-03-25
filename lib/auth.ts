@@ -7,6 +7,7 @@
 
 import { redirect } from "next/navigation";
 import { auth as nextAuth } from "@/app/api/auth/[...nextauth]/route";
+import { createLoginPath } from "@/lib/auth-redirect";
 
 /**
  * 获取当前用户会话（服务端组件专用）
@@ -28,11 +29,11 @@ export async function auth() {
 /**
  * 获取当前用户，未登录时重定向到登录页
  */
-export async function requireAuth() {
+export async function requireAuth(callbackUrl?: string) {
   const session = await auth();
 
   if (!session?.user) {
-    redirect("/login");
+    redirect(createLoginPath(callbackUrl));
   }
 
   return session;
