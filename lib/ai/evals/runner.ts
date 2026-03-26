@@ -15,6 +15,8 @@ import type {
   ChatEvalInput,
   EvalCase,
   EvalExecutionResult,
+  EvalRuleCheck,
+  EvalRuntimeMetrics,
   EvalSuite,
   EvalSuiteRunResult,
   InterviewEvalInput,
@@ -27,6 +29,15 @@ export function createEvalSuite<TInput>(suite: EvalSuite<TInput>): EvalSuite<TIn
 }
 
 const EVAL_AGENT_TIMEOUT_MS = 45_000;
+
+interface EvalGenerationResult {
+  output: string;
+  runtimeMetrics: EvalRuntimeMetrics;
+}
+
+interface RunEvalSuiteOptions {
+  onCaseComplete?: (result: EvalExecutionResult) => void;
+}
 
 async function buildEvalGenerationInput(testCase: EvalCase): Promise<
   | {
@@ -100,9 +111,143 @@ function getPolicyForCase(testCase: EvalCase) {
   }
 }
 
-export async function runEvalCase(testCase: EvalCase): Promise<EvalExecutionResult> {
+function isTimeoutError(error: unknown) {
+  const message = getErrorMessage(error);
+  return (
+    message.includes("eval-timeout") ||
+    message.includes("aborted") ||
+    message.includes("AbortError")
+  );
+}
+
+function parseJsonOutput(output: string) {
   try {
-    const startedAt = Date.now();
+    return JSON.parse(output) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function runInterviewRuleChecks(output: string): EvalRuleCheck[] {
+  const parsed = parseJsonOutput(output);
+
+  if (!parsed) {
+    return [
+      {
+        name: "valid-json-output",
+        passed: false,
+        details: "Interview eval output is not valid JSON.",
+      },
+    ];
+  }
+
+  const outline = parsed.outline;
+  const message = typeof parsed.message === "string" ? parsed.message.trim() : "";
+  const options = Array.isArray(parsed.options)
+    ? parsed.options.filter((item): item is string => typeof item === "string" && item.length > 0)
+    : [];
+  const courseId = parsed.courseId;
+
+  const checks: EvalRuleCheck[] = [
+    {
+      name: "assistant-message-present",
+      passed: message.length > 0,
+      details:
+        message.length > 0
+          ? "Assistant returned a non-empty message."
+          : "Assistant message is empty.",
+    },
+    {
+      name: "options-count",
+      passed: options.length >= 2 && options.length <= 4,
+      details: `Options count is ${options.length}. Expected 2-4.`,
+    },
+    {
+      name: "preview-course-id-empty",
+      passed: courseId == null,
+      details:
+        courseId == null
+          ? "Preview output does not persist a course id."
+          : `Preview unexpectedly returned courseId=${String(courseId)}.`,
+    },
+  ];
+
+  if (!outline || typeof outline !== "object") {
+    checks.push({
+      name: "outline-shape",
+      passed: true,
+      details: "No outline returned in this turn.",
+    });
+    return checks;
+  }
+
+  const outlineRecord = outline as Record<string, unknown>;
+  const chapters = Array.isArray(outlineRecord.chapters)
+    ? outlineRecord.chapters.filter(
+        (chapter): chapter is Record<string, unknown> => !!chapter && typeof chapter === "object",
+      )
+    : [];
+
+  checks.push(
+    {
+      name: "outline-metadata",
+      passed:
+        typeof outlineRecord.title === "string" &&
+        outlineRecord.title.trim().length > 0 &&
+        typeof outlineRecord.description === "string" &&
+        outlineRecord.description.trim().length > 0 &&
+        typeof outlineRecord.targetAudience === "string" &&
+        outlineRecord.targetAudience.trim().length > 0 &&
+        typeof outlineRecord.learningOutcome === "string" &&
+        outlineRecord.learningOutcome.trim().length > 0,
+      details:
+        "Outline preview must contain title, description, targetAudience, and learningOutcome.",
+    },
+    {
+      name: "chapter-count",
+      passed: chapters.length >= 5 && chapters.length <= 7,
+      details: `Outline chapter count is ${chapters.length}. Expected 5-7.`,
+    },
+  );
+
+  const invalidChapterIndexes: number[] = [];
+  for (let i = 0; i < chapters.length; i++) {
+    const chapter = chapters[i];
+    const sections = Array.isArray(chapter.sections)
+      ? chapter.sections.filter(
+          (section): section is Record<string, unknown> => !!section && typeof section === "object",
+        )
+      : [];
+    if (sections.length < 4 || sections.length > 6) {
+      invalidChapterIndexes.push(i + 1);
+    }
+  }
+
+  checks.push({
+    name: "sections-per-chapter",
+    passed: invalidChapterIndexes.length === 0,
+    details:
+      invalidChapterIndexes.length === 0
+        ? "All chapters contain 4-6 sections."
+        : `Chapters with invalid section counts: ${invalidChapterIndexes.join(", ")}.`,
+  });
+
+  return checks;
+}
+
+function runRuleChecks(testCase: EvalCase, output: string): EvalRuleCheck[] {
+  switch (testCase.domain) {
+    case "interview":
+      return runInterviewRuleChecks(output);
+    default:
+      return [];
+  }
+}
+
+export async function runEvalCase(testCase: EvalCase): Promise<EvalExecutionResult> {
+  const startedAt = Date.now();
+
+  try {
     const generationInput = await buildEvalGenerationInput(testCase);
     const modelPolicy = getPolicyForCase(testCase);
     const telemetry = createTelemetryContext({
@@ -116,16 +261,16 @@ export async function runEvalCase(testCase: EvalCase): Promise<EvalExecutionResu
       },
     });
 
-    let serializedOutput: string;
+    let generationResult: EvalGenerationResult;
     if (generationInput.mode === "agent-chat") {
-      serializedOutput = await runChatEval({
+      generationResult = await runChatEval({
         prompt: generationInput.prompt,
         profile: "CHAT_BASIC",
         telemetry,
         startedAt,
       });
     } else if (generationInput.mode === "agent-notes") {
-      serializedOutput = await runChatEval({
+      generationResult = await runChatEval({
         prompt: generationInput.prompt,
         profile: "NOTE_ASSIST",
         userContext: `## 当前笔记内容\n${generationInput.noteExcerpt}`,
@@ -133,14 +278,14 @@ export async function runEvalCase(testCase: EvalCase): Promise<EvalExecutionResu
         startedAt,
       });
     } else if (generationInput.mode === "agent-interview") {
-      serializedOutput = await runInterviewEval({
+      generationResult = await runInterviewEval({
         prompt: generationInput.prompt,
         currentOutline: generationInput.currentOutline,
         telemetry,
         startedAt,
       });
     } else {
-      serializedOutput = await runTextEval({
+      generationResult = await runTextEval({
         instructions: generationInput.instructions,
         prompt: generationInput.prompt,
         modelPolicy,
@@ -148,15 +293,20 @@ export async function runEvalCase(testCase: EvalCase): Promise<EvalExecutionResu
         startedAt,
       });
     }
-    const judgement = await judgeEvalOutput(testCase, serializedOutput);
+
+    const ruleChecks = runRuleChecks(testCase, generationResult.output);
+    const judgement = await judgeEvalOutput(testCase, generationResult.output);
+    const deterministicPassed = ruleChecks.every((check) => check.passed);
 
     return {
       caseId: testCase.id,
       title: testCase.title,
       score: judgement.score,
-      passed: judgement.score >= 0.8,
+      passed: judgement.score >= 0.8 && deterministicPassed,
       notes: judgement.notes,
-      output: serializedOutput,
+      output: generationResult.output,
+      ruleChecks,
+      runtimeMetrics: generationResult.runtimeMetrics,
     };
   } catch (error) {
     return {
@@ -166,6 +316,11 @@ export async function runEvalCase(testCase: EvalCase): Promise<EvalExecutionResu
       passed: false,
       notes: [`Eval execution failed: ${getErrorMessage(error)}`],
       output: "",
+      ruleChecks: [],
+      runtimeMetrics: {
+        totalMs: Date.now() - startedAt,
+        timedOut: isTimeoutError(error),
+      },
     };
   }
 }
@@ -182,7 +337,7 @@ async function runTextEval({
   modelPolicy: ReturnType<typeof getPolicyForCase>;
   telemetry: ReturnType<typeof createTelemetryContext>;
   startedAt: number;
-}) {
+}): Promise<EvalGenerationResult> {
   const generated = await generateText({
     model: getModelForPolicy(modelPolicy),
     system: instructions,
@@ -191,14 +346,25 @@ async function runTextEval({
     timeout: 30_000,
   });
 
+  const totalMs = Date.now() - startedAt;
+
   await recordAIUsage({
     ...telemetry,
     usage: generated.usage,
-    durationMs: Date.now() - startedAt,
+    durationMs: totalMs,
     success: true,
   });
 
-  return generated.text;
+  return {
+    output: generated.text,
+    runtimeMetrics: {
+      totalMs,
+      firstTextMs: totalMs,
+      firstOptionsMs: null,
+      firstOutlineMs: null,
+      timedOut: false,
+    },
+  };
 }
 
 async function runChatEval({
@@ -213,9 +379,10 @@ async function runChatEval({
   userContext?: string;
   telemetry: ReturnType<typeof createTelemetryContext>;
   startedAt: number;
-}) {
+}): Promise<EvalGenerationResult> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort("eval-timeout"), EVAL_AGENT_TIMEOUT_MS);
+
   try {
     const messages = [
       {
@@ -242,6 +409,8 @@ async function runChatEval({
     });
 
     const latestById = new Map<string, UIMessage>();
+    let firstTextMs: number | null = null;
+
     for await (const uiMessage of readUIMessageStream<UIMessage>({
       stream: result.toUIMessageStream({
         originalMessages: messages,
@@ -249,6 +418,18 @@ async function runChatEval({
       }),
     })) {
       latestById.set(uiMessage.id, uiMessage);
+
+      if (firstTextMs == null && uiMessage.role === "assistant") {
+        const text = uiMessage.parts
+          .filter((part) => part.type === "text")
+          .map((part) => part.text)
+          .join("")
+          .trim();
+
+        if (text.length > 0) {
+          firstTextMs = Date.now() - startedAt;
+        }
+      }
     }
 
     const finalMessages = [...latestById.values()];
@@ -262,9 +443,11 @@ async function runChatEval({
         .join("\n")
         .trim() ?? "";
 
+    const totalMs = Date.now() - startedAt;
+
     await recordAIUsage({
       ...telemetry,
-      durationMs: Date.now() - startedAt,
+      durationMs: totalMs,
       success: true,
       metadata: {
         ...telemetry.metadata,
@@ -272,7 +455,16 @@ async function runChatEval({
       },
     });
 
-    return text;
+    return {
+      output: text,
+      runtimeMetrics: {
+        totalMs,
+        firstTextMs,
+        firstOptionsMs: null,
+        firstOutlineMs: null,
+        timedOut: false,
+      },
+    };
   } finally {
     clearTimeout(timeoutId);
   }
@@ -288,9 +480,10 @@ async function runInterviewEval({
   currentOutline?: InterviewEvalInput["currentOutline"];
   telemetry: ReturnType<typeof createTelemetryContext>;
   startedAt: number;
-}) {
+}): Promise<EvalGenerationResult> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort("eval-timeout"), EVAL_AGENT_TIMEOUT_MS);
+
   try {
     const messages: InterviewUIMessage[] = [
       {
@@ -317,6 +510,10 @@ async function runInterviewEval({
     });
 
     const latestById = new Map<string, InterviewUIMessage>();
+    let firstTextMs: number | null = null;
+    let firstOptionsMs: number | null = null;
+    let firstOutlineMs: number | null = null;
+
     for await (const uiMessage of readUIMessageStream<InterviewUIMessage>({
       stream: result.toUIMessageStream<InterviewUIMessage>({
         originalMessages: messages,
@@ -325,6 +522,25 @@ async function runInterviewEval({
       terminateOnError: true,
     })) {
       latestById.set(uiMessage.id, uiMessage);
+
+      if (uiMessage.role !== "assistant") {
+        continue;
+      }
+
+      if (firstTextMs == null && getInterviewMessageText(uiMessage).length > 0) {
+        firstTextMs = Date.now() - startedAt;
+      }
+
+      if (firstOptionsMs == null && getInterviewMessageOptions(uiMessage).length > 0) {
+        firstOptionsMs = Date.now() - startedAt;
+      }
+
+      if (firstOutlineMs == null) {
+        const outline = findLatestOutline([uiMessage]);
+        if (outline) {
+          firstOutlineMs = Date.now() - startedAt;
+        }
+      }
     }
 
     const finalMessages = [...latestById.values()];
@@ -335,10 +551,11 @@ async function runInterviewEval({
 
     const text = lastAssistant ? getInterviewMessageText(lastAssistant) : "";
     const options = lastAssistant ? getInterviewMessageOptions(lastAssistant) : [];
+    const totalMs = Date.now() - startedAt;
 
     await recordAIUsage({
       ...telemetry,
-      durationMs: Date.now() - startedAt,
+      durationMs: totalMs,
       success: true,
       metadata: {
         ...telemetry.metadata,
@@ -346,26 +563,40 @@ async function runInterviewEval({
       },
     });
 
-    return JSON.stringify(
-      {
-        message: text,
-        options,
-        outline: latestOutline?.outline ?? null,
-        courseId: null,
+    return {
+      output: JSON.stringify(
+        {
+          message: text,
+          options,
+          outline: latestOutline?.outline ?? null,
+          courseId: null,
+        },
+        null,
+        2,
+      ),
+      runtimeMetrics: {
+        totalMs,
+        firstTextMs,
+        firstOptionsMs,
+        firstOutlineMs,
+        timedOut: false,
       },
-      null,
-      2,
-    );
+    };
   } finally {
     clearTimeout(timeoutId);
   }
 }
 
-export async function runEvalSuite<TInput>(suite: EvalSuite<TInput>): Promise<EvalSuiteRunResult> {
+export async function runEvalSuite<TInput>(
+  suite: EvalSuite<TInput>,
+  options?: RunEvalSuiteOptions,
+): Promise<EvalSuiteRunResult> {
   const results: EvalExecutionResult[] = [];
 
   for (const testCase of suite.cases) {
-    results.push(await runEvalCase(testCase as EvalCase<Record<string, unknown>>));
+    const result = await runEvalCase(testCase as EvalCase<Record<string, unknown>>);
+    results.push(result);
+    options?.onCaseComplete?.(result);
   }
 
   const totalScore = results.reduce((sum, result) => sum + result.score, 0);

@@ -27,7 +27,23 @@ async function main() {
       throw new Error(`Unknown eval domain: ${domain}`);
     }
 
-    const result = await runEvalSuite(suite);
+    console.log(`[AI Eval] Running ${domain}@${suite.version} (${suite.cases.length} cases)`);
+    const result = await runEvalSuite(suite, {
+      onCaseComplete: (caseResult) => {
+        const metrics = caseResult.runtimeMetrics;
+        const metricSummary = metrics
+          ? ` total=${metrics.totalMs}ms firstText=${metrics.firstTextMs ?? "-"} firstOptions=${metrics.firstOptionsMs ?? "-"} firstOutline=${metrics.firstOutlineMs ?? "-"}`
+          : "";
+        const ruleSummary =
+          caseResult.ruleChecks && caseResult.ruleChecks.length > 0
+            ? ` rules=${caseResult.ruleChecks.filter((check) => check.passed).length}/${caseResult.ruleChecks.length}`
+            : "";
+
+        console.log(
+          `[AI Eval] ${caseResult.passed ? "PASS" : "FAIL"} ${caseResult.caseId} score=${caseResult.score.toFixed(2)}${ruleSummary}${metricSummary}`,
+        );
+      },
+    });
     console.log(JSON.stringify(result, null, 2));
   }
 }

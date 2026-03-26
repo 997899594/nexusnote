@@ -44,6 +44,8 @@ export interface EvalExecutionResult {
   passed: boolean;
   notes: string[];
   output: string;
+  ruleChecks?: EvalRuleCheck[];
+  runtimeMetrics?: EvalRuntimeMetrics;
 }
 
 export interface EvalSuiteRunResult {
@@ -53,4 +55,18 @@ export interface EvalSuiteRunResult {
   passedCount: number;
   totalCount: number;
   results: EvalExecutionResult[];
+}
+
+export interface EvalRuleCheck {
+  name: string;
+  passed: boolean;
+  details: string;
+}
+
+export interface EvalRuntimeMetrics {
+  totalMs: number;
+  firstTextMs?: number | null;
+  firstOptionsMs?: number | null;
+  firstOutlineMs?: number | null;
+  timedOut?: boolean;
 }
