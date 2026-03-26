@@ -67,6 +67,10 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
     resetInterview();
   }, [resetInterview]);
 
+  const originalFetch = fetch as typeof globalThis.fetch & {
+    preconnect?: (input: string | URL) => void;
+  };
+
   const interviewFetch = Object.assign(
     async (input: URL | RequestInfo, init?: RequestInit) => {
       const response = await fetch(input, init);
@@ -77,8 +81,8 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
     },
     {
       preconnect:
-        typeof fetch.preconnect === "function"
-          ? fetch.preconnect.bind(fetch)
+        typeof originalFetch.preconnect === "function"
+          ? originalFetch.preconnect.bind(originalFetch)
           : (_input: string | URL) => {},
     },
   ) as typeof fetch;
