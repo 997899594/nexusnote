@@ -1,5 +1,31 @@
 import { z } from "zod";
 
+function nullableNormalizedString(max: number) {
+  return z.preprocess((value) => {
+    if (typeof value !== "string") {
+      return value;
+    }
+
+    const normalized = value.trim();
+    return normalized.length === 0 ? null : normalized;
+  }, z.string().min(1).max(max).nullable());
+}
+
+function normalizedStringArray(maxItemLength: number, maxItems: number) {
+  return z.preprocess(
+    (value) => {
+      if (!Array.isArray(value)) {
+        return value;
+      }
+
+      return value
+        .map((item) => (typeof item === "string" ? item.trim() : item))
+        .filter((item) => typeof item === "string" && item.length > 0);
+    },
+    z.array(z.string().min(1).max(maxItemLength)).max(maxItems),
+  );
+}
+
 export const InterviewOutlineSectionSchema = z.object({
   title: z.string().min(1).max(80),
   description: z.string().min(1).max(240),
@@ -28,18 +54,18 @@ export const InterviewModeSchema = z.enum(["discover", "revise"]);
 
 export const InterviewStateSchema = z.object({
   mode: InterviewModeSchema,
-  goal: z.string().min(1).max(300).nullable(),
-  background: z.string().min(1).max(300).nullable(),
-  useCase: z.string().min(1).max(300).nullable(),
+  goal: nullableNormalizedString(300),
+  background: nullableNormalizedString(300),
+  useCase: nullableNormalizedString(300),
   constraints: z.object({
-    timeBudget: z.string().min(1).max(120).nullable(),
-    preferredDepth: z.string().min(1).max(120).nullable(),
+    timeBudget: nullableNormalizedString(120),
+    preferredDepth: nullableNormalizedString(120),
   }),
   preferences: z.object({
-    style: z.string().min(1).max(120).nullable(),
-    focusAreas: z.array(z.string().min(1).max(80)).max(8),
+    style: nullableNormalizedString(120),
+    focusAreas: normalizedStringArray(80, 8),
   }),
-  openQuestions: z.array(z.string().min(1).max(120)).max(6),
+  openQuestions: normalizedStringArray(120, 6),
   confidence: z.number().min(0).max(1),
 });
 
