@@ -1,5 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { courseProgress, courseSections, courses, db } from "@/db";
+import type { InterviewOutline } from "@/lib/ai/interview";
 
 export interface CourseOutlineSection {
   title: string;
@@ -10,7 +11,6 @@ export interface CourseOutlineChapter {
   title: string;
   description: string;
   sections: CourseOutlineSection[];
-  estimatedMinutes?: number;
   practiceType?: "exercise" | "project" | "quiz" | "none";
 }
 
@@ -19,16 +19,67 @@ export interface CourseOutline {
   description: string;
   targetAudience: string;
   prerequisites?: string[];
-  estimatedHours: number;
   difficulty: "beginner" | "intermediate" | "advanced";
   chapters: CourseOutlineChapter[];
   learningOutcome: string;
+}
+
+function buildOutlineDescription(title: string) {
+  return `围绕 ${title} 的系统学习路径，帮助你逐步建立关键知识和实践能力。`;
+}
+
+function buildTargetAudience(title: string) {
+  return `希望系统学习 ${title} 并形成可展示成果的学习者。`;
+}
+
+function buildLearningOutcome(title: string) {
+  return `完成 ${title} 的系统学习，并产出可展示的实践成果。`;
+}
+
+function buildChapterDescription(title: string) {
+  return `围绕 ${title} 建立关键理解与实践能力。`;
+}
+
+function buildSectionDescription(title: string) {
+  return `学习 ${title} 的核心概念、方法和应用方式。`;
+}
+
+export function expandInterviewOutlineToCourseOutline(outline: InterviewOutline): CourseOutline {
+  return {
+    title: outline.title,
+    description: buildOutlineDescription(outline.title),
+    targetAudience: buildTargetAudience(outline.title),
+    prerequisites: undefined,
+    difficulty: outline.difficulty,
+    learningOutcome: buildLearningOutcome(outline.title),
+    chapters: outline.chapters.map((chapter) => ({
+      title: chapter.title,
+      description: buildChapterDescription(chapter.title),
+      practiceType: chapter.practiceType,
+      sections: chapter.sections.map((section) => ({
+        title: section.title,
+        description: buildSectionDescription(section.title),
+      })),
+    })),
+  };
 }
 
 interface SaveCourseFromOutlineOptions {
   userId: string;
   outline: CourseOutline;
   courseId?: string;
+}
+
+function estimateCourseMinutes(outline: CourseOutline) {
+  const sectionCount = outline.chapters.reduce(
+    (total, chapter) => total + chapter.sections.length,
+    0,
+  );
+  const baseMinutes = Math.max(sectionCount, 1) * 45;
+  const projectBonus = outline.chapters.some((chapter) => chapter.practiceType === "project")
+    ? 90
+    : 0;
+  return baseMinutes + projectBonus;
 }
 
 function buildInitialProgress(_outline: CourseOutline) {
@@ -53,7 +104,7 @@ export async function saveCourseFromOutline({
       title: outline.title,
       description: outline.description,
       difficulty: outline.difficulty,
-      estimatedMinutes: Math.round(outline.estimatedHours * 60),
+      estimatedMinutes: estimateCourseMinutes(outline),
       outlineData: outline,
       updatedAt: new Date(),
     };

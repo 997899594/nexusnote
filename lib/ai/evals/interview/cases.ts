@@ -13,7 +13,7 @@ export const interviewEvalSuite = createEvalSuite({
         userGoal: "我会 HTML/CSS/JS，想系统学 React 并做一个作品集项目。",
       },
       expectations: [
-        "先澄清学习目标、基础水平和时间约束",
+        "可以直接给出课程草案，或只补一个真正影响课程设计的关键约束；不要重复确认已知主题、基础或作品集目标",
         "最终 outline 应覆盖 React 基础、状态管理、路由、实战项目",
         "不应直接跳到泛泛而谈的职业建议",
       ],
@@ -45,7 +45,6 @@ export const interviewEvalSuite = createEvalSuite({
           title: "运营转数据分析课程",
           description: "帮助运营背景学习者补齐数据分析能力，完成转岗准备。",
           targetAudience: "希望从运营转向数据分析岗位的学习者",
-          estimatedHours: 24,
           difficulty: "beginner",
           learningOutcome: "能独立完成基础数据分析项目并准备转岗作品集。",
           chapters: [
@@ -74,6 +73,21 @@ export const interviewEvalSuite = createEvalSuite({
         "options 应更像修改动作，而不是回到初始访谈选项",
       ],
       tags: ["revise", "outline-adjustment"],
+    },
+    {
+      id: "interview-vague-goal-should-keep-discovering",
+      title: "目标模糊时应继续追问而不是抢先出大纲",
+      domain: "interview",
+      promptVersion: "interview@v1",
+      input: {
+        userGoal: "我想学 AI，但还没想好具体方向。",
+      },
+      expectations: [
+        "应先澄清具体方向、背景或使用场景，而不是直接给课程大纲",
+        "返回应包含可执行的下一步选项，帮助用户缩小范围",
+        "问题应聚焦，不要一次性发散到太多维度",
+      ],
+      tags: ["discovery", "guardrail"],
     },
   ],
 });

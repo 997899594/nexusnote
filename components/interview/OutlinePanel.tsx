@@ -1,11 +1,13 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { BookOpen, Clock, Loader2, Play } from "lucide-react";
+import { BookOpen, Loader2, Play } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/utils";
 import type { OutlineData } from "@/stores/interview";
+import { useInterviewStore } from "@/stores/interview";
 
 interface OutlinePanelProps {
   outline: OutlineData | null;
@@ -38,12 +40,43 @@ const itemVariants = {
 export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps) {
   const router = useRouter();
   const [isStarting, setIsStarting] = useState(false);
+  const { addToast } = useToast();
+  const setCourseId = useInterviewStore((s) => s.setCourseId);
 
   const handleStartLearning = async () => {
-    if (!courseId) return;
     setIsStarting(true);
-    // 跳转到课程详情页
-    router.push(`/learn/${courseId}`);
+    try {
+      if (!outline) {
+        return;
+      }
+
+      const response = await fetch("/api/interview/create-course", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          outline,
+          courseId,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("课程生成失败");
+      }
+
+      const data = (await response.json()) as { courseId?: string };
+      if (!data.courseId) {
+        throw new Error("课程生成失败");
+      }
+
+      setCourseId(data.courseId);
+      router.push(`/learn/${data.courseId}`);
+    } catch (error) {
+      addToast(error instanceof Error ? error.message : "课程生成失败", "error");
+    } finally {
+      setIsStarting(false);
+    }
   };
 
   return (
@@ -99,33 +132,7 @@ export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps
               {/* Course Title & Description */}
               <motion.div variants={itemVariants} className="space-y-2">
                 <h3 className="text-lg font-bold text-zinc-900">{outline.title}</h3>
-                {outline.description && (
-                  <p className="text-sm text-zinc-600 leading-relaxed">{outline.description}</p>
-                )}
-                {outline.targetAudience && (
-                  <p className="text-xs text-zinc-500">适合: {outline.targetAudience}</p>
-                )}
-                {outline.learningOutcome && (
-                  <p className="text-xs text-zinc-500">学完能: {outline.learningOutcome}</p>
-                )}
-                {outline.estimatedHours && (
-                  <div className="flex items-center gap-1.5 text-sm text-zinc-500">
-                    <Clock className="h-4 w-4" />
-                    <span>预计时长: {outline.estimatedHours} 小时</span>
-                  </div>
-                )}
-                {outline.prerequisites && outline.prerequisites.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {outline.prerequisites.map((p) => (
-                      <span
-                        key={p}
-                        className="inline-flex items-center rounded-full bg-[#eef1f5] px-2 py-0.5 text-xs text-zinc-600"
-                      >
-                        {p}
-                      </span>
-                    ))}
-                  </div>
-                )}
+                <p className="text-xs text-zinc-500">难度: {outline.difficulty}</p>
               </motion.div>
 
               {/* Chapters */}
@@ -151,11 +158,6 @@ export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps
                       {/* Chapter Content */}
                       <div className="flex-1 min-w-0">
                         <h4 className="text-sm font-semibold text-zinc-900">{chapter.title}</h4>
-                        {chapter.description && (
-                          <p className="mt-1 text-xs text-zinc-500 leading-relaxed">
-                            {chapter.description}
-                          </p>
-                        )}
                         {chapter.sections && chapter.sections.length > 0 && (
                           <div className="mt-2 space-y-1.5">
                             {chapter.sections.map((section, secIndex) => (
@@ -166,37 +168,22 @@ export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps
                                 <span className="text-xs text-zinc-400 mt-0.5 shrink-0">
                                   {index + 1}.{secIndex + 1}
                                 </span>
-                                <div className="min-w-0">
-                                  <span className="text-xs font-medium text-zinc-700">
-                                    {section.title}
-                                  </span>
-                                  {section.description && (
-                                    <p className="text-xs text-zinc-400 leading-relaxed">
-                                      {section.description}
-                                    </p>
-                                  )}
-                                </div>
+                                <span className="min-w-0 text-xs font-medium text-zinc-700">
+                                  {section.title}
+                                </span>
                               </div>
                             ))}
                           </div>
                         )}
-                        {(chapter.estimatedMinutes || chapter.practiceType) && (
+                        {chapter.practiceType && chapter.practiceType !== "none" && (
                           <div className="mt-2 flex items-center gap-2 text-xs text-zinc-400">
-                            {chapter.estimatedMinutes && (
-                              <span className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                {chapter.estimatedMinutes}分钟
-                              </span>
-                            )}
-                            {chapter.practiceType && chapter.practiceType !== "none" && (
-                              <span className="rounded-full bg-[#eef1f5] px-2 py-0.5 text-zinc-600">
-                                {chapter.practiceType === "exercise"
-                                  ? "练习"
-                                  : chapter.practiceType === "project"
-                                    ? "项目"
-                                    : "测验"}
-                              </span>
-                            )}
+                            <span className="rounded-full bg-[#eef1f5] px-2 py-0.5 text-zinc-600">
+                              {chapter.practiceType === "exercise"
+                                ? "练习"
+                                : chapter.practiceType === "project"
+                                  ? "项目"
+                                  : "测验"}
+                            </span>
                           </div>
                         )}
                       </div>
@@ -206,30 +193,28 @@ export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps
               </div>
 
               {/* Start Learning Button */}
-              {courseId && (
-                <motion.div variants={itemVariants} className="pt-4">
-                  <button
-                    type="button"
-                    onClick={handleStartLearning}
-                    disabled={isStarting}
-                    className={cn(
-                      "w-full flex items-center justify-center gap-2 rounded-xl px-4 py-3",
-                      "bg-zinc-900 text-white",
-                      "font-medium text-sm",
-                      "hover:bg-zinc-800",
-                      "transition-colors duration-200",
-                      "disabled:opacity-50 disabled:cursor-not-allowed",
-                    )}
-                  >
-                    {isStarting ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Play className="h-4 w-4" />
-                    )}
-                    <span>{isStarting ? "准备中..." : "开始学习"}</span>
-                  </button>
-                </motion.div>
-              )}
+              <motion.div variants={itemVariants} className="pt-4">
+                <button
+                  type="button"
+                  onClick={handleStartLearning}
+                  disabled={isStarting}
+                  className={cn(
+                    "w-full flex items-center justify-center gap-2 rounded-xl px-4 py-3",
+                    "bg-zinc-900 text-white",
+                    "font-medium text-sm",
+                    "hover:bg-zinc-800",
+                    "transition-colors duration-200",
+                    "disabled:opacity-50 disabled:cursor-not-allowed",
+                  )}
+                >
+                  {isStarting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Play className="h-4 w-4" />
+                  )}
+                  <span>{isStarting ? "生成中..." : "生成课程并开始学习"}</span>
+                </button>
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>

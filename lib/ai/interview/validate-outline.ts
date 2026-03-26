@@ -8,14 +8,10 @@ export function validateOutlineForState(
   outline: InterviewOutline,
   state: InterviewState,
 ): { valid: true } | { valid: false; reason: string } {
-  if (
-    !hasContent(outline.title) ||
-    !hasContent(outline.description) ||
-    !hasContent(outline.learningOutcome)
-  ) {
+  if (!hasContent(outline.title)) {
     return {
       valid: false,
-      reason: "课程标题、描述或学习成果缺失，暂时不能进入课程创建。",
+      reason: "课程标题缺失，暂时不能进入课程草案预览。",
     };
   }
 
