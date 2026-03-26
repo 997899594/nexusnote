@@ -153,6 +153,7 @@ function buildFirstQuestionHint(latestUserMessage?: string) {
 export function buildInterviewAgentInstructionsWithHint(input: {
   currentOutline?: InterviewOutline;
   latestUserMessage?: string;
+  preferOutlinePreview?: boolean;
 }) {
   const firstQuestionHint = buildFirstQuestionHint(input.latestUserMessage);
 
@@ -186,9 +187,23 @@ export function buildInterviewAgentInstructionsWithHint(input: {
 - 调用 presentOutlinePreview 时，message 应作为草案提示语，例如“课程草案已经整理好了”或“我已经按你的方向更新了大纲”
 - 课程草案预览应优先给出轻量目录结构，核心只有课程标题、难度、章节标题和小节标题，帮助用户快速判断方向
 - 预览阶段不要补充冗长说明，不要为章节或小节添加解释性描述
-- 首次进入课程草案预览时，优先给出 3 到 5 章、每章 2 到 4 个小节的紧凑目录，后续再根据用户反馈细化
+- 正式课程的默认结构基线是 6 到 8 章、每章 4 个左右小节；除非用户明确要求更短/更长，或主题本身明显过窄/过宽，才偏离这个基线
+- 首次进入课程草案预览时，优先给出 3 到 4 章的代表性目录骨架，每章 2 到 3 个关键小节，用来快速确认方向；完整课程结构留到正式生成课程时展开
+- 课程草案预览的 options 优先使用短动作词，不要使用长句；优先从“调整章节顺序”“增加实战项目”“补基础章节”“修改项目方向”“开始生成课程”中选择最合适的 3 到 4 个
 
 ${input.currentOutline ? `当前已有课程大纲，请优先围绕它做修改与完善：\n${JSON.stringify(input.currentOutline, null, 2)}` : "当前还没有课程大纲。"}${firstQuestionHint}
+${
+  input.preferOutlinePreview
+    ? `
+
+本轮额外要求：
+- 这轮应优先直接给出课程草案预览，而不是继续追问抽象目标
+- 课程草案预览保持轻量，只展示 3 到 4 章的代表性结构；完整课程会在正式生成时扩展到更完整的章节和小节
+- 课程标题和章节标题优先简短具体，不要额外附加口号式修饰
+- options 控制在 3 个到 4 个，优先给“修改项目方向”“补基础章节”“增加实战项目”“开始生成课程”这类短动作
+`
+    : ""
+}
 ${
   input.currentOutline
     ? `

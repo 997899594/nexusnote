@@ -32,14 +32,14 @@ export const InterviewOutlineSectionSchema = z.object({
 
 export const InterviewOutlineChapterSchema = z.object({
   title: z.string().min(1).max(120),
-  sections: z.array(InterviewOutlineSectionSchema).min(1).max(5),
+  sections: z.array(InterviewOutlineSectionSchema).min(1).max(4),
   practiceType: z.enum(["exercise", "project", "quiz", "none"]).optional(),
 });
 
 export const InterviewOutlineSchema = z.object({
   title: z.string().min(1).max(120),
   difficulty: z.enum(["beginner", "intermediate", "advanced"]),
-  chapters: z.array(InterviewOutlineChapterSchema).min(1).max(12),
+  chapters: z.array(InterviewOutlineChapterSchema).min(1).max(6),
 });
 
 export const InterviewModeSchema = z.enum(["discover", "revise"]);

@@ -51,10 +51,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const expandedOutline = await expandInterviewOutlineToCourseOutline(outline);
+
     const result = await runCreateCourseWorkflow({
       userId,
       courseId,
-      outline: expandInterviewOutlineToCourseOutline(outline),
+      outline: expandedOutline,
     });
 
     return NextResponse.json({

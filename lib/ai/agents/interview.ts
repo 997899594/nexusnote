@@ -66,6 +66,7 @@ export function createInterviewAgent(options: InterviewAgentOptions) {
     instructions: buildInterviewAgentInstructionsWithHint({
       currentOutline: options.currentOutline,
       latestUserMessage,
+      preferOutlinePreview,
     }),
     tools,
     toolChoice: "required",
