@@ -14,7 +14,7 @@ import type {
 import { extractJsonMiddleware, extractReasoningMiddleware, wrapLanguageModel } from "ai";
 import { env } from "@/config/env";
 
-export type ModelType = "chat" | "pro" | "webSearch" | "embedding";
+export type ModelType = "chat" | "toolCalling" | "pro" | "webSearch" | "embedding";
 type LanguageModelType = Exclude<ModelType, "embedding">;
 type ProviderId = "302" | "openai" | "deepseek";
 
@@ -26,6 +26,7 @@ interface ProviderModelConfig {
 }
 
 const PROVIDER_PRIORITY: ProviderId[] = ["302", "openai", "deepseek"];
+const TOOL_CALLING_PROVIDER_PRIORITY: ProviderId[] = ["deepseek", "openai", "302"];
 
 const DEEPSEEK_BASE_URL = "https://api.deepseek.com/v1";
 
@@ -55,6 +56,7 @@ function isRetryableModelError(error: unknown): boolean {
 function createFailoverMiddleware(
   modelType: LanguageModelType,
   fallbackChain: ProviderModelConfig[],
+  getFallbackModel: (provider: ProviderModelConfig) => LanguageModelV3,
 ): LanguageModelV3Middleware | undefined {
   if (fallbackChain.length === 0) {
     return undefined;
@@ -64,24 +66,14 @@ function createFailoverMiddleware(
     provider: ProviderModelConfig,
     params: Parameters<LanguageModelV3["doGenerate"]>[0],
   ) => {
-    const modelId = provider.models[modelType];
-    if (!modelId) {
-      throw new Error(`Provider ${provider.label} does not support model type ${modelType}`);
-    }
-
-    return provider.client.chat(modelId).doGenerate(params);
+    return getFallbackModel(provider).doGenerate(params);
   };
 
   const doStreamOnProvider = async (
     provider: ProviderModelConfig,
     params: Parameters<LanguageModelV3["doStream"]>[0],
   ) => {
-    const modelId = provider.models[modelType];
-    if (!modelId) {
-      throw new Error(`Provider ${provider.label} does not support model type ${modelType}`);
-    }
-
-    return provider.client.chat(modelId).doStream(params);
+    return getFallbackModel(provider).doStream(params);
   };
 
   return {
@@ -142,18 +134,20 @@ function createReasoningModel(
   provider: ProviderModelConfig,
   modelType: LanguageModelType,
   fallbackChain: ProviderModelConfig[],
-) {
+): LanguageModelV3 {
   const modelId = provider.models[modelType];
   if (!modelId) {
     throw new Error(`Provider ${provider.label} does not support model type ${modelType}`);
   }
 
-  const middleware = [
+  const middleware: LanguageModelV3Middleware[] = [
     extractReasoningMiddleware({
       tagName: "thinking",
       separator: "\n\n---\n\n",
     }),
-    createFailoverMiddleware(modelType, fallbackChain),
+    createFailoverMiddleware(modelType, fallbackChain, (fallbackProvider) =>
+      createReasoningModel(fallbackProvider, modelType, []),
+    ),
   ].filter((item): item is LanguageModelV3Middleware => Boolean(item));
 
   return wrapLanguageModel({
@@ -166,15 +160,17 @@ function createPlainModel(
   provider: ProviderModelConfig,
   modelType: LanguageModelType,
   fallbackChain: ProviderModelConfig[],
-) {
+): LanguageModelV3 {
   const modelId = provider.models[modelType];
   if (!modelId) {
     throw new Error(`Provider ${provider.label} does not support model type ${modelType}`);
   }
 
-  const middleware = [createFailoverMiddleware(modelType, fallbackChain)].filter(
-    (item): item is LanguageModelV3Middleware => Boolean(item),
-  );
+  const middleware: LanguageModelV3Middleware[] = [
+    createFailoverMiddleware(modelType, fallbackChain, (fallbackProvider) =>
+      createPlainModel(fallbackProvider, modelType, []),
+    ),
+  ].filter((item): item is LanguageModelV3Middleware => Boolean(item));
 
   if (middleware.length === 0) {
     return provider.client.chat(modelId);
@@ -190,15 +186,17 @@ function createJsonModel(
   provider: ProviderModelConfig,
   modelType: LanguageModelType,
   fallbackChain: ProviderModelConfig[],
-) {
+): LanguageModelV3 {
   const modelId = provider.models[modelType];
   if (!modelId) {
     throw new Error(`Provider ${provider.label} does not support model type ${modelType}`);
   }
 
-  const middleware = [
+  const middleware: LanguageModelV3Middleware[] = [
     extractJsonMiddleware(),
-    createFailoverMiddleware(modelType, fallbackChain),
+    createFailoverMiddleware(modelType, fallbackChain, (fallbackProvider) =>
+      createJsonModel(fallbackProvider, modelType, []),
+    ),
   ].filter((item): item is LanguageModelV3Middleware => Boolean(item));
 
   return wrapLanguageModel({
@@ -235,6 +233,7 @@ class AIProvider {
         }),
         models: {
           chat: env.AI_MODEL,
+          toolCalling: env.AI_MODEL_TOOL_CALLING,
           pro: env.AI_MODEL_PRO,
           webSearch: env.AI_MODEL_WEB_SEARCH,
           embedding: env.EMBEDDING_MODEL,
@@ -252,6 +251,7 @@ class AIProvider {
         }),
         models: {
           chat: env.AI_FALLBACK_MODEL,
+          toolCalling: env.AI_FALLBACK_MODEL,
           pro: env.AI_FALLBACK_MODEL_PRO,
           webSearch: env.AI_FALLBACK_MODEL_WEB_SEARCH,
           embedding: "text-embedding-3-small",
@@ -269,6 +269,7 @@ class AIProvider {
         }),
         models: {
           chat: "deepseek-chat",
+          toolCalling: "deepseek-chat",
           pro: "deepseek-reasoner",
           webSearch: "deepseek-chat",
         },
@@ -301,8 +302,13 @@ class AIProvider {
     };
   }
 
-  private getLanguageModelChain(modelType: LanguageModelType): ProviderModelConfig[] {
-    return this.providers.filter((provider) => provider.models[modelType]);
+  private getLanguageModelChain(
+    modelType: LanguageModelType,
+    preferredOrder: ProviderId[] = PROVIDER_PRIORITY,
+  ): ProviderModelConfig[] {
+    return preferredOrder.flatMap((providerId) =>
+      this.providers.filter((provider) => provider.id === providerId && provider.models[modelType]),
+    );
   }
 
   getModel(modelType: LanguageModelType = "chat") {
@@ -336,6 +342,18 @@ class AIProvider {
     }
 
     return createJsonModel(primary, modelType, fallbackChain);
+  }
+
+  getToolCallingModel(modelType: LanguageModelType = "chat") {
+    const targetModelType = modelType === "chat" ? "toolCalling" : modelType;
+    const providers = this.getLanguageModelChain(targetModelType, TOOL_CALLING_PROVIDER_PRIORITY);
+    const [primary, ...fallbackChain] = providers;
+
+    if (!primary) {
+      throw new Error(`No AI provider configured for model type: ${targetModelType}`);
+    }
+
+    return createPlainModel(primary, targetModelType, fallbackChain);
   }
 
   getModelName(modelType: ModelType = "chat"): string {

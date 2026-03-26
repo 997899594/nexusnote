@@ -7,7 +7,6 @@ import {
   findLatestOutline,
   getInterviewMessageOptions,
   getInterviewMessageText,
-  InterviewOptionsDataSchema,
   type InterviewUIMessage,
 } from "@/lib/ai/interview/ui";
 import { isUnauthorizedError, parseApiError, redirectToLogin } from "@/lib/api/client";
@@ -55,7 +54,6 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
   const [sessionId] = useState(() => nanoid());
 
   const setOutline = useInterviewStore((s) => s.setOutline);
-  const setCourseId = useInterviewStore((s) => s.setCourseId);
   const setIsOutlineLoading = useInterviewStore((s) => s.setIsOutlineLoading);
   const setInterviewCompleted = useInterviewStore((s) => s.setInterviewCompleted);
   const resetInterview = useInterviewStore((s) => s.reset);
@@ -98,17 +96,11 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
       }),
       fetch: interviewFetch,
     }),
-    dataPartSchemas: {
-      interviewOptions: InterviewOptionsDataSchema,
-    },
     onFinish: ({ messages: finishedMessages }) => {
       const result = findLatestOutline(finishedMessages);
       const actions = storeActionsRef.current;
 
       if (result?.outline) {
-        if (result.courseId) {
-          setCourseId(result.courseId);
-        }
         actions.setOutline(result.outline as OutlineData);
         actions.setInterviewCompleted(true);
       }
@@ -165,14 +157,11 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
   useEffect(() => {
     const result = findLatestOutline(messages);
     if (result?.outline) {
-      if (result.courseId) {
-        setCourseId(result.courseId);
-      }
       setOutline(result.outline as OutlineData);
       setInterviewCompleted(true);
       setIsOutlineLoading(false);
     }
-  }, [messages, setCourseId, setInterviewCompleted, setIsOutlineLoading, setOutline]);
+  }, [messages, setInterviewCompleted, setIsOutlineLoading, setOutline]);
 
   const isLoading = status === "submitted" || status === "streaming";
   return {

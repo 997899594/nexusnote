@@ -11,6 +11,7 @@ import {
   buildPromptInstructions,
   getCapabilityProfile,
   getModelForPolicy,
+  getToolCallingModelForPolicy,
   recordAIUsage,
 } from "../core";
 import type { AgentProfile } from "../core/capability-profiles";
@@ -74,10 +75,14 @@ export async function createChatAgent(options: PersonalizationOptions = {}) {
     userId: options.userId,
     resourceId: options.courseId,
   });
+  const model =
+    profileId === "LEARN_ASSIST"
+      ? getToolCallingModelForPolicy(profile.modelPolicy)
+      : getModelForPolicy(profile.modelPolicy);
 
   return new ToolLoopAgent({
     id: `nexusnote-${profileId.toLowerCase()}`,
-    model: getModelForPolicy(profile.modelPolicy),
+    model,
     instructions,
     tools,
     stopWhen: stepCountIs(profile.maxSteps),

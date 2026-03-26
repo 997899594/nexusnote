@@ -19,6 +19,10 @@ export function getPlainModelForPolicy(policy: ModelPolicy) {
   return aiProvider.getPlainModel(POLICY_TO_MODEL_TYPE[policy]);
 }
 
+export function getToolCallingModelForPolicy(policy: ModelPolicy) {
+  return aiProvider.getToolCallingModel(POLICY_TO_MODEL_TYPE[policy]);
+}
+
 export function getJsonModelForPolicy(policy: ModelPolicy) {
   return aiProvider.getJsonModel(POLICY_TO_MODEL_TYPE[policy]);
 }

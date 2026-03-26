@@ -115,7 +115,18 @@ bun run db:generate  # Generate migration files
 - All AI tools in `lib/ai/tools/`
 - Use `streamText()` for streaming responses
 - Use `smoothStream()` with `Intl.Segmenter('zh-Hans')` for Chinese text
-- Tool-first generative UI: AI calls tools → frontend renders components
+- Read and follow these project AI SDK v6 guidance docs before changing AI interaction patterns:
+  - `docs/AI_SDK_V6_PROJECT_GUIDELINES.md`
+  - `docs/ai-sdk-v6-guide.md`
+  - `docs/ai-sdk-v6-advanced-features.md`
+- Prefer AI SDK v6-native `UIMessage.parts` over ad-hoc JSON/text parsing
+- Tool-first generative UI only applies to real actions/capabilities, not every UI artifact
+- Use this split:
+  - `ToolLoopAgent` for open-ended conversational flows and true streaming
+  - tools for actions/capability calls with real side effects or explicit execution
+  - `UIMessage` `data-*` parts for structured UI data that should not depend on optional tool calls
+  - workflows for fixed-order background jobs with retries/side effects
+- Do not invent frontend fallback content for AI-generated UI data; frontend should render authoritative server data
 - **Code-driven, NOT prompt-driven**: Control AI behavior through code logic, not prompts
 
 ### UI Components

@@ -36,5 +36,21 @@ export const notesEvalSuite = createEvalSuite({
       ],
       tags: ["structure", "editing"],
     },
+    {
+      id: "notes-action-items-without-hallucination",
+      title: "整理行动项时不能编造不存在的任务",
+      domain: "notes",
+      promptVersion: "note-assist@v1",
+      input: {
+        instruction: "把这段记录整理成行动项列表。",
+        noteExcerpt: "要补登录链路监控；数据库迁移要提前演练；邮件告警模板还没统一。",
+      },
+      expectations: [
+        "输出应是清晰的行动项列表",
+        "不能凭空增加负责人、截止时间等原文没有的信息",
+        "保留原始任务边界，适合直接写回笔记",
+      ],
+      tags: ["editing", "fidelity"],
+    },
   ],
 });

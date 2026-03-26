@@ -36,5 +36,21 @@ export const learnEvalSuite = createEvalSuite({
       ],
       tags: ["reasoning", "grounding"],
     },
+    {
+      id: "learn-context-boundary-should-stay-on-chapter",
+      title: "学习助理应围绕当前章节，不乱跳主题",
+      domain: "learn",
+      promptVersion: "learn-assist@v1",
+      input: {
+        question: "这一节先学 Context API 还是 Redux 更合适？",
+        courseContext: "React 进阶，第 4 章状态共享与 Context API",
+      },
+      expectations: [
+        "应优先围绕当前章节里的 Context API 作答",
+        "如果提到 Redux，应作为对比而不是把回答重心带偏",
+        "回答应帮助用户理解当前章节的学习顺序",
+      ],
+      tags: ["grounding", "scope-control"],
+    },
   ],
 });

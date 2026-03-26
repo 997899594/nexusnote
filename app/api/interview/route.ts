@@ -1,11 +1,4 @@
-import {
-  convertToModelMessages,
-  createUIMessageStream,
-  createUIMessageStreamResponse,
-  type FinishReason,
-  smoothStream,
-  validateUIMessages,
-} from "ai";
+import { convertToModelMessages, smoothStream, validateUIMessages } from "ai";
 import { eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { courses, db } from "@/db";
@@ -13,12 +6,8 @@ import {
   aiProvider,
   createInterviewAgent,
   createTelemetryContext,
-  findLatestOutline,
-  generateInterviewOptions,
   getErrorMessage,
-  getInterviewMessageText,
   InterviewApiRequestSchema,
-  InterviewOptionsDataSchema,
   type InterviewUIMessage,
   recordAIUsage,
 } from "@/lib/ai";
@@ -95,12 +84,7 @@ export async function POST(request: NextRequest) {
       courseId = existingCourse.id;
     }
 
-    const validatedMessages = await validateUIMessages<InterviewUIMessage>({
-      messages,
-      dataSchemas: {
-        interviewOptions: InterviewOptionsDataSchema,
-      },
-    });
+    const validatedMessages = await validateUIMessages<InterviewUIMessage>({ messages });
 
     const agent = createInterviewAgent({
       userId,
@@ -114,78 +98,17 @@ export async function POST(request: NextRequest) {
       tools: agent.tools,
     });
 
-    const stream = createUIMessageStream<InterviewUIMessage>({
-      originalMessages: validatedMessages,
-      execute: async ({ writer }) => {
-        let finishStateResolve:
-          | ((value: { messages: InterviewUIMessage[]; finishReason?: FinishReason }) => void)
-          | null = null;
-        const finishStatePromise = new Promise<{
-          messages: InterviewUIMessage[];
-          finishReason?: FinishReason;
-        }>((resolve) => {
-          finishStateResolve = resolve;
-        });
-
-        const result = await agent.stream({
-          prompt: modelMessages,
-          experimental_transform: smoothStream({
-            chunking: new Intl.Segmenter("zh-CN", { granularity: "grapheme" }),
-          }),
-        });
-
-        writer.merge(
-          result.toUIMessageStream<InterviewUIMessage>({
-            originalMessages: validatedMessages,
-            sendReasoning: false,
-            sendFinish: false,
-            onFinish: ({ messages: finishedMessages, finishReason }) => {
-              finishStateResolve?.({
-                messages: finishedMessages,
-                finishReason,
-              });
-            },
-          }),
-        );
-
-        const { messages: finishedMessages, finishReason } = await finishStatePromise;
-        const latestAssistantMessage = [...finishedMessages]
-          .reverse()
-          .find((message) => message.role === "assistant");
-        const assistantText = latestAssistantMessage
-          ? getInterviewMessageText(latestAssistantMessage)
-          : "";
-        const latestOutline = findLatestOutline(finishedMessages);
-
-        if (assistantText) {
-          try {
-            const options = await generateInterviewOptions({
-              messages: finishedMessages,
-              assistantText,
-              hasOutline: Boolean(latestOutline?.outline),
-            });
-
-            if (options.length > 0) {
-              writer.write({
-                type: "data-interviewOptions",
-                data: { options },
-              });
-            }
-          } catch (error) {
-            console.warn("[Interview] Failed to generate options:", error);
-          }
-        }
-
-        writer.write({
-          type: "finish",
-          finishReason: finishReason ?? "stop",
-        });
-      },
-      onError: (error) => getErrorMessage(error),
+    const result = await agent.stream({
+      prompt: modelMessages,
+      experimental_transform: smoothStream({
+        chunking: new Intl.Segmenter("zh-CN", { granularity: "grapheme" }),
+      }),
     });
 
-    return createUIMessageStreamResponse({
-      stream,
+    return result.toUIMessageStreamResponse<InterviewUIMessage>({
+      originalMessages: validatedMessages,
+      sendReasoning: false,
+      onError: (error) => getErrorMessage(error),
       status: 200,
       headers: {
         "X-Request-Id": requestId,

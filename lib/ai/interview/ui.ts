@@ -1,47 +1,87 @@
-import type { UIDataTypes } from "ai";
-import { getToolName, isDataUIPart, isToolUIPart, type UIMessage } from "ai";
-import { z } from "zod";
-import type { ConfirmOutlineOutput, ConfirmOutlineSchema } from "@/lib/ai/tools/interview";
+import { getToolName, isToolUIPart, type UIMessage } from "ai";
+import type { z } from "zod";
+import type {
+  PresentOptionsInputSchema,
+  PresentOptionsOutput,
+  PresentOutlinePreviewInputSchema,
+  PresentOutlinePreviewOutput,
+} from "@/lib/ai/tools/interview";
+import type { InterviewMode, InterviewOutline } from "./schemas";
 
-export const InterviewOptionsDataSchema = z.object({
-  options: z.array(z.string().min(1).max(80)).min(2).max(4),
-});
-
-export interface InterviewUIDataParts extends UIDataTypes {
-  interviewOptions: z.infer<typeof InterviewOptionsDataSchema>;
+export interface InterviewOutlinePreviewData {
+  mode: InterviewMode;
+  outline: InterviewOutline;
 }
 
 export type InterviewUIMessage = UIMessage<
   never,
-  InterviewUIDataParts,
+  never,
   {
-    confirmOutline: {
-      input: z.infer<typeof ConfirmOutlineSchema>;
-      output: ConfirmOutlineOutput;
+    presentOptions: {
+      input: z.infer<typeof PresentOptionsInputSchema>;
+      output: PresentOptionsOutput;
+    };
+    presentOutlinePreview: {
+      input: z.infer<typeof PresentOutlinePreviewInputSchema>;
+      output: PresentOutlinePreviewOutput;
     };
   }
 >;
 
 export function getInterviewMessageText(message: UIMessage): string {
-  return message.parts
+  const text = message.parts
     .filter((part) => part.type === "text")
     .map((part) => part.text)
     .join("")
     .trim();
+
+  if (text.length > 0) {
+    return text;
+  }
+
+  for (let i = message.parts.length - 1; i >= 0; i--) {
+    const part = message.parts[i];
+    if (isToolUIPart(part) && getToolName(part) === "presentOutlinePreview") {
+      return String((part.input as { message?: string } | undefined)?.message ?? "").trim();
+    }
+    if (isToolUIPart(part) && getToolName(part) === "presentOptions") {
+      return String((part.input as { question?: string } | undefined)?.question ?? "").trim();
+    }
+  }
+
+  return "";
 }
 
 export function getInterviewMessageOptions(message: InterviewUIMessage): string[] {
   for (let i = message.parts.length - 1; i >= 0; i--) {
     const part = message.parts[i];
-    if (isDataUIPart<InterviewUIDataParts>(part) && part.type === "data-interviewOptions") {
-      return (part.data as InterviewUIDataParts["interviewOptions"]).options;
+    if (isToolUIPart(part) && getToolName(part) === "presentOutlinePreview") {
+      const input = part.input as { options?: string[] } | undefined;
+      return Array.isArray(input?.options) ? input.options : [];
+    }
+    if (isToolUIPart(part) && getToolName(part) === "presentOptions") {
+      const input = part.input as { options?: string[] } | undefined;
+      return Array.isArray(input?.options) ? input.options : [];
     }
   }
 
   return [];
 }
 
-export function findLatestOutline(messages: InterviewUIMessage[]): ConfirmOutlineOutput | null {
+export function getInterviewMessageMode(message: InterviewUIMessage): "question" | "outline" {
+  for (let i = message.parts.length - 1; i >= 0; i--) {
+    const part = message.parts[i];
+    if (isToolUIPart(part) && getToolName(part) === "presentOutlinePreview") {
+      return "outline";
+    }
+  }
+
+  return "question";
+}
+
+export function findLatestOutline(
+  messages: InterviewUIMessage[],
+): InterviewOutlinePreviewData | null {
   for (let i = messages.length - 1; i >= 0; i--) {
     const message = messages[i];
     if (message.role !== "assistant") {
@@ -49,14 +89,10 @@ export function findLatestOutline(messages: InterviewUIMessage[]): ConfirmOutlin
     }
 
     for (const part of message.parts) {
-      if (
-        isToolUIPart(part) &&
-        getToolName(part) === "confirmOutline" &&
-        part.state === "output-available"
-      ) {
-        const output = part.output as ConfirmOutlineOutput | undefined;
-        if (output?.success && output.outline) {
-          return output;
+      if (isToolUIPart(part) && getToolName(part) === "presentOutlinePreview") {
+        const input = part.input as { outline?: InterviewOutline } | undefined;
+        if (input?.outline) {
+          return { mode: "revise", outline: input.outline };
         }
       }
     }

@@ -28,6 +28,28 @@ function inferUseCaseFromGoal(goal: string | null) {
   ].some((keyword) => normalized.includes(keyword));
 }
 
+function hasConcreteDeliverable(state: InterviewState) {
+  const combined = [state.goal, state.useCase, ...state.preferences.focusAreas]
+    .filter((value): value is string => hasContent(value))
+    .join(" ")
+    .toLowerCase();
+
+  return [
+    "作品集",
+    "项目",
+    "网站",
+    "应用",
+    "后台",
+    "仪表盘",
+    "dashboard",
+    "portfolio",
+    "demo",
+    "案例",
+    "原型",
+    "落地",
+  ].some((keyword) => combined.includes(keyword));
+}
+
 function resolveNextFocus(
   state: InterviewState,
   missingCoreFields: Array<"goal" | "background" | "useCase">,
@@ -40,15 +62,15 @@ function resolveNextFocus(
     return missingCoreFields[0];
   }
 
-  if (!hasContent(state.constraints.timeBudget) || !hasContent(state.constraints.preferredDepth)) {
-    return "constraints";
-  }
-
   if (!hasContent(state.preferences.style) || state.preferences.focusAreas.length === 0) {
     return "preferences";
   }
 
-  return "revise";
+  if (!hasContent(state.constraints.preferredDepth)) {
+    return "constraints";
+  }
+
+  return "preferences";
 }
 
 export function evaluateInterviewSufficiency(
@@ -83,14 +105,23 @@ export function evaluateInterviewSufficiency(
     };
   }
 
-  const allowOutline = missingCoreFields.length === 0 && state.confidence >= 0.7;
+  const draftFirstAllowed =
+    missingCoreFields.length === 0 &&
+    hasConcreteDeliverable(state) &&
+    hasContent(state.background) &&
+    state.confidence >= 0.35;
+
+  const allowOutline =
+    missingCoreFields.length === 0 && (state.confidence >= 0.7 || draftFirstAllowed);
 
   return {
     allowOutline,
     missingCoreFields,
     nextFocus: allowOutline ? "revise" : resolveNextFocus(state, missingCoreFields),
     reason: allowOutline
-      ? "核心信息已经足够，可以生成课程草案。"
+      ? draftFirstAllowed && state.confidence < 0.7
+        ? "主题、基础和具体产出目标已经明确，可以先给出课程草案，再继续微调。"
+        : "核心信息已经足够，可以生成课程草案。"
       : missingCoreFields.length > 0
         ? `仍缺少关键访谈信息：${missingCoreFields.join("、")}。`
         : "核心方向已明确，但还需要再补一个关键约束后再生成更稳。",

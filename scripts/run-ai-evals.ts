@@ -1,4 +1,5 @@
 import {
+  chatEvalSuite,
   type EvalDomain,
   type EvalSuite,
   interviewEvalSuite,
@@ -8,6 +9,7 @@ import {
 } from "@/lib/ai/evals";
 
 const SUITES: Record<EvalDomain, EvalSuite<any>> = {
+  chat: chatEvalSuite,
   interview: interviewEvalSuite,
   learn: learnEvalSuite,
   notes: notesEvalSuite,

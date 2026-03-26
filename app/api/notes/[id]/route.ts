@@ -90,17 +90,15 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       updatedAt: notes.updatedAt,
     });
 
-  try {
-    await indexNote(updated.id, updated.plainText ?? "", {
-      userId,
-      metadata: {
-        sourceType: existing.sourceType,
-        sourceContext: existing.sourceContext ?? null,
-      },
-    });
-  } catch (error) {
+  indexNote(updated.id, updated.plainText ?? "", {
+    userId,
+    metadata: {
+      sourceType: existing.sourceType,
+      sourceContext: existing.sourceContext ?? null,
+    },
+  }).catch((error) => {
     console.error("[Notes API] Failed to index note:", error);
-  }
+  });
 
   return NextResponse.json({ note: updated });
 }

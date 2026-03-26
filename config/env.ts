@@ -36,6 +36,8 @@ export const defaults = {
   ai: {
     // 通用模型 - Gemini 3.1 Flash Lite
     model: "gemini-3.1-flash-lite-preview",
+    // Tool-calling / agentic model - Gemini 3.1 Flash
+    toolCallingModel: "gemini-3.1-flash-preview",
     // Pro 模型 - Gemini 3.1 Pro
     modelPro: "gemini-3.1-pro-preview",
     // 联网搜索模型
@@ -110,6 +112,7 @@ export const serverEnvSchema = z.object({
 
   // AI Models (有默认值)
   AI_MODEL: z.string().default(defaults.ai.model),
+  AI_MODEL_TOOL_CALLING: z.string().default(defaults.ai.toolCallingModel),
   AI_MODEL_PRO: z.string().default(defaults.ai.modelPro),
   AI_MODEL_WEB_SEARCH: z.string().default(defaults.ai.modelWebSearch),
   AI_FALLBACK_MODEL: z.string().default(defaults.ai.fallbackModel),
@@ -320,6 +323,7 @@ export function logServerConfig(env: ServerEnv): void {
   console.log(`  REDIS_URL: ${env.REDIS_URL}`);
   console.log(`  AI_302_API_KEY: ${maskSecret(env.AI_302_API_KEY)}`);
   console.log(`  AI_MODEL: ${env.AI_MODEL}`);
+  console.log(`  AI_MODEL_TOOL_CALLING: ${env.AI_MODEL_TOOL_CALLING}`);
   console.log(`  AI_MODEL_PRO: ${env.AI_MODEL_PRO}`);
   console.log(`  AI_MODEL_WEB_SEARCH: ${env.AI_MODEL_WEB_SEARCH}`);
   console.log(`  AI_ENABLE_WEB_SEARCH: ${env.AI_ENABLE_WEB_SEARCH}`);

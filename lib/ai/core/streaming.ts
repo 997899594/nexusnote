@@ -3,6 +3,8 @@
 import {
   type Agent,
   createAgentUIStreamResponse,
+  createUIMessageStream,
+  createUIMessageStreamResponse,
   smoothStream,
   type ToolSet,
   type UIMessage,
@@ -56,22 +58,17 @@ function createFallbackStream(
   message: string,
   headers: { sessionId?: string; resourceId?: string },
 ): Response {
-  const encoder = new TextEncoder();
-
-  const stream = new ReadableStream({
-    async start(controller) {
-      for (const char of message) {
-        controller.enqueue(encoder.encode(`0:"${char}"\n`));
-      }
-      controller.enqueue(encoder.encode(`d:{"finishReason":"stop"}\n`));
-      controller.close();
-    },
-  });
-
-  const response = new Response(stream, {
+  const response = createUIMessageStreamResponse({
+    stream: createUIMessageStream({
+      execute: ({ writer }) => {
+        writer.write({
+          type: "error",
+          errorText: message,
+        });
+      },
+    }),
     status: 200,
     headers: {
-      "Content-Type": "text/plain; charset=utf-8",
       "X-Stream-Error": "true",
       "X-Content-Type-Options": "nosniff",
       "Cache-Control": "no-cache, no-store, must-revalidate",

@@ -5,6 +5,7 @@ import { getModelNameForPolicy, getProviderForPolicy, type ModelPolicy } from ".
 
 const MODEL_PRICING_USD_PER_1M_TOKENS: Record<string, { input: number; output: number }> = {
   "gemini-3.1-flash-lite-preview": { input: 0.1, output: 0.4 },
+  "gemini-3.1-flash-preview": { input: 0.35, output: 1.05 },
   "gemini-3.1-pro-preview": { input: 3.5, output: 10.5 },
   "gemini-3.1-flash-preview-web-search": { input: 0.35, output: 1.05 },
 };
