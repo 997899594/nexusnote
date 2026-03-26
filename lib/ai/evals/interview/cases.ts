@@ -54,6 +54,8 @@ export const interviewEvalSuite = createEvalSuite({
               sections: [
                 { title: "查询语句", description: "理解 select、where、group by。" },
                 { title: "表连接", description: "掌握 join 与多表分析。" },
+                { title: "聚合分析", description: "用统计指标读取业务变化。" },
+                { title: "常见分析题", description: "练习转岗面试里的 SQL 问题。" },
               ],
             },
             {
@@ -62,6 +64,38 @@ export const interviewEvalSuite = createEvalSuite({
               sections: [
                 { title: "Pandas 入门", description: "完成清洗和聚合。" },
                 { title: "图表表达", description: "输出基础可视化结果。" },
+                { title: "数据清洗流程", description: "处理空值、异常值和字段转换。" },
+                { title: "分析报告输出", description: "整理成可交付的分析结论。" },
+              ],
+            },
+            {
+              title: "指标体系与业务分析",
+              description: "从运营视角理解关键指标与分析框架。",
+              sections: [
+                { title: "核心指标拆解", description: "理解转化、留存与复购指标。" },
+                { title: "漏斗与用户旅程", description: "定位问题环节和优化机会。" },
+                { title: "活动复盘方法", description: "评估活动效果并沉淀结论。" },
+                { title: "业务问题建模", description: "把业务问题转成分析问题。" },
+              ],
+            },
+            {
+              title: "可视化与沟通",
+              description: "把数据洞察表达给业务与团队。",
+              sections: [
+                { title: "图表选型原则", description: "根据问题选择合适图表。" },
+                { title: "故事化表达", description: "让分析结果更容易被理解。" },
+                { title: "仪表盘基础", description: "构建可复用的数据看板。" },
+                { title: "汇报结构设计", description: "形成业务听得懂的结论表达。" },
+              ],
+            },
+            {
+              title: "作品集项目",
+              description: "把前面能力整合成可展示的实战项目。",
+              sections: [
+                { title: "项目选题", description: "选择适合转岗展示的项目主题。" },
+                { title: "数据获取与整理", description: "搭建项目数据基础。" },
+                { title: "完整分析流程", description: "完成从问题到结论的项目闭环。" },
+                { title: "作品集包装", description: "把项目整理成求职展示材料。" },
               ],
             },
           ],

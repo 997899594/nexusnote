@@ -132,7 +132,18 @@ export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps
               {/* Course Title & Description */}
               <motion.div variants={itemVariants} className="space-y-2">
                 <h3 className="text-lg font-bold text-zinc-900">{outline.title}</h3>
+                <p className="text-sm leading-6 text-zinc-600">{outline.description}</p>
                 <p className="text-xs text-zinc-500">难度: {outline.difficulty}</p>
+                <div className="rounded-2xl border border-zinc-200 bg-white/70 p-3 text-xs text-zinc-600">
+                  <p>
+                    <span className="font-semibold text-zinc-800">适合人群：</span>
+                    {outline.targetAudience}
+                  </p>
+                  <p className="mt-2">
+                    <span className="font-semibold text-zinc-800">完成后你将获得：</span>
+                    {outline.learningOutcome}
+                  </p>
+                </div>
               </motion.div>
 
               {/* Chapters */}
@@ -158,19 +169,29 @@ export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps
                       {/* Chapter Content */}
                       <div className="flex-1 min-w-0">
                         <h4 className="text-sm font-semibold text-zinc-900">{chapter.title}</h4>
+                        <p className="mt-1 text-xs leading-5 text-zinc-600">
+                          {chapter.description}
+                        </p>
                         {chapter.sections && chapter.sections.length > 0 && (
                           <div className="mt-2 space-y-1.5">
                             {chapter.sections.map((section, secIndex) => (
                               <div
                                 key={`${section.title}-${secIndex}`}
-                                className="flex items-start gap-2 pl-1"
+                                className="rounded-xl bg-zinc-50 px-3 py-2"
                               >
-                                <span className="text-xs text-zinc-400 mt-0.5 shrink-0">
-                                  {index + 1}.{secIndex + 1}
-                                </span>
-                                <span className="min-w-0 text-xs font-medium text-zinc-700">
-                                  {section.title}
-                                </span>
+                                <div className="flex items-start gap-2">
+                                  <span className="text-xs text-zinc-400 mt-0.5 shrink-0">
+                                    {index + 1}.{secIndex + 1}
+                                  </span>
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-medium text-zinc-700">
+                                      {section.title}
+                                    </p>
+                                    <p className="mt-1 text-[11px] leading-5 text-zinc-500">
+                                      {section.description}
+                                    </p>
+                                  </div>
+                                </div>
                               </div>
                             ))}
                           </div>

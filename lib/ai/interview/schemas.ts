@@ -28,18 +28,23 @@ function normalizedStringArray(maxItemLength: number, maxItems: number) {
 
 export const InterviewOutlineSectionSchema = z.object({
   title: z.string().min(1).max(80),
+  description: z.string().min(1).max(180),
 });
 
 export const InterviewOutlineChapterSchema = z.object({
   title: z.string().min(1).max(120),
-  sections: z.array(InterviewOutlineSectionSchema).min(1).max(4),
+  description: z.string().min(1).max(220),
+  sections: z.array(InterviewOutlineSectionSchema).min(4).max(6),
   practiceType: z.enum(["exercise", "project", "quiz", "none"]).optional(),
 });
 
 export const InterviewOutlineSchema = z.object({
   title: z.string().min(1).max(120),
+  description: z.string().min(1).max(300),
+  targetAudience: z.string().min(1).max(200),
   difficulty: z.enum(["beginner", "intermediate", "advanced"]),
-  chapters: z.array(InterviewOutlineChapterSchema).min(1).max(6),
+  learningOutcome: z.string().min(1).max(240),
+  chapters: z.array(InterviewOutlineChapterSchema).min(5).max(7),
 });
 
 export const InterviewModeSchema = z.enum(["discover", "revise"]);

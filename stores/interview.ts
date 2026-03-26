@@ -2,18 +2,23 @@
 import { create } from "zustand";
 
 export interface Section {
-  title: string; // e.g., "变量与常量"
+  title: string;
+  description: string;
 }
 
 export interface Chapter {
   title: string;
-  sections: Section[]; // replaces topics: string[]
+  description: string;
+  sections: Section[];
   practiceType?: "exercise" | "project" | "quiz" | "none";
 }
 
 export interface OutlineData {
   title: string;
+  description: string;
+  targetAudience: string;
   difficulty: "beginner" | "intermediate" | "advanced";
+  learningOutcome: string;
   chapters: Chapter[];
 }
 
