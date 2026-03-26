@@ -89,6 +89,11 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
         options: [],
       };
       const nextMessages = [...messagesRef.current, userMessage, assistantMessage];
+      const requestMessages = [...messagesRef.current, userMessage].map((message) => ({
+        id: message.id,
+        role: message.role,
+        text: message.text.trim(),
+      }));
 
       setMessages(nextMessages);
       setStatus("submitted");
@@ -104,11 +109,7 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
             sessionId,
             courseId: store.courseId ?? undefined,
             outline: store.outline ?? undefined,
-            messages: nextMessages.map((message) => ({
-              id: message.id,
-              role: message.role,
-              text: message.text,
-            })),
+            messages: requestMessages,
           }),
         });
 

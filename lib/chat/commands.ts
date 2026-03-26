@@ -15,9 +15,9 @@ export const CHAT_COMMANDS: Command[] = [
     id: "create-note",
     label: "Create Note",
     icon: Plus,
-    modeLabel: "创建笔记",
+    modeLabel: "查看笔记",
     modeIcon: Plus,
-    targetPath: "/editor/new",
+    targetPath: "/editor",
     getQueryParams: () => ({}),
   },
   {

@@ -37,7 +37,7 @@ const navItems = [
 ];
 
 const quickActions = [
-  { icon: FileText, label: "新建笔记", href: "/editor/new" },
+  { icon: FileText, label: "我的笔记", href: "/editor" },
   { icon: BookOpen, label: "AI 课程", href: "/interview" },
 ];
 

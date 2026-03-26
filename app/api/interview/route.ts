@@ -63,7 +63,22 @@ export async function POST(request: NextRequest) {
       throw new APIError("无效的 JSON", 400, "INVALID_JSON");
     }
 
-    const validation = InterviewApiRequestSchema.safeParse(body);
+    const sanitizedBody =
+      body && typeof body === "object" && "messages" in body && Array.isArray(body.messages)
+        ? {
+            ...body,
+            messages: body.messages.filter(
+              (message) =>
+                message &&
+                typeof message === "object" &&
+                "text" in message &&
+                typeof message.text === "string" &&
+                message.text.trim().length > 0,
+            ),
+          }
+        : body;
+
+    const validation = InterviewApiRequestSchema.safeParse(sanitizedBody);
     if (!validation.success) {
       return NextResponse.json(
         { error: { code: "VALIDATION_ERROR", details: validation.error.issues } },

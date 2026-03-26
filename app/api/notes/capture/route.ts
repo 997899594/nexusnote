@@ -5,6 +5,7 @@ import { courseSections, courses, db, notes } from "@/db";
 import { tagGenerationService } from "@/lib/ai/services/tag-generation-service";
 import { auth } from "@/lib/auth";
 import {
+  buildCapturedNoteHtml,
   buildCapturedNotePlainText,
   buildCapturedNoteTitle,
   serializeCaptureAnchor,
@@ -62,6 +63,12 @@ export async function POST(request: NextRequest) {
       selectionText,
       noteContent,
     });
+    const contentHtml = buildCapturedNoteHtml({
+      courseTitle: section.courseTitle,
+      sectionTitle: section.sectionTitle,
+      selectionText,
+      noteContent,
+    });
 
     const [note] = await db
       .insert(notes)
@@ -82,6 +89,7 @@ export async function POST(request: NextRequest) {
           annotationId,
           noteContent: noteContent?.trim() || undefined,
         },
+        contentHtml,
         plainText,
       })
       .returning({

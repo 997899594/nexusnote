@@ -230,6 +230,7 @@ export const notes = pgTable(
       annotationId?: string;
       noteContent?: string;
     }>(),
+    contentHtml: text("content_html"),
     plainText: text("plain_text"),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),

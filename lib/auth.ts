@@ -6,6 +6,7 @@
  */
 
 import { redirect } from "next/navigation";
+import { AuthError } from "next-auth";
 import { auth as nextAuth } from "@/app/api/auth/[...nextauth]/route";
 import { createLoginPath } from "@/lib/auth-redirect";
 
@@ -23,7 +24,17 @@ export async function auth() {
   ) {
     return null;
   }
-  return await nextAuth();
+
+  try {
+    return await nextAuth();
+  } catch (error) {
+    if (error instanceof AuthError && error.type === "Verification") {
+      console.warn("[Auth] Ignoring invalid verification token or expired auth state");
+      return null;
+    }
+
+    throw error;
+  }
 }
 
 /**

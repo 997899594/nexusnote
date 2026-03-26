@@ -43,6 +43,13 @@
       "when": 1774603800000,
       "tag": "0005_add-note-source-context",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1774686600000,
+      "tag": "0006_add-note-content-html",
+      "breakpoints": true
     }
   ]
 }

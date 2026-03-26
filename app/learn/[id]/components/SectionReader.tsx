@@ -4,6 +4,7 @@
 
 import { motion } from "framer-motion";
 import { AlertCircle, BookOpen, Check, Loader2, RefreshCw, Sparkles } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { StreamdownMessage } from "@/components/chat/StreamdownMessage";
 import { useToast } from "@/components/ui/Toast";
@@ -29,51 +30,6 @@ interface SectionReaderProps {
   generateSection: (index: number) => void;
   sectionDocs: SectionDoc[];
   scrollToSectionId?: string | null;
-}
-
-function NoteInputDialog({
-  onSubmit,
-  onCancel,
-}: {
-  onSubmit: (text: string) => void;
-  onCancel: () => void;
-}) {
-  const [text, setText] = useState("");
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="w-80 rounded-2xl bg-white p-4 shadow-[0_24px_56px_-36px_rgba(15,23,42,0.18)]"
-      >
-        <h3 className="text-sm font-semibold text-zinc-900 mb-2">添加笔记</h3>
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="写下你的想法..."
-          rows={3}
-          className="w-full resize-none rounded-xl border border-zinc-200 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
-        />
-        <div className="flex justify-end gap-2 mt-3">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="px-3 py-1.5 text-xs text-zinc-600 hover:bg-zinc-100 rounded-lg"
-          >
-            取消
-          </button>
-          <button
-            type="button"
-            onClick={() => text.trim() && onSubmit(text.trim())}
-            disabled={!text.trim()}
-            className="px-3 py-1.5 text-xs bg-zinc-900 text-white rounded-lg disabled:opacity-50"
-          >
-            保存
-          </button>
-        </div>
-      </motion.div>
-    </div>
-  );
 }
 
 function CaptureNoteDialog({
@@ -118,7 +74,7 @@ function CaptureNoteDialog({
             onClick={() => onSubmit(text.trim())}
             className="rounded-lg bg-zinc-900 px-3 py-1.5 text-xs text-white"
           >
-            创建笔记
+            创建并打开
           </button>
         </div>
       </motion.div>
@@ -145,7 +101,6 @@ function SectionBlock({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
-  const [pendingNoteAnchor, setPendingNoteAnchor] = useState<Annotation["anchor"] | null>(null);
   const [pendingCapture, setPendingCapture] = useState<{
     anchor: Annotation["anchor"];
     selectedText: string;
@@ -154,8 +109,9 @@ function SectionBlock({
   const markSectionComplete = useLearnStore((s) => s.markSectionComplete);
   const completedSections = useLearnStore((s) => s.completedSections);
   const { addToast } = useToast();
+  const router = useRouter();
 
-  const { annotations, addHighlight, addNote, removeAnnotation, updateNote } = useAnnotations({
+  const { annotations, addHighlight, removeAnnotation, updateNote } = useAnnotations({
     sectionId: sectionDoc?.id,
     initialAnnotations: sectionDoc?.annotations ?? [],
   });
@@ -204,10 +160,6 @@ function SectionBlock({
     };
   }, [isComplete, isAlreadyRead, anchorId, courseId, markSectionComplete]);
 
-  const handleNote = useCallback((anchor: Annotation["anchor"]) => {
-    setPendingNoteAnchor(anchor);
-  }, []);
-
   const handleCapture = useCallback(
     async (noteContent: string) => {
       if (!pendingCapture || !sectionDoc?.id) return;
@@ -232,13 +184,16 @@ function SectionBlock({
           note?: { id: string; title: string };
         };
 
-        addToast(`已沉淀为笔记：${result.note?.title ?? "新笔记"}`, "success");
+        addToast(`已打开笔记：${result.note?.title ?? "新笔记"}`, "success");
         setPendingCapture(null);
+        if (result.note?.id) {
+          router.push(`/editor/${result.note.id}`);
+        }
       } catch {
         addToast("沉淀笔记失败，请稍后重试", "error");
       }
     },
-    [addToast, pendingCapture, sectionDoc?.id],
+    [addToast, pendingCapture, router, sectionDoc?.id],
   );
 
   return (
@@ -375,7 +330,6 @@ function SectionBlock({
             <TextSelectionToolbar
               containerRef={containerRef}
               onHighlight={addHighlight}
-              onNote={handleNote}
               onCapture={(anchor, selectedText) => {
                 setPendingCapture({ anchor, selectedText });
               }}
@@ -390,16 +344,6 @@ function SectionBlock({
       </div>
 
       {/* Note input dialog */}
-      {pendingNoteAnchor && (
-        <NoteInputDialog
-          onSubmit={(text) => {
-            addNote(pendingNoteAnchor, text);
-            setPendingNoteAnchor(null);
-          }}
-          onCancel={() => setPendingNoteAnchor(null)}
-        />
-      )}
-
       {pendingCapture && (
         <CaptureNoteDialog
           selectedText={pendingCapture.selectedText}

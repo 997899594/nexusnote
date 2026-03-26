@@ -41,10 +41,40 @@ export function buildCapturedNotePlainText({
   return blocks.join("\n");
 }
 
+export function buildCapturedNoteHtml({
+  courseTitle,
+  sectionTitle,
+  selectionText,
+  noteContent,
+}: CourseCaptureInput) {
+  const escapedSelection = escapeHtml(selectionText.trim()).replaceAll("\n", "<br />");
+  const escapedNote = noteContent?.trim()
+    ? escapeHtml(noteContent.trim()).replaceAll("\n", "<br />")
+    : "";
+
+  return [
+    `<h2>${escapeHtml(courseTitle)}</h2>`,
+    `<h3>${escapeHtml(sectionTitle)}</h3>`,
+    `<blockquote><p>${escapedSelection}</p></blockquote>`,
+    escapedNote ? `<p>${escapedNote}</p>` : "",
+  ]
+    .filter(Boolean)
+    .join("");
+}
+
 export function serializeCaptureAnchor(anchor: Annotation["anchor"]) {
   return {
     textContent: anchor.textContent,
     startOffset: anchor.startOffset,
     endOffset: anchor.endOffset,
   };
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }

@@ -3,7 +3,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { BookPlus, Highlighter, StickyNote } from "lucide-react";
+import { BookPlus, Highlighter } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Annotation } from "@/hooks/useAnnotations";
 import { cn } from "@/lib/utils";
@@ -11,7 +11,6 @@ import { cn } from "@/lib/utils";
 interface TextSelectionToolbarProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
   onHighlight: (anchor: Annotation["anchor"], color?: string) => void;
-  onNote: (anchor: Annotation["anchor"]) => void;
   onCapture: (anchor: Annotation["anchor"], selectedText: string) => void;
   disabled?: boolean;
 }
@@ -50,7 +49,6 @@ function getSelectionAnchor(
 export function TextSelectionToolbar({
   containerRef,
   onHighlight,
-  onNote,
   onCapture,
   disabled = false,
 }: TextSelectionToolbarProps) {
@@ -110,13 +108,6 @@ export function TextSelectionToolbar({
     setShowColors(false);
   };
 
-  const handleNote = () => {
-    if (!anchorRef.current) return;
-    onNote(anchorRef.current);
-    window.getSelection()?.removeAllRanges();
-    setPosition(null);
-  };
-
   const handleCapture = () => {
     if (!anchorRef.current || !selectedTextRef.current) return;
     onCapture(anchorRef.current, selectedTextRef.current);
@@ -165,18 +156,6 @@ export function TextSelectionToolbar({
               >
                 <Highlighter className="w-3.5 h-3.5" />
                 <span>高亮</span>
-              </button>
-              <div className="h-4 w-px bg-black/8" />
-              <button
-                type="button"
-                onClick={handleNote}
-                className={cn(
-                  "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs text-white",
-                  "text-[var(--color-text-secondary)] hover:bg-[#f3f5f8] transition-colors",
-                )}
-              >
-                <StickyNote className="w-3.5 h-3.5" />
-                <span>笔记</span>
               </button>
               <div className="h-4 w-px bg-black/8" />
               <button
