@@ -29,7 +29,8 @@ bun run lint --write # Biome auto-fix
 bun run typecheck    # TypeScript check without emitting
 
 # Database operations
-bun run db:push      # Push schema changes to database
+bun run db:migrate   # Apply versioned migrations
+bun run db:push      # Push schema directly (local dev only)
 bun run db:studio    # Open Drizzle Studio
 bun run db:generate  # Generate migration files
 

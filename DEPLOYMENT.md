@@ -49,7 +49,7 @@ Optional but recommended:
 1. Push code
 2. CI builds and publishes a new image
 3. Deployment platform updates to the new image tag
-4. Run `bun run db:push`
+4. Run `bun run db:migrate`
 5. Verify `/api/health`, login, interview, and learn flow
 
 ## Migration policy
@@ -59,7 +59,7 @@ Database schema changes are not applied automatically by this repository.
 Run migrations as part of the platform release process:
 
 ```bash
-bun run db:push
+bun run db:migrate
 ```
 
 If your platform supports release commands or post-deploy hooks, use that instead of manual SSH.

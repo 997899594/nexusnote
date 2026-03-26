@@ -31,7 +31,8 @@ bun run typecheck    # TypeScript check without emitting
 
 ### Database
 ```bash
-bun run db:push      # Push schema changes to database
+bun run db:migrate   # Apply versioned migrations
+bun run db:push      # Push schema directly (local dev only)
 bun run db:generate  # Generate migration files
 ```
 
@@ -106,7 +107,7 @@ bun run db:generate  # Generate migration files
 
 - Use `drizzle-orm` for all database operations
 - Schema in `db/schema/`
-- Migrations via `bun run db:generate` and `bun run db:push`
+- Production migrations via `bun run db:migrate`; keep `bun run db:push` for local-only schema sync
 - Use `zod` schemas alongside Drizzle for validation
 - Vector search uses `halfvec(4000)` (requires pgvector 0.5.0+)
 

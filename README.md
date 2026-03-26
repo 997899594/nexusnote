@@ -147,7 +147,7 @@ cp .env.example .env
 # Edit .env and add your API keys
 
 # 5. Run database migrations
-bun run db:push
+bun run db:migrate
 
 # 6. Start all services
 bun dev
@@ -241,7 +241,8 @@ bun run lint      # Run linter
 bun run typecheck # Type check
 
 # Database
-bun run db:push       # Run migrations
+bun run db:migrate    # Apply versioned migrations
+bun run db:push       # Push schema directly (local dev only)
 bun run db:studio     # Open Drizzle Studio
 bun run db:generate   # Generate migration files
 ```
