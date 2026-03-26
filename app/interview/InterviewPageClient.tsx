@@ -111,11 +111,12 @@ function InterviewContent() {
   const lastMsg = chatMessages[chatMessages.length - 1];
   const isAILoading =
     (status === "submitted" || status === "streaming") && (!lastMsg || lastMsg.role === "user");
+  const shouldShowOutlinePanel = Boolean(outline) || isOutlineLoading || interviewCompleted;
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#f6f7f9]">
       <AnimatePresence mode="wait">
-        {interviewCompleted && (
+        {shouldShowOutlinePanel && (
           <motion.div
             key="outline-panel"
             variants={panelVariants}
@@ -138,7 +139,7 @@ function InterviewContent() {
       <motion.div
         variants={mainContentVariants}
         initial="full"
-        animate={interviewCompleted ? "withPanel" : "full"}
+        animate={shouldShowOutlinePanel ? "withPanel" : "full"}
         className="flex min-w-0 flex-1 flex-col bg-white"
       >
         <header className="flex items-center gap-4 px-4 py-4 md:px-6">
@@ -156,7 +157,11 @@ function InterviewContent() {
             <div>
               <h1 className="font-semibold text-[var(--color-text)]">课程访谈</h1>
               <p className="text-xs text-[var(--color-text-tertiary)]">
-                {interviewCompleted ? "大纲已生成" : "告诉我你想学什么"}
+                {interviewCompleted
+                  ? "大纲已生成"
+                  : shouldShowOutlinePanel
+                    ? "正在整理课程蓝图"
+                    : "告诉我你想学什么"}
               </p>
               {!interviewCompleted &&
                 chatMessages.length > 0 &&

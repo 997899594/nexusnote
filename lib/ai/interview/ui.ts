@@ -6,11 +6,13 @@ import type {
   PresentOutlinePreviewInputSchema,
   PresentOutlinePreviewOutput,
 } from "@/lib/ai/tools/interview";
-import type { InterviewMode, InterviewOutline } from "./schemas";
+import type { OutlineData } from "@/stores/interview";
+import type { InterviewMode } from "./schemas";
 
 export interface InterviewOutlinePreviewData {
   mode: InterviewMode;
-  outline: InterviewOutline;
+  outline: OutlineData;
+  isComplete: boolean;
 }
 
 export type InterviewUIMessage = UIMessage<
@@ -79,6 +81,77 @@ export function getInterviewMessageMode(message: InterviewUIMessage): "question"
   return "question";
 }
 
+function normalizePracticeType(
+  value: unknown,
+): "exercise" | "project" | "quiz" | "none" | undefined {
+  return value === "exercise" || value === "project" || value === "quiz" || value === "none"
+    ? value
+    : undefined;
+}
+
+function normalizePartialOutline(raw: unknown): OutlineData | null {
+  if (!raw || typeof raw !== "object") {
+    return null;
+  }
+
+  const outline = raw as {
+    title?: unknown;
+    description?: unknown;
+    targetAudience?: unknown;
+    difficulty?: unknown;
+    learningOutcome?: unknown;
+    chapters?: unknown;
+  };
+
+  const chapters = Array.isArray(outline.chapters)
+    ? outline.chapters
+        .filter(
+          (chapter): chapter is Record<string, unknown> => !!chapter && typeof chapter === "object",
+        )
+        .map((chapter) => ({
+          title: typeof chapter.title === "string" ? chapter.title : "",
+          description: typeof chapter.description === "string" ? chapter.description : undefined,
+          practiceType: normalizePracticeType(chapter.practiceType),
+          sections: Array.isArray(chapter.sections)
+            ? chapter.sections
+                .filter(
+                  (section): section is Record<string, unknown> =>
+                    !!section && typeof section === "object",
+                )
+                .map((section) => ({
+                  title: typeof section.title === "string" ? section.title : "",
+                  description:
+                    typeof section.description === "string" ? section.description : undefined,
+                }))
+                .filter((section) => section.title.length > 0)
+            : [],
+        }))
+        .filter((chapter) => chapter.title.length > 0 || chapter.sections.length > 0)
+    : [];
+
+  const hasAnyContent =
+    (typeof outline.title === "string" && outline.title.length > 0) || chapters.length > 0;
+
+  if (!hasAnyContent) {
+    return null;
+  }
+
+  return {
+    title: typeof outline.title === "string" ? outline.title : undefined,
+    description: typeof outline.description === "string" ? outline.description : undefined,
+    targetAudience: typeof outline.targetAudience === "string" ? outline.targetAudience : undefined,
+    difficulty:
+      outline.difficulty === "beginner" ||
+      outline.difficulty === "intermediate" ||
+      outline.difficulty === "advanced"
+        ? outline.difficulty
+        : undefined,
+    learningOutcome:
+      typeof outline.learningOutcome === "string" ? outline.learningOutcome : undefined,
+    chapters,
+  };
+}
+
 export function findLatestOutline(
   messages: InterviewUIMessage[],
 ): InterviewOutlinePreviewData | null {
@@ -90,9 +163,14 @@ export function findLatestOutline(
 
     for (const part of message.parts) {
       if (isToolUIPart(part) && getToolName(part) === "presentOutlinePreview") {
-        const input = part.input as { outline?: InterviewOutline } | undefined;
-        if (input?.outline) {
-          return { mode: "revise", outline: input.outline };
+        const input = part.input as { outline?: unknown } | undefined;
+        const outline = normalizePartialOutline(input?.outline);
+        if (outline) {
+          return {
+            mode: "revise",
+            outline,
+            isComplete: part.state === "input-available" || part.state === "output-available",
+          };
         }
       }
     }

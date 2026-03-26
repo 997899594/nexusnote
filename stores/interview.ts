@@ -3,22 +3,22 @@ import { create } from "zustand";
 
 export interface Section {
   title: string;
-  description: string;
+  description?: string;
 }
 
 export interface Chapter {
   title: string;
-  description: string;
+  description?: string;
   sections: Section[];
   practiceType?: "exercise" | "project" | "quiz" | "none";
 }
 
 export interface OutlineData {
-  title: string;
-  description: string;
-  targetAudience: string;
-  difficulty: "beginner" | "intermediate" | "advanced";
-  learningOutcome: string;
+  title?: string;
+  description?: string;
+  targetAudience?: string;
+  difficulty?: "beginner" | "intermediate" | "advanced";
+  learningOutcome?: string;
   chapters: Chapter[];
 }
 

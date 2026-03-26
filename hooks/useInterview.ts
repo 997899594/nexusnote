@@ -49,6 +49,29 @@ function toInterviewDisplayMessages(messages: InterviewUIMessage[]): InterviewMe
     .filter((message) => message.text.length > 0 || (message.options?.length ?? 0) > 0);
 }
 
+function hasCompleteOutline(outline: OutlineData | null | undefined) {
+  if (
+    !outline?.title ||
+    !outline.description ||
+    !outline.targetAudience ||
+    !outline.learningOutcome
+  ) {
+    return false;
+  }
+
+  if (!outline.difficulty || outline.chapters.length < 5) {
+    return false;
+  }
+
+  return outline.chapters.every(
+    (chapter) =>
+      chapter.title &&
+      chapter.description &&
+      chapter.sections.length >= 4 &&
+      chapter.sections.every((section) => section.title && section.description),
+  );
+}
+
 export function useInterview(options?: UseInterviewOptions): UseInterviewReturn {
   const { addToast } = useToast();
   const [sessionId] = useState(() => nanoid());
@@ -101,8 +124,8 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
       const actions = storeActionsRef.current;
 
       if (result?.outline) {
-        actions.setOutline(result.outline as OutlineData);
-        actions.setInterviewCompleted(true);
+        actions.setOutline(result.outline);
+        actions.setInterviewCompleted(hasCompleteOutline(result.outline));
       }
 
       actions.setIsOutlineLoading(false);
@@ -157,9 +180,9 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
   useEffect(() => {
     const result = findLatestOutline(messages);
     if (result?.outline) {
-      setOutline(result.outline as OutlineData);
-      setInterviewCompleted(true);
-      setIsOutlineLoading(false);
+      setOutline(result.outline);
+      setInterviewCompleted(hasCompleteOutline(result.outline));
+      setIsOutlineLoading(!result.isComplete);
     }
   }, [messages, setInterviewCompleted, setIsOutlineLoading, setOutline]);
 

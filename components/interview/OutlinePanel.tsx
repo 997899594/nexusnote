@@ -43,10 +43,25 @@ export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps
   const { addToast } = useToast();
   const setCourseId = useInterviewStore((s) => s.setCourseId);
 
+  const isOutlineReady =
+    !!outline?.title &&
+    !!outline.description &&
+    !!outline.targetAudience &&
+    !!outline.learningOutcome &&
+    !!outline.difficulty &&
+    outline.chapters.length >= 5 &&
+    outline.chapters.every(
+      (chapter) =>
+        chapter.title &&
+        chapter.description &&
+        chapter.sections.length >= 4 &&
+        chapter.sections.every((section) => section.title && section.description),
+    );
+
   const handleStartLearning = async () => {
     setIsStarting(true);
     try {
-      if (!outline) {
+      if (!outline || !isOutlineReady) {
         return;
       }
 
@@ -92,7 +107,7 @@ export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4">
         <AnimatePresence mode="wait">
-          {isLoading ? (
+          {!outline && isLoading ? (
             <motion.div
               key="loading"
               initial={{ opacity: 0 }}
@@ -132,18 +147,28 @@ export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps
               {/* Course Title & Description */}
               <motion.div variants={itemVariants} className="space-y-2">
                 <h3 className="text-lg font-bold text-zinc-900">{outline.title}</h3>
-                <p className="text-sm leading-6 text-zinc-600">{outline.description}</p>
-                <p className="text-xs text-zinc-500">难度: {outline.difficulty}</p>
+                {outline.description ? (
+                  <p className="text-sm leading-6 text-zinc-600">{outline.description}</p>
+                ) : (
+                  <div className="h-5 w-full animate-pulse rounded bg-zinc-200/70" />
+                )}
+                <p className="text-xs text-zinc-500">难度: {outline.difficulty ?? "整理中"}</p>
                 <div className="rounded-2xl border border-zinc-200 bg-white/70 p-3 text-xs text-zinc-600">
                   <p>
                     <span className="font-semibold text-zinc-800">适合人群：</span>
-                    {outline.targetAudience}
+                    {outline.targetAudience ?? "正在补充适合人群..."}
                   </p>
                   <p className="mt-2">
                     <span className="font-semibold text-zinc-800">完成后你将获得：</span>
-                    {outline.learningOutcome}
+                    {outline.learningOutcome ?? "正在补充学习成果..."}
                   </p>
                 </div>
+                {isLoading && (
+                  <div className="flex items-center gap-2 text-xs text-zinc-500">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>正在补全章节说明与细节...</span>
+                  </div>
+                )}
               </motion.div>
 
               {/* Chapters */}
@@ -169,9 +194,13 @@ export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps
                       {/* Chapter Content */}
                       <div className="flex-1 min-w-0">
                         <h4 className="text-sm font-semibold text-zinc-900">{chapter.title}</h4>
-                        <p className="mt-1 text-xs leading-5 text-zinc-600">
-                          {chapter.description}
-                        </p>
+                        {chapter.description ? (
+                          <p className="mt-1 text-xs leading-5 text-zinc-600">
+                            {chapter.description}
+                          </p>
+                        ) : (
+                          <div className="mt-2 h-4 w-5/6 animate-pulse rounded bg-zinc-200/70" />
+                        )}
                         {chapter.sections && chapter.sections.length > 0 && (
                           <div className="mt-2 space-y-1.5">
                             {chapter.sections.map((section, secIndex) => (
@@ -187,9 +216,13 @@ export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps
                                     <p className="text-xs font-medium text-zinc-700">
                                       {section.title}
                                     </p>
-                                    <p className="mt-1 text-[11px] leading-5 text-zinc-500">
-                                      {section.description}
-                                    </p>
+                                    {section.description ? (
+                                      <p className="mt-1 text-[11px] leading-5 text-zinc-500">
+                                        {section.description}
+                                      </p>
+                                    ) : (
+                                      <div className="mt-2 h-3.5 w-4/5 animate-pulse rounded bg-zinc-200/70" />
+                                    )}
                                   </div>
                                 </div>
                               </div>
@@ -218,7 +251,7 @@ export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps
                 <button
                   type="button"
                   onClick={handleStartLearning}
-                  disabled={isStarting}
+                  disabled={isStarting || !isOutlineReady || Boolean(isLoading)}
                   className={cn(
                     "w-full flex items-center justify-center gap-2 rounded-xl px-4 py-3",
                     "bg-zinc-900 text-white",
@@ -233,7 +266,13 @@ export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps
                   ) : (
                     <Play className="h-4 w-4" />
                   )}
-                  <span>{isStarting ? "生成中..." : "生成课程并开始学习"}</span>
+                  <span>
+                    {isStarting
+                      ? "生成中..."
+                      : isLoading
+                        ? "正在整理完整大纲..."
+                        : "生成课程并开始学习"}
+                  </span>
                 </button>
               </motion.div>
             </motion.div>
