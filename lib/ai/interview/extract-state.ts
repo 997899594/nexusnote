@@ -1,5 +1,5 @@
 import { generateObject } from "ai";
-import { getModelForPolicy } from "@/lib/ai/core";
+import { getJsonModelForPolicy } from "@/lib/ai/core";
 import { buildInterviewStatePrompt, INTERVIEW_STATE_SYSTEM_PROMPT } from "./prompts";
 import {
   type InterviewApiMessage,
@@ -18,7 +18,7 @@ export async function extractInterviewState({
   currentOutline,
 }: ExtractInterviewStateOptions): Promise<InterviewState> {
   const result = await generateObject({
-    model: getModelForPolicy("structured-high-quality"),
+    model: getJsonModelForPolicy("interactive-fast"),
     schema: InterviewStateSchema,
     system: INTERVIEW_STATE_SYSTEM_PROMPT,
     prompt: buildInterviewStatePrompt({

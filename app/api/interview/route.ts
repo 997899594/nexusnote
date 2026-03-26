@@ -1,41 +1,32 @@
-// app/api/interview/route.ts
-
-import { consumeStream, type DeepPartial } from "ai";
+import {
+  convertToModelMessages,
+  createUIMessageStream,
+  createUIMessageStreamResponse,
+  type FinishReason,
+  smoothStream,
+  validateUIMessages,
+} from "ai";
 import { eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { courses, db } from "@/db";
 import {
   aiProvider,
+  createInterviewAgent,
   createTelemetryContext,
+  findLatestOutline,
+  generateInterviewOptions,
   getErrorMessage,
+  getInterviewMessageText,
   InterviewApiRequestSchema,
+  InterviewOptionsDataSchema,
+  type InterviewUIMessage,
   recordAIUsage,
 } from "@/lib/ai";
-import {
-  evaluateInterviewSufficiency,
-  extractInterviewState,
-  generateInterviewTurn,
-  type InterviewStreamEvent,
-  type InterviewTurn,
-  normalizeInterviewTurn,
-  normalizePartialInterviewTurn,
-  validateOutlineForState,
-} from "@/lib/ai/interview";
-import { runCreateCourseWorkflow } from "@/lib/ai/workflows";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
-
-const encoder = new TextEncoder();
-
-function writeEvent(
-  controller: ReadableStreamDefaultController<Uint8Array>,
-  event: InterviewStreamEvent,
-) {
-  controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
-}
 
 export async function POST(request: NextRequest) {
   const startedAt = Date.now();
@@ -43,9 +34,9 @@ export async function POST(request: NextRequest) {
   let telemetry = createTelemetryContext({
     requestId,
     endpoint: "/api/interview",
-    promptVersion: "interview@v1",
-    modelPolicy: "structured-high-quality",
-    workflow: "interview-turn",
+    promptVersion: "interview@agent-v1",
+    modelPolicy: "interactive-fast",
+    workflow: "interview-agent",
   });
 
   try {
@@ -63,22 +54,7 @@ export async function POST(request: NextRequest) {
       throw new APIError("无效的 JSON", 400, "INVALID_JSON");
     }
 
-    const sanitizedBody =
-      body && typeof body === "object" && "messages" in body && Array.isArray(body.messages)
-        ? {
-            ...body,
-            messages: body.messages.filter(
-              (message) =>
-                message &&
-                typeof message === "object" &&
-                "text" in message &&
-                typeof message.text === "string" &&
-                message.text.trim().length > 0,
-            ),
-          }
-        : body;
-
-    const validation = InterviewApiRequestSchema.safeParse(sanitizedBody);
+    const validation = InterviewApiRequestSchema.safeParse(body);
     if (!validation.success) {
       return NextResponse.json(
         { error: { code: "VALIDATION_ERROR", details: validation.error.issues } },
@@ -91,9 +67,9 @@ export async function POST(request: NextRequest) {
       requestId,
       endpoint: "/api/interview",
       userId,
-      promptVersion: "interview@v1",
-      modelPolicy: "structured-high-quality",
-      workflow: "interview-turn",
+      promptVersion: "interview@agent-v1",
+      modelPolicy: "interactive-fast",
+      workflow: "interview-agent",
       metadata: {
         sessionId: sessionId ?? null,
         courseId: inputCourseId ?? null,
@@ -119,116 +95,102 @@ export async function POST(request: NextRequest) {
       courseId = existingCourse.id;
     }
 
-    const interviewState = await extractInterviewState({
+    const validatedMessages = await validateUIMessages<InterviewUIMessage>({
       messages,
-      currentOutline: outline ?? undefined,
-    });
-    const sufficiency = evaluateInterviewSufficiency(interviewState, outline ?? undefined);
-
-    const result = generateInterviewTurn({
-      messages,
-      currentOutline: outline ?? undefined,
-      state: interviewState,
-      sufficiency,
-    });
-
-    const stream = new ReadableStream<Uint8Array>({
-      async start(controller) {
-        try {
-          for await (const partial of result.partialOutputStream) {
-            const turn = normalizePartialInterviewTurn(partial as DeepPartial<InterviewTurn>);
-            if (!turn) {
-              continue;
-            }
-
-            writeEvent(controller, {
-              type: "turn-delta",
-              turn,
-            });
-          }
-
-          let finalTurn = normalizeInterviewTurn(await result.output);
-          let generatedCourseId: string | undefined;
-          let outlineValidationReason: string | null = null;
-
-          if (finalTurn.kind === "outline") {
-            const outlineValidation = validateOutlineForState(finalTurn.outline, interviewState);
-
-            if (!outlineValidation.valid) {
-              outlineValidationReason = outlineValidation.reason;
-              finalTurn = normalizeInterviewTurn({
-                kind: "question",
-                message: outlineValidation.reason,
-                options:
-                  interviewState.mode === "revise"
-                    ? ["补一处重点", "缩短课程", "增强实战部分"]
-                    : ["补充学习目标", "说明当前基础", "说说使用场景"],
-              });
-            } else {
-              const workflowResult = await runCreateCourseWorkflow({
-                userId,
-                courseId,
-                outline: finalTurn.outline,
-              });
-              generatedCourseId = workflowResult.courseId;
-            }
-          }
-
-          await recordAIUsage({
-            ...telemetry,
-            usage: await result.usage,
-            durationMs: Date.now() - startedAt,
-            success: true,
-            metadata: {
-              ...telemetry.metadata,
-              mode: interviewState.mode,
-              confidence: interviewState.confidence,
-              allowOutline: sufficiency.allowOutline,
-              nextFocus: sufficiency.nextFocus,
-              missingCoreFields: sufficiency.missingCoreFields,
-              openQuestionCount: interviewState.openQuestions.length,
-              hasCurrentOutline: Boolean(outline),
-              goalDetected: Boolean(interviewState.goal),
-              backgroundDetected: Boolean(interviewState.background),
-              useCaseDetected: Boolean(interviewState.useCase),
-              kind: finalTurn.kind,
-              optionCount: finalTurn.options.length,
-              generatedCourseId: generatedCourseId ?? null,
-              outlineValidationReason,
-            },
-          });
-
-          writeEvent(controller, {
-            type: "turn-complete",
-            turn: finalTurn,
-            courseId: generatedCourseId,
-          });
-          controller.close();
-        } catch (error) {
-          await consumeStream({ stream: result.textStream }).catch(() => {});
-          await recordAIUsage({
-            ...telemetry,
-            durationMs: Date.now() - startedAt,
-            success: false,
-            errorMessage: getErrorMessage(error),
-          });
-
-          writeEvent(controller, {
-            type: "error",
-            error: getErrorMessage(error),
-          });
-          controller.close();
-        }
+      dataSchemas: {
+        interviewOptions: InterviewOptionsDataSchema,
       },
     });
 
-    return new Response(stream, {
+    const agent = createInterviewAgent({
+      userId,
+      courseId,
+      currentOutline: outline ?? undefined,
+      messages: validatedMessages,
+      telemetry,
+    });
+
+    const modelMessages = await convertToModelMessages(validatedMessages, {
+      tools: agent.tools,
+    });
+
+    const stream = createUIMessageStream<InterviewUIMessage>({
+      originalMessages: validatedMessages,
+      execute: async ({ writer }) => {
+        let finishStateResolve:
+          | ((value: { messages: InterviewUIMessage[]; finishReason?: FinishReason }) => void)
+          | null = null;
+        const finishStatePromise = new Promise<{
+          messages: InterviewUIMessage[];
+          finishReason?: FinishReason;
+        }>((resolve) => {
+          finishStateResolve = resolve;
+        });
+
+        const result = await agent.stream({
+          prompt: modelMessages,
+          experimental_transform: smoothStream({
+            chunking: new Intl.Segmenter("zh-CN", { granularity: "grapheme" }),
+          }),
+        });
+
+        writer.merge(
+          result.toUIMessageStream<InterviewUIMessage>({
+            originalMessages: validatedMessages,
+            sendReasoning: false,
+            sendFinish: false,
+            onFinish: ({ messages: finishedMessages, finishReason }) => {
+              finishStateResolve?.({
+                messages: finishedMessages,
+                finishReason,
+              });
+            },
+          }),
+        );
+
+        const { messages: finishedMessages, finishReason } = await finishStatePromise;
+        const latestAssistantMessage = [...finishedMessages]
+          .reverse()
+          .find((message) => message.role === "assistant");
+        const assistantText = latestAssistantMessage
+          ? getInterviewMessageText(latestAssistantMessage)
+          : "";
+        const latestOutline = findLatestOutline(finishedMessages);
+
+        if (assistantText) {
+          try {
+            const options = await generateInterviewOptions({
+              messages: finishedMessages,
+              assistantText,
+              hasOutline: Boolean(latestOutline?.outline),
+            });
+
+            if (options.length > 0) {
+              writer.write({
+                type: "data-interviewOptions",
+                data: { options },
+              });
+            }
+          } catch (error) {
+            console.warn("[Interview] Failed to generate options:", error);
+          }
+        }
+
+        writer.write({
+          type: "finish",
+          finishReason: finishReason ?? "stop",
+        });
+      },
+      onError: (error) => getErrorMessage(error),
+    });
+
+    return createUIMessageStreamResponse({
+      stream,
       status: 200,
       headers: {
-        "Content-Type": "application/x-ndjson; charset=utf-8",
-        "Cache-Control": "no-cache, no-store, must-revalidate",
-        "X-Content-Type-Options": "nosniff",
         "X-Request-Id": requestId,
+        "X-Content-Type-Options": "nosniff",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
         ...(sessionId ? { "X-Session-Id": sessionId } : {}),
       },
     });

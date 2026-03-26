@@ -4,6 +4,7 @@
 
 import type { AgentProfile } from "../core/capability-profiles";
 import { createChatAgent, type PersonalizationOptions } from "./chat";
+import { createInterviewAgent, type InterviewAgentOptions } from "./interview";
 
 // ============================================
 // Types
@@ -12,6 +13,8 @@ import { createChatAgent, type PersonalizationOptions } from "./chat";
 export type { AgentProfile };
 
 export type { PersonalizationOptions };
+export type { InterviewAgentOptions };
+export { createInterviewAgent };
 
 // ============================================
 // Factory

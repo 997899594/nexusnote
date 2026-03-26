@@ -1,5 +1,5 @@
 import { Output, streamText } from "ai";
-import { getModelForPolicy } from "@/lib/ai/core";
+import { getJsonModelForPolicy } from "@/lib/ai/core";
 import { buildInterviewPrompt, INTERVIEW_SYSTEM_PROMPT } from "./prompts";
 import {
   type InterviewApiMessage,
@@ -23,7 +23,7 @@ export function generateInterviewTurn({
   sufficiency,
 }: GenerateInterviewTurnOptions) {
   return streamText({
-    model: getModelForPolicy("structured-high-quality"),
+    model: getJsonModelForPolicy("interactive-fast"),
     system: INTERVIEW_SYSTEM_PROMPT,
     prompt: buildInterviewPrompt({ messages, currentOutline, state, sufficiency }),
     output: Output.object({

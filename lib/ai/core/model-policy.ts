@@ -15,6 +15,14 @@ export function getModelForPolicy(policy: ModelPolicy) {
   return aiProvider.getModel(POLICY_TO_MODEL_TYPE[policy]);
 }
 
+export function getPlainModelForPolicy(policy: ModelPolicy) {
+  return aiProvider.getPlainModel(POLICY_TO_MODEL_TYPE[policy]);
+}
+
+export function getJsonModelForPolicy(policy: ModelPolicy) {
+  return aiProvider.getJsonModel(POLICY_TO_MODEL_TYPE[policy]);
+}
+
 export function getModelNameForPolicy(policy: ModelPolicy): string {
   return aiProvider.getModelName(POLICY_TO_MODEL_TYPE[policy]);
 }

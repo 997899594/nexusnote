@@ -4,7 +4,7 @@
 
 export type { AgentProfile, PersonalizationOptions } from "./agents";
 // Agents
-export { getAgent } from "./agents";
+export { createInterviewAgent, getAgent } from "./agents";
 // Core AI
 export * from "./core";
 // Evals

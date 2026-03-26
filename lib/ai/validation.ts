@@ -3,7 +3,7 @@
  */
 
 import { z } from "zod";
-import { InterviewApiMessageSchema, InterviewOutlineSchema } from "@/lib/ai/interview";
+import { InterviewOutlineSchema } from "@/lib/ai/interview";
 import { ChatMetadataSchema } from "@/types/metadata";
 
 const BaseConversationRequestSchema = z.object({
@@ -23,7 +23,7 @@ export const ChatApiRequestSchema = BaseConversationRequestSchema.extend({
 });
 
 export const InterviewApiRequestSchema = BaseConversationRequestSchema.extend({
-  messages: z.array(InterviewApiMessageSchema).min(1),
+  messages: z.array(z.unknown()).min(1),
   courseId: z.string().uuid().nullish(),
   outline: InterviewOutlineSchema.nullish(),
 });

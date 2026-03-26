@@ -11,7 +11,7 @@ import type {
   LanguageModelV3,
   LanguageModelV3Middleware,
 } from "@ai-sdk/provider";
-import { extractReasoningMiddleware, wrapLanguageModel } from "ai";
+import { extractJsonMiddleware, extractReasoningMiddleware, wrapLanguageModel } from "ai";
 import { env } from "@/config/env";
 
 export type ModelType = "chat" | "pro" | "webSearch" | "embedding";
@@ -162,6 +162,51 @@ function createReasoningModel(
   });
 }
 
+function createPlainModel(
+  provider: ProviderModelConfig,
+  modelType: LanguageModelType,
+  fallbackChain: ProviderModelConfig[],
+) {
+  const modelId = provider.models[modelType];
+  if (!modelId) {
+    throw new Error(`Provider ${provider.label} does not support model type ${modelType}`);
+  }
+
+  const middleware = [createFailoverMiddleware(modelType, fallbackChain)].filter(
+    (item): item is LanguageModelV3Middleware => Boolean(item),
+  );
+
+  if (middleware.length === 0) {
+    return provider.client.chat(modelId);
+  }
+
+  return wrapLanguageModel({
+    model: provider.client.chat(modelId),
+    middleware,
+  });
+}
+
+function createJsonModel(
+  provider: ProviderModelConfig,
+  modelType: LanguageModelType,
+  fallbackChain: ProviderModelConfig[],
+) {
+  const modelId = provider.models[modelType];
+  if (!modelId) {
+    throw new Error(`Provider ${provider.label} does not support model type ${modelType}`);
+  }
+
+  const middleware = [
+    extractJsonMiddleware(),
+    createFailoverMiddleware(modelType, fallbackChain),
+  ].filter((item): item is LanguageModelV3Middleware => Boolean(item));
+
+  return wrapLanguageModel({
+    model: provider.client.chat(modelId),
+    middleware,
+  });
+}
+
 class AIProvider {
   private static instance: AIProvider;
   private providers: ProviderModelConfig[] = [];
@@ -271,6 +316,28 @@ class AIProvider {
     return createReasoningModel(primary, modelType, fallbackChain);
   }
 
+  getPlainModel(modelType: LanguageModelType = "chat") {
+    const providers = this.getLanguageModelChain(modelType);
+    const [primary, ...fallbackChain] = providers;
+
+    if (!primary) {
+      throw new Error(`No AI provider configured for model type: ${modelType}`);
+    }
+
+    return createPlainModel(primary, modelType, fallbackChain);
+  }
+
+  getJsonModel(modelType: LanguageModelType = "chat") {
+    const providers = this.getLanguageModelChain(modelType);
+    const [primary, ...fallbackChain] = providers;
+
+    if (!primary) {
+      throw new Error(`No AI provider configured for model type: ${modelType}`);
+    }
+
+    return createJsonModel(primary, modelType, fallbackChain);
+  }
+
   getModelName(modelType: ModelType = "chat"): string {
     const provider = this.providers.find((item) => item.models[modelType]);
     const modelId = provider?.models[modelType];
@@ -300,12 +367,36 @@ class AIProvider {
     return this.getModel("chat");
   }
 
+  get plainChatModel() {
+    return this.getPlainModel("chat");
+  }
+
+  get jsonChatModel() {
+    return this.getJsonModel("chat");
+  }
+
   get proModel() {
     return this.getModel("pro");
   }
 
+  get plainProModel() {
+    return this.getPlainModel("pro");
+  }
+
+  get jsonProModel() {
+    return this.getJsonModel("pro");
+  }
+
   get webSearchModel() {
     return this.getModel("webSearch");
+  }
+
+  get plainWebSearchModel() {
+    return this.getPlainModel("webSearch");
+  }
+
+  get jsonWebSearchModel() {
+    return this.getJsonModel("webSearch");
   }
 }
 
