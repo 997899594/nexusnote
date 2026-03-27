@@ -140,25 +140,35 @@ class TagGenerationService {
       return exactMatch;
     }
 
-    // 2. 生成 embedding
-    const embedding = await this.generateEmbedding(normalizedName);
+    // 2. 生成 embedding（不可用时降级为精确匹配 + 直接创建）
+    let embedding: number[] | null = null;
+    try {
+      embedding = await this.generateEmbedding(normalizedName);
+    } catch (error) {
+      console.warn(
+        `[Tags] Embedding unavailable, skip semantic merge for "${normalizedName}"`,
+        error,
+      );
+    }
 
-    // 3. 向量搜索相似标签
-    const [similarTag] = await db
-      .select()
-      .from(tags)
-      .where(
-        and(
-          sql`name_embedding IS NOT NULL`,
-          sql`cosine_distance(name_embedding, ${JSON.stringify(embedding)}) < ${CONFIG.TAG_MERGE_THRESHOLD}`,
-        ),
-      )
-      .limit(1);
+    if (embedding) {
+      // 3. 向量搜索相似标签
+      const [similarTag] = await db
+        .select()
+        .from(tags)
+        .where(
+          and(
+            sql`name_embedding IS NOT NULL`,
+            sql`cosine_distance(name_embedding, ${JSON.stringify(embedding)}) < ${CONFIG.TAG_MERGE_THRESHOLD}`,
+          ),
+        )
+        .limit(1);
 
-    if (similarTag) {
-      console.log(`[Tags] 标签 "${normalizedName}" 合并到相似标签 "${similarTag.name}"`);
-      await this.incrementTagUsage(similarTag.id);
-      return similarTag;
+      if (similarTag) {
+        console.log(`[Tags] 标签 "${normalizedName}" 合并到相似标签 "${similarTag.name}"`);
+        await this.incrementTagUsage(similarTag.id);
+        return similarTag;
+      }
     }
 
     // 4. 创建新标签

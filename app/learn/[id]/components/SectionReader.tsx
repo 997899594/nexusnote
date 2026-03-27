@@ -3,7 +3,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { AlertCircle, BookOpen, Check, Loader2, RefreshCw, Sparkles } from "lucide-react";
+import { AlertCircle, BookOpen, Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { StreamdownMessage } from "@/components/chat/StreamdownMessage";
@@ -105,7 +105,6 @@ function SectionBlock({
     anchor: Annotation["anchor"];
     selectedText: string;
   } | null>(null);
-  const [showReadLine, setShowReadLine] = useState(false);
   const markSectionComplete = useLearnStore((s) => s.markSectionComplete);
   const completedSections = useLearnStore((s) => s.completedSections);
   const { addToast } = useToast();
@@ -133,7 +132,6 @@ function SectionBlock({
             // Debounce: must stay visible for 800ms
             debounceTimer = setTimeout(() => {
               markSectionComplete(anchorId);
-              setShowReadLine(true);
 
               // Persist to server
               fetch("/api/learn/progress", {
@@ -198,32 +196,6 @@ function SectionBlock({
 
   return (
     <div id={anchorId} className="relative">
-      {(showReadLine || isAlreadyRead) && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.5 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ type: "spring", stiffness: 400, damping: 20 }}
-          className="absolute top-2 right-0 z-10 group"
-        >
-          <div
-            className={cn(
-              "flex items-center gap-1.5 px-2 py-1 rounded-full",
-              "bg-[#eef1f5] text-[#111827]",
-              "transition-all duration-200 cursor-default",
-            )}
-          >
-            <Check className="w-3 h-3 shrink-0" />
-            <span
-              className={cn(
-                "text-xs font-medium overflow-hidden transition-all duration-200",
-                "max-w-0 opacity-0 group-hover:max-w-[4rem] group-hover:opacity-100",
-              )}
-            >
-              已学完
-            </span>
-          </div>
-        </motion.div>
-      )}
       {/* Section spacing */}
       {sectionIndex > 0 && <div className="pt-14" />}
 

@@ -22,13 +22,14 @@ export const defaults = {
 
   // Embedding
   embedding: {
-    model: "BAAI/bge-base-zh-v1.5",
+    model: "Qwen/Qwen3-Embedding-4B",
     dimensions: 4000,
   },
 
   // Reranker
   reranker: {
-    model: "Qwen/Qwen3-Reranker-8B",
+    model: "Qwen/Qwen3-Reranker-4B",
+    modelPro: "Qwen/Qwen3-Reranker-8B",
     enabled: false,
   },
 
@@ -136,6 +137,7 @@ export const serverEnvSchema = z.object({
 
   // Reranker
   RERANKER_MODEL: z.string().default(defaults.reranker.model),
+  RERANKER_MODEL_PRO: z.string().default(defaults.reranker.modelPro),
   RERANKER_ENABLED: z
     .string()
     .default("false")

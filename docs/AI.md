@@ -82,7 +82,7 @@ graph TB
 | **chatModel** | gemini-3.1-flash-lite-preview | 快速响应 | 0.1x |
 | **courseModel** | gemini-3.1-pro-preview | 课程生成 | 1x |
 | **fastModel** | gemini-3.1-flash-lite-preview | 逻辑提取 | 0.1x |
-| **embeddingModel** | Qwen/Qwen3-Embedding-8B | 向量化 | 免费 |
+| **embeddingModel** | Qwen/Qwen3-Embedding-4B | 向量化 | 免费 |
 
 **文件**: `/apps/web/lib/ai/registry.ts`
 
@@ -490,7 +490,7 @@ export const transport = new DefaultChatTransport({
 - [Vercel AI SDK v6 文档](https://ai-sdk.dev/docs)
 - [Generative UI 指南](https://ai-sdk.dev/docs/ai-sdk-ui/generative-user-interfaces)
 - [smoothStream API](https://ai-sdk.dev/docs/reference/ai-sdk-core/smooth-stream)
-- [Qwen Embedding 文档](https://modelscope.cn/models/Qwen/Qwen3-Embedding-8B)
+- [Qwen Embedding 文档](https://modelscope.cn/models/Qwen/Qwen3-Embedding-4B)
 
 ---
 

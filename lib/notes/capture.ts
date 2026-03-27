@@ -7,6 +7,17 @@ export interface CourseCaptureInput {
   noteContent?: string;
 }
 
+export interface LearnChatCaptureMessage {
+  role: "user" | "assistant";
+  text: string;
+}
+
+export interface LearnChatCaptureInput {
+  courseTitle: string;
+  chapterTitle?: string;
+  messages: LearnChatCaptureMessage[];
+}
+
 function truncate(value: string, max: number) {
   return value.length > max ? `${value.slice(0, max).trim()}...` : value;
 }
@@ -68,6 +79,65 @@ export function serializeCaptureAnchor(anchor: Annotation["anchor"]) {
     startOffset: anchor.startOffset,
     endOffset: anchor.endOffset,
   };
+}
+
+export function buildLearnChatCapturedNoteTitle({
+  chapterTitle,
+  messages,
+}: {
+  chapterTitle?: string;
+  messages: LearnChatCaptureMessage[];
+}) {
+  const firstQuestion = messages
+    .find((item) => item.role === "user")
+    ?.text.replace(/\s+/g, " ")
+    .trim();
+  const chapterLabel = chapterTitle?.trim() || "学习对话";
+
+  if (!firstQuestion) {
+    return truncate(`${chapterLabel} · 对话沉淀`, 80);
+  }
+
+  return truncate(`${chapterLabel} · ${truncate(firstQuestion, 24)}`, 80);
+}
+
+export function buildLearnChatCapturedPlainText({
+  courseTitle,
+  chapterTitle,
+  messages,
+}: LearnChatCaptureInput) {
+  const blocks = [
+    `课程：${courseTitle}`,
+    chapterTitle?.trim() ? `章节：${chapterTitle.trim()}` : null,
+    `时间：${new Date().toLocaleString("zh-CN")}`,
+    "",
+    "学习对话沉淀：",
+    ...messages.map((item) => `${item.role === "user" ? "我" : "AI"}：${item.text.trim()}`),
+  ].filter((item): item is string => Boolean(item));
+
+  return blocks.join("\n");
+}
+
+export function buildLearnChatCapturedHtml({
+  courseTitle,
+  chapterTitle,
+  messages,
+}: LearnChatCaptureInput) {
+  const conversationHtml = messages
+    .map((item) => {
+      const label = item.role === "user" ? "我" : "AI";
+      const text = escapeHtml(item.text.trim()).replaceAll("\n", "<br />");
+      return `<p><strong>${label}：</strong>${text}</p>`;
+    })
+    .join("");
+
+  return [
+    `<h2>${escapeHtml(courseTitle)}</h2>`,
+    chapterTitle?.trim() ? `<h3>${escapeHtml(chapterTitle.trim())}</h3>` : "",
+    conversationHtml,
+  ]
+    .filter(Boolean)
+    .join("");
 }
 
 function escapeHtml(value: string) {

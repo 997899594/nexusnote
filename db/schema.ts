@@ -221,6 +221,7 @@ export const notes = pgTable(
       courseTitle?: string;
       sectionId?: string;
       sectionTitle?: string;
+      chapterIndex?: number;
       selectionText?: string;
       anchor?: {
         textContent: string;
@@ -229,6 +230,9 @@ export const notes = pgTable(
       };
       annotationId?: string;
       noteContent?: string;
+      chatCapture?: boolean;
+      messageCount?: number;
+      latestExcerpt?: string;
     }>(),
     contentHtml: text("content_html"),
     plainText: text("plain_text"),

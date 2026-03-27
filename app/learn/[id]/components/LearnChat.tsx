@@ -3,7 +3,7 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { motion } from "framer-motion";
-import { BookOpen, Loader2, MessageSquare, Send, X } from "lucide-react";
+import { BookOpen, Loader2, MessageSquare, NotebookPen, Send, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatMessage, LoadingDots } from "@/components/chat/ChatMessage";
 import { useToast } from "@/components/ui/Toast";
@@ -21,6 +21,7 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
   const { addToast } = useToast();
   const { currentChapterIndex, chapters, isChatOpen, setChatOpen } = useLearnStore();
   const [input, setInput] = useState("");
+  const [isCapturingChat, setIsCapturingChat] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const currentChapter = chapters[currentChapterIndex];
@@ -59,6 +60,14 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
   const isLoading = status === "submitted" || status === "streaming";
   const chatMessages = messages.filter((m: UIMessage) => m.role !== "system");
 
+  const getMessageText = useCallback((message: UIMessage) => {
+    return message.parts
+      .filter((part) => part.type === "text")
+      .map((part) => part.text)
+      .join("\n")
+      .trim();
+  }, []);
+
   // Auto-scroll
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -74,6 +83,66 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
     setInput("");
   };
 
+  const handleCaptureChat = useCallback(async () => {
+    if (isCapturingChat) {
+      return;
+    }
+
+    const captureMessages = chatMessages
+      .filter((message) => message.role === "user" || message.role === "assistant")
+      .map((message) => ({
+        role: message.role,
+        text: getMessageText(message),
+      }))
+      .filter((message) => message.text.length > 0);
+
+    if (captureMessages.length === 0) {
+      addToast("当前没有可沉淀的对话内容", "warning");
+      return;
+    }
+
+    setIsCapturingChat(true);
+
+    try {
+      const response = await fetch("/api/notes/capture-chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          courseId,
+          courseTitle,
+          chapterIndex: currentChapterIndex,
+          chapterTitle: currentChapter?.title,
+          messages: captureMessages,
+        }),
+      });
+
+      if (response.status === 401) {
+        redirectToLogin();
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error("沉淀失败");
+      }
+
+      await response.json();
+      addToast("学习对话已沉淀到笔记", "success");
+    } catch {
+      addToast("沉淀失败，请稍后重试", "error");
+    } finally {
+      setIsCapturingChat(false);
+    }
+  }, [
+    addToast,
+    chatMessages,
+    courseId,
+    courseTitle,
+    currentChapter?.title,
+    currentChapterIndex,
+    getMessageText,
+    isCapturingChat,
+  ]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -84,6 +153,7 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
   const lastMsg = chatMessages[chatMessages.length - 1];
   const isAILoading =
     (status === "submitted" || status === "streaming") && (!lastMsg || lastMsg.role === "user");
+  const captureDisabled = isLoading || isCapturingChat || chatMessages.length === 0;
 
   if (!isChatOpen) {
     return (
@@ -121,13 +191,34 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setChatOpen(false)}
-            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={handleCaptureChat}
+              disabled={captureDisabled}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs transition-colors",
+                captureDisabled
+                  ? "cursor-not-allowed bg-zinc-100 text-zinc-400"
+                  : "bg-[#eef1f5] text-[#111827] hover:bg-[#e4e8ee]",
+              )}
+            >
+              {isCapturingChat ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <NotebookPen className="h-3.5 w-3.5" />
+              )}
+              <span>沉淀对话</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setChatOpen(false)}
+              className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Messages */}
@@ -199,13 +290,33 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
             <p className="text-xs text-zinc-500 truncate">{currentChapter?.title ?? courseTitle}</p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => setChatOpen(false)}
-          className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 transition-colors"
-        >
-          <X className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={handleCaptureChat}
+            disabled={captureDisabled}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs transition-colors",
+              captureDisabled
+                ? "cursor-not-allowed bg-zinc-100 text-zinc-400"
+                : "bg-[#eef1f5] text-[#111827] hover:bg-[#e4e8ee]",
+            )}
+          >
+            {isCapturingChat ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <NotebookPen className="h-3.5 w-3.5" />
+            )}
+            <span>沉淀对话</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setChatOpen(false)}
+            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* Messages */}

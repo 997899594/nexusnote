@@ -20,6 +20,37 @@ export type SourceType = "note" | "conversation" | "course_section";
 const DEFAULT_CHUNK_SIZE = 500;
 const DEFAULT_OVERLAP = 50;
 
+async function createEmbeddingsOrNull(
+  chunks: string[],
+  context: string,
+): Promise<(number[] | null)[]> {
+  if (!aiProvider.isConfigured()) {
+    console.warn(`[Chunker] AI provider not configured, skip embeddings for ${context}`);
+    return chunks.map(() => null);
+  }
+
+  try {
+    const { embeddings } = await embedMany({
+      model: aiProvider.embeddingModel,
+      values: chunks,
+    });
+
+    if (embeddings.length !== chunks.length) {
+      console.warn(
+        `[Chunker] Embedding count mismatch for ${context}: chunks=${chunks.length}, embeddings=${embeddings.length}`,
+      );
+    }
+
+    return chunks.map((_, index) => embeddings[index] ?? null);
+  } catch (error) {
+    console.error(
+      `[Chunker] Embedding unavailable for ${context}, fallback to keyword-only:`,
+      error,
+    );
+    return chunks.map(() => null);
+  }
+}
+
 export function chunkText(
   text: string,
   chunkSize: number = DEFAULT_CHUNK_SIZE,
@@ -86,16 +117,9 @@ export async function indexNote(
       return { success: true, chunksCount: 0 };
     }
 
-    if (!aiProvider.isConfigured()) {
-      throw new Error("[Chunker] Embedding model not configured");
-    }
-
-    const { embeddings } = await embedMany({
-      model: aiProvider.embeddingModel,
-      values: chunks,
-    });
-
-    console.log(`[Chunker] Generated ${embeddings.length} embeddings`);
+    const embeddings = await createEmbeddingsOrNull(chunks, `note:${noteId}`);
+    const embeddingsCount = embeddings.filter((item) => item !== null).length;
+    console.log(`[Chunker] Generated ${embeddingsCount}/${chunks.length} embeddings`);
 
     const newChunks = chunks.map((content, index) => ({
       sourceType: "note" as const,
@@ -149,18 +173,12 @@ export async function indexConversation(
       return { success: true, chunksCount: 0 };
     }
 
-    if (!aiProvider.isConfigured()) {
-      throw new Error("[Chunker] Embedding model not configured");
-    }
-
-    console.log("[Chunker] Starting embedMany...", { count: chunks.length });
+    console.log("[Chunker] Starting embeddings...", { count: chunks.length });
     const startTime = Date.now();
-    const { embeddings } = await embedMany({
-      model: aiProvider.embeddingModel,
-      values: chunks,
-    });
+    const embeddings = await createEmbeddingsOrNull(chunks, `conversation:${conversationId}`);
+    const embeddingsCount = embeddings.filter((item) => item !== null).length;
     console.log(
-      `[Chunker] Generated ${embeddings.length} embeddings, took ${Date.now() - startTime}ms`,
+      `[Chunker] Generated ${embeddingsCount}/${chunks.length} embeddings, took ${Date.now() - startTime}ms`,
     );
 
     const newChunks = chunks.map((content, index) => ({
@@ -212,14 +230,7 @@ export async function indexCourseSection(
       return { success: true, chunksCount: 0 };
     }
 
-    if (!aiProvider.isConfigured()) {
-      throw new Error("[Chunker] Embedding model not configured");
-    }
-
-    const { embeddings } = await embedMany({
-      model: aiProvider.embeddingModel,
-      values: chunks,
-    });
+    const embeddings = await createEmbeddingsOrNull(chunks, `course_section:${documentId}`);
 
     const newChunks = chunks.map((content, index) => ({
       sourceType: "course_section" as SourceType,

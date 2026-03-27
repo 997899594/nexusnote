@@ -111,7 +111,10 @@ Chat & Generation:
   Fallback: OpenAI / DeepSeek
 
 Embedding (4000D vectors):
-  BAAI/bge-base-zh-v1.5
+  Default: Qwen/Qwen3-Embedding-4B
+
+Reranker:
+  Qwen/Qwen3-Reranker-4B
 
 Runtime patterns:
   ToolLoopAgent for open-ended chat
