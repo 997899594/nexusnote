@@ -26,7 +26,6 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
 
   const currentChapter = chapters[currentChapterIndex];
   const sessionId = `learn-${courseId}-ch${currentChapterIndex}`;
-  const chapterTitle = currentChapter?.title ?? `第 ${currentChapterIndex + 1} 章`;
 
   const transport = new DefaultChatTransport({
     api: "/api/chat",
@@ -34,9 +33,7 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
       sessionId,
       metadata: {
         courseId,
-        courseTitle,
         chapterIndex: currentChapterIndex,
-        chapterTitle,
         context: "learn",
       },
     }),
@@ -110,9 +107,7 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           courseId,
-          courseTitle,
           chapterIndex: currentChapterIndex,
-          chapterTitle,
           messages: captureMessages,
         }),
       });
@@ -133,16 +128,7 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
     } finally {
       setIsCapturingChat(false);
     }
-  }, [
-    addToast,
-    chatMessages,
-    courseId,
-    courseTitle,
-    chapterTitle,
-    currentChapterIndex,
-    getMessageText,
-    isCapturingChat,
-  ]);
+  }, [addToast, chatMessages, courseId, currentChapterIndex, getMessageText, isCapturingChat]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {

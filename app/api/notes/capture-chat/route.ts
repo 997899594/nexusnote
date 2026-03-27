@@ -1,9 +1,9 @@
-import { and, eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { courses, db, notes } from "@/db";
+import { db, notes } from "@/db";
 import { tagGenerationService } from "@/lib/ai/services/tag-generation-service";
 import { auth } from "@/lib/auth";
+import { resolveOwnedLearnContext } from "@/lib/learning/resolve-learn-context";
 import {
   buildLearnChatCapturedHtml,
   buildLearnChatCapturedNoteTitle,
@@ -14,9 +14,7 @@ import { indexNote } from "@/lib/rag/chunker";
 
 const CaptureChatNoteSchema = z.object({
   courseId: z.string().uuid(),
-  courseTitle: z.string().min(1).max(200),
-  chapterIndex: z.number().int().min(0).optional(),
-  chapterTitle: z.string().max(200).optional(),
+  chapterIndex: z.number().int().min(0),
   messages: z
     .array(
       z.object({
@@ -53,31 +51,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
     }
 
-    const { courseId, courseTitle, chapterIndex, chapterTitle, messages } = parsed.data;
+    const { courseId, chapterIndex, messages } = parsed.data;
     const normalizedMessages = normalizeMessages(messages);
 
     if (normalizedMessages.length === 0) {
       return NextResponse.json({ error: "No valid messages to capture" }, { status: 400 });
     }
 
-    const [course] = await db
-      .select({ id: courses.id })
-      .from(courses)
-      .where(and(eq(courses.id, courseId), eq(courses.userId, userId)))
-      .limit(1);
+    const learnContext = await resolveOwnedLearnContext({
+      userId,
+      courseId,
+      chapterIndex,
+    });
 
-    if (!course) {
+    if (!learnContext) {
       return NextResponse.json({ error: "Course not found" }, { status: 404 });
     }
 
     const plainText = buildLearnChatCapturedPlainText({
-      courseTitle,
-      chapterTitle,
+      courseTitle: learnContext.courseTitle,
+      chapterTitle: learnContext.chapterTitle,
       messages: normalizedMessages,
     });
     const contentHtml = buildLearnChatCapturedHtml({
-      courseTitle,
-      chapterTitle,
+      courseTitle: learnContext.courseTitle,
+      chapterTitle: learnContext.chapterTitle,
       messages: normalizedMessages,
     });
 
@@ -86,15 +84,15 @@ export async function POST(request: NextRequest) {
       .values({
         userId,
         title: buildLearnChatCapturedNoteTitle({
-          chapterTitle,
+          chapterTitle: learnContext.chapterTitle,
           messages: normalizedMessages,
         }),
         sourceType: "course_capture",
         sourceContext: {
           courseId,
-          courseTitle,
-          sectionTitle: chapterTitle?.trim() || "学习对话",
-          chapterIndex,
+          courseTitle: learnContext.courseTitle,
+          sectionTitle: learnContext.chapterTitle,
+          chapterIndex: learnContext.chapterIndex,
           chatCapture: true,
           messageCount: normalizedMessages.length,
           latestExcerpt: normalizedMessages[normalizedMessages.length - 1]?.text,

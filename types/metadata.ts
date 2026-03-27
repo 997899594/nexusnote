@@ -10,9 +10,15 @@ import { z } from "zod";
 export const LearnMetadataSchema = z.object({
   context: z.literal("learn"),
   courseId: z.string().uuid(),
+  chapterIndex: z.number().int().min(0),
+});
+
+export const ResolvedLearnMetadataSchema = z.object({
+  context: z.literal("learn"),
+  courseId: z.string().uuid(),
   courseTitle: z.string(),
   chapterIndex: z.number().int().min(0),
-  chapterTitle: z.string().optional(),
+  chapterTitle: z.string(),
 });
 
 export const EditorMetadataSchema = z.object({
@@ -32,10 +38,22 @@ export const ChatMetadataSchema = z.union([
   DefaultMetadataSchema,
 ]);
 
+export const ResolvedChatMetadataSchema = z.union([
+  ResolvedLearnMetadataSchema,
+  EditorMetadataSchema,
+  DefaultMetadataSchema,
+]);
+
 export type LearnMetadata = z.infer<typeof LearnMetadataSchema>;
+export type ResolvedLearnMetadata = z.infer<typeof ResolvedLearnMetadataSchema>;
 export type EditorMetadata = z.infer<typeof EditorMetadataSchema>;
 export type ChatMetadata = z.infer<typeof ChatMetadataSchema>;
+export type ResolvedChatMetadata = z.infer<typeof ResolvedChatMetadataSchema>;
 
 export function isLearnMetadata(m: unknown): m is LearnMetadata {
   return LearnMetadataSchema.safeParse(m).success;
+}
+
+export function isResolvedLearnMetadata(m: unknown): m is ResolvedLearnMetadata {
+  return ResolvedLearnMetadataSchema.safeParse(m).success;
 }

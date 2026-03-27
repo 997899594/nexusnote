@@ -19,6 +19,7 @@ import {
   getErrorMessage,
   recordAIUsage,
 } from "@/lib/ai";
+import { resolveChatContext } from "@/lib/ai/context/resolve-chat-context";
 import { createNexusNoteStreamResponse } from "@/lib/ai/core/streaming";
 import { buildPersonalization } from "@/lib/ai/personalization";
 import { APIError, handleError } from "@/lib/api";
@@ -65,8 +66,12 @@ export async function POST(request: NextRequest) {
     const { messages, sessionId, personaSlug, courseId, metadata } = validation.data;
 
     const uiMessages = messages as UIMessage[];
-
-    const profileId = metadata?.context === "learn" || courseId ? "LEARN_ASSIST" : "CHAT_BASIC";
+    const resolvedContext = await resolveChatContext({
+      userId,
+      courseId,
+      metadata,
+    });
+    const { profileId, courseId: resolvedCourseId, metadata: resolvedMetadata } = resolvedContext;
     const profile = getCapabilityProfile(profileId);
     telemetry = createTelemetryContext({
       requestId,
@@ -77,9 +82,8 @@ export async function POST(request: NextRequest) {
       modelPolicy: profile.modelPolicy,
       metadata: {
         sessionId: sessionId ?? null,
-        courseId:
-          courseId ?? (metadata?.context === "learn" ? metadata.courseId : undefined) ?? null,
-        context: metadata?.context ?? null,
+        courseId: resolvedCourseId ?? null,
+        context: resolvedMetadata?.context ?? null,
       },
     });
 
@@ -141,8 +145,8 @@ export async function POST(request: NextRequest) {
       userId,
       personaPrompt: personaSystemPrompt,
       userContext,
-      courseId: courseId ?? (metadata?.context === "learn" ? metadata.courseId : undefined),
-      metadata,
+      courseId: resolvedCourseId,
+      metadata: resolvedMetadata,
       telemetry,
     });
 

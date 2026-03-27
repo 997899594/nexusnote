@@ -4,8 +4,8 @@
 
 import { stepCountIs, ToolLoopAgent } from "ai";
 import { getCourseOutline } from "@/lib/cache/course-context";
-import type { ChatMetadata } from "@/types/metadata";
-import { isLearnMetadata } from "@/types/metadata";
+import type { ResolvedChatMetadata } from "@/types/metadata";
+import { isResolvedLearnMetadata } from "@/types/metadata";
 import {
   type AITelemetryContext,
   buildPromptInstructions,
@@ -22,7 +22,7 @@ export interface PersonalizationOptions {
   userContext?: string;
   userId?: string;
   courseId?: string;
-  metadata?: ChatMetadata;
+  metadata?: ResolvedChatMetadata;
   profile?: Extract<AgentProfile, "CHAT_BASIC" | "LEARN_ASSIST" | "NOTE_ASSIST">;
   telemetry?: AITelemetryContext;
 }
@@ -37,7 +37,7 @@ export async function createChatAgent(options: PersonalizationOptions = {}) {
   const startedAt = Date.now();
   const profileId =
     options.profile ??
-    (options.courseId && isLearnMetadata(options.metadata) ? "LEARN_ASSIST" : "CHAT_BASIC");
+    (options.courseId && isResolvedLearnMetadata(options.metadata) ? "LEARN_ASSIST" : "CHAT_BASIC");
   const profile = getCapabilityProfile(profileId);
 
   if (profile.authRequired && !options.userId) {
@@ -50,7 +50,11 @@ export async function createChatAgent(options: PersonalizationOptions = {}) {
   const userContextParts = options.userContext ? [options.userContext] : [];
 
   // 学习页面：轻量 outline hint（标题+小节列表），不加载内容
-  if (profileId === "LEARN_ASSIST" && options.courseId && isLearnMetadata(options.metadata)) {
+  if (
+    profileId === "LEARN_ASSIST" &&
+    options.courseId &&
+    isResolvedLearnMetadata(options.metadata)
+  ) {
     const outline = await getCourseOutline(options.courseId);
     if (outline) {
       const chapter = outline.chapters[options.metadata.chapterIndex];
