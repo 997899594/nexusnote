@@ -73,15 +73,15 @@ graph TB
 
 #### 提供商优先级
 ```
-302.ai (Gemini 3 Flash/Pro) → DeepSeek V3 → OpenAI
+302.ai (Gemini 3.1 Flash Lite/Pro) → DeepSeek V3 → OpenAI
 ```
 
 #### 模型配置
 | 用途 | 模型 | 特点 | 成本 |
 |------|------|------|------|
-| **chatModel** | gemini-3-flash-preview | 快速响应 | 0.1x |
-| **courseModel** | gemini-3-pro-preview | 课程生成 | 1x |
-| **fastModel** | gemini-3-flash-preview | 逻辑提取 | 0.1x |
+| **chatModel** | gemini-3.1-flash-lite-preview | 快速响应 | 0.1x |
+| **courseModel** | gemini-3.1-pro-preview | 课程生成 | 1x |
+| **fastModel** | gemini-3.1-flash-lite-preview | 逻辑提取 | 0.1x |
 | **embeddingModel** | Qwen/Qwen3-Embedding-8B | 向量化 | 免费 |
 
 **文件**: `/apps/web/lib/ai/registry.ts`
