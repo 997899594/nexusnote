@@ -136,10 +136,6 @@ function SectionHeader() {
         <p className="text-[11px] uppercase tracking-[0.22em] text-[var(--color-text-muted)]">
           最近课程
         </p>
-        <h2 className="mt-2 text-xl font-medium text-[var(--color-text)]">继续学习</h2>
-        <p className="mt-1 text-sm text-[var(--color-text-tertiary)]">
-          从最近一次中断的位置，继续往前学。
-        </p>
       </div>
       <div className="ui-badge-pill hidden items-center gap-2 px-3 py-1.5 text-[11px] uppercase tracking-[0.16em] text-black/40 md:inline-flex">
         <span className="h-1.5 w-1.5 rounded-full bg-[#111827]" />

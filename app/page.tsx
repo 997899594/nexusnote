@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { Suspense } from "react";
 import { HeroInput, RecentSectionServer } from "@/components/home";
 import { FloatingHeader } from "@/components/shared/layout";
