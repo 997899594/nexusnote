@@ -26,6 +26,7 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
 
   const currentChapter = chapters[currentChapterIndex];
   const sessionId = `learn-${courseId}-ch${currentChapterIndex}`;
+  const chapterTitle = currentChapter?.title ?? `第 ${currentChapterIndex + 1} 章`;
 
   const transport = new DefaultChatTransport({
     api: "/api/chat",
@@ -35,7 +36,7 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
         courseId,
         courseTitle,
         chapterIndex: currentChapterIndex,
-        chapterTitle: currentChapter?.title,
+        chapterTitle,
         context: "learn",
       },
     }),
@@ -111,7 +112,7 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
           courseId,
           courseTitle,
           chapterIndex: currentChapterIndex,
-          chapterTitle: currentChapter?.title,
+          chapterTitle,
           messages: captureMessages,
         }),
       });
@@ -137,7 +138,7 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
     chatMessages,
     courseId,
     courseTitle,
-    currentChapter?.title,
+    chapterTitle,
     currentChapterIndex,
     getMessageText,
     isCapturingChat,

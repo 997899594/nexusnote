@@ -54,10 +54,14 @@ export async function createChatAgent(options: PersonalizationOptions = {}) {
     const outline = await getCourseOutline(options.courseId);
     if (outline) {
       const chapter = outline.chapters[options.metadata.chapterIndex];
+      const chapterTitle =
+        options.metadata.chapterTitle?.trim() ||
+        chapter?.title ||
+        `第 ${options.metadata.chapterIndex + 1} 章`;
       const hint = [
         "## 当前学习上下文",
         `课程：${options.metadata.courseTitle}`,
-        `当前章节：第 ${options.metadata.chapterIndex + 1} 章 - ${options.metadata.chapterTitle}`,
+        `当前章节：第 ${options.metadata.chapterIndex + 1} 章 - ${chapterTitle}`,
         chapter ? `小节：${chapter.sections.map((s) => s.title).join("、")}` : "",
         "提示：使用 loadLearnContext 工具获取章节详细内容后再回答问题。",
       ]

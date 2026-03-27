@@ -12,7 +12,7 @@ export const LearnMetadataSchema = z.object({
   courseId: z.string().uuid(),
   courseTitle: z.string(),
   chapterIndex: z.number().int().min(0),
-  chapterTitle: z.string(),
+  chapterTitle: z.string().optional(),
 });
 
 export const EditorMetadataSchema = z.object({
