@@ -1,10 +1,17 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Send } from "lucide-react";
+import { GraduationCap, Send, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { PromptChip } from "@/components/common";
 import { useInputProtection } from "@/components/common/useInputProtection";
+
+const EXAMPLE_PROMPTS = [
+  "我想系统学 React 并做一个作品集项目",
+  "我想转数据分析，重点学 SQL、Python、可视化",
+  "我想学 AI 产品经理，需要懂产品与技术落地",
+];
 
 export function HeroInput() {
   const router = useRouter();
@@ -34,7 +41,7 @@ export function HeroInput() {
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-[linear-gradient(180deg,rgba(248,249,251,0.92),transparent)] md:h-24" />
 
-      <div className="relative p-4 md:p-8">
+      <div className="relative p-4 md:p-8 lg:p-10">
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -42,10 +49,33 @@ export function HeroInput() {
           onPaste={handlePaste}
           placeholder="例如：我想系统学 SQL 和数据分析，三个月内能独立完成日常报表分析。"
           rows={3}
-          className="w-full resize-none border-none bg-transparent py-4 text-base leading-7 text-black/85 outline-none placeholder:text-black/28 md:min-h-[132px] md:py-5 md:text-lg md:leading-8"
+          className="w-full resize-none border-none bg-transparent py-4 text-base leading-7 text-black/85 outline-none placeholder:text-black/28 md:min-h-[132px] md:py-5 md:text-lg md:leading-8 lg:min-h-[156px] lg:text-[1.15rem]"
         />
 
-        <div className="mt-2 flex justify-end border-t border-black/6 pt-3 md:mt-4 md:pt-4">
+        <div className="mt-2 flex flex-wrap gap-2 md:mt-3">
+          {EXAMPLE_PROMPTS.map((prompt, index) => (
+            <motion.div
+              key={prompt}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.04 * index }}
+            >
+              <PromptChip
+                label={prompt}
+                icon={index === 0 ? Sparkles : GraduationCap}
+                onClick={() => {
+                  setInput(prompt);
+                }}
+                className="max-w-full text-left"
+              />
+            </motion.div>
+          ))}
+        </div>
+
+        <div className="mt-2 flex flex-col gap-3 border-t border-black/6 pt-3 md:mt-4 md:flex-row md:items-center md:justify-between md:pt-4">
+          <div className="hidden md:block text-sm text-black/40">
+            输入越具体，课程访谈越快进入生成。
+          </div>
           <button
             type="button"
             onClick={handleSubmit}

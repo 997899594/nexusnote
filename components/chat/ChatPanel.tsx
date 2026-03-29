@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Loader2, Send, Sparkles, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { WorkspaceEmptyState } from "@/components/common";
 import { useInputProtection } from "@/components/common/useInputProtection";
 import { CHAT_COMMANDS, extractCommandContent } from "@/lib/chat/commands";
 import { cn } from "@/lib/utils";
@@ -175,9 +176,13 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
       <div className="flex-1 overflow-y-auto bg-white px-4 py-4 safe-bottom mobile-scroll md:px-6">
         <div className="mx-auto max-w-[calc(100vw-32px)] space-y-4 md:max-w-[var(--message-max-width)]">
           {chatMessages.length === 0 && !isLoading && (
-            <div className="py-12 text-center text-sm text-[var(--color-text-muted)]">
-              开始对话...
-            </div>
+            <WorkspaceEmptyState
+              icon={Sparkles}
+              eyebrow="New Session"
+              title="开始一段新对话"
+              description="继续提问、沉淀想法，或用命令进入课程、访谈与笔记工作流。"
+              className="py-10"
+            />
           )}
 
           {chatMessages.map((msg) => (

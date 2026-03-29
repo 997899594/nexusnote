@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { BookOpen, Loader2, Play } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { WorkspaceEmptyState } from "@/components/common";
 import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/utils";
 import type { OutlineData } from "@/stores/interview";
@@ -108,34 +109,21 @@ export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps
       <div className="flex-1 overflow-y-auto p-4">
         <AnimatePresence mode="wait">
           {!outline && isLoading ? (
-            <motion.div
-              key="loading"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="flex h-full flex-col items-center justify-center gap-3 text-zinc-500"
-            >
-              <Loader2 className="h-8 w-8 animate-spin text-zinc-400" />
-              <p className="text-sm">正在生成课程大纲...</p>
-            </motion.div>
+            <WorkspaceEmptyState
+              title="正在生成课程大纲"
+              description="我在整理课程目标、章节结构和学习成果，马上给你一版可预览的大纲。"
+              eyebrow="Outline"
+              loading
+              className="mt-10"
+            />
           ) : !outline ? (
-            <motion.div
-              key="empty"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="flex h-full flex-col items-center justify-center gap-3 text-zinc-500"
-            >
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-zinc-100">
-                <BookOpen className="h-8 w-8 text-zinc-400" />
-              </div>
-              <div className="text-center">
-                <p className="text-sm font-medium text-zinc-700">暂无学习大纲</p>
-                <p className="mt-1 text-xs text-zinc-500">
-                  开始对话后，AI 将为你生成个性化学习大纲
-                </p>
-              </div>
-            </motion.div>
+            <WorkspaceEmptyState
+              icon={BookOpen}
+              eyebrow="Outline"
+              title="暂无学习大纲"
+              description="开始对话后，我会根据你的目标生成一版个性化课程大纲。"
+              className="mt-10"
+            />
           ) : (
             <motion.div
               key="content"

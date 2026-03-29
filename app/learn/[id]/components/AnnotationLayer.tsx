@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { MessageSquare, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Annotation } from "@/hooks/useAnnotations";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 interface AnnotationLayerProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
@@ -77,6 +78,7 @@ export function AnnotationLayer({
     }>
   >([]);
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
+  const isMobile = useIsMobile();
 
   // Recalculate highlight positions
   useEffect(() => {
@@ -157,28 +159,46 @@ export function AnnotationLayer({
           {/* Note popover */}
           <AnimatePresence>
             {activeNoteId === h.id && h.type === "note" && h.rects.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: -5 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -5 }}
-                className="absolute pointer-events-auto z-40 max-w-[280px] rounded-2xl bg-white p-3 shadow-[0_24px_56px_-36px_rgba(15,23,42,0.18)]"
-                style={{
-                  top: h.rects[0].top + h.rects[0].height + 8,
-                  left: h.rects[0].left,
-                }}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium text-zinc-500">笔记</span>
+              <>
+                {isMobile && (
                   <button
                     type="button"
-                    onClick={() => onRemove(h.id)}
-                    className="text-zinc-400 transition-colors hover:text-zinc-700"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-                <p className="text-sm text-zinc-700 leading-relaxed">{h.noteContent}</p>
-              </motion.div>
+                    className="fixed inset-0 z-40 bg-black/10 pointer-events-auto"
+                    onClick={() => setActiveNoteId(null)}
+                    aria-label="关闭笔记"
+                  />
+                )}
+                <motion.div
+                  initial={{ opacity: 0, y: isMobile ? 12 : -5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: isMobile ? 12 : -5 }}
+                  className={
+                    isMobile
+                      ? "fixed inset-x-3 bottom-3 z-50 pointer-events-auto rounded-[24px] border border-black/5 bg-white/95 p-4 shadow-[0_24px_56px_-36px_rgba(15,23,42,0.22)] backdrop-blur-xl safe-bottom"
+                      : "absolute z-40 max-w-[280px] rounded-2xl bg-white p-3 shadow-[0_24px_56px_-36px_rgba(15,23,42,0.18)] pointer-events-auto"
+                  }
+                  style={
+                    isMobile
+                      ? undefined
+                      : {
+                          top: h.rects[0].top + h.rects[0].height + 8,
+                          left: h.rects[0].left,
+                        }
+                  }
+                >
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-xs font-medium text-zinc-500">笔记</span>
+                    <button
+                      type="button"
+                      onClick={() => onRemove(h.id)}
+                      className="text-zinc-400 transition-colors hover:text-zinc-700"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <p className="text-sm leading-relaxed text-zinc-700">{h.noteContent}</p>
+                </motion.div>
+              </>
             )}
           </AnimatePresence>
         </div>

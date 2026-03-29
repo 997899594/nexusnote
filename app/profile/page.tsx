@@ -117,7 +117,7 @@ export default async function ProfilePage() {
 
   return (
     <main className="ui-page-shell min-h-screen safe-top">
-      <FloatingHeader showBackHint />
+      <FloatingHeader showBackHint showMenuButton />
 
       <div className="mx-auto max-w-4xl px-4 pb-20 pt-20 md:px-6 md:pb-20 md:pt-28">
         <section className="mb-8">

@@ -54,15 +54,13 @@ export function ResponsiveContainer({
  *
  * 自动处理:
  * - 顶部安全区域 (与 MobileHeader 配合)
- * - 底部安全区域 (与 MobileNav 配合)
+ * - 移动端底部留白
  * - 内容区域
  */
 export interface MobilePageContainerProps {
   children: ReactNode;
   /** 是否有顶部导航栏 */
   hasHeader?: boolean;
-  /** 是否有底部导航栏 */
-  hasNav?: boolean;
   /** 自定义样式类 */
   className?: string;
 }
@@ -70,16 +68,12 @@ export interface MobilePageContainerProps {
 export function MobilePageContainer({
   children,
   hasHeader = false,
-  hasNav = true,
   className,
 }: MobilePageContainerProps) {
   const paddingTop = hasHeader ? "pt-14 md:pt-6" : "pt-4 md:pt-6";
-  const paddingBottom = hasNav ? "safe-bottom md:pb-6" : "pb-4 md:pb-6";
 
   return (
-    <div className={cn("min-h-screen bg-[var(--color-bg)]", paddingTop, paddingBottom, className)}>
-      {/* 移动端底部导航占位 */}
-      {hasNav && <div className="mobile-nav-spacer md:hidden" />}
+    <div className={cn("min-h-screen bg-[var(--color-bg)]", paddingTop, "pb-4 md:pb-6", className)}>
       {children}
     </div>
   );

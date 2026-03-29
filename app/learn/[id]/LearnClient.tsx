@@ -38,7 +38,7 @@ export interface LearnClientProps {
 }
 
 // Sidebar width constant
-const SIDEBAR_WIDTH = 320;
+const SIDEBAR_WIDTH = 336;
 
 // Animation variants
 const sidebarVariants = {
@@ -156,35 +156,38 @@ export function LearnClient({
   // ─── Mobile layout ───
   if (isMobile) {
     return (
-      <div className="flex h-screen flex-col bg-[#f6f7f9]">
+      <div className="flex min-h-dvh flex-col bg-[#f3f4f6]">
         {/* Mobile header */}
-        <header className="shrink-0 bg-white px-4 py-3 shadow-[0_16px_38px_-34px_rgba(15,23,42,0.12)]">
-          <div className="flex items-center justify-between">
-            <div className="flex min-w-0 items-center gap-2">
+        <header className="safe-top shrink-0 bg-white/92 px-4 pb-3 pt-3 backdrop-blur-xl shadow-[0_18px_42px_-34px_rgba(15,23,42,0.14)]">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-start gap-2.5">
               <button
                 type="button"
                 onClick={() => router.back()}
-                className="shrink-0 rounded-lg p-1.5 text-[var(--color-text-secondary)] transition-colors hover:bg-[#f3f5f8]"
+                className="mt-0.5 shrink-0 rounded-xl p-2 text-[var(--color-text-secondary)] transition-colors hover:bg-[#f3f5f8]"
               >
                 <ArrowLeft className="h-5 w-5" />
               </button>
-              <div className="min-w-0">
-                <h1 className="truncate text-sm font-semibold text-[var(--color-text)]">
-                  {currentChapter?.title ?? courseTitle}
-                </h1>
+              <div className="min-w-0 space-y-1">
                 {currentChapter && (
-                  <p className="truncate text-[0.6875rem] text-[var(--color-text-tertiary)]">
+                  <p className="inline-flex max-w-fit items-center rounded-full bg-[#eef1f5] px-2.5 py-1 text-[0.65rem] font-semibold tracking-[0.12em] text-[#111827]">
                     第 {currentChapterIndex + 1} 章
                   </p>
                 )}
+                <h1 className="line-clamp-2 text-sm font-semibold leading-5 text-[var(--color-text)]">
+                  {currentChapter?.title ?? courseTitle}
+                </h1>
+                <p className="truncate text-[0.6875rem] text-[var(--color-text-tertiary)]">
+                  {courseTitle}
+                </p>
               </div>
             </div>
-            <div className="flex shrink-0 items-center gap-1">
+            <div className="flex shrink-0 items-center gap-1 rounded-2xl bg-[#f5f6f8] p-1">
               <button
                 type="button"
                 onClick={() => setSidebarOpen(true)}
                 className={cn(
-                  "rounded-lg p-2 transition-colors",
+                  "rounded-xl p-2 transition-colors",
                   isSidebarOpen
                     ? "bg-[#eef1f5] text-[#111827]"
                     : "text-[var(--color-text-secondary)] hover:bg-[#f3f5f8]",
@@ -196,7 +199,7 @@ export function LearnClient({
                 type="button"
                 onClick={() => setChatOpen(true)}
                 className={cn(
-                  "rounded-lg p-2 transition-colors",
+                  "rounded-xl p-2 transition-colors",
                   isChatOpen
                     ? "bg-[#eef1f5] text-[#111827]"
                     : "text-[var(--color-text-secondary)] hover:bg-[#f3f5f8]",
@@ -238,7 +241,7 @@ export function LearnClient({
                 animate={{ x: 0 }}
                 exit={{ x: -SIDEBAR_WIDTH }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className="fixed inset-y-0 left-0 z-50 w-[320px] bg-[#f6f7f9] shadow-xl"
+                className="fixed inset-y-0 left-0 z-50 w-[min(88vw,336px)] overflow-hidden rounded-r-[28px] bg-[#f6f7f9] shadow-xl"
               >
                 <LearnSidebar courseTitle={courseTitle} width={SIDEBAR_WIDTH} />
               </motion.div>
@@ -262,7 +265,7 @@ export function LearnClient({
                 animate={{ x: 0 }}
                 exit={{ x: "100%" }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className="fixed inset-y-0 right-0 z-50 w-full bg-[#f6f7f9] shadow-xl"
+                className="fixed inset-y-0 right-0 z-50 w-full overflow-hidden bg-[#f6f7f9] shadow-xl"
               >
                 <LearnChat courseId={sessionId} courseTitle={courseTitle} variant="overlay" />
               </motion.div>
@@ -275,7 +278,7 @@ export function LearnClient({
 
   // ─── Desktop layout (unchanged) ───
   return (
-    <div className="flex h-screen bg-[#f6f7f9]">
+    <div className="flex h-screen gap-4 bg-[var(--color-page-shell)] p-4">
       {/* Sidebar - hidden in zen mode */}
       <AnimatePresence mode="wait">
         {!isZenMode && (
@@ -284,7 +287,7 @@ export function LearnClient({
             initial="hidden"
             animate="visible"
             exit="exit"
-            className="flex-shrink-0 overflow-hidden"
+            className="flex-shrink-0 overflow-hidden rounded-[30px] border border-black/5 bg-[#f6f7f9] shadow-[0_22px_54px_-40px_rgba(15,23,42,0.22)]"
           >
             <LearnSidebar courseTitle={courseTitle} width={SIDEBAR_WIDTH} />
           </motion.div>
@@ -296,7 +299,7 @@ export function LearnClient({
         variants={mainVariants}
         initial="full"
         animate={isZenMode ? "full" : "withSidebar"}
-        className="relative flex min-w-0 flex-1 flex-col bg-white"
+        className="relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-[32px] border border-black/5 bg-white shadow-[0_24px_56px_-42px_rgba(15,23,42,0.18)]"
       >
         {/* Header - hidden in zen mode */}
         <AnimatePresence>
@@ -305,18 +308,25 @@ export function LearnClient({
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="flex items-center justify-between bg-white px-6 py-3 shadow-[0_16px_38px_-34px_rgba(15,23,42,0.12)]"
+              className="border-b border-black/5 bg-white/92 px-8 py-5 backdrop-blur-xl"
             >
-              <div className="flex items-center gap-3">
-                <span className="rounded-md bg-[#eef1f5] px-2.5 py-1 text-[0.6875rem] font-semibold text-[#111827]">
-                  第 {currentChapterIndex + 1} 章
-                </span>
-                <h1 className="text-sm font-semibold text-[var(--color-text)] truncate max-w-md">
+              <div className="min-w-0">
+                <div className="mb-2 flex items-center gap-2.5">
+                  <span className="rounded-full bg-[#eef1f5] px-3 py-1 text-[0.6875rem] font-semibold tracking-[0.12em] text-[#111827]">
+                    第 {currentChapterIndex + 1} 章
+                  </span>
+                  <span className="text-[0.6875rem] uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
+                    Learning Workspace
+                  </span>
+                </div>
+                <h1 className="max-w-3xl truncate text-lg font-semibold text-[var(--color-text)]">
                   {currentChapter.title}
                 </h1>
               </div>
               <div className="hidden md:flex items-center gap-2 text-xs text-[var(--color-text-tertiary)]">
-                <span className="truncate max-w-[200px]">{courseTitle}</span>
+                <span className="rounded-full bg-[var(--color-panel-soft)] px-3 py-1.5 text-[0.72rem] text-[var(--color-text-secondary)]">
+                  {courseTitle}
+                </span>
               </div>
             </motion.header>
           )}

@@ -9,6 +9,7 @@
 
 import { desc, eq } from "drizzle-orm";
 import { GraduationCap } from "lucide-react";
+import { WorkspaceEmptyState } from "@/components/common";
 import { RecentCard } from "@/components/home";
 import { courseProgress, courses, db } from "@/db";
 import { auth } from "@/lib/auth";
@@ -89,9 +90,12 @@ export async function RecentSectionServer() {
     return (
       <section className="mb-14">
         <SectionHeader />
-        <div className="ui-surface-card rounded-[28px] px-5 py-10 text-center text-sm text-[var(--color-text-muted)]">
-          登录后查看学习记录
-        </div>
+        <WorkspaceEmptyState
+          icon={GraduationCap}
+          eyebrow="Recent Courses"
+          title="登录后查看最近课程"
+          description="这里会展示你最近学习过的课程、最新进度和继续进入的入口。"
+        />
       </section>
     );
   }
@@ -102,9 +106,12 @@ export async function RecentSectionServer() {
     return (
       <section className="mb-14">
         <SectionHeader />
-        <div className="ui-surface-card rounded-[28px] px-5 py-10 text-center text-sm text-[var(--color-text-muted)]">
-          还没有学习记录，开始第一次学习吧！
-        </div>
+        <WorkspaceEmptyState
+          icon={GraduationCap}
+          eyebrow="Recent Courses"
+          title="还没有学习记录"
+          description="从一个具体的学习目标开始，系统会先访谈，再生成你的第一门课程。"
+        />
       </section>
     );
   }

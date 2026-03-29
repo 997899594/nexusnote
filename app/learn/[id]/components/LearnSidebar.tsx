@@ -77,7 +77,10 @@ export function LearnSidebar({ courseTitle, width }: LearnSidebarProps) {
   const progress = totalSections > 0 ? Math.round((completedCount / totalSections) * 100) : 0;
 
   return (
-    <div className="flex h-full flex-col bg-[#f6f7f9]" style={{ width }}>
+    <div
+      className="flex h-full w-full flex-col bg-[#f6f7f9] safe-top safe-bottom"
+      style={{ maxWidth: width }}
+    >
       <motion.div
         variants={contentVariants}
         initial="hidden"
@@ -85,7 +88,7 @@ export function LearnSidebar({ courseTitle, width }: LearnSidebarProps) {
         className="flex flex-col h-full"
       >
         {/* Header */}
-        <motion.div variants={itemVariants} className="flex items-center gap-3 px-5 py-4">
+        <motion.div variants={itemVariants} className="flex items-center gap-3 px-5 py-5">
           <button
             type="button"
             onClick={() => router.push("/")}
@@ -99,6 +102,9 @@ export function LearnSidebar({ courseTitle, width }: LearnSidebarProps) {
             <ArrowLeft className="h-4.5 w-4.5" />
           </button>
           <div className="flex-1 min-w-0">
+            <div className="mb-1 text-[0.625rem] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
+              课程工作台
+            </div>
             <h1 className="text-[0.9375rem] font-semibold text-[var(--color-text)] truncate leading-snug">
               {courseTitle}
             </h1>
@@ -108,7 +114,7 @@ export function LearnSidebar({ courseTitle, width }: LearnSidebarProps) {
         {/* Progress card */}
         <motion.div
           variants={itemVariants}
-          className="mx-4 mb-4 rounded-2xl bg-white p-4 shadow-[0_20px_48px_-34px_rgba(15,23,42,0.16)]"
+          className="mx-4 mb-4 rounded-[26px] bg-white p-4 shadow-[0_24px_56px_-40px_rgba(15,23,42,0.2)]"
         >
           <div className="flex items-center gap-4">
             <ProgressRing progress={progress} />
@@ -137,7 +143,7 @@ export function LearnSidebar({ courseTitle, width }: LearnSidebarProps) {
         </motion.div>
 
         {/* Chapter list header */}
-        <motion.div variants={itemVariants} className="px-5 pt-1 pb-2">
+        <motion.div variants={itemVariants} className="px-5 pt-2 pb-3">
           <div className="flex items-center justify-between">
             <h2 className="text-[0.6875rem] font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider">
               课程大纲

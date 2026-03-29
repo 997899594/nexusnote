@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { LoadingDots } from "@/components/chat/ChatMessage";
+import { PromptChip, WorkspaceEmptyState } from "@/components/common";
 import { InterviewMessage } from "@/components/interview/InterviewMessage";
 import { OutlinePanel } from "@/components/interview/OutlinePanel";
 import { useInterview } from "@/hooks/useInterview";
@@ -197,55 +198,35 @@ function InterviewContent() {
           <div className="max-w-[calc(100vw-32px)] md:max-w-[var(--message-max-width)] mx-auto space-y-4">
             {chatMessages.length === 0 && !isLoading && !started && (
               <div className="text-center py-12">
-                <motion.div
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                  className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#111827]"
-                >
-                  <GraduationCap className="h-8 w-8 text-white" />
-                </motion.div>
-                <motion.h2
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 }}
-                  className="text-lg font-medium text-[var(--color-text)] mb-2"
-                >
-                  你想学什么？
-                </motion.h2>
-                <motion.p
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.15 }}
-                  className="mb-6 text-sm text-[var(--color-text-tertiary)]"
-                >
-                  告诉我你的学习目标，我会为你定制课程
-                </motion.p>
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
-                  className="flex flex-wrap justify-center gap-2"
-                >
-                  {["我想学 Python", "我想学做 PPT", "考研数学怎么准备", "教我做川菜"].map(
-                    (example, index) => (
-                      <motion.button
-                        key={example}
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: 0.25 + index * 0.05 }}
-                        type="button"
-                        onClick={() => {
-                          setStarted(true);
-                          void sendMessage({ text: example });
-                        }}
-                        className="rounded-full bg-[#f3f5f8] px-4 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[#eceff3]"
-                      >
-                        {example}
-                      </motion.button>
-                    ),
-                  )}
-                </motion.div>
+                <WorkspaceEmptyState
+                  icon={GraduationCap}
+                  eyebrow="Course Interview"
+                  title="你想学什么？"
+                  description="告诉我你的学习目标，我会先访谈澄清方向，再生成可直接预览的课程大纲。"
+                  footer={
+                    <div className="flex flex-wrap justify-center gap-2">
+                      {["我想学 Python", "我想学做 PPT", "考研数学怎么准备", "教我做川菜"].map(
+                        (example, index) => (
+                          <motion.div
+                            key={example}
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: 0.1 + index * 0.05 }}
+                          >
+                            <PromptChip
+                              label={example}
+                              onClick={() => {
+                                setStarted(true);
+                                void sendMessage({ text: example });
+                              }}
+                            />
+                          </motion.div>
+                        ),
+                      )}
+                    </div>
+                  }
+                  className="mx-auto max-w-2xl"
+                />
               </div>
             )}
 

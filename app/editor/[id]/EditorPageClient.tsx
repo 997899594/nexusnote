@@ -231,7 +231,7 @@ export default function EditorPageClient({
   ) : null;
 
   return (
-    <div className="min-h-screen bg-[#f6f7f9]">
+    <div className="min-h-dvh bg-[#f3f4f6]">
       <MobileHeader
         title={title || "无标题"}
         showBack
@@ -277,14 +277,14 @@ export default function EditorPageClient({
       </motion.div>
 
       <div className="md:hidden">
-        <div className="px-4 pb-4 pt-16">
-          <div className="space-y-4 rounded-[24px] bg-white px-4 py-4 shadow-[0_24px_56px_-40px_rgba(15,23,42,0.18)]">
+        <div className="px-4 pb-4 pt-[4.5rem]">
+          <div className="space-y-4 rounded-[24px] bg-white px-4 py-4 shadow-[0_24px_56px_-40px_rgba(15,23,42,0.14)]">
             <div className="space-y-3">
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="无标题"
-                className="w-full border-none bg-transparent text-lg font-semibold text-[var(--color-text)] outline-none"
+                className="w-full border-none bg-transparent text-xl font-semibold leading-7 text-[var(--color-text)] outline-none"
               />
               {saveStatusNode}
               {sourceCard}
@@ -293,8 +293,8 @@ export default function EditorPageClient({
           </div>
         </div>
 
-        <div className="px-4 pb-24">
-          <div className="rounded-[24px] bg-white px-4 py-5 shadow-[0_24px_56px_-40px_rgba(15,23,42,0.18)]">
+        <div className="px-4 pb-28">
+          <div className="rounded-[28px] bg-white px-4 py-5 shadow-[0_24px_56px_-40px_rgba(15,23,42,0.14)]">
             <Editor
               content={content}
               onChange={setContent}

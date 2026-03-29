@@ -30,16 +30,21 @@ export function InterviewMessage({ message, onSendReply, isStreaming }: Intervie
     >
       <div
         className={cn(
-          "max-w-[var(--message-max-width)] px-4 py-3 rounded-2xl text-sm",
+          "text-sm",
           isUser
-            ? "rounded-br-md bg-[#111827] text-white"
-            : "rounded-bl-md bg-[#f3f5f8] text-[var(--color-text)]",
+            ? "max-w-[min(78%,var(--message-max-width))] rounded-3xl rounded-br-md bg-[#111827] px-4 py-3 text-white shadow-[0_18px_36px_-28px_rgba(15,23,42,0.28)]"
+            : "max-w-[var(--message-max-width)] rounded-[26px] border border-black/5 bg-white px-4 py-3.5 text-[var(--color-text)] shadow-[0_18px_40px_-34px_rgba(15,23,42,0.16)]",
         )}
       >
         {isUser ? (
           <p className="whitespace-pre-wrap">{message.text}</p>
         ) : (
           <>
+            <div className="mb-2 flex items-center gap-2">
+              <span className="rounded-full bg-[#eef1f5] px-2.5 py-1 text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-secondary)]">
+                课程访谈
+              </span>
+            </div>
             {message.text && <StreamdownMessage content={message.text} />}
             <InterviewOptions
               options={message.options ?? []}

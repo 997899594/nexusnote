@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { BookOpen, Loader2, MessageSquare, NotebookPen, Send, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatMessage, LoadingDots } from "@/components/chat/ChatMessage";
+import { WorkspaceEmptyState } from "@/components/common";
 import { useToast } from "@/components/ui/Toast";
 import { isUnauthorizedError, parseApiError, redirectToLogin } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
@@ -150,7 +151,7 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
         type="button"
         onClick={() => setChatOpen(true)}
         className={cn(
-          "fixed right-6 bottom-20 z-50",
+          "fixed right-6 bottom-6 z-50",
           "w-12 h-12 rounded-full shadow-lg",
           "bg-[#111827] text-white",
           "flex items-center justify-center",
@@ -166,7 +167,7 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
     return (
       <div className="flex h-full w-full flex-col overflow-hidden bg-[#f6f7f9]">
         {/* Header */}
-        <div className="flex items-center justify-between bg-white px-4 py-3 shadow-[0_16px_38px_-34px_rgba(15,23,42,0.12)]">
+        <div className="safe-top flex items-center justify-between bg-white/92 px-4 pb-3 pt-3 backdrop-blur-xl shadow-[0_16px_38px_-34px_rgba(15,23,42,0.12)]">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#eef1f5]">
               <BookOpen className="w-4 h-4 text-[#111827]" />
@@ -211,21 +212,29 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
         {/* Messages */}
         <div className="flex-1 space-y-4 overflow-y-auto bg-white px-4 py-4">
           {chatMessages.length === 0 && !isLoading && (
-            <div className="text-center py-8 text-zinc-400 text-sm">
-              <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-30" />
-              <p>有什么不明白的？随时问我</p>
-            </div>
+            <WorkspaceEmptyState
+              icon={MessageSquare}
+              eyebrow="Chapter Chat"
+              title="围绕当前章节继续追问"
+              description="可以让我解释概念、举例、对比知识点，或者把当前理解沉淀成笔记。"
+              className="py-8"
+            />
           )}
           {chatMessages.map((msg) => (
-            <ChatMessage key={msg.id} message={msg} onSendReply={(text) => sendMessage({ text })} />
+            <ChatMessage
+              key={msg.id}
+              message={msg}
+              onSendReply={(text) => sendMessage({ text })}
+              variant="learning"
+            />
           ))}
-          {isAILoading && <LoadingDots />}
+          {isAILoading && <LoadingDots variant="learning" />}
           <div ref={messagesEndRef} />
         </div>
 
         {/* Input */}
-        <div className="bg-white px-4 py-3">
-          <div className="flex items-end gap-2 rounded-xl bg-[#f7f8fa] p-2">
+        <div className="safe-bottom bg-white px-4 pb-3 pt-2">
+          <div className="flex items-end gap-2 rounded-[20px] border border-black/5 bg-[#f7f8fa] p-2">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -240,7 +249,7 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
               onClick={handleSubmit}
               disabled={!input.trim() || isLoading}
               className={cn(
-                "w-8 h-8 rounded-lg flex items-center justify-center transition-colors flex-shrink-0",
+                "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-colors",
                 input.trim() && !isLoading
                   ? "bg-[#111827] text-white"
                   : "bg-zinc-200 text-zinc-400 cursor-not-allowed",
@@ -261,72 +270,87 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
   return (
     <motion.div
       initial={{ width: 0, opacity: 0 }}
-      animate={{ width: 400, opacity: 1 }}
+      animate={{ width: 420, opacity: 1 }}
       exit={{ width: 0, opacity: 0 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="flex h-full flex-shrink-0 flex-col overflow-hidden bg-[#f6f7f9]"
+      className="flex h-full flex-shrink-0 flex-col overflow-hidden rounded-[32px] border border-black/5 bg-[#f6f7f9] shadow-[0_24px_56px_-42px_rgba(15,23,42,0.18)]"
     >
       {/* Header */}
-      <div className="flex items-center justify-between bg-white px-4 py-3 shadow-[0_16px_38px_-34px_rgba(15,23,42,0.12)]">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#eef1f5]">
-            <BookOpen className="w-4 h-4 text-[#111827]" />
+      <div className="border-b border-black/5 bg-white/92 px-5 py-4 backdrop-blur-xl">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#eef1f5]">
+              <BookOpen className="h-4 w-4 text-[#111827]" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
+                Chapter Assistant
+              </div>
+              <h3 className="truncate text-sm font-semibold text-zinc-900">AI 学习助手</h3>
+              <p className="truncate text-xs text-zinc-500">
+                {currentChapter?.title ?? courseTitle}
+              </p>
+            </div>
           </div>
-          <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-zinc-900 truncate">AI 学习助手</h3>
-            <p className="text-xs text-zinc-500 truncate">{currentChapter?.title ?? courseTitle}</p>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={handleCaptureChat}
+              disabled={captureDisabled}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs transition-colors",
+                captureDisabled
+                  ? "cursor-not-allowed bg-zinc-100 text-zinc-400"
+                  : "bg-[#eef1f5] text-[#111827] hover:bg-[#e4e8ee]",
+              )}
+            >
+              {isCapturingChat ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <NotebookPen className="h-3.5 w-3.5" />
+              )}
+              <span>沉淀对话</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setChatOpen(false)}
+              className="rounded-xl p-2 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={handleCaptureChat}
-            disabled={captureDisabled}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs transition-colors",
-              captureDisabled
-                ? "cursor-not-allowed bg-zinc-100 text-zinc-400"
-                : "bg-[#eef1f5] text-[#111827] hover:bg-[#e4e8ee]",
-            )}
-          >
-            {isCapturingChat ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <NotebookPen className="h-3.5 w-3.5" />
-            )}
-            <span>沉淀对话</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setChatOpen(false)}
-            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
         </div>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 space-y-4 overflow-y-auto bg-white px-4 py-4">
+      <div className="flex-1 space-y-4 overflow-y-auto bg-white px-5 py-5">
         {chatMessages.length === 0 && !isLoading && (
-          <div className="text-center py-8 text-zinc-400 text-sm">
-            <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-30" />
-            <p>有什么不明白的？随时问我</p>
-          </div>
+          <WorkspaceEmptyState
+            icon={MessageSquare}
+            eyebrow="Chapter Chat"
+            title="围绕当前章节继续追问"
+            description="可以让我解释概念、举例、对比知识点，或者把当前理解沉淀成笔记。"
+            className="py-8"
+          />
         )}
 
         {chatMessages.map((msg) => (
-          <ChatMessage key={msg.id} message={msg} onSendReply={(text) => sendMessage({ text })} />
+          <ChatMessage
+            key={msg.id}
+            message={msg}
+            onSendReply={(text) => sendMessage({ text })}
+            variant="learning"
+          />
         ))}
 
-        {isAILoading && <LoadingDots />}
+        {isAILoading && <LoadingDots variant="learning" />}
 
         <div ref={messagesEndRef} />
       </div>
 
       {/* Input */}
-      <div className="bg-white px-4 py-3">
-        <div className="flex items-end gap-2 rounded-xl bg-[#f7f8fa] p-2">
+      <div className="border-t border-black/5 bg-white px-5 py-4">
+        <div className="flex items-end gap-2 rounded-[20px] border border-black/5 bg-[#f7f8fa] p-2">
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -341,7 +365,7 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
             onClick={handleSubmit}
             disabled={!input.trim() || isLoading}
             className={cn(
-              "w-8 h-8 rounded-lg flex items-center justify-center transition-colors flex-shrink-0",
+              "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-colors",
               input.trim() && !isLoading
                 ? "bg-[#111827] text-white"
                 : "bg-zinc-200 text-zinc-400 cursor-not-allowed",

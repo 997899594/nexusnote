@@ -11,7 +11,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { BookOpen, FileText, Home, Layers, LogOut, Settings, User } from "lucide-react";
+import { BookOpen, FileText, Home, LogOut, User } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { useCallback, useEffect } from "react";
@@ -30,9 +30,8 @@ export interface DrawerMenuProps {
 
 const navItems = [
   { icon: Home, label: "首页", href: "/" },
-  { icon: BookOpen, label: "学习", href: "/learn" },
+  { icon: BookOpen, label: "课程", href: "/interview" },
   { icon: FileText, label: "笔记", href: "/editor" },
-  { icon: Layers, label: "资源", href: "/resources" },
   { icon: User, label: "我的", href: "/profile" },
 ];
 
@@ -143,7 +142,7 @@ export function DrawerMenu({ isOpen, onClose, userName, userEmail }: DrawerMenuP
             {/* 快速操作 */}
             <div className="px-4 py-4">
               <div className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-3 px-2">
-                快速操作
+                快速开始
               </div>
               <div className="space-y-1">
                 {quickActions.map((action) => {
@@ -193,16 +192,8 @@ export function DrawerMenu({ isOpen, onClose, userName, userEmail }: DrawerMenuP
               })}
             </nav>
 
-            {/* 底部设置和退出 */}
+            {/* 底部退出 */}
             <div className="p-4 safe-bottom">
-              <motion.button
-                whileTap={{ scale: 0.98 }}
-                onClick={() => handleNavClick("/settings")}
-                className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-[var(--color-text-secondary)] hover:bg-[var(--color-hover)] transition-colors mb-1"
-              >
-                <Settings className="w-5 h-5 text-[var(--color-text-muted)]" />
-                <span className="text-sm">设置</span>
-              </motion.button>
               <motion.button
                 whileTap={{ scale: 0.98 }}
                 onClick={handleSignOut}

@@ -7,15 +7,15 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { BookOpen, FileText, Home, Layers, Settings, Zap } from "lucide-react";
+import { BookOpen, FileText, Home, User, Zap } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const navItems = [
   { icon: Home, label: "首页", href: "/" },
-  { icon: BookOpen, label: "学习", href: "/learn" },
+  { icon: BookOpen, label: "课程", href: "/interview" },
   { icon: FileText, label: "笔记", href: "/editor" },
-  { icon: Layers, label: "资源", href: "/resources" },
+  { icon: User, label: "我的", href: "/profile" },
 ];
 
 export function AppSidebar() {
@@ -72,17 +72,6 @@ export function AppSidebar() {
           );
         })}
       </nav>
-
-      {/* Settings */}
-      <div className="p-3">
-        <Link
-          href="/settings"
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-[var(--color-text-secondary)] hover:bg-[var(--color-hover)] hover:text-[var(--color-text)] transition-all duration-200"
-        >
-          <Settings className="w-5 h-5" />
-          <span>设置</span>
-        </Link>
-      </div>
     </aside>
   );
 }

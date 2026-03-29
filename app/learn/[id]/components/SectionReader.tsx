@@ -44,11 +44,11 @@ function CaptureNoteDialog({
   const [text, setText] = useState("");
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/20 px-3 pb-3 pt-6 md:items-center md:px-0 md:pb-0 md:pt-0">
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="w-[28rem] max-w-[calc(100vw-2rem)] rounded-2xl bg-white p-4 shadow-[0_24px_56px_-36px_rgba(15,23,42,0.18)]"
+        initial={{ opacity: 0, scale: 0.98, y: 18 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        className="safe-bottom w-full max-w-[32rem] rounded-[28px] bg-white p-4 shadow-[0_24px_56px_-36px_rgba(15,23,42,0.18)] md:w-[28rem] md:max-w-[calc(100vw-2rem)]"
       >
         <h3 className="mb-2 text-sm font-semibold text-zinc-900">沉淀到笔记</h3>
         <div className="rounded-xl bg-[#f6f7f9] px-3 py-2 text-sm leading-6 text-zinc-700">
@@ -197,7 +197,7 @@ function SectionBlock({
   return (
     <div id={anchorId} className="relative">
       {/* Section spacing */}
-      {sectionIndex > 0 && <div className="pt-14" />}
+      {sectionIndex > 0 && <div className="pt-10 md:pt-14" />}
 
       {/* Section content */}
       <div ref={containerRef} className="relative">
@@ -205,7 +205,7 @@ function SectionBlock({
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center py-16"
+            className="flex flex-col items-center py-12 md:py-16"
           >
             <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#eef1f5]">
               <BookOpen className="h-6 w-6 text-[#111827]" />
@@ -231,7 +231,7 @@ function SectionBlock({
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="flex flex-col items-center py-16 gap-3"
+            className="flex flex-col items-center gap-3 py-12 md:py-16"
           >
             <div className="relative">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#eef1f5]">
@@ -255,12 +255,27 @@ function SectionBlock({
         )}
 
         {(state.status === "generating" || state.status === "complete") && state.content && (
-          <div className="learn-prose">
-            <StreamdownMessage
-              content={state.content}
-              isStreaming={state.status === "generating"}
-            />
-          </div>
+          <article className="rounded-[28px] border border-black/5 bg-white px-5 py-5 shadow-[0_24px_56px_-40px_rgba(15,23,42,0.14)] md:px-8 md:py-8">
+            <div className="mb-5 flex items-center justify-between gap-3 border-b border-black/5 pb-4">
+              <div>
+                <div className="text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
+                  Section
+                </div>
+                <div className="mt-1 text-sm font-medium text-[var(--color-text)]">
+                  {sectionTitle}
+                </div>
+              </div>
+              <span className="rounded-full bg-[#eef1f5] px-3 py-1 text-[0.6875rem] font-medium text-[var(--color-text-secondary)]">
+                {state.status === "generating" ? "生成中" : "已生成"}
+              </span>
+            </div>
+            <div className="learn-prose">
+              <StreamdownMessage
+                content={state.content}
+                isStreaming={state.status === "generating"}
+              />
+            </div>
+          </article>
         )}
 
         {state.status === "error" && (
@@ -401,27 +416,27 @@ export function SectionReader({
     <div ref={scrollContainerRef} className="h-full overflow-y-auto">
       <div
         className={cn(
-          "max-w-3xl mx-auto",
-          isZenMode ? "px-6 md:px-8 py-12" : "px-6 md:px-10 lg:px-12 py-8 md:py-10",
+          "mx-auto max-w-3xl",
+          isZenMode ? "px-4 py-8 md:px-8 md:py-12" : "px-4 py-6 md:px-10 md:py-10 lg:px-12",
         )}
       >
         {/* Chapter header */}
         {!isZenMode && (
-          <div className="mb-10">
-            <div className="flex items-center gap-2.5 mb-3">
+          <div className="mb-8 md:mb-10">
+            <div className="mb-3 flex items-center gap-2.5">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eef1f5] px-2.5 py-1 text-xs font-semibold text-[#111827]">
                 <Sparkles className="w-3 h-3" />第 {currentChapterIndex + 1} 章
               </span>
             </div>
-            <h2 className="text-2xl md:text-[1.75rem] font-bold text-[var(--color-text)] leading-tight tracking-tight">
+            <h2 className="text-[1.75rem] font-bold leading-tight tracking-tight text-[var(--color-text)] md:text-[1.75rem]">
               {currentChapter.title}
             </h2>
             {currentChapter.description && (
-              <p className="mt-2.5 text-base text-[var(--color-text-secondary)] leading-relaxed">
+              <p className="mt-2.5 text-[0.95rem] leading-7 text-[var(--color-text-secondary)] md:text-base">
                 {currentChapter.description}
               </p>
             )}
-            <div className="mt-8" />
+            <div className="mt-6 md:mt-8" />
           </div>
         )}
 
@@ -446,7 +461,7 @@ export function SectionReader({
         })}
 
         {/* Bottom spacing */}
-        <div className="h-20" />
+        <div className="h-24 md:h-20" />
       </div>
     </div>
   );

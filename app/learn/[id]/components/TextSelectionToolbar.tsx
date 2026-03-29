@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { BookPlus, Highlighter } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Annotation } from "@/hooks/useAnnotations";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { cn } from "@/lib/utils";
 
 interface TextSelectionToolbarProps {
@@ -54,13 +55,16 @@ export function TextSelectionToolbar({
 }: TextSelectionToolbarProps) {
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
   const [showColors, setShowColors] = useState(false);
+  const [selectionPreview, setSelectionPreview] = useState("");
   const selectedTextRef = useRef("");
   const toolbarRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<Annotation["anchor"] | null>(null);
+  const isMobile = useIsMobile();
 
   const handleSelectionChange = useCallback(() => {
     if (disabled) {
       setPosition(null);
+      setSelectionPreview("");
       return;
     }
 
@@ -73,6 +77,7 @@ export function TextSelectionToolbar({
     ) {
       setPosition(null);
       setShowColors(false);
+      setSelectionPreview("");
       return;
     }
 
@@ -88,12 +93,17 @@ export function TextSelectionToolbar({
 
     anchorRef.current = getSelectionAnchor(selection, containerRef.current);
     selectedTextRef.current = selection.toString().trim();
+    setSelectionPreview(selection.toString().trim().replace(/\s+/g, " ").slice(0, 42));
 
-    setPosition({
-      top: rect.top - containerRect.top - 48,
-      left: rect.left - containerRect.left + rect.width / 2,
-    });
-  }, [containerRef, disabled]);
+    if (!isMobile) {
+      setPosition({
+        top: Math.max(rect.top - containerRect.top - 56, 8),
+        left: rect.left - containerRect.left + rect.width / 2,
+      });
+    } else {
+      setPosition({ top: 0, left: 0 });
+    }
+  }, [containerRef, disabled, isMobile]);
 
   useEffect(() => {
     document.addEventListener("selectionchange", handleSelectionChange);
@@ -106,6 +116,7 @@ export function TextSelectionToolbar({
     window.getSelection()?.removeAllRanges();
     setPosition(null);
     setShowColors(false);
+    setSelectionPreview("");
   };
 
   const handleCapture = () => {
@@ -113,6 +124,7 @@ export function TextSelectionToolbar({
     onCapture(anchorRef.current, selectedTextRef.current);
     window.getSelection()?.removeAllRanges();
     setPosition(null);
+    setSelectionPreview("");
   };
 
   return (
@@ -124,52 +136,88 @@ export function TextSelectionToolbar({
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 5, scale: 0.95 }}
           transition={{ duration: 0.15 }}
-          className="absolute z-50 flex items-center gap-1 rounded-xl bg-white px-2 py-1.5 shadow-[0_24px_56px_-36px_rgba(15,23,42,0.18)]"
-          style={{
-            top: position.top,
-            left: position.left,
-            transform: "translateX(-50%)",
-          }}
+          className={cn(
+            isMobile
+              ? "fixed inset-x-3 bottom-3 z-50 rounded-[24px] border border-black/5 bg-white/95 p-3 shadow-[0_24px_56px_-36px_rgba(15,23,42,0.22)] backdrop-blur-xl safe-bottom"
+              : "absolute z-50 flex items-center gap-1 rounded-xl bg-white px-2 py-1.5 shadow-[0_24px_56px_-36px_rgba(15,23,42,0.18)]",
+          )}
+          style={
+            isMobile
+              ? undefined
+              : {
+                  top: position.top,
+                  left: position.left,
+                  transform: "translateX(-50%)",
+                }
+          }
         >
           {showColors ? (
-            <div className="flex items-center gap-1">
+            <div className={cn("flex items-center gap-1", isMobile && "flex-wrap gap-2")}>
               {HIGHLIGHT_COLORS.map((c) => (
                 <button
                   key={c.value}
                   type="button"
                   onClick={() => handleHighlight(c.value)}
-                  className="h-6 w-6 rounded-full border-2 border-white/70 transition-transform hover:scale-110"
+                  className={cn(
+                    "rounded-full border-2 border-white/70 transition-transform hover:scale-110",
+                    isMobile ? "h-8 w-8" : "h-6 w-6",
+                  )}
                   style={{ backgroundColor: c.value }}
                   title={c.name}
                 />
               ))}
+              {isMobile && (
+                <button
+                  type="button"
+                  onClick={() => setShowColors(false)}
+                  className="ml-auto rounded-full bg-[#f3f5f8] px-3 py-1.5 text-xs text-[var(--color-text-secondary)]"
+                >
+                  返回
+                </button>
+              )}
             </div>
           ) : (
-            <>
-              <button
-                type="button"
-                onClick={() => setShowColors(true)}
-                className={cn(
-                  "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs text-white",
-                  "text-[var(--color-text-secondary)] hover:bg-[#f3f5f8] transition-colors",
-                )}
-              >
-                <Highlighter className="w-3.5 h-3.5" />
-                <span>高亮</span>
-              </button>
-              <div className="h-4 w-px bg-black/8" />
-              <button
-                type="button"
-                onClick={handleCapture}
-                className={cn(
-                  "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs text-white",
-                  "text-[var(--color-text-secondary)] hover:bg-[#f3f5f8] transition-colors",
-                )}
-              >
-                <BookPlus className="w-3.5 h-3.5" />
-                <span>沉淀</span>
-              </button>
-            </>
+            <div className={cn(isMobile ? "space-y-3" : "flex items-center gap-1")}>
+              {isMobile && (
+                <div>
+                  <div className="text-[0.625rem] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-tertiary)]">
+                    已选内容
+                  </div>
+                  <p className="mt-1 line-clamp-2 text-sm leading-6 text-[var(--color-text-secondary)]">
+                    “{selectionPreview}”
+                  </p>
+                </div>
+              )}
+              <div className={cn("flex items-center", isMobile ? "gap-2" : "gap-1")}>
+                <button
+                  type="button"
+                  onClick={() => setShowColors(true)}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-md transition-colors",
+                    isMobile
+                      ? "flex-1 rounded-2xl bg-[#f3f5f8] px-3 py-2.5 text-sm text-[var(--color-text)]"
+                      : "px-2.5 py-1 text-xs text-[var(--color-text-secondary)] hover:bg-[#f3f5f8]",
+                  )}
+                >
+                  <Highlighter className="h-3.5 w-3.5" />
+                  <span>高亮</span>
+                </button>
+                {!isMobile && <div className="h-4 w-px bg-black/8" />}
+                <button
+                  type="button"
+                  onClick={handleCapture}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-md transition-colors",
+                    isMobile
+                      ? "flex-1 rounded-2xl bg-[#111827] px-3 py-2.5 text-sm text-white"
+                      : "px-2.5 py-1 text-xs text-[var(--color-text-secondary)] hover:bg-[#f3f5f8]",
+                  )}
+                >
+                  <BookPlus className="h-3.5 w-3.5" />
+                  <span>沉淀</span>
+                </button>
+              </div>
+            </div>
           )}
         </motion.div>
       )}
