@@ -5,6 +5,11 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { db, eq, notes } from "@/db";
+import {
+  revalidateNoteDetail,
+  revalidateNotesIndex,
+  revalidateProfileStats,
+} from "@/lib/cache/tags";
 
 export const CreateNoteSchema = z.object({
   title: z.string().min(1).max(200),
@@ -107,6 +112,10 @@ export function createNoteTools(userId: string) {
             })
             .where(eq(notes.id, args.noteId));
 
+          revalidateNotesIndex(userId);
+          revalidateNoteDetail(userId, args.noteId);
+          revalidateProfileStats(userId);
+
           return { success: true, id: args.noteId };
         } catch (error) {
           console.error("[Tool] updateNote error:", error);
@@ -129,6 +138,9 @@ export function createNoteTools(userId: string) {
           }
 
           await db.delete(notes).where(eq(notes.id, args.noteId));
+          revalidateNotesIndex(userId);
+          revalidateNoteDetail(userId, args.noteId);
+          revalidateProfileStats(userId);
           return { success: true, id: args.noteId };
         } catch (error) {
           console.error("[Tool] deleteNote error:", error);

@@ -5,6 +5,7 @@
  */
 
 import type { ToolUIPart } from "ai";
+import { isChatVisibleTool } from "@/lib/ai/tools/shared";
 import { EditorConfirmDialog } from "./EditorConfirmDialog";
 import { GenericToolResult } from "./GenericToolResult";
 import { MindMapResult } from "./MindMapResult";
@@ -35,6 +36,9 @@ export function ToolResultRenderer({ toolPart }: ToolResultRendererProps) {
   }
 
   const toolName = getToolName(toolPart);
+  if (!isChatVisibleTool(toolName)) {
+    return null;
+  }
 
   switch (toolName) {
     case "mindMap": {
@@ -99,25 +103,9 @@ export function ToolResultRenderer({ toolPart }: ToolResultRendererProps) {
       return <GenericToolResult output={output} />;
     }
 
-    // Outline tools - 大纲在左侧面板显示，对话区不显示
-    case "updateOutline": {
-      return null;
-    }
-
-    case "proposeOutline": {
-      return null;
-    }
-
-    // 内部工具 - 不显示给用户
-    case "loadLearnContext":
-    case "assessComplexity":
-    case "createCourseProfile": {
-      return null;
-    }
-
     default: {
-      const output = toolPart.output;
-      return <GenericToolResult output={output} />;
+      console.warn("[ToolResultRenderer] Blocked unhandled chat-visible tool:", toolName);
+      return null;
     }
   }
 }

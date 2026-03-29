@@ -6,6 +6,7 @@ import type {
   PresentOutlinePreviewInputSchema,
   PresentOutlinePreviewOutput,
 } from "@/lib/ai/tools/interview";
+import { isInterviewVisibleTool } from "@/lib/ai/tools/shared";
 import type { OutlineData } from "@/stores/interview";
 import type { InterviewMode } from "./schemas";
 
@@ -43,10 +44,18 @@ export function getInterviewMessageText(message: UIMessage): string {
 
   for (let i = message.parts.length - 1; i >= 0; i--) {
     const part = message.parts[i];
-    if (isToolUIPart(part) && getToolName(part) === "presentOutlinePreview") {
+    if (
+      isToolUIPart(part) &&
+      isInterviewVisibleTool(getToolName(part)) &&
+      getToolName(part) === "presentOutlinePreview"
+    ) {
       return String((part.input as { message?: string } | undefined)?.message ?? "").trim();
     }
-    if (isToolUIPart(part) && getToolName(part) === "presentOptions") {
+    if (
+      isToolUIPart(part) &&
+      isInterviewVisibleTool(getToolName(part)) &&
+      getToolName(part) === "presentOptions"
+    ) {
       return String((part.input as { question?: string } | undefined)?.question ?? "").trim();
     }
   }
@@ -57,11 +66,19 @@ export function getInterviewMessageText(message: UIMessage): string {
 export function getInterviewMessageOptions(message: InterviewUIMessage): string[] {
   for (let i = message.parts.length - 1; i >= 0; i--) {
     const part = message.parts[i];
-    if (isToolUIPart(part) && getToolName(part) === "presentOutlinePreview") {
+    if (
+      isToolUIPart(part) &&
+      isInterviewVisibleTool(getToolName(part)) &&
+      getToolName(part) === "presentOutlinePreview"
+    ) {
       const input = part.input as { options?: string[] } | undefined;
       return Array.isArray(input?.options) ? input.options : [];
     }
-    if (isToolUIPart(part) && getToolName(part) === "presentOptions") {
+    if (
+      isToolUIPart(part) &&
+      isInterviewVisibleTool(getToolName(part)) &&
+      getToolName(part) === "presentOptions"
+    ) {
       const input = part.input as { options?: string[] } | undefined;
       return Array.isArray(input?.options) ? input.options : [];
     }
@@ -73,7 +90,11 @@ export function getInterviewMessageOptions(message: InterviewUIMessage): string[
 export function getInterviewMessageMode(message: InterviewUIMessage): "question" | "outline" {
   for (let i = message.parts.length - 1; i >= 0; i--) {
     const part = message.parts[i];
-    if (isToolUIPart(part) && getToolName(part) === "presentOutlinePreview") {
+    if (
+      isToolUIPart(part) &&
+      isInterviewVisibleTool(getToolName(part)) &&
+      getToolName(part) === "presentOutlinePreview"
+    ) {
       return "outline";
     }
   }
@@ -162,7 +183,11 @@ export function findLatestOutline(
     }
 
     for (const part of message.parts) {
-      if (isToolUIPart(part) && getToolName(part) === "presentOutlinePreview") {
+      if (
+        isToolUIPart(part) &&
+        isInterviewVisibleTool(getToolName(part)) &&
+        getToolName(part) === "presentOutlinePreview"
+      ) {
         const input = part.input as { outline?: unknown } | undefined;
         const outline = normalizePartialOutline(input?.outline);
         if (outline) {

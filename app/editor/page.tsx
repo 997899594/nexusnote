@@ -1,10 +1,7 @@
-import { desc, eq } from "drizzle-orm";
 import { ArrowUpRight, BookOpen, Clock3, FileText } from "lucide-react";
 import Link from "next/link";
-import { db, notes } from "@/db";
 import { requireAuth } from "@/lib/auth";
-
-export const dynamic = "force-dynamic";
+import { getRecentNotesCached } from "@/lib/server/editor-data";
 
 function buildExcerpt(plainText: string | null, fallback: string | null) {
   const raw = (plainText || fallback || "").replace(/\s+/g, " ").trim();
@@ -25,11 +22,7 @@ function formatDate(date: Date | null) {
 
 export default async function NotesIndexPage() {
   const session = await requireAuth("/editor");
-  const recentNotes = await db.query.notes.findMany({
-    where: eq(notes.userId, session.user.id),
-    orderBy: desc(notes.updatedAt),
-    limit: 24,
-  });
+  const recentNotes = await getRecentNotesCached(session.user.id);
 
   return (
     <main className="ui-page-shell min-h-dvh safe-top">

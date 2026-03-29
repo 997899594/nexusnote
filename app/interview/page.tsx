@@ -1,5 +1,4 @@
 import { requireAuth } from "@/lib/auth";
-export const dynamic = "force-dynamic";
 
 import InterviewPageClient from "./InterviewPageClient";
 

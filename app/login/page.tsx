@@ -1,7 +1,5 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, Brain, CheckCircle2, Github, Loader2, Mail } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";

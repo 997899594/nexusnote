@@ -3,6 +3,11 @@ import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db, notes } from "@/db";
 import { auth } from "@/lib/auth";
+import {
+  revalidateNoteDetail,
+  revalidateNotesIndex,
+  revalidateProfileStats,
+} from "@/lib/cache/tags";
 import { htmlToPlainText, plainTextToHtml } from "@/lib/notes/content";
 import { indexNote } from "@/lib/rag/chunker";
 
@@ -99,6 +104,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   }).catch((error) => {
     console.error("[Notes API] Failed to index note:", error);
   });
+
+  revalidateNotesIndex(userId);
+  revalidateNoteDetail(userId, updated.id);
+  revalidateProfileStats(userId);
 
   return NextResponse.json({ note: updated });
 }

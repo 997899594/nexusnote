@@ -6,6 +6,7 @@ import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai
 import { buildSectionPrompt } from "@/lib/ai/prompts/learn";
 import { APIError } from "@/lib/api";
 import { invalidateChapterCache } from "@/lib/cache/course-context";
+import { revalidateLearnPage } from "@/lib/cache/tags";
 import { ragQueue } from "@/lib/queue";
 
 interface GenerateCourseSectionWorkflowOptions {
@@ -151,6 +152,7 @@ export async function runGenerateCourseSectionWorkflow({
             });
 
           invalidateChapterCache(courseId, chapterIndex).catch(() => {});
+          revalidateLearnPage(userId, courseId);
         }
 
         await recordAIUsage({

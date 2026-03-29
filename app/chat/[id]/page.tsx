@@ -1,8 +1,6 @@
 import { requireAuth } from "@/lib/auth";
 import ChatSessionPageClient from "./ChatSessionPageClient";
 
-export const dynamic = "force-dynamic";
-
 interface ChatSessionPageProps {
   params: Promise<{ id: string }>;
 }

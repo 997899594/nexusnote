@@ -6,6 +6,7 @@ import { z } from "zod";
 import { courseSectionAnnotations, courseSections, courses, db } from "@/db";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
+import { revalidateLearnPage } from "@/lib/cache/tags";
 
 const AnnotationSchema = z.object({
   id: z.string(),
@@ -42,7 +43,7 @@ export async function PATCH(request: NextRequest) {
     const { sectionId, annotations } = parsed.data;
 
     const [section] = await db
-      .select({ id: courseSections.id })
+      .select({ id: courseSections.id, courseId: courses.id })
       .from(courseSections)
       .innerJoin(courses, eq(courseSections.courseId, courses.id))
       .where(and(eq(courseSections.id, sectionId), eq(courses.userId, userId)))
@@ -75,6 +76,8 @@ export async function PATCH(request: NextRequest) {
         })),
       );
     }
+
+    revalidateLearnPage(userId, section.courseId);
 
     return NextResponse.json({ success: true });
   } catch (error) {

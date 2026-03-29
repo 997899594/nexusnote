@@ -3,7 +3,6 @@ import { Instrument_Serif } from "next/font/google";
 import "./globals.css";
 import { AuthSync, SessionProvider } from "@/components/auth";
 import { ToastProvider } from "@/components/ui/Toast";
-import { AI } from "./ai-ui/AIProvider";
 
 const instrumentSerif = Instrument_Serif({
   weight: "400",
@@ -40,17 +39,15 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <AI>
-      <html lang="zh-CN" data-theme="default" className={instrumentSerif.variable}>
-        <body suppressHydrationWarning>
-          <SessionProvider>
-            <ToastProvider>
-              <AuthSync />
-              <div className="min-h-dvh">{children}</div>
-            </ToastProvider>
-          </SessionProvider>
-        </body>
-      </html>
-    </AI>
+    <html lang="zh-CN" data-theme="default" className={instrumentSerif.variable}>
+      <body suppressHydrationWarning>
+        <SessionProvider>
+          <ToastProvider>
+            <AuthSync />
+            <div className="min-h-dvh">{children}</div>
+          </ToastProvider>
+        </SessionProvider>
+      </body>
+    </html>
   );
 }

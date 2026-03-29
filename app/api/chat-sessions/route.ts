@@ -7,6 +7,7 @@
 
 import { conversations, db, desc, eq } from "@/db";
 import { withAuth } from "@/lib/api";
+import { revalidateProfileStats } from "@/lib/cache/tags";
 
 interface CreateSessionBody {
   title?: string;
@@ -60,6 +61,8 @@ export const POST = withAuth(async (request, { userId }) => {
       lastMessageAt: now,
     })
     .returning();
+
+  revalidateProfileStats(userId);
 
   return Response.json({
     session: newSession,

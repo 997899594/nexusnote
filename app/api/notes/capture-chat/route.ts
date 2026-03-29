@@ -3,6 +3,11 @@ import { z } from "zod";
 import { db, notes } from "@/db";
 import { tagGenerationService } from "@/lib/ai/services/tag-generation-service";
 import { auth } from "@/lib/auth";
+import {
+  revalidateNoteDetail,
+  revalidateNotesIndex,
+  revalidateProfileStats,
+} from "@/lib/cache/tags";
 import { resolveOwnedLearnContext } from "@/lib/learning/resolve-learn-context";
 import {
   buildLearnChatCapturedHtml,
@@ -123,6 +128,10 @@ export async function POST(request: NextRequest) {
     } catch (error) {
       console.error("[Notes Capture Chat] Failed to generate tags:", error);
     }
+
+    revalidateNotesIndex(userId);
+    revalidateNoteDetail(userId, note.id);
+    revalidateProfileStats(userId);
 
     return NextResponse.json({
       success: true,

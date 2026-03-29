@@ -1,12 +1,3 @@
-/**
- * Profile Page - User Personal Space
- *
- * 展示用户信息、AI 学习统计、活动时间线等
- */
-
-export const dynamic = "force-dynamic";
-
-import { and, count, desc, eq, gt, sql } from "drizzle-orm";
 import {
   Brain,
   FileText,
@@ -22,68 +13,9 @@ import { Suspense } from "react";
 import { SkillGraph } from "@/components/profile/SkillGraph";
 import { SkillGraphSkeleton } from "@/components/profile/SkillGraphSkeleton";
 import { FloatingHeader } from "@/components/shared/layout";
-import { aiUsage, conversations, courses, db, notes } from "@/db";
 import { auth } from "@/lib/auth";
+import { getUserStatsCached } from "@/lib/server/profile-data";
 import { ProfileSignOut } from "./profile-client";
-
-// 获取用户统计数据
-async function getUserStats(userId: string) {
-  const [conversationCount, noteCount, courseCount, recentActivity, usageStats] = await Promise.all(
-    [
-      // 对话数量
-      db
-        .select({ count: count() })
-        .from(conversations)
-        .where(and(eq(conversations.userId, userId), gt(conversations.messageCount, 0))),
-
-      db.select({ count: count() }).from(notes).where(eq(notes.userId, userId)),
-
-      // 课程数量
-      db.select({ count: count() }).from(courses).where(eq(courses.userId, userId)),
-
-      // 最近活动
-      db
-        .select({
-          id: conversations.id,
-          title: conversations.title,
-          updatedAt: conversations.updatedAt,
-        })
-        .from(conversations)
-        .where(
-          and(
-            eq(conversations.userId, userId),
-            gt(conversations.messageCount, 0),
-            eq(conversations.isArchived, false),
-          ),
-        )
-        .orderBy(desc(conversations.updatedAt))
-        .limit(5),
-
-      db
-        .select({
-          requestCount: count(),
-          totalTokens: sql<number>`coalesce(sum(${aiUsage.totalTokens}), 0)`,
-          totalCostCents: sql<number>`coalesce(sum(${aiUsage.costCents}), 0)`,
-        })
-        .from(aiUsage)
-        .where(eq(aiUsage.userId, userId)),
-    ],
-  );
-
-  const usage = usageStats[0];
-
-  return {
-    conversations: conversationCount[0]?.count || 0,
-    documents: noteCount[0]?.count || 0,
-    courses: courseCount[0]?.count || 0,
-    recentActivity,
-    aiUsage: {
-      totalTokens: Number(usage?.totalTokens ?? 0),
-      totalCost: Number(usage?.totalCostCents ?? 0) / 100,
-      requestCount: usage?.requestCount || 0,
-    },
-  };
-}
 
 export default async function ProfilePage() {
   const session = await auth();
@@ -92,7 +24,7 @@ export default async function ProfilePage() {
     redirect("/login?callbackUrl=%2Fprofile");
   }
 
-  const stats = await getUserStats(session.user.id);
+  const stats = await getUserStatsCached(session.user.id);
 
   const statsCards = [
     {

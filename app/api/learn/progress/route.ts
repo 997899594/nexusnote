@@ -6,6 +6,7 @@ import { z } from "zod";
 import { courseProgress, courses, db } from "@/db";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
+import { revalidateLearnPage, revalidateRecentCourses } from "@/lib/cache/tags";
 
 const RequestSchema = z.object({
   courseId: z.string().uuid(),
@@ -131,6 +132,9 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    revalidateRecentCourses(session.user.id);
+    revalidateLearnPage(session.user.id, courseId);
+
     // If course just completed, trigger skill discovery asynchronously
     if (allChaptersDone && !existing.completedAt) {
       triggerSkillDiscovery(session.user.id).catch((err) => {
@@ -212,6 +216,9 @@ export async function PATCH(request: NextRequest) {
         updatedAt: new Date(),
       });
     }
+
+    revalidateRecentCourses(session.user.id);
+    revalidateLearnPage(session.user.id, courseId);
 
     return NextResponse.json({ ok: true });
   } catch (error) {

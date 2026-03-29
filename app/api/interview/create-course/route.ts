@@ -6,6 +6,11 @@ import { InterviewOutlineSchema } from "@/lib/ai/interview";
 import { runCreateCourseWorkflow } from "@/lib/ai/workflows";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
+import {
+  revalidateLearnPage,
+  revalidateProfileStats,
+  revalidateRecentCourses,
+} from "@/lib/cache/tags";
 import { expandInterviewOutlineToCourseOutline } from "@/lib/learning/course-service";
 
 const RequestSchema = z.object({
@@ -58,6 +63,10 @@ export async function POST(request: NextRequest) {
       courseId,
       outline: expandedOutline,
     });
+
+    revalidateRecentCourses(userId);
+    revalidateProfileStats(userId);
+    revalidateLearnPage(userId, result.courseId);
 
     return NextResponse.json({
       success: true,

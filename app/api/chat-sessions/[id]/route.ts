@@ -9,6 +9,7 @@
 import type { UIMessage } from "ai";
 import { conversationMessages, conversations, db, eq } from "@/db";
 import { withDynamicAuth } from "@/lib/api";
+import { revalidateProfileStats } from "@/lib/cache/tags";
 import {
   buildConversationMessageRows,
   loadConversationMessages,
@@ -127,6 +128,8 @@ export const PATCH = withDynamicAuth<unknown, { id: string }>(
       };
     });
 
+    revalidateProfileStats(userId);
+
     return Response.json({ session: updated });
   },
 );
@@ -154,6 +157,7 @@ export const DELETE = withDynamicAuth<unknown, { id: string }>(
     }
 
     await db.delete(conversations).where(eq(conversations.id, id));
+    revalidateProfileStats(userId);
 
     return Response.json({ success: true });
   },

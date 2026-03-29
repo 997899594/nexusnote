@@ -8,6 +8,11 @@ import { eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { db, notes } from "@/db";
 import { auth } from "@/lib/auth";
+import {
+  revalidateNoteDetail,
+  revalidateNotesIndex,
+  revalidateProfileStats,
+} from "@/lib/cache/tags";
 import { htmlToPlainText, plainTextToHtml } from "@/lib/notes/content";
 import { indexNote } from "@/lib/rag/chunker";
 
@@ -70,6 +75,9 @@ export async function POST(request: NextRequest) {
           .where(eq(notes.id, targetId));
 
         await scheduleNoteIndex(targetId, session.user.id, plainText);
+        revalidateNotesIndex(session.user.id);
+        revalidateNoteDetail(session.user.id, targetId);
+        revalidateProfileStats(session.user.id);
 
         return NextResponse.json({
           success: true,
@@ -111,6 +119,9 @@ export async function POST(request: NextRequest) {
               .where(eq(notes.id, targetId));
 
             await scheduleNoteIndex(targetId, session.user.id, plainText);
+            revalidateNotesIndex(session.user.id);
+            revalidateNoteDetail(session.user.id, targetId);
+            revalidateProfileStats(session.user.id);
 
             return NextResponse.json({
               success: true,
@@ -131,6 +142,9 @@ export async function POST(request: NextRequest) {
           .returning();
 
         await scheduleNoteIndex(newNote.id, session.user.id, content);
+        revalidateNotesIndex(session.user.id);
+        revalidateNoteDetail(session.user.id, newNote.id);
+        revalidateProfileStats(session.user.id);
 
         return NextResponse.json({
           success: true,
