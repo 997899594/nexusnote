@@ -13,6 +13,7 @@ import {
   buildConversationMessageRows,
   loadConversationMessages,
 } from "@/lib/chat/conversation-messages";
+import { isUuidString } from "@/lib/chat/session-id";
 import { buildPersistedMessageSnapshot } from "@/lib/chat/session-messages";
 
 interface UpdateSessionBody {
@@ -25,6 +26,10 @@ interface UpdateSessionBody {
 export const GET = withDynamicAuth<unknown, { id: string }>(
   async (_request, { userId, params }) => {
     const { id } = params;
+
+    if (!isUuidString(id)) {
+      return Response.json({ error: "Invalid session id" }, { status: 400 });
+    }
 
     const [conv] = await db.select().from(conversations).where(eq(conversations.id, id)).limit(1);
 
@@ -45,6 +50,10 @@ export const GET = withDynamicAuth<unknown, { id: string }>(
 export const PATCH = withDynamicAuth<unknown, { id: string }>(
   async (request, { userId, params }) => {
     const { id } = params;
+
+    if (!isUuidString(id)) {
+      return Response.json({ error: "Invalid session id" }, { status: 400 });
+    }
 
     const [existing] = await db
       .select()
@@ -125,6 +134,10 @@ export const PATCH = withDynamicAuth<unknown, { id: string }>(
 export const DELETE = withDynamicAuth<unknown, { id: string }>(
   async (_request, { userId, params }) => {
     const { id } = params;
+
+    if (!isUuidString(id)) {
+      return Response.json({ error: "Invalid session id" }, { status: 400 });
+    }
 
     const [existing] = await db
       .select()

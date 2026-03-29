@@ -39,7 +39,7 @@ export function FloatingHeader({
 
   return (
     <>
-      <header className="fixed top-4 left-4 right-4 z-50 md:top-6 md:left-6 md:right-6">
+      <header className="fixed left-4 right-4 top-5 z-50 md:left-6 md:right-6 md:top-6">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4">
           <motion.button
             onClick={onLogoClick}

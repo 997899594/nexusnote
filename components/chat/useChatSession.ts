@@ -19,9 +19,18 @@ import { useChatSessionStateStore, usePendingChatStore, useUserPreferencesStore 
 interface UseChatSessionOptions {
   sessionId: string | null;
   pendingMessage?: string | null;
+  body?: Record<string, unknown> | (() => Record<string, unknown>);
 }
 
-export function useChatSession({ sessionId, pendingMessage }: UseChatSessionOptions) {
+function resolveBody(body: UseChatSessionOptions["body"]): Record<string, unknown> | undefined {
+  if (!body) {
+    return undefined;
+  }
+
+  return typeof body === "function" ? body() : body;
+}
+
+export function useChatSession({ sessionId, pendingMessage, body }: UseChatSessionOptions) {
   const clearPending = usePendingChatStore((state) => state.clear);
   const currentPersonaSlug = useUserPreferencesStore((state) => state.currentPersonaSlug);
   const { addToast } = useToast();
@@ -39,7 +48,11 @@ export function useChatSession({ sessionId, pendingMessage }: UseChatSessionOpti
     id: sessionId ?? undefined,
     transport: new DefaultChatTransport({
       api: "/api/chat",
-      body: () => ({ sessionId, personaSlug: personaSlugRef.current }),
+      body: () => ({
+        sessionId,
+        personaSlug: personaSlugRef.current,
+        ...resolveBody(body),
+      }),
     }),
     onFinish: async ({ messages }) => {
       if (sessionId) {
@@ -65,6 +78,7 @@ export function useChatSession({ sessionId, pendingMessage }: UseChatSessionOpti
   useEffect(() => {
     if (!sessionId || isLoaded(sessionId) || pendingMessage) return;
 
+    let isCancelled = false;
     markLoaded(sessionId);
 
     fetch(`/api/chat-sessions/${sessionId}`)
@@ -80,7 +94,7 @@ export function useChatSession({ sessionId, pendingMessage }: UseChatSessionOpti
         return res.json();
       })
       .then((data) => {
-        if (data?.session?.messages) {
+        if (!isCancelled && data?.session?.messages) {
           setMessages(data.session.messages as UIMessage[]);
         }
       })
@@ -88,6 +102,10 @@ export function useChatSession({ sessionId, pendingMessage }: UseChatSessionOpti
         console.error(error);
         markFailed(sessionId);
       });
+
+    return () => {
+      isCancelled = true;
+    };
   }, [sessionId, setMessages, isLoaded, markLoaded, markFailed, pendingMessage]);
 
   // 自动发送 pendingMessage（仅首次）

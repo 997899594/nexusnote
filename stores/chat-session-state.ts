@@ -18,6 +18,7 @@ interface ChatSessionState {
   markSent: (id: string) => void;
   markFailed: (id: string) => void;
   clearFailed: (id: string) => void;
+  resetSession: (id: string) => void;
   isLoaded: (id: string) => boolean;
   isSent: (id: string) => boolean;
   canRetry: (id: string) => boolean;
@@ -67,6 +68,24 @@ export const useChatSessionStateStore = create<ChatSessionState>((set, get) => (
       const newSet = new Set(state.failedSessions);
       newSet.delete(id);
       return { failedSessions: newSet };
+    });
+  },
+
+  resetSession: (id: string) => {
+    set((state) => {
+      const loadedSessions = new Set(state.loadedSessions);
+      const sentSessions = new Set(state.sentSessions);
+      const failedSessions = new Set(state.failedSessions);
+
+      loadedSessions.delete(id);
+      sentSessions.delete(id);
+      failedSessions.delete(id);
+
+      return {
+        loadedSessions,
+        sentSessions,
+        failedSessions,
+      };
     });
   },
 

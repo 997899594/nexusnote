@@ -277,7 +277,7 @@ export default function EditorPageClient({
       </motion.div>
 
       <div className="md:hidden">
-        <div className="px-4 pb-4 pt-[4.5rem]">
+        <div className="px-4 pb-5 pt-[5rem]">
           <div className="space-y-4 rounded-[24px] bg-white px-4 py-4 shadow-[0_24px_56px_-40px_rgba(15,23,42,0.14)]">
             <div className="space-y-3">
               <input
@@ -293,7 +293,7 @@ export default function EditorPageClient({
           </div>
         </div>
 
-        <div className="px-4 pb-28">
+        <div className="px-4 pb-32">
           <div className="rounded-[28px] bg-white px-4 py-5 shadow-[0_24px_56px_-40px_rgba(15,23,42,0.14)]">
             <Editor
               content={content}

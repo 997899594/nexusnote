@@ -173,7 +173,7 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto bg-white px-4 py-4 safe-bottom mobile-scroll md:px-6">
+      <div className="mobile-scroll flex-1 overflow-y-auto bg-white px-4 pb-8 pt-5 safe-bottom md:px-6 md:pb-10 md:pt-6">
         <div className="mx-auto max-w-[calc(100vw-32px)] space-y-4 md:max-w-[var(--message-max-width)]">
           {chatMessages.length === 0 && !isLoading && (
             <WorkspaceEmptyState
@@ -195,7 +195,7 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
         </div>
       </div>
 
-      <div className="bg-[#f6f7f9] px-4 py-3 safe-bottom md:px-6 md:py-4">
+      <div className="bg-[#f6f7f9] px-4 pb-5 pt-4 safe-bottom md:px-6 md:pb-6 md:pt-4">
         <div className="relative mx-auto max-w-[calc(100vw-32px)] md:max-w-[var(--message-max-width)]">
           <AnimatePresence>
             {showCommands && !selectedCommand && filteredCommands.length > 0 && (

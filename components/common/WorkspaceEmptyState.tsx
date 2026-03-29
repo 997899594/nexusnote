@@ -29,7 +29,7 @@ export function WorkspaceEmptyState({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        "rounded-[28px] border border-black/5 bg-white/92 px-6 py-8 text-center shadow-[0_24px_56px_-40px_rgba(15,23,42,0.16)]",
+        "rounded-[28px] border border-black/5 bg-white/92 px-6 py-9 text-center shadow-[0_24px_56px_-40px_rgba(15,23,42,0.16)] md:px-7 md:py-10",
         className,
       )}
     >

@@ -96,6 +96,8 @@ export function LearnClient({
     setCurrentChapterIndex(initialChapterIndex);
     setCourseId(sessionId);
     setChapters(chapters);
+    setSidebarOpen(false);
+    setChatOpen(false);
 
     // Initialize completed sections
     for (const nodeId of initialCompletedSections) {

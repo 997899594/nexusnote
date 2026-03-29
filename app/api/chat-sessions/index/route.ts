@@ -10,6 +10,7 @@
 import type { UIMessage } from "ai";
 import { conversations, db, eq } from "@/db";
 import { withAuth } from "@/lib/api";
+import { isUuidString } from "@/lib/chat/session-id";
 import { indexConversation } from "@/lib/rag/chunker";
 import { conversationToParagraphs } from "@/lib/rag/semantic-chunker";
 
@@ -23,7 +24,7 @@ export const POST = withAuth(async (request, { userId }) => {
   const { sessionId, messages } = body;
 
   // Validate sessionId
-  if (!sessionId || typeof sessionId !== "string") {
+  if (!isUuidString(sessionId)) {
     return Response.json({ error: "Invalid sessionId" }, { status: 400 });
   }
 

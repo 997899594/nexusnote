@@ -98,7 +98,7 @@ export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps
   return (
     <div className="flex h-full flex-col bg-[#f6f7f9]">
       {/* Header */}
-      <div className="flex items-center gap-2 px-4 py-4">
+      <div className="flex items-center gap-2 px-5 pb-4 pt-5">
         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-900">
           <BookOpen className="h-4 w-4 text-white" />
         </div>
@@ -106,7 +106,7 @@ export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto p-5">
         <AnimatePresence mode="wait">
           {!outline && isLoading ? (
             <WorkspaceEmptyState

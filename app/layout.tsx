@@ -46,7 +46,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <SessionProvider>
             <ToastProvider>
               <AuthSync />
-              <div className="min-h-screen">{children}</div>
+              <div className="min-h-dvh">{children}</div>
             </ToastProvider>
           </SessionProvider>
         </body>

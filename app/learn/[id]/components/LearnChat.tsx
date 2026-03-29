@@ -1,15 +1,16 @@
 "use client";
 
-import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport, type UIMessage } from "ai";
+import type { UIMessage } from "ai";
 import { motion } from "framer-motion";
 import { BookOpen, Loader2, MessageSquare, NotebookPen, Send, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatMessage, LoadingDots } from "@/components/chat/ChatMessage";
+import { useChatSession } from "@/components/chat/useChatSession";
 import { WorkspaceEmptyState } from "@/components/common";
 import { useToast } from "@/components/ui/Toast";
 import { isUnauthorizedError, parseApiError, redirectToLogin } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
+import { useChatSessionStateStore } from "@/stores";
 import { useLearnStore } from "@/stores/learn";
 
 interface LearnChatProps {
@@ -23,40 +24,26 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
   const { currentChapterIndex, chapters, isChatOpen, setChatOpen } = useLearnStore();
   const [input, setInput] = useState("");
   const [isCapturingChat, setIsCapturingChat] = useState(false);
+  const [resolvedSessionId, setResolvedSessionId] = useState<string | null>(null);
+  const [isResolvingSession, setIsResolvingSession] = useState(true);
+  const [sessionError, setSessionError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const currentChapter = chapters[currentChapterIndex];
-  const sessionId = `learn-${courseId}-ch${currentChapterIndex}`;
-
-  const transport = new DefaultChatTransport({
-    api: "/api/chat",
-    body: () => ({
-      sessionId,
+  const resetTrackedSession = useChatSessionStateStore((state) => state.resetSession);
+  const chat = useChatSession({
+    sessionId: resolvedSessionId,
+    body: {
       metadata: {
         courseId,
         chapterIndex: currentChapterIndex,
         context: "learn",
       },
-    }),
-  });
-
-  const chat = useChat({
-    id: sessionId,
-    transport,
-    onError: (error) => {
-      console.error("[LearnChat] Error:", error);
-      parseApiError(error).then(({ message, status, code }) => {
-        if (isUnauthorizedError(status, code)) {
-          redirectToLogin();
-          return;
-        }
-        addToast(message, "error");
-      });
     },
   });
 
-  const { messages, sendMessage, status } = chat;
-  const isLoading = status === "submitted" || status === "streaming";
+  const { messages, sendMessage, setMessages, status } = chat;
+  const isLoading = status === "submitted" || status === "streaming" || isResolvingSession;
   const chatMessages = messages.filter((m: UIMessage) => m.role !== "system");
 
   const getMessageText = useCallback((message: UIMessage) => {
@@ -76,8 +63,60 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
     scrollToBottom();
   }, [scrollToBottom]);
 
+  const resolveLearnSession = useCallback(async () => {
+    setIsResolvingSession(true);
+    setSessionError(null);
+    setResolvedSessionId(null);
+    setMessages([]);
+    setInput("");
+
+    try {
+      const query = new URLSearchParams({
+        courseId,
+        chapterIndex: String(currentChapterIndex),
+      });
+      const response = await fetch(`/api/learn/chat-session?${query.toString()}`);
+
+      if (response.status === 401) {
+        redirectToLogin();
+        return;
+      }
+
+      if (!response.ok) {
+        throw response;
+      }
+
+      const data = (await response.json()) as {
+        session?: {
+          id?: string;
+        };
+      };
+
+      if (!data.session?.id) {
+        throw new Error("学习对话会话初始化失败");
+      }
+
+      resetTrackedSession(data.session.id);
+      setResolvedSessionId(data.session.id);
+    } catch (error) {
+      console.error("[LearnChat] Failed to resolve session:", error);
+      const { message, status, code } = await parseApiError(error);
+      if (isUnauthorizedError(status, code)) {
+        redirectToLogin();
+        return;
+      }
+      setSessionError(message);
+    } finally {
+      setIsResolvingSession(false);
+    }
+  }, [courseId, currentChapterIndex, resetTrackedSession, setMessages]);
+
+  useEffect(() => {
+    void resolveLearnSession();
+  }, [resolveLearnSession]);
+
   const handleSubmit = async () => {
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading || !resolvedSessionId) return;
     await sendMessage({ text: input.trim() });
     setInput("");
   };
@@ -140,8 +179,53 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
 
   const lastMsg = chatMessages[chatMessages.length - 1];
   const isAILoading =
-    (status === "submitted" || status === "streaming") && (!lastMsg || lastMsg.role === "user");
-  const captureDisabled = isLoading || isCapturingChat || chatMessages.length === 0;
+    !isResolvingSession &&
+    (status === "submitted" || status === "streaming") &&
+    (!lastMsg || lastMsg.role === "user");
+  const captureDisabled =
+    isLoading || isCapturingChat || chatMessages.length === 0 || !resolvedSessionId;
+
+  const renderEmptyState = () => {
+    if (isResolvingSession) {
+      return (
+        <WorkspaceEmptyState
+          icon={Loader2}
+          eyebrow="Chapter Thread"
+          title="正在恢复本章对话"
+          description="正在定位本章节的历史线程并恢复消息。"
+          className="mt-3 py-10"
+        />
+      );
+    }
+
+    if (sessionError) {
+      return (
+        <div className="mt-3 flex flex-col items-center justify-center gap-3 rounded-[28px] border border-dashed border-black/10 bg-[#fafafa] px-5 py-10 text-center">
+          <div className="space-y-1">
+            <p className="text-sm font-semibold text-zinc-900">学习对话暂时不可用</p>
+            <p className="text-xs leading-5 text-zinc-500">{sessionError}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void resolveLearnSession()}
+            className="rounded-xl bg-[#111827] px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-zinc-800"
+          >
+            重试
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <WorkspaceEmptyState
+        icon={MessageSquare}
+        eyebrow="Chapter Chat"
+        title="围绕当前章节继续追问"
+        description="可以让我解释概念、举例、对比知识点，或者把当前理解沉淀成笔记。"
+        className="mt-3 py-10"
+      />
+    );
+  };
 
   if (!isChatOpen) {
     return (
@@ -210,16 +294,8 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
         </div>
 
         {/* Messages */}
-        <div className="flex-1 space-y-4 overflow-y-auto bg-white px-4 py-4">
-          {chatMessages.length === 0 && !isLoading && (
-            <WorkspaceEmptyState
-              icon={MessageSquare}
-              eyebrow="Chapter Chat"
-              title="围绕当前章节继续追问"
-              description="可以让我解释概念、举例、对比知识点，或者把当前理解沉淀成笔记。"
-              className="py-8"
-            />
-          )}
+        <div className="flex-1 space-y-4 overflow-y-auto bg-white px-4 pb-8 pt-5">
+          {chatMessages.length === 0 && !isAILoading && renderEmptyState()}
           {chatMessages.map((msg) => (
             <ChatMessage
               key={msg.id}
@@ -233,24 +309,25 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
         </div>
 
         {/* Input */}
-        <div className="safe-bottom bg-white px-4 pb-3 pt-2">
+        <div className="safe-bottom bg-white px-4 pb-4 pt-3">
           <div className="flex items-end gap-2 rounded-[20px] border border-black/5 bg-[#f7f8fa] p-2">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="针对本章节提问..."
+              placeholder={sessionError ? "当前章节对话暂不可用" : "针对本章节提问..."}
               rows={1}
               className="flex-1 bg-transparent border-none outline-none text-sm text-zinc-900 placeholder:text-zinc-400 resize-none min-h-[24px] max-h-[80px]"
+              disabled={!resolvedSessionId || isResolvingSession || !!sessionError}
             />
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={handleSubmit}
-              disabled={!input.trim() || isLoading}
+              disabled={!input.trim() || isLoading || !resolvedSessionId || !!sessionError}
               className={cn(
                 "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-colors",
-                input.trim() && !isLoading
+                input.trim() && !isLoading && resolvedSessionId && !sessionError
                   ? "bg-[#111827] text-white"
                   : "bg-zinc-200 text-zinc-400 cursor-not-allowed",
               )}
@@ -323,16 +400,8 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
       </div>
 
       {/* Messages */}
-      <div className="flex-1 space-y-4 overflow-y-auto bg-white px-5 py-5">
-        {chatMessages.length === 0 && !isLoading && (
-          <WorkspaceEmptyState
-            icon={MessageSquare}
-            eyebrow="Chapter Chat"
-            title="围绕当前章节继续追问"
-            description="可以让我解释概念、举例、对比知识点，或者把当前理解沉淀成笔记。"
-            className="py-8"
-          />
-        )}
+      <div className="flex-1 space-y-4 overflow-y-auto bg-white px-5 pb-10 pt-6">
+        {chatMessages.length === 0 && !isAILoading && renderEmptyState()}
 
         {chatMessages.map((msg) => (
           <ChatMessage
@@ -349,24 +418,25 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
       </div>
 
       {/* Input */}
-      <div className="border-t border-black/5 bg-white px-5 py-4">
+      <div className="border-t border-black/5 bg-white px-5 pb-5 pt-4">
         <div className="flex items-end gap-2 rounded-[20px] border border-black/5 bg-[#f7f8fa] p-2">
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="针对本章节提问..."
+            placeholder={sessionError ? "当前章节对话暂不可用" : "针对本章节提问..."}
             rows={1}
             className="flex-1 bg-transparent border-none outline-none text-sm text-zinc-900 placeholder:text-zinc-400 resize-none min-h-[24px] max-h-[80px]"
+            disabled={!resolvedSessionId || isResolvingSession || !!sessionError}
           />
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={handleSubmit}
-            disabled={!input.trim() || isLoading}
+            disabled={!input.trim() || isLoading || !resolvedSessionId || !!sessionError}
             className={cn(
               "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-colors",
-              input.trim() && !isLoading
+              input.trim() && !isLoading && resolvedSessionId && !sessionError
                 ? "bg-[#111827] text-white"
                 : "bg-zinc-200 text-zinc-400 cursor-not-allowed",
             )}

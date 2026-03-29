@@ -109,6 +109,7 @@ export function ToolResultRenderer({ toolPart }: ToolResultRendererProps) {
     }
 
     // 内部工具 - 不显示给用户
+    case "loadLearnContext":
     case "assessComplexity":
     case "createCourseProfile": {
       return null;

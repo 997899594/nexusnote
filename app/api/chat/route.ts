@@ -24,6 +24,7 @@ import { createNexusNoteStreamResponse } from "@/lib/ai/core/streaming";
 import { buildPersonalization } from "@/lib/ai/personalization";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
+import { isUuidString } from "@/lib/chat/session-id";
 import { checkRateLimitOrThrow } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
@@ -107,7 +108,7 @@ export async function POST(request: NextRequest) {
     }
 
     // upsert conversation
-    if (sessionId && userId) {
+    if (sessionId && userId && isUuidString(sessionId)) {
       const firstUserMessage = uiMessages.find((m) => m.role === "user");
       let title = "新对话";
 
@@ -138,6 +139,8 @@ export async function POST(request: NextRequest) {
       } catch (insertError) {
         console.warn("[ChatSession] Failed to upsert session:", insertError);
       }
+    } else if (sessionId && !isUuidString(sessionId)) {
+      console.warn("[ChatSession] Skip upsert for non-UUID sessionId:", sessionId);
     }
 
     // Get agent with personalization

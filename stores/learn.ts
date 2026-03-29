@@ -71,7 +71,7 @@ const initialState = {
   completedSections: new Set<string>(),
   isZenMode: false,
   isSidebarOpen: false,
-  isChatOpen: true,
+  isChatOpen: false,
 };
 
 export const useLearnStore = create<LearnState>((set) => ({

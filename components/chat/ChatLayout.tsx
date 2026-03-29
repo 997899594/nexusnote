@@ -58,7 +58,7 @@ export function ChatLayout({ onExit, children }: ChatLayoutProps) {
   };
 
   return (
-    <div className="flex h-screen flex-col bg-[#f6f7f9]">
+    <div className="flex min-h-dvh flex-col bg-[#f6f7f9]">
       <FloatingHeader
         showMenuButton
         showPersonaSelector
@@ -66,7 +66,7 @@ export function ChatLayout({ onExit, children }: ChatLayoutProps) {
         onMenuClick={() => setSidebarOpen(!sidebarOpen)}
       />
 
-      <div className="flex flex-1 overflow-hidden pt-20">
+      <div className="flex flex-1 overflow-hidden pt-24">
         <ChatHistory
           sessions={sessions}
           currentSessionId={currentSessionId}

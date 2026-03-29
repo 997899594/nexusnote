@@ -32,8 +32,8 @@ export default async function NotesIndexPage() {
   });
 
   return (
-    <main className="ui-page-shell min-h-screen safe-top">
-      <div className="mx-auto max-w-5xl px-4 pb-16 pt-20 md:px-6 md:pb-20 md:pt-24">
+    <main className="ui-page-shell min-h-dvh safe-top">
+      <div className="mx-auto max-w-5xl px-4 pb-20 pt-24 md:px-6 md:pb-24 md:pt-24">
         <header className="mb-8 max-w-3xl md:mb-10">
           <div className="ui-badge-pill inline-flex items-center gap-2 px-3 py-1.5 text-[11px] uppercase tracking-[0.22em] text-black/45">
             <span className="ui-strong-chip h-1.5 w-1.5 rounded-full" />

@@ -115,7 +115,7 @@ function InterviewContent() {
   const shouldShowOutlinePanel = Boolean(outline) || isOutlineLoading || interviewCompleted;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#f6f7f9]">
+    <div className="flex min-h-dvh overflow-hidden bg-[#f6f7f9]">
       <AnimatePresence mode="wait">
         {shouldShowOutlinePanel && (
           <motion.div
@@ -143,7 +143,7 @@ function InterviewContent() {
         animate={shouldShowOutlinePanel ? "withPanel" : "full"}
         className="flex min-w-0 flex-1 flex-col bg-white"
       >
-        <header className="flex items-center gap-4 px-4 py-4 md:px-6">
+        <header className="flex items-center gap-4 px-4 pb-4 pt-5 md:px-6 md:pb-5 md:pt-6">
           <Link
             href="/"
             className="rounded-xl p-2 transition-colors hover:bg-[#f3f5f8]"
@@ -194,10 +194,10 @@ function InterviewContent() {
           </div>
         </header>
 
-        <div className="mobile-scroll flex-1 overflow-y-auto px-4 py-4 md:px-6">
+        <div className="mobile-scroll flex-1 overflow-y-auto px-4 py-5 md:px-6 md:py-6">
           <div className="max-w-[calc(100vw-32px)] md:max-w-[var(--message-max-width)] mx-auto space-y-4">
             {chatMessages.length === 0 && !isLoading && !started && (
-              <div className="text-center py-12">
+              <div className="py-14 text-center md:py-16">
                 <WorkspaceEmptyState
                   icon={GraduationCap}
                   eyebrow="Course Interview"
@@ -245,7 +245,7 @@ function InterviewContent() {
           </div>
         </div>
 
-        <div className="bg-white px-4 py-3 md:px-6 md:py-4">
+        <div className="bg-white px-4 pb-5 pt-4 md:px-6 md:pb-6 md:pt-4">
           <div className="max-w-[calc(100vw-32px)] md:max-w-[var(--message-max-width)] mx-auto">
             <div className="flex items-end gap-2 rounded-2xl bg-[#f7f8fa] p-2 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.14)] md:gap-3 md:p-3">
               <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-[#111827]">

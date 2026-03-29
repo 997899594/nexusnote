@@ -93,7 +93,7 @@ export function MobileHeader({
         className,
       )}
     >
-      <div className="flex items-center justify-between h-14 px-4">
+      <div className="flex min-h-[3.75rem] items-center justify-between px-4 py-1">
         {/* 左侧 - 返回按钮 */}
         <div className="w-10 flex items-center">
           {showBack && (
