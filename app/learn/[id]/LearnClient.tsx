@@ -9,10 +9,12 @@ import { useEffect, useMemo } from "react";
 import type { Annotation } from "@/hooks/useAnnotations";
 import { useChapterSections } from "@/hooks/useChapterSections";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import type { GoldenPathCourseContext } from "@/lib/golden-path/types";
 import { cn } from "@/lib/utils";
 import type { ChapterOutline } from "@/stores/learn";
 import { useLearnStore } from "@/stores/learn";
 
+import { GoldenPathChapterPanel } from "./components/GoldenPathChapterPanel";
 import { LearnChat } from "./components/LearnChat";
 import { LearnSidebar } from "./components/LearnSidebar";
 import { SectionReader } from "./components/SectionReader";
@@ -35,6 +37,7 @@ export interface LearnClientProps {
   initialChapterIndex: number;
   initialCompletedSections: string[];
   scrollToSectionId: string | null;
+  goldenPathContext: GoldenPathCourseContext | null;
 }
 
 // Sidebar width constant
@@ -73,6 +76,7 @@ export function LearnClient({
   initialChapterIndex,
   initialCompletedSections,
   scrollToSectionId,
+  goldenPathContext,
 }: LearnClientProps) {
   const setCourseId = useLearnStore((s) => s.setCourseId);
   const setChapters = useLearnStore((s) => s.setChapters);
@@ -180,6 +184,9 @@ export function LearnClient({
                 <p className="truncate text-[0.6875rem] text-[var(--color-text-tertiary)]">
                   {courseTitle}
                 </p>
+                <div className="pt-1.5">
+                  <GoldenPathChapterPanel context={goldenPathContext} compact />
+                </div>
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-1 rounded-2xl bg-[#f5f6f8] p-1">
@@ -219,6 +226,7 @@ export function LearnClient({
             generateSection={generateSection}
             sectionDocs={sectionDocs}
             scrollToSectionId={scrollToSectionId}
+            goldenPathContext={goldenPathContext}
           />
         </div>
 
@@ -243,7 +251,11 @@ export function LearnClient({
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 className="fixed inset-y-0 left-0 z-50 w-[min(88vw,336px)] overflow-hidden rounded-r-[28px] bg-[#f6f7f9] shadow-xl"
               >
-                <LearnSidebar courseTitle={courseTitle} width={SIDEBAR_WIDTH} />
+                <LearnSidebar
+                  courseTitle={courseTitle}
+                  width={SIDEBAR_WIDTH}
+                  goldenPathContext={goldenPathContext}
+                />
               </motion.div>
             </>
           )}
@@ -289,7 +301,11 @@ export function LearnClient({
             exit="exit"
             className="flex-shrink-0 overflow-hidden rounded-[30px] border border-black/5 bg-[#f6f7f9] shadow-[0_22px_54px_-40px_rgba(15,23,42,0.22)]"
           >
-            <LearnSidebar courseTitle={courseTitle} width={SIDEBAR_WIDTH} />
+            <LearnSidebar
+              courseTitle={courseTitle}
+              width={SIDEBAR_WIDTH}
+              goldenPathContext={goldenPathContext}
+            />
           </motion.div>
         )}
       </AnimatePresence>
@@ -340,6 +356,7 @@ export function LearnClient({
             generateSection={generateSection}
             sectionDocs={sectionDocs}
             scrollToSectionId={scrollToSectionId}
+            goldenPathContext={goldenPathContext}
           />
         </div>
 

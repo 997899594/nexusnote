@@ -3,13 +3,16 @@
 import { motion } from "framer-motion";
 import { ArrowLeft, Clock, Sparkles, Trophy } from "lucide-react";
 import { useRouter } from "next/navigation";
+import type { GoldenPathCourseContext } from "@/lib/golden-path/types";
 import { cn } from "@/lib/utils";
 import { useLearnStore } from "@/stores/learn";
 import { ChapterList } from "./ChapterList";
+import { GoldenPathChapterPanel } from "./GoldenPathChapterPanel";
 
 interface LearnSidebarProps {
   courseTitle: string;
   width: number;
+  goldenPathContext: GoldenPathCourseContext | null;
 }
 
 const contentVariants = {
@@ -68,7 +71,7 @@ function ProgressRing({ progress, size = 52 }: { progress: number; size?: number
   );
 }
 
-export function LearnSidebar({ courseTitle, width }: LearnSidebarProps) {
+export function LearnSidebar({ courseTitle, width, goldenPathContext }: LearnSidebarProps) {
   const router = useRouter();
   const { chapters, completedSections } = useLearnStore();
 
@@ -143,6 +146,10 @@ export function LearnSidebar({ courseTitle, width }: LearnSidebarProps) {
               </div>
             </div>
           </div>
+        </motion.div>
+
+        <motion.div variants={itemVariants} className="mx-4 mb-4">
+          <GoldenPathChapterPanel context={goldenPathContext} compact />
         </motion.div>
 
         {/* Chapter list header */}

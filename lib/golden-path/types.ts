@@ -113,3 +113,25 @@ export interface GoldenPathSnapshot {
     readyCount: number;
   };
 }
+
+export interface GoldenPathChapterSkill {
+  id: string;
+  name: string;
+  state: GoldenPathSkillState;
+  progressScore: number;
+}
+
+export interface GoldenPathCourseChapterContext {
+  chapterIndex: number;
+  chapterTitle: string;
+  matchedSkills: GoldenPathChapterSkill[];
+}
+
+export interface GoldenPathCourseContext {
+  courseId: string;
+  mainRouteId: string;
+  mainRouteName: string;
+  mainRouteTagline: string;
+  courseSkills: GoldenPathChapterSkill[];
+  chapters: GoldenPathCourseChapterContext[];
+}

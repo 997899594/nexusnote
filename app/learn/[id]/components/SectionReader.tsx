@@ -11,9 +11,11 @@ import { useToast } from "@/components/ui/Toast";
 import type { Annotation } from "@/hooks/useAnnotations";
 import { useAnnotations } from "@/hooks/useAnnotations";
 import type { SectionState } from "@/hooks/useChapterSections";
+import type { GoldenPathCourseContext } from "@/lib/golden-path/types";
 import { cn } from "@/lib/utils";
 import { useLearnStore } from "@/stores/learn";
 import { AnnotationLayer } from "./AnnotationLayer";
+import { GoldenPathChapterPanel } from "./GoldenPathChapterPanel";
 import { TextSelectionToolbar } from "./TextSelectionToolbar";
 
 interface SectionDoc {
@@ -30,6 +32,7 @@ interface SectionReaderProps {
   generateSection: (index: number) => void;
   sectionDocs: SectionDoc[];
   scrollToSectionId?: string | null;
+  goldenPathContext: GoldenPathCourseContext | null;
 }
 
 function CaptureNoteDialog({
@@ -405,6 +408,7 @@ export function SectionReader({
   generateSection,
   sectionDocs,
   scrollToSectionId,
+  goldenPathContext,
 }: SectionReaderProps) {
   const {
     currentChapterIndex,
@@ -530,6 +534,7 @@ export function SectionReader({
                 {currentChapter.description}
               </p>
             )}
+            <GoldenPathChapterPanel context={goldenPathContext} />
           </div>
         )}
 

@@ -10,6 +10,8 @@ import {
   GOLDEN_PATH_SKILLS,
 } from "@/lib/golden-path/ontology";
 import type {
+  GoldenPathChapterSkill,
+  GoldenPathCourseContext,
   GoldenPathDomainSnapshot,
   GoldenPathFutureRoute,
   GoldenPathLinkedCourse,
@@ -59,6 +61,14 @@ interface CourseArtifact {
   searchText: string;
   chapters: CourseChapterArtifact[];
   sections: CourseSectionArtifact[];
+}
+
+interface GoldenPathBaseData {
+  coursesById: Map<string, CourseArtifact>;
+  skillSnapshots: GoldenPathNodeSnapshot[];
+  routeSnapshots: GoldenPathRouteSnapshot[];
+  futureRoutes: GoldenPathFutureRoute[];
+  mainRouteId: string;
 }
 
 function normalizeText(value: string | null | undefined): string {
@@ -188,12 +198,16 @@ function createProjectionDescription(domainNames: string[]): string {
   return `围绕 ${domainNames.join("、")} 形成的当前成长主线。`;
 }
 
-export async function getGoldenPathSnapshotCached(userId: string): Promise<GoldenPathSnapshot> {
-  "use cache";
+function toChapterSkill(skill: GoldenPathNodeSnapshot): GoldenPathChapterSkill {
+  return {
+    id: skill.id,
+    name: skill.name,
+    state: skill.state,
+    progressScore: skill.progressScore,
+  };
+}
 
-  cacheLife("minutes");
-  cacheTag(getGoldenPathTag(userId));
-
+async function loadGoldenPathBase(userId: string): Promise<GoldenPathBaseData> {
   const courseRows = await db
     .select({
       id: courses.id,
@@ -487,15 +501,97 @@ export async function getGoldenPathSnapshotCached(userId: string): Promise<Golde
   }));
 
   return {
-    mainRouteId,
-    routes: routeSnapshots,
+    coursesById,
+    skillSnapshots,
+    routeSnapshots,
     futureRoutes,
+    mainRouteId,
+  };
+}
+
+export async function getGoldenPathSnapshotCached(userId: string): Promise<GoldenPathSnapshot> {
+  "use cache";
+
+  cacheLife("minutes");
+  cacheTag(getGoldenPathTag(userId));
+
+  const base = await loadGoldenPathBase(userId);
+
+  return {
+    mainRouteId: base.mainRouteId,
+    routes: base.routeSnapshots,
+    futureRoutes: base.futureRoutes,
     totals: {
-      routeCount: routeSnapshots.length,
-      activeCourseCount: courseRows.length,
-      masteredCount: skillSnapshots.filter((skill) => skill.state === "mastered").length,
-      inProgressCount: skillSnapshots.filter((skill) => skill.state === "in_progress").length,
-      readyCount: skillSnapshots.filter((skill) => skill.state === "ready").length,
+      routeCount: base.routeSnapshots.length,
+      activeCourseCount: base.coursesById.size,
+      masteredCount: base.skillSnapshots.filter((skill) => skill.state === "mastered").length,
+      inProgressCount: base.skillSnapshots.filter((skill) => skill.state === "in_progress").length,
+      readyCount: base.skillSnapshots.filter((skill) => skill.state === "ready").length,
     },
+  };
+}
+
+export async function getGoldenPathCourseContextCached(
+  userId: string,
+  courseId: string,
+): Promise<GoldenPathCourseContext | null> {
+  "use cache";
+
+  cacheLife("minutes");
+  cacheTag(getGoldenPathTag(userId));
+
+  const base = await loadGoldenPathBase(userId);
+  const course = base.coursesById.get(courseId);
+
+  if (!course) {
+    return null;
+  }
+
+  const mainRoute =
+    base.routeSnapshots.find((route) => route.id === base.mainRouteId) ?? base.routeSnapshots[0];
+
+  if (!mainRoute) {
+    return null;
+  }
+
+  const routeSkills = [
+    ...new Map(
+      mainRoute.domains.flatMap((domain) => domain.nodes).map((skill) => [skill.id, skill]),
+    ).values(),
+  ];
+  const directCourseSkills = routeSkills.filter((skill) =>
+    skill.linkedCourseIds.includes(course.id),
+  );
+  const fallbackCourseSkills = base.skillSnapshots.filter((skill) =>
+    skill.linkedCourseIds.includes(course.id),
+  );
+  const relevantCourseSkills = (
+    directCourseSkills.length > 0 ? directCourseSkills : fallbackCourseSkills
+  )
+    .slice()
+    .sort(
+      (left, right) =>
+        right.progressScore - left.progressScore || right.importance - left.importance,
+    );
+
+  return {
+    courseId: course.id,
+    mainRouteId: mainRoute.id,
+    mainRouteName: mainRoute.name,
+    mainRouteTagline: mainRoute.tagline,
+    courseSkills: relevantCourseSkills.slice(0, 8).map(toChapterSkill),
+    chapters: course.chapters.map((chapter) => ({
+      chapterIndex: chapter.chapterIndex,
+      chapterTitle: chapter.title,
+      matchedSkills: relevantCourseSkills
+        .filter((skill) => skill.linkedChapterKeys.includes(chapter.key))
+        .slice()
+        .sort(
+          (left, right) =>
+            right.progressScore - left.progressScore || right.importance - left.importance,
+        )
+        .slice(0, 5)
+        .map(toChapterSkill),
+    })),
   };
 }
