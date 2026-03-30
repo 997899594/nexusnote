@@ -12,7 +12,6 @@ import { aiProvider, runDiscoverSkillsWorkflow } from "@/lib/ai";
 import { withAuth } from "@/lib/api";
 import { DiscoverSkillsSchema } from "@/lib/skills/validation";
 
-export const runtime = "nodejs";
 export const maxDuration = 300;
 
 export const POST = withAuth(async (request, { userId }) => {

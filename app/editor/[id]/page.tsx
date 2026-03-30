@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { plainTextToHtml } from "@/lib/notes/content";
 import { getNoteDetailCached } from "@/lib/server/editor-data";
@@ -9,6 +10,7 @@ interface EditorPageProps {
 }
 
 export default async function EditorPage({ params }: EditorPageProps) {
+  await connection();
   const { id } = await params;
   const session = await requireAuth(`/editor/${id}`);
   const note = await getNoteDetailCached(session.user.id, id);

@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { connection } from "next/server";
 import { auth } from "@/lib/auth";
 import { createLoginPath } from "@/lib/auth-redirect";
 import { getLearnPageSnapshotCached } from "@/lib/server/learn-data";
@@ -11,6 +12,7 @@ interface PageProps {
 }
 
 export default async function LearnPage({ params, searchParams }: PageProps) {
+  await connection();
   const { id: sessionId } = await params;
   const { chapter } = await searchParams;
 

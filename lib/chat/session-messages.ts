@@ -5,6 +5,7 @@ const MAX_PERSISTED_MESSAGE_BYTES = 120_000;
 
 interface PersistedMessageSnapshot {
   messages: UIMessage[];
+  droppedMessages: UIMessage[];
   droppedCount: number;
   trimmed: boolean;
 }
@@ -17,6 +18,7 @@ export function buildPersistedMessageSnapshot(messages: UIMessage[]): PersistedM
   if (messages.length === 0) {
     return {
       messages,
+      droppedMessages: [],
       droppedCount: 0,
       trimmed: false,
     };
@@ -36,6 +38,7 @@ export function buildPersistedMessageSnapshot(messages: UIMessage[]): PersistedM
 
   return {
     messages: persisted,
+    droppedMessages: messages.slice(0, Math.max(0, messages.length - persisted.length)),
     droppedCount,
     trimmed: droppedCount > 0,
   };

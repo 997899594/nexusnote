@@ -1,16 +1,9 @@
-"use client";
+import { ChatLayout } from "@/components/chat/ChatLayout";
 
-/**
- * Chat Layout - /chat 路由的布局包装
- *
- * 提供 ChatLayout 组件和返回首页的处理
- */
+interface ChatLayoutWrapperProps {
+  children: React.ReactNode;
+}
 
-import { useRouter } from "next/navigation";
-import { ChatLayout } from "@/components/chat";
-
-export default function ChatLayoutWrapper({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-
-  return <ChatLayout onExit={() => router.push("/")}>{children}</ChatLayout>;
+export default function ChatLayoutWrapper({ children }: ChatLayoutWrapperProps) {
+  return <ChatLayout>{children}</ChatLayout>;
 }

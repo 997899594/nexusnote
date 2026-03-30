@@ -8,7 +8,7 @@
  * - 管理侧边栏开关状态
  * - 加载会话列表
  * - 不管理具体会话内容（由 children 负责）
- * - 不管理当前会话 ID（由 URL /chat/[id] 管理）
+ * - 当前会话 ID 由客户端路由参数提供
  */
 
 import { useParams, useRouter } from "next/navigation";
@@ -19,11 +19,10 @@ import { ChatHistory } from "./ChatHistory";
 import { triggerIndex } from "./index-service";
 
 interface ChatLayoutProps {
-  onExit: () => void;
   children: React.ReactNode;
 }
 
-export function ChatLayout({ onExit, children }: ChatLayoutProps) {
+export function ChatLayout({ children }: ChatLayoutProps) {
   const router = useRouter();
   const params = useParams();
   const currentSessionId = (params?.id as string | undefined) || null;
@@ -54,7 +53,7 @@ export function ChatLayout({ onExit, children }: ChatLayoutProps) {
 
   const handleNewSession = () => {
     setSidebarOpen(false);
-    onExit();
+    router.push("/");
   };
 
   return (
@@ -62,7 +61,7 @@ export function ChatLayout({ onExit, children }: ChatLayoutProps) {
       <FloatingHeader
         showMenuButton
         showPersonaSelector
-        onLogoClick={onExit}
+        onLogoClick={() => router.push("/")}
         onMenuClick={() => setSidebarOpen(!sidebarOpen)}
       />
 

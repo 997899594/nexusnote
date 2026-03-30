@@ -2,13 +2,15 @@
 
 import {
   type Agent,
-  createAgentUIStreamResponse,
+  convertToModelMessages,
   createUIMessageStream,
   createUIMessageStreamResponse,
   smoothStream,
   type ToolSet,
   type UIMessage,
 } from "ai";
+import { classifyAIDegradation } from "@/lib/ai/core/degradation";
+import { createPresentationFilteredStreamResponse } from "@/lib/ai/core/ui-stream-filter";
 
 // ============================================
 // Types
@@ -21,6 +23,18 @@ export interface StreamOptions {
   sessionId?: string;
   /** 资源 ID */
   resourceId?: string;
+  /** 允许下发的工具展示类型 */
+  presentation?: "chat" | "interview";
+  /** 流结束回调 */
+  onFinish?: (options: {
+    messages: UIMessage[];
+    isContinuation: boolean;
+    isAborted: boolean;
+    responseMessage: UIMessage;
+    finishReason?: "stop" | "length" | "content-filter" | "tool-calls" | "error" | "other";
+  }) => Promise<void> | void;
+  /** 复制底层 SSE 以支持 resumable streams */
+  consumeSseStream?: (options: { stream: ReadableStream<string> }) => Promise<void> | void;
 }
 
 // ============================================
@@ -35,6 +49,11 @@ const FALLBACK_MESSAGES = {
 };
 
 function getFallbackMessage(error: unknown): string {
+  const degradation = classifyAIDegradation(error);
+  if (degradation) {
+    return degradation.userMessage;
+  }
+
   if (error instanceof Error) {
     const message = error.message.toLowerCase();
     if (message.includes("timeout") || message.includes("timed out")) {
@@ -98,15 +117,27 @@ export async function createNexusNoteStreamResponse(
   messages: UIMessage[],
   options: StreamOptions = {},
 ): Promise<Response> {
-  const { sessionId, resourceId } = options;
+  const { sessionId, resourceId, presentation = "chat", onFinish, consumeSseStream } = options;
 
   try {
-    const response = await createAgentUIStreamResponse({
-      agent,
-      uiMessages: messages,
+    const modelMessages = await convertToModelMessages(messages, {
+      tools: agent.tools,
+    });
+
+    const result = await agent.stream({
+      prompt: modelMessages,
       experimental_transform: smoothStream({
         chunking: new Intl.Segmenter("zh-CN", { granularity: "grapheme" }),
       }),
+    });
+
+    const response = createPresentationFilteredStreamResponse({
+      stream: result.toUIMessageStream(),
+      originalMessages: messages,
+      allowedPresentation: presentation,
+      onError: getFallbackMessage,
+      onFinish,
+      consumeSseStream,
     });
 
     if (sessionId) response.headers.set("X-Session-Id", sessionId);
@@ -118,6 +149,11 @@ export async function createNexusNoteStreamResponse(
   } catch (error) {
     console.error("[Streaming] Error:", error);
 
-    return createFallbackStream(getFallbackMessage(error), { sessionId, resourceId });
+    const response = createFallbackStream(getFallbackMessage(error), { sessionId, resourceId });
+    const degradation = classifyAIDegradation(error);
+    if (degradation) {
+      response.headers.set("X-AI-Degraded", degradation.kind);
+    }
+    return response;
   }
 }

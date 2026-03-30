@@ -10,8 +10,6 @@ import { type AIPersona, getAvailablePersonas, getUserPersonaPreference } from "
 import { withAuth } from "@/lib/api";
 import { getUserStyleProfile, type UserStyleProfile } from "@/lib/style/analysis";
 
-export const runtime = "nodejs";
-
 interface PreferencesResponse {
   profile: {
     learningStyle?: {

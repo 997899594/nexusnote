@@ -14,7 +14,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { BookOpen, FileText, Home, LogOut, User } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import { useCallback, useEffect } from "react";
+import { useEffect } from "react";
 import { cn } from "@/lib/utils";
 
 export interface DrawerMenuProps {
@@ -54,19 +54,16 @@ export function DrawerMenu({ isOpen, onClose, userName, userEmail }: DrawerMenuP
     .slice(0, 2);
 
   // 处理导航点击
-  const handleNavClick = useCallback(
-    (href: string) => {
-      onClose();
-      router.push(href);
-    },
-    [onClose, router],
-  );
+  const handleNavClick = (href: string) => {
+    onClose();
+    router.push(href);
+  };
 
   // 处理退出登录
-  const handleSignOut = useCallback(() => {
+  const handleSignOut = () => {
     onClose();
     void signOut({ callbackUrl: "/login" });
-  }, [onClose]);
+  };
 
   // 阻止背景滚动
   useEffect(() => {

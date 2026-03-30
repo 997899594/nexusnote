@@ -21,9 +21,16 @@ type DemoMessage = {
   text: string;
 };
 
+let demoMessageCounter = 0;
+
+function createDemoMessageId() {
+  demoMessageCounter += 1;
+  return `demo-message-${demoMessageCounter}`;
+}
+
 function createDemoMessage(role: DemoMessage["role"], text: string): DemoMessage {
   return {
-    id: crypto.randomUUID(),
+    id: createDemoMessageId(),
     role,
     text,
   };

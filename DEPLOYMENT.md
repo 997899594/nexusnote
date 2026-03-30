@@ -37,8 +37,6 @@ Minimum required keys:
 - `AI_302_API_KEY`
 
 Optional but recommended:
-- `OPENAI_API_KEY`
-- `DEEPSEEK_API_KEY`
 - `RESEND_API_KEY`
 - `EMAIL_FROM`
 - `LANGFUSE_PUBLIC_KEY`

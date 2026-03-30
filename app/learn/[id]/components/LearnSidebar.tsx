@@ -88,7 +88,10 @@ export function LearnSidebar({ courseTitle, width }: LearnSidebarProps) {
         className="flex flex-col h-full"
       >
         {/* Header */}
-        <motion.div variants={itemVariants} className="flex items-center gap-3 px-5 py-5">
+        <motion.div
+          variants={itemVariants}
+          className="flex items-center gap-3 border-b border-black/5 px-5 pb-4 pt-5"
+        >
           <button
             type="button"
             onClick={() => router.push("/")}
@@ -114,7 +117,7 @@ export function LearnSidebar({ courseTitle, width }: LearnSidebarProps) {
         {/* Progress card */}
         <motion.div
           variants={itemVariants}
-          className="mx-4 mb-4 rounded-[26px] bg-white p-4 shadow-[0_24px_56px_-40px_rgba(15,23,42,0.2)]"
+          className="mx-4 mb-4 mt-4 rounded-[28px] border border-black/5 bg-white p-4 shadow-[0_24px_56px_-40px_rgba(15,23,42,0.16)]"
         >
           <div className="flex items-center gap-4">
             <ProgressRing progress={progress} />
@@ -143,7 +146,7 @@ export function LearnSidebar({ courseTitle, width }: LearnSidebarProps) {
         </motion.div>
 
         {/* Chapter list header */}
-        <motion.div variants={itemVariants} className="px-5 pt-2 pb-3">
+        <motion.div variants={itemVariants} className="px-5 pb-3 pt-2">
           <div className="flex items-center justify-between">
             <h2 className="text-[0.6875rem] font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider">
               课程大纲
@@ -155,7 +158,7 @@ export function LearnSidebar({ courseTitle, width }: LearnSidebarProps) {
         </motion.div>
 
         {/* Chapter > Section list */}
-        <div className="flex-1 overflow-y-auto px-3 pb-4">
+        <div className="mobile-scroll flex-1 overflow-y-auto px-3 pb-5">
           <ChapterList />
         </div>
       </motion.div>

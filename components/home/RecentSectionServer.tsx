@@ -7,7 +7,6 @@
  * - 自动处理认证状态
  */
 
-import { GraduationCap } from "lucide-react";
 import { WorkspaceEmptyState } from "@/components/common";
 import { RecentCard } from "@/components/home";
 import { auth } from "@/lib/auth";
@@ -22,7 +21,7 @@ export async function RecentSectionServer() {
       <section className="mb-14">
         <SectionHeader />
         <WorkspaceEmptyState
-          icon={GraduationCap}
+          iconName="graduation-cap"
           eyebrow="Recent Courses"
           title="登录后查看最近课程"
           description="这里会展示你最近学习过的课程、最新进度和继续进入的入口。"
@@ -38,7 +37,7 @@ export async function RecentSectionServer() {
       <section className="mb-14">
         <SectionHeader />
         <WorkspaceEmptyState
-          icon={GraduationCap}
+          iconName="graduation-cap"
           eyebrow="Recent Courses"
           title="还没有学习记录"
           description="从一个具体的学习目标开始，系统会先访谈，再生成你的第一门课程。"

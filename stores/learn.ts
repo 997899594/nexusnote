@@ -31,6 +31,11 @@ interface LearnState {
   currentSectionIndex: number;
   setCurrentSectionIndex: (index: number) => void;
 
+  // Explicit section focus request (e.g. sidebar navigation -> reader scroll)
+  requestedSectionId: string | null;
+  requestSectionFocus: (nodeId: string) => void;
+  clearRequestedSectionFocus: () => void;
+
   // Chapter outlines (with sections)
   chapters: ChapterOutline[];
   setChapters: (chapters: ChapterOutline[]) => void;
@@ -66,6 +71,7 @@ const initialState = {
   courseId: "",
   currentChapterIndex: 0,
   currentSectionIndex: 0,
+  requestedSectionId: null,
   chapters: [] as ChapterOutline[],
   expandedChapters: new Set<number>(),
   completedSections: new Set<string>(),
@@ -93,6 +99,10 @@ export const useLearnStore = create<LearnState>((set) => ({
     }),
 
   setCurrentSectionIndex: (index) => set({ currentSectionIndex: index }),
+
+  requestSectionFocus: (requestedSectionId) => set({ requestedSectionId }),
+
+  clearRequestedSectionFocus: () => set({ requestedSectionId: null }),
 
   setChapters: (chapters) => set({ chapters }),
 

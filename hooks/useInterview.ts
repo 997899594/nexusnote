@@ -3,6 +3,7 @@ import { DefaultChatTransport } from "ai";
 import { nanoid } from "nanoid";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/ui/Toast";
+import { type AIDegradationKind, createAIDegradationAwareFetch } from "@/lib/ai/core/degradation";
 import {
   findLatestOutline,
   getInterviewMessageOptions,
@@ -29,6 +30,7 @@ interface UseInterviewReturn {
   status: string;
   isLoading: boolean;
   sessionId: string;
+  aiDegradedKind: AIDegradationKind | null;
 }
 
 function toInterviewDisplayMessages(messages: InterviewUIMessage[]): InterviewMessage[] {
@@ -75,6 +77,7 @@ function hasCompleteOutline(outline: OutlineData | null | undefined) {
 export function useInterview(options?: UseInterviewOptions): UseInterviewReturn {
   const { addToast } = useToast();
   const [sessionId] = useState(() => nanoid());
+  const [aiDegradedKind, setAIDegradedKind] = useState<AIDegradationKind | null>(null);
 
   const setOutline = useInterviewStore((s) => s.setOutline);
   const setIsOutlineLoading = useInterviewStore((s) => s.setIsOutlineLoading);
@@ -88,36 +91,19 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
     resetInterview();
   }, [resetInterview]);
 
-  const originalFetch = fetch as typeof globalThis.fetch & {
-    preconnect?: (input: string | URL) => void;
-  };
-
-  const interviewFetch = Object.assign(
-    async (input: URL | RequestInfo, init?: RequestInit) => {
-      const response = await fetch(input, init);
-      if (response.status === 401) {
-        redirectToLogin();
-      }
-      return response;
-    },
-    {
-      preconnect:
-        typeof originalFetch.preconnect === "function"
-          ? originalFetch.preconnect.bind(originalFetch)
-          : (_input: string | URL) => {},
-    },
-  ) as typeof fetch;
-
   const chat = useChat<InterviewUIMessage>({
     id: sessionId,
     transport: new DefaultChatTransport({
       api: "/api/interview",
+      fetch: createAIDegradationAwareFetch({
+        onStateChange: setAIDegradedKind,
+        onUnauthorized: redirectToLogin,
+      }),
       body: () => ({
         sessionId,
         courseId: useInterviewStore.getState().courseId ?? undefined,
         outline: useInterviewStore.getState().outline ?? undefined,
       }),
-      fetch: interviewFetch,
     }),
     onFinish: ({ messages: finishedMessages }) => {
       const result = findLatestOutline(finishedMessages);
@@ -193,5 +179,6 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
     status,
     isLoading,
     sessionId,
+    aiDegradedKind,
   };
 }

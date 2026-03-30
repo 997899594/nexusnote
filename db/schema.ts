@@ -231,6 +231,7 @@ export const notes = pgTable(
       annotationId?: string;
       noteContent?: string;
       chatCapture?: boolean;
+      source?: string;
       messageCount?: number;
       latestExcerpt?: string;
     }>(),

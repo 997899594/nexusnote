@@ -13,7 +13,6 @@
 import { motion, useScroll, useSpring, useTransform } from "framer-motion";
 import { ArrowLeft, Menu, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useMemo } from "react";
 import { cn } from "@/lib/utils";
 
 export interface MobileHeaderProps {
@@ -52,7 +51,7 @@ export function MobileHeader({
   const { scrollY } = useScroll();
   const springY = useSpring(scrollY, { stiffness: 300, damping: 30 });
 
-  const handleBack = useCallback(() => {
+  const handleBack = () => {
     if (backConfirm) {
       // TODO: 显示确认对话框
       if (confirm("有未保存的内容，确定要离开吗？")) {
@@ -61,28 +60,24 @@ export function MobileHeader({
     } else {
       router.back();
     }
-  }, [backConfirm, router]);
+  };
 
-  const handleRightAction = useCallback(() => {
+  const handleRightAction = () => {
     if (onRightAction) {
       onRightAction();
     }
-  }, [onRightAction]);
+  };
 
   // 计算隐藏动画
   const y = useTransform(springY, [0, 50, 150], [0, 0, -60]);
   const displayY = hideOnScroll ? y : 0;
 
-  const backgroundStyles = useMemo(() => {
-    switch (variant) {
-      case "transparent":
-        return "bg-transparent";
-      case "glass":
-        return "bg-white/90 backdrop-blur-xl shadow-[0_18px_42px_-34px_rgba(15,23,42,0.18)]";
-      default:
-        return "bg-white shadow-[0_18px_42px_-34px_rgba(15,23,42,0.18)]";
-    }
-  }, [variant]);
+  const backgroundStyles =
+    variant === "transparent"
+      ? "bg-transparent"
+      : variant === "glass"
+        ? "bg-white/90 backdrop-blur-xl shadow-[0_18px_42px_-34px_rgba(15,23,42,0.18)]"
+        : "bg-white shadow-[0_18px_42px_-34px_rgba(15,23,42,0.18)]";
 
   return (
     <motion.header

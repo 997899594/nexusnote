@@ -4,8 +4,8 @@ import type { UIMessage } from "ai";
 import { AnimatePresence, motion } from "framer-motion";
 import { Loader2, Send, Sparkles, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { WorkspaceEmptyState } from "@/components/common";
+import { useEffect, useRef, useState } from "react";
+import { AIDegradationBanner, WorkspaceEmptyState } from "@/components/common";
 import { useInputProtection } from "@/components/common/useInputProtection";
 import { CHAT_COMMANDS, extractCommandContent } from "@/lib/chat/commands";
 import { cn } from "@/lib/utils";
@@ -36,19 +36,20 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
   const messages = chat.messages;
   const sendMessage = chat.sendMessage;
   const status = chat.status;
+  const aiDegradedKind = chat.aiDegradedKind;
   // AI SDK v6: isLoading is derived from status
   const isLoading = status === "submitted" || status === "streaming";
   const { handlePaste } = useInputProtection();
 
   const chatMessages = messages.filter((m: UIMessage) => m.role !== "system");
 
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, []);
-
   useEffect(() => {
-    scrollToBottom();
-  }, [scrollToBottom]);
+    if (chatMessages.length === 0 && !isLoading) {
+      return;
+    }
+
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages.length, isLoading]);
 
   // 同步消息到 store，供索引使用
   const setCurrentSessionMessages = useChatStore((s) => s.setCurrentSessionMessages);
@@ -175,6 +176,8 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
     <div className="flex flex-col h-full">
       <div className="mobile-scroll flex-1 overflow-y-auto bg-white px-4 pb-8 pt-5 safe-bottom md:px-6 md:pb-10 md:pt-6">
         <div className="mx-auto max-w-[calc(100vw-32px)] space-y-4 md:max-w-[var(--message-max-width)]">
+          <AIDegradationBanner kind={aiDegradedKind} />
+
           {chatMessages.length === 0 && !isLoading && (
             <WorkspaceEmptyState
               icon={Sparkles}

@@ -7,7 +7,6 @@ import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
 import { checkRateLimitOrThrow } from "@/lib/rate-limit";
 
-export const runtime = "nodejs";
 export const maxDuration = 300;
 
 const RequestSchema = z.object({

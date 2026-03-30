@@ -11,8 +11,6 @@ import { z } from "zod";
 import { withAuth } from "@/lib/api";
 import { deleteStyleData, getPrivacySettings, updatePrivacySettings } from "@/lib/style/privacy";
 
-export const runtime = "nodejs";
-
 // ============================================
 // Validation Schema
 // ============================================

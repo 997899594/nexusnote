@@ -4,7 +4,9 @@ import { type NextRequest, NextResponse } from "next/server";
 import { courses, db } from "@/db";
 import {
   aiProvider,
+  classifyAIDegradation,
   createInterviewAgent,
+  createPresentationFilteredStreamResponse,
   createTelemetryContext,
   getErrorMessage,
   InterviewApiRequestSchema,
@@ -14,7 +16,6 @@ import {
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
 
-export const runtime = "nodejs";
 export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
@@ -105,11 +106,13 @@ export async function POST(request: NextRequest) {
       }),
     });
 
-    return result.toUIMessageStreamResponse<InterviewUIMessage>({
+    return createPresentationFilteredStreamResponse({
+      stream: result.toUIMessageStream<InterviewUIMessage>({
+        sendReasoning: false,
+      }),
       originalMessages: validatedMessages,
-      sendReasoning: false,
-      onError: (error) => getErrorMessage(error),
-      status: 200,
+      allowedPresentation: "interview",
+      onError: getErrorMessage,
       headers: {
         "X-Request-Id": requestId,
         "X-Content-Type-Options": "nosniff",
@@ -118,6 +121,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
+    const degradation = classifyAIDegradation(error);
     await recordAIUsage({
       ...telemetry,
       durationMs: Date.now() - startedAt,
@@ -127,6 +131,9 @@ export async function POST(request: NextRequest) {
 
     const response = handleError(error);
     response.headers.set("X-Request-Id", requestId);
+    if (degradation) {
+      response.headers.set("X-AI-Degraded", degradation.kind);
+    }
     return response;
   }
 }
@@ -139,7 +146,6 @@ export async function GET() {
       configured: aiProvider.isConfigured(),
       primaryProvider: providerStatus.primaryProvider,
       providers: providerStatus.providers,
-      fallbackEnabled: providerStatus.fallbackEnabled,
     },
     timestamp: new Date().toISOString(),
   });

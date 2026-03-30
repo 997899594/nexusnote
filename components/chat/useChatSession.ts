@@ -10,10 +10,10 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/ui/Toast";
+import { type AIDegradationKind, createAIDegradationAwareFetch } from "@/lib/ai/core/degradation";
 import { isUnauthorizedError, parseApiError, redirectToLogin } from "@/lib/api/client";
-import { persistMessages } from "@/lib/chat/api";
 import { useChatSessionStateStore, usePendingChatStore, useUserPreferencesStore } from "@/stores";
 
 interface UseChatSessionOptions {
@@ -34,6 +34,7 @@ export function useChatSession({ sessionId, pendingMessage, body }: UseChatSessi
   const clearPending = usePendingChatStore((state) => state.clear);
   const currentPersonaSlug = useUserPreferencesStore((state) => state.currentPersonaSlug);
   const { addToast } = useToast();
+  const [aiDegradedKind, setAIDegradedKind] = useState<AIDegradationKind | null>(null);
 
   // Zustand-based session state
   const { isLoaded, markLoaded, markFailed, isSent, markSent } = useChatSessionStateStore();
@@ -46,19 +47,19 @@ export function useChatSession({ sessionId, pendingMessage, body }: UseChatSessi
 
   const chat = useChat({
     id: sessionId ?? undefined,
+    resume: Boolean(sessionId),
     transport: new DefaultChatTransport({
       api: "/api/chat",
+      fetch: createAIDegradationAwareFetch({
+        onStateChange: setAIDegradedKind,
+        onUnauthorized: redirectToLogin,
+      }),
       body: () => ({
         sessionId,
         personaSlug: personaSlugRef.current,
         ...resolveBody(body),
       }),
     }),
-    onFinish: async ({ messages }) => {
-      if (sessionId) {
-        await persistMessages(sessionId, messages);
-      }
-    },
     onError: (error) => {
       console.error("[ChatSession] API Error:", error);
       parseApiError(error).then(({ message, status, code }) => {
@@ -118,5 +119,8 @@ export function useChatSession({ sessionId, pendingMessage, body }: UseChatSessi
     sendMessage({ text: pendingMessage });
   }, [pendingMessage, sessionId, sendMessage, clearPending, isSent, markSent]);
 
-  return chat;
+  return {
+    ...chat,
+    aiDegradedKind,
+  };
 }

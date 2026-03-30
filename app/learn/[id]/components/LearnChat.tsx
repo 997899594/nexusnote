@@ -6,7 +6,7 @@ import { BookOpen, Loader2, MessageSquare, NotebookPen, Send, X } from "lucide-r
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatMessage, LoadingDots } from "@/components/chat/ChatMessage";
 import { useChatSession } from "@/components/chat/useChatSession";
-import { WorkspaceEmptyState } from "@/components/common";
+import { AIDegradationBanner, WorkspaceEmptyState } from "@/components/common";
 import { useToast } from "@/components/ui/Toast";
 import { isUnauthorizedError, parseApiError, redirectToLogin } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
@@ -42,7 +42,7 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
     },
   });
 
-  const { messages, sendMessage, setMessages, status } = chat;
+  const { messages, sendMessage, setMessages, status, aiDegradedKind } = chat;
   const isLoading = status === "submitted" || status === "streaming" || isResolvingSession;
   const chatMessages = messages.filter((m: UIMessage) => m.role !== "system");
 
@@ -55,13 +55,13 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
   }, []);
 
   // Auto-scroll
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, []);
-
   useEffect(() => {
-    scrollToBottom();
-  }, [scrollToBottom]);
+    if (chatMessages.length === 0 && !isLoading) {
+      return;
+    }
+
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages.length, isLoading]);
 
   const resolveLearnSession = useCallback(async () => {
     setIsResolvingSession(true);
@@ -235,7 +235,7 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
         type="button"
         onClick={() => setChatOpen(true)}
         className={cn(
-          "fixed right-6 bottom-6 z-50",
+          "fixed bottom-6 right-6 z-50 safe-bottom",
           "w-12 h-12 rounded-full shadow-lg",
           "bg-[#111827] text-white",
           "flex items-center justify-center",
@@ -294,22 +294,26 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
         </div>
 
         {/* Messages */}
-        <div className="flex-1 space-y-4 overflow-y-auto bg-white px-4 pb-8 pt-5">
-          {chatMessages.length === 0 && !isAILoading && renderEmptyState()}
-          {chatMessages.map((msg) => (
-            <ChatMessage
-              key={msg.id}
-              message={msg}
-              onSendReply={(text) => sendMessage({ text })}
-              variant="learning"
-            />
-          ))}
-          {isAILoading && <LoadingDots variant="learning" />}
-          <div ref={messagesEndRef} />
+        <div className="mobile-scroll flex-1 overflow-y-auto bg-white px-4 pb-8 pt-5">
+          <div className="space-y-4">
+            <AIDegradationBanner kind={aiDegradedKind} className="mb-4" />
+
+            {chatMessages.length === 0 && !isAILoading && renderEmptyState()}
+            {chatMessages.map((msg) => (
+              <ChatMessage
+                key={msg.id}
+                message={msg}
+                onSendReply={(text) => sendMessage({ text })}
+                variant="learning"
+              />
+            ))}
+            {isAILoading && <LoadingDots variant="learning" />}
+            <div ref={messagesEndRef} />
+          </div>
         </div>
 
         {/* Input */}
-        <div className="safe-bottom bg-white px-4 pb-4 pt-3">
+        <div className="safe-bottom border-t border-black/5 bg-white px-4 pb-4 pt-3">
           <div className="flex items-end gap-2 rounded-[20px] border border-black/5 bg-[#f7f8fa] p-2">
             <textarea
               value={input}
@@ -347,7 +351,7 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
   return (
     <motion.div
       initial={{ width: 0, opacity: 0 }}
-      animate={{ width: 420, opacity: 1 }}
+      animate={{ width: 432, opacity: 1 }}
       exit={{ width: 0, opacity: 0 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
       className="flex h-full flex-shrink-0 flex-col overflow-hidden rounded-[32px] border border-black/5 bg-[#f6f7f9] shadow-[0_24px_56px_-42px_rgba(15,23,42,0.18)]"
@@ -400,21 +404,25 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
       </div>
 
       {/* Messages */}
-      <div className="flex-1 space-y-4 overflow-y-auto bg-white px-5 pb-10 pt-6">
-        {chatMessages.length === 0 && !isAILoading && renderEmptyState()}
+      <div className="mobile-scroll flex-1 overflow-y-auto bg-white px-5 pb-10 pt-6">
+        <div className="space-y-4">
+          <AIDegradationBanner kind={aiDegradedKind} className="mb-4" />
 
-        {chatMessages.map((msg) => (
-          <ChatMessage
-            key={msg.id}
-            message={msg}
-            onSendReply={(text) => sendMessage({ text })}
-            variant="learning"
-          />
-        ))}
+          {chatMessages.length === 0 && !isAILoading && renderEmptyState()}
 
-        {isAILoading && <LoadingDots variant="learning" />}
+          {chatMessages.map((msg) => (
+            <ChatMessage
+              key={msg.id}
+              message={msg}
+              onSendReply={(text) => sendMessage({ text })}
+              variant="learning"
+            />
+          ))}
 
-        <div ref={messagesEndRef} />
+          {isAILoading && <LoadingDots variant="learning" />}
+
+          <div ref={messagesEndRef} />
+        </div>
       </div>
 
       {/* Input */}

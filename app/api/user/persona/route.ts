@@ -10,8 +10,6 @@ const SetPersonaSchema = z.object({
   personaSlug: z.string().trim().min(1),
 });
 
-export const runtime = "nodejs";
-
 export const PUT = withAuth(async (request, { userId }) => {
   const body = await request.json();
   const { personaSlug } = SetPersonaSchema.parse(body);

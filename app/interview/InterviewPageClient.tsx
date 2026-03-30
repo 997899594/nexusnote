@@ -4,9 +4,9 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, GraduationCap, Loader2, Send } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { LoadingDots } from "@/components/chat/ChatMessage";
-import { PromptChip, WorkspaceEmptyState } from "@/components/common";
+import { AIDegradationBanner, PromptChip, WorkspaceEmptyState } from "@/components/common";
 import { InterviewMessage } from "@/components/interview/InterviewMessage";
 import { OutlinePanel } from "@/components/interview/OutlinePanel";
 import { useInterview } from "@/hooks/useInterview";
@@ -85,16 +85,17 @@ function InterviewContent() {
   const sendMessage = interview.sendMessage;
   const status = interview.status;
   const isLoading = interview.isLoading;
+  const aiDegradedKind = interview.aiDegradedKind;
 
   const chatMessages = messages;
 
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, []);
-
   useEffect(() => {
-    scrollToBottom();
-  }, [scrollToBottom]);
+    if (chatMessages.length === 0 && !isLoading) {
+      return;
+    }
+
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages.length, isLoading]);
 
   const handleSubmit = async () => {
     if (!input.trim() || isLoading) return;
@@ -143,7 +144,7 @@ function InterviewContent() {
         animate={shouldShowOutlinePanel ? "withPanel" : "full"}
         className="flex min-w-0 flex-1 flex-col bg-white"
       >
-        <header className="flex items-center gap-4 px-4 pb-4 pt-5 md:px-6 md:pb-5 md:pt-6">
+        <header className="ui-page-frame flex items-center gap-4 pb-4 pt-5 md:pb-5 md:pt-6">
           <Link
             href="/"
             className="rounded-xl p-2 transition-colors hover:bg-[#f3f5f8]"
@@ -196,6 +197,8 @@ function InterviewContent() {
 
         <div className="mobile-scroll flex-1 overflow-y-auto px-4 py-5 md:px-6 md:py-6">
           <div className="max-w-[calc(100vw-32px)] md:max-w-[var(--message-max-width)] mx-auto space-y-4">
+            <AIDegradationBanner kind={aiDegradedKind} />
+
             {chatMessages.length === 0 && !isLoading && !started && (
               <div className="py-14 text-center md:py-16">
                 <WorkspaceEmptyState

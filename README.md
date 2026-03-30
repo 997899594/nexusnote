@@ -225,8 +225,6 @@ REDIS_URL=redis://localhost:6379
 
 # AI Provider
 AI_302_API_KEY=sk-xxx
-OPENAI_API_KEY=sk-xxx              # Optional fallback
-DEEPSEEK_API_KEY=sk-xxx            # Optional fallback
 
 # Authentication
 AUTH_SECRET=<random-32-chars>       # openssl rand -base64 32

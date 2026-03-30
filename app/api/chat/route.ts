@@ -8,14 +8,16 @@
  */
 
 import type { UIMessage } from "ai";
-import { type NextRequest, NextResponse } from "next/server";
-import { conversations, db } from "@/db";
+import { after, type NextRequest, NextResponse } from "next/server";
+import { conversations, db, eq } from "@/db";
 import {
   aiProvider,
   ChatApiRequestSchema,
+  classifyAIDegradation,
   createTelemetryContext,
   getAgent,
   getCapabilityProfile,
+  getChatResumableStreamContext,
   getErrorMessage,
   recordAIUsage,
 } from "@/lib/ai";
@@ -24,10 +26,15 @@ import { createNexusNoteStreamResponse } from "@/lib/ai/core/streaming";
 import { buildPersonalization } from "@/lib/ai/personalization";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
+import { buildConversationMemoryContext } from "@/lib/chat/conversation-memory";
+import {
+  getConversationActiveStreamId,
+  persistConversationMessages,
+  setConversationActiveStreamId,
+} from "@/lib/chat/conversation-persistence";
 import { isUuidString } from "@/lib/chat/session-id";
 import { checkRateLimitOrThrow } from "@/lib/rate-limit";
 
-export const runtime = "nodejs";
 export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
@@ -107,6 +114,20 @@ export async function POST(request: NextRequest) {
       userContext = context;
     }
 
+    const hasPersistentSession = Boolean(sessionId && userId && isUuidString(sessionId));
+
+    if (hasPersistentSession && sessionId && profileId === "CHAT_BASIC") {
+      const [conversation] = await db
+        .select({ summary: conversations.summary })
+        .from(conversations)
+        .where(eq(conversations.id, sessionId))
+        .limit(1);
+      const memoryContext = buildConversationMemoryContext(conversation?.summary ?? null);
+      if (memoryContext) {
+        userContext = [userContext, memoryContext].filter(Boolean).join("\n\n");
+      }
+    }
+
     // upsert conversation
     if (sessionId && userId && isUuidString(sessionId)) {
       const firstUserMessage = uiMessages.find((m) => m.role === "user");
@@ -153,13 +174,41 @@ export async function POST(request: NextRequest) {
       telemetry,
     });
 
+    if (hasPersistentSession && sessionId) {
+      await persistConversationMessages(sessionId, uiMessages);
+      if (await getConversationActiveStreamId(sessionId)) {
+        await setConversationActiveStreamId(sessionId, null);
+      }
+    }
+
+    const resumableStreamContext = getChatResumableStreamContext(after);
+
     const response = await createNexusNoteStreamResponse(agent, uiMessages, {
       sessionId,
+      presentation: "chat",
+      onFinish: async ({ messages }) => {
+        if (!hasPersistentSession || !sessionId) {
+          return;
+        }
+
+        await persistConversationMessages(sessionId, messages);
+        await setConversationActiveStreamId(sessionId, null);
+      },
+      consumeSseStream: async ({ stream }) => {
+        if (!hasPersistentSession || !sessionId) {
+          return;
+        }
+
+        const streamId = crypto.randomUUID();
+        await resumableStreamContext.createNewResumableStream(streamId, () => stream);
+        await setConversationActiveStreamId(sessionId, streamId);
+      },
     });
     response.headers.set("X-Request-Id", requestId);
 
     return response;
   } catch (error) {
+    const degradation = classifyAIDegradation(error);
     await recordAIUsage({
       ...telemetry,
       durationMs: Date.now() - startTime,
@@ -169,6 +218,9 @@ export async function POST(request: NextRequest) {
 
     const response = handleError(error);
     response.headers.set("X-Request-Id", requestId);
+    if (degradation) {
+      response.headers.set("X-AI-Degraded", degradation.kind);
+    }
     return response;
   }
 }
@@ -181,7 +233,6 @@ export async function GET() {
       configured: aiProvider.isConfigured(),
       primaryProvider: providerStatus.primaryProvider,
       providers: providerStatus.providers,
-      fallbackEnabled: providerStatus.fallbackEnabled,
     },
     timestamp: new Date().toISOString(),
   });

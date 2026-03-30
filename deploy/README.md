@@ -47,16 +47,12 @@ Git Push -> CI 构建镜像 -> 推送镜像仓库 -> 部署平台拉取新镜像
 - `AUTH_URL`
 - `AI_302_API_KEY`
 
-如启用 provider fallback，再补：
-- `OPENAI_API_KEY`
-- `DEEPSEEK_API_KEY`
-
 ## 数据库迁移
 
 发布新镜像后，执行：
 
 ```bash
-bun run db:push
+bun run db:migrate
 ```
 
 如果你的平台支持 release command / post-deploy hook，优先把迁移接到平台发布流程里。

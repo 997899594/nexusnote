@@ -43,10 +43,6 @@ export const defaults = {
     modelWebSearch: "gemini-3.1-flash-lite-preview",
     // 302.ai 为首选 Provider
     baseURL: "https://api.302.ai/v1",
-    // Fallback provider defaults
-    fallbackModel: "gpt-4.1-mini",
-    fallbackModelPro: "gpt-4.1",
-    fallbackModelWebSearch: "gpt-4.1-mini",
   },
 
   // Notes / Liquid Knowledge
@@ -97,12 +93,8 @@ export const serverEnvSchema = z.object({
   EMAIL_FROM: z.string().optional(),
 
   // AI Provider Keys (至少配置一个)
-  AI_302_API_KEY: z.string().optional(),
+  AI_302_API_KEY: z.string().min(1),
   AI_302_BASE_URL: z.string().url().default(defaults.ai.baseURL),
-  DEEPSEEK_API_KEY: z.string().optional(),
-  SILICONFLOW_API_KEY: z.string().optional(),
-  OPENAI_API_KEY: z.string().optional(),
-  OPENAI_BASE_URL: z.string().url().optional(),
   TAVILY_API_KEY: z.string().optional(),
 
   // AI Observability (可选 - Langfuse)
@@ -113,9 +105,6 @@ export const serverEnvSchema = z.object({
   AI_MODEL: z.string().default(defaults.ai.model),
   AI_MODEL_PRO: z.string().default(defaults.ai.modelPro),
   AI_MODEL_WEB_SEARCH: z.string().default(defaults.ai.modelWebSearch),
-  AI_FALLBACK_MODEL: z.string().default(defaults.ai.fallbackModel),
-  AI_FALLBACK_MODEL_PRO: z.string().default(defaults.ai.fallbackModelPro),
-  AI_FALLBACK_MODEL_WEB_SEARCH: z.string().default(defaults.ai.fallbackModelWebSearch),
 
   // AI Features
   AI_ENABLE_WEB_SEARCH: z

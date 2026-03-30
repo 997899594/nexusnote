@@ -5,7 +5,7 @@
  * Displays available personas with avatars and descriptions.
  */
 
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import type { AIPersona } from "@/lib/ai/personas";
 
 interface PersonaSelectorProps {
@@ -49,13 +49,10 @@ export function PersonaSelector({
 
   const currentPersona = personas.find((p) => p.slug === currentPersonaSlug) || personas[0];
 
-  const handleSelect = useCallback(
-    (slug: string) => {
-      onPersonaChange(slug);
-      setIsOpen(false);
-    },
-    [onPersonaChange],
-  );
+  const handleSelect = (slug: string) => {
+    onPersonaChange(slug);
+    setIsOpen(false);
+  };
 
   if (variant === "cards") {
     return (

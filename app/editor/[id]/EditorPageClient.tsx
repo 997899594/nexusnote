@@ -4,7 +4,7 @@ import type { Editor as TiptapEditorType } from "@tiptap/react";
 import { motion } from "framer-motion";
 import { AlertCircle, ArrowUpRight, BookOpen, CheckCircle2, LoaderCircle } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Editor } from "@/components/editor";
 import { MobileEditorMoreMenu, MobileEditorToolbar } from "@/components/editor/MobileEditorToolbar";
 import { MobileHeader } from "@/components/shared/layout";
@@ -47,41 +47,32 @@ export default function EditorPageClient({
   const lastSavedTitleRef = useRef(initialTitle.trim() || "Untitled");
   const lastSavedContentRef = useRef(initialContentHtml);
 
-  const normalizedTitle = useMemo(() => title.trim() || "Untitled", [title]);
+  const normalizedTitle = title.trim() || "Untitled";
   const isDirty =
     normalizedTitle !== lastSavedTitleRef.current || content !== lastSavedContentRef.current;
 
-  const sourceSummary = useMemo(() => {
-    if (
-      sourceType !== "course_capture" ||
-      !sourceContext?.courseTitle ||
-      !sourceContext.sectionTitle
-    ) {
-      return null;
-    }
+  const sourceSummary =
+    sourceType === "course_capture" && sourceContext?.courseTitle && sourceContext.sectionTitle
+      ? {
+          courseTitle: sourceContext.courseTitle,
+          sectionTitle: sourceContext.sectionTitle,
+          href: sourceContext.courseId ? `/learn/${sourceContext.courseId}` : null,
+          selectionPreview: sourceContext.selectionText
+            ? truncateText(sourceContext.selectionText.replace(/\s+/g, " ").trim(), 140)
+            : null,
+        }
+      : null;
 
-    return {
-      courseTitle: sourceContext.courseTitle,
-      sectionTitle: sourceContext.sectionTitle,
-      href: sourceContext.courseId ? `/learn/${sourceContext.courseId}` : null,
-      selectionPreview: sourceContext.selectionText
-        ? truncateText(sourceContext.selectionText.replace(/\s+/g, " ").trim(), 140)
-        : null,
-    };
-  }, [sourceContext, sourceType]);
-
-  const saveLabel = useMemo(() => {
-    switch (saveStatus) {
-      case "saving":
-        return "保存中...";
-      case "error":
-        return "保存失败";
-      case "unsaved":
-        return "已更改";
-      default:
-        return lastSavedAt ? `已保存 ${formatSavedTime(lastSavedAt)}` : "已保存";
-    }
-  }, [lastSavedAt, saveStatus]);
+  const saveLabel =
+    saveStatus === "saving"
+      ? "保存中..."
+      : saveStatus === "error"
+        ? "保存失败"
+        : saveStatus === "unsaved"
+          ? "已更改"
+          : lastSavedAt
+            ? `已保存 ${formatSavedTime(lastSavedAt)}`
+            : "已保存";
 
   const performSave = useCallback(
     async ({ showToast = false }: { showToast?: boolean } = {}) => {

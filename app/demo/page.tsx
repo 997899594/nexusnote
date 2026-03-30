@@ -8,8 +8,6 @@
 import { Suspense } from "react";
 import { DemoClient } from "./DemoClient";
 
-export const dynamic = "force-static";
-
 export default function DemoPage() {
   return (
     <Suspense fallback={<DemoSkeleton />}>

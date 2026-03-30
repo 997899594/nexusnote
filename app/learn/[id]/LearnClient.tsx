@@ -5,7 +5,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, List, MessageSquare } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import type { Annotation } from "@/hooks/useAnnotations";
 import { useChapterSections } from "@/hooks/useChapterSections";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -130,19 +130,17 @@ export function LearnClient({
   });
 
   // Close overlays on ESC (mobile)
-  const closeOverlays = useCallback(() => {
-    setSidebarOpen(false);
-    setChatOpen(false);
-  }, [setSidebarOpen, setChatOpen]);
-
   useEffect(() => {
     if (!isMobile) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeOverlays();
+      if (e.key === "Escape") {
+        setSidebarOpen(false);
+        setChatOpen(false);
+      }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isMobile, closeOverlays]);
+  }, [isMobile, setChatOpen, setSidebarOpen]);
 
   // Lock body scroll when overlay is open (mobile)
   useEffect(() => {
@@ -158,7 +156,7 @@ export function LearnClient({
   // ─── Mobile layout ───
   if (isMobile) {
     return (
-      <div className="flex min-h-dvh flex-col bg-[#f3f4f6]">
+      <div className="ui-page-shell flex min-h-dvh flex-col bg-[#f3f4f6] safe-bottom">
         {/* Mobile header */}
         <header className="safe-top shrink-0 bg-white/92 px-4 pb-3 pt-3 backdrop-blur-xl shadow-[0_18px_42px_-34px_rgba(15,23,42,0.14)]">
           <div className="flex items-start justify-between gap-3">
@@ -280,7 +278,7 @@ export function LearnClient({
 
   // ─── Desktop layout (unchanged) ───
   return (
-    <div className="flex h-screen gap-4 bg-[var(--color-page-shell)] p-4">
+    <div className="ui-page-shell flex min-h-dvh gap-3 p-3 md:gap-4 md:p-4 lg:gap-5 lg:p-5">
       {/* Sidebar - hidden in zen mode */}
       <AnimatePresence mode="wait">
         {!isZenMode && (

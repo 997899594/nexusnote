@@ -9,7 +9,6 @@ import { withAuth } from "@/lib/api";
 import { updateUserStyleProfile } from "@/lib/style/analysis";
 import { AnalyzeStyleSchema } from "@/lib/style/validation";
 
-export const runtime = "nodejs";
 export const maxDuration = 60;
 
 export const POST = withAuth(async (request, { userId }) => {

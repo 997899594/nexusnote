@@ -1,12 +1,29 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Loader2, type LucideIcon } from "lucide-react";
+import {
+  BookOpen,
+  GraduationCap,
+  Loader2,
+  type LucideIcon,
+  MessageSquare,
+  Sparkles,
+} from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
+const EMPTY_STATE_ICONS = {
+  "book-open": BookOpen,
+  "graduation-cap": GraduationCap,
+  "message-square": MessageSquare,
+  sparkles: Sparkles,
+} as const;
+
+type EmptyStateIconName = keyof typeof EMPTY_STATE_ICONS;
+
 interface WorkspaceEmptyStateProps {
   icon?: LucideIcon;
+  iconName?: EmptyStateIconName;
   eyebrow?: string;
   title: string;
   description: string;
@@ -17,6 +34,7 @@ interface WorkspaceEmptyStateProps {
 
 export function WorkspaceEmptyState({
   icon: Icon,
+  iconName,
   eyebrow,
   title,
   description,
@@ -24,6 +42,8 @@ export function WorkspaceEmptyState({
   loading = false,
   className,
 }: WorkspaceEmptyStateProps) {
+  const ResolvedIcon = Icon ?? (iconName ? EMPTY_STATE_ICONS[iconName] : undefined);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -36,8 +56,8 @@ export function WorkspaceEmptyState({
       <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[22px] bg-[linear-gradient(180deg,#f7f8fa_0%,#edf0f4_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
         {loading ? (
           <Loader2 className="h-7 w-7 animate-spin text-[var(--color-text-secondary)]" />
-        ) : Icon ? (
-          <Icon className="h-7 w-7 text-[var(--color-text-secondary)]" />
+        ) : ResolvedIcon ? (
+          <ResolvedIcon className="h-7 w-7 text-[var(--color-text-secondary)]" />
         ) : null}
       </div>
 
