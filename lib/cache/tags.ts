@@ -12,6 +12,10 @@ export function getLearnPageTag(userId: string, courseId: string): string {
   return `learn-page:${userId}:${courseId}`;
 }
 
+export function getGoldenPathTag(userId: string): string {
+  return `golden-path:${userId}`;
+}
+
 export function getNotesIndexTag(userId: string): string {
   return `notes-index:${userId}`;
 }
@@ -30,6 +34,10 @@ export function revalidateProfileStats(userId: string): void {
 
 export function revalidateLearnPage(userId: string, courseId: string): void {
   revalidateTag(getLearnPageTag(userId, courseId), "max");
+}
+
+export function revalidateGoldenPath(userId: string): void {
+  revalidateTag(getGoldenPathTag(userId), "max");
 }
 
 export function revalidateNotesIndex(userId: string): void {

@@ -6,7 +6,11 @@ import { z } from "zod";
 import { courseProgress, courses, db } from "@/db";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
-import { revalidateLearnPage, revalidateRecentCourses } from "@/lib/cache/tags";
+import {
+  revalidateGoldenPath,
+  revalidateLearnPage,
+  revalidateRecentCourses,
+} from "@/lib/cache/tags";
 
 const RequestSchema = z.object({
   courseId: z.string().uuid(),
@@ -134,6 +138,7 @@ export async function POST(request: NextRequest) {
 
     revalidateRecentCourses(session.user.id);
     revalidateLearnPage(session.user.id, courseId);
+    revalidateGoldenPath(session.user.id);
 
     // If course just completed, trigger skill discovery asynchronously
     if (allChaptersDone && !existing.completedAt) {
@@ -219,6 +224,7 @@ export async function PATCH(request: NextRequest) {
 
     revalidateRecentCourses(session.user.id);
     revalidateLearnPage(session.user.id, courseId);
+    revalidateGoldenPath(session.user.id);
 
     return NextResponse.json({ ok: true });
   } catch (error) {

@@ -18,6 +18,8 @@ RUN bun install --frozen-lockfile
 FROM oven/bun:1-alpine AS builder
 WORKDIR /app
 
+ARG GIT_SHA=unknown
+
 # 复制依赖
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -29,6 +31,7 @@ RUN mkdir -p public && touch public/.gitkeep
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 ENV SKIP_ENV_VALIDATION=true
+ENV APP_BUILD_SHA=${GIT_SHA}
 
 # 构建 Next.js 应用
 RUN bun run build
@@ -39,8 +42,11 @@ RUN bun run build
 FROM oven/bun:1-alpine AS runner
 WORKDIR /app
 
+ARG GIT_SHA=unknown
+
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV APP_BUILD_SHA=${GIT_SHA}
 
 # 创建非 root 用户 + 安装 dumb-init
 RUN apk add --no-cache dumb-init \

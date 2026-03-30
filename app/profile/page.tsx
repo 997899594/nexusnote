@@ -10,8 +10,8 @@ import {
 } from "lucide-react";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import { SkillGraph } from "@/components/profile/SkillGraph";
-import { SkillGraphSkeleton } from "@/components/profile/SkillGraphSkeleton";
+import { GoldenPathPreview } from "@/components/golden-path/GoldenPathPreview";
+import { GoldenPathPreviewSkeleton } from "@/components/golden-path/GoldenPathPreviewSkeleton";
 import { FloatingHeader } from "@/components/shared/layout";
 import { auth } from "@/lib/auth";
 import { getUserStatsCached } from "@/lib/server/profile-data";
@@ -184,8 +184,8 @@ export default async function ProfilePage() {
         </section>
 
         <section className="mb-8">
-          <Suspense fallback={<SkillGraphSkeleton />}>
-            <SkillGraph userId={session.user.id} />
+          <Suspense fallback={<GoldenPathPreviewSkeleton />}>
+            <GoldenPathPreview userId={session.user.id} />
           </Suspense>
         </section>
 

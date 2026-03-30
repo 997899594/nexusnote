@@ -7,6 +7,7 @@ import { runCreateCourseWorkflow } from "@/lib/ai/workflows";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
 import {
+  revalidateGoldenPath,
   revalidateLearnPage,
   revalidateProfileStats,
   revalidateRecentCourses,
@@ -67,6 +68,7 @@ export async function POST(request: NextRequest) {
     revalidateRecentCourses(userId);
     revalidateProfileStats(userId);
     revalidateLearnPage(userId, result.courseId);
+    revalidateGoldenPath(userId);
 
     return NextResponse.json({
       success: true,
