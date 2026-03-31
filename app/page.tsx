@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { HeroInput, RecentSectionServer } from "@/components/home";
 import { FloatingHeader } from "@/components/shared/layout";
-import { getDynamicPageSession } from "@/lib/server/page-auth";
+import { getOptionalDynamicPageSession } from "@/lib/server/page-auth";
 
 export default function HomePage() {
   return (
@@ -38,7 +38,7 @@ export default function HomePage() {
 }
 
 async function RecentSectionBoundary() {
-  const session = await getDynamicPageSession();
+  const session = await getOptionalDynamicPageSession();
   return <RecentSectionServer userId={session?.user?.id ?? null} />;
 }
 

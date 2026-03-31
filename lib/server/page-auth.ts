@@ -13,6 +13,16 @@ export async function getDynamicPageSession(): Promise<PageSession> {
   return auth();
 }
 
+export async function getOptionalDynamicPageSession(): Promise<PageSession> {
+  try {
+    await connection();
+    return await auth();
+  } catch (error) {
+    console.error("[PageAuth] Optional session lookup failed", error);
+    return null;
+  }
+}
+
 export async function requireDynamicPageAuth(
   callbackUrl?: string,
 ): Promise<AuthenticatedPageSession> {
