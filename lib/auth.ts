@@ -14,16 +14,12 @@ import { createLoginPath } from "@/lib/auth-redirect";
  * 获取当前用户会话（服务端组件专用）
  * 如果未登录，返回 null
  *
- * Keep build-time short-circuit only for explicit env-skipping flows.
- * Under Next.js cache components, conditionally hiding request-time auth
- * during production build can misclassify a route as static and trigger
- * runtime DYNAMIC_SERVER_USAGE failures later.
+ * Auth execution must not branch on build-time env flags.
+ * Under Next.js cache components, hiding request-time auth during image build
+ * can misclassify a route as static and trigger runtime DYNAMIC_SERVER_USAGE
+ * failures later. `SKIP_ENV_VALIDATION` is only for config validation, not auth.
  */
 export async function auth() {
-  if (process.env.SKIP_ENV_VALIDATION === "true") {
-    return null;
-  }
-
   try {
     return await nextAuth();
   } catch (error) {
