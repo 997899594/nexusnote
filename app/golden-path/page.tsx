@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { GoldenPathPage } from "@/components/golden-path/GoldenPathPage";
 import { FloatingHeader } from "@/components/shared/layout";
 import { auth } from "@/lib/auth";
@@ -9,6 +10,7 @@ interface GoldenPathPageProps {
 }
 
 export default async function Page({ searchParams }: GoldenPathPageProps) {
+  await connection();
   const session = await auth();
 
   if (!session?.user) {

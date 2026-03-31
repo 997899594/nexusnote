@@ -8,6 +8,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
+import { connection } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { getNotesWorkbenchCached, type NoteWorkbenchKind } from "@/lib/server/editor-data";
 
@@ -48,6 +49,7 @@ export default async function NotesIndexPage({
 }: {
   searchParams: Promise<{ kind?: string; courseId?: string }>;
 }) {
+  await connection();
   const session = await requireAuth("/editor");
   const { kind: rawKind, courseId } = await searchParams;
   const snapshot = await getNotesWorkbenchCached(session.user.id);

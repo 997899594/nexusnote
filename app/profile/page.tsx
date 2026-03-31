@@ -9,6 +9,7 @@ import {
   Zap,
 } from "lucide-react";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { GoldenPathPreview } from "@/components/golden-path/GoldenPathPreview";
 import { GoldenPathPreviewSkeleton } from "@/components/golden-path/GoldenPathPreviewSkeleton";
@@ -18,6 +19,7 @@ import { getUserStatsCached } from "@/lib/server/profile-data";
 import { ProfileSignOut } from "./profile-client";
 
 export default async function ProfilePage() {
+  await connection();
   const session = await auth();
 
   if (!session?.user) {
