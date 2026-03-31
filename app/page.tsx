@@ -3,9 +3,7 @@ import { HeroInput, RecentSectionServer } from "@/components/home";
 import { FloatingHeader } from "@/components/shared/layout";
 import { getDynamicPageSession } from "@/lib/server/page-auth";
 
-export default async function HomePage() {
-  const session = await getDynamicPageSession();
-
+export default function HomePage() {
   return (
     <main className="min-h-dvh bg-[var(--color-bg)] safe-top">
       <FloatingHeader showMenuButton />
@@ -31,12 +29,17 @@ export default async function HomePage() {
           </div>
 
           <Suspense fallback={<RecentSkeleton />}>
-            <RecentSectionServer userId={session?.user?.id ?? null} />
+            <RecentSectionBoundary />
           </Suspense>
         </div>
       </div>
     </main>
   );
+}
+
+async function RecentSectionBoundary() {
+  const session = await getDynamicPageSession();
+  return <RecentSectionServer userId={session?.user?.id ?? null} />;
 }
 
 function RecentSkeleton() {
