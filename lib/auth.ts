@@ -14,14 +14,13 @@ import { createLoginPath } from "@/lib/auth-redirect";
  * 获取当前用户会话（服务端组件专用）
  * 如果未登录，返回 null
  *
- * Build phase: 直接返回 null，避免查询不存在的数据库
+ * Keep build-time short-circuit only for explicit env-skipping flows.
+ * Under Next.js cache components, conditionally hiding request-time auth
+ * during production build can misclassify a route as static and trigger
+ * runtime DYNAMIC_SERVER_USAGE failures later.
  */
 export async function auth() {
-  // Build 阶段跳过 DB 查询（即使有 adapter 条件判断，某些页面还是会触发连接）
-  if (
-    process.env.SKIP_ENV_VALIDATION === "true" ||
-    process.env.NEXT_PHASE === "phase-production-build"
-  ) {
+  if (process.env.SKIP_ENV_VALIDATION === "true") {
     return null;
   }
 
