@@ -7,17 +7,11 @@
  * - 自动处理认证状态
  */
 
-import { connection } from "next/server";
 import { WorkspaceEmptyState } from "@/components/common";
 import { RecentCard } from "@/components/home";
-import { auth } from "@/lib/auth";
 import { getRecentItemsCached } from "@/lib/server/home-data";
 
-export async function RecentSectionServer() {
-  await connection();
-  const session = await auth();
-  const userId = session?.user?.id;
-
+export async function RecentSectionServer({ userId }: { userId: string | null }) {
   if (!userId) {
     return (
       <section className="mb-14">

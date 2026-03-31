@@ -1,9 +1,8 @@
 import { notFound, redirect } from "next/navigation";
-import { connection } from "next/server";
-import { auth } from "@/lib/auth";
 import { createLoginPath } from "@/lib/auth-redirect";
 import { getGoldenPathCourseContextCached } from "@/lib/server/golden-path-data";
 import { getLearnPageSnapshotCached } from "@/lib/server/learn-data";
+import { getDynamicPageSession } from "@/lib/server/page-auth";
 
 import { LearnClient } from "./LearnClient";
 
@@ -13,12 +12,11 @@ interface PageProps {
 }
 
 export default async function LearnPage({ params, searchParams }: PageProps) {
-  await connection();
   const { id: sessionId } = await params;
   const { chapter } = await searchParams;
 
   // Verify user is authenticated
-  const session = await auth();
+  const session = await getDynamicPageSession();
   if (!session?.user?.id) {
     const callbackUrl = chapter ? `/learn/${sessionId}?chapter=${chapter}` : `/learn/${sessionId}`;
     redirect(createLoginPath(callbackUrl));

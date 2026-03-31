@@ -1,6 +1,5 @@
-import { connection } from "next/server";
 import { Suspense } from "react";
-import { requireAuth } from "@/lib/auth";
+import { requireDynamicPageAuth } from "@/lib/server/page-auth";
 import ChatSessionPageClient from "./ChatSessionPageClient";
 
 interface ChatSessionPageProps {
@@ -8,9 +7,8 @@ interface ChatSessionPageProps {
 }
 
 async function ChatSessionPageContent({ params }: ChatSessionPageProps) {
-  await connection();
   const { id } = await params;
-  await requireAuth(`/chat/${id}`);
+  await requireDynamicPageAuth(`/chat/${id}`);
   return <ChatSessionPageClient sessionId={id} />;
 }
 

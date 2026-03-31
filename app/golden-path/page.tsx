@@ -1,17 +1,15 @@
 import { redirect } from "next/navigation";
-import { connection } from "next/server";
 import { GoldenPathPage } from "@/components/golden-path/GoldenPathPage";
 import { FloatingHeader } from "@/components/shared/layout";
-import { auth } from "@/lib/auth";
 import { getGoldenPathSnapshotCached } from "@/lib/server/golden-path-data";
+import { getDynamicPageSession } from "@/lib/server/page-auth";
 
 interface GoldenPathPageProps {
   searchParams: Promise<{ path?: string }>;
 }
 
 export default async function Page({ searchParams }: GoldenPathPageProps) {
-  await connection();
-  const session = await auth();
+  const session = await getDynamicPageSession();
 
   if (!session?.user) {
     redirect("/login?callbackUrl=%2Fgolden-path");

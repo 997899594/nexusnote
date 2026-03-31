@@ -91,6 +91,7 @@ bun run db:generate  # Generate migration files
 ### React Patterns
 
 - **Server vs Client Components**: Default to Server; use `"use client"` only when needed (interactions, state, animations)
+- **Next.js 16 Dynamic Boundary Rule**: With `cacheComponents: true`, any app page or server island that reads `auth()`, `requireAuth()`, `cookies()`, `headers()`, or other request-bound state must establish an explicit dynamic boundary first. In this project, use `lib/server/page-auth.ts` helpers instead of mixing `connection()` and auth calls ad hoc.
 - **Server Actions** for non-streaming mutations
 - **Route Handlers** for streaming AI responses
 - **Granular Suspense**: Use Suspense boundaries for progressive loading
