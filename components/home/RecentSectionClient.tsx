@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import { useEffect, useState } from "react";
 import { WorkspaceEmptyState } from "@/components/common";
 import type { RecentItem } from "@/lib/server/home-data";
 import { RecentCard } from "./RecentCard";
