@@ -1,8 +1,11 @@
 import { Suspense } from "react";
 import { HeroInput, RecentSectionServer } from "@/components/home";
 import { FloatingHeader } from "@/components/shared/layout";
+import { getDynamicPageSession } from "@/lib/server/page-auth";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const session = await getDynamicPageSession();
+
   return (
     <main className="min-h-dvh bg-[var(--color-bg)] safe-top">
       <FloatingHeader showMenuButton />
@@ -28,7 +31,7 @@ export default function HomePage() {
           </div>
 
           <Suspense fallback={<RecentSkeleton />}>
-            <RecentSectionServer />
+            <RecentSectionServer userId={session?.user?.id ?? null} />
           </Suspense>
         </div>
       </div>
