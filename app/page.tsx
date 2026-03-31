@@ -1,7 +1,5 @@
-import { Suspense } from "react";
-import { HeroInput, RecentSectionServer } from "@/components/home";
+import { HeroInput, RecentSectionClient } from "@/components/home";
 import { FloatingHeader } from "@/components/shared/layout";
-import { getOptionalDynamicPageSession } from "@/lib/server/page-auth";
 
 export default function HomePage() {
   return (
@@ -28,40 +26,9 @@ export default function HomePage() {
             <HeroInput />
           </div>
 
-          <Suspense fallback={<RecentSkeleton />}>
-            <RecentSectionBoundary />
-          </Suspense>
+          <RecentSectionClient />
         </div>
       </div>
     </main>
-  );
-}
-
-async function RecentSectionBoundary() {
-  const session = await getOptionalDynamicPageSession();
-  return <RecentSectionServer userId={session?.user?.id ?? null} />;
-}
-
-function RecentSkeleton() {
-  return (
-    <section className="mb-14">
-      <div className="mb-5 flex items-end justify-between gap-4">
-        <div>
-          <div className="h-3 w-20 animate-pulse rounded-full bg-black/8" />
-          <div className="mt-3 h-7 w-28 animate-pulse rounded-full bg-black/10" />
-          <div className="mt-2 h-4 w-56 animate-pulse rounded-full bg-black/8" />
-        </div>
-        <div className="hidden h-8 w-20 animate-pulse rounded-full bg-black/8 md:block" />
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {[1, 2, 3].map((item) => (
-          <div
-            key={item}
-            className="ui-surface-card h-36 animate-pulse rounded-[28px] bg-black/[0.035]"
-          />
-        ))}
-      </div>
-    </section>
   );
 }
