@@ -58,6 +58,8 @@ export async function resolveChatContext({
       courseTitle: learnContext.courseTitle,
       chapterIndex: learnContext.chapterIndex,
       chapterTitle: learnContext.chapterTitle,
+      courseSkillIds: learnContext.courseSkillIds,
+      chapterSkillIds: learnContext.chapterSkillIds,
     },
   };
 }

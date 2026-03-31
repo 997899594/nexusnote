@@ -261,6 +261,11 @@ export const GOLDEN_PATH_SKILLS: GoldenPathSkillDefinition[] = [
   },
 ];
 
+export const GOLDEN_PATH_SKILL_IDS = GOLDEN_PATH_SKILLS.map((skill) => skill.id) as [
+  string,
+  ...string[],
+];
+
 export const GOLDEN_PATH_PROJECTION_PRIORS: GoldenPathPathProjection[] = [
   {
     id: "ai-product-track",

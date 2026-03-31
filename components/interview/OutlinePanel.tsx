@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { WorkspaceEmptyState } from "@/components/common";
 import { useToast } from "@/components/ui/Toast";
+import { GOLDEN_PATH_SKILLS } from "@/lib/golden-path/ontology";
 import { cn } from "@/lib/utils";
 import type { OutlineData } from "@/stores/interview";
 import { useInterviewStore } from "@/stores/interview";
@@ -37,6 +38,12 @@ const itemVariants = {
     },
   },
 };
+
+const skillNameById = new Map(GOLDEN_PATH_SKILLS.map((skill) => [skill.id, skill.name]));
+
+function getSkillLabel(skillId: string) {
+  return skillNameById.get(skillId) ?? skillId;
+}
 
 export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps) {
   const router = useRouter();
@@ -150,6 +157,21 @@ export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps
                     <span className="font-semibold text-zinc-800">完成后你将获得：</span>
                     {outline.learningOutcome ?? "正在补充学习成果..."}
                   </p>
+                  {outline.courseSkillIds && outline.courseSkillIds.length > 0 ? (
+                    <div className="mt-3">
+                      <p className="font-semibold text-zinc-800">核心能力：</p>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {outline.courseSkillIds.map((skillId) => (
+                          <span
+                            key={skillId}
+                            className="rounded-full bg-zinc-900 px-2.5 py-1 text-[11px] text-white"
+                          >
+                            {getSkillLabel(skillId)}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
                 {isLoading && (
                   <div className="flex items-center gap-2 text-xs text-zinc-500">
@@ -228,6 +250,18 @@ export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps
                             </span>
                           </div>
                         )}
+                        {chapter.skillIds && chapter.skillIds.length > 0 ? (
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {chapter.skillIds.map((skillId) => (
+                              <span
+                                key={skillId}
+                                className="rounded-full bg-zinc-100 px-2 py-1 text-[11px] text-zinc-600"
+                              >
+                                {getSkillLabel(skillId)}
+                              </span>
+                            ))}
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                   </motion.div>

@@ -11,6 +11,7 @@ export const LearnMetadataSchema = z.object({
   context: z.literal("learn"),
   courseId: z.string().uuid(),
   chapterIndex: z.number().int().min(0),
+  chapterSkillIds: z.array(z.string()).max(8).optional(),
 });
 
 export const ResolvedLearnMetadataSchema = z.object({
@@ -19,6 +20,8 @@ export const ResolvedLearnMetadataSchema = z.object({
   courseTitle: z.string(),
   chapterIndex: z.number().int().min(0),
   chapterTitle: z.string(),
+  courseSkillIds: z.array(z.string()).max(12).optional(),
+  chapterSkillIds: z.array(z.string()).max(8).optional(),
 });
 
 export const EditorMetadataSchema = z.object({

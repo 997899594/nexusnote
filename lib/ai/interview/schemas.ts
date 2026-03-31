@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { GOLDEN_PATH_SKILL_IDS } from "@/lib/golden-path/ontology";
 
 function nullableNormalizedString(max: number) {
   return z.preprocess((value) => {
@@ -26,6 +27,8 @@ function normalizedStringArray(maxItemLength: number, maxItems: number) {
   );
 }
 
+export const InterviewOutlineSkillIdSchema = z.enum(GOLDEN_PATH_SKILL_IDS);
+
 export const InterviewOutlineSectionSchema = z.object({
   title: z.string().min(1).max(80),
   description: z.string().min(1).max(180),
@@ -36,6 +39,7 @@ export const InterviewOutlineChapterSchema = z.object({
   description: z.string().min(1).max(220),
   sections: z.array(InterviewOutlineSectionSchema).min(4).max(6),
   practiceType: z.enum(["exercise", "project", "quiz", "none"]).optional(),
+  skillIds: z.array(InterviewOutlineSkillIdSchema).min(1).max(4).optional(),
 });
 
 export const InterviewOutlineSchema = z.object({
@@ -44,6 +48,7 @@ export const InterviewOutlineSchema = z.object({
   targetAudience: z.string().min(1).max(200),
   difficulty: z.enum(["beginner", "intermediate", "advanced"]),
   learningOutcome: z.string().min(1).max(240),
+  courseSkillIds: z.array(InterviewOutlineSkillIdSchema).min(1).max(6).optional(),
   chapters: z.array(InterviewOutlineChapterSchema).min(5).max(7),
 });
 

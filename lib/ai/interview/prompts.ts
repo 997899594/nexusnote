@@ -1,3 +1,4 @@
+import { GOLDEN_PATH_SKILLS } from "@/lib/golden-path/ontology";
 import type {
   InterviewApiMessage,
   InterviewOutline,
@@ -17,6 +18,12 @@ function formatOutline(outline: InterviewOutline | undefined) {
   }
 
   return JSON.stringify(outline, null, 2);
+}
+
+function formatSkillCatalog() {
+  return GOLDEN_PATH_SKILLS.map(
+    (skill) => `- ${skill.id}: ${skill.name}（${skill.description}）`,
+  ).join("\n");
 }
 
 export const INTERVIEW_SYSTEM_PROMPT = `你是 NexusNote 的课程规划师。
@@ -45,10 +52,14 @@ export const INTERVIEW_SYSTEM_PROMPT = `你是 NexusNote 的课程规划师。
 - 如果已经有大纲，用户提出修改意见时，要么继续澄清一个缺失点，要么直接返回完整新大纲
 
 大纲要求：
+- courseSkillIds 应给出 1 到 6 个最核心的技能 ID
+- 每章都应提供 1 到 4 个 skillIds，表示本章重点训练的能力
 - chapters 至少 1 章
 - 每章 1 到 5 个 sections
 - section 是独立知识点，不是模糊标签
 - 标题简洁，描述说明学什么、为什么重要
+- skillIds 只能从下面列表中选择，不要自造新值：
+${formatSkillCatalog()}
 - 不要输出思考过程`;
 
 export const INTERVIEW_STATE_SYSTEM_PROMPT = `你是 NexusNote 的访谈状态分析器。
@@ -129,9 +140,9 @@ function buildFirstQuestionHint(latestUserMessage?: string) {
     return `\n首轮引导：
 - 用户已经表达了明显的角色迁移或职业目标，不要再泛泛追问“想达到什么目标”
 - 不要把用户已经说出的转型目标重新包装成问题或选项
-- 优先补足当前角色背景、目标岗位、实际业务场景里最缺的一项
+- 优先补足当前角色背景、目标岗位、当前基础或时间投入里最缺的一项，业务场景放在后面
 - 如果用户已经给出学习主题，第一问应围绕迁移动机和应用场景展开，而不是重新确认主题
-- 首问更适合直接问“你更想转向哪类岗位”或“你现在工作里最常接触哪些业务数据/分析场景”这类问题`;
+- 首问更适合直接问“你更想转向哪类岗位”“你现在这块基础大概到什么程度”这类问题`;
   }
 
   if (mentionsSpecificFocus && !mentionsTargetOutcome) {
@@ -183,13 +194,19 @@ export function buildInterviewAgentInstructionsWithHint(input: {
 - 如果用户已经说清楚“学什么”，但还没说清楚“为什么学 / 学完要用来做什么”，优先追问应用场景、目标结果或目标岗位，而不是默认先问技术基础
 - 不要把用户已经说过的话换一种说法再问一遍；每一轮都要带来新的信息增量
 - 如果用户已经明确给出学习主题、已有基础和具体产出目标（例如项目、作品集、应用或案例），优先考虑直接给出课程草案预览，而不是再追问抽象目标
+- 当用户存在明显的转岗/求职意图时，若仍需继续追问，优先问目标岗位、当前基础或时间投入，不要先退回到宽泛场景问题，除非这些信息已经清楚
 - 当你准备进入课程草案预览时，options 应切换成修改或下一步动作，例如“调整章节顺序”“增加实战项目”“补基础章节”“开始生成课程”
 - 调用 presentOutlinePreview 时，message 应作为草案提示语，例如“课程草案已经整理好了”或“我已经按你的方向更新了大纲”
 - 课程草案预览就是最终课程蓝图，不能只给轻量目录骨架
 - 预览阶段就应返回接近真实课程的完整结构，包括课程简介、目标受众、学习成果、章节说明和小节说明
+- 预览阶段还必须返回 courseSkillIds 和每章的 skillIds，作为后续黄金之路和学习进度的结构化基础
 - 正式课程的默认结构基线是约 6 章、每章约 4 个小节；除非用户明确要求更短/更长，或主题本身明显过窄/过宽，才偏离这个基线
 - 课程草案预览应内容充实、结构完整，用户看到后应能直接判断这门课是否值得学习，而不是还要等建课后才知道真正结构
 - 课程草案预览的 options 优先使用短动作词，不要使用长句；优先从“调整章节顺序”“增加实战项目”“补基础章节”“修改项目方向”“开始生成课程”中选择最合适的 3 到 4 个
+- 所有技能字段必须使用系统技能 ID，而不是自然语言标签；不要生成列表外的新技能 ID
+
+技能 ID 列表：
+${formatSkillCatalog()}
 
 ${input.currentOutline ? `当前已有课程大纲，请优先围绕它做修改与完善：\n${JSON.stringify(input.currentOutline, null, 2)}` : "当前还没有课程大纲。"}${firstQuestionHint}
 ${

@@ -492,6 +492,72 @@ export const courseSectionAnnotations = pgTable(
   }),
 );
 
+export const courseSkillMappings = pgTable(
+  "course_skill_mappings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    courseId: uuid("course_id")
+      .references(() => courses.id, { onDelete: "cascade" })
+      .notNull(),
+    skillKey: text("skill_key").notNull(),
+    source: text("source").notNull().default("heuristic"),
+    confidence: integer("confidence").notNull().default(0),
+    metadata: jsonb("metadata").$type<{
+      matchedAliases?: string[];
+      matchedSignals?: string[];
+      inferredFrom?: string[];
+      sourceHits?: string[];
+      matchScore?: number;
+    }>(),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => ({
+    courseIdIdx: index("course_skill_mappings_course_id_idx").on(table.courseId),
+    skillKeyIdx: index("course_skill_mappings_skill_key_idx").on(table.skillKey),
+    uniqueCourseSkillIdx: uniqueIndex("course_skill_mappings_unique_idx").on(
+      table.courseId,
+      table.skillKey,
+    ),
+  }),
+);
+
+export const courseChapterSkillMappings = pgTable(
+  "course_chapter_skill_mappings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    courseId: uuid("course_id")
+      .references(() => courses.id, { onDelete: "cascade" })
+      .notNull(),
+    chapterIndex: integer("chapter_index").notNull(),
+    skillKey: text("skill_key").notNull(),
+    source: text("source").notNull().default("heuristic"),
+    confidence: integer("confidence").notNull().default(0),
+    metadata: jsonb("metadata").$type<{
+      chapterTitle?: string;
+      matchedAliases?: string[];
+      matchedSignals?: string[];
+      inferredFrom?: string[];
+      sourceHits?: string[];
+      matchScore?: number;
+    }>(),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => ({
+    courseIdIdx: index("course_chapter_skill_mappings_course_id_idx").on(
+      table.courseId,
+      table.chapterIndex,
+    ),
+    skillKeyIdx: index("course_chapter_skill_mappings_skill_key_idx").on(table.skillKey),
+    uniqueCourseChapterSkillIdx: uniqueIndex("course_chapter_skill_mappings_unique_idx").on(
+      table.courseId,
+      table.chapterIndex,
+      table.skillKey,
+    ),
+  }),
+);
+
 // ============================================
 // 技能图系统
 // ============================================
@@ -654,6 +720,10 @@ export type CourseProgress = typeof courseProgress.$inferSelect;
 export type NewCourseProgress = typeof courseProgress.$inferInsert;
 export type CourseSectionAnnotation = typeof courseSectionAnnotations.$inferSelect;
 export type NewCourseSectionAnnotation = typeof courseSectionAnnotations.$inferInsert;
+export type CourseSkillMapping = typeof courseSkillMappings.$inferSelect;
+export type NewCourseSkillMapping = typeof courseSkillMappings.$inferInsert;
+export type CourseChapterSkillMapping = typeof courseChapterSkillMappings.$inferSelect;
+export type NewCourseChapterSkillMapping = typeof courseChapterSkillMappings.$inferInsert;
 export type Skill = typeof skills.$inferSelect;
 export type NewSkill = typeof skills.$inferInsert;
 export type SkillRelationship = typeof skillRelationships.$inferSelect;
@@ -739,6 +809,8 @@ export const coursesRelations = relations(courses, ({ one, many }) => ({
   }),
   sections: many(courseSections),
   progress: many(courseProgress),
+  skillMappings: many(courseSkillMappings),
+  chapterSkillMappings: many(courseChapterSkillMappings),
 }));
 
 export const courseSectionsRelations = relations(courseSections, ({ one, many }) => ({
@@ -770,6 +842,23 @@ export const courseSectionAnnotationsRelations = relations(courseSectionAnnotati
     references: [users.id],
   }),
 }));
+
+export const courseSkillMappingsRelations = relations(courseSkillMappings, ({ one }) => ({
+  course: one(courses, {
+    fields: [courseSkillMappings.courseId],
+    references: [courses.id],
+  }),
+}));
+
+export const courseChapterSkillMappingsRelations = relations(
+  courseChapterSkillMappings,
+  ({ one }) => ({
+    course: one(courses, {
+      fields: [courseChapterSkillMappings.courseId],
+      references: [courses.id],
+    }),
+  }),
+);
 
 export const stylePrivacySettingsRelations = relations(stylePrivacySettings, ({ one }) => ({
   user: one(users, {

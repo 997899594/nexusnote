@@ -1,6 +1,14 @@
 import { and, eq } from "drizzle-orm";
-import { courseProgress, courseSections, courses, db } from "@/db";
+import {
+  courseChapterSkillMappings,
+  courseProgress,
+  courseSections,
+  courseSkillMappings,
+  courses,
+  db,
+} from "@/db";
 import type { InterviewOutline } from "@/lib/ai/interview";
+import { deriveCourseSkillMappings } from "@/lib/golden-path/mapping";
 
 export interface CourseOutlineSection {
   title: string;
@@ -12,6 +20,7 @@ export interface CourseOutlineChapter {
   description: string;
   sections: CourseOutlineSection[];
   practiceType?: "exercise" | "project" | "quiz" | "none";
+  skillIds?: string[];
 }
 
 export interface CourseOutline {
@@ -20,6 +29,7 @@ export interface CourseOutline {
   targetAudience: string;
   prerequisites?: string[];
   difficulty: "beginner" | "intermediate" | "advanced";
+  courseSkillIds?: string[];
   chapters: CourseOutlineChapter[];
   learningOutcome: string;
 }
@@ -33,11 +43,13 @@ export async function expandInterviewOutlineToCourseOutline(
     targetAudience: outline.targetAudience,
     prerequisites: undefined,
     difficulty: outline.difficulty,
+    courseSkillIds: outline.courseSkillIds,
     learningOutcome: outline.learningOutcome,
     chapters: outline.chapters.map((chapter) => ({
       title: chapter.title,
       description: chapter.description,
       practiceType: chapter.practiceType,
+      skillIds: chapter.skillIds,
       sections: chapter.sections.map((section) => ({
         title: section.title,
         description: section.description,
@@ -128,6 +140,40 @@ export async function saveCourseFromOutline({
 
     if (sectionDocuments.length > 0) {
       await tx.insert(courseSections).values(sectionDocuments);
+    }
+
+    await tx
+      .delete(courseChapterSkillMappings)
+      .where(eq(courseChapterSkillMappings.courseId, persistedCourseId));
+    await tx.delete(courseSkillMappings).where(eq(courseSkillMappings.courseId, persistedCourseId));
+
+    const derivedMappings = deriveCourseSkillMappings(outline);
+
+    if (derivedMappings.courseMappings.length > 0) {
+      await tx.insert(courseSkillMappings).values(
+        derivedMappings.courseMappings.map((mapping) => ({
+          courseId: persistedCourseId,
+          skillKey: mapping.skillId,
+          source: mapping.source,
+          confidence: mapping.confidence,
+          metadata: mapping.metadata,
+          updatedAt: new Date(),
+        })),
+      );
+    }
+
+    if (derivedMappings.chapterMappings.length > 0) {
+      await tx.insert(courseChapterSkillMappings).values(
+        derivedMappings.chapterMappings.map((mapping) => ({
+          courseId: persistedCourseId,
+          chapterIndex: mapping.chapterIndex,
+          skillKey: mapping.skillId,
+          source: mapping.source,
+          confidence: mapping.confidence,
+          metadata: mapping.metadata,
+          updatedAt: new Date(),
+        })),
+      );
     }
 
     const progressValues = {

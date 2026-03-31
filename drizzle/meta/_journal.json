@@ -50,6 +50,13 @@
       "when": 1774686600000,
       "tag": "0006_add-note-content-html",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1774845000000,
+      "tag": "0007_add_course_skill_mappings",
+      "breakpoints": true
     }
   ]
 }

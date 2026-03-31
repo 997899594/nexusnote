@@ -279,7 +279,12 @@ export function LearnClient({
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 className="fixed inset-y-0 right-0 z-50 w-full overflow-hidden bg-[#f6f7f9] shadow-xl"
               >
-                <LearnChat courseId={sessionId} courseTitle={courseTitle} variant="overlay" />
+                <LearnChat
+                  courseId={sessionId}
+                  courseTitle={courseTitle}
+                  variant="overlay"
+                  goldenPathContext={goldenPathContext}
+                />
               </motion.div>
             </>
           )}
@@ -366,7 +371,13 @@ export function LearnClient({
 
       {/* AI Chat panel - hidden in zen mode */}
       <AnimatePresence>
-        {!isZenMode && <LearnChat courseId={sessionId} courseTitle={courseTitle} />}
+        {!isZenMode && (
+          <LearnChat
+            courseId={sessionId}
+            courseTitle={courseTitle}
+            goldenPathContext={goldenPathContext}
+          />
+        )}
       </AnimatePresence>
     </div>
   );

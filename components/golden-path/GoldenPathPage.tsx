@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import type {
+  GoldenPathLinkedCourse,
   GoldenPathNodeSnapshot,
   GoldenPathSkillState,
   GoldenPathSnapshot,
@@ -76,6 +77,139 @@ function formatDate(value: Date | null): string {
     month: "short",
     day: "numeric",
   }).format(value);
+}
+
+function formatChapterProgress(completedSections: number, totalSections: number): string {
+  if (totalSections <= 0) {
+    return "待生成内容";
+  }
+
+  return `${completedSections}/${totalSections} 节`;
+}
+
+function getSkillRelatedLearning(
+  skill: GoldenPathNodeSnapshot,
+  linkedLearning: GoldenPathLinkedCourse[],
+): Array<
+  GoldenPathLinkedCourse & {
+    relatedChapters: GoldenPathLinkedCourse["matchedChapters"];
+  }
+> {
+  return linkedLearning
+    .filter((course) => skill.linkedCourseIds.includes(course.courseId))
+    .map((course) => ({
+      ...course,
+      relatedChapters: course.matchedChapters.filter(
+        (chapter) =>
+          skill.linkedChapterKeys.includes(chapter.key) ||
+          chapter.matchedSkills.includes(skill.name),
+      ),
+    }))
+    .sort((left, right) => {
+      const leftScore =
+        left.relatedChapters.length * 18 + left.progressPercent + left.matchedSkills.length * 6;
+      const rightScore =
+        right.relatedChapters.length * 18 + right.progressPercent + right.matchedSkills.length * 6;
+      return rightScore - leftScore;
+    })
+    .slice(0, 3);
+}
+
+function renderSkillCard(
+  skill: GoldenPathNodeSnapshot,
+  linkedLearning: GoldenPathLinkedCourse[],
+): React.JSX.Element {
+  const relatedLearning = getSkillRelatedLearning(skill, linkedLearning);
+
+  return (
+    <details key={skill.id} className={`rounded-2xl border p-3 ${getStateClassName(skill.state)}`}>
+      <summary className="cursor-pointer list-none">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-sm font-medium">{skill.name}</div>
+            <div className="mt-1 text-xs opacity-70">{getStateLabel(skill.state)}</div>
+          </div>
+          <div className="text-right">
+            <div className="text-sm font-medium">{skill.progressScore}%</div>
+            <div className="mt-1 text-[11px] opacity-65">
+              掌握 {skill.masteryScore}% · 覆盖 {skill.coverageScore}%
+            </div>
+          </div>
+        </div>
+      </summary>
+
+      <div className="mt-3 space-y-3 border-t border-white/10 pt-3 text-xs opacity-80">
+        <p className="leading-6">{skill.description}</p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <div>关联课程 {skill.evidence.courseCount}</div>
+          <div>关联章节 {skill.evidence.chapterCount}</div>
+          <div>完成信号 {skill.evidence.masterySignals}</div>
+          <div>当前状态 {getStateLabel(skill.state)}</div>
+        </div>
+
+        {relatedLearning.length > 0 && (
+          <div className="space-y-2 border-t border-white/10 pt-3">
+            <div className="text-[11px] uppercase tracking-[0.16em] opacity-55">相关学习入口</div>
+            <div className="space-y-2">
+              {relatedLearning.map((course) => (
+                <div
+                  key={`${skill.id}:${course.courseId}`}
+                  className="rounded-xl bg-black/10 px-3 py-3"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <Link
+                      href={`/learn/${course.courseId}`}
+                      className="text-sm font-medium text-inherit transition-opacity hover:opacity-100"
+                    >
+                      {course.title}
+                    </Link>
+                    <div className="text-right">
+                      <div className="text-[11px] opacity-60">{course.progressPercent}%</div>
+                      <div className="text-[11px] opacity-45">{formatDate(course.updatedAt)}</div>
+                    </div>
+                  </div>
+
+                  {course.relatedChapters.length > 0 ? (
+                    <div className="mt-2 space-y-2">
+                      {course.relatedChapters.map((chapter) => (
+                        <Link
+                          key={chapter.key}
+                          href={`/learn/${course.courseId}?chapter=${chapter.chapterIndex}`}
+                          className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[11px] transition-colors hover:bg-white/10"
+                        >
+                          <div className="min-w-0">
+                            <div className="truncate">
+                              第 {chapter.chapterIndex} 章 · {chapter.title}
+                            </div>
+                            <div className="mt-1 opacity-55">
+                              {chapter.matchedSkills.join(" · ")}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 pl-2">
+                            <span className="rounded-full border border-white/10 px-2 py-0.5 opacity-65">
+                              {formatChapterProgress(
+                                chapter.completedSections,
+                                chapter.totalSections,
+                              )}
+                            </span>
+                            <ArrowRight className="h-3 w-3" />
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="mt-2 text-[11px] opacity-60">
+                      当前已关联课程，章节证据还在继续沉淀。
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </details>
+  );
 }
 
 export function GoldenPathPage({ snapshot, selectedPathId }: GoldenPathPageProps) {
@@ -219,39 +353,9 @@ export function GoldenPathPage({ snapshot, selectedPathId }: GoldenPathPageProps
                 </div>
 
                 <div className="mt-4 space-y-3">
-                  {[...domain.nodes].sort(sortSkills).map((skill) => (
-                    <details
-                      key={skill.id}
-                      className={`rounded-2xl border p-3 ${getStateClassName(skill.state)}`}
-                    >
-                      <summary className="cursor-pointer list-none">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <div className="text-sm font-medium">{skill.name}</div>
-                            <div className="mt-1 text-xs opacity-70">
-                              {getStateLabel(skill.state)}
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-sm font-medium">{skill.progressScore}%</div>
-                            <div className="mt-1 text-[11px] opacity-65">
-                              掌握 {skill.masteryScore}% · 覆盖 {skill.coverageScore}%
-                            </div>
-                          </div>
-                        </div>
-                      </summary>
-
-                      <div className="mt-3 space-y-3 border-t border-white/10 pt-3 text-xs opacity-80">
-                        <p className="leading-6">{skill.description}</p>
-                        <div className="grid gap-2 sm:grid-cols-2">
-                          <div>关联课程 {skill.evidence.courseCount}</div>
-                          <div>关联章节 {skill.evidence.chapterCount}</div>
-                          <div>完成信号 {skill.evidence.masterySignals}</div>
-                          <div>当前状态 {getStateLabel(skill.state)}</div>
-                        </div>
-                      </div>
-                    </details>
-                  ))}
+                  {[...domain.nodes]
+                    .sort(sortSkills)
+                    .map((skill) => renderSkillCard(skill, selectedRoute.linkedLearning))}
                 </div>
               </div>
             ))}
@@ -333,9 +437,12 @@ export function GoldenPathPage({ snapshot, selectedPathId }: GoldenPathPageProps
                 <div key={course.courseId} className="rounded-[24px] bg-[#f7f7f6] p-4 md:p-5">
                   <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                     <div>
-                      <div className="text-lg font-medium text-[var(--color-text)]">
+                      <Link
+                        href={`/learn/${course.courseId}`}
+                        className="text-lg font-medium text-[var(--color-text)] transition-colors hover:text-[#8b6a24]"
+                      >
                         {course.title}
-                      </div>
+                      </Link>
                       <div className="mt-2 flex flex-wrap gap-2">
                         {course.matchedSkills.map((skill) => (
                           <span
@@ -350,6 +457,15 @@ export function GoldenPathPage({ snapshot, selectedPathId }: GoldenPathPageProps
 
                     <div className="text-sm text-[var(--color-text-tertiary)]">
                       进度 {course.progressPercent}% · {formatDate(course.updatedAt)}
+                      <div className="mt-2">
+                        <Link
+                          href={`/learn/${course.courseId}`}
+                          className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1.5 text-[0.72rem] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[#fcfbf8] hover:text-[var(--color-text)]"
+                        >
+                          进入课程
+                          <ArrowRight className="h-3.5 w-3.5" />
+                        </Link>
+                      </div>
                     </div>
                   </div>
 
@@ -369,7 +485,15 @@ export function GoldenPathPage({ snapshot, selectedPathId }: GoldenPathPageProps
                               {chapter.matchedSkills.join(" · ")}
                             </div>
                           </div>
-                          <ArrowRight className="h-4 w-4 text-[var(--color-text-tertiary)]" />
+                          <div className="flex items-center gap-3">
+                            <span className="rounded-full border border-black/8 bg-[#faf8f2] px-2.5 py-1 text-[0.72rem] text-[var(--color-text-secondary)]">
+                              {formatChapterProgress(
+                                chapter.completedSections,
+                                chapter.totalSections,
+                              )}
+                            </span>
+                            <ArrowRight className="h-4 w-4 text-[var(--color-text-tertiary)]" />
+                          </div>
                         </Link>
                       ))}
                     </div>

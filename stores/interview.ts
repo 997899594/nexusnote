@@ -11,6 +11,7 @@ export interface Chapter {
   description?: string;
   sections: Section[];
   practiceType?: "exercise" | "project" | "quiz" | "none";
+  skillIds?: string[];
 }
 
 export interface OutlineData {
@@ -19,6 +20,7 @@ export interface OutlineData {
   targetAudience?: string;
   difficulty?: "beginner" | "intermediate" | "advanced";
   learningOutcome?: string;
+  courseSkillIds?: string[];
   chapters: Chapter[];
 }
 

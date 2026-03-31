@@ -19,10 +19,13 @@ interface GenerateCourseSectionWorkflowOptions {
 type CourseOutlineData = {
   title?: string;
   description?: string;
+  learningOutcome?: string;
+  courseSkillIds?: string[];
   targetAudience?: string;
   chapters?: Array<{
     title: string;
     description?: string;
+    skillIds?: string[];
     sections?: Array<{ title: string; description: string }>;
   }>;
 };
@@ -38,7 +41,7 @@ export async function runGenerateCourseSectionWorkflow({
     endpoint: "/api/learn/generate",
     userId,
     workflow: "generate-course-section",
-    promptVersion: "course-section@v1",
+    promptVersion: "course-section@v2",
     modelPolicy: "structured-high-quality",
     metadata: {
       courseId,
@@ -91,9 +94,12 @@ export async function runGenerateCourseSectionWorkflow({
     courseDescription: outline?.description ?? "",
     targetAudience: outline?.targetAudience ?? "",
     difficulty: course.difficulty ?? "beginner",
+    learningOutcome: outline?.learningOutcome,
+    courseSkillIds: outline?.courseSkillIds,
     chapterIndex,
     chapterTitle: chapter.title,
     chapterDescription: chapter.description ?? "",
+    chapterSkillIds: chapter.skillIds,
     sectionIndex,
     sectionTitle: section.title,
     sectionDescription: section.description,

@@ -3,23 +3,47 @@
 import type { UIMessage } from "ai";
 import { motion } from "framer-motion";
 import { BookOpen, Loader2, MessageSquare, NotebookPen, Send, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChatMessage, LoadingDots } from "@/components/chat/ChatMessage";
 import { useChatSession } from "@/components/chat/useChatSession";
 import { AIDegradationBanner, WorkspaceEmptyState } from "@/components/common";
 import { useToast } from "@/components/ui/Toast";
 import { isUnauthorizedError, parseApiError, redirectToLogin } from "@/lib/api/client";
+import type { GoldenPathCourseContext } from "@/lib/golden-path/types";
 import { cn } from "@/lib/utils";
 import { useChatSessionStateStore } from "@/stores";
 import { useLearnStore } from "@/stores/learn";
+import { ChapterSkillStrip } from "./ChapterSkillStrip";
 
 interface LearnChatProps {
   courseId: string;
   courseTitle: string;
   variant?: "inline" | "overlay";
+  goldenPathContext?: GoldenPathCourseContext | null;
 }
 
-export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnChatProps) {
+function buildQuickPrompts(input: { chapterTitle?: string; skillNames: string[] }): string[] {
+  const { chapterTitle, skillNames } = input;
+  const [primarySkill, secondarySkill] = skillNames;
+
+  const prompts = [
+    primarySkill ? `这一章里的「${primarySkill}」核心要点是什么？` : null,
+    primarySkill && secondarySkill
+      ? `这一章里「${primarySkill}」和「${secondarySkill}」分别起什么作用？`
+      : null,
+    chapterTitle ? `学完「${chapterTitle}」后，我应该真正掌握什么？` : null,
+    primarySkill ? `如果把这章用到项目里，「${primarySkill}」通常怎么落地？` : null,
+  ];
+
+  return [...new Set(prompts.filter((prompt): prompt is string => Boolean(prompt)))].slice(0, 3);
+}
+
+export function LearnChat({
+  courseId,
+  courseTitle,
+  variant = "inline",
+  goldenPathContext = null,
+}: LearnChatProps) {
   const { addToast } = useToast();
   const { currentChapterIndex, chapters, isChatOpen, setChatOpen } = useLearnStore();
   const [input, setInput] = useState("");
@@ -30,6 +54,33 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const currentChapter = chapters[currentChapterIndex];
+  const chapterSkills = useMemo(() => {
+    if (!goldenPathContext) {
+      return [];
+    }
+
+    const chapter = goldenPathContext.chapters.find(
+      (item) => item.chapterIndex === currentChapterIndex + 1,
+    );
+
+    return chapter?.matchedSkills.length && chapter.matchedSkills.length > 0
+      ? chapter.matchedSkills
+      : goldenPathContext.courseSkills.slice(0, 4);
+  }, [currentChapterIndex, goldenPathContext]);
+
+  const chapterSkillIds = useMemo(() => {
+    return chapterSkills.map((skill) => skill.id);
+  }, [chapterSkills]);
+
+  const quickPrompts = useMemo(
+    () =>
+      buildQuickPrompts({
+        chapterTitle: currentChapter?.title,
+        skillNames: chapterSkills.map((skill) => skill.name),
+      }),
+    [chapterSkills, currentChapter?.title],
+  );
+
   const resetTrackedSession = useChatSessionStateStore((state) => state.resetSession);
   const chat = useChatSession({
     sessionId: resolvedSessionId,
@@ -37,6 +88,7 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
       metadata: {
         courseId,
         chapterIndex: currentChapterIndex,
+        chapterSkillIds,
         context: "learn",
       },
     },
@@ -121,6 +173,23 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
     setInput("");
   };
 
+  const handleQuickPrompt = useCallback(
+    async (prompt: string) => {
+      if (!prompt.trim()) {
+        return;
+      }
+
+      if (isLoading || !resolvedSessionId) {
+        setInput(prompt);
+        return;
+      }
+
+      await sendMessage({ text: prompt });
+      setInput("");
+    },
+    [isLoading, resolvedSessionId, sendMessage],
+  );
+
   const handleCaptureChat = useCallback(async () => {
     if (isCapturingChat) {
       return;
@@ -185,6 +254,27 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
   const captureDisabled =
     isLoading || isCapturingChat || chatMessages.length === 0 || !resolvedSessionId;
 
+  const quickPromptBlock =
+    quickPrompts.length > 0 ? (
+      <div className="mt-4 space-y-2 text-left">
+        <div className="text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
+          可直接提问
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {quickPrompts.map((prompt) => (
+            <button
+              key={prompt}
+              type="button"
+              onClick={() => void handleQuickPrompt(prompt)}
+              className="rounded-full border border-black/8 bg-white px-3 py-1.5 text-xs text-[var(--color-text-secondary)] transition-colors hover:bg-[#f7f8fa] hover:text-[var(--color-text)]"
+            >
+              {prompt}
+            </button>
+          ))}
+        </div>
+      </div>
+    ) : null;
+
   const renderEmptyState = () => {
     if (isResolvingSession) {
       return (
@@ -223,6 +313,12 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
         title="围绕当前章节继续追问"
         description="可以让我解释概念、举例、对比知识点，或者把当前理解沉淀成笔记。"
         className="mt-3 py-10"
+        footer={
+          <>
+            <ChapterSkillStrip context={goldenPathContext} maxSkills={3} className="text-left" />
+            {quickPromptBlock}
+          </>
+        }
       />
     );
   };
@@ -291,6 +387,10 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
               <X className="w-4 h-4" />
             </button>
           </div>
+        </div>
+        <div className="bg-white/92 px-4 pb-3">
+          <ChapterSkillStrip context={goldenPathContext} maxSkills={3} />
+          {chatMessages.length === 0 ? quickPromptBlock : null}
         </div>
 
         {/* Messages */}
@@ -400,6 +500,10 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
               <X className="h-4 w-4" />
             </button>
           </div>
+        </div>
+        <div className="bg-white/92 px-5 pb-4">
+          <ChapterSkillStrip context={goldenPathContext} maxSkills={3} />
+          {chatMessages.length === 0 ? quickPromptBlock : null}
         </div>
       </div>
 

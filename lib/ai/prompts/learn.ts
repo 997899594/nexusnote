@@ -1,3 +1,5 @@
+import { GOLDEN_PATH_SKILLS } from "@/lib/golden-path/ontology";
+
 /**
  * 小节内容生成 Prompt
  *
@@ -8,9 +10,12 @@ export function buildSectionPrompt(params: {
   courseDescription: string;
   targetAudience: string;
   difficulty: string;
+  learningOutcome?: string;
+  courseSkillIds?: string[];
   chapterIndex: number;
   chapterTitle: string;
   chapterDescription: string;
+  chapterSkillIds?: string[];
   sectionIndex: number;
   sectionTitle: string;
   sectionDescription: string;
@@ -22,9 +27,12 @@ export function buildSectionPrompt(params: {
     courseDescription,
     targetAudience,
     difficulty,
+    learningOutcome,
+    courseSkillIds,
     chapterIndex,
     chapterTitle,
     chapterDescription,
+    chapterSkillIds,
     sectionIndex,
     sectionTitle,
     sectionDescription,
@@ -39,6 +47,12 @@ export function buildSectionPrompt(params: {
     .map((t, i) => `  ${i === sectionIndex ? "→" : " "} ${chapterIndex + 1}.${i + 1} ${t}`)
     .join("\n");
 
+  const skillNameById = new Map(GOLDEN_PATH_SKILLS.map((skill) => [skill.id, skill.name]));
+  const formatSkillIds = (skillIds?: string[]) =>
+    Array.isArray(skillIds) && skillIds.length > 0
+      ? skillIds.map((skillId) => skillNameById.get(skillId) ?? skillId).join("、")
+      : "未指定";
+
   return `你是一位专业的课程内容创作者，正在为在线学习平台编写教学内容。
 
 ## 课程信息
@@ -47,10 +61,13 @@ export function buildSectionPrompt(params: {
 - 目标受众：${targetAudience}
 - 难度级别：${difficultyLabel}
 - 总章节数：${totalChapters}
+- 课程学习成果：${learningOutcome ?? "未提供"}
+- 课程核心能力：${formatSkillIds(courseSkillIds)}
 
 ## 当前位置
 - 第 ${chapterIndex + 1} 章：${chapterTitle}
 - 章节描述：${chapterDescription}
+- 本章训练能力：${formatSkillIds(chapterSkillIds)}
 - 本章小节：
 ${siblingContext}
 
@@ -71,6 +88,10 @@ ${siblingContext}
    - 结尾简要总结要点（1-3条）
 4. **语言**：中文，语气专业但亲切
 5. **衔接**：注意与同章其他小节的关系，避免重复
+6. **能力导向**：
+   - 讲解时要服务于“本章训练能力”和“课程学习成果”
+   - 如果是项目型章节，要多写决策思路、常见坑和交付标准
+   - 不要只写概念定义，要让学习者知道这节内容如何推进对应能力
 
 直接输出教学内容，不要输出任何前缀说明。`;
 }

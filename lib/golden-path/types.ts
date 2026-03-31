@@ -62,6 +62,8 @@ export interface GoldenPathLinkedChapter {
   title: string;
   chapterIndex: number;
   matchedSkills: string[];
+  completedSections: number;
+  totalSections: number;
 }
 
 export interface GoldenPathLinkedCourse {

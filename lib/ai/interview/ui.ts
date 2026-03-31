@@ -121,6 +121,7 @@ function normalizePartialOutline(raw: unknown): OutlineData | null {
     targetAudience?: unknown;
     difficulty?: unknown;
     learningOutcome?: unknown;
+    courseSkillIds?: unknown;
     chapters?: unknown;
   };
 
@@ -133,6 +134,9 @@ function normalizePartialOutline(raw: unknown): OutlineData | null {
           title: typeof chapter.title === "string" ? chapter.title : "",
           description: typeof chapter.description === "string" ? chapter.description : undefined,
           practiceType: normalizePracticeType(chapter.practiceType),
+          skillIds: Array.isArray(chapter.skillIds)
+            ? chapter.skillIds.filter((skillId): skillId is string => typeof skillId === "string")
+            : undefined,
           sections: Array.isArray(chapter.sections)
             ? chapter.sections
                 .filter(
@@ -169,6 +173,9 @@ function normalizePartialOutline(raw: unknown): OutlineData | null {
         : undefined,
     learningOutcome:
       typeof outline.learningOutcome === "string" ? outline.learningOutcome : undefined,
+    courseSkillIds: Array.isArray(outline.courseSkillIds)
+      ? outline.courseSkillIds.filter((skillId): skillId is string => typeof skillId === "string")
+      : undefined,
     chapters,
   };
 }

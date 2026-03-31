@@ -1,8 +1,8 @@
 import "server-only";
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
-import { courseProgress, courses, db } from "@/db";
+import { courseChapterSkillMappings, courseProgress, courseSkillMappings, courses, db } from "@/db";
 import { getGoldenPathTag } from "@/lib/cache/tags";
 import {
   GOLDEN_PATH_DOMAINS,
@@ -36,10 +36,12 @@ interface CourseSectionArtifact {
 interface OutlineChapter {
   title?: string;
   description?: string;
+  skillIds?: string[];
   sections?: OutlineSection[];
 }
 
 interface OutlineData {
+  courseSkillIds?: string[];
   chapters?: OutlineChapter[];
 }
 
@@ -48,6 +50,7 @@ interface CourseChapterArtifact {
   title: string;
   chapterIndex: number;
   searchText: string;
+  explicitSkillIds: string[];
   totalSections: number;
   completedSections: number;
 }
@@ -59,6 +62,7 @@ interface CourseArtifact {
   currentChapter: number;
   updatedAt: Date | null;
   searchText: string;
+  explicitSkillIds: string[];
   chapters: CourseChapterArtifact[];
   sections: CourseSectionArtifact[];
 }
@@ -85,6 +89,14 @@ function clampPercent(value: number): number {
 
 function uniqueStrings(values: string[]): string[] {
   return [...new Set(values.filter(Boolean))];
+}
+
+function normalizeSkillIds(values: unknown): string[] {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  return uniqueStrings(values.filter((value): value is string => typeof value === "string"));
 }
 
 function matchAliasesScore(haystack: string, aliases: string[]): number {
@@ -125,8 +137,10 @@ function buildCourseArtifacts(
       Array.isArray(row.completedSections) ? row.completedSections : [],
     );
     const sections: CourseSectionArtifact[] = [];
+    const explicitCourseSkillIds = normalizeSkillIds(outline.courseSkillIds);
     const chapters = (outline.chapters ?? []).map((chapter, index) => {
       const chapterTitle = chapter.title?.trim() || `第 ${index + 1} 章`;
+      const explicitChapterSkillIds = normalizeSkillIds(chapter.skillIds);
       const chapterSections = (chapter.sections ?? []).map((section, sectionIndex) => {
         const sectionKey = `section-${index + 1}-${sectionIndex + 1}`;
         const sectionTitle = section.title?.trim() || `第 ${index + 1}.${sectionIndex + 1} 节`;
@@ -153,6 +167,7 @@ function buildCourseArtifacts(
         title: chapterTitle,
         chapterIndex: index + 1,
         searchText: chapterText,
+        explicitSkillIds: explicitChapterSkillIds,
         totalSections: chapterSections.length,
         completedSections: chapterSections.filter((section) => section.completed).length,
       };
@@ -184,6 +199,7 @@ function buildCourseArtifacts(
           " ",
         ),
       ),
+      explicitSkillIds: explicitCourseSkillIds,
       chapters,
       sections,
     };
@@ -230,22 +246,142 @@ async function loadGoldenPathBase(userId: string): Promise<GoldenPathBaseData> {
   const coursesById = new Map(
     buildCourseArtifacts(courseRows).map((course) => [course.id, course]),
   );
+  const courseIds = [...coursesById.keys()];
+  const chapterByKey = new Map(
+    [...coursesById.values()].flatMap((course) =>
+      course.chapters.map((chapter) => [chapter.key, { courseId: course.id, chapter }] as const),
+    ),
+  );
+  const [persistedCourseMappings, persistedChapterMappings] =
+    courseIds.length > 0
+      ? await Promise.all([
+          db
+            .select({
+              courseId: courseSkillMappings.courseId,
+              skillKey: courseSkillMappings.skillKey,
+            })
+            .from(courseSkillMappings)
+            .where(inArray(courseSkillMappings.courseId, courseIds)),
+          db
+            .select({
+              courseId: courseChapterSkillMappings.courseId,
+              chapterIndex: courseChapterSkillMappings.chapterIndex,
+              skillKey: courseChapterSkillMappings.skillKey,
+            })
+            .from(courseChapterSkillMappings)
+            .where(inArray(courseChapterSkillMappings.courseId, courseIds)),
+        ])
+      : [[], []];
+
+  const persistedCourseIdsBySkill = new Map<string, Set<string>>();
+  const persistedChapterKeysBySkill = new Map<string, Set<string>>();
+  const outlineCourseIdsBySkill = new Map<string, Set<string>>();
+  const outlineChapterKeysBySkill = new Map<string, Set<string>>();
+  const mappedCourseIds = new Set<string>();
+
+  for (const mapping of persistedCourseMappings) {
+    mappedCourseIds.add(mapping.courseId);
+    const existing = persistedCourseIdsBySkill.get(mapping.skillKey) ?? new Set<string>();
+    existing.add(mapping.courseId);
+    persistedCourseIdsBySkill.set(mapping.skillKey, existing);
+  }
+
+  for (const mapping of persistedChapterMappings) {
+    mappedCourseIds.add(mapping.courseId);
+    const chapterKey = `${mapping.courseId}:chapter:${mapping.chapterIndex}`;
+    const existing = persistedChapterKeysBySkill.get(mapping.skillKey) ?? new Set<string>();
+    existing.add(chapterKey);
+    persistedChapterKeysBySkill.set(mapping.skillKey, existing);
+  }
+
+  for (const course of coursesById.values()) {
+    for (const skillId of course.explicitSkillIds) {
+      const existing = outlineCourseIdsBySkill.get(skillId) ?? new Set<string>();
+      existing.add(course.id);
+      outlineCourseIdsBySkill.set(skillId, existing);
+    }
+
+    for (const chapter of course.chapters) {
+      for (const skillId of chapter.explicitSkillIds) {
+        const chapterKey = `${course.id}:chapter:${chapter.chapterIndex}`;
+        const existing = outlineChapterKeysBySkill.get(skillId) ?? new Set<string>();
+        existing.add(chapterKey);
+        outlineChapterKeysBySkill.set(skillId, existing);
+      }
+    }
+  }
 
   const rawSkillSnapshots = GOLDEN_PATH_SKILLS.map((skill) => {
     const skillAliases = [skill.name, ...skill.aliases];
-    const matchedCourses = [...coursesById.values()].filter(
+    const explicitChapterKeys = [
+      ...(persistedChapterKeysBySkill.get(skill.id) ?? new Set<string>()),
+      ...(outlineChapterKeysBySkill.get(skill.id) ?? new Set<string>()),
+    ];
+    const explicitCourseIds = uniqueStrings([
+      ...(persistedCourseIdsBySkill.get(skill.id) ?? new Set<string>()),
+      ...(outlineCourseIdsBySkill.get(skill.id) ?? new Set<string>()),
+      ...explicitChapterKeys.map((key) => key.split(":chapter:")[0] ?? ""),
+    ]);
+    const explicitCourses = explicitCourseIds
+      .map((courseId) => coursesById.get(courseId))
+      .filter((course): course is CourseArtifact => Boolean(course));
+    const fallbackCourses = [...coursesById.values()].filter(
+      (course) => !mappedCourseIds.has(course.id),
+    );
+    const fallbackMatchedCourses = fallbackCourses.filter(
       (course) => matchAliasesScore(course.searchText, skillAliases) > 0,
     );
+    const matchedCourses = [
+      ...new Map(
+        [...explicitCourses, ...fallbackMatchedCourses].map((course) => [course.id, course]),
+      ).values(),
+    ];
 
-    const matchedChapters = matchedCourses.flatMap((course) =>
+    const fallbackMatchedChapters = fallbackMatchedCourses.flatMap((course) =>
       course.chapters.filter((chapter) => matchAliasesScore(chapter.searchText, skillAliases) > 0),
     );
+    const explicitMatchedChapters = explicitChapterKeys
+      .map((key) => chapterByKey.get(key)?.chapter)
+      .filter((chapter): chapter is CourseChapterArtifact => Boolean(chapter));
+    const matchedChapters = [
+      ...new Map(
+        [...explicitMatchedChapters, ...fallbackMatchedChapters].map((chapter) => [
+          chapter.key,
+          chapter,
+        ]),
+      ).values(),
+    ];
 
-    const matchedSections = matchedCourses.flatMap((course) =>
+    const explicitMatchedSections = explicitChapterKeys.flatMap((key) => {
+      const chapterContext = chapterByKey.get(key);
+      if (!chapterContext) {
+        return [];
+      }
+
+      return (
+        coursesById
+          .get(chapterContext.courseId)
+          ?.sections.filter(
+            (section) => section.chapterIndex === chapterContext.chapter.chapterIndex,
+          ) ?? []
+      );
+    });
+    const fallbackMatchedSections = fallbackMatchedCourses.flatMap((course) =>
       course.sections.filter((section) => matchAliasesScore(section.searchText, skillAliases) > 0),
     );
+    const matchedSections = [
+      ...new Map(
+        [...explicitMatchedSections, ...fallbackMatchedSections].map((section) => [
+          section.key,
+          section,
+        ]),
+      ).values(),
+    ];
 
-    const matchedChapterKeys = uniqueStrings(matchedChapters.map((chapter) => chapter.key));
+    const matchedChapterKeys = uniqueStrings([
+      ...explicitChapterKeys,
+      ...matchedChapters.map((chapter) => chapter.key),
+    ]);
     const matchedCompletedSections = matchedSections.filter((section) => section.completed).length;
     const matchedStartedCourses = matchedCourses.filter(
       (course) => course.progressPercent > 0 || course.currentChapter > 0,
@@ -438,6 +574,8 @@ async function loadGoldenPathBase(userId: string): Promise<GoldenPathBaseData> {
             key: chapter.key,
             title: chapter.title,
             chapterIndex: chapter.chapterIndex,
+            completedSections: chapter.completedSections,
+            totalSections: chapter.totalSections,
             matchedSkills: uniqueStrings(
               matchedSkills
                 .filter((skill) => skill.linkedChapterKeys.includes(chapter.key))

@@ -2,8 +2,10 @@ import { and, eq } from "drizzle-orm";
 import { courses, db } from "@/db";
 
 interface CourseOutlineRecord {
+  courseSkillIds?: string[] | null;
   chapters?: Array<{
     title?: string | null;
+    skillIds?: string[] | null;
   }>;
 }
 
@@ -12,6 +14,8 @@ export interface ResolvedLearnContext {
   courseTitle: string;
   chapterIndex: number;
   chapterTitle: string;
+  courseSkillIds: string[];
+  chapterSkillIds: string[];
 }
 
 export async function resolveOwnedLearnContext({
@@ -39,11 +43,19 @@ export async function resolveOwnedLearnContext({
   const outline = course.outlineData as CourseOutlineRecord | null;
   const chapter = outline?.chapters?.[chapterIndex];
   const chapterTitle = chapter?.title?.trim() || `第 ${chapterIndex + 1} 章`;
+  const courseSkillIds = Array.isArray(outline?.courseSkillIds)
+    ? outline.courseSkillIds.filter((skillId): skillId is string => typeof skillId === "string")
+    : [];
+  const chapterSkillIds = Array.isArray(chapter?.skillIds)
+    ? chapter.skillIds.filter((skillId): skillId is string => typeof skillId === "string")
+    : [];
 
   return {
     courseId,
     courseTitle: course.title,
     chapterIndex,
     chapterTitle,
+    courseSkillIds,
+    chapterSkillIds,
   };
 }

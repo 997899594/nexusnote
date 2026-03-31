@@ -2,10 +2,16 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronDown, ChevronRight, Circle, Dot, PlayCircle } from "lucide-react";
+import type { GoldenPathCourseContext } from "@/lib/golden-path/types";
 import { cn } from "@/lib/utils";
 import { useLearnStore } from "@/stores/learn";
+import { getGoldenPathSkillClassName, getGoldenPathSkillStateLabel } from "./golden-path-skill-ui";
 
-export function ChapterList() {
+interface ChapterListProps {
+  goldenPathContext?: GoldenPathCourseContext | null;
+}
+
+export function ChapterList({ goldenPathContext }: ChapterListProps) {
   const chapters = useLearnStore((s) => s.chapters);
   const currentChapterIndex = useLearnStore((s) => s.currentChapterIndex);
   const currentSectionIndex = useLearnStore((s) => s.currentSectionIndex);
@@ -26,11 +32,20 @@ export function ChapterList() {
     );
   }
 
+  const chapterSkillMap = new Map(
+    (goldenPathContext?.chapters ?? []).map((chapter) => [
+      chapter.chapterIndex,
+      chapter.matchedSkills,
+    ]),
+  );
+
   return (
     <div className="space-y-2">
       {chapters.map((chapter, chIdx) => {
         const isExpanded = expandedChapters.has(chIdx);
         const isCurrent = chIdx === currentChapterIndex;
+        const chapterSkills = chapterSkillMap.get(chIdx + 1) ?? [];
+        const previewSkills = chapterSkills.slice(0, isCurrent ? 3 : 2);
         const chapterSectionCount = chapter.sections.length;
         const chapterCompletedCount = chapter.sections.filter((sec) =>
           completedSections.has(sec.nodeId),
@@ -95,6 +110,27 @@ export function ChapterList() {
                           ? `当前定位 ${Math.min(currentSectionIndex + 1, chapterSectionCount)}/${chapterSectionCount}`
                           : `${chapterCompletedCount}/${chapterSectionCount} 节`}
                       </span>
+
+                      {previewSkills.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {previewSkills.map((skill) => (
+                            <span
+                              key={`${chapter.title}-${skill.id}`}
+                              className={cn(
+                                "inline-flex items-center rounded-full border px-2 py-0.5 text-[0.625rem] font-medium",
+                                getGoldenPathSkillClassName(skill.state),
+                              )}
+                            >
+                              {skill.name}
+                            </span>
+                          ))}
+                          {chapterSkills.length > previewSkills.length && (
+                            <span className="inline-flex items-center rounded-full border border-black/8 bg-white/75 px-2 py-0.5 text-[0.625rem] text-[var(--color-text-tertiary)]">
+                              +{chapterSkills.length - previewSkills.length}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     <span
@@ -146,10 +182,50 @@ export function ChapterList() {
                       <span className="text-[0.625rem] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-tertiary)]">
                         本章小节
                       </span>
-                      <span className="text-[0.625rem] text-[var(--color-text-tertiary)]">
-                        {chapterSectionCount} 节
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {chapterSkills.length > 0 && (
+                          <span className="rounded-full border border-black/8 bg-white px-2 py-0.5 text-[0.625rem] text-[var(--color-text-secondary)]">
+                            {chapterSkills.length} 个技能点
+                          </span>
+                        )}
+                        <span className="text-[0.625rem] text-[var(--color-text-tertiary)]">
+                          {chapterSectionCount} 节
+                        </span>
+                      </div>
                     </div>
+
+                    {chapterSkills.length > 0 && (
+                      <div className="mb-3 rounded-[18px] border border-black/6 bg-white/85 px-3 py-3">
+                        <div className="text-[0.625rem] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-tertiary)]">
+                          本章推进技能
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {chapterSkills.slice(0, 5).map((skill) => (
+                            <div
+                              key={`${chapter.title}-${skill.id}-detail`}
+                              className="rounded-2xl border border-black/6 bg-[#fafaf9] px-2.5 py-2"
+                            >
+                              <div className="text-[0.7rem] font-medium text-[var(--color-text)]">
+                                {skill.name}
+                              </div>
+                              <div className="mt-1 flex items-center gap-1.5">
+                                <span
+                                  className={cn(
+                                    "inline-flex items-center rounded-full border px-1.5 py-0.5 text-[0.625rem] font-medium",
+                                    getGoldenPathSkillClassName(skill.state),
+                                  )}
+                                >
+                                  {getGoldenPathSkillStateLabel(skill.state)}
+                                </span>
+                                <span className="text-[0.625rem] text-[var(--color-text-tertiary)]">
+                                  {skill.progressScore}%
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     <div className="space-y-1.5">
                       {chapter.sections.map((sec, secIdx) => {
                         const isCompleted = completedSections.has(sec.nodeId);

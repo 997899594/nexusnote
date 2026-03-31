@@ -166,7 +166,7 @@ export function LearnSidebar({ courseTitle, width, goldenPathContext }: LearnSid
 
         {/* Chapter > Section list */}
         <div className="mobile-scroll flex-1 overflow-y-auto px-3 pb-5">
-          <ChapterList />
+          <ChapterList goldenPathContext={goldenPathContext} />
         </div>
       </motion.div>
     </div>

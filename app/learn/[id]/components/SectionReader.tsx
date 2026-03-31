@@ -15,6 +15,7 @@ import type { GoldenPathCourseContext } from "@/lib/golden-path/types";
 import { cn } from "@/lib/utils";
 import { useLearnStore } from "@/stores/learn";
 import { AnnotationLayer } from "./AnnotationLayer";
+import { ChapterSkillStrip } from "./ChapterSkillStrip";
 import { GoldenPathChapterPanel } from "./GoldenPathChapterPanel";
 import { TextSelectionToolbar } from "./TextSelectionToolbar";
 
@@ -534,6 +535,11 @@ export function SectionReader({
                 {currentChapter.description}
               </p>
             )}
+            <ChapterSkillStrip
+              context={goldenPathContext}
+              tone="warm"
+              className="mt-4 border-[#ead9ab]/45 bg-[#fffaf0]/90"
+            />
             <GoldenPathChapterPanel context={goldenPathContext} />
           </div>
         )}

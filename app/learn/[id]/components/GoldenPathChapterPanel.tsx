@@ -3,38 +3,15 @@
 import { Compass, Sparkles, Target } from "lucide-react";
 import type { GoldenPathCourseContext } from "@/lib/golden-path/types";
 import { useLearnStore } from "@/stores/learn";
+import {
+  getCurrentChapterSkills,
+  getGoldenPathSkillClassName,
+  getGoldenPathSkillStateLabel,
+} from "./golden-path-skill-ui";
 
 interface GoldenPathChapterPanelProps {
   context: GoldenPathCourseContext | null;
   compact?: boolean;
-}
-
-function getStateLabel(state: GoldenPathCourseContext["courseSkills"][number]["state"]): string {
-  switch (state) {
-    case "mastered":
-      return "已掌握";
-    case "in_progress":
-      return "学习中";
-    case "ready":
-      return "可开始";
-    case "locked":
-      return "待解锁";
-  }
-}
-
-function getStateClassName(
-  state: GoldenPathCourseContext["courseSkills"][number]["state"],
-): string {
-  switch (state) {
-    case "mastered":
-      return "bg-[#f3ead0] text-[#6e5218]";
-    case "in_progress":
-      return "bg-[#ece8de] text-[#6d5a2a]";
-    case "ready":
-      return "bg-[#eef1f5] text-[#4b5563]";
-    case "locked":
-      return "bg-[#f3f4f6] text-[#9ca3af]";
-  }
 }
 
 export function GoldenPathChapterPanel({ context, compact = false }: GoldenPathChapterPanelProps) {
@@ -45,7 +22,7 @@ export function GoldenPathChapterPanel({ context, compact = false }: GoldenPathC
   }
 
   const chapter = context.chapters.find((item) => item.chapterIndex === currentChapterIndex + 1);
-  const matchedSkills = chapter?.matchedSkills ?? [];
+  const matchedSkills = getCurrentChapterSkills(context, currentChapterIndex, compact ? 3 : 5);
 
   if (compact) {
     return (
@@ -62,16 +39,14 @@ export function GoldenPathChapterPanel({ context, compact = false }: GoldenPathC
           {matchedSkills.length || context.courseSkills.length ? "这些关键技能点" : "主线能力"}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
-          {(matchedSkills.length > 0 ? matchedSkills : context.courseSkills.slice(0, 3)).map(
-            (skill) => (
-              <span
-                key={skill.id}
-                className={`rounded-full px-2.5 py-1 text-[0.6875rem] font-medium ${getStateClassName(skill.state)}`}
-              >
-                {skill.name}
-              </span>
-            ),
-          )}
+          {matchedSkills.map((skill) => (
+            <span
+              key={skill.id}
+              className={`rounded-full px-2.5 py-1 text-[0.6875rem] font-medium ${getGoldenPathSkillClassName(skill.state, "panel")}`}
+            >
+              {skill.name}
+            </span>
+          ))}
         </div>
       </div>
     );
@@ -102,19 +77,17 @@ export function GoldenPathChapterPanel({ context, compact = false }: GoldenPathC
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2.5">
-        {(matchedSkills.length > 0 ? matchedSkills : context.courseSkills.slice(0, 5)).map(
-          (skill) => (
-            <div
-              key={skill.id}
-              className="rounded-2xl border border-white/70 bg-white/85 px-3.5 py-2 shadow-[0_12px_28px_-24px_rgba(15,23,42,0.16)]"
-            >
-              <div className="text-sm font-medium text-[var(--color-text)]">{skill.name}</div>
-              <div className="mt-1 text-xs text-[var(--color-text-secondary)]">
-                {getStateLabel(skill.state)} · {skill.progressScore}%
-              </div>
+        {matchedSkills.map((skill) => (
+          <div
+            key={skill.id}
+            className="rounded-2xl border border-white/70 bg-white/85 px-3.5 py-2 shadow-[0_12px_28px_-24px_rgba(15,23,42,0.16)]"
+          >
+            <div className="text-sm font-medium text-[var(--color-text)]">{skill.name}</div>
+            <div className="mt-1 text-xs text-[var(--color-text-secondary)]">
+              {getGoldenPathSkillStateLabel(skill.state)} · {skill.progressScore}%
             </div>
-          ),
-        )}
+          </div>
+        ))}
       </div>
     </div>
   );

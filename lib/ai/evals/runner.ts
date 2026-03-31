@@ -208,9 +208,21 @@ function runInterviewRuleChecks(output: string): EvalRuleCheck[] {
       passed: chapters.length >= 5 && chapters.length <= 7,
       details: `Outline chapter count is ${chapters.length}. Expected 5-7.`,
     },
+    {
+      name: "course-skill-ids",
+      passed:
+        Array.isArray(outlineRecord.courseSkillIds) &&
+        outlineRecord.courseSkillIds.length >= 1 &&
+        outlineRecord.courseSkillIds.length <= 6 &&
+        outlineRecord.courseSkillIds.every(
+          (skillId) => typeof skillId === "string" && skillId.trim().length > 0,
+        ),
+      details: "Outline preview must contain 1-6 non-empty courseSkillIds.",
+    },
   );
 
   const invalidChapterIndexes: number[] = [];
+  const invalidChapterSkillIndexes: number[] = [];
   for (let i = 0; i < chapters.length; i++) {
     const chapter = chapters[i];
     const sections = Array.isArray(chapter.sections)
@@ -221,6 +233,16 @@ function runInterviewRuleChecks(output: string): EvalRuleCheck[] {
     if (sections.length < 4 || sections.length > 6) {
       invalidChapterIndexes.push(i + 1);
     }
+
+    const skillIds = Array.isArray(chapter.skillIds) ? chapter.skillIds : [];
+    const hasValidSkillIds =
+      skillIds.length >= 1 &&
+      skillIds.length <= 4 &&
+      skillIds.every((skillId) => typeof skillId === "string" && skillId.trim().length > 0);
+
+    if (!hasValidSkillIds) {
+      invalidChapterSkillIndexes.push(i + 1);
+    }
   }
 
   checks.push({
@@ -230,6 +252,15 @@ function runInterviewRuleChecks(output: string): EvalRuleCheck[] {
       invalidChapterIndexes.length === 0
         ? "All chapters contain 4-6 sections."
         : `Chapters with invalid section counts: ${invalidChapterIndexes.join(", ")}.`,
+  });
+
+  checks.push({
+    name: "chapter-skill-ids",
+    passed: invalidChapterSkillIndexes.length === 0,
+    details:
+      invalidChapterSkillIndexes.length === 0
+        ? "All chapters contain 1-4 skillIds."
+        : `Chapters with invalid skillIds: ${invalidChapterSkillIndexes.join(", ")}.`,
   });
 
   return checks;
