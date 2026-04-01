@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Instrument_Serif } from "next/font/google";
-import { Suspense } from "react";
 import "./globals.css";
 import { AuthSync, SessionProvider } from "@/components/auth";
 import { ToastProvider } from "@/components/ui/Toast";
@@ -45,9 +44,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SessionProvider>
           <ToastProvider>
             <AuthSync />
-            <Suspense fallback={<div className="min-h-dvh bg-[var(--color-bg)]" />}>
-              <div className="min-h-dvh">{children}</div>
-            </Suspense>
+            <div className="min-h-dvh">{children}</div>
           </ToastProvider>
         </SessionProvider>
       </body>

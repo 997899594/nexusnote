@@ -46,18 +46,21 @@ export function UserAvatar({ className = "", size = "md" }: UserAvatarProps) {
     }
   };
 
-  // Generate initials from name or email
   const getInitials = (): string => {
     if (!displayUser) return "?";
-    if (displayUser.name) {
-      return displayUser.name
-        .split(" ")
-        .map((n) => n[0])
+
+    const trimmedName = displayUser.name?.trim();
+    if (trimmedName) {
+      return trimmedName
+        .split(/\s+/)
+        .map((part) => part[0] ?? "")
         .join("")
         .toUpperCase()
         .slice(0, 2);
     }
-    return displayUser.email[0].toUpperCase();
+
+    const emailInitial = displayUser.email?.trim().charAt(0).toUpperCase();
+    return emailInitial || "U";
   };
 
   // Loading state - show pulse

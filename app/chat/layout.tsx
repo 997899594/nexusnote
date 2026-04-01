@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { ChatLayout } from "@/components/chat/ChatLayout";
 
 interface ChatLayoutWrapperProps {
@@ -5,5 +6,9 @@ interface ChatLayoutWrapperProps {
 }
 
 export default function ChatLayoutWrapper({ children }: ChatLayoutWrapperProps) {
-  return <ChatLayout>{children}</ChatLayout>;
+  return (
+    <Suspense fallback={<div className="min-h-dvh bg-[#f6f7f9]" />}>
+      <ChatLayout>{children}</ChatLayout>
+    </Suspense>
+  );
 }

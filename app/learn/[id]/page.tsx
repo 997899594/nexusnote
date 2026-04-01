@@ -1,9 +1,9 @@
 import { notFound, redirect } from "next/navigation";
+import { Suspense } from "react";
 import { createLoginPath } from "@/lib/auth-redirect";
 import { getGoldenPathCourseContextCached } from "@/lib/server/golden-path-data";
 import { getLearnPageSnapshotCached } from "@/lib/server/learn-data";
 import { getDynamicPageSession } from "@/lib/server/page-auth";
-
 import { LearnClient } from "./LearnClient";
 
 interface PageProps {
@@ -11,7 +11,7 @@ interface PageProps {
   searchParams: Promise<{ chapter?: string }>;
 }
 
-export default async function LearnPage({ params, searchParams }: PageProps) {
+async function LearnPageContent({ params, searchParams }: PageProps) {
   const { id: sessionId } = await params;
   const { chapter } = await searchParams;
 
@@ -64,5 +64,13 @@ export default async function LearnPage({ params, searchParams }: PageProps) {
       scrollToSectionId={scrollToSectionId}
       goldenPathContext={goldenPathContext}
     />
+  );
+}
+
+export default function LearnPage({ params, searchParams }: PageProps) {
+  return (
+    <Suspense fallback={<div className="min-h-dvh bg-[#f6f7f9]" />}>
+      <LearnPageContent params={params} searchParams={searchParams} />
+    </Suspense>
   );
 }

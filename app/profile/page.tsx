@@ -9,7 +9,25 @@ import { getDynamicPageSession } from "@/lib/server/page-auth";
 import { getUserStatsCached } from "@/lib/server/profile-data";
 import { ProfileSignOut } from "./profile-client";
 
-export default async function ProfilePage() {
+function getProfileAvatarLabel(
+  name: string | null | undefined,
+  email: string | null | undefined,
+): string {
+  const trimmedName = name?.trim();
+  if (trimmedName) {
+    return trimmedName
+      .split(/\s+/)
+      .map((part) => part[0] ?? "")
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  }
+
+  const emailInitial = email?.trim().charAt(0).toUpperCase();
+  return emailInitial || "U";
+}
+
+async function ProfilePageContent() {
   const session = await getDynamicPageSession();
 
   if (!session?.user) {
@@ -60,12 +78,7 @@ export default async function ProfilePage() {
           <div className="ui-surface-card-lg rounded-3xl p-5 md:p-8">
             <div className="flex items-start gap-4 md:gap-6">
               <div className="ui-primary-button flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl text-xl font-bold md:h-20 md:w-20 md:text-2xl">
-                {session.user.name
-                  ?.split(" ")
-                  .map((n) => n[0])
-                  .join("")
-                  .toUpperCase()
-                  .slice(0, 2) || session.user.email[0].toUpperCase()}
+                {getProfileAvatarLabel(session.user.name, session.user.email)}
               </div>
 
               <div className="flex-1 min-w-0">
@@ -191,5 +204,13 @@ export default async function ProfilePage() {
         </section>
       </div>
     </main>
+  );
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense fallback={<div className="min-h-dvh bg-[var(--color-bg)]" />}>
+      <ProfilePageContent />
+    </Suspense>
   );
 }

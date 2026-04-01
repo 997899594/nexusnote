@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { plainTextToHtml } from "@/lib/notes/content";
 import { getNoteDetailCached } from "@/lib/server/editor-data";
 import { requireDynamicPageAuth } from "@/lib/server/page-auth";
@@ -8,7 +9,7 @@ interface EditorPageProps {
   params: Promise<{ id: string }>;
 }
 
-export default async function EditorPage({ params }: EditorPageProps) {
+async function EditorPageContent({ params }: EditorPageProps) {
   const { id } = await params;
   const session = await requireDynamicPageAuth(`/editor/${id}`);
   const note = await getNoteDetailCached(session.user.id, id);
@@ -26,5 +27,13 @@ export default async function EditorPage({ params }: EditorPageProps) {
       sourceType={note.sourceType}
       sourceContext={note.sourceContext ?? null}
     />
+  );
+}
+
+export default function EditorPage({ params }: EditorPageProps) {
+  return (
+    <Suspense fallback={<div className="min-h-dvh bg-[#f3f4f6]" />}>
+      <EditorPageContent params={params} />
+    </Suspense>
   );
 }

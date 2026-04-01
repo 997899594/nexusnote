@@ -8,6 +8,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
 import { getNotesWorkbenchCached, type NoteWorkbenchKind } from "@/lib/server/editor-data";
 import { requireDynamicPageAuth } from "@/lib/server/page-auth";
 
@@ -43,7 +44,7 @@ const KIND_META = {
   manual: { icon: FileText, description: "手动创建或通过编辑动作生成的笔记" },
 } as const;
 
-export default async function NotesIndexPage({
+async function NotesIndexPageContent({
   searchParams,
 }: {
   searchParams: Promise<{ kind?: string; courseId?: string }>;
@@ -259,5 +260,17 @@ export default async function NotesIndexPage({
         )}
       </div>
     </main>
+  );
+}
+
+export default function NotesIndexPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ kind?: string; courseId?: string }>;
+}) {
+  return (
+    <Suspense fallback={<div className="min-h-dvh bg-[var(--color-bg)]" />}>
+      <NotesIndexPageContent searchParams={searchParams} />
+    </Suspense>
   );
 }

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { GoldenPathPage } from "@/components/golden-path/GoldenPathPage";
 import { FloatingHeader } from "@/components/shared/layout";
 import { getGoldenPathSnapshotCached } from "@/lib/server/golden-path-data";
@@ -8,7 +9,7 @@ interface GoldenPathPageProps {
   searchParams: Promise<{ path?: string }>;
 }
 
-export default async function Page({ searchParams }: GoldenPathPageProps) {
+async function GoldenPathPageContent({ searchParams }: GoldenPathPageProps) {
   const session = await getDynamicPageSession();
 
   if (!session?.user) {
@@ -26,5 +27,13 @@ export default async function Page({ searchParams }: GoldenPathPageProps) {
         <GoldenPathPage snapshot={snapshot} selectedPathId={path} />
       </div>
     </main>
+  );
+}
+
+export default function Page({ searchParams }: GoldenPathPageProps) {
+  return (
+    <Suspense fallback={<div className="min-h-dvh bg-[var(--color-bg)]" />}>
+      <GoldenPathPageContent searchParams={searchParams} />
+    </Suspense>
   );
 }
