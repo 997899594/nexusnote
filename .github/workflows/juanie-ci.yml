@@ -94,7 +94,9 @@ jobs:
       - name: Trigger Juanie Release
         if: success()
         run: |
-          curl -fsSX POST "https://juanie.art/api/releases" \
+          set -euo pipefail
+
+          trigger_response="$(curl -fsSX POST "https://juanie.art/api/releases" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d '{
@@ -107,4 +109,52 @@ jobs:
                   "image": "${{ env.IMAGE_TAG }}"
                 }
               ]
-            }'
+            }')"
+
+          echo "$trigger_response"
+
+          release_id="$(printf '%s' "$trigger_response" | python3 -c 'import json,sys; print(json.load(sys.stdin)["release"]["id"])')"
+          release_path="$(printf '%s' "$trigger_response" | python3 -c 'import json,sys; print(json.load(sys.stdin)["release"].get("releasePath", ""))')"
+
+          if [ -z "$release_id" ]; then
+            echo "Juanie did not return a release id"
+            exit 1
+          fi
+
+          if [ -n "$release_path" ]; then
+            echo "Release detail: https://juanie.art${release_path}"
+          fi
+
+          deadline=$(( $(date +%s) + 2700 ))
+
+          while [ "$(date +%s)" -lt "$deadline" ]; do
+            status_response="$(curl -fsSL "https://juanie.art/api/releases/${release_id}/status" \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}")"
+
+            status="$(printf '%s' "$status_response" | python3 -c 'import json,sys; print(json.load(sys.stdin)["release"]["status"])')"
+            status_label="$(printf '%s' "$status_response" | python3 -c 'import json,sys; print(json.load(sys.stdin)["release"]["statusLabel"])')"
+            terminal="$(printf '%s' "$status_response" | python3 -c 'import json,sys; print(str(json.load(sys.stdin)["release"]["terminal"]).lower())')"
+            succeeded="$(printf '%s' "$status_response" | python3 -c 'import json,sys; print(str(json.load(sys.stdin)["release"]["succeeded"]).lower())')"
+            error_message="$(printf '%s' "$status_response" | python3 -c 'import json,sys; value=json.load(sys.stdin)["release"].get("error"); print(value if value else "")')"
+
+            echo "Juanie release ${release_id}: ${status} (${status_label})"
+
+            if [ "$terminal" = "true" ]; then
+              if [ "$succeeded" = "true" ]; then
+                echo "Juanie release succeeded"
+                exit 0
+              fi
+
+              if [ -n "$error_message" ]; then
+                echo "Juanie release failed: ${error_message}"
+              else
+                echo "Juanie release failed with status ${status}"
+              fi
+              exit 1
+            fi
+
+            sleep 10
+          done
+
+          echo "Timed out waiting for Juanie release ${release_id}"
+          exit 1
