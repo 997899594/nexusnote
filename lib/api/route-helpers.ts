@@ -3,7 +3,7 @@
  * 提供认证和错误处理的高阶函数封装
  */
 
-import type { NextRequest, NextResponse } from "next/server";
+import { connection, type NextRequest, type NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { APIError, handleError } from "./errors";
 
@@ -32,6 +32,7 @@ export function withAuth<T>(
 ): (request: NextRequest) => Promise<Response | NextResponse<T>> {
   return async (request: NextRequest): Promise<Response | NextResponse<T>> => {
     try {
+      await connection();
       const session = await auth();
       if (!session?.user) {
         throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
@@ -58,6 +59,7 @@ export function withOptionalAuth<T>(
 ): (request: NextRequest) => Promise<Response | NextResponse<T>> {
   return async (request: NextRequest): Promise<Response | NextResponse<T>> => {
     try {
+      await connection();
       const session = await auth();
       return handler(request, {
         userId: session?.user?.id ?? null,
@@ -97,6 +99,7 @@ export function withDynamicAuth<T, P = Record<string, string>>(
     context: { params: Promise<P> },
   ): Promise<Response | NextResponse<T>> => {
     try {
+      await connection();
       const session = await auth();
       if (!session?.user) {
         throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
@@ -127,6 +130,7 @@ export function withDynamicOptionalAuth<T, P = Record<string, string>>(
     context: { params: Promise<P> },
   ): Promise<Response | NextResponse<T>> => {
     try {
+      await connection();
       const session = await auth();
       const params = await context.params;
       return handler(request, {

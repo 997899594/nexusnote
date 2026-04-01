@@ -65,7 +65,9 @@ class AIProvider {
       webSearch: env.AI_MODEL_WEB_SEARCH,
       embedding: env.EMBEDDING_MODEL,
     };
-    console.log(`[AI] Provider initialized: ${this.label}`);
+    if (env.AI_DEBUG_LOGS) {
+      console.log(`[AI] Provider initialized: ${this.label}`);
+    }
   }
 
   static getInstance(): AIProvider {

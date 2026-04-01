@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
 
     const hasPersistentSession = Boolean(sessionId && userId && isUuidString(sessionId));
 
-    if (hasPersistentSession && sessionId && profileId === "CHAT_BASIC") {
+    if (hasPersistentSession && sessionId) {
       const [conversation] = await db
         .select({ summary: conversations.summary })
         .from(conversations)

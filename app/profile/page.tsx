@@ -1,17 +1,9 @@
-import {
-  Brain,
-  FileText,
-  GraduationCap,
-  MessageSquare,
-  Settings,
-  Target,
-  TrendingUp,
-  Zap,
-} from "lucide-react";
+import { Brain, FileText, GraduationCap, MessageSquare, Settings } from "lucide-react";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { GoldenPathPreview } from "@/components/golden-path/GoldenPathPreview";
 import { GoldenPathPreviewSkeleton } from "@/components/golden-path/GoldenPathPreviewSkeleton";
+import { ProfileAiUsagePanel } from "@/components/profile/ProfileAiUsagePanel";
 import { FloatingHeader } from "@/components/shared/layout";
 import { getDynamicPageSession } from "@/lib/server/page-auth";
 import { getUserStatsCached } from "@/lib/server/profile-data";
@@ -46,7 +38,6 @@ export default async function ProfilePage() {
       href: "/interview",
     },
   ];
-
   return (
     <main className="ui-page-shell min-h-dvh safe-top">
       <FloatingHeader showBackHint showMenuButton />
@@ -136,51 +127,15 @@ export default async function ProfilePage() {
             <p className="text-[11px] uppercase tracking-[0.22em] text-[var(--color-text-muted)]">
               AI 使用情况
             </p>
-            <h2 className="mt-2 text-xl font-medium text-[var(--color-text)]">本周使用</h2>
+            <h2 className="mt-2 text-xl font-medium text-[var(--color-text)]">最近 7 天</h2>
           </div>
-          <div className="ui-surface-card rounded-2xl p-6">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
-              <div className="flex items-center gap-3 md:gap-4">
-                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#f3f5f8] md:h-12 md:w-12">
-                  <Zap className="w-5 h-5 text-[var(--color-text-secondary)] md:w-6 md:h-6" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-xs md:text-sm text-[var(--color-text-tertiary)]">请求数</div>
-                  <div className="text-base md:text-xl font-semibold text-[var(--color-text)] truncate">
-                    {stats.aiUsage.requestCount}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 md:gap-4">
-                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#f3f5f8] md:h-12 md:w-12">
-                  <TrendingUp className="w-5 h-5 text-[var(--color-text-secondary)] md:w-6 md:h-6" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-xs md:text-sm text-[var(--color-text-tertiary)]">
-                    Token 数
-                  </div>
-                  <div className="text-base md:text-xl font-semibold text-[var(--color-text)]">
-                    {(stats.aiUsage.totalTokens / 1000).toFixed(1)}k
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 md:gap-4">
-                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#f3f5f8] md:h-12 md:w-12">
-                  <Target className="w-5 h-5 text-[var(--color-text-secondary)] md:w-6 md:h-6" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-xs md:text-sm text-[var(--color-text-tertiary)]">
-                    预估花费
-                  </div>
-                  <div className="text-base md:text-xl font-semibold text-[var(--color-text)]">
-                    ${stats.aiUsage.totalCost.toFixed(2)}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <ProfileAiUsagePanel
+            usage={stats.aiUsage}
+            windowStartLabel={stats.aiUsage.windowStart.toLocaleDateString("zh-CN", {
+              month: "short",
+              day: "numeric",
+            })}
+          />
         </section>
 
         <section className="mb-8">

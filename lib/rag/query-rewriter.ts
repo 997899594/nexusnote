@@ -10,7 +10,7 @@
  */
 
 import { generateText } from "ai";
-import { aiProvider } from "@/lib/ai";
+import { getPlainModelForPolicy } from "@/lib/ai";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 
 export async function rewriteQuery(query: string, conversationContext?: string): Promise<string> {
@@ -33,7 +33,7 @@ export async function rewriteQuery(query: string, conversationContext?: string):
 
   try {
     const { text, usage } = await generateText({
-      model: aiProvider.chatModel,
+      model: getPlainModelForPolicy("interactive-fast"),
       temperature: 0,
       maxOutputTokens: 100,
       system: `你是查询改写器。将用户的口语化查询改写为适合向量检索的关键词查询。

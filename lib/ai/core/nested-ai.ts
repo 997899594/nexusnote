@@ -2,7 +2,7 @@
 
 import { generateText, Output } from "ai";
 import type { z } from "zod";
-import { aiProvider } from "../core";
+import { getPlainModelForPolicy } from "../core";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "./telemetry";
 
 // ============================================
@@ -51,29 +51,20 @@ export async function callNestedAI<T>(
 ): Promise<NestedAIResult<T>> {
   const startTime = Date.now();
   const { timeout = 30_000, temperature = 0.3, useProModel = false } = options;
+  const modelPolicy = useProModel ? "structured-high-quality" : "interactive-fast";
 
-  const model = useProModel ? aiProvider.proModel : aiProvider.chatModel;
   const telemetry = createTelemetryContext({
     endpoint: options.telemetry?.endpoint ?? "nested-ai",
     userId: options.telemetry?.userId,
     intent: options.telemetry?.intent ?? "nested-ai",
     promptVersion: options.telemetry?.promptVersion,
-    modelPolicy: useProModel ? "structured-high-quality" : "interactive-fast",
+    modelPolicy,
     metadata: options.telemetry?.metadata,
   });
 
-  if (!model) {
-    return {
-      success: false,
-      data: null,
-      error: "AI 模型未配置",
-      durationMs: 0,
-    };
-  }
-
   try {
     const result = await generateText({
-      model,
+      model: getPlainModelForPolicy(modelPolicy),
       prompt,
       temperature,
       timeout,

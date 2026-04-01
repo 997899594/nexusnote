@@ -4,4 +4,4 @@
 
 export { HeroInput } from "./HeroInput";
 export { RecentCard } from "./RecentCard";
-export { RecentSectionClient } from "./RecentSectionClient";
+export { RecentSectionServer, RecentSectionSkeleton } from "./RecentSectionServer";

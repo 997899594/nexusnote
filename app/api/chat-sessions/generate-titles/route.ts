@@ -13,7 +13,7 @@ import { generateObject } from "ai";
 import { and } from "drizzle-orm";
 import { z } from "zod";
 import { conversations, db, eq } from "@/db";
-import { aiProvider } from "@/lib/ai/core";
+import { getJsonModelForPolicy } from "@/lib/ai/core";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { withAuth } from "@/lib/api";
 import { extractMessageText, loadConversationMessagesMap } from "@/lib/chat/conversation-messages";
@@ -73,7 +73,7 @@ export const POST = withAuth(async (_request, { userId }) => {
       // 3. 使用 AI 生成标题（10字以内）
       const result = await generateObject({
         schema: titleSchema,
-        model: aiProvider.chatModel,
+        model: getJsonModelForPolicy("interactive-fast"),
         system:
           "你是一个专业的标题生成助手。根据用户的第一条消息，生成一个简洁、准确的标题，不超过10个字。",
         prompt: `用户消息：${firstUserMessage}\n\n请生成一个简洁的标题：`,

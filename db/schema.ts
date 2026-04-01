@@ -649,6 +649,8 @@ export const aiUsage = pgTable(
     intent: text("intent"),
     profile: text("profile"),
     workflow: text("workflow"),
+    provider: text("provider"),
+    modelPolicy: text("model_policy"),
     model: text("model").notNull(),
     promptVersion: text("prompt_version"),
 
@@ -671,6 +673,8 @@ export const aiUsage = pgTable(
     endpointIdx: index("ai_usage_endpoint_idx").on(table.endpoint),
     profileIdx: index("ai_usage_profile_idx").on(table.profile),
     workflowIdx: index("ai_usage_workflow_idx").on(table.workflow),
+    providerIdx: index("ai_usage_provider_idx").on(table.provider),
+    modelPolicyIdx: index("ai_usage_model_policy_idx").on(table.modelPolicy),
     createdAtIdx: index("ai_usage_created_at_idx").on(table.createdAt),
   }),
 );

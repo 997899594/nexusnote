@@ -1,11 +1,22 @@
 import type { LanguageModelUsage } from "ai";
+import { env } from "@/config/env";
 import { aiUsage, db } from "@/db";
 import type { AgentProfile } from "./capability-profiles";
 import { getModelNameForPolicy, getProviderForPolicy, type ModelPolicy } from "./model-policy";
 
 const MODEL_PRICING_USD_PER_1M_TOKENS: Record<string, { input: number; output: number }> = {
-  "gemini-3.1-flash-lite-preview": { input: 0.1, output: 0.4 },
-  "gemini-3.1-pro-preview": { input: 3.5, output: 10.5 },
+  [env.AI_MODEL]: {
+    input: env.AI_MODEL_PRICE_INPUT_PER_1M,
+    output: env.AI_MODEL_PRICE_OUTPUT_PER_1M,
+  },
+  [env.AI_MODEL_PRO]: {
+    input: env.AI_MODEL_PRO_PRICE_INPUT_PER_1M,
+    output: env.AI_MODEL_PRO_PRICE_OUTPUT_PER_1M,
+  },
+  [env.AI_MODEL_WEB_SEARCH]: {
+    input: env.AI_MODEL_WEB_SEARCH_PRICE_INPUT_PER_1M,
+    output: env.AI_MODEL_WEB_SEARCH_PRICE_OUTPUT_PER_1M,
+  },
 };
 
 export interface AITelemetryContext {
@@ -72,7 +83,9 @@ export function getErrorMessage(error: unknown): string {
 export async function recordAIUsage(input: RecordAIUsageInput): Promise<void> {
   const model =
     input.model ?? (input.modelPolicy ? getModelNameForPolicy(input.modelPolicy) : null);
-  const provider = input.modelPolicy ? getProviderForPolicy(input.modelPolicy) : null;
+  const provider = input.modelPolicy
+    ? getProviderForPolicy(input.modelPolicy)
+    : ((input.metadata?.provider as string | undefined) ?? null);
   if (!model) {
     return;
   }
@@ -87,6 +100,8 @@ export async function recordAIUsage(input: RecordAIUsageInput): Promise<void> {
       intent: input.intent ?? input.profile ?? input.workflow,
       profile: input.profile,
       workflow: input.workflow,
+      provider,
+      modelPolicy: input.modelPolicy ?? null,
       model,
       promptVersion: input.promptVersion,
       inputTokens,
@@ -99,6 +114,8 @@ export async function recordAIUsage(input: RecordAIUsageInput): Promise<void> {
       metadata: {
         ...input.metadata,
         provider,
+        modelPolicy: input.modelPolicy ?? null,
+        resolvedModel: model,
       },
     });
   } catch (error) {

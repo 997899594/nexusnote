@@ -21,7 +21,7 @@ import {
   skills,
   userSkillMastery,
 } from "@/db/schema";
-import { aiProvider } from "@/lib/ai/core";
+import { getJsonModelForPolicy } from "@/lib/ai/core";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { extractMessageText, loadConversationMessagesMap } from "@/lib/chat/conversation-messages";
 
@@ -222,7 +222,7 @@ export async function extractSkillsFromData(
     userId,
     workflow: "discover-skills",
     promptVersion: "skills-discovery@v1",
-    model: "gemini-3.1-pro-preview",
+    modelPolicy: "structured-high-quality",
     metadata: {
       sources: options.sources ?? ["conversations", "knowledge", "courses", "flashcards"],
       limit: options.limit ?? 50,
@@ -240,7 +240,7 @@ export async function extractSkillsFromData(
   try {
     const result = await generateObject({
       schema: SkillExtractionResultSchema,
-      model: aiProvider.proModel,
+      model: getJsonModelForPolicy("structured-high-quality"),
       system: `你是一个专业的技能分析专家。你的任务是从用户的学习和对话数据中提取出他们掌握或正在学习的技能。
 
 分析规则：

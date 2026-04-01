@@ -11,7 +11,7 @@ import { embed, generateObject } from "ai";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { notes, noteTags, tags } from "@/db/schema";
-import { aiProvider } from "@/lib/ai";
+import { aiProvider, getJsonModelForPolicy } from "@/lib/ai";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import {
   TAG_GENERATION_SYSTEM_PROMPT,
@@ -96,7 +96,7 @@ class TagGenerationService {
     try {
       const result = await generateObject({
         schema: TagGenerationResultSchema,
-        model: aiProvider.chatModel,
+        model: getJsonModelForPolicy("interactive-fast"),
         system: TAG_GENERATION_SYSTEM_PROMPT,
         prompt: TAG_GENERATION_USER_PROMPT(content),
         temperature: 0.3,

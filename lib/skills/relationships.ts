@@ -9,7 +9,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { skillRelationships, skills, userSkillMastery } from "@/db/schema";
-import { aiProvider } from "@/lib/ai/core";
+import { getJsonModelForPolicy } from "@/lib/ai/core";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 
 // ============================================
@@ -71,7 +71,7 @@ export async function inferSkillRelationships(skillSlugs: string[]): Promise<Ski
   const telemetry = createTelemetryContext({
     endpoint: "skills:relationships",
     intent: "skill-relationship-inference",
-    model: "gemini-3.1-pro-preview",
+    modelPolicy: "structured-high-quality",
     promptVersion: "skill-relationships@v1",
     metadata: {
       skillCount: skillsList.length,
@@ -81,7 +81,7 @@ export async function inferSkillRelationships(skillSlugs: string[]): Promise<Ski
   try {
     const result = await generateObject({
       schema: RelationshipInferenceResultSchema,
-      model: aiProvider.proModel,
+      model: getJsonModelForPolicy("structured-high-quality"),
       system: `你是一个技能图谱分析专家。你的任务是基于技术知识，分析一组技能之间的关系。
 
 关系类型说明：

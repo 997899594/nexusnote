@@ -8,7 +8,7 @@
  */
 
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
 import type { AIPersona, PersonaPreference } from "@/lib/ai/personas";
 import { BUILT_IN_PERSONAS } from "@/lib/ai/personas/built-in";
 
@@ -65,6 +65,12 @@ interface UserPreferencesState {
 }
 
 const DEFAULT_PERSONA_SLUG = "default";
+
+const noopStorage: StateStorage = {
+  getItem: () => null,
+  setItem: () => {},
+  removeItem: () => {},
+};
 
 // Convert built-in personas to AIPersona format
 function getBuiltInPersonasAsAI(): AIPersona[] {
@@ -206,6 +212,9 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
     }),
     {
       name: "nexusnote-user-preferences",
+      storage: createJSONStorage(() =>
+        typeof window === "undefined" ? noopStorage : window.localStorage,
+      ),
       partialize: (state) => ({
         // Persist current persona choice and built-in personas
         currentPersonaSlug: state.currentPersonaSlug,
@@ -215,9 +224,6 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
     },
   ),
 );
-
-// Initialize built-in personas on module load
-useUserPreferencesStore.getState().loadBuiltInPersonas();
 
 // Selectors
 export const selectCurrentPersona = (state: UserPreferencesState): AIPersona | undefined => {

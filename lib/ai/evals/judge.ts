@@ -1,6 +1,6 @@
 import { generateObject } from "ai";
 import { z } from "zod";
-import { aiProvider } from "@/lib/ai/core/provider";
+import { getJsonModelForPolicy } from "@/lib/ai/core";
 import { createTelemetryContext, recordAIUsage } from "@/lib/ai/core/telemetry";
 import type { EvalCase } from "./types";
 
@@ -20,7 +20,7 @@ export async function judgeEvalOutput(testCase: EvalCase, output: string): Promi
     endpoint: "eval:judge",
     workflow: "ai-eval-judge",
     promptVersion: "eval-judge@v1",
-    model: "gemini-3.1-pro-preview",
+    modelPolicy: "structured-high-quality",
     metadata: {
       caseId: testCase.id,
       domain: testCase.domain,
@@ -28,7 +28,7 @@ export async function judgeEvalOutput(testCase: EvalCase, output: string): Promi
   });
 
   const result = await generateObject({
-    model: aiProvider.proModel,
+    model: getJsonModelForPolicy("structured-high-quality"),
     schema: EvalJudgementSchema,
     timeout: 30_000,
     system: `你是一个严格但公平的 AI 质量评估员。

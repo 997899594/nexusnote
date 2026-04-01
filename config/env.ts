@@ -41,6 +41,15 @@ export const defaults = {
     modelPro: "gemini-3.1-pro-preview",
     // 联网搜索模型
     modelWebSearch: "gemini-3.1-flash-lite-preview",
+    // 定价（USD / 1M tokens）
+    priceInputPer1M: 0.1,
+    priceOutputPer1M: 0.4,
+    priceProInputPer1M: 3.5,
+    priceProOutputPer1M: 10.5,
+    priceWebSearchInputPer1M: 0.1,
+    priceWebSearchOutputPer1M: 0.4,
+    // 默认关闭 provider 初始化噪音
+    debugLogs: false,
     // 302.ai 为首选 Provider
     baseURL: "https://api.302.ai/v1",
   },
@@ -105,6 +114,31 @@ export const serverEnvSchema = z.object({
   AI_MODEL: z.string().default(defaults.ai.model),
   AI_MODEL_PRO: z.string().default(defaults.ai.modelPro),
   AI_MODEL_WEB_SEARCH: z.string().default(defaults.ai.modelWebSearch),
+  AI_MODEL_PRICE_INPUT_PER_1M: z.coerce.number().nonnegative().default(defaults.ai.priceInputPer1M),
+  AI_MODEL_PRICE_OUTPUT_PER_1M: z.coerce
+    .number()
+    .nonnegative()
+    .default(defaults.ai.priceOutputPer1M),
+  AI_MODEL_PRO_PRICE_INPUT_PER_1M: z.coerce
+    .number()
+    .nonnegative()
+    .default(defaults.ai.priceProInputPer1M),
+  AI_MODEL_PRO_PRICE_OUTPUT_PER_1M: z.coerce
+    .number()
+    .nonnegative()
+    .default(defaults.ai.priceProOutputPer1M),
+  AI_MODEL_WEB_SEARCH_PRICE_INPUT_PER_1M: z.coerce
+    .number()
+    .nonnegative()
+    .default(defaults.ai.priceWebSearchInputPer1M),
+  AI_MODEL_WEB_SEARCH_PRICE_OUTPUT_PER_1M: z.coerce
+    .number()
+    .nonnegative()
+    .default(defaults.ai.priceWebSearchOutputPer1M),
+  AI_DEBUG_LOGS: z
+    .string()
+    .default(String(defaults.ai.debugLogs))
+    .transform((v) => v === "true"),
 
   // AI Features
   AI_ENABLE_WEB_SEARCH: z

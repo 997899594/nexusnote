@@ -8,7 +8,7 @@
 import { generateObject, type UIMessage } from "ai";
 import { z } from "zod";
 import { conversations, db, eq, userProfiles } from "@/db";
-import { aiProvider } from "@/lib/ai/core";
+import { getJsonModelForPolicy } from "@/lib/ai/core";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { loadConversationMessages } from "@/lib/chat/conversation-messages";
 import { type EMAValue, updateEMA } from "./ema";
@@ -233,7 +233,7 @@ ${
   const telemetry = createTelemetryContext({
     endpoint: "style:analysis",
     intent: "style-analysis",
-    model: "gemini-3.1-pro-preview",
+    modelPolicy: "structured-high-quality",
     promptVersion: "style-analysis@v1",
     metadata: {
       messageCount: messages.length,
@@ -243,7 +243,7 @@ ${
 
   try {
     const result = await generateObject({
-      model: aiProvider.proModel,
+      model: getJsonModelForPolicy("structured-high-quality"),
       schema: StyleAnalysisSchema,
       prompt: userPrompt,
       system: systemPrompt,

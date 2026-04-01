@@ -1,4 +1,5 @@
-import { HeroInput, RecentSectionClient } from "@/components/home";
+import { Suspense } from "react";
+import { HeroInput, RecentSectionServer, RecentSectionSkeleton } from "@/components/home";
 import { FloatingHeader } from "@/components/shared/layout";
 
 export default function HomePage() {
@@ -26,7 +27,9 @@ export default function HomePage() {
             <HeroInput />
           </div>
 
-          <RecentSectionClient />
+          <Suspense fallback={<RecentSectionSkeleton />}>
+            <RecentSectionServer />
+          </Suspense>
         </div>
       </div>
     </main>
