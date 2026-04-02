@@ -1,11 +1,11 @@
 /**
- * Built-in AI Personas
+ * Built-in AI Skins
  *
- * Predefined AI personalities that users can switch between.
- * Each persona has a distinct communication style and system prompt.
+ * Predefined expression skins that users can switch between.
+ * Each skin has a distinct communication surface and system prompt.
  */
 
-export interface BuiltInPersona {
+export interface BuiltInSkin {
   slug: string;
   name: string;
   description: string;
@@ -23,7 +23,7 @@ export interface BuiltInPersona {
   category: "learning" | "motivation" | "emotional" | "specialized";
 }
 
-export const BUILT_IN_PERSONAS: readonly BuiltInPersona[] = [
+export const BUILT_IN_SKINS: readonly BuiltInSkin[] = [
   {
     slug: "default",
     name: "标准助手",
@@ -261,25 +261,25 @@ export const BUILT_IN_PERSONAS: readonly BuiltInPersona[] = [
   },
 ] as const;
 
-export type PersonaSlug = (typeof BUILT_IN_PERSONAS)[number]["slug"];
+export type SkinSlug = (typeof BUILT_IN_SKINS)[number]["slug"];
 
 /**
- * Get a built-in persona by slug
+ * Get a built-in skin by slug
  */
-export function getBuiltInPersona(slug: string): BuiltInPersona | undefined {
-  return BUILT_IN_PERSONAS.find((p) => p.slug === slug);
+export function getBuiltInSkin(slug: string): BuiltInSkin | undefined {
+  return BUILT_IN_SKINS.find((skin) => skin.slug === slug);
 }
 
 /**
- * Get all built-in personas
+ * Get all built-in skins
  */
-export function getAllBuiltInPersonas(): readonly BuiltInPersona[] {
-  return BUILT_IN_PERSONAS;
+export function getAllBuiltInSkins(): readonly BuiltInSkin[] {
+  return BUILT_IN_SKINS;
 }
 
 /**
- * Get personas by category
+ * Get skins by category
  */
-export function getPersonasByCategory(category: BuiltInPersona["category"]): BuiltInPersona[] {
-  return BUILT_IN_PERSONAS.filter((p) => p.category === category);
+export function getSkinsByCategory(category: BuiltInSkin["category"]): BuiltInSkin[] {
+  return BUILT_IN_SKINS.filter((skin) => skin.category === category);
 }

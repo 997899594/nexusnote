@@ -60,7 +60,7 @@ export function ChatLayout({ children }: ChatLayoutProps) {
     <div className="flex min-h-dvh flex-col bg-[#f6f7f9]">
       <FloatingHeader
         showMenuButton
-        showPersonaSelector
+        showSkinSelector
         onLogoClick={() => router.push("/")}
         onMenuClick={() => setSidebarOpen(!sidebarOpen)}
       />

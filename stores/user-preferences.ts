@@ -1,16 +1,18 @@
 /**
  * User Preferences Store
  *
- * Manages user personalization data on the frontend:
+ * Manages user AI preference data on the frontend:
  * - Profile (style analysis, learning preferences)
- * - Persona preference (default and current persona)
- * - Available personas
+ * - Skin preference (default and current expression skin)
+ * - Available skins
+ *
  */
 
 import { create } from "zustand";
 import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
-import type { AIPersona, PersonaPreference } from "@/lib/ai/personas";
-import { BUILT_IN_PERSONAS } from "@/lib/ai/personas/built-in";
+import { type AIPreferences, DEFAULT_AI_PREFERENCES } from "@/lib/ai/preferences";
+import type { AISkin, SkinPreference } from "@/lib/ai/skins";
+import { BUILT_IN_SKINS } from "@/lib/ai/skins-built-in";
 
 interface UserStyleProfile {
   userId: string;
@@ -42,15 +44,16 @@ interface LearningStyle {
 
 interface UserProfile {
   learningStyle?: LearningStyle;
+  aiPreferences?: AIPreferences;
   style?: UserStyleProfile;
 }
 
 interface UserPreferencesState {
   // Data
   profile: UserProfile | null;
-  personaPreference: PersonaPreference | null;
-  availablePersonas: AIPersona[];
-  currentPersonaSlug: string;
+  skinPreference: SkinPreference | null;
+  availableSkins: AISkin[];
+  currentSkinSlug: string;
 
   // Loading state
   isLoading: boolean;
@@ -58,13 +61,17 @@ interface UserPreferencesState {
 
   // Actions
   loadPreferences: () => Promise<void>;
-  loadBuiltInPersonas: () => void;
-  setCurrentPersona: (slug: string) => Promise<void>;
+  loadBuiltInSkins: () => void;
+  setCurrentSkin: (slug: string) => Promise<void>;
+  saveProfilePreferences: (updates: {
+    learningStyle?: LearningStyle;
+    aiPreferences?: AIPreferences;
+  }) => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => void;
   reset: () => void;
 }
 
-const DEFAULT_PERSONA_SLUG = "default";
+const DEFAULT_SKIN_SLUG = "default";
 
 const noopStorage: StateStorage = {
   getItem: () => null,
@@ -72,17 +79,16 @@ const noopStorage: StateStorage = {
   removeItem: () => {},
 };
 
-// Convert built-in personas to AIPersona format
-function getBuiltInPersonasAsAI(): AIPersona[] {
-  return BUILT_IN_PERSONAS.map((p) => ({
-    id: `builtin-${p.slug}`,
-    slug: p.slug,
-    name: p.name,
-    description: p.description,
-    avatar: p.avatar || null,
-    systemPrompt: p.systemPrompt,
-    style: p.style,
-    examples: p.examples,
+function getBuiltInSkins(): AISkin[] {
+  return BUILT_IN_SKINS.map((skin) => ({
+    id: `builtin-${skin.slug}`,
+    slug: skin.slug,
+    name: skin.name,
+    description: skin.description,
+    avatar: skin.avatar || null,
+    systemPrompt: skin.systemPrompt,
+    style: skin.style,
+    examples: skin.examples,
     isBuiltIn: true,
     isEnabled: true,
     usageCount: 0,
@@ -93,17 +99,23 @@ function getBuiltInPersonasAsAI(): AIPersona[] {
 export const useUserPreferencesStore = create<UserPreferencesState>()(
   persist(
     (set, get) => ({
-      // Initial state - load built-in personas immediately
-      profile: null,
-      personaPreference: null,
-      availablePersonas: getBuiltInPersonasAsAI(),
-      currentPersonaSlug: DEFAULT_PERSONA_SLUG,
+      // Initial state
+      profile: {
+        learningStyle: { preferredFormat: "mixed", pace: "moderate" },
+        aiPreferences: DEFAULT_AI_PREFERENCES,
+      },
+      skinPreference: null,
+      availableSkins: getBuiltInSkins(),
+      currentSkinSlug: DEFAULT_SKIN_SLUG,
       isLoading: false,
       lastFetchedAt: null,
 
-      // Load built-in personas (always available, no login required)
-      loadBuiltInPersonas: () => {
-        set({ availablePersonas: getBuiltInPersonasAsAI() });
+      // Load built-in skins (always available, no login required)
+      loadBuiltInSkins: () => {
+        const availableSkins = getBuiltInSkins();
+        set({
+          availableSkins,
+        });
       },
 
       // Load all preferences from API (requires login)
@@ -114,10 +126,11 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
           const response = await fetch("/api/user/preferences");
 
           if (!response.ok) {
-            // If not logged in, still load built-in personas
+            // If not logged in, still load built-in skins
             if (response.status === 401) {
+              const availableSkins = getBuiltInSkins();
               set({
-                availablePersonas: getBuiltInPersonasAsAI(),
+                availableSkins,
                 isLoading: false,
               });
               return;
@@ -129,61 +142,82 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
 
           set({
             profile: data.profile,
-            personaPreference: data.personaPreference,
-            availablePersonas: data.availablePersonas,
-            currentPersonaSlug: data.personaPreference?.defaultPersonaSlug || DEFAULT_PERSONA_SLUG,
+            skinPreference: data.skinPreference,
+            availableSkins: data.availableSkins,
+            currentSkinSlug: data.skinPreference?.defaultSkinSlug || DEFAULT_SKIN_SLUG,
             lastFetchedAt: Date.now(),
             isLoading: false,
           });
         } catch (error) {
           console.error("[UserPreferences] Failed to load:", error);
-          // Ensure built-in personas are always available
+          // Ensure built-in skins are always available
+          const availableSkins = getBuiltInSkins();
           set({
-            availablePersonas: getBuiltInPersonasAsAI(),
+            availableSkins,
             isLoading: false,
           });
         }
       },
 
-      // Set current persona and update server preference
-      setCurrentPersona: async (slug: string) => {
-        const { availablePersonas } = get();
+      saveProfilePreferences: async (updates) => {
+        const response = await fetch("/api/user/preferences", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updates),
+        });
 
-        // Validate persona exists
-        const persona = availablePersonas.find((p) => p.slug === slug);
-        if (!persona) {
-          console.error(`[UserPreferences] Persona not found: ${slug}`);
+        if (!response.ok) {
+          throw new Error("Failed to save AI preferences");
+        }
+
+        const data = await response.json();
+        set((state) => ({
+          profile: {
+            ...state.profile,
+            ...data.profile,
+          },
+        }));
+      },
+
+      // Set current skin and update server preference
+      setCurrentSkin: async (slug: string) => {
+        const { availableSkins } = get();
+
+        const skin = availableSkins.find((item) => item.slug === slug);
+        if (!skin) {
+          console.error(`[UserPreferences] Skin not found: ${slug}`);
           return;
         }
 
         // Optimistic update
-        set({ currentPersonaSlug: slug });
+        set({ currentSkinSlug: slug });
 
         // Try to update server preference (may fail if not logged in)
         try {
-          const response = await fetch("/api/user/persona", {
+          const response = await fetch("/api/user/skin", {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ personaSlug: slug }),
+            body: JSON.stringify({ skinSlug: slug }),
           });
 
           if (!response.ok) {
             if (response.status === 401) {
-              // Not logged in - persona change is local-only for this session
-              console.log("[UserPreferences] Persona change is local-only (not logged in)");
+              console.log("[UserPreferences] Skin change is local-only (not logged in)");
               return;
             }
-            throw new Error("Failed to update persona preference");
+            throw new Error("Failed to update skin preference");
           }
 
+          const nextPreference: SkinPreference = {
+            defaultSkinSlug: slug,
+            lastSwitchedAt: new Date(),
+          };
+
           set({
-            personaPreference: {
-              defaultPersonaSlug: slug,
-              lastSwitchedAt: new Date(),
-            },
+            skinPreference: nextPreference,
           });
         } catch (error) {
-          console.error("[UserPreferences] Failed to update persona:", error);
+          console.error("[UserPreferences] Failed to update skin:", error);
           // Don't revert - keep local change
         }
       },
@@ -201,10 +235,13 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
       // Reset store to initial state
       reset: () => {
         set({
-          profile: null,
-          personaPreference: null,
-          availablePersonas: getBuiltInPersonasAsAI(),
-          currentPersonaSlug: DEFAULT_PERSONA_SLUG,
+          profile: {
+            learningStyle: { preferredFormat: "mixed", pace: "moderate" },
+            aiPreferences: DEFAULT_AI_PREFERENCES,
+          },
+          skinPreference: null,
+          availableSkins: getBuiltInSkins(),
+          currentSkinSlug: DEFAULT_SKIN_SLUG,
           isLoading: false,
           lastFetchedAt: null,
         });
@@ -216,18 +253,17 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
         typeof window === "undefined" ? noopStorage : window.localStorage,
       ),
       partialize: (state) => ({
-        // Persist current persona choice and built-in personas
-        currentPersonaSlug: state.currentPersonaSlug,
-        availablePersonas: state.availablePersonas.filter((p) => p.isBuiltIn),
+        // Persist current skin choice and built-in skins
+        currentSkinSlug: state.currentSkinSlug,
+        availableSkins: state.availableSkins.filter((skin) => skin.isBuiltIn),
         // Don't persist profile (server data)
       }),
     },
   ),
 );
 
-// Selectors
-export const selectCurrentPersona = (state: UserPreferencesState): AIPersona | undefined => {
-  return state.availablePersonas.find((p) => p.slug === state.currentPersonaSlug);
+export const selectCurrentSkin = (state: UserPreferencesState): AISkin | undefined => {
+  return state.availableSkins.find((skin) => skin.slug === state.currentSkinSlug);
 };
 
 export const selectStyleMetrics = (state: UserPreferencesState) => {

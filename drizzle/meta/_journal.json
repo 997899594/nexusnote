@@ -64,6 +64,27 @@
       "when": 1774972800000,
       "tag": "0008_add_ai_usage_provider_policy",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1775002200000,
+      "tag": "0009_add_retrieval_and_recent_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1775030400000,
+      "tag": "0010_add_ai_preferences_to_user_profiles",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1775059200000,
+      "tag": "0011_rename_personas_to_skins",
+      "breakpoints": true
     }
   ]
 }

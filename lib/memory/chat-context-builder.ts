@@ -55,21 +55,6 @@ export async function buildChatContext(userId: string): Promise<string | null> {
   const parts: string[] = [];
   const styleInstructions: string[] = [];
 
-  // ========== Learning Style (Manual) ==========
-  const learningStyle = profile.learningStyle as {
-    preferredFormat?: string;
-    pace?: string;
-  } | null;
-
-  if (learningStyle) {
-    if (learningStyle.preferredFormat) {
-      parts.push(`Preferred learning format: ${learningStyle.preferredFormat}`);
-    }
-    if (learningStyle.pace) {
-      parts.push(`Learning pace: ${learningStyle.pace}`);
-    }
-  }
-
   // ========== Style Analysis (AI-inferred) ==========
 
   // Only include style instructions if we have enough data
@@ -78,7 +63,7 @@ export async function buildChatContext(userId: string): Promise<string | null> {
     profile.vocabularyComplexity && profile.vocabularyComplexity.samples >= minSamples;
 
   if (!hasStyleData) {
-    return parts.length > 0 ? parts.join("\n") : null;
+    return null;
   }
 
   const vocab = profile.vocabularyComplexity as EMAValue;

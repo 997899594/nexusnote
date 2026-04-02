@@ -4,7 +4,7 @@
  * 2026 架构：
  * - Chat 专注通用对话
  * - INTERVIEW 意图由客户端跳转到 /interview 页面
- * - 无 Persona 冲突
+ * - 无人设式混杂语义
  */
 
 import type { UIMessage } from "ai";
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { messages, sessionId, personaSlug, courseId, metadata } = validation.data;
+    const { messages, sessionId, skinSlug, courseId, metadata } = validation.data;
 
     const uiMessages = messages as UIMessage[];
     const resolvedContext = await resolveChatContext({
@@ -100,17 +100,21 @@ export async function POST(request: NextRequest) {
     }
 
     // ============================================
-    // Personalization: Load persona, context
+    // Personalization: Load behavior policy, skin, context
     // ============================================
 
-    let personaSystemPrompt = "";
+    let behaviorPrompt = "";
+    let skinPrompt = "";
     let userContext = "";
 
     if (userId) {
-      const { systemPrompt, userContext: context } = await buildPersonalization(userId, {
-        personaSlug,
-      });
-      personaSystemPrompt = systemPrompt;
+      const {
+        behaviorPrompt: personalizationBehaviorPrompt,
+        skinPrompt: personalizationSkinPrompt,
+        userContext: context,
+      } = await buildPersonalization(userId, { skinSlug });
+      behaviorPrompt = personalizationBehaviorPrompt;
+      skinPrompt = personalizationSkinPrompt;
       userContext = context;
     }
 
@@ -167,7 +171,8 @@ export async function POST(request: NextRequest) {
     // Get agent with personalization
     const agent = await getAgent(profileId, {
       userId,
-      personaPrompt: personaSystemPrompt,
+      behaviorPrompt,
+      skinPrompt,
       userContext,
       courseId: resolvedCourseId,
       metadata: resolvedMetadata,

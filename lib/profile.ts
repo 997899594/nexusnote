@@ -6,6 +6,7 @@
  */
 
 import { db, eq, userProfiles } from "@/db";
+import { type AIPreferences, DEFAULT_AI_PREFERENCES } from "@/lib/ai/preferences";
 
 // Re-export EMAValue from types for backward compatibility
 export type { EMAValue } from "@/types/profile";
@@ -14,8 +15,8 @@ export type { EMAValue } from "@/types/profile";
  * Learning style preferences (user-set, not AI-inferred)
  */
 export interface LearningStyle {
-  preferredFormat: string;
-  pace: string;
+  preferredFormat?: string;
+  pace?: string;
 }
 
 /**
@@ -24,6 +25,7 @@ export interface LearningStyle {
 export interface CreateProfileInput {
   userId: string;
   learningStyle?: LearningStyle;
+  aiPreferences?: AIPreferences;
 }
 
 /**
@@ -31,6 +33,7 @@ export interface CreateProfileInput {
  */
 export interface UpdateProfileInput {
   learningStyle?: LearningStyle;
+  aiPreferences?: AIPreferences;
 }
 
 /**
@@ -55,6 +58,7 @@ export async function getOrCreate(userId: string) {
     .values({
       userId,
       learningStyle: { preferredFormat: "mixed", pace: "moderate" },
+      aiPreferences: DEFAULT_AI_PREFERENCES,
       vocabularyComplexity: { value: 0.5, confidence: 0, samples: 0, lastAnalyzedAt: "" },
       sentenceComplexity: { value: 0.5, confidence: 0, samples: 0, lastAnalyzedAt: "" },
       abstractionLevel: { value: 0.5, confidence: 0, samples: 0, lastAnalyzedAt: "" },
@@ -89,6 +93,7 @@ export async function update(userId: string, input: UpdateProfileInput) {
     .update(userProfiles)
     .set({
       ...(input.learningStyle && { learningStyle: input.learningStyle }),
+      ...(input.aiPreferences && { aiPreferences: input.aiPreferences }),
       updatedAt: new Date(),
     })
     .where(eq(userProfiles.userId, userId))

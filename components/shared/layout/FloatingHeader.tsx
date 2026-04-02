@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { ArrowLeft, Menu, Zap } from "lucide-react";
 import { useState } from "react";
-import { PersonaSelector } from "@/components/chat/PersonaSelector";
+import { SkinSelector } from "@/components/chat/SkinSelector";
 import { useUserPreferencesStore } from "@/stores";
 import { DrawerMenu } from "./DrawerMenu";
 import { UserAvatar } from "./UserAvatar";
@@ -13,7 +13,7 @@ interface FloatingHeaderProps {
   showMenuButton?: boolean;
   onLogoClick?: () => void;
   onMenuClick?: () => void;
-  showPersonaSelector?: boolean;
+  showSkinSelector?: boolean;
 }
 
 export function FloatingHeader({
@@ -21,11 +21,11 @@ export function FloatingHeader({
   showMenuButton = false,
   onLogoClick,
   onMenuClick,
-  showPersonaSelector = false,
+  showSkinSelector = false,
 }: FloatingHeaderProps) {
-  const availablePersonas = useUserPreferencesStore((state) => state.availablePersonas);
-  const currentPersonaSlug = useUserPreferencesStore((state) => state.currentPersonaSlug);
-  const setCurrentPersona = useUserPreferencesStore((state) => state.setCurrentPersona);
+  const availableSkins = useUserPreferencesStore((state) => state.availableSkins);
+  const currentSkinSlug = useUserPreferencesStore((state) => state.currentSkinSlug);
+  const setCurrentSkin = useUserPreferencesStore((state) => state.setCurrentSkin);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const handleMenuClick = () => {
@@ -73,11 +73,11 @@ export function FloatingHeader({
           </motion.button>
 
           <div className="flex items-center gap-2 rounded-full bg-white/88 p-1.5 pl-2 shadow-[0_20px_44px_-32px_rgba(15,23,42,0.2)] backdrop-blur-xl">
-            {showPersonaSelector && availablePersonas.length > 0 && (
-              <PersonaSelector
-                personas={availablePersonas}
-                currentPersonaSlug={currentPersonaSlug}
-                onPersonaChange={setCurrentPersona}
+            {showSkinSelector && availableSkins.length > 0 && (
+              <SkinSelector
+                skins={availableSkins}
+                currentSkinSlug={currentSkinSlug}
+                onSkinChange={setCurrentSkin}
                 variant="dropdown"
               />
             )}

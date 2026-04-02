@@ -19,7 +19,8 @@ import type { AgentProfile } from "../core/capability-profiles";
 import { buildToolsForProfile } from "../tools";
 
 export interface PersonalizationOptions {
-  personaPrompt?: string;
+  behaviorPrompt?: string;
+  skinPrompt?: string;
   userContext?: string;
   userId?: string;
   courseId?: string;
@@ -86,7 +87,8 @@ export async function createChatAgent(options: PersonalizationOptions = {}) {
   }
 
   const instructions = buildPromptInstructions(profile.promptKey, {
-    personaPrompt: options.personaPrompt,
+    behaviorPrompt: options.behaviorPrompt,
+    skinPrompt: options.skinPrompt,
     userContext: userContextParts.length > 0 ? userContextParts.join("\n\n") : undefined,
   });
   const tools = buildToolsForProfile(profileId, {

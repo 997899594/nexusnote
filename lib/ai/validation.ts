@@ -13,7 +13,7 @@ const BaseConversationRequestSchema = z.object({
 
 export const ChatApiRequestSchema = BaseConversationRequestSchema.extend({
   intent: z.literal("CHAT").optional(),
-  personaSlug: z
+  skinSlug: z
     .string()
     .regex(/^[a-z0-9_-]+$/)
     .min(1)

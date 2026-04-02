@@ -1,22 +1,22 @@
 /**
- * Persona Selector Component
+ * Skin Selector Component
  *
- * Allows users to switch between AI personas.
- * Displays available personas with avatars and descriptions.
+ * Allows users to switch between AI skins.
+ * Displays available skins with avatars and descriptions.
  */
 
 import { useState } from "react";
-import type { AIPersona } from "@/lib/ai/personas";
+import type { AISkin } from "@/lib/ai/skins";
 
-interface PersonaSelectorProps {
-  personas: AIPersona[];
-  currentPersonaSlug: string;
-  onPersonaChange: (slug: string) => void;
+interface SkinSelectorProps {
+  skins: AISkin[];
+  currentSkinSlug: string;
+  onSkinChange: (slug: string) => void;
   disabled?: boolean;
   variant?: "dropdown" | "radio" | "cards";
 }
 
-const PERSONA_ICONS: Record<string, string> = {
+const SKIN_ICONS: Record<string, string> = {
   default: "🤖",
   best_friend: "😏",
   girlfriend: "💕",
@@ -27,7 +27,7 @@ const PERSONA_ICONS: Record<string, string> = {
   clickbait: "📢",
 };
 
-const PERSONA_COLORS: Record<string, string> = {
+const SKIN_COLORS: Record<string, string> = {
   default: "bg-[var(--color-hover)] text-[var(--color-text-secondary)]",
   best_friend: "bg-[#f3f5f8] text-[#111827]",
   girlfriend: "bg-[#f3f5f8] text-[#111827]",
@@ -38,53 +38,51 @@ const PERSONA_COLORS: Record<string, string> = {
   clickbait: "bg-[#f3f5f8] text-[#111827]",
 };
 
-export function PersonaSelector({
-  personas,
-  currentPersonaSlug,
-  onPersonaChange,
+export function SkinSelector({
+  skins,
+  currentSkinSlug,
+  onSkinChange,
   disabled = false,
   variant = "dropdown",
-}: PersonaSelectorProps) {
+}: SkinSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
 
-  const currentPersona = personas.find((p) => p.slug === currentPersonaSlug) || personas[0];
+  const currentSkin = skins.find((skin) => skin.slug === currentSkinSlug) || skins[0];
 
   const handleSelect = (slug: string) => {
-    onPersonaChange(slug);
+    onSkinChange(slug);
     setIsOpen(false);
   };
 
   if (variant === "cards") {
     return (
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        {personas.map((persona) => (
+        {skins.map((skin) => (
           <button
             type="button"
-            key={persona.id}
-            onClick={() => handleSelect(persona.slug)}
+            key={skin.id}
+            onClick={() => handleSelect(skin.slug)}
             disabled={disabled}
             className={`
               p-3 rounded-lg border-2 transition-all text-left
               ${
-                currentPersonaSlug === persona.slug
+                currentSkinSlug === skin.slug
                   ? "border-[#111827] bg-[#f6f7f9]"
                   : "border-[var(--color-border)] hover:border-[#d1d7e0]"
               }
               ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
             `}
-            title={persona.description || undefined}
+            title={skin.description || undefined}
           >
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-xl">
-                {persona.avatar || PERSONA_ICONS[persona.slug] || "🤖"}
-              </span>
+              <span className="text-xl">{skin.avatar || SKIN_ICONS[skin.slug] || "🤖"}</span>
               <span className="font-medium text-sm truncate text-[var(--color-text)]">
-                {persona.name}
+                {skin.name}
               </span>
             </div>
-            {persona.description && (
+            {skin.description && (
               <p className="text-xs text-[var(--color-text-tertiary)] line-clamp-2">
-                {persona.description}
+                {skin.description}
               </p>
             )}
           </button>
@@ -96,31 +94,29 @@ export function PersonaSelector({
   if (variant === "radio") {
     return (
       <div className="space-y-1">
-        {personas.map((persona) => (
+        {skins.map((skin) => (
           <label
-            key={persona.id}
+            key={skin.id}
             className={`
               flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-all
-              ${currentPersonaSlug === persona.slug ? "bg-[#f6f7f9]" : "hover:bg-[#f6f7f9]"}
+              ${currentSkinSlug === skin.slug ? "bg-[#f6f7f9]" : "hover:bg-[#f6f7f9]"}
               ${disabled ? "opacity-50 pointer-events-none" : ""}
             `}
           >
             <input
               type="radio"
-              name="persona"
-              value={persona.slug}
-              checked={currentPersonaSlug === persona.slug}
-              onChange={() => handleSelect(persona.slug)}
+              name="skin"
+              value={skin.slug}
+              checked={currentSkinSlug === skin.slug}
+              onChange={() => handleSelect(skin.slug)}
               disabled={disabled}
               className="h-4 w-4 text-[#111827]"
             />
-            <span className="text-lg">{persona.avatar || PERSONA_ICONS[persona.slug] || "🤖"}</span>
+            <span className="text-lg">{skin.avatar || SKIN_ICONS[skin.slug] || "🤖"}</span>
             <div className="flex-1">
-              <div className="font-medium text-sm text-[var(--color-text)]">{persona.name}</div>
-              {persona.description && (
-                <div className="text-xs text-[var(--color-text-tertiary)]">
-                  {persona.description}
-                </div>
+              <div className="font-medium text-sm text-[var(--color-text)]">{skin.name}</div>
+              {skin.description && (
+                <div className="text-xs text-[var(--color-text-tertiary)]">{skin.description}</div>
               )}
             </div>
           </label>
@@ -144,9 +140,9 @@ export function PersonaSelector({
         `}
       >
         <span className="text-lg">
-          {currentPersona?.avatar || PERSONA_ICONS[currentPersona?.slug || ""] || "🤖"}
+          {currentSkin?.avatar || SKIN_ICONS[currentSkin?.slug || ""] || "🤖"}
         </span>
-        <span className="font-medium text-sm text-[var(--color-text)]">{currentPersona?.name}</span>
+        <span className="font-medium text-sm text-[var(--color-text)]">{currentSkin?.name}</span>
         <svg
           className={`w-4 h-4 transition-transform text-[var(--color-text-muted)] ${isOpen ? "rotate-180" : ""}`}
           fill="none"
@@ -168,36 +164,34 @@ export function PersonaSelector({
             aria-label="Close dropdown"
           />
           <div className="absolute z-20 mt-2 max-h-80 w-56 overflow-y-auto rounded-2xl bg-white py-1 shadow-[0_24px_56px_-36px_rgba(15,23,42,0.18)]">
-            {personas.map((persona) => (
+            {skins.map((skin) => (
               <button
                 type="button"
-                key={persona.id}
-                onClick={() => handleSelect(persona.slug)}
+                key={skin.id}
+                onClick={() => handleSelect(skin.slug)}
                 disabled={disabled}
                 className={`
                   w-full flex items-center gap-3 px-3 py-2 text-left transition-colors
                   ${
-                    currentPersonaSlug === persona.slug
+                    currentSkinSlug === skin.slug
                       ? "bg-[#f6f7f9] text-[#111827]"
                       : "hover:bg-[#f6f7f9]"
                   }
                   ${disabled ? "opacity-50 cursor-not-allowed" : ""}
                 `}
               >
-                <span className="text-lg">
-                  {persona.avatar || PERSONA_ICONS[persona.slug] || "🤖"}
-                </span>
+                <span className="text-lg">{skin.avatar || SKIN_ICONS[skin.slug] || "🤖"}</span>
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-sm truncate text-[var(--color-text)]">
-                    {persona.name}
+                    {skin.name}
                   </div>
-                  {persona.description && (
+                  {skin.description && (
                     <div className="text-xs text-[var(--color-text-tertiary)] truncate">
-                      {persona.description}
+                      {skin.description}
                     </div>
                   )}
                 </div>
-                {currentPersonaSlug === persona.slug && (
+                {currentSkinSlug === skin.slug && (
                   <svg
                     className="h-4 w-4 text-[#111827]"
                     fill="currentColor"
@@ -222,11 +216,11 @@ export function PersonaSelector({
 }
 
 /**
- * Compact persona badge for inline display
+ * Compact skin badge for inline display
  */
-export function PersonaBadge({ persona, onClick }: { persona: AIPersona; onClick?: () => void }) {
+export function SkinBadge({ skin, onClick }: { skin: AISkin; onClick?: () => void }) {
   const colorClass =
-    PERSONA_COLORS[persona.slug] || "bg-[var(--color-hover)] text-[var(--color-text-secondary)]";
+    SKIN_COLORS[skin.slug] || "bg-[var(--color-hover)] text-[var(--color-text-secondary)]";
 
   return (
     <button
@@ -238,8 +232,8 @@ export function PersonaBadge({ persona, onClick }: { persona: AIPersona; onClick
         ${onClick ? "cursor-pointer hover:opacity-80" : ""}
       `}
     >
-      <span>{persona.avatar || PERSONA_ICONS[persona.slug] || "🤖"}</span>
-      <span>{persona.name}</span>
+      <span>{skin.avatar || SKIN_ICONS[skin.slug] || "🤖"}</span>
+      <span>{skin.name}</span>
     </button>
   );
 }

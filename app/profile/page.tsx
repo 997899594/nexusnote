@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { GoldenPathPreview } from "@/components/golden-path/GoldenPathPreview";
 import { GoldenPathPreviewSkeleton } from "@/components/golden-path/GoldenPathPreviewSkeleton";
+import { AIPreferencesPanel } from "@/components/profile/AIPreferencesPanel";
 import { ProfileAiUsagePanel } from "@/components/profile/ProfileAiUsagePanel";
 import { FloatingHeader } from "@/components/shared/layout";
 import { getDynamicPageSession } from "@/lib/server/page-auth";
@@ -134,6 +135,8 @@ async function ProfilePageContent() {
             })}
           </div>
         </section>
+
+        <AIPreferencesPanel />
 
         <section className="mb-8">
           <div className="mb-4">

@@ -14,7 +14,7 @@ export { useLearnStore } from "./learn";
 export { usePendingChatStore } from "./pending-chat";
 // User Preferences (Personalization)
 export {
-  selectCurrentPersona,
+  selectCurrentSkin,
   selectLearningStyle,
   selectStyleMetrics,
   useUserPreferencesStore,

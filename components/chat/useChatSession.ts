@@ -5,7 +5,7 @@
  * - 历史加载：每个会话只加载一次（Zustand Store，跨 remount 持久）
  * - 首条消息：自动发送 pendingMessage（Zustand Store 防重）
  * - 消息持久化：通过 onFinish 回调，对话结束时触发一次（架构正确）
- * - Persona 切换：清除消息历史，避免上下文干扰
+ * - Skin 切换：清除消息历史，避免上下文干扰
  */
 
 import { useChat } from "@ai-sdk/react";
@@ -32,18 +32,18 @@ function resolveBody(body: UseChatSessionOptions["body"]): Record<string, unknow
 
 export function useChatSession({ sessionId, pendingMessage, body }: UseChatSessionOptions) {
   const clearPending = usePendingChatStore((state) => state.clear);
-  const currentPersonaSlug = useUserPreferencesStore((state) => state.currentPersonaSlug);
+  const currentSkinSlug = useUserPreferencesStore((state) => state.currentSkinSlug);
   const { addToast } = useToast();
   const [aiDegradedKind, setAIDegradedKind] = useState<AIDegradationKind | null>(null);
 
   // Zustand-based session state
   const { isLoaded, markLoaded, markFailed, isSent, markSent } = useChatSessionStateStore();
 
-  // 用 ref 存储最新的 personaSlug，函数 body 通过 ref.current 获取最新值
-  const personaSlugRef = useRef(currentPersonaSlug);
+  // 用 ref 存储最新的 skinSlug，函数 body 通过 ref.current 获取最新值
+  const skinSlugRef = useRef(currentSkinSlug);
   useEffect(() => {
-    personaSlugRef.current = currentPersonaSlug;
-  }, [currentPersonaSlug]);
+    skinSlugRef.current = currentSkinSlug;
+  }, [currentSkinSlug]);
 
   const chat = useChat({
     id: sessionId ?? undefined,
@@ -56,7 +56,7 @@ export function useChatSession({ sessionId, pendingMessage, body }: UseChatSessi
       }),
       body: () => ({
         sessionId,
-        personaSlug: personaSlugRef.current,
+        skinSlug: skinSlugRef.current,
         ...resolveBody(body),
       }),
     }),

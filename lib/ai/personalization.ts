@@ -1,14 +1,22 @@
 /**
  * Personalization Service
  *
- * 统一的个人化服务，合并 persona + user context
+ * 统一的个人化服务，显式分离：
+ * - behaviorPrompt: 结构化用户偏好
+ * - skinPrompt: 表达皮肤
+ * - userContext: 推断式上下文
  */
 
+import { eq } from "drizzle-orm";
+import { db, userProfiles } from "@/db";
+import { buildExplicitPreferencePolicy } from "@/lib/ai/policy/compile-preferences";
+import { DEFAULT_AI_PREFERENCES, normalizeAIPreferences } from "@/lib/ai/preferences";
+import { getSkin, getUserSkinPreference } from "@/lib/ai/skins";
 import { buildChatContext } from "@/lib/memory/chat-context-builder";
-import { getPersona, getUserPersonaPreference } from "./personas/service";
 
 export interface PersonalizationResult {
-  systemPrompt: string;
+  behaviorPrompt: string;
+  skinPrompt: string;
   userContext: string;
 }
 
@@ -22,33 +30,42 @@ export interface PersonalizationResult {
 export async function buildPersonalization(
   userId: string,
   options?: {
-    personaSlug?: string;
+    skinSlug?: string;
   },
 ): Promise<PersonalizationResult> {
   if (!userId || userId === "anonymous") {
-    return { systemPrompt: "", userContext: "" };
+    return { behaviorPrompt: "", skinPrompt: "", userContext: "" };
   }
 
-  const [persona, context] = await Promise.all([
-    getExplicitOrDefaultPersona(userId, options?.personaSlug),
+  const [skin, profile, context] = await Promise.all([
+    getExplicitOrDefaultSkin(userId, options?.skinSlug),
+    db.query.userProfiles.findFirst({
+      where: eq(userProfiles.userId, userId),
+    }),
     buildChatContext(userId),
   ]);
 
-  const systemPrompt = persona ? `${persona.systemPrompt}` : "";
-
   return {
-    systemPrompt,
+    behaviorPrompt: buildExplicitPreferencePolicy({
+      aiPreferences: normalizeAIPreferences(profile?.aiPreferences ?? DEFAULT_AI_PREFERENCES),
+      learningStyle:
+        (profile?.learningStyle as {
+          preferredFormat?: string;
+          pace?: string;
+        } | null) ?? undefined,
+    }),
+    skinPrompt: skin ? `${skin.systemPrompt}` : "",
     userContext: context || "",
   };
 }
 
 /**
- * 获取显式指定的 persona 或用户默认 persona
+ * 获取显式指定的 skin 或用户默认 skin
  */
-async function getExplicitOrDefaultPersona(userId: string, explicitPersonaSlug?: string) {
-  if (explicitPersonaSlug) {
-    return getPersona(explicitPersonaSlug);
+async function getExplicitOrDefaultSkin(userId: string, explicitSkinSlug?: string) {
+  if (explicitSkinSlug) {
+    return getSkin(explicitSkinSlug);
   }
-  const pref = await getUserPersonaPreference(userId);
-  return getPersona(pref.defaultPersonaSlug);
+  const preference = await getUserSkinPreference(userId);
+  return getSkin(preference.defaultSkinSlug);
 }
