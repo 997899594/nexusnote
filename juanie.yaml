@@ -16,6 +16,7 @@ services:
       max: 5
       cpu: 80
     migrate:
+      tool: drizzle
       workingDirectory: .
       command: node scripts/db-migrate.mjs
       phase: preDeploy
