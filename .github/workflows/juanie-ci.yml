@@ -123,10 +123,7 @@ jobs:
             end
 
           File.open(output_path, 'a') do |file|
-            file.puts('release_services_json<<EOF')
-            file.puts(JSON.generate(release_services))
-            file.puts('EOF')
-
+            file.puts("release_services_json=#{JSON.generate(release_services)}")
             file.puts("build_kind=#{build_kind}")
             file.puts("build_context=#{canonical['context']}")
             file.puts("build_dockerfile=#{dockerfile || ''}")
