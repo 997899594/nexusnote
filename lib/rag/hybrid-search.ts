@@ -9,6 +9,7 @@ import { embedMany } from "ai";
 import { db, sql } from "@/db";
 import { aiProvider } from "@/lib/ai";
 import type { SourceType } from "./chunker";
+import { createRagTrace } from "./observability";
 import { rewriteQuery } from "./query-rewriter";
 
 export interface HybridSearchResult {
@@ -57,7 +58,10 @@ async function vectorSearch(
 
     const sourceTypeFilter =
       sourceTypes && sourceTypes.length > 0
-        ? sql`AND source_type IN ${sql.raw(`(${sourceTypes.map((t) => `'${t}'`).join(", ")})`)}`
+        ? sql`AND source_type IN (${sql.join(
+            sourceTypes.map((sourceType) => sql`${sourceType}`),
+            sql`, `,
+          )})`
         : sql``;
 
     const userFilter = userId ? sql`AND user_id = ${userId}` : sql``;
@@ -107,7 +111,10 @@ async function keywordSearch(
   try {
     const sourceTypeFilter =
       sourceTypes && sourceTypes.length > 0
-        ? sql`AND source_type IN ${sql.raw(`(${sourceTypes.map((t) => `'${t}'`).join(", ")})`)}`
+        ? sql`AND source_type IN (${sql.join(
+            sourceTypes.map((sourceType) => sql`${sourceType}`),
+            sql`, `,
+          )})`
         : sql``;
 
     const userFilter = userId ? sql`AND user_id = ${userId}` : sql``;
@@ -216,13 +223,39 @@ export async function hybridSearch(
   }
 
   const { topK: k = 5, sourceTypes, userId, conversationContext: ctx } = options;
+  const trace = createRagTrace("hybrid-search", {
+    query,
+    topK: k,
+    sourceTypes: sourceTypes ?? null,
+    hasUserId: Boolean(userId),
+    hasConversationContext: Boolean(ctx),
+  });
 
-  const rewrittenQuery = await rewriteQuery(query, ctx);
+  try {
+    const rewrittenQuery = await rewriteQuery(query, ctx);
+    trace.step("rewrite", {
+      rewrittenQuery,
+      queryChanged: rewrittenQuery !== query,
+    });
 
-  const [vResults, kResults] = await Promise.all([
-    vectorSearch(rewrittenQuery, k * 2, sourceTypes, userId),
-    keywordSearch(rewrittenQuery, k * 2, sourceTypes, userId),
-  ]);
+    const [vResults, kResults] = await Promise.all([
+      vectorSearch(rewrittenQuery, k * 2, sourceTypes, userId),
+      keywordSearch(rewrittenQuery, k * 2, sourceTypes, userId),
+    ]);
+    trace.step("retrieval", {
+      vectorHits: vResults.length,
+      keywordHits: kResults.length,
+    });
 
-  return reciprocalRankFusion(vResults, kResults, k);
+    const fusedResults = reciprocalRankFusion(vResults, kResults, k);
+    trace.finish({
+      resultCount: fusedResults.length,
+      topSourceTypes: fusedResults.slice(0, 3).map((item) => item.sourceType),
+    });
+
+    return fusedResults;
+  } catch (error) {
+    trace.fail(error);
+    throw error;
+  }
 }

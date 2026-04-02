@@ -2,7 +2,7 @@ import { createEvalSuite } from "../runner";
 
 export const notesEvalSuite = createEvalSuite({
   domain: "notes",
-  version: "v1",
+  version: "v2",
   cases: [
     {
       id: "notes-summary-preserve-meaning",
@@ -18,6 +18,11 @@ export const notesEvalSuite = createEvalSuite({
         "不能擅自引入原文没有的结论",
         "结果应更紧凑，但语义不漂移",
       ],
+      regression: {
+        minOutputLength: 30,
+        requiredSubstrings: ["schema", "migration checklist"],
+        forbiddenSubstrings: ["负责人", "截止时间"],
+      },
       tags: ["rewrite", "fidelity"],
     },
     {
@@ -34,6 +39,11 @@ export const notesEvalSuite = createEvalSuite({
         "保留原始事实，不要扩展为不存在的任务",
         "结果应适合后续继续编辑",
       ],
+      regression: {
+        minOutputLength: 30,
+        requiredSubstrings: ["登录链路", "邮件投递"],
+        forbiddenSubstrings: ["负责人", "截止时间"],
+      },
       tags: ["structure", "editing"],
     },
     {
@@ -50,6 +60,12 @@ export const notesEvalSuite = createEvalSuite({
         "不能凭空增加负责人、截止时间等原文没有的信息",
         "保留原始任务边界，适合直接写回笔记",
       ],
+      regression: {
+        minOutputLength: 20,
+        requiredSubstrings: ["登录链路监控", "数据库迁移"],
+        forbiddenSubstrings: ["负责人", "截止时间", "Owner", "Due"],
+        forbiddenPatterns: ["\\b\\d{4}-\\d{2}-\\d{2}\\b"],
+      },
       tags: ["editing", "fidelity"],
     },
   ],

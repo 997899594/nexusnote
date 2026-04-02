@@ -2,7 +2,7 @@ import { createEvalSuite } from "../runner";
 
 export const chatEvalSuite = createEvalSuite({
   domain: "chat",
-  version: "v1",
+  version: "v2",
   cases: [
     {
       id: "chat-basic-explain-rag-concisely",
@@ -17,6 +17,12 @@ export const chatEvalSuite = createEvalSuite({
         "语气应简洁清晰，不要变成泛泛营销文案",
         "在没有必要时不应依赖课程或笔记上下文",
       ],
+      regression: {
+        minOutputLength: 40,
+        requiredSubstrings: ["RAG", "检索"],
+        forbiddenSubstrings: ["tool-", "data-"],
+        forbiddenPatterns: ['"type"\\s*:'],
+      },
       tags: ["chat-basic", "clarity"],
     },
     {
@@ -32,6 +38,12 @@ export const chatEvalSuite = createEvalSuite({
         "至少覆盖执行计划、索引、最近变更或数据量变化等常见方向",
         "输出应适合工程场景快速使用",
       ],
+      regression: {
+        minOutputLength: 50,
+        requiredSubstrings: ["执行计划", "索引"],
+        forbiddenSubstrings: ["tool-", "data-"],
+        forbiddenPatterns: ['"type"\\s*:'],
+      },
       tags: ["chat-basic", "practicality"],
     },
   ],

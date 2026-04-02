@@ -8,7 +8,7 @@
 
 **Tech Stack:** AI SDK v6 (`ToolLoopAgent`, `isToolUIPart`, `getToolName`), Zustand, Next.js 16, Zod
 
-**Spec:** `docs/superpowers/specs/2026-03-13-intelligent-interview-design.md`
+**Spec:** `docs/archive/superpowers/specs/2026-03-13-intelligent-interview-design.md`
 
 **Note:** This project has no automated tests yet. Verification is `bun run typecheck`.
 

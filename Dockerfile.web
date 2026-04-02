@@ -39,7 +39,7 @@ RUN bun run build
 # ============================================
 # Stage 3: Runner - 运行时镜像
 # ============================================
-FROM oven/bun:1-alpine AS runner
+FROM node:20-alpine AS runner
 WORKDIR /app
 
 ARG GIT_SHA=unknown
@@ -54,19 +54,16 @@ RUN apk add --no-cache dumb-init \
     && adduser --system --uid 1001 nextjs \
     && mkdir -p /app/logs && chown -R nextjs:nodejs /app
 
-# 复制 package.json
-COPY --from=builder --chown=nextjs:nodejs /app/package.json ./
+# 复制 standalone 运行时产物
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
-# 复制生产依赖
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
-
-# 复制构建产物
-COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next/
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public/
-# 复制运行时需要的配置文件
-COPY --from=builder --chown=nextjs:nodejs /app/drizzle.config.ts ./drizzle.config.ts
-COPY --from=builder --chown=nextjs:nodejs /app/drizzle ./drizzle/
-COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts/
+# 复制迁移运行时需要的文件
+COPY --from=builder --chown=nextjs:nodejs /app/drizzle ./drizzle
+COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/drizzle-orm ./node_modules/drizzle-orm
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/postgres ./node_modules/postgres
 
 USER nextjs
 
@@ -76,4 +73,4 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["bun", "run", "start"]
+CMD ["node", "server.js"]

@@ -31,6 +31,8 @@ async function main() {
     const result = await runEvalSuite(suite, {
       onCaseComplete: (caseResult) => {
         const metrics = caseResult.runtimeMetrics;
+        const failedRules =
+          caseResult.ruleChecks?.filter((check) => !check.passed).map((check) => check.name) ?? [];
         const metricSummary = metrics
           ? ` total=${metrics.totalMs}ms firstText=${metrics.firstTextMs ?? "-"} firstOptions=${metrics.firstOptionsMs ?? "-"} firstOutline=${metrics.firstOutlineMs ?? "-"}`
           : "";
@@ -38,9 +40,11 @@ async function main() {
           caseResult.ruleChecks && caseResult.ruleChecks.length > 0
             ? ` rules=${caseResult.ruleChecks.filter((check) => check.passed).length}/${caseResult.ruleChecks.length}`
             : "";
+        const failedRuleSummary =
+          failedRules.length > 0 ? ` failedRules=${failedRules.join(",")}` : "";
 
         console.log(
-          `[AI Eval] ${caseResult.passed ? "PASS" : "FAIL"} ${caseResult.caseId} score=${caseResult.score.toFixed(2)}${ruleSummary}${metricSummary}`,
+          `[AI Eval] ${caseResult.passed ? "PASS" : "FAIL"} ${caseResult.caseId} score=${caseResult.score.toFixed(2)}${ruleSummary}${failedRuleSummary}${metricSummary}`,
         );
       },
     });

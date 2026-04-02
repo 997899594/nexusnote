@@ -12,6 +12,9 @@
 import { generateText } from "ai";
 import { getPlainModelForPolicy } from "@/lib/ai";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
+import { loadPromptResource } from "@/lib/ai/prompts/load-prompt";
+
+const QUERY_REWRITER_SYSTEM_PROMPT = loadPromptResource("query-rewriter-system.md");
 
 export async function rewriteQuery(query: string, conversationContext?: string): Promise<string> {
   // Short queries (< 10 chars) with no context, return as-is
@@ -36,9 +39,7 @@ export async function rewriteQuery(query: string, conversationContext?: string):
       model: getPlainModelForPolicy("interactive-fast"),
       temperature: 0,
       maxOutputTokens: 100,
-      system: `你是查询改写器。将用户的口语化查询改写为适合向量检索的关键词查询。
-保留核心语义，去除指代词，补充上下文隐含的实体。
-只输出改写后的查询，不要解释。`,
+      system: QUERY_REWRITER_SYSTEM_PROMPT,
       prompt: conversationContext
         ? `对话上下文：${conversationContext}\n用户查询：${query}`
         : `用户查询：${query}`,

@@ -19,6 +19,11 @@ out
 *.swp
 *.swo
 
+# Local agent / assistant workspaces
+.agents
+.claude
+.codex
+
 # Build cache
 *.tsbuildinfo
 

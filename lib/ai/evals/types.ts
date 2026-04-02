@@ -21,6 +21,13 @@ export interface NotesEvalInput {
   noteExcerpt: string;
 }
 
+export interface EvalRegressionSpec {
+  minOutputLength?: number;
+  requiredSubstrings?: string[];
+  forbiddenSubstrings?: string[];
+  forbiddenPatterns?: string[];
+}
+
 export interface EvalCase<TInput = Record<string, unknown>> {
   id: string;
   title: string;
@@ -28,6 +35,7 @@ export interface EvalCase<TInput = Record<string, unknown>> {
   promptVersion: string;
   input: TInput;
   expectations: string[];
+  regression?: EvalRegressionSpec;
   tags?: string[];
 }
 

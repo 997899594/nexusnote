@@ -15,6 +15,7 @@ import type {
   ChatEvalInput,
   EvalCase,
   EvalExecutionResult,
+  EvalRegressionSpec,
   EvalRuleCheck,
   EvalRuntimeMetrics,
   EvalSuite,
@@ -29,6 +30,7 @@ export function createEvalSuite<TInput>(suite: EvalSuite<TInput>): EvalSuite<TIn
 }
 
 const EVAL_AGENT_TIMEOUT_MS = 45_000;
+const EVAL_TEXT_TIMEOUT_MS = 45_000;
 
 interface EvalGenerationResult {
   output: string;
@@ -112,11 +114,13 @@ function getPolicyForCase(testCase: EvalCase) {
 }
 
 function isTimeoutError(error: unknown) {
-  const message = getErrorMessage(error);
+  const message = getErrorMessage(error).toLowerCase();
   return (
     message.includes("eval-timeout") ||
     message.includes("aborted") ||
-    message.includes("AbortError")
+    message.includes("aborterror") ||
+    message.includes("timed out") ||
+    message.includes("timeout")
   );
 }
 
@@ -266,13 +270,77 @@ function runInterviewRuleChecks(output: string): EvalRuleCheck[] {
   return checks;
 }
 
-function runRuleChecks(testCase: EvalCase, output: string): EvalRuleCheck[] {
+function includesText(haystack: string, needle: string): boolean {
+  return haystack.toLocaleLowerCase("zh-CN").includes(needle.toLocaleLowerCase("zh-CN"));
+}
+
+function runRegressionSpecChecks(
+  regression: EvalRegressionSpec | undefined,
+  output: string,
+): EvalRuleCheck[] {
+  if (!regression) {
+    return [];
+  }
+
+  const trimmedOutput = output.trim();
+  const checks: EvalRuleCheck[] = [];
+
+  if (regression.minOutputLength != null) {
+    checks.push({
+      name: "min-output-length",
+      passed: trimmedOutput.length >= regression.minOutputLength,
+      details: `Output length is ${trimmedOutput.length}. Expected >= ${regression.minOutputLength}.`,
+    });
+  }
+
+  for (const requiredSubstring of regression.requiredSubstrings ?? []) {
+    checks.push({
+      name: `required:${requiredSubstring}`,
+      passed: includesText(trimmedOutput, requiredSubstring),
+      details: includesText(trimmedOutput, requiredSubstring)
+        ? `Output contains required text "${requiredSubstring}".`
+        : `Output is missing required text "${requiredSubstring}".`,
+    });
+  }
+
+  for (const forbiddenSubstring of regression.forbiddenSubstrings ?? []) {
+    checks.push({
+      name: `forbidden:${forbiddenSubstring}`,
+      passed: !includesText(trimmedOutput, forbiddenSubstring),
+      details: includesText(trimmedOutput, forbiddenSubstring)
+        ? `Output unexpectedly contains forbidden text "${forbiddenSubstring}".`
+        : `Output does not contain forbidden text "${forbiddenSubstring}".`,
+    });
+  }
+
+  for (const forbiddenPattern of regression.forbiddenPatterns ?? []) {
+    const matched = new RegExp(forbiddenPattern, "iu").test(trimmedOutput);
+    checks.push({
+      name: `forbidden-pattern:${forbiddenPattern}`,
+      passed: !matched,
+      details: matched
+        ? `Output unexpectedly matches forbidden pattern /${forbiddenPattern}/iu.`
+        : `Output does not match forbidden pattern /${forbiddenPattern}/iu.`,
+    });
+  }
+
+  return checks;
+}
+
+function runDomainRuleChecks(testCase: EvalCase, output: string): EvalRuleCheck[] {
   switch (testCase.domain) {
     case "interview":
       return runInterviewRuleChecks(output);
     default:
       return [];
   }
+}
+
+function runRuleChecks(testCase: EvalCase, output: string): EvalRuleCheck[] {
+  return [
+    ...runDomainRuleChecks(testCase, output),
+    ...runRegressionSpecChecks(testCase.regression, output),
+  ];
 }
 
 export async function runEvalCase(testCase: EvalCase): Promise<EvalExecutionResult> {
@@ -374,7 +442,7 @@ async function runTextEval({
     system: instructions,
     prompt,
     temperature: 0.2,
-    timeout: 30_000,
+    timeout: EVAL_TEXT_TIMEOUT_MS,
   });
 
   const totalMs = Date.now() - startedAt;

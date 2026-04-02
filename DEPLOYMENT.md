@@ -57,7 +57,7 @@ Database schema changes are not applied automatically by this repository.
 Run migrations as part of the platform release process:
 
 ```bash
-bun run db:migrate
+node scripts/db-migrate.mjs
 ```
 
 If your platform supports release commands or post-deploy hooks, use that instead of manual SSH.

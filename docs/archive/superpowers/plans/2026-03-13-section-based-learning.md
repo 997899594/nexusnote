@@ -8,7 +8,7 @@
 
 **Tech Stack:** Next.js 16, React 19 (with React Compiler), AI SDK v6, Zustand, Drizzle ORM, PostgreSQL + pgvector, StreamdownMessage, Framer Motion
 
-**Spec:** `docs/superpowers/specs/2026-03-13-section-based-learning-design.md`
+**Spec:** `docs/archive/superpowers/specs/2026-03-13-section-based-learning-design.md`
 
 ---
 

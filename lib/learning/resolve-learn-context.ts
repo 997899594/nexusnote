@@ -1,5 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { courses, db } from "@/db";
+import { createLearnTrace } from "@/lib/learning/observability";
 
 interface CourseOutlineRecord {
   courseSkillIds?: string[] | null;
@@ -22,11 +23,23 @@ export async function resolveOwnedLearnContext({
   userId,
   courseId,
   chapterIndex,
+  traceId,
 }: {
   userId: string;
   courseId: string;
   chapterIndex: number;
+  traceId?: string;
 }): Promise<ResolvedLearnContext | null> {
+  const trace = createLearnTrace(
+    "resolve-context",
+    {
+      userId,
+      courseId,
+      chapterIndex,
+    },
+    traceId,
+  );
+
   const [course] = await db
     .select({
       title: courses.title,
@@ -37,6 +50,9 @@ export async function resolveOwnedLearnContext({
     .limit(1);
 
   if (!course) {
+    trace.finish({
+      found: false,
+    });
     return null;
   }
 
@@ -49,6 +65,13 @@ export async function resolveOwnedLearnContext({
   const chapterSkillIds = Array.isArray(chapter?.skillIds)
     ? chapter.skillIds.filter((skillId): skillId is string => typeof skillId === "string")
     : [];
+
+  trace.finish({
+    found: true,
+    chapterTitle,
+    courseSkillCount: courseSkillIds.length,
+    chapterSkillCount: chapterSkillIds.length,
+  });
 
   return {
     courseId,

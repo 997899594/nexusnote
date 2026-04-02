@@ -52,7 +52,7 @@ Git Push -> CI 构建镜像 -> 推送镜像仓库 -> 部署平台拉取新镜像
 发布新镜像后，执行：
 
 ```bash
-bun run db:migrate
+node scripts/db-migrate.mjs
 ```
 
 如果你的平台支持 release command / post-deploy hook，优先把迁移接到平台发布流程里。

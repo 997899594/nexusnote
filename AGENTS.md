@@ -92,10 +92,11 @@ bun run db:generate  # Generate migration files
 
 - **Server vs Client Components**: Default to Server; use `"use client"` only when needed (interactions, state, animations)
 - **Next.js 16 Dynamic Boundary Rule**: With `cacheComponents: true`, any app page or server island that reads `auth()`, `requireAuth()`, `cookies()`, `headers()`, or other request-bound state must establish an explicit dynamic boundary first. In this project, use `lib/server/page-auth.ts` helpers instead of mixing `connection()` and auth calls ad hoc.
+- **Page Boundary Rule**: Do not wrap the entire app tree in a root blank `Suspense` fallback. Put request-bound reads inside page- or route-level `PageContent` components and wrap them with local `Suspense`. Follow `docs/NEXT16_PAGE_BOUNDARY_RULES.md`.
 - **Server Actions** for non-streaming mutations
 - **Route Handlers** for streaming AI responses
 - **Granular Suspense**: Use Suspense boundaries for progressive loading
-- **React Compiler**: Enabled in next.config.js - trust it, avoid manual `useCallback`/`useMemo`
+- **React Compiler**: Enabled in `next.config.ts` - trust it, avoid manual `useCallback`/`useMemo`
 
 ### Error Handling
 
@@ -110,7 +111,7 @@ bun run db:generate  # Generate migration files
 - Schema in `db/schema/`
 - Production migrations via `bun run db:migrate`; keep `bun run db:push` for local-only schema sync
 - Use `zod` schemas alongside Drizzle for validation
-- Vector search uses `halfvec(4000)` (requires pgvector 0.5.0+)
+- Vector search schema currently uses `vector(4000)`; keep migrations and indexes aligned with the real database type
 
 ### AI System
 
@@ -130,6 +131,7 @@ bun run db:generate  # Generate migration files
   - workflows for fixed-order background jobs with retries/side effects
 - Do not invent frontend fallback content for AI-generated UI data; frontend should render authoritative server data
 - **Code-driven, NOT prompt-driven**: Control AI behavior through code logic, not prompts
+- Static system prompts should live in `lib/ai/prompts/resources/`; keep dynamic prompt assembly in code
 
 ### UI Components
 
@@ -150,6 +152,7 @@ bun run db:generate  # Generate migration files
 
 1. **Package Manager**: Always use `bun`, not pnpm
 2. **Build Phase**: Set `SKIP_ENV_VALIDATION=true` or `NEXT_PHASE=phase-production-build` for builds
-3. **pgvector halfvec**: Manual migration fix needed if schema uses `"halfvec(4000)"` (quotes cause issues)
+3. **pgvector type alignment**: Keep schema type, SQL migrations, and ANN indexes aligned; do not silently mix `vector(...)` and `halfvec(...)`
 4. **Client Env**: Server env vars are proxied via `config/env.ts`; accessing them directly on client throws warnings
 5. **Chinese Streaming**: Always use `smoothStream()` with `Intl.Segmenter` for proper Chinese word boundaries
+6. **RAG Observability**: RAG path changes must keep `lib/rag/observability.ts` traces intact and avoid `sql.raw()` string interpolation in retrieval queries

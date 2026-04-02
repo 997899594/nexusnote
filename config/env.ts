@@ -10,6 +10,11 @@ import { z } from "zod";
 // ============================================
 
 export const defaults = {
+  observability: {
+    appTraceLogs: false,
+    learnDebugLogs: false,
+  },
+
   // RAG Pipeline
   rag: {
     timeout: 5000,
@@ -18,6 +23,7 @@ export const defaults = {
     chunkSize: 500,
     chunkOverlap: 50,
     topK: 5,
+    debugLogs: false,
   },
 
   // Embedding
@@ -139,6 +145,14 @@ export const serverEnvSchema = z.object({
     .string()
     .default(String(defaults.ai.debugLogs))
     .transform((v) => v === "true"),
+  APP_TRACE_LOGS: z
+    .string()
+    .default(String(defaults.observability.appTraceLogs))
+    .transform((v) => v === "true"),
+  LEARN_DEBUG_LOGS: z
+    .string()
+    .default(String(defaults.observability.learnDebugLogs))
+    .transform((v) => v === "true"),
 
   // AI Features
   AI_ENABLE_WEB_SEARCH: z
@@ -189,6 +203,10 @@ export const serverEnvSchema = z.object({
   CONTEXT_COMPRESSION_ENABLED: z
     .string()
     .default("false")
+    .transform((v) => v === "true"),
+  RAG_DEBUG_LOGS: z
+    .string()
+    .default(String(defaults.rag.debugLogs))
     .transform((v) => v === "true"),
   AI_FAST_MODEL: z.string().optional().describe("Fast model for query rewriting"),
 

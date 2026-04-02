@@ -1,284 +1,111 @@
-# NexusNote 2026 架构标准
+# NexusNote 2026 Architecture
 
-## 📊 架构评分：**97/100** ⭐⭐⭐⭐⭐
+更新时间：2026-04-01
 
-**最后更新：2026-02-09**
-**架构师标准：Next.js 16 + React 19 + AI SDK v6**
+## 总览
 
----
+NexusNote 当前是一个以 Next.js 16 为核心的 AI-native 学习应用：
 
-## 🎯 核心架构决策
+- App Router + React 19 + Cache Components
+- Drizzle + PostgreSQL + pgvector
+- Redis + BullMQ 处理后台任务
+- AI SDK v6 驱动 chat、interview、course generation、RAG
+- Tiptap + Yjs + PartyKit 提供协作编辑基础能力
 
-### 1. AI SDK v6 + ToolLoopAgent 架构 ✅
+目标不是“拼很多技术”，而是保持一条清晰主链：
 
-```typescript
-// 服务端 Agent 定义
-export const interviewAgent = new ToolLoopAgent({
-  id: "nexusnote-interview",
-  model: chatModel,
-  tools: interviewTools,
-  prepareCall: ({ options }) => {
-    // 动态构建 Prompt
-    const instructions = buildInterviewPrompt(options);
-    return { instructions, temperature: 0.7 };
-  },
-});
+`课程生成 -> 学习 -> 对话 -> 笔记/沉淀 -> 技能/路线`
 
-// Route Handler 提供流式 API
-export async function POST(req: Request) {
-  return createAgentUIStreamResponse({
-    agent: interviewAgent,
-    uiMessages: messages,
-    experimental_transform: smoothStream({
-      chunking: new Intl.Segmenter("zh-CN", { granularity: "grapheme" }),
-    }),
-  });
-}
+## 分层
 
-// 客户端使用 useChat 连接
-const { messages, sendMessage } = useChat({
-  transport: {
-    sendMessages: async ({ messages }) => {
-      const response = await fetch("/api/ai/gateway", {...});
-      return response.body; // ReadableStream
-    },
-  },
-});
-```
+### 1. Web Runtime
 
-**优势：**
-- ✅ 类型安全的 Agent 系统
-- ✅ 自动工具调用管理
-- ✅ 中文流式优化
-- ✅ Schema-First 消息解析
+- `app/`: 页面、route handlers、动态边界
+- `components/`: 交互组件和展示组件
+- `hooks/`, `stores/`: 客户端状态和页面交互
 
----
+规则：
 
-### 2. 混合渲染策略（Server + Client）✅
+- 页面默认 Server Component
+- 请求期读取必须建立局部动态边界
+- 不允许根布局用空白 `Suspense` 掩盖阻塞路由问题
 
-| 组件类型 | 使用场景 | 示例 |
-|---------|---------|------|
-| **Server Component** | 数据获取、权限验证 | `app/learn/[courseId]/page.tsx` |
-| **Client Component** | 交互、状态管理 | `UnifiedChatUI.tsx`, `client-page.tsx` |
-| **Server Action** | 非流式数据操作 | `saveCourseProfileAction` |
-| **Route Handler** | 流式 AI 响应 | `/api/ai/gateway/route.ts` |
+更多见：
 
-**架构原则：**
-```typescript
-// ✅ 正确：Server Component 获取数据
-export default async function LearnPage({ params }) {
-  const profile = await getCourseProfile(courseId);
-  return <LearnPageClient initialProfile={profile} />;
-}
+- [NEXT16_PAGE_BOUNDARY_RULES.md](/Users/findbiao/projects/nexusnote/docs/NEXT16_PAGE_BOUNDARY_RULES.md)
 
-// ✅ 正确：Server Action 用于数据持久化
-export const saveCourseProfileAction = createSafeAction(
-  z.object({ id: z.string() }),
-  async ({ id }, userId) => {
-    await db.update(courseProfiles).set({ ... });
-  }
-);
+### 2. Server Domain Layer
 
-// ✅ 正确：Route Handler 用于流式 AI
-export async function POST(req: Request) {
-  return createAgentUIStreamResponse(...); // ReadableStream
-}
-```
+- `lib/server/`: 页面数据加载和 cache/tag 策略
+- `lib/chat/`, `lib/learning/`, `lib/notes/`, `lib/skills/`, `lib/golden-path/`
+- `lib/api/`: API 错误和响应收口
 
----
+规则：
 
-### 3. 智能路由系统 ✅
+- 页面数据获取尽量集中到 server loaders
+- 默认动态，局部 `use cache` + `cacheTag` 驱动重验证
+- 不把 request-bound 逻辑散落到组件树深处
 
-```typescript
-// L0: 意图识别
-const intent = await routeIntent(userInput, context);
+### 3. AI Layer
 
-// L2: Agent 调度
-switch (intent) {
-  case "INTERVIEW": return interviewAgent;
-  case "COURSE_GENERATION": return courseGenerationAgent;
-  case "EDITOR": return chatAgent;
-  case "CHAT": return chatAgent;
-}
-```
+- `lib/ai/core/`: provider、model policy、telemetry、degradation、resumable streams
+- `lib/ai/agents/`: open-ended conversational agents
+- `lib/ai/tools/`: capability tools
+- `lib/ai/workflows/`: 固定顺序后台任务
+- `lib/ai/prompts/`: prompt builders 和资源加载
 
----
+规则：
 
-### 4. React Compiler 优化 ✅
+- 单 provider 运行时
+- `ToolLoopAgent` 用于开放式对话
+- tools 只承载真正能力调用或副作用
+- 结构化 UI 数据优先走 `UIMessage.parts`
 
-```javascript
-// next.config.js
-experimental: {
-  reactCompiler: true, // 2026 最佳实践
-}
-```
+### 4. Retrieval Layer
 
-**收益：**
-- 自动优化 re-render
-- 减少 30-50% 的 useCallback 使用
-- 零配置性能提升
+- `lib/rag/`: rewrite、hybrid search、chunking、trace
+- `knowledge_chunks` 表承载统一检索索引
+- 向量、全文、最近数据索引与查询路径严格对齐
 
-参考：[Next.js 为什么这么卡？](https://juejin.cn/post/7593541290990747698)
+更多见：
 
----
+- [RAG_PERFORMANCE_AND_OBSERVABILITY.md](/Users/findbiao/projects/nexusnote/docs/RAG_PERFORMANCE_AND_OBSERVABILITY.md)
 
-### 5. 细粒度 Suspense 边界 ✅
+### 5. Data Layer
 
-```typescript
-// 页面级 Suspense
-export default async function LearnPage({ params }) {
-  return (
-    <Suspense fallback={<CourseSkeleton />}>
-      <LearnPageClient />
-    </Suspense>
-  );
-}
+- `db/schema/`: 按领域拆分的 Drizzle schema
+- `db/schema.ts`: 聚合导出和 relations
+- `drizzle/`: 版本化迁移
 
-// 组件级 Suspense（客户端）
-<Suspense fallback={<ChapterListSkeleton />}>
-  <ChapterList />
-</Suspense>
-```
+当前 schema 已按以下领域拆分：
 
-**优势：**
-- 渐进式页面加载
-- 更快的 Time to First Byte
-- 更好的用户体验
+- auth
+- personas
+- notes
+- conversations
+- knowledge
+- courses
+- skills
+- ai-usage
 
-参考：[React Server Components streaming](https://blog.csdn.net/gitblog_00903/article/details/148378291)
+### 6. Async / Collaboration
 
----
+- `lib/queue/`: BullMQ queue 和 worker
+- `party/`: PartyKit realtime server
+- 协作能力是可选运行时，不阻塞主应用主链
 
-## 📐 架构分层
+## 当前仓库约束
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        客户端层                              │
-├─────────────────────────────────────────────────────────────┤
-│  Components: UnifiedChatUI, LearnPageClient                 │
-│  Hooks: useChat, useCourseGeneration                        │
-│  State: Jotai atoms, useReducer                             │
-└─────────────────────────────────────────────────────────────┘
-                            ↓ HTTP/WebSocket
-┌─────────────────────────────────────────────────────────────┐
-│                      Next.js 服务层                          │
-├─────────────────────────────────────────────────────────────┤
-│  Server Components: 页面路由、权限验证                       │
-│  Server Actions: 数据持久化、查询                            │
-│  Route Handlers: 流式 AI 响应                                │
-└─────────────────────────────────────────────────────────────┘
-                            ↓
-┌─────────────────────────────────────────────────────────────┐
-│                       业务逻辑层                             │
-├─────────────────────────────────────────────────────────────┤
-│  AIGatewayService: 意图识别、Agent 调度                      │
-│  Agents: ToolLoopAgent (Interview, Chat, CourseGen)         │
-│  RAG Service: pgvector 向量搜索                              │
-└─────────────────────────────────────────────────────────────┘
-                            ↓
-┌─────────────────────────────────────────────────────────────┐
-│                        数据层                                │
-├─────────────────────────────────────────────────────────────┤
-│  PostgreSQL 16 + pgvector: 主数据库                         │
-│  Redis 7: 缓存 + BullMQ 队列                                 │
-│  IndexedDB: 离线存储 (Local-First)                           │
-└─────────────────────────────────────────────────────────────┘
-```
+- 包管理器只用 `bun`
+- 文档入口以 [docs/README.md](/Users/findbiao/projects/nexusnote/docs/README.md) 为准
+- 代理开发规范以 [AGENTS.md](/Users/findbiao/projects/nexusnote/AGENTS.md) 为准
+- 历史设计稿和实验资料统一放在 `docs/archive/`
 
----
+## 非目标
 
-## 🔐 安全最佳实践
+当前仓库不再把这些内容当主架构的一部分：
 
-### 1. CSP 配置 ✅
-```javascript
-// next.config.js
-Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline';
-```
-
-### 2. 类型验证 ✅
-```typescript
-// Zod Schema 验证
-export const AIRequestSchema = z.object({
-  messages: z.array(z.custom<UIMessage>()),
-  context: AIContextSchema.optional(),
-});
-```
-
-### 3. 权限控制 ✅
-```typescript
-// Server Component 验证
-if (profile.userId !== session.user?.id) {
-  redirect("/create");
-}
-```
-
----
-
-## 🚀 性能优化清单
-
-- ✅ React Compiler 启用
-- ✅ 细粒度 Suspense 边界
-- ✅ pgvector halfvec 存储（50% 节省）
-- ✅ 中文流式优化
-- ✅ Local-First 数据层
-- ✅ Turborepo 构建优化
-- ✅ Docker Standalone 部署
-
----
-
-## 📚 关键技术栈
-
-| 类别 | 技术 | 版本 | 用途 |
-|------|------|------|------|
-| **框架** | Next.js | 16.1.6 | 全栈框架 |
-| **UI** | React | 19.2.4 | UI 库 |
-| **AI** | AI SDK | 6.0.67 | AI 集成 |
-| **编辑器** | Tiptap | 3.18.0 | 富文本编辑 |
-| **协作** | Yjs | 13.6.29 | CRDT 协作 |
-| **数据库** | PostgreSQL | 16 | 主数据库 |
-| **向量** | pgvector | - | 向量搜索 |
-| **缓存** | Redis | 7 | 缓存 + 队列 |
-| **状态** | Jotai | 2.17.0 | 状态管理 |
-| **包管理** | pnpm | 8.15.0 | 包管理器 |
-
----
-
-## 🎓 设计原则
-
-1. **Schema-First**: 所有数据结构都有 Zod Schema
-2. **类型安全**: TypeScript 严格模式
-3. **Local-First**: 优先使用本地存储
-4. **渐进增强**: 逐步加载内容
-5. **容错设计**: 错误边界 + 重试机制
-
----
-
-## 🔧 开发工作流
-
-```bash
-# 启动开发环境
-pnpm dev
-
-# 类型检查
-pnpm typecheck
-
-# 构建
-pnpm build
-
-# 数据库迁移
-pnpm db:push
-```
-
----
-
-## 📖 参考资源
-
-- [Next.js 16 官方文档](https://nextjs.org/blog/next-16)
-- [AI SDK 6 发布公告](https://vercel.com/blog/ai-sdk-6)
-- [React 19 最佳实践](https://dev.to/jay_sarvaiya_reactjs/react-19-best-practices-write-clean-modern-and-efficient-react-code-1beb)
-- [React Server Components streaming](https://blog.csdn.net/gitblog_00903/article/details/148378291)
-
----
-
-**维护者：NexusNote 架构团队**
-**最后审核：2026-02-09**
+- 多 provider 隐式自动切换
+- Helm / ArgoCD / Flux 仓库内编排
+- 根级别大而全代理说明
+- 历史设计稿和一次性资料混在主 docs 入口

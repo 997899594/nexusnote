@@ -6,8 +6,8 @@
 
 ## 📁 目录结构
 
-```
-interview-prep/
+``` 
+docs/archive/interview-prep/
 ├── README.md                      # 本文件
 ├── resume-fullstack-engineer.md    # 全栈工程师简历
 ├── resume-ai-product-manager.md    # AI 产品经理简历
@@ -51,7 +51,7 @@ interview-prep/
 - 前端：Next.js, React, TypeScript, Tiptap
 - 后端：Node.js, PostgreSQL, Drizzle ORM
 - AI：AI SDK v6, RAG, pgvector, ToolLoopAgent
-- DevOps：Docker, Kubernetes, Turborepo
+- DevOps：Docker, 镜像部署, 平台发布
 - 协作：Y.js, CRDT, PartyKit
 
 ### 产品面试题 (`product-questions.md`)

@@ -16,9 +16,8 @@ services:
       max: 5
       cpu: 80
     migrate:
-      tool: drizzle
       workingDirectory: .
-      command: bun run db:migrate
+      command: node scripts/db-migrate.mjs
       phase: preDeploy
       autoRun: true
       approvalPolicy: manual_in_production

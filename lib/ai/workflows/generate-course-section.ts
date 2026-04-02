@@ -7,6 +7,7 @@ import { buildSectionPrompt } from "@/lib/ai/prompts/learn";
 import { APIError } from "@/lib/api";
 import { invalidateChapterCache } from "@/lib/cache/course-context";
 import { revalidateLearnPage } from "@/lib/cache/tags";
+import { createLearnTrace } from "@/lib/learning/observability";
 import { ragQueue } from "@/lib/queue";
 
 interface GenerateCourseSectionWorkflowOptions {
@@ -14,6 +15,7 @@ interface GenerateCourseSectionWorkflowOptions {
   courseId: string;
   chapterIndex: number;
   sectionIndex: number;
+  traceId?: string;
 }
 
 type CourseOutlineData = {
@@ -35,8 +37,19 @@ export async function runGenerateCourseSectionWorkflow({
   courseId,
   chapterIndex,
   sectionIndex,
+  traceId,
 }: GenerateCourseSectionWorkflowOptions): Promise<Response> {
   const startedAt = Date.now();
+  const trace = createLearnTrace(
+    "generate-section-workflow",
+    {
+      userId,
+      courseId,
+      chapterIndex,
+      sectionIndex,
+    },
+    traceId,
+  );
   const telemetry = createTelemetryContext({
     endpoint: "/api/learn/generate",
     userId,
@@ -57,17 +70,32 @@ export async function runGenerateCourseSectionWorkflow({
     .limit(1);
 
   if (!course) {
+    trace.finish({
+      found: false,
+      reason: "course-not-found",
+    });
     throw new APIError("课程不存在", 404, "NOT_FOUND");
   }
+  trace.step("course-loaded", {
+    title: course.title,
+  });
 
   const outline = course.outlineData as CourseOutlineData | null;
   const chapter = outline?.chapters?.[chapterIndex];
   if (!chapter) {
+    trace.finish({
+      found: false,
+      reason: "chapter-not-found",
+    });
     throw new APIError("章节不存在", 404, "CHAPTER_NOT_FOUND");
   }
 
   const section = chapter.sections?.[sectionIndex];
   if (!section) {
+    trace.finish({
+      found: false,
+      reason: "section-not-found",
+    });
     throw new APIError("小节不存在", 404, "SECTION_NOT_FOUND");
   }
 
@@ -79,8 +107,19 @@ export async function runGenerateCourseSectionWorkflow({
       and(eq(courseSections.courseId, courseId), eq(courseSections.outlineNodeId, outlineNodeId)),
     )
     .limit(1);
+  trace.step("section-resolved", {
+    outlineNodeId,
+    sectionTitle: section.title,
+    existedBefore: Boolean(existingSection?.id),
+  });
 
   if (existingSection?.content) {
+    trace.finish({
+      cacheHit: true,
+      outlineNodeId,
+      sectionDocumentId: existingSection.id,
+      contentLength: existingSection.content.length,
+    });
     return Response.json({
       exists: true,
       content: existingSection.content,
@@ -105,6 +144,11 @@ export async function runGenerateCourseSectionWorkflow({
     sectionDescription: section.description,
     siblingTitles,
     totalChapters: outline?.chapters?.length ?? 0,
+  });
+  trace.step("generation-start", {
+    outlineNodeId,
+    siblingCount: siblingTitles.length,
+    chapterSkillCount: chapter.skillIds?.length ?? 0,
   });
 
   const result = streamText({
@@ -155,11 +199,26 @@ export async function runGenerateCourseSectionWorkflow({
             })
             .catch((err) => {
               console.error("[GenerateCourseSectionWorkflow] Failed to enqueue index job:", err);
+              trace.step("enqueue-index-error", {
+                outlineNodeId,
+                error: err instanceof Error ? err.message : String(err),
+              });
             });
 
           invalidateChapterCache(courseId, chapterIndex).catch(() => {});
           revalidateLearnPage(userId, courseId);
         }
+
+        trace.finish({
+          cacheHit: false,
+          outlineNodeId,
+          finishReason,
+          generatedChars: text.length,
+          stepCount: steps.length,
+          sectionDocumentId: sectionDocumentId || null,
+          existedBefore: Boolean(existingSection?.id),
+          queuedForIndex: Boolean(sectionDocumentId && text.length > 0),
+        });
 
         await recordAIUsage({
           ...telemetry,
@@ -177,6 +236,10 @@ export async function runGenerateCourseSectionWorkflow({
         });
       } catch (error) {
         console.error("[GenerateCourseSectionWorkflow] Failed to persist section:", error);
+        trace.step("persist-error", {
+          outlineNodeId,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     },
   });
@@ -190,6 +253,10 @@ export async function runGenerateCourseSectionWorkflow({
         }
       } catch (error) {
         console.error("[GenerateCourseSectionWorkflow] Stream error:", error);
+        trace.fail(error, {
+          stage: "stream",
+          outlineNodeId,
+        });
         await recordAIUsage({
           ...telemetry,
           durationMs: Date.now() - startedAt,

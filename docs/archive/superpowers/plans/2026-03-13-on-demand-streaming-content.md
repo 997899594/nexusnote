@@ -8,7 +8,7 @@
 
 **Tech Stack:** AI SDK v6 (`streamText`, `useChat`, `DefaultChatTransport`), `marked` (already a dependency), Tiptap Editor, StreamdownMessage, Zustand, Drizzle ORM.
 
-**Note:** This project has no automated test infrastructure (per CLAUDE.md). Steps focus on implementation with manual verification.
+**Note:** This is archived historical material. Current repository guidance lives in `AGENTS.md`; at the time of writing, this project had no automated test infrastructure and relied on manual verification.
 
 ---
 

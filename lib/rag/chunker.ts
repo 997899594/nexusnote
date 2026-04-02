@@ -9,6 +9,7 @@
 import { embedMany } from "ai";
 import { db, eq, knowledgeChunks, notes } from "@/db";
 import { aiProvider } from "@/lib/ai";
+import { createRagTrace } from "./observability";
 
 export interface ChunkOptions {
   chunkSize?: number;
@@ -95,8 +96,11 @@ export async function indexNote(
   options: IndexOptions = {},
 ): Promise<{ success: boolean; chunksCount: number }> {
   const { chunkSize = DEFAULT_CHUNK_SIZE, overlap = DEFAULT_OVERLAP, userId, metadata } = options;
-
-  console.log(`[Chunker] Indexing note: ${noteId}, text length: ${plainText.length}`);
+  const trace = createRagTrace("index-note", {
+    noteId,
+    textLength: plainText.length,
+    hasUserId: Boolean(userId),
+  });
 
   try {
     const note = await db.query.notes.findFirst({
@@ -108,18 +112,19 @@ export async function indexNote(
     }
 
     await db.delete(knowledgeChunks).where(eq(knowledgeChunks.sourceId, noteId));
-    console.log(`[Chunker] Cleared old chunks for: ${noteId}`);
+    trace.step("delete-old-chunks");
 
     const chunks = chunkText(plainText, chunkSize, overlap);
-    console.log(`[Chunker] Created ${chunks.length} chunks`);
+    trace.step("chunked", { chunksCount: chunks.length, chunkSize, overlap });
 
     if (chunks.length === 0) {
+      trace.finish({ chunksCount: 0, embeddingsCount: 0 });
       return { success: true, chunksCount: 0 };
     }
 
     const embeddings = await createEmbeddingsOrNull(chunks, `note:${noteId}`);
     const embeddingsCount = embeddings.filter((item) => item !== null).length;
-    console.log(`[Chunker] Generated ${embeddingsCount}/${chunks.length} embeddings`);
+    trace.step("embedded", { embeddingsCount, chunksCount: chunks.length });
 
     const newChunks = chunks.map((content, index) => ({
       sourceType: "note" as const,
@@ -136,15 +141,14 @@ export async function indexNote(
       const batch = newChunks.slice(i, i + batchSize);
       await db.insert(knowledgeChunks).values(batch);
     }
-
-    console.log(`[Chunker] Indexed ${chunks.length} chunks for: ${noteId}`);
+    trace.finish({ chunksCount: chunks.length, embeddingsCount });
 
     return {
       success: true,
       chunksCount: chunks.length,
     };
   } catch (error) {
-    console.error(`[Chunker] Error indexing note:`, error);
+    trace.fail(error, { noteId });
     throw error;
   }
 }
@@ -156,30 +160,32 @@ export async function indexConversation(
   options: IndexOptions = {},
 ): Promise<{ success: boolean; chunksCount: number }> {
   const { chunkSize = DEFAULT_CHUNK_SIZE, overlap = DEFAULT_OVERLAP, metadata } = options;
-
-  console.log(
-    `[Chunker] Indexing conversation: ${conversationId}, text length: ${plainText.length}`,
-  );
+  const trace = createRagTrace("index-conversation", {
+    conversationId,
+    textLength: plainText.length,
+    userId,
+  });
 
   try {
-    console.log("[Chunker] Deleting old chunks...");
     await db.delete(knowledgeChunks).where(eq(knowledgeChunks.sourceId, conversationId));
-    console.log(`[Chunker] Cleared old chunks for: ${conversationId}`);
+    trace.step("delete-old-chunks");
 
     const chunks = chunkText(plainText, chunkSize, overlap);
-    console.log(`[Chunker] Created ${chunks.length} chunks:`, chunks);
+    trace.step("chunked", { chunksCount: chunks.length, chunkSize, overlap });
 
     if (chunks.length === 0) {
+      trace.finish({ chunksCount: 0, embeddingsCount: 0 });
       return { success: true, chunksCount: 0 };
     }
 
-    console.log("[Chunker] Starting embeddings...", { count: chunks.length });
     const startTime = Date.now();
     const embeddings = await createEmbeddingsOrNull(chunks, `conversation:${conversationId}`);
     const embeddingsCount = embeddings.filter((item) => item !== null).length;
-    console.log(
-      `[Chunker] Generated ${embeddingsCount}/${chunks.length} embeddings, took ${Date.now() - startTime}ms`,
-    );
+    trace.step("embedded", {
+      chunksCount: chunks.length,
+      embeddingsCount,
+      embeddingMs: Date.now() - startTime,
+    });
 
     const newChunks = chunks.map((content, index) => ({
       sourceType: "conversation" as SourceType,
@@ -196,15 +202,14 @@ export async function indexConversation(
       const batch = newChunks.slice(i, i + batchSize);
       await db.insert(knowledgeChunks).values(batch);
     }
-
-    console.log(`[Chunker] Indexed ${chunks.length} chunks for: ${conversationId}`);
+    trace.finish({ chunksCount: chunks.length, embeddingsCount });
 
     return {
       success: true,
       chunksCount: chunks.length,
     };
   } catch (error) {
-    console.error(`[Chunker] Error indexing conversation:`, error);
+    trace.fail(error, { conversationId });
     throw error;
   }
 }
@@ -217,20 +222,27 @@ export async function indexCourseSection(
   options: IndexOptions = {},
 ): Promise<{ success: boolean; chunksCount: number }> {
   const { chunkSize = DEFAULT_CHUNK_SIZE, overlap = DEFAULT_OVERLAP, metadata } = options;
-
-  console.log(
-    `[Chunker] Indexing course section: ${documentId}, courseId: ${courseId}, text length: ${plainText.length}`,
-  );
+  const trace = createRagTrace("index-course-section", {
+    documentId,
+    courseId,
+    textLength: plainText.length,
+    userId,
+  });
 
   try {
     await db.delete(knowledgeChunks).where(eq(knowledgeChunks.sourceId, documentId));
+    trace.step("delete-old-chunks");
 
     const chunks = chunkText(plainText, chunkSize, overlap);
+    trace.step("chunked", { chunksCount: chunks.length, chunkSize, overlap });
     if (chunks.length === 0) {
+      trace.finish({ chunksCount: 0, embeddingsCount: 0 });
       return { success: true, chunksCount: 0 };
     }
 
     const embeddings = await createEmbeddingsOrNull(chunks, `course_section:${documentId}`);
+    const embeddingsCount = embeddings.filter((item) => item !== null).length;
+    trace.step("embedded", { chunksCount: chunks.length, embeddingsCount });
 
     const newChunks = chunks.map((content, index) => ({
       sourceType: "course_section" as SourceType,
@@ -247,11 +259,10 @@ export async function indexCourseSection(
       const batch = newChunks.slice(i, i + batchSize);
       await db.insert(knowledgeChunks).values(batch);
     }
-
-    console.log(`[Chunker] Indexed ${chunks.length} course section chunks for: ${documentId}`);
+    trace.finish({ chunksCount: chunks.length, embeddingsCount });
     return { success: true, chunksCount: chunks.length };
   } catch (error) {
-    console.error(`[Chunker] Error indexing course section:`, error);
+    trace.fail(error, { documentId, courseId });
     throw error;
   }
 }

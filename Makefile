@@ -1,46 +1,41 @@
-.PHONY: install dev deploy backup help logs clean db-shell redis-shell
+.PHONY: help install dev build start lint typecheck db-migrate db-push db-studio
 
-# Default target
 help:
-	@echo "NexusNote - 2026 Modern Commands:"
+	@echo "NexusNote commands:"
 	@echo ""
-	@echo "  make install     - Install dependencies"
-	@echo "  make dev         - Start development environment (Docker)"
-	@echo "  make deploy      - Deploy to production (using scripts/deploy.sh)"
-	@echo "  make backup      - Backup database (using scripts/backup.sh)"
-	@echo "  make logs        - View container logs"
-	@echo "  make clean       - Remove containers and volumes"
-	@echo "  make db-shell    - Enter PostgreSQL shell"
-	@echo "  make redis-shell - Enter Redis shell"
-	@echo ""
+	@echo "  make install     - Install dependencies with bun"
+	@echo "  make dev         - Start Next.js dev server"
+	@echo "  make build       - Build production bundle"
+	@echo "  make start       - Start production server"
+	@echo "  make lint        - Run Biome"
+	@echo "  make typecheck   - Run TypeScript"
+	@echo "  make db-migrate  - Apply database migrations"
+	@echo "  make db-push     - Push schema directly (local only)"
+	@echo "  make db-studio   - Open Drizzle Studio"
 
-# Development
 install:
-	pnpm install
+	bun install
 
 dev:
-	docker compose up -d
-	@echo "Database and Redis are running. Start app with: pnpm dev"
+	bun dev
 
-# Production & Deployment
-deploy:
-	./scripts/deploy.sh
+build:
+	bun run build
 
-backup:
-	./scripts/backup.sh
+start:
+	bun run start
 
-# Monitoring
-logs:
-	docker compose logs -f app
+lint:
+	bun run lint
 
-# Database & Cache Shells
-db-shell:
-	docker exec -it nexusnote-db psql -U postgres -d nexusnote
+typecheck:
+	bun run typecheck
 
-redis-shell:
-	docker exec -it nexusnote-redis redis-cli
+db-migrate:
+	bun run db:migrate
 
-# Cleanup
-clean:
-	docker compose down -v
-	rm -rf node_modules
+db-push:
+	bun run db:push
+
+db-studio:
+	bun run db:studio
