@@ -246,12 +246,12 @@ jobs:
 
       - name: Trigger Juanie Release
         env:
-          JUANIE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          JUANIE_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
 
           release_response="$(
-            curl -fsSX POST "https://juanie.art/api/releases" \
+            curl --fail-with-body -sSX POST "https://juanie.art/api/releases" \
               -H "Content-Type: application/json" \
               -H "Authorization: Bearer ${JUANIE_TOKEN}" \
               -d "{
@@ -278,7 +278,7 @@ jobs:
 
           for _ in $(seq 1 270); do
             status_response="$(
-              curl -fsSL "https://juanie.art/api/releases/${release_id}/status" \
+              curl --fail-with-body -sSL "https://juanie.art/api/releases/${release_id}/status" \
                 -H "Authorization: Bearer ${JUANIE_TOKEN}"
             )"
 
