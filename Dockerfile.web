@@ -16,6 +16,7 @@ RUN apk add --no-cache dumb-init \
 # CI 先在宿主机构建，再把最小运行时产物打进镜像。
 COPY --chown=nextjs:nodejs .docker-runtime/standalone ./
 COPY --chown=nextjs:nodejs .docker-runtime/static ./.next/static
+COPY --chown=nextjs:nodejs .docker-runtime/lib ./lib
 COPY --chown=nextjs:nodejs .docker-runtime/public ./public
 
 # 迁移运行时仍复用同一镜像，只保留必需脚本与依赖。
