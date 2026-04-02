@@ -1,44 +1,3 @@
-# syntax=docker/dockerfile:1
-
-# ============================================
-# Stage 1: Dependencies - 安装依赖
-# ============================================
-FROM oven/bun:1-alpine AS deps
-WORKDIR /app
-
-# 复制依赖文件
-COPY package.json bun.lock ./
-
-# 安装所有依赖（包括生产依赖）
-RUN bun install --frozen-lockfile
-
-# ============================================
-# Stage 2: Builder - 构建项目
-# ============================================
-FROM oven/bun:1-alpine AS builder
-WORKDIR /app
-
-ARG GIT_SHA=unknown
-
-# 复制依赖
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-
-# 确保 public 目录存在（即使为空）
-RUN mkdir -p public && touch public/.gitkeep
-
-# 设置环境变量
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV NODE_ENV=production
-ENV SKIP_ENV_VALIDATION=true
-ENV APP_BUILD_SHA=${GIT_SHA}
-
-# 构建 Next.js 应用
-RUN bun run build
-
-# ============================================
-# Stage 3: Runner - 运行时镜像
-# ============================================
 FROM node:20-alpine AS runner
 WORKDIR /app
 
@@ -54,16 +13,16 @@ RUN apk add --no-cache dumb-init \
     && adduser --system --uid 1001 nextjs \
     && mkdir -p /app/logs && chown -R nextjs:nodejs /app
 
-# 复制 standalone 运行时产物
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+# CI 先在宿主机构建，再把最小运行时产物打进镜像。
+COPY --chown=nextjs:nodejs .docker-runtime/standalone ./
+COPY --chown=nextjs:nodejs .docker-runtime/static ./.next/static
+COPY --chown=nextjs:nodejs .docker-runtime/public ./public
 
-# 复制迁移运行时需要的文件
-COPY --from=builder --chown=nextjs:nodejs /app/drizzle ./drizzle
-COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/drizzle-orm ./node_modules/drizzle-orm
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/postgres ./node_modules/postgres
+# 迁移运行时仍复用同一镜像，只保留必需脚本与依赖。
+COPY --chown=nextjs:nodejs .docker-runtime/drizzle ./drizzle
+COPY --chown=nextjs:nodejs .docker-runtime/scripts ./scripts
+COPY --chown=nextjs:nodejs .docker-runtime/node_modules/drizzle-orm ./node_modules/drizzle-orm
+COPY --chown=nextjs:nodejs .docker-runtime/node_modules/postgres ./node_modules/postgres
 
 USER nextjs
 

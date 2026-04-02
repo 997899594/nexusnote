@@ -39,6 +39,10 @@
 **/Thumbs.db
 **/desktop.ini
 
+# Release runtime bundle is prepared by CI and must bypass generic ignores.
+!.docker-runtime
+!.docker-runtime/**
+
 # 文档（可选）
 **/*.md
 **/README.md

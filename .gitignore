@@ -51,3 +51,4 @@ coverage
 secrets-operator.tgz
 
 .codex-artifacts
+.docker-runtime
