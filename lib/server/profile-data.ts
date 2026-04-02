@@ -45,12 +45,22 @@ export interface ProfileStats {
   };
 }
 
-export async function getUserStatsCached(userId: string): Promise<ProfileStats> {
+export function getProfileStatsWindowStart(referenceDate = new Date()): Date {
+  const windowStart = new Date(referenceDate);
+  windowStart.setHours(0, 0, 0, 0);
+  windowStart.setDate(windowStart.getDate() - 6);
+  return windowStart;
+}
+
+export async function getUserStatsCached(
+  userId: string,
+  windowStartIso: string,
+): Promise<ProfileStats> {
   "use cache";
 
   cacheLife("minutes");
   cacheTag(getProfileStatsTag(userId));
-  const windowStart = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const windowStart = new Date(windowStartIso);
 
   const [
     conversationCount,

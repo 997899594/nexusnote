@@ -5,6 +5,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { courseProgress, courseSectionAnnotations, courseSections, courses, db } from "@/db";
 import type { Annotation } from "@/hooks/useAnnotations";
 import { getLearnPageTag } from "@/lib/cache/tags";
+import { createLearnTrace } from "@/lib/learning/observability";
 
 export interface LearnSectionData {
   title: string;
@@ -57,6 +58,11 @@ export async function getLearnPageSnapshotCached(
   cacheLife("minutes");
   cacheTag(getLearnPageTag(userId, courseId));
 
+  const trace = createLearnTrace("page-snapshot", {
+    userId,
+    courseId,
+  });
+
   const [courseSession] = await db
     .select({
       id: courses.id,
@@ -68,6 +74,9 @@ export async function getLearnPageSnapshotCached(
     .limit(1);
 
   if (!courseSession) {
+    trace.finish({
+      found: false,
+    });
     return null;
   }
 
@@ -81,6 +90,9 @@ export async function getLearnPageSnapshotCached(
       nodeId: `section-${chIdx + 1}-${secIdx + 1}`,
     })),
   }));
+  trace.step("course-loaded", {
+    chapterCount: chapters.length,
+  });
 
   const [progressRecord] = await db
     .select({
@@ -115,6 +127,11 @@ export async function getLearnPageSnapshotCached(
     .from(courseSectionAnnotations)
     .innerJoin(courseSections, eq(courseSectionAnnotations.courseSectionId, courseSections.id))
     .where(and(eq(courseSectionAnnotations.userId, userId), eq(courseSections.courseId, courseId)));
+  trace.step("records-loaded", {
+    hasProgress: Boolean(progressRecord),
+    sectionDocCount: rawSections.length,
+    annotationCount: annotations.length,
+  });
 
   const annotationsBySectionId = new Map<string, Annotation[]>();
 
@@ -130,7 +147,7 @@ export async function getLearnPageSnapshotCached(
       },
       color: annotation.color ?? undefined,
       noteContent: annotation.noteContent ?? undefined,
-      createdAt: annotation.createdAt?.toISOString() ?? new Date().toISOString(),
+      createdAt: annotation.createdAt?.toISOString() ?? "",
     });
     annotationsBySectionId.set(annotation.courseSectionId, existing);
   }
@@ -142,6 +159,13 @@ export async function getLearnPageSnapshotCached(
     outlineNodeId: doc.outlineNodeId,
     annotations: annotationsBySectionId.get(doc.id) ?? [],
   }));
+
+  trace.finish({
+    found: true,
+    chapterCount: chapters.length,
+    sectionDocCount: sectionDocs.length,
+    annotatedSectionCount: [...annotationsBySectionId.keys()].length,
+  });
 
   return {
     courseTitle: courseSession.title ?? "Untitled Course",

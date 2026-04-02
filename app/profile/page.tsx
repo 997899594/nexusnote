@@ -7,7 +7,7 @@ import { AIPreferencesPanel } from "@/components/profile/AIPreferencesPanel";
 import { ProfileAiUsagePanel } from "@/components/profile/ProfileAiUsagePanel";
 import { FloatingHeader } from "@/components/shared/layout";
 import { getDynamicPageSession } from "@/lib/server/page-auth";
-import { getUserStatsCached } from "@/lib/server/profile-data";
+import { getProfileStatsWindowStart, getUserStatsCached } from "@/lib/server/profile-data";
 import { ProfileSignOut } from "./profile-client";
 
 function getProfileAvatarLabel(
@@ -35,7 +35,8 @@ async function ProfilePageContent() {
     redirect("/login?callbackUrl=%2Fprofile");
   }
 
-  const stats = await getUserStatsCached(session.user.id);
+  const windowStart = getProfileStatsWindowStart();
+  const stats = await getUserStatsCached(session.user.id, windowStart.toISOString());
 
   const statsCards = [
     {
