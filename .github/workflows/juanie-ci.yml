@@ -58,10 +58,41 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Resolve Bake Files
+        id: bake-files
+        if: ${{ hashFiles('docker-bake.hcl', 'docker-bake.json') != '' }}
+        run: |
+          set -euo pipefail
+
+          files=""
+
+          if [ -f docker-bake.hcl ]; then
+            files="${files}./docker-bake.hcl"
+          fi
+
+          if [ -f docker-bake.json ]; then
+            if [ -n "$files" ]; then
+              files="${files}"$'\n'
+            fi
+            files="${files}./docker-bake.json"
+          fi
+
+          if [ -z "$files" ]; then
+            echo "Bake definition file not found"
+            exit 1
+          fi
+
+          {
+            echo 'files<<EOF'
+            printf '%s\n' "$files"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
       - name: Build and Push (Bake)
         if: ${{ hashFiles('docker-bake.hcl', 'docker-bake.json') != '' }}
         uses: docker/bake-action@v5
         with:
+          files: ${{ steps.bake-files.outputs.files }}
           push: true
           set: |
             *.tags=${{ env.IMAGE_TAG }}
@@ -90,6 +121,26 @@ jobs:
             -w /workspace \
             buildpacksio/pack \
             pack build ${{ env.IMAGE_TAG }} --builder paketobuildpacks/builder-jammy-full --publish
+
+      - name: Verify Published Image
+        if: success()
+        run: |
+          set -euo pipefail
+
+          deadline=$(( $(date +%s) + 180 ))
+
+          while [ "$(date +%s)" -lt "$deadline" ]; do
+            if docker buildx imagetools inspect "${{ env.IMAGE_TAG }}" >/dev/null 2>&1; then
+              echo "Published image is available: ${{ env.IMAGE_TAG }}"
+              exit 0
+            fi
+
+            echo "Waiting for image manifest to become visible: ${{ env.IMAGE_TAG }}"
+            sleep 5
+          done
+
+          echo "Image manifest was not available in registry before release trigger"
+          exit 1
 
       - name: Trigger Juanie Release
         if: success()
