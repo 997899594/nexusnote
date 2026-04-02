@@ -2,7 +2,10 @@ services:
   - name: web
     type: web
     build:
+      strategy: bake
       command: bun run build
+      definition: docker-bake.hcl
+      target: web
       dockerfile: Dockerfile.web
       context: .
     run:
