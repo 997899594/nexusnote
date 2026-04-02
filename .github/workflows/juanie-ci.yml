@@ -260,16 +260,25 @@ jobs:
         run: |
           set -euo pipefail
 
+          release_payload="$(
+            jq -nc \
+              --arg repository "${GITHUB_REPOSITORY}" \
+              --arg sha "${GITHUB_SHA}" \
+              --arg ref "${GITHUB_REF}" \
+              --argjson services '${{ steps.plan.outputs.release_services_json }}' \
+              '{
+                repository: $repository,
+                sha: $sha,
+                ref: $ref,
+                services: $services
+              }'
+          )"
+
           release_response="$(
             curl --fail-with-body -sSX POST "https://juanie.art/api/releases" \
               -H "Content-Type: application/json" \
               -H "Authorization: Bearer ${JUANIE_TOKEN}" \
-              -d "{
-                \"repository\": \"${GITHUB_REPOSITORY}\",
-                \"sha\": \"${GITHUB_SHA}\",
-                \"ref\": \"${GITHUB_REF}\",
-                \"services\": ${{ steps.plan.outputs.release_services_json }}
-              }"
+              -d "${release_payload}"
           )"
 
           echo "$release_response"
