@@ -39,11 +39,11 @@ jobs:
         run: |
           set -euo pipefail
 
-          ruby <<'RUBY' "$GITHUB_OUTPUT"
+          ruby <<'RUBY'
           require 'json'
           require 'yaml'
 
-          output_path = ARGV.fetch(0)
+          output_path = ENV.fetch('GITHUB_OUTPUT')
           config = YAML.load_file('juanie.yaml') || {}
           services = Array(config['services'])
 
