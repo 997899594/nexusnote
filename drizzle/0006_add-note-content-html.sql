@@ -1,2 +1,0 @@
-ALTER TABLE "notes"
-ADD COLUMN "content_html" text;

@@ -10,10 +10,9 @@
     "typecheck": "tsc --noEmit",
     "ai:eval": "bun scripts/run-ai-evals.ts",
     "golden-path:backfill": "bun scripts/backfill-course-skill-mappings.ts",
-    "db:migrate": "bun scripts/db-migrate.mjs",
-    "db:push": "bun scripts/db-push.mjs",
-    "db:studio": "drizzle-kit studio",
-    "db:generate": "drizzle-kit generate"
+    "db:push": "node scripts/db-push.mjs",
+    "db:studio": "drizzle-kit studio --config drizzle.config.mjs",
+    "db:generate": "drizzle-kit generate --config drizzle.config.mjs"
   },
   "engines": {
     "node": ">=18"

@@ -31,9 +31,8 @@ bun run typecheck    # TypeScript check without emitting
 
 ### Database
 ```bash
-bun run db:migrate   # Apply versioned migrations
-bun run db:push      # Push schema directly (local dev only)
-bun run db:generate  # Generate migration files
+bun run db:push      # Sync schema directly from db/schema.ts
+bun run db:generate  # Generate a fresh baseline only after re-baselining drizzle/
 ```
 
 **Note**: No test framework exists yet. Testing infrastructure is planned.
@@ -109,7 +108,7 @@ bun run db:generate  # Generate migration files
 
 - Use `drizzle-orm` for all database operations
 - Schema in `db/schema/`
-- Production migrations via `bun run db:migrate`; keep `bun run db:push` for local-only schema sync
+- Treat `bun run db:push` as the deploy-time schema authority until a fresh drizzle migration baseline is reintroduced
 - Use `zod` schemas alongside Drizzle for validation
 - Vector search schema currently uses `vector(4000)`; keep migrations and indexes aligned with the real database type
 

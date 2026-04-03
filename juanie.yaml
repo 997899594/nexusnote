@@ -21,7 +21,7 @@ services:
     migrate:
       tool: drizzle
       workingDirectory: .
-      command: node scripts/db-migrate.mjs
+      command: node scripts/db-push.mjs
       phase: preDeploy
       autoRun: true
       approvalPolicy: manual_in_production

@@ -32,7 +32,7 @@ NexusNote 的主链不是“通用笔记”，而是：
 bun install
 docker compose up -d
 cp .env.example .env
-bun run db:migrate
+bun run db:push
 bun dev
 ```
 
@@ -50,7 +50,6 @@ bun run build
 bun run start
 bun run lint
 bun run typecheck
-bun run db:migrate
 bun run db:push
 bun run db:studio
 ```
@@ -60,7 +59,7 @@ bun run db:studio
 The repo ships a container-image workflow:
 
 ```text
-git push -> CI build -> image registry -> deployment platform rollout -> database migration
+git push -> CI build -> image registry -> deployment platform rollout -> schema sync
 ```
 
 - platform config: [juanie.yaml](./juanie.yaml)

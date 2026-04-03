@@ -19,11 +19,11 @@ COPY --chown=nextjs:nodejs .docker-runtime/static ./.next/static
 COPY --chown=nextjs:nodejs .docker-runtime/lib ./lib
 COPY --chown=nextjs:nodejs .docker-runtime/public ./public
 
-# 迁移运行时仍复用同一镜像，只保留必需脚本与依赖。
-COPY --chown=nextjs:nodejs .docker-runtime/drizzle ./drizzle
+# Schema sync 运行时与应用镜像复用，补齐必要脚本、schema 与 CLI 依赖。
+COPY --chown=nextjs:nodejs .docker-runtime/db ./db
+COPY --chown=nextjs:nodejs .docker-runtime/drizzle.config.mjs ./drizzle.config.mjs
 COPY --chown=nextjs:nodejs .docker-runtime/scripts ./scripts
-COPY --chown=nextjs:nodejs .docker-runtime/node_modules/drizzle-orm ./node_modules/drizzle-orm
-COPY --chown=nextjs:nodejs .docker-runtime/node_modules/postgres ./node_modules/postgres
+COPY --chown=nextjs:nodejs .docker-runtime/node_modules ./node_modules
 
 USER nextjs
 

@@ -11,7 +11,7 @@ This repository no longer carries:
 ## Deployment model
 
 ```text
-Git push -> CI build -> image registry -> deployment platform rollout -> database migration
+Git push -> CI build -> image registry -> deployment platform rollout -> schema sync
 ```
 
 ## What the platform must provide
@@ -47,20 +47,21 @@ Optional but recommended:
 1. Push code
 2. CI builds and publishes a new image
 3. Deployment platform updates to the new image tag
-4. Run `bun run db:migrate`
+4. Run `bun run db:push`
 5. Verify `/api/health`, login, interview, and learn flow
 
-## Migration policy
+## Schema sync policy
 
-Database schema changes are not applied automatically by this repository.
+This repository treats the current Drizzle schema as the deployment source of truth.
 
-Run migrations as part of the platform release process:
+Run schema sync as part of the platform release process:
 
 ```bash
-node scripts/db-migrate.mjs
+bun run db:push
 ```
 
-If your platform supports release commands or post-deploy hooks, use that instead of manual SSH.
+The sync command is non-interactive, applies the current schema directly, and fails fast if the
+runtime schema is still incomplete after sync.
 
 ## Local development
 

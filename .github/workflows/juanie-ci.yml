@@ -152,15 +152,15 @@ jobs:
           set -euo pipefail
 
           rm -rf .docker-runtime
-          mkdir -p .docker-runtime/lib/ai/prompts .docker-runtime/node_modules .docker-runtime/public
+          mkdir -p .docker-runtime/lib/ai/prompts .docker-runtime/public
 
           cp -R .next/standalone .docker-runtime/standalone
           cp -R .next/static .docker-runtime/static
-          cp -R drizzle .docker-runtime/drizzle
+          cp -R db .docker-runtime/db
+          cp drizzle.config.mjs .docker-runtime/drizzle.config.mjs
           cp -R lib/ai/prompts/resources .docker-runtime/lib/ai/prompts/resources
           cp -R scripts .docker-runtime/scripts
-          cp -R node_modules/drizzle-orm .docker-runtime/node_modules/drizzle-orm
-          cp -R node_modules/postgres .docker-runtime/node_modules/postgres
+          node scripts/prepare-schema-runtime.mjs
 
           if [ -d public ]; then
             cp -R public/. .docker-runtime/public/

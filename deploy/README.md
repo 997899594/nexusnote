@@ -11,7 +11,7 @@
 ## 推荐部署方式
 
 ```text
-Git Push -> CI 构建镜像 -> 推送镜像仓库 -> 部署平台拉取新镜像 -> 执行数据库迁移
+Git Push -> CI 构建镜像 -> 推送镜像仓库 -> 部署平台拉取新镜像 -> 执行 Schema Sync
 ```
 
 适用前提：
@@ -32,7 +32,7 @@ Git Push -> CI 构建镜像 -> 推送镜像仓库 -> 部署平台拉取新镜像
 1. 构建并推送镜像
 2. 在部署平台更新镜像 tag
 3. 注入/校验环境变量
-4. 执行数据库迁移
+4. 执行 Schema Sync
 5. 检查健康接口和登录链路
 
 ## 必要环境变量
@@ -47,15 +47,15 @@ Git Push -> CI 构建镜像 -> 推送镜像仓库 -> 部署平台拉取新镜像
 - `AUTH_URL`
 - `AI_302_API_KEY`
 
-## 数据库迁移
+## Schema Sync
 
 发布新镜像后，执行：
 
 ```bash
-node scripts/db-migrate.mjs
+bun run db:push
 ```
 
-如果你的平台支持 release command / post-deploy hook，优先把迁移接到平台发布流程里。
+这条命令会以当前 Drizzle schema 为准直接同步数据库，并在结束后校验运行时必需的表、列和索引。
 
 ## 健康检查
 
