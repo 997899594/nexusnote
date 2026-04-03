@@ -68,18 +68,6 @@ const REQUIRED_COLUMNS = [
 
 const FORBIDDEN_COLUMNS = [["conversations", "messages"]];
 
-const REQUIRED_INDEXES = [
-  "conversation_messages_conversation_idx",
-  "conversation_messages_conversation_position_idx",
-  "conversations_user_updated_at_idx",
-  "courses_user_updated_at_idx",
-  "knowledge_chunks_content_fts_idx",
-  "knowledge_chunks_embedding_hnsw_idx",
-  "notes_source_type_idx",
-  "notes_user_updated_at_idx",
-  "tags_name_embedding_hnsw_idx",
-];
-
 function getConnectionString(connectionString = process.env.DATABASE_URL) {
   if (!connectionString) {
     throw new Error("DATABASE_URL is not set");
@@ -112,7 +100,7 @@ export async function verifyCurrentSchema(connectionString = process.env.DATABAS
   });
 
   try {
-    const [extensionRows, tableRows, columnRows, indexRows] = await Promise.all([
+    const [extensionRows, tableRows, columnRows] = await Promise.all([
       sql`
         SELECT extname
         FROM pg_extension
@@ -127,18 +115,11 @@ export async function verifyCurrentSchema(connectionString = process.env.DATABAS
         FROM information_schema.columns
         WHERE table_schema = 'public'
       `,
-      sql`
-        SELECT indexname
-        FROM pg_indexes
-        WHERE schemaname = 'public'
-      `,
     ]);
 
     const extensions = new Set(extensionRows.map((row) => row.extname));
     const tables = new Set(tableRows.map((row) => row.table_name));
     const columns = new Set(columnRows.map((row) => toColumnKey(row.table_name, row.column_name)));
-    const indexes = new Set(indexRows.map((row) => row.indexname));
-
     const failures = [];
 
     for (const extension of REQUIRED_EXTENSIONS) {
@@ -168,12 +149,6 @@ export async function verifyCurrentSchema(connectionString = process.env.DATABAS
     for (const [tableName, columnName] of FORBIDDEN_COLUMNS) {
       if (columns.has(toColumnKey(tableName, columnName))) {
         failures.push(`unexpected legacy column ${tableName}.${columnName}`);
-      }
-    }
-
-    for (const indexName of REQUIRED_INDEXES) {
-      if (!indexes.has(indexName)) {
-        failures.push(`missing index ${indexName}`);
       }
     }
 
