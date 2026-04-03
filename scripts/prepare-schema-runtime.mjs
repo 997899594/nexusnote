@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdirSync, readdirSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
 
 const workspaceRoot = process.cwd();
@@ -28,15 +28,24 @@ function copyPackage(packageName) {
   });
 }
 
-function copyEsbuildPlatformPackages() {
-  const scopedDirectory = path.join(nodeModulesRoot, "@esbuild");
-  if (!existsSync(scopedDirectory)) {
-    return;
+function resolveEsbuildPlatformPackage(platform, arch) {
+  if (platform === "linux" && arch === "x64") {
+    return "@esbuild/linux-x64";
   }
 
-  for (const packageName of readdirSync(scopedDirectory)) {
-    copyPackage(`@esbuild/${packageName}`);
+  if (platform === "linux" && arch === "arm64") {
+    return "@esbuild/linux-arm64";
   }
+
+  if (platform === "darwin" && arch === "arm64") {
+    return "@esbuild/darwin-arm64";
+  }
+
+  if (platform === "darwin" && arch === "x64") {
+    return "@esbuild/darwin-x64";
+  }
+
+  return null;
 }
 
 rmSync(runtimeNodeModulesRoot, { force: true, recursive: true });
@@ -46,4 +55,11 @@ for (const packageName of runtimePackages) {
   copyPackage(packageName);
 }
 
-copyEsbuildPlatformPackages();
+for (const packageName of new Set([
+  "@esbuild/linux-x64",
+  resolveEsbuildPlatformPackage(process.platform, process.arch),
+])) {
+  if (packageName) {
+    copyPackage(packageName);
+  }
+}
