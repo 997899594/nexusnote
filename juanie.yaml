@@ -1,42 +1,46 @@
+# juanie.yaml
+name: find-kaqmxe
+
 services:
   - name: web
     type: web
     build:
+      command: npm run build
       strategy: bake
-      command: bun run build
       definition: docker-bake.hcl
-      target: web
-      dockerfile: Dockerfile.web
       context: .
+      target: web
     run:
-      command: bun run start
+      command: npm start
       port: 3000
     healthcheck:
       path: /api/health
       interval: 30
     scaling:
       min: 1
-      max: 5
-      cpu: 80
+    resources:
+      cpuRequest: 100m
+      cpuLimit: 500m
+      memoryRequest: 256Mi
+      memoryLimit: 512Mi
+    # Auto-generated from package.json script db:push; review before enabling auto-run
     migrate:
       tool: drizzle
       workingDirectory: .
-      command: node scripts/db-push.mjs
+      command: bun run db:push
       phase: preDeploy
-      autoRun: true
+      autoRun: false
       approvalPolicy: manual_in_production
 
 databases:
-  - name: postgres
+  - name: primary
     type: postgresql
     plan: standard
     scope: project
     role: primary
-    capabilities:
-      - vector
 
 environments:
   production:
     branch: main
-    variables:
-      NODE_ENV: production
+  staging:
+    branch: main
