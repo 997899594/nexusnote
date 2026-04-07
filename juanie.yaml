@@ -32,6 +32,8 @@ databases:
     plan: standard
     scope: project
     role: primary
+    capabilities:
+      - vector
 
 environments:
   production:
