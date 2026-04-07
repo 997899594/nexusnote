@@ -32,10 +32,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
       - name: Resolve Juanie Build Plan
         id: plan
         env:
@@ -136,36 +132,6 @@ jobs:
           end
           RUBY
 
-      - name: Install Release Dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Build Release Artifacts
-        env:
-          NEXT_TELEMETRY_DISABLED: '1'
-          NODE_ENV: production
-          SKIP_ENV_VALIDATION: 'true'
-          APP_BUILD_SHA: ${{ github.sha }}
-        run: bun run build
-
-      - name: Prepare Docker Runtime Bundle
-        run: |
-          set -euo pipefail
-
-          rm -rf .docker-runtime
-          mkdir -p .docker-runtime/lib/ai/prompts .docker-runtime/public
-
-          cp -R .next/standalone .docker-runtime/standalone
-          cp -R .next/static .docker-runtime/static
-          cp -R db .docker-runtime/db
-          cp drizzle.config.mjs .docker-runtime/drizzle.config.mjs
-          cp -R lib/ai/prompts/resources .docker-runtime/lib/ai/prompts/resources
-          cp -R scripts .docker-runtime/scripts
-          node scripts/prepare-schema-runtime.mjs
-
-          if [ -d public ]; then
-            cp -R public/. .docker-runtime/public/
-          fi
-
       - uses: docker/setup-buildx-action@v4
 
       - uses: docker/login-action@v4
@@ -177,15 +143,11 @@ jobs:
       - name: Build and Push (Bake Target)
         if: ${{ steps.plan.outputs.build_kind == 'bake_target' }}
         uses: docker/bake-action@v7
-        env:
-          BUILDX_NO_DEFAULT_ATTESTATIONS: 1
         with:
           source: .
           files: ${{ steps.plan.outputs.build_definition }}
           targets: ${{ steps.plan.outputs.build_target }}
           push: true
-          provenance: false
-          sbom: false
           set: |
             ${{ steps.plan.outputs.build_target }}.tags=${{ env.IMAGE_TAG }}
             ${{ steps.plan.outputs.build_target }}.args.GIT_SHA=${{ github.sha }}
@@ -195,14 +157,10 @@ jobs:
       - name: Build and Push (Bake Default)
         if: ${{ steps.plan.outputs.build_kind == 'bake_default' }}
         uses: docker/bake-action@v7
-        env:
-          BUILDX_NO_DEFAULT_ATTESTATIONS: 1
         with:
           source: .
           files: ${{ steps.plan.outputs.build_definition }}
           push: true
-          provenance: false
-          sbom: false
           set: |
             *.tags=${{ env.IMAGE_TAG }}
             *.args.GIT_SHA=${{ github.sha }}
@@ -213,15 +171,12 @@ jobs:
         if: ${{ steps.plan.outputs.build_kind == 'dockerfile' }}
         uses: docker/build-push-action@v7
         env:
-          BUILDX_NO_DEFAULT_ATTESTATIONS: 1
           DOCKER_BUILD_SUMMARY: true
         with:
           context: ${{ steps.plan.outputs.build_context }}
           file: ${{ steps.plan.outputs.build_dockerfile }}
           push: true
           tags: ${{ env.IMAGE_TAG }}
-          provenance: false
-          sbom: false
           build-args: |
             GIT_SHA=${{ github.sha }}
           cache-from: type=gha
@@ -256,41 +211,22 @@ jobs:
           echo "Image manifest was not available in registry before release trigger"
           exit 1
 
-      - name: Verify GitHub Repository Access
-        env:
-          JUANIE_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-
-          curl --fail-with-body -sS "https://api.github.com/repos/${GITHUB_REPOSITORY}" \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${JUANIE_TOKEN}" >/dev/null
-
       - name: Trigger Juanie Release
         env:
-          JUANIE_TOKEN: ${{ github.token }}
+          JUANIE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
 
-          release_payload="$(
-            jq -nc \
-              --arg repository "${GITHUB_REPOSITORY}" \
-              --arg sha "${GITHUB_SHA}" \
-              --arg ref "${GITHUB_REF}" \
-              --argjson services '${{ steps.plan.outputs.release_services_json }}' \
-              '{
-                repository: $repository,
-                sha: $sha,
-                ref: $ref,
-                services: $services
-              }'
-          )"
-
           release_response="$(
-            curl --fail-with-body -sSX POST "https://juanie.art/api/releases" \
+            curl -fsSX POST "https://juanie.art/api/releases" \
               -H "Content-Type: application/json" \
               -H "Authorization: Bearer ${JUANIE_TOKEN}" \
-              -d "${release_payload}"
+              -d "{
+                \"repository\": \"${GITHUB_REPOSITORY}\",
+                \"sha\": \"${GITHUB_SHA}\",
+                \"ref\": \"${GITHUB_REF}\",
+                \"services\": ${{ steps.plan.outputs.release_services_json }}
+              }"
           )"
 
           echo "$release_response"
@@ -309,7 +245,7 @@ jobs:
 
           for _ in $(seq 1 270); do
             status_response="$(
-              curl --fail-with-body -sSL "https://juanie.art/api/releases/${release_id}/status" \
+              curl -fsSL "https://juanie.art/api/releases/${release_id}/status" \
                 -H "Authorization: Bearer ${JUANIE_TOKEN}"
             )"
 
