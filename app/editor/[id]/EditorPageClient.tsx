@@ -267,8 +267,8 @@ export default function EditorPageClient({
         </div>
       </motion.div>
 
-      <div className="md:hidden">
-        <div className="px-4 pb-5 pt-[5rem]">
+      <div className="ui-mobile-header-offset md:hidden">
+        <div className="px-4 pb-5">
           <div className="space-y-4 rounded-[24px] bg-white px-4 py-4 shadow-[0_24px_56px_-40px_rgba(15,23,42,0.14)]">
             <div className="space-y-3">
               <input

@@ -14,7 +14,6 @@ import { cn } from "@/lib/utils";
 import type { ChapterOutline } from "@/stores/learn";
 import { useLearnStore } from "@/stores/learn";
 
-import { GoldenPathChapterPanel } from "./components/GoldenPathChapterPanel";
 import { LearnChat } from "./components/LearnChat";
 import { LearnSidebar } from "./components/LearnSidebar";
 import { SectionReader } from "./components/SectionReader";
@@ -168,36 +167,28 @@ export function LearnClient({
               <button
                 type="button"
                 onClick={() => router.back()}
-                className="mt-0.5 shrink-0 rounded-xl p-2 text-[var(--color-text-secondary)] transition-colors hover:bg-[#f3f5f8]"
+                className="mt-0.5 shrink-0 rounded-xl border border-[#d8bc7b]/28 bg-[radial-gradient(circle_at_top_left,rgba(232,205,141,0.16),transparent_55%),linear-gradient(180deg,#fffdf8_0%,#fff8ef_100%)] p-2 text-[#745b25] shadow-[0_14px_28px_-22px_rgba(197,143,42,0.22)] transition-colors hover:text-[#5f4716]"
               >
                 <ArrowLeft className="h-5 w-5" />
               </button>
               <div className="min-w-0 space-y-1">
-                {currentChapter && (
-                  <p className="inline-flex max-w-fit items-center rounded-full bg-[#eef1f5] px-2.5 py-1 text-[0.65rem] font-semibold tracking-[0.12em] text-[#111827]">
-                    第 {currentChapterIndex + 1} 章
-                  </p>
-                )}
                 <h1 className="line-clamp-2 text-sm font-semibold leading-5 text-[var(--color-text)]">
-                  {currentChapter?.title ?? courseTitle}
+                  {courseTitle}
                 </h1>
                 <p className="truncate text-[0.6875rem] text-[var(--color-text-tertiary)]">
-                  {courseTitle}
+                  {currentChapter ? `当前阅读 · 第 ${currentChapterIndex + 1} 章` : "课程工作台"}
                 </p>
-                <div className="pt-1.5">
-                  <GoldenPathChapterPanel context={goldenPathContext} compact />
-                </div>
               </div>
             </div>
-            <div className="flex shrink-0 items-center gap-1 rounded-2xl bg-[#f5f6f8] p-1">
+            <div className="flex shrink-0 items-center gap-1 rounded-2xl border border-[#d8bc7b]/28 bg-[linear-gradient(180deg,#fffdf8_0%,#fff8ef_100%)] p-1 shadow-[0_14px_30px_-24px_rgba(197,143,42,0.2)]">
               <button
                 type="button"
                 onClick={() => setSidebarOpen(true)}
                 className={cn(
                   "rounded-xl p-2 transition-colors",
                   isSidebarOpen
-                    ? "bg-[#eef1f5] text-[#111827]"
-                    : "text-[var(--color-text-secondary)] hover:bg-[#f3f5f8]",
+                    ? "bg-[linear-gradient(180deg,#9a6e24_0%,#c58f2a_58%,#e8c66d_100%)] text-white shadow-[0_12px_22px_-16px_rgba(197,143,42,0.45)]"
+                    : "text-[#7b6024] hover:bg-[#fff7eb]",
                 )}
               >
                 <List className="h-5 w-5" />
@@ -208,8 +199,8 @@ export function LearnClient({
                 className={cn(
                   "rounded-xl p-2 transition-colors",
                   isChatOpen
-                    ? "bg-[#eef1f5] text-[#111827]"
-                    : "text-[var(--color-text-secondary)] hover:bg-[#f3f5f8]",
+                    ? "bg-[linear-gradient(180deg,#9a6e24_0%,#c58f2a_58%,#e8c66d_100%)] text-white shadow-[0_12px_22px_-16px_rgba(197,143,42,0.45)]"
+                    : "text-[#7b6024] hover:bg-[#fff7eb]",
                 )}
               >
                 <MessageSquare className="h-5 w-5" />
@@ -251,11 +242,7 @@ export function LearnClient({
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 className="fixed inset-y-0 left-0 z-50 w-[min(88vw,336px)] overflow-hidden rounded-r-[28px] bg-[#f6f7f9] shadow-xl"
               >
-                <LearnSidebar
-                  courseTitle={courseTitle}
-                  width={SIDEBAR_WIDTH}
-                  goldenPathContext={goldenPathContext}
-                />
+                <LearnSidebar courseTitle={courseTitle} width={SIDEBAR_WIDTH} />
               </motion.div>
             </>
           )}
@@ -306,11 +293,7 @@ export function LearnClient({
             exit="exit"
             className="flex-shrink-0 overflow-hidden rounded-[30px] border border-black/5 bg-[#f6f7f9] shadow-[0_22px_54px_-40px_rgba(15,23,42,0.22)]"
           >
-            <LearnSidebar
-              courseTitle={courseTitle}
-              width={SIDEBAR_WIDTH}
-              goldenPathContext={goldenPathContext}
-            />
+            <LearnSidebar courseTitle={courseTitle} width={SIDEBAR_WIDTH} />
           </motion.div>
         )}
       </AnimatePresence>
@@ -331,22 +314,17 @@ export function LearnClient({
               exit={{ opacity: 0, y: -10 }}
               className="border-b border-black/5 bg-white/92 px-8 py-5 backdrop-blur-xl"
             >
-              <div className="min-w-0">
-                <div className="mb-2 flex items-center gap-2.5">
-                  <span className="rounded-full bg-[#eef1f5] px-3 py-1 text-[0.6875rem] font-semibold tracking-[0.12em] text-[#111827]">
-                    第 {currentChapterIndex + 1} 章
-                  </span>
-                  <span className="text-[0.6875rem] uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
-                    Learning Workspace
-                  </span>
+              <div className="min-w-0 space-y-1">
+                <div className="text-[0.6875rem] uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
+                  Learning Workspace
                 </div>
                 <h1 className="max-w-3xl truncate text-lg font-semibold text-[var(--color-text)]">
-                  {currentChapter.title}
+                  {courseTitle}
                 </h1>
               </div>
               <div className="hidden md:flex items-center gap-2 text-xs text-[var(--color-text-tertiary)]">
                 <span className="rounded-full bg-[var(--color-panel-soft)] px-3 py-1.5 text-[0.72rem] text-[var(--color-text-secondary)]">
-                  {courseTitle}
+                  当前阅读 · 第 {currentChapterIndex + 1} 章
                 </span>
               </div>
             </motion.header>

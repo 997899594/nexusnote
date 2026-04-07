@@ -117,88 +117,92 @@ export function DrawerMenu({ isOpen, onClose, userName, userEmail }: DrawerMenuP
             animate={{ x: 0 }}
             exit={{ x: "-100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed top-0 left-0 bottom-0 w-[280px] z-50 bg-[var(--color-surface)] shadow-2xl md:hidden safe-top"
+            className="fixed top-0 left-0 bottom-0 z-50 w-[280px] overflow-hidden bg-[var(--color-surface)] shadow-2xl md:hidden"
           >
-            {/* 用户信息区 */}
-            <div className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-[var(--color-accent)] flex items-center justify-center text-[var(--color-accent-fg)] text-xl font-bold">
-                  {avatarLabel || displayEmail[0]?.toUpperCase() || "U"}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-[var(--color-text)] truncate">
-                    {displayName}
+            <div className="safe-top safe-bottom flex h-full flex-col">
+              {/* 用户信息区 */}
+              <div className="p-6">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--color-accent)] text-xl font-bold text-[var(--color-accent-fg)]">
+                    {avatarLabel || displayEmail[0]?.toUpperCase() || "U"}
                   </div>
-                  <div className="text-sm text-[var(--color-text-tertiary)] truncate">
-                    {displayEmail}
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-semibold text-[var(--color-text)]">
+                      {displayName}
+                    </div>
+                    <div className="truncate text-sm text-[var(--color-text-tertiary)]">
+                      {displayEmail}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* 快速操作 */}
-            <div className="px-4 py-4">
-              <div className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-3 px-2">
-                快速开始
+              {/* 快速操作 */}
+              <div className="px-4 py-4">
+                <div className="mb-3 px-2 text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
+                  快速开始
+                </div>
+                <div className="space-y-1">
+                  {quickActions.map((action) => {
+                    const Icon = action.icon;
+                    return (
+                      <motion.button
+                        key={action.href}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => handleNavClick(action.href)}
+                        className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-hover)]"
+                      >
+                        <Icon className="h-4 w-4 text-[var(--color-text-muted)]" />
+                        <span className="text-sm font-medium">{action.label}</span>
+                      </motion.button>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="space-y-1">
-                {quickActions.map((action) => {
-                  const Icon = action.icon;
+
+              {/* 主导航 */}
+              <nav className="mobile-scroll flex-1 overflow-y-auto px-4 py-4">
+                {navItems.map((item) => {
+                  const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+                  const Icon = item.icon;
+
                   return (
                     <motion.button
-                      key={action.href}
+                      key={item.href}
                       whileTap={{ scale: 0.98 }}
-                      onClick={() => handleNavClick(action.href)}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[var(--color-text-secondary)] hover:bg-[var(--color-hover)] transition-colors"
+                      onClick={() => handleNavClick(item.href)}
+                      className={cn(
+                        "mb-1 flex w-full items-center gap-3 rounded-xl px-3 py-3 transition-colors",
+                        isActive
+                          ? "bg-[var(--color-accent-light)] font-medium text-[var(--color-accent)]"
+                          : "text-[var(--color-text-secondary)] hover:bg-[var(--color-hover)]",
+                      )}
                     >
-                      <Icon className="w-4 h-4 text-[var(--color-text-muted)]" />
-                      <span className="text-sm font-medium">{action.label}</span>
+                      <Icon
+                        className={cn(
+                          "h-5 w-5",
+                          isActive
+                            ? "text-[var(--color-accent)]"
+                            : "text-[var(--color-text-muted)]",
+                        )}
+                      />
+                      <span className="text-sm">{item.label}</span>
                     </motion.button>
                   );
                 })}
+              </nav>
+
+              {/* 底部退出 */}
+              <div className="p-4">
+                <motion.button
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleSignOut}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-red-600 transition-colors hover:bg-red-50"
+                >
+                  <LogOut className="h-5 w-5" />
+                  <span className="text-sm font-medium">退出登录</span>
+                </motion.button>
               </div>
-            </div>
-
-            {/* 主导航 */}
-            <nav className="flex-1 px-4 py-4 overflow-y-auto mobile-scroll">
-              {navItems.map((item) => {
-                const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
-                const Icon = item.icon;
-
-                return (
-                  <motion.button
-                    key={item.href}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => handleNavClick(item.href)}
-                    className={cn(
-                      "w-full flex items-center gap-3 px-3 py-3 rounded-xl mb-1 transition-colors",
-                      isActive
-                        ? "bg-[var(--color-accent-light)] text-[var(--color-accent)] font-medium"
-                        : "text-[var(--color-text-secondary)] hover:bg-[var(--color-hover)]",
-                    )}
-                  >
-                    <Icon
-                      className={cn(
-                        "w-5 h-5",
-                        isActive ? "text-[var(--color-accent)]" : "text-[var(--color-text-muted)]",
-                      )}
-                    />
-                    <span className="text-sm">{item.label}</span>
-                  </motion.button>
-                );
-              })}
-            </nav>
-
-            {/* 底部退出 */}
-            <div className="p-4 safe-bottom">
-              <motion.button
-                whileTap={{ scale: 0.98 }}
-                onClick={handleSignOut}
-                className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-red-600 hover:bg-red-50 transition-colors"
-              >
-                <LogOut className="w-5 h-5" />
-                <span className="text-sm font-medium">退出登录</span>
-              </motion.button>
             </div>
           </motion.div>
         </>

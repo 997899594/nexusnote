@@ -65,7 +65,7 @@ export function ZenModeToggle() {
             exit={{ opacity: 0, y: 5, x: "50%" }}
             className="absolute bottom-full right-1/2 translate-x-1/2 mb-2"
           >
-            <div className="ui-primary-button flex items-center gap-2 whitespace-nowrap rounded-xl px-3 py-1.5 text-xs text-white">
+            <div className="flex items-center gap-2 whitespace-nowrap rounded-xl border border-[#d8bc7b]/35 bg-[linear-gradient(180deg,#9a6e24_0%,#c58f2a_58%,#e8c66d_100%)] px-3 py-1.5 text-xs text-white shadow-[0_18px_36px_-24px_rgba(197,143,42,0.42)]">
               <Keyboard className="w-3.5 h-3.5" />
               <span>按 F 键切换</span>
             </div>
@@ -78,7 +78,7 @@ export function ZenModeToggle() {
         type="button"
         onClick={toggleZenMode}
         className={cn(
-          "ui-primary-button flex h-12 w-12 items-center justify-center rounded-full text-white",
+          "flex h-12 w-12 items-center justify-center rounded-full border border-[#d8bc7b]/35 bg-[linear-gradient(180deg,#9a6e24_0%,#c58f2a_58%,#e8c66d_100%)] text-white shadow-[0_20px_40px_-24px_rgba(197,143,42,0.48)]",
           "transition-shadow duration-300 hover:opacity-95",
         )}
         whileHover={{ scale: 1.05 }}

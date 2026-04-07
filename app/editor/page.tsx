@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
+import { FloatingHeader } from "@/components/shared/layout";
 import { getNotesWorkbenchCached, type NoteWorkbenchKind } from "@/lib/server/editor-data";
 import { requireDynamicPageAuth } from "@/lib/server/page-auth";
 
@@ -61,8 +62,10 @@ async function NotesIndexPageContent({
   });
 
   return (
-    <main className="ui-page-shell min-h-dvh safe-top">
-      <div className="ui-page-frame max-w-5xl ui-bottom-breathing-room pt-24 md:pt-24">
+    <main className="ui-page-shell min-h-dvh">
+      <FloatingHeader showBackHint showMenuButton />
+
+      <div className="ui-page-frame ui-floating-header-offset max-w-5xl ui-bottom-breathing-room">
         <header className="mb-8 max-w-3xl md:mb-10">
           <div className="ui-badge-pill inline-flex items-center gap-2 px-3 py-1.5 text-[11px] uppercase tracking-[0.22em] text-black/45">
             <span className="ui-strong-chip h-1.5 w-1.5 rounded-full" />

@@ -3,16 +3,13 @@
 import { motion } from "framer-motion";
 import { ArrowLeft, Clock, Sparkles, Trophy } from "lucide-react";
 import { useRouter } from "next/navigation";
-import type { GoldenPathCourseContext } from "@/lib/golden-path/types";
 import { cn } from "@/lib/utils";
 import { useLearnStore } from "@/stores/learn";
 import { ChapterList } from "./ChapterList";
-import { GoldenPathChapterPanel } from "./GoldenPathChapterPanel";
 
 interface LearnSidebarProps {
   courseTitle: string;
   width: number;
-  goldenPathContext: GoldenPathCourseContext | null;
 }
 
 const contentVariants = {
@@ -55,7 +52,7 @@ function ProgressRing({ progress, size = 52 }: { progress: number; size?: number
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="#111827"
+          stroke="#c58f2a"
           strokeWidth={strokeWidth}
           strokeLinecap="round"
           strokeDasharray={circumference}
@@ -65,13 +62,13 @@ function ProgressRing({ progress, size = 52 }: { progress: number; size?: number
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-sm font-bold text-[#111827]">{progress}%</span>
+        <span className="text-sm font-bold text-[#8c6a24]">{progress}%</span>
       </div>
     </div>
   );
 }
 
-export function LearnSidebar({ courseTitle, width, goldenPathContext }: LearnSidebarProps) {
+export function LearnSidebar({ courseTitle, width }: LearnSidebarProps) {
   const router = useRouter();
   const { chapters, completedSections } = useLearnStore();
 
@@ -99,9 +96,9 @@ export function LearnSidebar({ courseTitle, width, goldenPathContext }: LearnSid
             type="button"
             onClick={() => router.push("/")}
             className={cn(
-              "flex h-9 w-9 items-center justify-center rounded-lg",
-              "text-[var(--color-text-secondary)]",
-              "hover:bg-[#eef1f5] hover:text-[#111827]",
+              "flex h-9 w-9 items-center justify-center rounded-lg border border-[#d8bc7b]/28 bg-[radial-gradient(circle_at_top_left,rgba(232,205,141,0.16),transparent_55%),linear-gradient(180deg,#fffdf8_0%,#fff8ef_100%)]",
+              "text-[#745b25]",
+              "hover:text-[#5f4716]",
               "transition-all duration-200",
             )}
           >
@@ -120,25 +117,25 @@ export function LearnSidebar({ courseTitle, width, goldenPathContext }: LearnSid
         {/* Progress card */}
         <motion.div
           variants={itemVariants}
-          className="mx-4 mb-4 mt-4 rounded-[28px] border border-black/5 bg-white p-4 shadow-[0_24px_56px_-40px_rgba(15,23,42,0.16)]"
+          className="mx-4 mb-4 mt-4 rounded-[28px] border border-[#d8bc7b]/28 bg-[radial-gradient(circle_at_top_left,rgba(232,205,141,0.18),transparent_38%),linear-gradient(180deg,#fffdf8_0%,#fffaf1_100%)] p-4 shadow-[0_24px_56px_-40px_rgba(197,143,42,0.18)]"
         >
           <div className="flex items-center gap-4">
             <ProgressRing progress={progress} />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 mb-1">
-                <Trophy className="w-3.5 h-3.5 text-[#111827]" />
-                <span className="text-xs font-semibold text-[var(--color-text)]">已学进度</span>
+                <Trophy className="w-3.5 h-3.5 text-[#8c6a24]" />
+                <span className="text-xs font-semibold text-[#5f4716]">命途进度</span>
               </div>
-              <p className="text-xs text-[var(--color-text-secondary)]">
+              <p className="text-xs text-[#7b6024]">
                 已完成 {completedCount} / {totalSections} 节
               </p>
               <div className="flex items-center gap-3 mt-2">
-                <div className="flex items-center gap-1 text-[0.6875rem] text-[var(--color-text-tertiary)]">
+                <div className="flex items-center gap-1 text-[0.6875rem] text-[#8c7440]">
                   <Clock className="w-3 h-3" />
                   <span>约 {totalSections * 10} 分钟</span>
                 </div>
                 {completedCount > 0 && (
-                  <div className="flex items-center gap-1 text-[0.6875rem] text-zinc-700">
+                  <div className="flex items-center gap-1 text-[0.6875rem] text-[#6f5316]">
                     <Sparkles className="w-3 h-3" />
                     <span>进行中</span>
                   </div>
@@ -146,10 +143,6 @@ export function LearnSidebar({ courseTitle, width, goldenPathContext }: LearnSid
               </div>
             </div>
           </div>
-        </motion.div>
-
-        <motion.div variants={itemVariants} className="mx-4 mb-4">
-          <GoldenPathChapterPanel context={goldenPathContext} compact />
         </motion.div>
 
         {/* Chapter list header */}
@@ -166,7 +159,7 @@ export function LearnSidebar({ courseTitle, width, goldenPathContext }: LearnSid
 
         {/* Chapter > Section list */}
         <div className="mobile-scroll flex-1 overflow-y-auto px-3 pb-5">
-          <ChapterList goldenPathContext={goldenPathContext} />
+          <ChapterList />
         </div>
       </motion.div>
     </div>

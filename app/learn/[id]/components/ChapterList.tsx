@@ -2,16 +2,10 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronDown, ChevronRight, Circle, Dot, PlayCircle } from "lucide-react";
-import type { GoldenPathCourseContext } from "@/lib/golden-path/types";
 import { cn } from "@/lib/utils";
 import { useLearnStore } from "@/stores/learn";
-import { getGoldenPathSkillClassName, getGoldenPathSkillStateLabel } from "./golden-path-skill-ui";
 
-interface ChapterListProps {
-  goldenPathContext?: GoldenPathCourseContext | null;
-}
-
-export function ChapterList({ goldenPathContext }: ChapterListProps) {
+export function ChapterList() {
   const chapters = useLearnStore((s) => s.chapters);
   const currentChapterIndex = useLearnStore((s) => s.currentChapterIndex);
   const currentSectionIndex = useLearnStore((s) => s.currentSectionIndex);
@@ -32,20 +26,12 @@ export function ChapterList({ goldenPathContext }: ChapterListProps) {
     );
   }
 
-  const chapterSkillMap = new Map(
-    (goldenPathContext?.chapters ?? []).map((chapter) => [
-      chapter.chapterIndex,
-      chapter.matchedSkills,
-    ]),
-  );
-
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {chapters.map((chapter, chIdx) => {
         const isExpanded = expandedChapters.has(chIdx);
         const isCurrent = chIdx === currentChapterIndex;
-        const chapterSkills = chapterSkillMap.get(chIdx + 1) ?? [];
-        const previewSkills = chapterSkills.slice(0, isCurrent ? 3 : 2);
+        const isPassed = chIdx < currentChapterIndex;
         const chapterSectionCount = chapter.sections.length;
         const chapterCompletedCount = chapter.sections.filter((sec) =>
           completedSections.has(sec.nodeId),
@@ -53,9 +39,32 @@ export function ChapterList({ goldenPathContext }: ChapterListProps) {
         const isChapterComplete = chapterCompletedCount === chapterSectionCount;
         const chapterProgress =
           chapterSectionCount === 0 ? 0 : (chapterCompletedCount / chapterSectionCount) * 100;
-
         return (
-          <div key={chapter.title}>
+          <div key={chapter.title} className="relative pl-7">
+            <div
+              aria-hidden="true"
+              className={cn(
+                "absolute left-[14px] top-0 bottom-0 w-px",
+                isCurrent
+                  ? "bg-[linear-gradient(180deg,rgba(197,143,42,0.08),rgba(197,143,42,0.58),rgba(197,143,42,0.14))]"
+                  : isPassed || isChapterComplete
+                    ? "bg-[linear-gradient(180deg,rgba(17,24,39,0.08),rgba(17,24,39,0.24),rgba(17,24,39,0.08))]"
+                    : "bg-[linear-gradient(180deg,rgba(15,23,42,0.02),rgba(15,23,42,0.1),rgba(15,23,42,0.02))]",
+              )}
+            />
+            <div
+              aria-hidden="true"
+              className={cn(
+                "absolute left-[8px] top-6 h-3.5 w-3.5 rounded-full border shadow-[0_10px_24px_-18px_rgba(15,23,42,0.35)] transition-all",
+                isCurrent
+                  ? "border-[#c58f2a]/55 bg-[#c58f2a] ring-4 ring-[#f5e8c8]"
+                  : isChapterComplete
+                    ? "border-[#111827] bg-[#111827]"
+                    : isPassed
+                      ? "border-[#4b5563]/30 bg-[#4b5563]"
+                      : "border-black/10 bg-white",
+              )}
+            />
             {/* Chapter header */}
             <button
               type="button"
@@ -66,12 +75,18 @@ export function ChapterList({ goldenPathContext }: ChapterListProps) {
                 }
               }}
               className={cn(
-                "group w-full rounded-[24px] border px-3 py-3 text-left transition-all duration-200",
+                "group relative w-full rounded-[24px] border px-3 py-3 text-left transition-all duration-200",
                 isCurrent
-                  ? "border-black/8 bg-white text-[#111827] shadow-[0_18px_42px_-34px_rgba(15,23,42,0.18)]"
+                  ? "border-[#d8bc7b]/55 bg-[radial-gradient(circle_at_top_left,rgba(232,205,141,0.24),transparent_38%),linear-gradient(180deg,#fffdf8_0%,#fffaf1_100%)] text-[#111827] shadow-[0_20px_44px_-30px_rgba(197,143,42,0.28)]"
                   : "border-transparent bg-[#f1f3f6] text-[var(--color-text)] hover:border-black/5 hover:bg-[var(--color-hover)]",
               )}
             >
+              {isCurrent ? (
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-y-3 left-0 w-[3px] rounded-full bg-[linear-gradient(180deg,#c58f2a_0%,#e8c66d_100%)]"
+                />
+              ) : null}
               <div className="flex items-start gap-2.5">
                 <span
                   className={cn(
@@ -79,7 +94,7 @@ export function ChapterList({ goldenPathContext }: ChapterListProps) {
                     isChapterComplete
                       ? "bg-[#111827] text-white"
                       : isCurrent
-                        ? "bg-[#111827] text-white"
+                        ? "bg-[linear-gradient(180deg,#9a6e24_0%,#c58f2a_62%,#e8c66d_100%)] text-white shadow-[0_14px_28px_-18px_rgba(197,143,42,0.5)]"
                         : "bg-[var(--color-surface)] text-[var(--color-text-secondary)]",
                   )}
                 >
@@ -110,27 +125,6 @@ export function ChapterList({ goldenPathContext }: ChapterListProps) {
                           ? `当前定位 ${Math.min(currentSectionIndex + 1, chapterSectionCount)}/${chapterSectionCount}`
                           : `${chapterCompletedCount}/${chapterSectionCount} 节`}
                       </span>
-
-                      {previewSkills.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-1.5">
-                          {previewSkills.map((skill) => (
-                            <span
-                              key={`${chapter.title}-${skill.id}`}
-                              className={cn(
-                                "inline-flex items-center rounded-full border px-2 py-0.5 text-[0.625rem] font-medium",
-                                getGoldenPathSkillClassName(skill.state),
-                              )}
-                            >
-                              {skill.name}
-                            </span>
-                          ))}
-                          {chapterSkills.length > previewSkills.length && (
-                            <span className="inline-flex items-center rounded-full border border-black/8 bg-white/75 px-2 py-0.5 text-[0.625rem] text-[var(--color-text-tertiary)]">
-                              +{chapterSkills.length - previewSkills.length}
-                            </span>
-                          )}
-                        </div>
-                      )}
                     </div>
 
                     <span
@@ -152,7 +146,11 @@ export function ChapterList({ goldenPathContext }: ChapterListProps) {
                       <div
                         className={cn(
                           "h-full rounded-full transition-all",
-                          isCurrent || isChapterComplete ? "bg-[#111827]" : "bg-black/20",
+                          isCurrent
+                            ? "bg-[linear-gradient(90deg,#9a6e24_0%,#c58f2a_55%,#e8c66d_100%)]"
+                            : isChapterComplete
+                              ? "bg-[#111827]"
+                              : "bg-black/20",
                         )}
                         style={{
                           width: `${chapterProgress}%`,
@@ -177,55 +175,26 @@ export function ChapterList({ goldenPathContext }: ChapterListProps) {
                   transition={{ duration: 0.2 }}
                   className="overflow-hidden"
                 >
-                  <div className="px-2 pb-1 pt-2">
+                  <div className="relative px-2 pb-1 pt-2">
+                    <div
+                      aria-hidden="true"
+                      className={cn(
+                        "absolute bottom-0 left-[10px] top-2 w-px",
+                        isCurrent
+                          ? "bg-[linear-gradient(180deg,rgba(197,143,42,0.45),rgba(197,143,42,0.08))]"
+                          : "bg-[linear-gradient(180deg,rgba(15,23,42,0.12),rgba(15,23,42,0.03))]",
+                      )}
+                    />
                     <div className="mb-2 flex items-center justify-between px-2">
                       <span className="text-[0.625rem] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-tertiary)]">
                         本章小节
                       </span>
                       <div className="flex items-center gap-2">
-                        {chapterSkills.length > 0 && (
-                          <span className="rounded-full border border-black/8 bg-white px-2 py-0.5 text-[0.625rem] text-[var(--color-text-secondary)]">
-                            {chapterSkills.length} 个技能点
-                          </span>
-                        )}
                         <span className="text-[0.625rem] text-[var(--color-text-tertiary)]">
                           {chapterSectionCount} 节
                         </span>
                       </div>
                     </div>
-
-                    {chapterSkills.length > 0 && (
-                      <div className="mb-3 rounded-[18px] border border-black/6 bg-white/85 px-3 py-3">
-                        <div className="text-[0.625rem] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-tertiary)]">
-                          本章推进技能
-                        </div>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {chapterSkills.slice(0, 5).map((skill) => (
-                            <div
-                              key={`${chapter.title}-${skill.id}-detail`}
-                              className="rounded-2xl border border-black/6 bg-[#fafaf9] px-2.5 py-2"
-                            >
-                              <div className="text-[0.7rem] font-medium text-[var(--color-text)]">
-                                {skill.name}
-                              </div>
-                              <div className="mt-1 flex items-center gap-1.5">
-                                <span
-                                  className={cn(
-                                    "inline-flex items-center rounded-full border px-1.5 py-0.5 text-[0.625rem] font-medium",
-                                    getGoldenPathSkillClassName(skill.state),
-                                  )}
-                                >
-                                  {getGoldenPathSkillStateLabel(skill.state)}
-                                </span>
-                                <span className="text-[0.625rem] text-[var(--color-text-tertiary)]">
-                                  {skill.progressScore}%
-                                </span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                     <div className="space-y-1.5">
                       {chapter.sections.map((sec, secIdx) => {
                         const isCompleted = completedSections.has(sec.nodeId);
@@ -233,64 +202,85 @@ export function ChapterList({ goldenPathContext }: ChapterListProps) {
                         const isRequestedSection = requestedSectionId === sec.nodeId;
 
                         return (
-                          <button
-                            key={sec.nodeId}
-                            type="button"
-                            onClick={() => {
-                              if (chIdx !== currentChapterIndex) {
-                                setCurrentChapterIndex(chIdx);
-                              }
-                              requestSectionFocus(sec.nodeId);
-                              setSidebarOpen(false);
-                            }}
-                            className={cn(
-                              "w-full rounded-[18px] border px-3 py-2.5 text-left text-[0.8125rem] transition-all duration-150",
-                              isCurrentSection || isRequestedSection
-                                ? "border-black/8 bg-white text-[#111827] shadow-[0_12px_28px_-24px_rgba(15,23,42,0.18)]"
-                                : "border-transparent bg-transparent text-[var(--color-text-secondary)] hover:border-black/5 hover:bg-white/70 hover:text-[var(--color-text)]",
-                            )}
-                          >
-                            <div className="flex items-center gap-2.5">
-                              <span
-                                className={cn(
-                                  "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[0.6rem]",
-                                  isCompleted
-                                    ? "border-[#111827] bg-[#111827] text-white"
-                                    : isCurrentSection
-                                      ? "border-[#111827] bg-white text-[#111827]"
-                                      : "border-black/10 bg-white text-[var(--color-text-tertiary)]",
-                                )}
-                              >
-                                {isCompleted ? <Check className="h-3 w-3" /> : secIdx + 1}
-                              </span>
-                              <div className="min-w-0 flex-1">
-                                <div className="truncate font-medium">{sec.title}</div>
-                                <div className="mt-0.5 flex items-center gap-1 text-[0.625rem] text-[var(--color-text-tertiary)]">
-                                  {isRequestedSection ? (
-                                    <>
-                                      <PlayCircle className="h-3 w-3" />
-                                      <span>正在定位</span>
-                                    </>
-                                  ) : isCurrentSection ? (
-                                    <>
-                                      <PlayCircle className="h-3 w-3" />
-                                      <span>当前阅读</span>
-                                    </>
-                                  ) : isCompleted ? (
-                                    <>
-                                      <Check className="h-3 w-3" />
-                                      <span>已完成</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Dot className="h-3 w-3" />
-                                      <span>点击跳转</span>
-                                    </>
+                          <div key={sec.nodeId} className="relative pl-5">
+                            <div
+                              aria-hidden="true"
+                              className={cn(
+                                "absolute left-[8px] top-0 h-full w-px",
+                                isCurrentSection || isRequestedSection
+                                  ? "bg-[linear-gradient(180deg,rgba(197,143,42,0.42),rgba(197,143,42,0.08))]"
+                                  : "bg-[linear-gradient(180deg,rgba(15,23,42,0.08),rgba(15,23,42,0.02))]",
+                              )}
+                            />
+                            <div
+                              aria-hidden="true"
+                              className={cn(
+                                "absolute left-[2px] top-4 h-3 w-3 rounded-full border",
+                                isCompleted
+                                  ? "border-[#111827] bg-[#111827]"
+                                  : isCurrentSection || isRequestedSection
+                                    ? "border-[#c58f2a]/55 bg-[#c58f2a] ring-4 ring-[#f5e8c8]"
+                                    : "border-black/10 bg-white",
+                              )}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (chIdx !== currentChapterIndex) {
+                                  setCurrentChapterIndex(chIdx);
+                                }
+                                requestSectionFocus(sec.nodeId);
+                                setSidebarOpen(false);
+                              }}
+                              className={cn(
+                                "w-full rounded-[18px] border px-3 py-2.5 text-left text-[0.8125rem] transition-all duration-150",
+                                isCurrentSection || isRequestedSection
+                                  ? "border-[#d8bc7b]/45 bg-[linear-gradient(180deg,#fffdf8_0%,#fffaf1_100%)] text-[#111827] shadow-[0_12px_28px_-24px_rgba(197,143,42,0.26)]"
+                                  : "border-transparent bg-transparent text-[var(--color-text-secondary)] hover:border-black/5 hover:bg-white/70 hover:text-[var(--color-text)]",
+                              )}
+                            >
+                              <div className="flex items-center gap-2.5">
+                                <span
+                                  className={cn(
+                                    "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[0.6rem]",
+                                    isCompleted
+                                      ? "border-[#111827] bg-[#111827] text-white"
+                                      : isCurrentSection || isRequestedSection
+                                        ? "border-[#c58f2a]/50 bg-white text-[#9a6e24]"
+                                        : "border-black/10 bg-white text-[var(--color-text-tertiary)]",
                                   )}
+                                >
+                                  {isCompleted ? <Check className="h-3 w-3" /> : secIdx + 1}
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                  <div className="truncate font-medium">{sec.title}</div>
+                                  <div className="mt-0.5 flex items-center gap-1 text-[0.625rem] text-[var(--color-text-tertiary)]">
+                                    {isRequestedSection ? (
+                                      <>
+                                        <PlayCircle className="h-3 w-3" />
+                                        <span>正在定位</span>
+                                      </>
+                                    ) : isCurrentSection ? (
+                                      <>
+                                        <PlayCircle className="h-3 w-3" />
+                                        <span>当前阅读</span>
+                                      </>
+                                    ) : isCompleted ? (
+                                      <>
+                                        <Check className="h-3 w-3" />
+                                        <span>已完成</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Dot className="h-3 w-3" />
+                                        <span>点击跳转</span>
+                                      </>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          </button>
+                            </button>
+                          </div>
                         );
                       })}
                     </div>

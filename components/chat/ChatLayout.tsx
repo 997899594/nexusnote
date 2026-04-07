@@ -65,7 +65,7 @@ export function ChatLayout({ children }: ChatLayoutProps) {
         onMenuClick={() => setSidebarOpen(!sidebarOpen)}
       />
 
-      <div className="flex flex-1 overflow-hidden pt-24">
+      <div className="ui-floating-header-offset flex flex-1 overflow-hidden">
         <ChatHistory
           sessions={sessions}
           currentSessionId={currentSessionId}

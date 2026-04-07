@@ -59,10 +59,10 @@ async function ProfilePageContent() {
     },
   ];
   return (
-    <main className="ui-page-shell min-h-dvh safe-top">
+    <main className="ui-page-shell min-h-dvh">
       <FloatingHeader showBackHint showMenuButton />
 
-      <div className="ui-page-frame max-w-4xl ui-bottom-breathing-room pt-24 md:pt-28">
+      <div className="ui-page-frame ui-floating-header-offset max-w-4xl ui-bottom-breathing-room">
         <section className="mb-8">
           <div className="ui-badge-pill inline-flex items-center gap-2 px-3 py-1.5 text-[11px] uppercase tracking-[0.22em] text-black/45">
             <span className="ui-strong-chip h-1.5 w-1.5 rounded-full" />

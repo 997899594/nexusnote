@@ -202,6 +202,20 @@
     background-color: var(--color-page-shell);
   }
 
+  .ui-floating-header {
+    top: 1rem;
+    left: 1rem;
+    right: 1rem;
+  }
+
+  .ui-floating-header-offset {
+    padding-top: 6.5rem;
+  }
+
+  .ui-mobile-header-offset {
+    padding-top: 5.25rem;
+  }
+
   .ui-page-frame {
     margin-inline: auto;
     width: 100%;
@@ -265,6 +279,20 @@
 
 @media (min-width: 768px) {
   @layer components {
+    .ui-floating-header {
+      top: 1.5rem;
+      left: 1.5rem;
+      right: 1.5rem;
+    }
+
+    .ui-floating-header-offset {
+      padding-top: 7.5rem;
+    }
+
+    .ui-mobile-header-offset {
+      padding-top: 0;
+    }
+
     .ui-page-frame,
     .ui-page-frame-wide {
       padding-inline: 1.5rem;
@@ -276,6 +304,14 @@
 
     .ui-bottom-breathing-room {
       padding-bottom: clamp(2rem, 4vw, 3rem);
+    }
+  }
+}
+
+@media (max-width: 767px) {
+  @layer components {
+    .ui-bottom-breathing-room {
+      padding-bottom: 2.5rem;
     }
   }
 }
@@ -292,22 +328,38 @@
  * ──────────────────────────────────────────────────────────────────────────── */
 
 /* 安全区域支持 - 刘海屏/底部指示器 */
-@supports (padding: env(safe-area-inset-top)) {
+@media (max-width: 767px) {
   .safe-top {
-    padding-top: env(safe-area-inset-top);
+    padding-top: max(env(safe-area-inset-top, 0px), 0.75rem);
   }
   .safe-bottom {
-    padding-bottom: env(safe-area-inset-bottom);
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 0.875rem);
   }
   .safe-left {
-    padding-left: env(safe-area-inset-left);
+    padding-left: max(env(safe-area-inset-left, 0px), 0.5rem);
   }
   .safe-right {
-    padding-right: env(safe-area-inset-right);
+    padding-right: max(env(safe-area-inset-right, 0px), 0.5rem);
   }
   .safe-all {
-    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
-      env(safe-area-inset-left);
+    padding-top: max(env(safe-area-inset-top, 0px), 0.75rem);
+    padding-right: max(env(safe-area-inset-right, 0px), 0.5rem);
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 0.875rem);
+    padding-left: max(env(safe-area-inset-left, 0px), 0.5rem);
+  }
+
+  .ui-floating-header {
+    top: max(env(safe-area-inset-top, 0px), 0.75rem);
+    left: max(env(safe-area-inset-left, 0px), 1rem);
+    right: max(env(safe-area-inset-right, 0px), 1rem);
+  }
+
+  .ui-floating-header-offset {
+    padding-top: calc(max(env(safe-area-inset-top, 0px), 0.75rem) + 5.75rem);
+  }
+
+  .ui-mobile-header-offset {
+    padding-top: calc(max(env(safe-area-inset-top, 0px), 0.75rem) + 4.5rem);
   }
 }
 

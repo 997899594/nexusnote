@@ -16,7 +16,7 @@ interface ChapterSkillStripProps {
 
 export function ChapterSkillStrip({
   context,
-  label = "本章训练能力",
+  label = "主线相关节点",
   maxSkills = 4,
   tone = "soft",
   className,

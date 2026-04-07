@@ -20,10 +20,10 @@ async function GoldenPathPageContent({ searchParams }: GoldenPathPageProps) {
   const snapshot = await getGoldenPathSnapshotCached(session.user.id);
 
   return (
-    <main className="ui-page-shell min-h-dvh safe-top">
+    <main className="ui-page-shell min-h-dvh">
       <FloatingHeader showBackHint showMenuButton />
 
-      <div className="ui-page-frame ui-bottom-breathing-room pt-24 md:pt-28">
+      <div className="ui-page-frame ui-floating-header-offset ui-bottom-breathing-room">
         <GoldenPathPage snapshot={snapshot} selectedPathId={path} />
       </div>
     </main>

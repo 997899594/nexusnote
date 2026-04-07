@@ -13,7 +13,6 @@ import type { GoldenPathCourseContext } from "@/lib/golden-path/types";
 import { cn } from "@/lib/utils";
 import { useChatSessionStateStore } from "@/stores";
 import { useLearnStore } from "@/stores/learn";
-import { ChapterSkillStrip } from "./ChapterSkillStrip";
 
 interface LearnChatProps {
   courseId: string;
@@ -256,7 +255,7 @@ export function LearnChat({
 
   const quickPromptBlock =
     quickPrompts.length > 0 ? (
-      <div className="mt-4 space-y-2 text-left">
+      <div className="space-y-2 text-left">
         <div className="text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
           可直接提问
         </div>
@@ -266,12 +265,37 @@ export function LearnChat({
               key={prompt}
               type="button"
               onClick={() => void handleQuickPrompt(prompt)}
-              className="rounded-full border border-black/8 bg-white px-3 py-1.5 text-xs text-[var(--color-text-secondary)] transition-colors hover:bg-[#f7f8fa] hover:text-[var(--color-text)]"
+              className="rounded-full border border-[#d8bc7b]/28 bg-white px-3 py-1.5 text-xs text-[#745b25] transition-colors hover:bg-[#fff8ef] hover:text-[#5f4716]"
             >
               {prompt}
             </button>
           ))}
         </div>
+      </div>
+    ) : null;
+
+  const shouldShowPinnedContext = variant === "overlay" || chatMessages.length === 0;
+  const chapterSkillSummary = chapterSkills
+    .slice(0, 3)
+    .map((skill) => skill.name)
+    .join(" · ");
+
+  const chapterContextHint = goldenPathContext ? (
+    <div className="flex items-center gap-2 rounded-full border border-[#d8bc7b]/35 bg-[radial-gradient(circle_at_top_left,rgba(232,205,141,0.16),transparent_55%),linear-gradient(180deg,#fffdf8_0%,#fff8ef_100%)] px-3 py-2 text-[0.72rem] text-[#7b6024] shadow-[0_14px_30px_-24px_rgba(197,143,42,0.28)]">
+      <span className="h-2 w-2 shrink-0 rounded-full bg-[#c58f2a] shadow-[0_0_0_4px_rgba(232,205,141,0.38)]" />
+      <span className="truncate">
+        <span className="font-medium text-[#5f4716]">{goldenPathContext.mainRouteName}</span>
+        {chapterSkillSummary ? ` · ${chapterSkillSummary}` : ""}
+        {chapterSkills.length > 3 ? ` 等 ${chapterSkills.length} 个节点` : ""}
+      </span>
+    </div>
+  ) : null;
+
+  const pinnedContextArea =
+    shouldShowPinnedContext && (chapterContextHint || quickPromptBlock) ? (
+      <div className="space-y-2.5">
+        {chapterContextHint}
+        {chatMessages.length === 0 ? quickPromptBlock : null}
       </div>
     ) : null;
 
@@ -313,12 +337,6 @@ export function LearnChat({
         title="围绕当前章节继续追问"
         description="可以让我解释概念、举例、对比知识点，或者把当前理解沉淀成笔记。"
         className="mt-3 py-10"
-        footer={
-          <>
-            <ChapterSkillStrip context={goldenPathContext} maxSkills={3} className="text-left" />
-            {quickPromptBlock}
-          </>
-        }
       />
     );
   };
@@ -333,9 +351,9 @@ export function LearnChat({
         className={cn(
           "fixed bottom-6 right-6 z-50 safe-bottom",
           "w-12 h-12 rounded-full shadow-lg",
-          "bg-[#111827] text-white",
+          "border border-[#d8bc7b]/35 bg-[linear-gradient(180deg,#9a6e24_0%,#c58f2a_58%,#e8c66d_100%)] text-white shadow-[0_18px_36px_-20px_rgba(197,143,42,0.48)]",
           "flex items-center justify-center",
-          "transition-colors hover:bg-zinc-800",
+          "transition-transform hover:scale-[1.02]",
         )}
       >
         <MessageSquare className="w-5 h-5" />
@@ -349,8 +367,8 @@ export function LearnChat({
         {/* Header */}
         <div className="safe-top flex items-center justify-between bg-white/92 px-4 pb-3 pt-3 backdrop-blur-xl shadow-[0_16px_38px_-34px_rgba(15,23,42,0.12)]">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#eef1f5]">
-              <BookOpen className="w-4 h-4 text-[#111827]" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#d8bc7b]/28 bg-[radial-gradient(circle_at_top_left,rgba(232,205,141,0.16),transparent_55%),linear-gradient(180deg,#fffdf8_0%,#fff8ef_100%)]">
+              <BookOpen className="w-4 h-4 text-[#8c6a24]" />
             </div>
             <div className="min-w-0">
               <h3 className="text-sm font-semibold text-zinc-900 truncate">AI 学习助手</h3>
@@ -368,7 +386,7 @@ export function LearnChat({
                 "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs transition-colors",
                 captureDisabled
                   ? "cursor-not-allowed bg-zinc-100 text-zinc-400"
-                  : "bg-[#eef1f5] text-[#111827] hover:bg-[#e4e8ee]",
+                  : "border border-[#d8bc7b]/28 bg-[radial-gradient(circle_at_top_left,rgba(232,205,141,0.16),transparent_55%),linear-gradient(180deg,#fffdf8_0%,#fff8ef_100%)] text-[#6f5316] hover:text-[#5f4716]",
               )}
             >
               {isCapturingChat ? (
@@ -382,16 +400,13 @@ export function LearnChat({
             <button
               type="button"
               onClick={() => setChatOpen(false)}
-              className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 transition-colors"
+              className="rounded-lg border border-[#d8bc7b]/22 bg-white/80 p-1.5 text-[#8c7440] transition-colors hover:bg-[#fff8ef] hover:text-[#5f4716]"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
         </div>
-        <div className="bg-white/92 px-4 pb-3">
-          <ChapterSkillStrip context={goldenPathContext} maxSkills={3} />
-          {chatMessages.length === 0 ? quickPromptBlock : null}
-        </div>
+        <div className="bg-white/92 px-4 pb-3">{pinnedContextArea}</div>
 
         {/* Messages */}
         <div className="mobile-scroll flex-1 overflow-y-auto bg-white px-4 pb-8 pt-5">
@@ -414,14 +429,14 @@ export function LearnChat({
 
         {/* Input */}
         <div className="safe-bottom border-t border-black/5 bg-white px-4 pb-4 pt-3">
-          <div className="flex items-end gap-2 rounded-[20px] border border-black/5 bg-[#f7f8fa] p-2">
+          <div className="flex items-end gap-2 rounded-[20px] border border-[#d8bc7b]/24 bg-[linear-gradient(180deg,#fffdf9_0%,#fff9f2_100%)] p-2 shadow-[0_16px_34px_-28px_rgba(197,143,42,0.18)] focus-within:border-[#c58f2a]/42 focus-within:shadow-[0_18px_36px_-28px_rgba(197,143,42,0.28)]">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={sessionError ? "当前章节对话暂不可用" : "针对本章节提问..."}
               rows={1}
-              className="flex-1 bg-transparent border-none outline-none text-sm text-zinc-900 placeholder:text-zinc-400 resize-none min-h-[24px] max-h-[80px]"
+              className="flex-1 min-h-[24px] max-h-[80px] resize-none border-none bg-transparent text-sm text-zinc-900 outline-none placeholder:text-[#b39b69]"
               disabled={!resolvedSessionId || isResolvingSession || !!sessionError}
             />
             <motion.button
@@ -432,7 +447,7 @@ export function LearnChat({
               className={cn(
                 "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-colors",
                 input.trim() && !isLoading && resolvedSessionId && !sessionError
-                  ? "bg-[#111827] text-white"
+                  ? "bg-[linear-gradient(180deg,#9a6e24_0%,#c58f2a_58%,#e8c66d_100%)] text-white shadow-[0_14px_26px_-18px_rgba(197,143,42,0.45)]"
                   : "bg-zinc-200 text-zinc-400 cursor-not-allowed",
               )}
             >
@@ -460,8 +475,8 @@ export function LearnChat({
       <div className="border-b border-black/5 bg-white/92 px-5 py-4 backdrop-blur-xl">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#eef1f5]">
-              <BookOpen className="h-4 w-4 text-[#111827]" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#d8bc7b]/28 bg-[radial-gradient(circle_at_top_left,rgba(232,205,141,0.16),transparent_55%),linear-gradient(180deg,#fffdf8_0%,#fff8ef_100%)]">
+              <BookOpen className="h-4 w-4 text-[#8c6a24]" />
             </div>
             <div className="min-w-0">
               <div className="text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
@@ -482,7 +497,7 @@ export function LearnChat({
                 "inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs transition-colors",
                 captureDisabled
                   ? "cursor-not-allowed bg-zinc-100 text-zinc-400"
-                  : "bg-[#eef1f5] text-[#111827] hover:bg-[#e4e8ee]",
+                  : "border border-[#d8bc7b]/28 bg-[radial-gradient(circle_at_top_left,rgba(232,205,141,0.16),transparent_55%),linear-gradient(180deg,#fffdf8_0%,#fff8ef_100%)] text-[#6f5316] hover:text-[#5f4716]",
               )}
             >
               {isCapturingChat ? (
@@ -495,16 +510,13 @@ export function LearnChat({
             <button
               type="button"
               onClick={() => setChatOpen(false)}
-              className="rounded-xl p-2 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600"
+              className="rounded-xl border border-[#d8bc7b]/22 bg-white/80 p-2 text-[#8c7440] transition-colors hover:bg-[#fff8ef] hover:text-[#5f4716]"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
         </div>
-        <div className="bg-white/92 px-5 pb-4">
-          <ChapterSkillStrip context={goldenPathContext} maxSkills={3} />
-          {chatMessages.length === 0 ? quickPromptBlock : null}
-        </div>
+        <div className="bg-white/92 px-5 pb-4">{pinnedContextArea}</div>
       </div>
 
       {/* Messages */}
@@ -531,14 +543,14 @@ export function LearnChat({
 
       {/* Input */}
       <div className="border-t border-black/5 bg-white px-5 pb-5 pt-4">
-        <div className="flex items-end gap-2 rounded-[20px] border border-black/5 bg-[#f7f8fa] p-2">
+        <div className="flex items-end gap-2 rounded-[20px] border border-[#d8bc7b]/24 bg-[linear-gradient(180deg,#fffdf9_0%,#fff9f2_100%)] p-2 shadow-[0_16px_34px_-28px_rgba(197,143,42,0.18)] focus-within:border-[#c58f2a]/42 focus-within:shadow-[0_18px_36px_-28px_rgba(197,143,42,0.28)]">
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={sessionError ? "当前章节对话暂不可用" : "针对本章节提问..."}
             rows={1}
-            className="flex-1 bg-transparent border-none outline-none text-sm text-zinc-900 placeholder:text-zinc-400 resize-none min-h-[24px] max-h-[80px]"
+            className="flex-1 min-h-[24px] max-h-[80px] resize-none border-none bg-transparent text-sm text-zinc-900 outline-none placeholder:text-[#b39b69]"
             disabled={!resolvedSessionId || isResolvingSession || !!sessionError}
           />
           <motion.button
@@ -549,7 +561,7 @@ export function LearnChat({
             className={cn(
               "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-colors",
               input.trim() && !isLoading && resolvedSessionId && !sessionError
-                ? "bg-[#111827] text-white"
+                ? "bg-[linear-gradient(180deg,#9a6e24_0%,#c58f2a_58%,#e8c66d_100%)] text-white shadow-[0_14px_26px_-18px_rgba(197,143,42,0.45)]"
                 : "bg-zinc-200 text-zinc-400 cursor-not-allowed",
             )}
           >
