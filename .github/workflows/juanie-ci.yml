@@ -177,11 +177,15 @@ jobs:
       - name: Build and Push (Bake Target)
         if: ${{ steps.plan.outputs.build_kind == 'bake_target' }}
         uses: docker/bake-action@v7
+        env:
+          BUILDX_NO_DEFAULT_ATTESTATIONS: 1
         with:
           source: .
           files: ${{ steps.plan.outputs.build_definition }}
           targets: ${{ steps.plan.outputs.build_target }}
           push: true
+          provenance: false
+          sbom: false
           set: |
             ${{ steps.plan.outputs.build_target }}.tags=${{ env.IMAGE_TAG }}
             ${{ steps.plan.outputs.build_target }}.args.GIT_SHA=${{ github.sha }}
@@ -191,10 +195,14 @@ jobs:
       - name: Build and Push (Bake Default)
         if: ${{ steps.plan.outputs.build_kind == 'bake_default' }}
         uses: docker/bake-action@v7
+        env:
+          BUILDX_NO_DEFAULT_ATTESTATIONS: 1
         with:
           source: .
           files: ${{ steps.plan.outputs.build_definition }}
           push: true
+          provenance: false
+          sbom: false
           set: |
             *.tags=${{ env.IMAGE_TAG }}
             *.args.GIT_SHA=${{ github.sha }}
@@ -205,12 +213,15 @@ jobs:
         if: ${{ steps.plan.outputs.build_kind == 'dockerfile' }}
         uses: docker/build-push-action@v7
         env:
+          BUILDX_NO_DEFAULT_ATTESTATIONS: 1
           DOCKER_BUILD_SUMMARY: true
         with:
           context: ${{ steps.plan.outputs.build_context }}
           file: ${{ steps.plan.outputs.build_dockerfile }}
           push: true
           tags: ${{ env.IMAGE_TAG }}
+          provenance: false
+          sbom: false
           build-args: |
             GIT_SHA=${{ github.sha }}
           cache-from: type=gha
