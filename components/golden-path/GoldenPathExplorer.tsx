@@ -3,13 +3,13 @@
 import {
   Background,
   type Edge,
+  Handle,
   type Node,
   type NodeProps,
   type NodeTypes,
   Panel,
   Position,
   ReactFlow,
-  Handle,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { motion } from "framer-motion";
@@ -23,16 +23,15 @@ import {
   Orbit,
   Rocket,
   Sparkles,
-  TargetIcon,
   Target,
-  Wrench,
+  TargetIcon,
   Waypoints,
+  Wrench,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { startTransition, useEffect, useMemo, useState } from "react";
 import type {
-  GoldenPathDomainSnapshot,
   GoldenPathLinkedCourse,
   GoldenPathNodeSnapshot,
   GoldenPathRouteSnapshot,
@@ -219,7 +218,9 @@ function buildTreeElements(
   const edges: Array<Edge> = [];
 
   const routeNodeId = `route:${route.id}`;
-  const routeSkillIds = new Set(route.domains.flatMap((domain) => domain.nodes.map((node) => node.id)));
+  const routeSkillIds = new Set(
+    route.domains.flatMap((domain) => domain.nodes.map((node) => node.id)),
+  );
   const recommendedSkillId = route.nextActions[0]?.id;
   const defaultSelectedNodeId = recommendedSkillId ? `skill:${recommendedSkillId}` : routeNodeId;
 
@@ -402,7 +403,11 @@ function DestinyRouteNode({ data, selected }: NodeProps<Node<FlowNodeData>>) {
           style={{ width: `${Math.max(10, Number(data.progress ?? 0))}%` }}
         />
       </div>
-      <Handle type="source" position={Position.Bottom} className="!h-2 !w-2 !border-0 !bg-[#e1bc63]" />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        className="!h-2 !w-2 !border-0 !bg-[#e1bc63]"
+      />
     </div>
   );
 }
@@ -423,9 +428,16 @@ function DestinyDomainNode({ data, selected }: NodeProps<Node<FlowNodeData>>) {
         <span>{data.progress}%</span>
       </div>
       <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/10">
-        <div className="h-full rounded-full bg-white/70" style={{ width: `${Math.max(8, Number(data.progress ?? 0))}%` }} />
+        <div
+          className="h-full rounded-full bg-white/70"
+          style={{ width: `${Math.max(8, Number(data.progress ?? 0))}%` }}
+        />
       </div>
-      <Handle type="source" position={Position.Bottom} className="!h-2 !w-2 !border-0 !bg-white/50" />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        className="!h-2 !w-2 !border-0 !bg-white/50"
+      />
     </div>
   );
 }
@@ -440,7 +452,11 @@ function DestinySkillNode({ data, selected }: NodeProps<Node<FlowNodeData>>) {
         selected && "translate-y-[-1px]",
       )}
     >
-      <Handle type="target" position={Position.Top} className="!h-2 !w-2 !border-0 !bg-current opacity-50" />
+      <Handle
+        type="target"
+        position={Position.Top}
+        className="!h-2 !w-2 !border-0 !bg-current opacity-50"
+      />
       <div className="flex items-start justify-between gap-2">
         <div>
           <div className="flex items-center gap-2">
@@ -461,7 +477,11 @@ function DestinySkillNode({ data, selected }: NodeProps<Node<FlowNodeData>>) {
           style={{ width: `${Math.max(8, data.progress ?? 0)}%` }}
         />
       </div>
-      <Handle type="source" position={Position.Bottom} className="!h-2 !w-2 !border-0 !bg-current opacity-50" />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        className="!h-2 !w-2 !border-0 !bg-current opacity-50"
+      />
     </div>
   );
 }
@@ -553,8 +573,13 @@ export function GoldenPathExplorer({ snapshot, selectedPathId }: GoldenPathExplo
     snapshot.routes.find((route) => route.id === viewingRouteId) ??
     snapshot.routes.find((route) => route.id === snapshot.mainRouteId) ??
     snapshot.routes[0];
+  const selectedRouteId = selectedRoute?.id ?? "";
 
-  const { nodes: baseNodes, edges, defaultSelectedNodeId } = useMemo(() => {
+  const {
+    nodes: baseNodes,
+    edges,
+    defaultSelectedNodeId,
+  } = useMemo(() => {
     if (!selectedRoute) {
       return {
         nodes: [] as Array<Node<FlowNodeData>>,
@@ -570,12 +595,12 @@ export function GoldenPathExplorer({ snapshot, selectedPathId }: GoldenPathExplo
   const [activeNodeId, setActiveNodeId] = useState(defaultSelectedNodeId);
 
   useEffect(() => {
-    if (!selectedRoute) {
+    if (!selectedRouteId) {
       return;
     }
-    setViewingRouteId(selectedRoute.id);
+    setViewingRouteId(selectedRouteId);
     setActiveNodeId(defaultSelectedNodeId);
-  }, [selectedRoute?.id, defaultSelectedNodeId]);
+  }, [selectedRouteId, defaultSelectedNodeId]);
 
   const nodes = useMemo(
     () =>
@@ -591,7 +616,10 @@ export function GoldenPathExplorer({ snapshot, selectedPathId }: GoldenPathExplo
       return null;
     }
     const skillId = activeNodeId.replace("skill:", "");
-    return selectedRoute.domains.flatMap((domain) => domain.nodes).find((node) => node.id === skillId) ?? null;
+    return (
+      selectedRoute.domains.flatMap((domain) => domain.nodes).find((node) => node.id === skillId) ??
+      null
+    );
   }, [activeNodeId, selectedRoute]);
 
   const activeDomain = useMemo(() => {
@@ -640,16 +668,27 @@ export function GoldenPathExplorer({ snapshot, selectedPathId }: GoldenPathExplo
 
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="rounded-[24px] border border-white/10 bg-white/[0.05] px-4 py-3">
-                <div className="text-[11px] uppercase tracking-[0.18em] text-white/45">系统主线</div>
-                <div className="mt-2 text-lg font-semibold text-white">{snapshot.routes.find((route) => route.id === snapshot.mainRouteId)?.name ?? selectedRoute.name}</div>
+                <div className="text-[11px] uppercase tracking-[0.18em] text-white/45">
+                  系统主线
+                </div>
+                <div className="mt-2 text-lg font-semibold text-white">
+                  {snapshot.routes.find((route) => route.id === snapshot.mainRouteId)?.name ??
+                    selectedRoute.name}
+                </div>
               </div>
               <div className="rounded-[24px] border border-white/10 bg-white/[0.05] px-4 py-3">
-                <div className="text-[11px] uppercase tracking-[0.18em] text-white/45">当前查看</div>
+                <div className="text-[11px] uppercase tracking-[0.18em] text-white/45">
+                  当前查看
+                </div>
                 <div className="mt-2 text-lg font-semibold text-white">{selectedRoute.name}</div>
               </div>
               <div className="rounded-[24px] border border-white/10 bg-white/[0.05] px-4 py-3">
-                <div className="text-[11px] uppercase tracking-[0.18em] text-white/45">主线进度</div>
-                <div className="mt-2 text-lg font-semibold text-white">{selectedRoute.progress}%</div>
+                <div className="text-[11px] uppercase tracking-[0.18em] text-white/45">
+                  主线进度
+                </div>
+                <div className="mt-2 text-lg font-semibold text-white">
+                  {selectedRoute.progress}%
+                </div>
               </div>
             </div>
           </div>
@@ -808,7 +847,8 @@ export function GoldenPathExplorer({ snapshot, selectedPathId }: GoldenPathExplo
                         证据沉淀
                       </div>
                       <div className="mt-2 text-lg font-semibold text-[var(--color-text)]">
-                        {activeSkill.evidence.courseCount} 门课 · {activeSkill.evidence.chapterCount} 章
+                        {activeSkill.evidence.courseCount} 门课 ·{" "}
+                        {activeSkill.evidence.chapterCount} 章
                       </div>
                       <div className="mt-2 text-sm text-[var(--color-text-secondary)]">
                         完成信号 {activeSkill.evidence.masterySignals} 次
@@ -860,7 +900,10 @@ export function GoldenPathExplorer({ snapshot, selectedPathId }: GoldenPathExplo
                     <div className="mt-3 space-y-3">
                       {relatedLearning.length > 0 ? (
                         relatedLearning.map((course) => (
-                          <div key={`${activeSkill.id}:${course.courseId}`} className="rounded-[22px] border border-black/6 bg-[#fafaf9] p-4">
+                          <div
+                            key={`${activeSkill.id}:${course.courseId}`}
+                            className="rounded-[22px] border border-black/6 bg-[#fafaf9] p-4"
+                          >
                             <div className="flex items-start justify-between gap-4">
                               <div>
                                 <Link
@@ -899,7 +942,10 @@ export function GoldenPathExplorer({ snapshot, selectedPathId }: GoldenPathExplo
                                       </div>
                                     </div>
                                     <span className="rounded-full border border-black/8 bg-[#faf8f2] px-2.5 py-1 text-[0.72rem] text-[var(--color-text-secondary)]">
-                                      {formatChapterProgress(chapter.completedSections, chapter.totalSections)}
+                                      {formatChapterProgress(
+                                        chapter.completedSections,
+                                        chapter.totalSections,
+                                      )}
                                     </span>
                                   </Link>
                                 ))}
@@ -931,7 +977,8 @@ export function GoldenPathExplorer({ snapshot, selectedPathId }: GoldenPathExplo
                         节点分布
                       </div>
                       <div className="mt-2 text-sm text-[var(--color-text-secondary)]">
-                        已掌握 {activeDomain.masteredCount} · 推进中 {activeDomain.inProgressCount} · 可开始 {activeDomain.readyCount}
+                        已掌握 {activeDomain.masteredCount} · 推进中 {activeDomain.inProgressCount}{" "}
+                        · 可开始 {activeDomain.readyCount}
                       </div>
                     </div>
                   </div>
@@ -1025,7 +1072,8 @@ export function GoldenPathExplorer({ snapshot, selectedPathId }: GoldenPathExplo
                         {nextMoveCourse.title}
                       </div>
                       <div className="mt-1 text-sm text-white/60">
-                        进度 {nextMoveCourse.progressPercent}% · 最近更新 {formatDate(nextMoveCourse.updatedAt)}
+                        进度 {nextMoveCourse.progressPercent}% · 最近更新{" "}
+                        {formatDate(nextMoveCourse.updatedAt)}
                       </div>
                       <div className="mt-4 flex flex-wrap gap-3">
                         <Link
