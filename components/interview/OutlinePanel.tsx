@@ -6,15 +6,17 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { WorkspaceEmptyState } from "@/components/common";
 import { useToast } from "@/components/ui/Toast";
+import type { OutlineDisplay } from "@/lib/ai/interview/models";
+import type { InterviewOutline } from "@/lib/ai/interview/schemas";
 import { GOLDEN_PATH_SKILLS } from "@/lib/golden-path/ontology";
 import { cn } from "@/lib/utils";
-import type { OutlineData } from "@/stores/interview";
-import { useInterviewStore } from "@/stores/interview";
 
 interface OutlinePanelProps {
-  outline: OutlineData | null;
+  outline: OutlineDisplay | null;
+  stableOutline: InterviewOutline | null;
   isLoading?: boolean;
   courseId?: string;
+  onCourseCreated: (courseId: string) => void;
 }
 
 const containerVariants = {
@@ -45,31 +47,22 @@ function getSkillLabel(skillId: string) {
   return skillNameById.get(skillId) ?? skillId;
 }
 
-export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps) {
+export function OutlinePanel({
+  outline,
+  stableOutline,
+  isLoading,
+  courseId,
+  onCourseCreated,
+}: OutlinePanelProps) {
   const router = useRouter();
   const [isStarting, setIsStarting] = useState(false);
   const { addToast } = useToast();
-  const setCourseId = useInterviewStore((s) => s.setCourseId);
-
-  const isOutlineReady =
-    !!outline?.title &&
-    !!outline.description &&
-    !!outline.targetAudience &&
-    !!outline.learningOutcome &&
-    !!outline.difficulty &&
-    outline.chapters.length >= 5 &&
-    outline.chapters.every(
-      (chapter) =>
-        chapter.title &&
-        chapter.description &&
-        chapter.sections.length >= 4 &&
-        chapter.sections.every((section) => section.title && section.description),
-    );
+  const canStartLearning = Boolean(stableOutline);
 
   const handleStartLearning = async () => {
     setIsStarting(true);
     try {
-      if (!outline || !isOutlineReady) {
+      if (!stableOutline) {
         return;
       }
 
@@ -79,7 +72,7 @@ export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          outline,
+          outline: stableOutline,
           courseId,
         }),
       });
@@ -93,7 +86,7 @@ export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps
         throw new Error("课程生成失败");
       }
 
-      setCourseId(data.courseId);
+      onCourseCreated(data.courseId);
       router.push(`/learn/${data.courseId}`);
     } catch (error) {
       addToast(error instanceof Error ? error.message : "课程生成失败", "error");
@@ -273,7 +266,7 @@ export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps
                 <button
                   type="button"
                   onClick={handleStartLearning}
-                  disabled={isStarting || !isOutlineReady || Boolean(isLoading)}
+                  disabled={isStarting || !canStartLearning}
                   className={cn(
                     "w-full flex items-center justify-center gap-2 rounded-xl px-4 py-3",
                     "bg-zinc-900 text-white",
@@ -291,11 +284,18 @@ export function OutlinePanel({ outline, isLoading, courseId }: OutlinePanelProps
                   <span>
                     {isStarting
                       ? "生成中..."
-                      : isLoading
-                        ? "正在整理完整大纲..."
-                        : "生成课程并开始学习"}
+                      : canStartLearning
+                        ? "生成课程并开始学习"
+                        : isLoading
+                          ? "正在生成完整大纲..."
+                          : "等待完整大纲"}
                   </span>
                 </button>
+                {isLoading && canStartLearning ? (
+                  <p className="mt-2 text-xs text-zinc-500">
+                    当前正在更新预览，点击会基于上一版完整大纲生成课程。
+                  </p>
+                ) : null}
               </motion.div>
             </motion.div>
           )}

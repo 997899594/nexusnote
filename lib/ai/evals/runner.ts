@@ -6,6 +6,7 @@ import { buildPromptInstructions } from "@/lib/ai/core/prompt-registry";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import {
   findLatestOutline,
+  findLatestStableOutline,
   getInterviewMessageOptions,
   getInterviewMessageText,
   type InterviewUIMessage,
@@ -646,7 +647,7 @@ async function runInterviewEval({
     const lastAssistant = [...finalMessages]
       .reverse()
       .find((message) => message.role === "assistant");
-    const latestOutline = findLatestOutline(finalMessages);
+    const latestOutline = findLatestStableOutline(finalMessages);
 
     const text = lastAssistant ? getInterviewMessageText(lastAssistant) : "";
     const options = lastAssistant ? getInterviewMessageOptions(lastAssistant) : [];

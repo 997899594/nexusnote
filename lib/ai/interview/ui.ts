@@ -7,13 +7,18 @@ import type {
   PresentOutlinePreviewOutput,
 } from "@/lib/ai/tools/interview";
 import { isInterviewVisibleTool } from "@/lib/ai/tools/shared";
-import type { OutlineData } from "@/stores/interview";
-import type { InterviewMode } from "./schemas";
+import type { OutlineDisplay } from "./models";
+import { type InterviewMode, type InterviewOutline, InterviewOutlineSchema } from "./schemas";
 
 export interface InterviewOutlinePreviewData {
   mode: InterviewMode;
-  outline: OutlineData;
+  outline: OutlineDisplay;
   isComplete: boolean;
+}
+
+export interface InterviewStableOutlineData {
+  mode: InterviewMode;
+  outline: InterviewOutline;
 }
 
 export type InterviewUIMessage = UIMessage<
@@ -110,7 +115,7 @@ function normalizePracticeType(
     : undefined;
 }
 
-function normalizePartialOutline(raw: unknown): OutlineData | null {
+function normalizePartialOutline(raw: unknown): OutlineDisplay | null {
   if (!raw || typeof raw !== "object") {
     return null;
   }
@@ -180,6 +185,11 @@ function normalizePartialOutline(raw: unknown): OutlineData | null {
   };
 }
 
+function normalizeStableOutline(raw: unknown): InterviewOutline | null {
+  const parsed = InterviewOutlineSchema.safeParse(raw);
+  return parsed.success ? parsed.data : null;
+}
+
 export function findLatestOutline(
   messages: InterviewUIMessage[],
 ): InterviewOutlinePreviewData | null {
@@ -202,6 +212,37 @@ export function findLatestOutline(
             mode: "revise",
             outline,
             isComplete: part.state === "input-available" || part.state === "output-available",
+          };
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+export function findLatestStableOutline(
+  messages: InterviewUIMessage[],
+): InterviewStableOutlineData | null {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i];
+    if (message.role !== "assistant") {
+      continue;
+    }
+
+    for (const part of message.parts) {
+      if (
+        isToolUIPart(part) &&
+        isInterviewVisibleTool(getToolName(part)) &&
+        getToolName(part) === "presentOutlinePreview" &&
+        (part.state === "input-available" || part.state === "output-available")
+      ) {
+        const input = part.input as { outline?: unknown } | undefined;
+        const outline = normalizeStableOutline(input?.outline);
+        if (outline) {
+          return {
+            mode: "revise",
+            outline,
           };
         }
       }

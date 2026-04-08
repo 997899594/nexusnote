@@ -4,14 +4,20 @@ import { nanoid } from "nanoid";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { type AIDegradationKind, createAIDegradationAwareFetch } from "@/lib/ai/core/degradation";
+import type {
+  InterviewCourseState,
+  InterviewOutlineState,
+  OutlineDisplay,
+} from "@/lib/ai/interview/models";
+import type { InterviewOutline } from "@/lib/ai/interview/schemas";
 import {
   findLatestOutline,
+  findLatestStableOutline,
   getInterviewMessageOptions,
   getInterviewMessageText,
   type InterviewUIMessage,
 } from "@/lib/ai/interview/ui";
 import { isUnauthorizedError, parseApiError, redirectToLogin } from "@/lib/api/client";
-import { type OutlineData, useInterviewStore } from "@/stores/interview";
 
 export interface InterviewMessage {
   id: string;
@@ -31,6 +37,8 @@ interface UseInterviewReturn {
   isLoading: boolean;
   sessionId: string;
   aiDegradedKind: AIDegradationKind | null;
+  outline: InterviewOutlineState;
+  course: InterviewCourseState;
 }
 
 function toInterviewDisplayMessages(messages: InterviewUIMessage[]): InterviewMessage[] {
@@ -51,45 +59,32 @@ function toInterviewDisplayMessages(messages: InterviewUIMessage[]): InterviewMe
     .filter((message) => message.text.length > 0 || (message.options?.length ?? 0) > 0);
 }
 
-function hasCompleteOutline(outline: OutlineData | null | undefined) {
-  if (
-    !outline?.title ||
-    !outline.description ||
-    !outline.targetAudience ||
-    !outline.learningOutcome
-  ) {
-    return false;
-  }
-
-  if (!outline.difficulty || outline.chapters.length < 5) {
-    return false;
-  }
-
-  return outline.chapters.every(
-    (chapter) =>
-      chapter.title &&
-      chapter.description &&
-      chapter.sections.length >= 4 &&
-      chapter.sections.every((section) => section.title && section.description),
-  );
-}
-
 export function useInterview(options?: UseInterviewOptions): UseInterviewReturn {
   const { addToast } = useToast();
   const [sessionId] = useState(() => nanoid());
   const [aiDegradedKind, setAIDegradedKind] = useState<AIDegradationKind | null>(null);
+  const [stableOutline, setStableOutlineState] = useState<InterviewOutline | null>(null);
+  const [courseId, setCourseIdState] = useState<string | null>(null);
+  const [isOutlineLoading, setIsOutlineLoading] = useState(false);
 
-  const setOutline = useInterviewStore((s) => s.setOutline);
-  const setIsOutlineLoading = useInterviewStore((s) => s.setIsOutlineLoading);
-  const setInterviewCompleted = useInterviewStore((s) => s.setInterviewCompleted);
-  const resetInterview = useInterviewStore((s) => s.reset);
+  const stableOutlineRef = useRef<InterviewOutline | null>(null);
+  const courseIdRef = useRef<string | null>(null);
+  const sentInitialRef = useRef(false);
+  const initialMessageRef = useRef(options?.initialMessage);
 
-  const storeActionsRef = useRef({ setOutline, setInterviewCompleted, setIsOutlineLoading });
-  storeActionsRef.current = { setOutline, setInterviewCompleted, setIsOutlineLoading };
+  const setStableOutline = useCallback((outline: InterviewOutline | null) => {
+    stableOutlineRef.current = outline;
+    setStableOutlineState(outline);
+  }, []);
+
+  const setCourseId = useCallback((nextCourseId: string | null) => {
+    courseIdRef.current = nextCourseId;
+    setCourseIdState(nextCourseId);
+  }, []);
 
   useEffect(() => {
-    resetInterview();
-  }, [resetInterview]);
+    initialMessageRef.current = options?.initialMessage;
+  }, [options?.initialMessage]);
 
   const chat = useChat<InterviewUIMessage>({
     id: sessionId,
@@ -101,22 +96,19 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
       }),
       body: () => ({
         sessionId,
-        courseId: useInterviewStore.getState().courseId ?? undefined,
-        outline: useInterviewStore.getState().outline ?? undefined,
+        courseId: courseIdRef.current ?? undefined,
+        outline: stableOutlineRef.current ?? undefined,
       }),
     }),
     onFinish: ({ messages: finishedMessages }) => {
-      const result = findLatestOutline(finishedMessages);
-      const actions = storeActionsRef.current;
-
-      if (result?.outline) {
-        actions.setOutline(result.outline);
-        actions.setInterviewCompleted(hasCompleteOutline(result.outline));
+      const stableResult = findLatestStableOutline(finishedMessages);
+      if (stableResult?.outline) {
+        setStableOutline(stableResult.outline);
       }
-
-      actions.setIsOutlineLoading(false);
+      setIsOutlineLoading(false);
     },
     onError: (error) => {
+      setIsOutlineLoading(false);
       console.error("[Interview] API Error:", error);
       parseApiError(error).then(({ message, status, code }) => {
         if (isUnauthorizedError(status, code)) {
@@ -129,13 +121,31 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
   });
 
   const { messages, status } = chat;
-
-  const sentInitialRef = useRef(false);
-  const initialMessageRef = useRef(options?.initialMessage);
+  const isLoading = status === "submitted" || status === "streaming";
+  const liveOutlineResult = findLatestOutline(messages);
+  const displayOutline: OutlineDisplay | null =
+    isLoading && liveOutlineResult?.outline ? liveOutlineResult.outline : stableOutline;
+  const outline: InterviewOutlineState = {
+    display: displayOutline,
+    stable: stableOutline,
+    isLoading: isOutlineLoading,
+    isReady: stableOutline != null,
+  };
+  const course: InterviewCourseState = {
+    id: courseId,
+    setId: setCourseId,
+  };
 
   useEffect(() => {
-    initialMessageRef.current = options?.initialMessage;
-  }, [options?.initialMessage]);
+    if (liveOutlineResult?.outline) {
+      setIsOutlineLoading(!liveOutlineResult.isComplete);
+      return;
+    }
+
+    if (!isLoading) {
+      setIsOutlineLoading(false);
+    }
+  }, [isLoading, liveOutlineResult]);
 
   const sendMessage = useCallback(
     async ({ text }: { text: string }) => {
@@ -144,13 +154,13 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
         return;
       }
 
-      if (useInterviewStore.getState().interviewCompleted) {
+      if (stableOutlineRef.current) {
         setIsOutlineLoading(true);
       }
 
       await chat.sendMessage({ text: nextText });
     },
-    [chat, setIsOutlineLoading],
+    [chat],
   );
 
   useEffect(() => {
@@ -163,16 +173,6 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
     }
   }, [sendMessage]);
 
-  useEffect(() => {
-    const result = findLatestOutline(messages);
-    if (result?.outline) {
-      setOutline(result.outline);
-      setInterviewCompleted(hasCompleteOutline(result.outline));
-      setIsOutlineLoading(!result.isComplete);
-    }
-  }, [messages, setInterviewCompleted, setIsOutlineLoading, setOutline]);
-
-  const isLoading = status === "submitted" || status === "streaming";
   return {
     messages: toInterviewDisplayMessages(messages),
     sendMessage,
@@ -180,5 +180,7 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
     isLoading,
     sessionId,
     aiDegradedKind,
+    outline,
+    course,
   };
 }

@@ -12,7 +12,6 @@ import { OutlinePanel } from "@/components/interview/OutlinePanel";
 import { useInterview } from "@/hooks/useInterview";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { cn } from "@/lib/utils";
-import { useInterviewStore } from "@/stores/interview";
 
 const panelVariants = {
   hidden: {
@@ -73,11 +72,6 @@ function InterviewContent() {
     initialMessage: initialMessage || undefined,
   });
 
-  const outline = useInterviewStore((s) => s.outline);
-  const courseId = useInterviewStore((s) => s.courseId);
-  const isOutlineLoading = useInterviewStore((s) => s.isOutlineLoading);
-  const interviewCompleted = useInterviewStore((s) => s.interviewCompleted);
-
   useEffect(() => {
     if (initialMessage && !started) {
       setStarted(true);
@@ -89,6 +83,12 @@ function InterviewContent() {
   const status = interview.status;
   const isLoading = interview.isLoading;
   const aiDegradedKind = interview.aiDegradedKind;
+  const displayOutline = interview.outline.display;
+  const stableOutline = interview.outline.stable;
+  const isOutlineLoading = interview.outline.isLoading;
+  const interviewCompleted = interview.outline.isReady;
+  const courseId = interview.course.id;
+  const setCourseId = interview.course.setId;
 
   const chatMessages = messages;
 
@@ -116,7 +116,8 @@ function InterviewContent() {
   const lastMsg = chatMessages[chatMessages.length - 1];
   const isAILoading =
     (status === "submitted" || status === "streaming") && (!lastMsg || lastMsg.role === "user");
-  const shouldShowOutlinePanel = Boolean(outline) || isOutlineLoading || interviewCompleted;
+  const shouldShowOutlinePanel =
+    Boolean(displayOutline) || Boolean(stableOutline) || isOutlineLoading || interviewCompleted;
 
   useEffect(() => {
     if (!shouldShowOutlinePanel) {
@@ -232,9 +233,11 @@ function InterviewContent() {
             >
               <motion.div variants={contentVariants} className="h-full w-80">
                 <OutlinePanel
-                  outline={outline}
+                  outline={displayOutline ?? stableOutline}
+                  stableOutline={stableOutline ?? null}
                   isLoading={isOutlineLoading}
                   courseId={courseId ?? undefined}
+                  onCourseCreated={setCourseId}
                 />
               </motion.div>
             </motion.div>
@@ -333,9 +336,11 @@ function InterviewContent() {
         {isMobile && shouldShowOutlinePanel && mobilePane === "outline" ? (
           <div className="min-h-0 flex-1">
             <OutlinePanel
-              outline={outline}
+              outline={displayOutline ?? stableOutline}
+              stableOutline={stableOutline ?? null}
               isLoading={isOutlineLoading}
               courseId={courseId ?? undefined}
+              onCourseCreated={setCourseId}
             />
           </div>
         ) : (
