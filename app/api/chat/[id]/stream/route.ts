@@ -27,7 +27,7 @@ export const GET = withDynamicAuth<unknown, { id: string }>(
       return new Response(null, { status: 204 });
     }
 
-    const activeStreamId = await getConversationActiveStreamId(id);
+    const activeStreamId = await getConversationActiveStreamId(id, userId);
 
     if (!activeStreamId) {
       return new Response(null, { status: 204 });

@@ -7,7 +7,7 @@
  */
 
 import { embedMany } from "ai";
-import { db, eq, knowledgeChunks, notes } from "@/db";
+import { and, db, eq, knowledgeChunks, notes } from "@/db";
 import { aiProvider } from "@/lib/ai";
 import { createRagTrace } from "./observability";
 
@@ -90,6 +90,12 @@ interface IndexOptions extends ChunkOptions {
   metadata?: Record<string, unknown>;
 }
 
+async function deleteChunksBySource(sourceType: SourceType, sourceId: string): Promise<void> {
+  await db
+    .delete(knowledgeChunks)
+    .where(and(eq(knowledgeChunks.sourceType, sourceType), eq(knowledgeChunks.sourceId, sourceId)));
+}
+
 export async function indexNote(
   noteId: string,
   plainText: string,
@@ -111,7 +117,7 @@ export async function indexNote(
       throw new Error(`Note not found: ${noteId}`);
     }
 
-    await db.delete(knowledgeChunks).where(eq(knowledgeChunks.sourceId, noteId));
+    await deleteChunksBySource("note", noteId);
     trace.step("delete-old-chunks");
 
     const chunks = chunkText(plainText, chunkSize, overlap);
@@ -167,7 +173,7 @@ export async function indexConversation(
   });
 
   try {
-    await db.delete(knowledgeChunks).where(eq(knowledgeChunks.sourceId, conversationId));
+    await deleteChunksBySource("conversation", conversationId);
     trace.step("delete-old-chunks");
 
     const chunks = chunkText(plainText, chunkSize, overlap);
@@ -230,7 +236,7 @@ export async function indexCourseSection(
   });
 
   try {
-    await db.delete(knowledgeChunks).where(eq(knowledgeChunks.sourceId, documentId));
+    await deleteChunksBySource("course_section", documentId);
     trace.step("delete-old-chunks");
 
     const chunks = chunkText(plainText, chunkSize, overlap);

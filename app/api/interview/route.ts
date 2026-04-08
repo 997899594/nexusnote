@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
     const result = await agent.stream({
       prompt: modelMessages,
       experimental_transform: smoothStream({
-        chunking: new Intl.Segmenter("zh-CN", { granularity: "grapheme" }),
+        chunking: new Intl.Segmenter("zh-Hans", { granularity: "word" }),
       }),
     });
 

@@ -9,7 +9,6 @@
 
 import type { UIMessage } from "ai";
 import { after, type NextRequest, NextResponse } from "next/server";
-import { conversations, db, eq } from "@/db";
 import {
   aiProvider,
   ChatApiRequestSchema,
@@ -32,6 +31,11 @@ import {
   persistConversationMessages,
   setConversationActiveStreamId,
 } from "@/lib/chat/conversation-persistence";
+import {
+  ConversationOwnershipError,
+  getOwnedConversationSummary,
+  touchOwnedConversation,
+} from "@/lib/chat/conversation-repository";
 import { isUuidString } from "@/lib/chat/session-id";
 import { checkRateLimitOrThrow } from "@/lib/rate-limit";
 
@@ -119,14 +123,20 @@ export async function POST(request: NextRequest) {
     }
 
     const hasPersistentSession = Boolean(sessionId && userId && isUuidString(sessionId));
+    let ownedConversationSummary: string | null = null;
 
     if (hasPersistentSession && sessionId) {
-      const [conversation] = await db
-        .select({ summary: conversations.summary })
-        .from(conversations)
-        .where(eq(conversations.id, sessionId))
-        .limit(1);
-      const memoryContext = buildConversationMemoryContext(conversation?.summary ?? null);
+      try {
+        const conversation = await getOwnedConversationSummary(sessionId, userId);
+        ownedConversationSummary = conversation.summary;
+      } catch (error) {
+        if (error instanceof ConversationOwnershipError) {
+          throw new APIError("会话不存在或无权访问", 403, "FORBIDDEN");
+        }
+        throw error;
+      }
+
+      const memoryContext = buildConversationMemoryContext(ownedConversationSummary);
       if (memoryContext) {
         userContext = [userContext, memoryContext].filter(Boolean).join("\n\n");
       }
@@ -145,24 +155,19 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        await db
-          .insert(conversations)
-          .values({
-            id: sessionId,
-            userId,
-            title,
-            intent: "CHAT",
-            messageCount: uiMessages.length,
-          })
-          .onConflictDoUpdate({
-            target: conversations.id,
-            set: {
-              messageCount: uiMessages.length,
-              lastMessageAt: new Date(),
-            },
-          });
-      } catch (insertError) {
-        console.warn("[ChatSession] Failed to upsert session:", insertError);
+        await touchOwnedConversation({
+          conversationId: sessionId,
+          userId,
+          title,
+          messageCount: uiMessages.length,
+          intent: "CHAT",
+        });
+      } catch (error) {
+        if (error instanceof ConversationOwnershipError) {
+          throw new APIError("会话不存在或无权访问", 403, "FORBIDDEN");
+        }
+
+        console.warn("[ChatSession] Failed to upsert session:", error);
       }
     } else if (sessionId && !isUuidString(sessionId)) {
       console.warn("[ChatSession] Skip upsert for non-UUID sessionId:", sessionId);
@@ -180,9 +185,9 @@ export async function POST(request: NextRequest) {
     });
 
     if (hasPersistentSession && sessionId) {
-      await persistConversationMessages(sessionId, uiMessages);
-      if (await getConversationActiveStreamId(sessionId)) {
-        await setConversationActiveStreamId(sessionId, null);
+      await persistConversationMessages(sessionId, userId, uiMessages);
+      if (await getConversationActiveStreamId(sessionId, userId)) {
+        await setConversationActiveStreamId(sessionId, userId, null);
       }
     }
 
@@ -196,8 +201,8 @@ export async function POST(request: NextRequest) {
           return;
         }
 
-        await persistConversationMessages(sessionId, messages);
-        await setConversationActiveStreamId(sessionId, null);
+        await persistConversationMessages(sessionId, userId, messages);
+        await setConversationActiveStreamId(sessionId, userId, null);
       },
       consumeSseStream: async ({ stream }) => {
         if (!hasPersistentSession || !sessionId) {
@@ -206,7 +211,7 @@ export async function POST(request: NextRequest) {
 
         const streamId = crypto.randomUUID();
         await resumableStreamContext.createNewResumableStream(streamId, () => stream);
-        await setConversationActiveStreamId(sessionId, streamId);
+        await setConversationActiveStreamId(sessionId, userId, streamId);
       },
     });
     response.headers.set("X-Request-Id", requestId);

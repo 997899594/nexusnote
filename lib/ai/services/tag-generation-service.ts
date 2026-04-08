@@ -13,6 +13,7 @@ import { db } from "@/db";
 import { notes, noteTags, tags } from "@/db/schema";
 import { aiProvider, getJsonModelForPolicy } from "@/lib/ai";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
+import { applyTagUsageDelta, getTagUsageDelta, type NoteTagStatus } from "@/lib/tags/usage-count";
 import {
   TAG_GENERATION_SYSTEM_PROMPT,
   TAG_GENERATION_USER_PROMPT,
@@ -136,7 +137,6 @@ class TagGenerationService {
     const [exactMatch] = await db.select().from(tags).where(eq(tags.name, normalizedName)).limit(1);
 
     if (exactMatch) {
-      await this.incrementTagUsage(exactMatch.id);
       return exactMatch;
     }
 
@@ -166,7 +166,6 @@ class TagGenerationService {
 
       if (similarTag) {
         console.log(`[Tags] 标签 "${normalizedName}" 合并到相似标签 "${similarTag.name}"`);
-        await this.incrementTagUsage(similarTag.id);
         return similarTag;
       }
     }
@@ -177,7 +176,7 @@ class TagGenerationService {
       .values({
         name: normalizedName,
         nameEmbedding: embedding,
-        usageCount: 1,
+        usageCount: 0,
       })
       .returning();
 
@@ -220,7 +219,7 @@ class TagGenerationService {
     const status = confidence >= CONFIG.AUTO_CONFIRM_THRESHOLD ? "confirmed" : "pending";
     const confirmedAt = status === "confirmed" ? new Date() : null;
 
-    await db
+    const [inserted] = await db
       .insert(noteTags)
       .values({
         noteId,
@@ -229,14 +228,39 @@ class TagGenerationService {
         status,
         confirmedAt,
       })
-      .onConflictDoUpdate({
-        target: [noteTags.noteId, noteTags.tagId],
-        set: {
+      .onConflictDoNothing()
+      .returning({ id: noteTags.id });
+
+    if (inserted) {
+      await this.incrementTagUsage(tagId);
+      return;
+    }
+
+    await db.transaction(async (tx) => {
+      const [existing] = await tx
+        .select({
+          status: noteTags.status,
+        })
+        .from(noteTags)
+        .where(and(eq(noteTags.noteId, noteId), eq(noteTags.tagId, tagId)))
+        .limit(1);
+
+      if (!existing) {
+        return;
+      }
+
+      await tx
+        .update(noteTags)
+        .set({
           confidence,
           status,
           confirmedAt,
-        },
-      });
+        })
+        .where(and(eq(noteTags.noteId, noteId), eq(noteTags.tagId, tagId)));
+
+      const delta = getTagUsageDelta(existing.status as NoteTagStatus, status);
+      await applyTagUsageDelta(tx, tagId, delta);
+    });
   }
 }
 

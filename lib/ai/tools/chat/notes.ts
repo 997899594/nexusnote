@@ -4,12 +4,14 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import { db, eq, notes } from "@/db";
+import { and, db, eq, knowledgeChunks, notes } from "@/db";
 import {
   revalidateNoteDetail,
   revalidateNotesIndex,
   revalidateProfileStats,
 } from "@/lib/cache/tags";
+import { plainTextToHtml } from "@/lib/notes/content";
+import { indexNote } from "@/lib/rag/chunker";
 
 export const CreateNoteSchema = z.object({
   title: z.string().min(1).max(200),
@@ -47,9 +49,20 @@ export function createNoteTools(userId: string) {
             .values({
               userId,
               title: args.title,
+              contentHtml: plainTextToHtml(args.content),
               plainText: args.content,
             })
             .returning();
+
+          indexNote(note.id, note.plainText ?? "", {
+            userId,
+            metadata: {
+              sourceType: note.sourceType,
+              sourceContext: note.sourceContext ?? null,
+            },
+          }).catch((error) => {
+            console.error("[Tool] createNote index error:", error);
+          });
 
           return {
             success: true,
@@ -103,14 +116,34 @@ export function createNoteTools(userId: string) {
             return { success: false, error: "笔记不存在或无权修改" };
           }
 
+          const hasContentUpdate = args.content !== undefined;
+          const nextContentHtml = hasContentUpdate
+            ? plainTextToHtml(args.content ?? "")
+            : (existing.contentHtml ?? null);
+
           await db
             .update(notes)
             .set({
-              ...(args.title && { title: args.title }),
-              ...(args.content && { plainText: args.content }),
+              ...(args.title !== undefined && { title: args.title }),
+              ...(hasContentUpdate && {
+                contentHtml: nextContentHtml,
+                plainText: args.content,
+              }),
               updatedAt: new Date(),
             })
-            .where(eq(notes.id, args.noteId));
+            .where(and(eq(notes.id, args.noteId), eq(notes.userId, userId)));
+
+          if (hasContentUpdate) {
+            indexNote(args.noteId, args.content ?? "", {
+              userId,
+              metadata: {
+                sourceType: existing.sourceType,
+                sourceContext: existing.sourceContext ?? null,
+              },
+            }).catch((error) => {
+              console.error("[Tool] updateNote index error:", error);
+            });
+          }
 
           revalidateNotesIndex(userId);
           revalidateNoteDetail(userId, args.noteId);
@@ -137,7 +170,17 @@ export function createNoteTools(userId: string) {
             return { success: false, error: "笔记不存在或无权删除" };
           }
 
-          await db.delete(notes).where(eq(notes.id, args.noteId));
+          await db.transaction(async (tx) => {
+            await tx
+              .delete(knowledgeChunks)
+              .where(
+                and(
+                  eq(knowledgeChunks.sourceType, "note"),
+                  eq(knowledgeChunks.sourceId, args.noteId),
+                ),
+              );
+            await tx.delete(notes).where(and(eq(notes.id, args.noteId), eq(notes.userId, userId)));
+          });
           revalidateNotesIndex(userId);
           revalidateNoteDetail(userId, args.noteId);
           revalidateProfileStats(userId);

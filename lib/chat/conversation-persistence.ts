@@ -1,5 +1,5 @@
 import type { UIMessage } from "ai";
-import { conversationMessages, conversations, db, eq } from "@/db";
+import { and, conversationMessages, conversations, db, eq } from "@/db";
 import { summarizeDroppedConversationMessages } from "@/lib/chat/conversation-memory";
 import {
   buildConversationMessageRows,
@@ -19,13 +19,18 @@ function normalizeMetadata(metadata: unknown): ConversationMetadata {
 
 export async function setConversationActiveStreamId(
   conversationId: string,
+  userId: string,
   activeStreamId: string | null,
 ): Promise<void> {
   const [existing] = await db
     .select({ metadata: conversations.metadata })
     .from(conversations)
-    .where(eq(conversations.id, conversationId))
+    .where(and(eq(conversations.id, conversationId), eq(conversations.userId, userId)))
     .limit(1);
+
+  if (!existing) {
+    return;
+  }
 
   const metadata = normalizeMetadata(existing?.metadata);
   const nextMetadata = {
@@ -39,16 +44,17 @@ export async function setConversationActiveStreamId(
       metadata: nextMetadata,
       updatedAt: new Date(),
     })
-    .where(eq(conversations.id, conversationId));
+    .where(and(eq(conversations.id, conversationId), eq(conversations.userId, userId)));
 }
 
 export async function getConversationActiveStreamId(
   conversationId: string,
+  userId: string,
 ): Promise<string | null> {
   const [existing] = await db
     .select({ metadata: conversations.metadata })
     .from(conversations)
-    .where(eq(conversations.id, conversationId))
+    .where(and(eq(conversations.id, conversationId), eq(conversations.userId, userId)))
     .limit(1);
 
   const metadata = normalizeMetadata(existing?.metadata);
@@ -59,13 +65,18 @@ export async function getConversationActiveStreamId(
 
 export async function persistConversationMessages(
   conversationId: string,
+  userId: string,
   messages: UIMessage[],
 ): Promise<UIMessage[]> {
   const [existing] = await db
     .select({ summary: conversations.summary })
     .from(conversations)
-    .where(eq(conversations.id, conversationId))
+    .where(and(eq(conversations.id, conversationId), eq(conversations.userId, userId)))
     .limit(1);
+
+  if (!existing) {
+    return messages;
+  }
 
   const snapshot = buildPersistedMessageSnapshot(messages);
   const nextSummary = snapshot.trimmed
@@ -84,7 +95,7 @@ export async function persistConversationMessages(
         summary: nextSummary,
         updatedAt: new Date(),
       })
-      .where(eq(conversations.id, conversationId));
+      .where(and(eq(conversations.id, conversationId), eq(conversations.userId, userId)));
 
     const rows = buildConversationMessageRows({
       conversationId,
