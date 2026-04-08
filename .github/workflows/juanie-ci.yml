@@ -32,6 +32,18 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Build Docker Runtime Bundle
+        run: |
+          set -euo pipefail
+          bun install --frozen-lockfile
+          bun run build
+          node scripts/prepare-schema-runtime.mjs
+          bun run prepare:docker-runtime
+
       - name: Resolve Juanie Build Plan
         id: plan
         env:
