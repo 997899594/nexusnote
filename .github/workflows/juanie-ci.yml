@@ -32,18 +32,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Build Docker Runtime Bundle
-        run: |
-          set -euo pipefail
-          bun install --frozen-lockfile
-          bun run build
-          node scripts/prepare-schema-runtime.mjs
-          bun run prepare:docker-runtime
-
       - name: Resolve Juanie Build Plan
         id: plan
         env:
@@ -176,6 +164,8 @@ jobs:
           set: |
             *.tags=${{ env.IMAGE_TAG }}
             *.args.GIT_SHA=${{ github.sha }}
+            *.cache-from=type=gha
+            *.cache-to=type=gha,mode=max
 
       - name: Build and Push (Dockerfile)
         if: ${{ steps.plan.outputs.build_kind == 'dockerfile' }}

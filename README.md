@@ -62,6 +62,9 @@ The repo ships a container-image workflow:
 git push -> CI build -> image registry -> deployment platform rollout -> schema sync
 ```
 
+- image build source of truth: `Dockerfile.web`
+- CI builds the image directly; it does not pre-package a `.docker-runtime` bundle
+- deployment schema sync uses the `db:push` script
 - platform config: [juanie.yaml](./juanie.yaml)
 - deployment notes: [deploy/README.md](./deploy/README.md)
 - runtime env example: [deploy/deploy.env.example](./deploy/deploy.env.example)

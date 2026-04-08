@@ -14,6 +14,13 @@ This repository no longer carries:
 Git push -> CI build -> image registry -> deployment platform rollout -> schema sync
 ```
 
+## Container build strategy
+
+- `Dockerfile.web` is the deployment source of truth
+- the image is built with a multi-stage Docker build
+- Next.js production build happens inside Docker, not on the CI host
+- the runtime image keeps the files needed for the `db:push` script
+
 ## What the platform must provide
 
 - Container runtime
@@ -45,9 +52,9 @@ Optional but recommended:
 ## Release flow
 
 1. Push code
-2. CI builds and publishes a new image
+2. CI builds and publishes a new image from `Dockerfile.web`
 3. Deployment platform updates to the new image tag
-4. Run `bun run db:push`
+4. Run the `db:push` script through the deployment platform
 5. Verify `/api/health`, login, interview, and learn flow
 
 ## Schema sync policy
@@ -57,7 +64,7 @@ This repository treats the current Drizzle schema as the deployment source of tr
 Run schema sync as part of the platform release process:
 
 ```bash
-bun run db:push
+npm run db:push
 ```
 
 The sync command is non-interactive, applies the current schema directly, and fails fast if the

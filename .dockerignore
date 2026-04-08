@@ -44,6 +44,5 @@
 **/README.md
 **/CHANGELOG.md
 
-# Release runtime bundle is prepared by CI and must bypass generic ignores.
-!.docker-runtime
-!.docker-runtime/**
+# Legacy runtime bundle is no longer part of the Docker build flow.
+**/.docker-runtime

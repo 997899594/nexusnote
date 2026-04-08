@@ -27,7 +27,7 @@ services:
     migrate:
       tool: drizzle
       workingDirectory: .
-      command: bun run db:push
+      command: npm run db:push
       phase: preDeploy
       autoRun: false
       approvalPolicy: manual_in_production

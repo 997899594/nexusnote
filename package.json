@@ -5,8 +5,7 @@
   "scripts": {
     "dev": "bun ./node_modules/.bin/next dev --turbo --port 3000",
     "build": "bun ./node_modules/.bin/next build",
-    "prepare:docker-runtime": "node scripts/prepare-docker-runtime.mjs",
-    "start": "next start",
+    "start": "node scripts/start.mjs",
     "lint": "biome check .",
     "typecheck": "tsc --noEmit",
     "ai:eval": "bun scripts/run-ai-evals.ts",

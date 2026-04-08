@@ -8,6 +8,7 @@
 - [AI System](/Users/findbiao/projects/nexusnote/docs/AI.md)
 - [AI Role System 2026](/Users/findbiao/projects/nexusnote/docs/AI_ROLE_SYSTEM_2026.md)
 - [Architecture 2026](/Users/findbiao/projects/nexusnote/docs/ARCHITECTURE_2026.md)
+- [Deployment Build Architecture](/Users/findbiao/projects/nexusnote/docs/DEPLOYMENT_BUILD_ARCHITECTURE.md)
 - [AI SDK v6 Project Guidelines](/Users/findbiao/projects/nexusnote/docs/AI_SDK_V6_PROJECT_GUIDELINES.md)
 - [AI SDK v6 Guide](/Users/findbiao/projects/nexusnote/docs/ai-sdk-v6-guide.md)
 - [AI SDK v6 Advanced Features](/Users/findbiao/projects/nexusnote/docs/ai-sdk-v6-advanced-features.md)

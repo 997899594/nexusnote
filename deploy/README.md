@@ -32,7 +32,7 @@ Git Push -> CI 构建镜像 -> 推送镜像仓库 -> 部署平台拉取新镜像
 1. 构建并推送镜像
 2. 在部署平台更新镜像 tag
 3. 注入/校验环境变量
-4. 执行 Schema Sync
+4. 执行 `db:push` 脚本
 5. 检查健康接口和登录链路
 
 ## 必要环境变量
@@ -52,10 +52,17 @@ Git Push -> CI 构建镜像 -> 推送镜像仓库 -> 部署平台拉取新镜像
 发布新镜像后，执行：
 
 ```bash
-bun run db:push
+npm run db:push
 ```
 
 这条命令会以当前 Drizzle schema 为准直接同步数据库，并在结束后校验运行时必需的表、列和索引。
+
+## 镜像构建说明
+
+- `Dockerfile.web` 是唯一的镜像构建入口
+- CI 不再预生成 `.docker-runtime`
+- Next.js 构建发生在 Docker multi-stage builder 内部
+- 运行镜像同时包含脚本级启动和 Schema Sync 所需文件
 
 ## 健康检查
 
