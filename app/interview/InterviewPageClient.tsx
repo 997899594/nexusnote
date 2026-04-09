@@ -64,6 +64,7 @@ function InterviewContent() {
   const isMobile = useIsMobile();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const hasAutoSwitchedToOutlineRef = useRef(false);
   const [input, setInput] = useState("");
   const [started, setStarted] = useState(false);
   const [mobilePane, setMobilePane] = useState<"chat" | "outline">("chat");
@@ -121,9 +122,16 @@ function InterviewContent() {
 
   useEffect(() => {
     if (!shouldShowOutlinePanel) {
+      hasAutoSwitchedToOutlineRef.current = false;
       setMobilePane("chat");
+      return;
     }
-  }, [shouldShowOutlinePanel]);
+
+    if (isMobile && !hasAutoSwitchedToOutlineRef.current) {
+      setMobilePane("outline");
+      hasAutoSwitchedToOutlineRef.current = true;
+    }
+  }, [isMobile, shouldShowOutlinePanel]);
 
   const chatViewport = (
     <div className="mobile-scroll flex-1 overflow-y-auto px-4 py-5 md:px-6 md:py-6">
