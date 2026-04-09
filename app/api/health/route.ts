@@ -1,5 +1,6 @@
 import { db, sql } from "@/db";
 import { redis } from "@/lib/redis";
+import { assertSchemaCompatibility } from "@/lib/server/schema-compatibility";
 import packageJson from "@/package.json";
 
 type CheckStatus = "pass" | "fail";
@@ -48,13 +49,16 @@ async function runCheck(task: () => Promise<unknown>): Promise<DependencyCheckRe
 }
 
 export async function GET() {
-  const [database, redisCheck] = await Promise.all([
+  const [database, redisCheck, schema] = await Promise.all([
     runCheck(() => db.execute(sql`select 1`)),
     runCheck(() => redis.ping()),
+    runCheck(() => assertSchemaCompatibility()),
   ]);
 
   const overallStatus: CheckStatus =
-    database.status === "pass" && redisCheck.status === "pass" ? "pass" : "fail";
+    database.status === "pass" && redisCheck.status === "pass" && schema.status === "pass"
+      ? "pass"
+      : "fail";
 
   return Response.json(
     {
@@ -65,6 +69,7 @@ export async function GET() {
       checks: {
         database,
         redis: redisCheck,
+        schema,
       },
     },
     {

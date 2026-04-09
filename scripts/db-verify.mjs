@@ -56,6 +56,8 @@ const REQUIRED_COLUMNS = [
   ["conversation_messages", "position"],
   ["conversation_messages", "role"],
   ["conversation_messages", "text_content"],
+  ["conversations", "learn_chapter_index"],
+  ["conversations", "learn_course_id"],
   ["conversations", "metadata"],
   ["knowledge_chunks", "embedding"],
   ["notes", "content_html"],
