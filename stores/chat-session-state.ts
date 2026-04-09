@@ -10,26 +10,17 @@ import { create } from "zustand";
 
 interface ChatSessionState {
   loadedSessions: Set<string>;
-  sentSessions: Set<string>;
   failedSessions: Set<string>;
 
   // Actions
   markLoaded: (id: string) => void;
-  markSent: (id: string) => void;
   markFailed: (id: string) => void;
-  clearFailed: (id: string) => void;
   resetSession: (id: string) => void;
   isLoaded: (id: string) => boolean;
-  isSent: (id: string) => boolean;
-  canRetry: (id: string) => boolean;
-
-  // Cleanup
-  cleanup: (activeIds: string[]) => void;
 }
 
 export const useChatSessionStateStore = create<ChatSessionState>((set, get) => ({
   loadedSessions: new Set(),
-  sentSessions: new Set(),
   failedSessions: new Set(),
 
   markLoaded: (id: string) => {
@@ -38,15 +29,6 @@ export const useChatSessionStateStore = create<ChatSessionState>((set, get) => (
       const newSet = new Set(state.loadedSessions);
       newSet.add(id);
       return { loadedSessions: newSet };
-    });
-  },
-
-  markSent: (id: string) => {
-    set((state) => {
-      if (state.sentSessions.has(id)) return state;
-      const newSet = new Set(state.sentSessions);
-      newSet.add(id);
-      return { sentSessions: newSet };
     });
   },
 
@@ -62,28 +44,16 @@ export const useChatSessionStateStore = create<ChatSessionState>((set, get) => (
     });
   },
 
-  clearFailed: (id: string) => {
-    set((state) => {
-      if (!state.failedSessions.has(id)) return state;
-      const newSet = new Set(state.failedSessions);
-      newSet.delete(id);
-      return { failedSessions: newSet };
-    });
-  },
-
   resetSession: (id: string) => {
     set((state) => {
       const loadedSessions = new Set(state.loadedSessions);
-      const sentSessions = new Set(state.sentSessions);
       const failedSessions = new Set(state.failedSessions);
 
       loadedSessions.delete(id);
-      sentSessions.delete(id);
       failedSessions.delete(id);
 
       return {
         loadedSessions,
-        sentSessions,
         failedSessions,
       };
     });
@@ -91,55 +61,5 @@ export const useChatSessionStateStore = create<ChatSessionState>((set, get) => (
 
   isLoaded: (id: string) => {
     return get().loadedSessions.has(id);
-  },
-
-  isSent: (id: string) => {
-    return get().sentSessions.has(id);
-  },
-
-  canRetry: (id: string) => {
-    const state = get();
-    return state.failedSessions.has(id);
-  },
-
-  cleanup: (activeIds: string[]) => {
-    const activeSet = new Set(activeIds);
-    set((state) => {
-      let changed = false;
-
-      // Clean loadedSessions
-      const newLoaded = new Set(state.loadedSessions);
-      for (const id of newLoaded) {
-        if (!activeSet.has(id)) {
-          newLoaded.delete(id);
-          changed = true;
-        }
-      }
-
-      // Clean sentSessions
-      const newSent = new Set(state.sentSessions);
-      for (const id of newSent) {
-        if (!activeSet.has(id)) {
-          newSent.delete(id);
-          changed = true;
-        }
-      }
-
-      // Clean failedSessions
-      const newFailed = new Set(state.failedSessions);
-      for (const id of newFailed) {
-        if (!activeSet.has(id)) {
-          newFailed.delete(id);
-          changed = true;
-        }
-      }
-
-      if (!changed) return state;
-      return {
-        loadedSessions: newLoaded,
-        sentSessions: newSent,
-        failedSessions: newFailed,
-      };
-    });
   },
 }));

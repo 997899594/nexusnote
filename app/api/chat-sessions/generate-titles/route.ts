@@ -17,6 +17,7 @@ import { getJsonModelForPolicy } from "@/lib/ai/core";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { withAuth } from "@/lib/api";
 import { extractMessageText, loadConversationMessagesMap } from "@/lib/chat/conversation-messages";
+import { updateOwnedConversation } from "@/lib/chat/conversation-repository";
 
 // Title generation schema
 const titleSchema = z.object({
@@ -88,10 +89,14 @@ export const POST = withAuth(async (_request, { userId }) => {
       });
 
       // 4. 更新会话标题
-      await db
-        .update(conversations)
-        .set({ title: result.object.title })
-        .where(eq(conversations.id, conversation.id));
+      await updateOwnedConversation({
+        conversationId: conversation.id,
+        userId,
+        updates: {
+          title: result.object.title,
+          updatedAt: new Date(),
+        },
+      });
 
       updatedCount++;
     } catch (error) {

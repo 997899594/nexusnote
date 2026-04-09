@@ -8,7 +8,6 @@
 import { db, eq, userProfiles } from "@/db";
 import { type AIPreferences, DEFAULT_AI_PREFERENCES } from "@/lib/ai/preferences";
 
-// Re-export EMAValue from types for backward compatibility
 export type { EMAValue } from "@/types/profile";
 
 /**
@@ -51,8 +50,6 @@ export async function getOrCreate(userId: string) {
     return existing;
   }
 
-  // Create new profile with new schema structure (EMA fields for style analysis)
-  console.log(`[ProfileService] Creating new profile for user: ${userId}`);
   const [newProfile] = await db
     .insert(userProfiles)
     .values({
@@ -87,8 +84,6 @@ export async function getOrCreate(userId: string) {
  * @throws Error if no profile found for the user
  */
 export async function update(userId: string, input: UpdateProfileInput) {
-  console.log(`[ProfileService] Updating profile for user: ${userId}`, input);
-
   const [updated] = await db
     .update(userProfiles)
     .set({
@@ -111,6 +106,5 @@ export async function update(userId: string, input: UpdateProfileInput) {
  * @param userId - The user's ID
  */
 export async function deleteProfile(userId: string): Promise<void> {
-  console.log(`[ProfileService] Deleting profile for user: ${userId}`);
   await db.delete(userProfiles).where(eq(userProfiles.userId, userId));
 }

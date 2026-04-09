@@ -1,9 +1,9 @@
 import { UI_MESSAGE_STREAM_HEADERS } from "ai";
 import { after } from "next/server";
-import { conversations, db, eq } from "@/db";
 import { getChatResumableStreamContext } from "@/lib/ai";
 import { withDynamicAuth } from "@/lib/api";
 import { getConversationActiveStreamId } from "@/lib/chat/conversation-persistence";
+import { getOwnedConversation } from "@/lib/chat/conversation-repository";
 import { isUuidString } from "@/lib/chat/session-id";
 
 export const GET = withDynamicAuth<unknown, { id: string }>(
@@ -14,16 +14,8 @@ export const GET = withDynamicAuth<unknown, { id: string }>(
       return new Response(null, { status: 204 });
     }
 
-    const [conversation] = await db
-      .select({
-        id: conversations.id,
-        userId: conversations.userId,
-      })
-      .from(conversations)
-      .where(eq(conversations.id, id))
-      .limit(1);
-
-    if (!conversation || conversation.userId !== userId) {
+    const conversation = await getOwnedConversation(id, userId);
+    if (!conversation) {
       return new Response(null, { status: 204 });
     }
 

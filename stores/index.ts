@@ -11,7 +11,6 @@ export { useChatSessionStateStore } from "./chat-session-state";
 export { useEditorStore } from "./editor";
 // Learn 相关
 export { useLearnStore } from "./learn";
-export { usePendingChatStore } from "./pending-chat";
 // User Preferences (Personalization)
 export {
   selectCurrentSkin,

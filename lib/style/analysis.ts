@@ -7,10 +7,11 @@
 
 import { generateObject, type UIMessage } from "ai";
 import { z } from "zod";
-import { conversations, db, eq, userProfiles } from "@/db";
+import { db, eq, userProfiles } from "@/db";
 import { getJsonModelForPolicy } from "@/lib/ai/core";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { loadConversationMessages } from "@/lib/chat/conversation-messages";
+import { getOwnedConversation } from "@/lib/chat/conversation-repository";
 import { type EMAValue, updateEMA } from "./ema";
 
 // ============================================
@@ -292,17 +293,9 @@ export async function updateUserStyleProfile(
   conversationId: string,
   includeBigFive: boolean = false,
 ): Promise<void> {
-  // Fetch the conversation
-  const conversation = await db.query.conversations.findFirst({
-    where: eq(conversations.id, conversationId),
-  });
-
+  const conversation = await getOwnedConversation(conversationId, userId);
   if (!conversation) {
-    throw new Error(`Conversation not found: ${conversationId}`);
-  }
-
-  if (conversation.userId !== userId) {
-    throw new Error("Access denied: conversation belongs to different user");
+    throw new Error(`Conversation not found or not accessible: ${conversationId}`);
   }
 
   // Fetch current user profile

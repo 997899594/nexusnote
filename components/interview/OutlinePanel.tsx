@@ -5,6 +5,7 @@ import { BookOpen, Loader2, Play } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { WorkspaceEmptyState } from "@/components/common";
+import { InterviewOptions } from "@/components/interview/InterviewOptions";
 import { useToast } from "@/components/ui/Toast";
 import type { OutlineDisplay } from "@/lib/ai/interview/models";
 import type { InterviewOutline } from "@/lib/ai/interview/schemas";
@@ -14,9 +15,11 @@ import { cn } from "@/lib/utils";
 interface OutlinePanelProps {
   outline: OutlineDisplay | null;
   stableOutline: InterviewOutline | null;
+  actionOptions?: string[];
   isLoading?: boolean;
   courseId?: string;
   onCourseCreated: (courseId: string) => void;
+  onSelectAction?: (action: string) => void;
 }
 
 const containerVariants = {
@@ -50,9 +53,11 @@ function getSkillLabel(skillId: string) {
 export function OutlinePanel({
   outline,
   stableOutline,
+  actionOptions = [],
   isLoading,
   courseId,
   onCourseCreated,
+  onSelectAction,
 }: OutlinePanelProps) {
   const router = useRouter();
   const [isStarting, setIsStarting] = useState(false);
@@ -172,6 +177,19 @@ export function OutlinePanel({
                     <span>正在补全章节说明与细节...</span>
                   </div>
                 )}
+                {actionOptions.length > 0 ? (
+                  <div className="rounded-2xl border border-[#d8bc7b]/18 bg-[linear-gradient(180deg,#fffdf9_0%,#fff8ef_100%)] p-3">
+                    <p className="text-xs font-medium text-zinc-700">快速调整</p>
+                    <p className="mt-1 text-[11px] leading-5 text-zinc-500">
+                      直接点一个方向，我会继续改这版大纲。
+                    </p>
+                    <InterviewOptions
+                      options={actionOptions}
+                      onSelect={(action) => onSelectAction?.(action)}
+                      isStreaming={isLoading || isStarting}
+                    />
+                  </div>
+                ) : null}
               </motion.div>
 
               {/* Chapters */}

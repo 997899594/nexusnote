@@ -2,9 +2,10 @@ import "server-only";
 
 import { and, eq } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
-import { courseProgress, courseSectionAnnotations, courseSections, courses, db } from "@/db";
+import { courseProgress, courseSectionAnnotations, courseSections, db } from "@/db";
 import type { Annotation } from "@/hooks/useAnnotations";
 import { getLearnPageTag } from "@/lib/cache/tags";
+import { getOwnedCourse } from "@/lib/learning/course-repository";
 import { createLearnTrace } from "@/lib/learning/observability";
 
 export interface LearnSectionData {
@@ -63,16 +64,7 @@ export async function getLearnPageSnapshotCached(
     courseId,
   });
 
-  const [courseSession] = await db
-    .select({
-      id: courses.id,
-      title: courses.title,
-      outlineData: courses.outlineData,
-    })
-    .from(courses)
-    .where(and(eq(courses.id, courseId), eq(courses.userId, userId)))
-    .limit(1);
-
+  const courseSession = await getOwnedCourse(courseId, userId);
   if (!courseSession) {
     trace.finish({
       found: false,

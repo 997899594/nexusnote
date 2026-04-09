@@ -1,41 +1,31 @@
-import { eq, sql } from "drizzle-orm";
+import { and, count, eq, ne } from "drizzle-orm";
 import type { db } from "@/db";
-import { tags } from "@/db/schema";
+import { noteTags, tags } from "@/db/schema";
 
 export type NoteTagStatus = "pending" | "confirmed" | "rejected";
 
-type TagUsageExecutor = Pick<typeof db, "update">;
+type TagUsageExecutor = Pick<typeof db, "select" | "update">;
 
-export function getTagUsageDelta(
-  previousStatus: NoteTagStatus,
-  nextStatus: NoteTagStatus,
-): -1 | 0 | 1 {
-  if (previousStatus === "rejected" && nextStatus !== "rejected") {
-    return 1;
-  }
-
-  if (previousStatus !== "rejected" && nextStatus === "rejected") {
-    return -1;
-  }
-
-  return 0;
-}
-
-export async function applyTagUsageDelta(
+export async function syncTagUsageCount(
   executor: TagUsageExecutor,
   tagId: string,
-  delta: -1 | 0 | 1,
-): Promise<void> {
-  if (delta === 0) {
-    return;
-  }
+): Promise<number> {
+  const [result] = await executor
+    .select({
+      count: count(),
+    })
+    .from(noteTags)
+    .where(and(eq(noteTags.tagId, tagId), ne(noteTags.status, "rejected")));
+
+  const nextUsageCount = Number(result?.count ?? 0);
 
   await executor
     .update(tags)
     .set({
-      usageCount:
-        delta > 0 ? sql`${tags.usageCount} + 1` : sql`GREATEST(${tags.usageCount} - 1, 0)`,
+      usageCount: nextUsageCount,
       updatedAt: new Date(),
     })
     .where(eq(tags.id, tagId));
+
+  return nextUsageCount;
 }

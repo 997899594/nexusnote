@@ -2,18 +2,10 @@
  * Chat Sessions API - CRUD Operations
  *
  * GET: 获取会话列表
- * POST: 创建新会话（不保存消息，返回 pendingMessage 让前端发送）
  */
 
 import { conversations, db, desc, eq } from "@/db";
 import { withAuth } from "@/lib/api";
-import { revalidateProfileStats } from "@/lib/cache/tags";
-
-interface CreateSessionBody {
-  title?: string;
-  intent?: string;
-  firstMessage?: string;
-}
 
 export const GET = withAuth(async (request, { userId }) => {
   const { searchParams } = new URL(request.url);
@@ -39,33 +31,4 @@ export const GET = withAuth(async (request, { userId }) => {
     .offset(offset);
 
   return Response.json({ sessions: list });
-});
-
-export const POST = withAuth(async (request, { userId }) => {
-  const body: CreateSessionBody = await request.json();
-  const { title = "新对话", intent = "CHAT", firstMessage } = body;
-
-  const now = new Date();
-
-  // 不保存消息到数据库，让 useChat 成为唯一消息源
-  // 返回 pendingMessage 让前端自动发送
-  const [newSession] = await db
-    .insert(conversations)
-    .values({
-      userId,
-      title: firstMessage
-        ? firstMessage.slice(0, 30) + (firstMessage.length > 30 ? "..." : "")
-        : title,
-      intent,
-      messageCount: 0,
-      lastMessageAt: now,
-    })
-    .returning();
-
-  revalidateProfileStats(userId);
-
-  return Response.json({
-    session: newSession,
-    pendingMessage: firstMessage || null,
-  });
 });

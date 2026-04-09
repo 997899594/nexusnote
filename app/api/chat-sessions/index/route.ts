@@ -8,8 +8,9 @@
  */
 
 import type { UIMessage } from "ai";
-import { conversations, db, eq } from "@/db";
 import { withAuth } from "@/lib/api";
+import { extractMessageText } from "@/lib/chat/conversation-messages";
+import { getOwnedConversation } from "@/lib/chat/conversation-repository";
 import { isUuidString } from "@/lib/chat/session-id";
 import { indexConversation } from "@/lib/rag/chunker";
 import { conversationToParagraphs } from "@/lib/rag/semantic-chunker";
@@ -29,18 +30,10 @@ export const POST = withAuth(async (request, { userId }) => {
   }
 
   // Verify session exists and belongs to user
-  const [conversation] = await db
-    .select()
-    .from(conversations)
-    .where(eq(conversations.id, sessionId))
-    .limit(1);
+  const conversation = await getOwnedConversation(sessionId, userId);
 
   if (!conversation) {
     return Response.json({ error: "Session not found" }, { status: 404 });
-  }
-
-  if (conversation.userId !== userId) {
-    return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
   // Validate messages array
@@ -49,19 +42,10 @@ export const POST = withAuth(async (request, { userId }) => {
   }
 
   // Convert UIMessage to simple format for indexing
-  // UIMessage has parts array with text parts
   const simpleMessages = messages.map((msg) => ({
     role: msg.role,
-    content: extractTextFromParts(msg.parts),
+    content: extractMessageText(msg),
   }));
-
-  function extractTextFromParts(parts: UIMessage["parts"]): string {
-    if (!parts || !Array.isArray(parts)) return "";
-    return parts
-      .filter((p) => p?.type === "text")
-      .map((p) => (p && "text" in p ? p.text : ""))
-      .join("\n");
-  }
 
   // Convert conversation to paragraphs for better indexing
   const paragraphs = conversationToParagraphs(simpleMessages);

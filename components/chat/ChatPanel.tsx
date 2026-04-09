@@ -17,10 +17,9 @@ import { useChatSession } from "./useChatSession";
 
 interface ChatPanelProps {
   sessionId: string | null;
-  pendingMessage?: string | null;
 }
 
-export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
+export function ChatPanel({ sessionId }: ChatPanelProps) {
   const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [input, setInput] = useState("");
@@ -30,7 +29,6 @@ export function ChatPanel({ sessionId, pendingMessage }: ChatPanelProps) {
 
   const chat = useChatSession({
     sessionId,
-    pendingMessage: pendingMessage || undefined,
   });
 
   const messages = chat.messages;

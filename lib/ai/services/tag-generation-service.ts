@@ -13,7 +13,7 @@ import { db } from "@/db";
 import { notes, noteTags, tags } from "@/db/schema";
 import { aiProvider, getJsonModelForPolicy } from "@/lib/ai";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
-import { applyTagUsageDelta, getTagUsageDelta, type NoteTagStatus } from "@/lib/tags/usage-count";
+import { syncTagUsageCount } from "@/lib/tags/usage-count";
 import {
   TAG_GENERATION_SYSTEM_PROMPT,
   TAG_GENERATION_USER_PROMPT,
@@ -200,19 +200,6 @@ class TagGenerationService {
   }
 
   /**
-   * 增加标签使用计数
-   */
-  private async incrementTagUsage(tagId: string): Promise<void> {
-    await db
-      .update(tags)
-      .set({
-        usageCount: sql`${tags.usageCount} + 1`,
-        updatedAt: new Date(),
-      })
-      .where(eq(tags.id, tagId));
-  }
-
-  /**
    * 关联笔记和标签
    */
   private async linkNoteTag(noteId: string, tagId: string, confidence: number): Promise<void> {
@@ -232,7 +219,7 @@ class TagGenerationService {
       .returning({ id: noteTags.id });
 
     if (inserted) {
-      await this.incrementTagUsage(tagId);
+      await syncTagUsageCount(db, tagId);
       return;
     }
 
@@ -258,8 +245,7 @@ class TagGenerationService {
         })
         .where(and(eq(noteTags.noteId, noteId), eq(noteTags.tagId, tagId)));
 
-      const delta = getTagUsageDelta(existing.status as NoteTagStatus, status);
-      await applyTagUsageDelta(tx, tagId, delta);
+      await syncTagUsageCount(tx, tagId);
     });
   }
 }

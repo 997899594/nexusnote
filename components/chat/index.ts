@@ -3,7 +3,7 @@
  */
 
 // Stores (re-export from @/stores for convenience)
-export { useChatStore, usePendingChatStore } from "@/stores";
+export { useChatStore } from "@/stores";
 // Types (re-export from main types)
 export type { Command } from "@/types/chat";
 // Components

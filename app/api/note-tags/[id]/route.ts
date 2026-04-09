@@ -7,7 +7,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { notes, noteTags } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { applyTagUsageDelta, getTagUsageDelta, type NoteTagStatus } from "@/lib/tags/usage-count";
+import { syncTagUsageCount } from "@/lib/tags/usage-count";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -63,8 +63,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         return [];
       }
 
-      const delta = getTagUsageDelta(ownedTag.status as NoteTagStatus, status);
-      await applyTagUsageDelta(tx, ownedTag.tagId, delta);
+      await syncTagUsageCount(tx, ownedTag.tagId);
 
       return [next];
     });
@@ -100,8 +99,7 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
         return [];
       }
 
-      const delta = getTagUsageDelta(ownedTag.status as NoteTagStatus, "rejected");
-      await applyTagUsageDelta(tx, ownedTag.tagId, delta);
+      await syncTagUsageCount(tx, ownedTag.tagId);
 
       return [next];
     });

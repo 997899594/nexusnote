@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { createLoginPath, getCurrentCallbackUrl } from "@/lib/auth-redirect";
+import { getProfileAvatarLabel } from "@/lib/profile/avatar";
 import type { User } from "@/types";
 
 interface UserAvatarProps {
@@ -46,23 +47,6 @@ export function UserAvatar({ className = "", size = "md" }: UserAvatarProps) {
     }
   };
 
-  const getInitials = (): string => {
-    if (!displayUser) return "?";
-
-    const trimmedName = displayUser.name?.trim();
-    if (trimmedName) {
-      return trimmedName
-        .split(/\s+/)
-        .map((part) => part[0] ?? "")
-        .join("")
-        .toUpperCase()
-        .slice(0, 2);
-    }
-
-    const emailInitial = displayUser.email?.trim().charAt(0).toUpperCase();
-    return emailInitial || "U";
-  };
-
   // Loading state - show pulse
   if (status === "loading") {
     return (
@@ -94,7 +78,7 @@ export function UserAvatar({ className = "", size = "md" }: UserAvatarProps) {
       onClick={handleClick}
       className={`${sizeClasses[size]} rounded-full bg-[var(--color-accent)] text-[var(--color-accent-fg)] flex items-center justify-center font-medium border-0 p-0 hover:opacity-80 transition-opacity ${className}`}
     >
-      {getInitials()}
+      {displayUser ? getProfileAvatarLabel(displayUser.name, displayUser.email) : "?"}
     </button>
   );
 }

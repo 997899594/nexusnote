@@ -1,7 +1,5 @@
-import { eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { courses, db } from "@/db";
 import { InterviewOutlineSchema } from "@/lib/ai/interview";
 import { runCreateCourseWorkflow } from "@/lib/ai/workflows";
 import { APIError, handleError } from "@/lib/api";
@@ -12,6 +10,7 @@ import {
   revalidateProfileStats,
   revalidateRecentCourses,
 } from "@/lib/cache/tags";
+import { getOwnedCourse } from "@/lib/learning/course-repository";
 import { expandInterviewOutlineToCourseOutline } from "@/lib/learning/course-service";
 
 const RequestSchema = z.object({
@@ -46,13 +45,8 @@ export async function POST(request: NextRequest) {
     const { outline, courseId } = parsed.data;
 
     if (courseId) {
-      const [existingCourse] = await db
-        .select({ id: courses.id, userId: courses.userId })
-        .from(courses)
-        .where(eq(courses.id, courseId))
-        .limit(1);
-
-      if (!existingCourse || existingCourse.userId !== userId) {
+      const existingCourse = await getOwnedCourse(courseId, userId);
+      if (!existingCourse) {
         throw new APIError("课程不存在", 404, "NOT_FOUND");
       }
     }

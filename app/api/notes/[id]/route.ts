@@ -1,15 +1,8 @@
-import { and, eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { db, notes } from "@/db";
 import { auth } from "@/lib/auth";
-import {
-  revalidateNoteDetail,
-  revalidateNotesIndex,
-  revalidateProfileStats,
-} from "@/lib/cache/tags";
-import { htmlToPlainText, plainTextToHtml } from "@/lib/notes/content";
-import { indexNote } from "@/lib/rag/chunker";
+import { plainTextToHtml } from "@/lib/notes/content";
+import { getOwnedNote, updateOwnedNote } from "@/lib/notes/write-service";
 
 const UpdateNoteSchema = z.object({
   title: z.string().min(1).max(200),
@@ -21,9 +14,7 @@ interface RouteParams {
 }
 
 async function findOwnedNote(noteId: string, userId: string) {
-  return db.query.notes.findFirst({
-    where: (table, { and, eq }) => and(eq(table.id, noteId), eq(table.userId, userId)),
-  });
+  return getOwnedNote(noteId, userId);
 }
 
 export async function GET(_request: NextRequest, { params }: RouteParams) {
@@ -74,40 +65,19 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Note not found" }, { status: 404 });
   }
 
-  const contentHtml =
-    parsed.data.contentHtml ?? existing.contentHtml ?? plainTextToHtml(existing.plainText ?? "");
-  const plainText = htmlToPlainText(contentHtml);
-
-  const [updated] = await db
-    .update(notes)
-    .set({
-      title: parsed.data.title,
-      contentHtml,
-      plainText,
-      updatedAt: new Date(),
-    })
-    .where(and(eq(notes.id, id), eq(notes.userId, userId)))
-    .returning({
-      id: notes.id,
-      title: notes.title,
-      contentHtml: notes.contentHtml,
-      plainText: notes.plainText,
-      updatedAt: notes.updatedAt,
-    });
-
-  indexNote(updated.id, updated.plainText ?? "", {
+  const updated = await updateOwnedNote({
+    noteId: id,
     userId,
-    metadata: {
-      sourceType: existing.sourceType,
-      sourceContext: existing.sourceContext ?? null,
+    title: parsed.data.title,
+    content: {
+      kind: "html",
+      contentHtml: parsed.data.contentHtml ?? existing.contentHtml ?? "",
     },
-  }).catch((error) => {
-    console.error("[Notes API] Failed to index note:", error);
   });
 
-  revalidateNotesIndex(userId);
-  revalidateNoteDetail(userId, updated.id);
-  revalidateProfileStats(userId);
+  if (!updated) {
+    return NextResponse.json({ error: "Note not found" }, { status: 404 });
+  }
 
   return NextResponse.json({ note: updated });
 }

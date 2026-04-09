@@ -63,6 +63,80 @@ export async function getConversationActiveStreamId(
   return typeof activeStreamId === "string" && activeStreamId.length > 0 ? activeStreamId : null;
 }
 
+export async function saveOwnedConversationSnapshot(params: {
+  conversationId: string;
+  userId: string;
+  existingSummary: string | null;
+  messages: UIMessage[];
+  title?: string;
+  summary?: string | null;
+  isArchived?: boolean;
+  trimmedSummaryFallback?: string | null;
+}): Promise<{
+  conversation: typeof conversations.$inferSelect;
+  messages: UIMessage[];
+} | null> {
+  const {
+    conversationId,
+    userId,
+    existingSummary,
+    messages,
+    title,
+    summary,
+    isArchived,
+    trimmedSummaryFallback = null,
+  } = params;
+
+  const snapshot = buildPersistedMessageSnapshot(messages);
+  const summaryUpdate =
+    summary !== undefined
+      ? summary
+      : snapshot.trimmed && !existingSummary
+        ? trimmedSummaryFallback
+        : undefined;
+
+  const [result] = await db.transaction(async (tx) => {
+    const [conversation] = await tx
+      .update(conversations)
+      .set({
+        ...(title !== undefined && { title }),
+        ...(summaryUpdate !== undefined && { summary: summaryUpdate }),
+        ...(isArchived !== undefined && { isArchived }),
+        messageCount: messages.length,
+        lastMessageAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(and(eq(conversations.id, conversationId), eq(conversations.userId, userId)))
+      .returning();
+
+    if (!conversation) {
+      return [];
+    }
+
+    const rows = buildConversationMessageRows({
+      conversationId,
+      messages: snapshot.messages,
+    });
+
+    await tx
+      .delete(conversationMessages)
+      .where(eq(conversationMessages.conversationId, conversationId));
+
+    if (rows.length > 0) {
+      await tx.insert(conversationMessages).values(rows);
+    }
+
+    return [
+      {
+        conversation,
+        messages: snapshot.messages,
+      },
+    ];
+  });
+
+  return result ?? null;
+}
+
 export async function persistConversationMessages(
   conversationId: string,
   userId: string,

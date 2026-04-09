@@ -1,13 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { db, notes } from "@/db";
 import { tagGenerationService } from "@/lib/ai/services/tag-generation-service";
 import { auth } from "@/lib/auth";
-import {
-  revalidateNoteDetail,
-  revalidateNotesIndex,
-  revalidateProfileStats,
-} from "@/lib/cache/tags";
 import { resolveOwnedLearnContext } from "@/lib/learning/resolve-learn-context";
 import {
   buildLearnChatCapturedHtml,
@@ -15,7 +9,7 @@ import {
   buildLearnChatCapturedPlainText,
   type LearnChatCaptureMessage,
 } from "@/lib/notes/capture";
-import { indexNote } from "@/lib/rag/chunker";
+import { createOwnedNote } from "@/lib/notes/write-service";
 
 const CaptureChatNoteSchema = z.object({
   courseId: z.string().uuid(),
@@ -84,54 +78,35 @@ export async function POST(request: NextRequest) {
       messages: normalizedMessages,
     });
 
-    const [note] = await db
-      .insert(notes)
-      .values({
-        userId,
-        title: buildLearnChatCapturedNoteTitle({
-          chapterTitle: learnContext.chapterTitle,
-          messages: normalizedMessages,
-        }),
-        sourceType: "course_capture",
-        sourceContext: {
-          courseId,
-          courseTitle: learnContext.courseTitle,
-          sectionTitle: learnContext.chapterTitle,
-          chapterIndex: learnContext.chapterIndex,
-          chatCapture: true,
-          messageCount: normalizedMessages.length,
-          latestExcerpt: normalizedMessages[normalizedMessages.length - 1]?.text,
-        },
+    const note = await createOwnedNote({
+      userId,
+      title: buildLearnChatCapturedNoteTitle({
+        chapterTitle: learnContext.chapterTitle,
+        messages: normalizedMessages,
+      }),
+      sourceType: "course_capture",
+      sourceContext: {
+        courseId,
+        courseTitle: learnContext.courseTitle,
+        sectionTitle: learnContext.chapterTitle,
+        chapterIndex: learnContext.chapterIndex,
+        chatCapture: true,
+        messageCount: normalizedMessages.length,
+        latestExcerpt: normalizedMessages[normalizedMessages.length - 1]?.text,
+        source: "learn_chat_capture",
+      },
+      content: {
+        kind: "both",
         contentHtml,
         plainText,
-      })
-      .returning({
-        id: notes.id,
-        title: notes.title,
-      });
-
-    try {
-      await indexNote(note.id, plainText, {
-        userId,
-        metadata: {
-          sourceType: "course_capture",
-          courseId,
-          source: "learn_chat_capture",
-        },
-      });
-    } catch (error) {
-      console.error("[Notes Capture Chat] Failed to index note:", error);
-    }
+      },
+    });
 
     try {
       await tagGenerationService.generateTags(note.id);
     } catch (error) {
       console.error("[Notes Capture Chat] Failed to generate tags:", error);
     }
-
-    revalidateNotesIndex(userId);
-    revalidateNoteDetail(userId, note.id);
-    revalidateProfileStats(userId);
 
     return NextResponse.json({
       success: true,

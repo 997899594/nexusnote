@@ -56,23 +56,6 @@ export interface ConversationsResponse {
 }
 
 /**
- * 创建会话请求
- */
-export interface CreateSessionRequest {
-  title?: string;
-  intent?: ConversationIntent;
-  firstMessage?: string;
-}
-
-/**
- * 创建会话响应
- */
-export interface CreateSessionResponse {
-  session: ConversationSummary;
-  pendingMessage: string | null;
-}
-
-/**
  * 更新会话请求
  */
 export interface UpdateSessionRequest {

@@ -1,4 +1,8 @@
-import { and, asc, conversations, db, eq, sql } from "@/db";
+import { conversations, db } from "@/db";
+import {
+  getOwnedLearnConversation,
+  updateOwnedConversation,
+} from "@/lib/chat/conversation-repository";
 
 interface EnsureLearnConversationInput {
   userId: string;
@@ -8,7 +12,7 @@ interface EnsureLearnConversationInput {
   chapterTitle: string;
 }
 
-interface LearnConversationMetadata {
+interface LearnConversationMetadata extends Record<string, unknown> {
   context: "learn";
   courseId: string;
   courseTitle: string;
@@ -39,52 +43,41 @@ function buildLearnConversationMetadata(
 export async function ensureLearnConversation(input: EnsureLearnConversationInput) {
   const metadata = buildLearnConversationMetadata(input);
   const title = buildLearnConversationTitle(input.chapterIndex, input.chapterTitle);
-
-  const [existing] = await db
-    .select({
-      id: conversations.id,
-      title: conversations.title,
-      intent: conversations.intent,
-      messageCount: conversations.messageCount,
-      lastMessageAt: conversations.lastMessageAt,
-      metadata: conversations.metadata,
-    })
-    .from(conversations)
-    .where(
-      and(
-        eq(conversations.userId, input.userId),
-        eq(conversations.intent, "LEARN"),
-        sql`${conversations.metadata} ->> 'context' = 'learn'`,
-        sql`${conversations.metadata} ->> 'courseId' = ${input.courseId}`,
-        sql`${conversations.metadata} ->> 'chapterIndex' = ${String(input.chapterIndex)}`,
-      ),
-    )
-    .orderBy(asc(conversations.createdAt))
-    .limit(1);
-
-  if (existing) {
+  const refreshMetadata = async (
+    conversation: NonNullable<Awaited<ReturnType<typeof getOwnedLearnConversation>>>,
+  ) => {
     const shouldRefreshMetadata =
-      existing.title !== title ||
-      !existing.metadata ||
-      typeof existing.metadata !== "object" ||
-      (existing.metadata as Record<string, unknown>).chapterTitle !== input.chapterTitle ||
-      (existing.metadata as Record<string, unknown>).courseTitle !== input.courseTitle;
+      conversation.title !== title ||
+      !conversation.metadata ||
+      typeof conversation.metadata !== "object" ||
+      (conversation.metadata as Record<string, unknown>).chapterTitle !== input.chapterTitle ||
+      (conversation.metadata as Record<string, unknown>).courseTitle !== input.courseTitle;
 
-    if (shouldRefreshMetadata) {
-      const [updated] = await db
-        .update(conversations)
-        .set({
-          title,
-          metadata,
-          updatedAt: new Date(),
-        })
-        .where(eq(conversations.id, existing.id))
-        .returning();
-
-      return updated ?? existing;
+    if (!shouldRefreshMetadata) {
+      return conversation;
     }
 
-    return existing;
+    const updated = await updateOwnedConversation({
+      conversationId: conversation.id,
+      userId: input.userId,
+      updates: {
+        title,
+        metadata,
+        updatedAt: new Date(),
+      },
+    });
+
+    return updated ?? conversation;
+  };
+
+  const existing = await getOwnedLearnConversation({
+    userId: input.userId,
+    courseId: input.courseId,
+    chapterIndex: input.chapterIndex,
+  });
+
+  if (existing) {
+    return refreshMetadata(existing);
   }
 
   const now = new Date();
@@ -96,9 +89,26 @@ export async function ensureLearnConversation(input: EnsureLearnConversationInpu
       intent: "LEARN",
       messageCount: 0,
       lastMessageAt: now,
+      learnCourseId: input.courseId,
+      learnChapterIndex: input.chapterIndex,
       metadata,
     })
+    .onConflictDoNothing()
     .returning();
 
-  return created;
+  if (created) {
+    return created;
+  }
+
+  const raced = await getOwnedLearnConversation({
+    userId: input.userId,
+    courseId: input.courseId,
+    chapterIndex: input.chapterIndex,
+  });
+
+  if (!raced) {
+    throw new Error("Learn conversation upsert race without persisted row");
+  }
+
+  return refreshMetadata(raced);
 }

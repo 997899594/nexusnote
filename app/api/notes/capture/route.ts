@@ -1,21 +1,16 @@
 import { and, eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { courseSections, courses, db, notes } from "@/db";
+import { courseSections, courses, db } from "@/db";
 import { tagGenerationService } from "@/lib/ai/services/tag-generation-service";
 import { auth } from "@/lib/auth";
-import {
-  revalidateNoteDetail,
-  revalidateNotesIndex,
-  revalidateProfileStats,
-} from "@/lib/cache/tags";
 import {
   buildCapturedNoteHtml,
   buildCapturedNotePlainText,
   buildCapturedNoteTitle,
   serializeCaptureAnchor,
 } from "@/lib/notes/capture";
-import { indexNote } from "@/lib/rag/chunker";
+import { createOwnedNote } from "@/lib/notes/write-service";
 
 const CaptureNoteSchema = z.object({
   sectionId: z.string().uuid(),
@@ -75,55 +70,35 @@ export async function POST(request: NextRequest) {
       noteContent,
     });
 
-    const [note] = await db
-      .insert(notes)
-      .values({
-        userId,
-        title: buildCapturedNoteTitle({
-          sectionTitle: section.sectionTitle,
-          selectionText,
-        }),
-        sourceType: "course_capture",
-        sourceContext: {
-          courseId: section.courseId,
-          courseTitle: section.courseTitle,
-          sectionId: section.sectionId,
-          sectionTitle: section.sectionTitle,
-          selectionText,
-          anchor: serializeCaptureAnchor(anchor),
-          annotationId,
-          noteContent: noteContent?.trim() || undefined,
-        },
+    const note = await createOwnedNote({
+      userId,
+      title: buildCapturedNoteTitle({
+        sectionTitle: section.sectionTitle,
+        selectionText,
+      }),
+      sourceType: "course_capture",
+      sourceContext: {
+        courseId: section.courseId,
+        courseTitle: section.courseTitle,
+        sectionId: section.sectionId,
+        sectionTitle: section.sectionTitle,
+        selectionText,
+        anchor: serializeCaptureAnchor(anchor),
+        annotationId,
+        noteContent: noteContent?.trim() || undefined,
+      },
+      content: {
+        kind: "both",
         contentHtml,
         plainText,
-      })
-      .returning({
-        id: notes.id,
-        title: notes.title,
-      });
-
-    try {
-      await indexNote(note.id, plainText, {
-        userId,
-        metadata: {
-          sourceType: "course_capture",
-          courseId: section.courseId,
-          sectionId: section.sectionId,
-        },
-      });
-    } catch (error) {
-      console.error("[Notes Capture] Failed to index note:", error);
-    }
+      },
+    });
 
     try {
       await tagGenerationService.generateTags(note.id);
     } catch (error) {
       console.error("[Notes Capture] Failed to generate tags:", error);
     }
-
-    revalidateNotesIndex(userId);
-    revalidateNoteDetail(userId, note.id);
-    revalidateProfileStats(userId);
 
     return NextResponse.json({
       success: true,

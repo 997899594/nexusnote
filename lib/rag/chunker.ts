@@ -272,19 +272,3 @@ export async function indexCourseSection(
     throw error;
   }
 }
-
-export async function reindexAllNotes(): Promise<{ success: boolean; processed: number }> {
-  const allNotes = await db.query.notes.findMany();
-
-  let processed = 0;
-  for (const note of allNotes) {
-    try {
-      await indexNote(note.id, note.plainText || "");
-      processed++;
-    } catch (error) {
-      console.error(`[Chunker] Failed to index ${note.id}:`, error);
-    }
-  }
-
-  return { success: true, processed };
-}

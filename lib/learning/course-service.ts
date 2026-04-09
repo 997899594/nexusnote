@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import {
   courseChapterSkillMappings,
   courseProgress,
@@ -9,6 +9,7 @@ import {
 } from "@/db";
 import type { InterviewOutline } from "@/lib/ai/interview";
 import { deriveCourseSkillMappings } from "@/lib/golden-path/mapping";
+import { getOwnedCourse } from "@/lib/learning/course-repository";
 
 export interface CourseOutlineSection {
   title: string;
@@ -106,12 +107,7 @@ export async function saveCourseFromOutline({
     let persistedCourseId = courseId;
 
     if (persistedCourseId) {
-      const [existingCourse] = await tx
-        .select({ id: courses.id })
-        .from(courses)
-        .where(and(eq(courses.id, persistedCourseId), eq(courses.userId, userId)))
-        .limit(1);
-
+      const existingCourse = await getOwnedCourse(persistedCourseId, userId, tx);
       if (!existingCourse) {
         throw new Error("课程不存在或无权访问");
       }

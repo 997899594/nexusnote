@@ -32,7 +32,7 @@ import {
   setConversationActiveStreamId,
 } from "@/lib/chat/conversation-persistence";
 import {
-  ConversationOwnershipError,
+  ConversationUnavailableError,
   getOwnedConversationSummary,
   touchOwnedConversation,
 } from "@/lib/chat/conversation-repository";
@@ -126,15 +126,7 @@ export async function POST(request: NextRequest) {
     let ownedConversationSummary: string | null = null;
 
     if (hasPersistentSession && sessionId) {
-      try {
-        const conversation = await getOwnedConversationSummary(sessionId, userId);
-        ownedConversationSummary = conversation.summary;
-      } catch (error) {
-        if (error instanceof ConversationOwnershipError) {
-          throw new APIError("会话不存在或无权访问", 403, "FORBIDDEN");
-        }
-        throw error;
-      }
+      ownedConversationSummary = await getOwnedConversationSummary(sessionId, userId);
 
       const memoryContext = buildConversationMemoryContext(ownedConversationSummary);
       if (memoryContext) {
@@ -163,8 +155,8 @@ export async function POST(request: NextRequest) {
           intent: "CHAT",
         });
       } catch (error) {
-        if (error instanceof ConversationOwnershipError) {
-          throw new APIError("会话不存在或无权访问", 403, "FORBIDDEN");
+        if (error instanceof ConversationUnavailableError) {
+          throw new APIError("会话不存在或无权访问", 404, "NOT_FOUND");
         }
 
         console.warn("[ChatSession] Failed to upsert session:", error);

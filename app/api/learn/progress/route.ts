@@ -3,7 +3,7 @@
 import { eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { courseProgress, courses, db } from "@/db";
+import { courseProgress, db } from "@/db";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
 import {
@@ -11,6 +11,7 @@ import {
   revalidateLearnPage,
   revalidateRecentCourses,
 } from "@/lib/cache/tags";
+import { getOwnedCourse } from "@/lib/learning/course-repository";
 
 const RequestSchema = z.object({
   courseId: z.string().uuid(),
@@ -52,17 +53,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { courseId, sectionNodeId } = RequestSchema.parse(body);
 
-    const [course] = await db
-      .select({
-        id: courses.id,
-        userId: courses.userId,
-        outlineData: courses.outlineData,
-      })
-      .from(courses)
-      .where(eq(courses.id, courseId))
-      .limit(1);
-
-    if (!course || course.userId !== session.user.id) {
+    const course = await getOwnedCourse(courseId, session.user.id);
+    if (!course) {
       throw new APIError("课程不存在", 404, "NOT_FOUND");
     }
 
@@ -140,13 +132,6 @@ export async function POST(request: NextRequest) {
     revalidateLearnPage(session.user.id, courseId);
     revalidateGoldenPath(session.user.id);
 
-    // If course just completed, trigger skill discovery asynchronously
-    if (allChaptersDone && !existing.completedAt) {
-      triggerSkillDiscovery(session.user.id).catch((err) => {
-        console.error("[LearnProgress] Skill discovery failed:", err);
-      });
-    }
-
     return NextResponse.json({
       ok: true,
       completedSections,
@@ -174,16 +159,8 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const { courseId, currentChapter } = ChapterSchema.parse(body);
 
-    const [course] = await db
-      .select({
-        id: courses.id,
-        userId: courses.userId,
-      })
-      .from(courses)
-      .where(eq(courses.id, courseId))
-      .limit(1);
-
-    if (!course || course.userId !== session.user.id) {
+    const course = await getOwnedCourse(courseId, session.user.id);
+    if (!course) {
       throw new APIError("课程不存在", 404, "NOT_FOUND");
     }
 
@@ -229,17 +206,5 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (error) {
     return handleError(error);
-  }
-}
-
-/** Fire-and-forget skill discovery + relationship inference */
-async function triggerSkillDiscovery(userId: string) {
-  const { discoverAndSaveSkills } = await import("@/lib/skills/discovery");
-  const { inferSkillRelationships } = await import("@/lib/skills/relationships");
-
-  const discovered = await discoverAndSaveSkills(userId);
-  if (discovered.length > 0) {
-    const slugs = discovered.map((s) => s.slug);
-    await inferSkillRelationships(slugs);
   }
 }

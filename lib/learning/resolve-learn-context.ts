@@ -1,5 +1,4 @@
-import { and, eq } from "drizzle-orm";
-import { courses, db } from "@/db";
+import { getOwnedCourse } from "@/lib/learning/course-repository";
 import { createLearnTrace } from "@/lib/learning/observability";
 
 interface CourseOutlineRecord {
@@ -40,14 +39,7 @@ export async function resolveOwnedLearnContext({
     traceId,
   );
 
-  const [course] = await db
-    .select({
-      title: courses.title,
-      outlineData: courses.outlineData,
-    })
-    .from(courses)
-    .where(and(eq(courses.id, courseId), eq(courses.userId, userId)))
-    .limit(1);
+  const course = await getOwnedCourse(courseId, userId);
 
   if (!course) {
     trace.finish({

@@ -26,6 +26,7 @@ export interface OutlineDisplay {
 export interface InterviewOutlineState {
   display: OutlineDisplay | null;
   stable: InterviewOutline | null;
+  actions: string[];
   isLoading: boolean;
   isReady: boolean;
 }

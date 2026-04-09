@@ -11,6 +11,7 @@ import { db } from "@/db";
 import { noteTags, tags } from "@/db/schema";
 import { tagGenerationService } from "@/lib/ai/services/tag-generation-service";
 import { auth } from "@/lib/auth";
+import { getOwnedNote } from "@/lib/notes/write-service";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -26,9 +27,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
   const { id: noteId } = await params;
 
   try {
-    const note = await db.query.notes.findFirst({
-      where: (table, { and, eq }) => and(eq(table.id, noteId), eq(table.userId, session.user.id)),
-    });
+    const note = await getOwnedNote(noteId, session.user.id);
 
     if (!note) {
       return NextResponse.json({ error: "笔记不存在或无权访问" }, { status: 404 });
@@ -67,9 +66,7 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
   const { id: noteId } = await params;
 
   try {
-    const note = await db.query.notes.findFirst({
-      where: (table, { and, eq }) => and(eq(table.id, noteId), eq(table.userId, session.user.id)),
-    });
+    const note = await getOwnedNote(noteId, session.user.id);
 
     if (!note) {
       return NextResponse.json({ error: "笔记不存在或无权访问" }, { status: 404 });

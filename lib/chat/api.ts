@@ -9,30 +9,11 @@ import { redirectToLogin } from "@/lib/api/client";
 import type {
   ConversationSummary,
   ConversationsResponse,
-  CreateSessionResponse,
   UpdateSessionRequest,
 } from "@/types/chat";
 
 function isUnauthorizedResponse(response: Response): boolean {
   return response.status === 401;
-}
-
-export async function persistMessages(sessionId: string, messages: unknown[]): Promise<void> {
-  try {
-    const res = await fetch(`/api/chat-sessions/${sessionId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages }),
-    });
-    if (isUnauthorizedResponse(res)) {
-      redirectToLogin();
-      return;
-    }
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-  } catch (error) {
-    console.error("[ChatAPI] Failed to persist messages:", error);
-    throw error;
-  }
 }
 
 export async function loadSessions(): Promise<ConversationSummary[]> {
@@ -48,26 +29,6 @@ export async function loadSessions(): Promise<ConversationSummary[]> {
   } catch (error) {
     console.error("[ChatAPI] Failed to load sessions:", error);
     return [];
-  }
-}
-
-export async function createSession(title: string): Promise<ConversationSummary | null> {
-  try {
-    const res = await fetch("/api/chat-sessions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title }),
-    });
-    if (isUnauthorizedResponse(res)) {
-      redirectToLogin();
-      return null;
-    }
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-    const data = (await res.json()) as CreateSessionResponse;
-    return data.session;
-  } catch (error) {
-    console.error("[ChatAPI] Failed to create session:", error);
-    return null;
   }
 }
 

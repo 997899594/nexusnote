@@ -4,41 +4,9 @@
  * 处理编辑器操作（editDocument, batchEdit, draftContent）的执行
  */
 
-import { eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
-import { db, notes } from "@/db";
 import { auth } from "@/lib/auth";
-import {
-  revalidateNoteDetail,
-  revalidateNotesIndex,
-  revalidateProfileStats,
-} from "@/lib/cache/tags";
-import { htmlToPlainText, plainTextToHtml } from "@/lib/notes/content";
-import { indexNote } from "@/lib/rag/chunker";
-
-function appendParagraph(existingHtml: string, content: string) {
-  const addition = plainTextToHtml(content);
-  if (!addition) {
-    return existingHtml;
-  }
-
-  return `${existingHtml}${addition}`;
-}
-
-async function scheduleNoteIndex(noteId: string, userId: string, plainText: string) {
-  if (!plainText.trim()) {
-    return;
-  }
-
-  indexNote(noteId, plainText, {
-    userId,
-    metadata: {
-      sourceType: "manual_note",
-    },
-  }).catch((error) => {
-    console.error("[ExecuteEditorAction] Failed to index note:", error);
-  });
-}
+import { appendOwnedNoteText, createOwnedNote, getOwnedNote } from "@/lib/notes/write-service";
 
 export async function POST(request: NextRequest) {
   try {
@@ -56,28 +24,17 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: "Missing targetId or newContent" }, { status: 400 });
         }
 
-        const note = await db.query.notes.findFirst({
-          where: (table, { and, eq }) =>
-            and(eq(table.id, targetId), eq(table.userId, session.user.id)),
-        });
+        const note = await getOwnedNote(targetId, session.user.id);
 
         if (!note) {
           return NextResponse.json({ error: "Note not found" }, { status: 404 });
         }
 
-        const existingHtml = note.contentHtml ?? plainTextToHtml(note.plainText ?? "");
-        const contentHtml = appendParagraph(existingHtml, newContent);
-        const plainText = htmlToPlainText(contentHtml);
-
-        await db
-          .update(notes)
-          .set({ contentHtml, plainText, updatedAt: new Date() })
-          .where(eq(notes.id, targetId));
-
-        await scheduleNoteIndex(targetId, session.user.id, plainText);
-        revalidateNotesIndex(session.user.id);
-        revalidateNoteDetail(session.user.id, targetId);
-        revalidateProfileStats(session.user.id);
+        await appendOwnedNoteText({
+          noteId: targetId,
+          userId: session.user.id,
+          plainText: newContent,
+        });
 
         return NextResponse.json({
           success: true,
@@ -104,24 +61,14 @@ export async function POST(request: NextRequest) {
         }
 
         if (targetId) {
-          const note = await db.query.notes.findFirst({
-            where: (table, { and, eq }) =>
-              and(eq(table.id, targetId), eq(table.userId, session.user.id)),
-          });
+          const note = await getOwnedNote(targetId, session.user.id);
 
           if (note) {
-            const existingHtml = note.contentHtml ?? plainTextToHtml(note.plainText ?? "");
-            const contentHtml = appendParagraph(existingHtml, content);
-            const plainText = htmlToPlainText(contentHtml);
-            await db
-              .update(notes)
-              .set({ contentHtml, plainText, updatedAt: new Date() })
-              .where(eq(notes.id, targetId));
-
-            await scheduleNoteIndex(targetId, session.user.id, plainText);
-            revalidateNotesIndex(session.user.id);
-            revalidateNoteDetail(session.user.id, targetId);
-            revalidateProfileStats(session.user.id);
+            await appendOwnedNoteText({
+              noteId: targetId,
+              userId: session.user.id,
+              plainText: content,
+            });
 
             return NextResponse.json({
               success: true,
@@ -131,20 +78,14 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        const [newNote] = await db
-          .insert(notes)
-          .values({
-            userId: session.user.id,
-            title: explanation || "新笔记",
-            contentHtml: plainTextToHtml(content),
+        const newNote = await createOwnedNote({
+          userId: session.user.id,
+          title: explanation || "新笔记",
+          content: {
+            kind: "plainText",
             plainText: content,
-          })
-          .returning();
-
-        await scheduleNoteIndex(newNote.id, session.user.id, content);
-        revalidateNotesIndex(session.user.id);
-        revalidateNoteDetail(session.user.id, newNote.id);
-        revalidateProfileStats(session.user.id);
+          },
+        });
 
         return NextResponse.json({
           success: true,

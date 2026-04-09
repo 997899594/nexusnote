@@ -1,12 +1,13 @@
 import { smoothStream, streamText } from "ai";
 import { and, eq } from "drizzle-orm";
-import { courseSections, courses, db } from "@/db";
+import { courseSections, db } from "@/db";
 import { getModelForPolicy } from "@/lib/ai/core/model-policy";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { buildSectionPrompt } from "@/lib/ai/prompts/learn";
 import { APIError } from "@/lib/api";
 import { invalidateChapterCache } from "@/lib/cache/course-context";
 import { revalidateLearnPage } from "@/lib/cache/tags";
+import { getOwnedCourse } from "@/lib/learning/course-repository";
 import { createLearnTrace } from "@/lib/learning/observability";
 import { ragQueue } from "@/lib/queue";
 
@@ -63,12 +64,7 @@ export async function runGenerateCourseSectionWorkflow({
     },
   });
 
-  const [course] = await db
-    .select()
-    .from(courses)
-    .where(and(eq(courses.id, courseId), eq(courses.userId, userId)))
-    .limit(1);
-
+  const course = await getOwnedCourse(courseId, userId);
   if (!course) {
     trace.finish({
       found: false,

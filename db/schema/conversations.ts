@@ -10,6 +10,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { users } from "./auth";
+import { courses } from "./courses";
 
 export const conversations = pgTable(
   "conversations",
@@ -23,6 +24,10 @@ export const conversations = pgTable(
     summary: text("summary"),
     messageCount: integer("message_count").default(0),
     lastMessageAt: timestamp("last_message_at").defaultNow(),
+    learnCourseId: uuid("learn_course_id").references(() => courses.id, {
+      onDelete: "cascade",
+    }),
+    learnChapterIndex: integer("learn_chapter_index"),
     metadata: jsonb("metadata"),
     isArchived: boolean("is_archived").default(false),
     createdAt: timestamp("created_at").defaultNow(),
@@ -32,6 +37,12 @@ export const conversations = pgTable(
   (table) => ({
     userIdIdx: index("conversations_user_id_idx").on(table.userId),
     lastMessageIdx: index("conversations_last_message_idx").on(table.lastMessageAt),
+    learnScopeUniqueIdx: uniqueIndex("conversations_learn_scope_unique_idx").on(
+      table.userId,
+      table.intent,
+      table.learnCourseId,
+      table.learnChapterIndex,
+    ),
   }),
 );
 

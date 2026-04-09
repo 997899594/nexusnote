@@ -7,32 +7,7 @@
 
 import { eq } from "drizzle-orm";
 import { db, userProfiles } from "@/db";
-import type { EMAValue } from "@/lib/profile";
-
-// ============================================
-// Types
-// ============================================
-
-export interface ChatContext {
-  // Learning preferences (manual)
-  learningStyle?: {
-    preferredFormat?: string;
-    pace?: string;
-  };
-  // Style analysis (AI-inferred)
-  style?: {
-    vocabularyLevel: "basic" | "intermediate" | "advanced";
-    sentenceComplexity: "simple" | "moderate" | "complex";
-    abstractionLevel: "concrete" | "balanced" | "abstract";
-    directness: "indirect" | "balanced" | "direct";
-    conciseness: "verbose" | "balanced" | "concise";
-    formality: "casual" | "neutral" | "formal";
-    emotionalTone: "neutral" | "expressive";
-  };
-  // Metadata
-  confidence: number;
-  samples: number;
-}
+import type { EMAValue } from "@/types/profile";
 
 // ============================================
 // Context Builder
@@ -139,88 +114,4 @@ export async function buildChatContext(userId: string): Promise<string | null> {
   }
 
   return parts.length > 0 ? parts.join("\n") : null;
-}
-
-/**
- * Build a simplified context object (for UI display)
- */
-export async function buildChatContextObject(userId: string): Promise<ChatContext | null> {
-  const profile = await db.query.userProfiles.findFirst({
-    where: eq(userProfiles.userId, userId),
-  });
-
-  if (!profile) {
-    return null;
-  }
-
-  const vocab = profile.vocabularyComplexity as EMAValue | null;
-  const sentence = profile.sentenceComplexity as EMAValue | null;
-  const abstraction = profile.abstractionLevel as EMAValue | null;
-  const directness = profile.directness as EMAValue | null;
-  const conciseness = profile.conciseness as EMAValue | null;
-  const formality = profile.formality as EMAValue | null;
-  const emotional = profile.emotionalIntensity as EMAValue | null;
-
-  // Calculate average confidence
-  const values = [
-    vocab,
-    sentence,
-    abstraction,
-    directness,
-    conciseness,
-    formality,
-    emotional,
-  ].filter((v) => v !== null) as EMAValue[];
-  const avgConfidence =
-    values.length > 0 ? values.reduce((sum, v) => sum + v.confidence, 0) / values.length : 0;
-  const samples = vocab?.samples || 0;
-
-  return {
-    learningStyle: profile.learningStyle as
-      | {
-          preferredFormat?: string;
-          pace?: string;
-        }
-      | undefined,
-    style:
-      vocab && vocab.samples >= 3
-        ? {
-            vocabularyLevel:
-              vocab.value > 0.7 ? "advanced" : vocab.value < 0.3 ? "basic" : "intermediate",
-            sentenceComplexity:
-              sentence?.value && sentence.value > 0.7
-                ? "complex"
-                : sentence?.value && sentence.value < 0.3
-                  ? "simple"
-                  : "moderate",
-            abstractionLevel:
-              abstraction?.value && abstraction.value > 0.7
-                ? "abstract"
-                : abstraction?.value && abstraction.value < 0.3
-                  ? "concrete"
-                  : "balanced",
-            directness:
-              directness?.value && directness.value > 0.7
-                ? "direct"
-                : directness?.value && directness.value < 0.3
-                  ? "indirect"
-                  : "balanced",
-            conciseness:
-              conciseness?.value && conciseness.value > 0.7
-                ? "concise"
-                : conciseness?.value && conciseness.value < 0.3
-                  ? "verbose"
-                  : "balanced",
-            formality:
-              formality?.value && formality.value > 0.7
-                ? "formal"
-                : formality?.value && formality.value < 0.3
-                  ? "casual"
-                  : "neutral",
-            emotionalTone: emotional?.value && emotional.value > 0.7 ? "expressive" : "neutral",
-          }
-        : undefined,
-    confidence: avgConfidence,
-    samples,
-  };
 }

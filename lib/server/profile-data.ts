@@ -5,14 +5,14 @@ import { cacheLife, cacheTag } from "next/cache";
 import { aiUsage, conversations, courses, db, notes } from "@/db";
 import { getProfileStatsTag } from "@/lib/cache/tags";
 
-interface AIUsageBreakdownItem {
+export interface ProfileAIUsageBreakdownItem {
   key: string;
   requestCount: number;
   totalTokens: number;
   totalCost: number;
 }
 
-interface AIUsageDailyItem {
+export interface ProfileAIUsageDailyItem {
   dayKey: string;
   label: string;
   requestCount: number;
@@ -20,29 +20,36 @@ interface AIUsageDailyItem {
   totalCost: number;
 }
 
-export interface ProfileStats {
+export interface ProfileRecentActivityItem {
+  id: string;
+  title: string;
+  updatedAt: Date | null;
+}
+
+export interface ProfileOverview {
   conversations: number;
   documents: number;
   courses: number;
-  recentActivity: Array<{
-    id: string;
-    title: string;
-    updatedAt: Date | null;
-  }>;
-  aiUsage: {
-    windowStart: Date;
-    totalTokens: number;
-    totalCost: number;
-    requestCount: number;
-    activeDays: number;
-    avgTokensPerRequest: number;
-    avgCostPerRequest: number;
-    peakDay: AIUsageDailyItem | null;
-    daily: AIUsageDailyItem[];
-    byPolicy: AIUsageBreakdownItem[];
-    byWorkflow: AIUsageBreakdownItem[];
-    byProvider: AIUsageBreakdownItem[];
-  };
+  recentActivity: ProfileRecentActivityItem[];
+}
+
+export interface ProfileAIUsageStats {
+  windowStart: Date;
+  totalTokens: number;
+  totalCost: number;
+  requestCount: number;
+  activeDays: number;
+  avgTokensPerRequest: number;
+  avgCostPerRequest: number;
+  peakDay: ProfileAIUsageDailyItem | null;
+  daily: ProfileAIUsageDailyItem[];
+  byPolicy: ProfileAIUsageBreakdownItem[];
+  byWorkflow: ProfileAIUsageBreakdownItem[];
+  byProvider: ProfileAIUsageBreakdownItem[];
+}
+
+export interface ProfileStats extends ProfileOverview {
+  aiUsage: ProfileAIUsageStats;
 }
 
 export function getProfileStatsWindowStart(referenceDate = new Date()): Date {
@@ -52,27 +59,13 @@ export function getProfileStatsWindowStart(referenceDate = new Date()): Date {
   return windowStart;
 }
 
-export async function getUserStatsCached(
-  userId: string,
-  windowStartIso: string,
-): Promise<ProfileStats> {
+export async function getUserProfileOverviewCached(userId: string): Promise<ProfileOverview> {
   "use cache";
 
   cacheLife("minutes");
   cacheTag(getProfileStatsTag(userId));
-  const windowStart = new Date(windowStartIso);
 
-  const [
-    conversationCount,
-    noteCount,
-    courseCount,
-    recentActivity,
-    usageStats,
-    usageByDay,
-    usageByPolicy,
-    usageByWorkflow,
-    usageByProvider,
-  ] = await Promise.all([
+  const [conversationCount, noteCount, courseCount, recentActivity] = await Promise.all([
     db
       .select({ count: count() })
       .from(conversations)
@@ -98,69 +91,90 @@ export async function getUserStatsCached(
       )
       .orderBy(desc(conversations.updatedAt))
       .limit(5),
-
-    db
-      .select({
-        requestCount: count(),
-        totalTokens: sql<number>`coalesce(sum(${aiUsage.totalTokens}), 0)`,
-        totalCostCents: sql<number>`coalesce(sum(${aiUsage.costCents}), 0)`,
-      })
-      .from(aiUsage)
-      .where(and(eq(aiUsage.userId, userId), gt(aiUsage.createdAt, windowStart))),
-
-    db
-      .select({
-        dayKey: sql<string>`to_char(date_trunc('day', ${aiUsage.createdAt}), 'YYYY-MM-DD')`,
-        requestCount: count(),
-        totalTokens: sql<number>`coalesce(sum(${aiUsage.totalTokens}), 0)`,
-        totalCostCents: sql<number>`coalesce(sum(${aiUsage.costCents}), 0)`,
-      })
-      .from(aiUsage)
-      .where(and(eq(aiUsage.userId, userId), gt(aiUsage.createdAt, windowStart)))
-      .groupBy(sql`date_trunc('day', ${aiUsage.createdAt})`)
-      .orderBy(sql`date_trunc('day', ${aiUsage.createdAt}) asc`),
-
-    db
-      .select({
-        key: sql<string>`coalesce(${aiUsage.modelPolicy}, ${aiUsage.metadata} ->> 'modelPolicy', 'unknown')`,
-        requestCount: count(),
-        totalTokens: sql<number>`coalesce(sum(${aiUsage.totalTokens}), 0)`,
-        totalCostCents: sql<number>`coalesce(sum(${aiUsage.costCents}), 0)`,
-      })
-      .from(aiUsage)
-      .where(and(eq(aiUsage.userId, userId), gt(aiUsage.createdAt, windowStart)))
-      .groupBy(
-        sql`coalesce(${aiUsage.modelPolicy}, ${aiUsage.metadata} ->> 'modelPolicy', 'unknown')`,
-      )
-      .orderBy(desc(count()))
-      .limit(3),
-
-    db
-      .select({
-        key: sql<string>`coalesce(${aiUsage.workflow}, ${aiUsage.endpoint}, 'unknown')`,
-        requestCount: count(),
-        totalTokens: sql<number>`coalesce(sum(${aiUsage.totalTokens}), 0)`,
-        totalCostCents: sql<number>`coalesce(sum(${aiUsage.costCents}), 0)`,
-      })
-      .from(aiUsage)
-      .where(and(eq(aiUsage.userId, userId), gt(aiUsage.createdAt, windowStart)))
-      .groupBy(sql`coalesce(${aiUsage.workflow}, ${aiUsage.endpoint}, 'unknown')`)
-      .orderBy(desc(count()))
-      .limit(4),
-
-    db
-      .select({
-        key: sql<string>`coalesce(${aiUsage.provider}, ${aiUsage.metadata} ->> 'provider', 'unknown')`,
-        requestCount: count(),
-        totalTokens: sql<number>`coalesce(sum(${aiUsage.totalTokens}), 0)`,
-        totalCostCents: sql<number>`coalesce(sum(${aiUsage.costCents}), 0)`,
-      })
-      .from(aiUsage)
-      .where(and(eq(aiUsage.userId, userId), gt(aiUsage.createdAt, windowStart)))
-      .groupBy(sql`coalesce(${aiUsage.provider}, ${aiUsage.metadata} ->> 'provider', 'unknown')`)
-      .orderBy(desc(count()))
-      .limit(3),
   ]);
+
+  return {
+    conversations: conversationCount[0]?.count || 0,
+    documents: noteCount[0]?.count || 0,
+    courses: courseCount[0]?.count || 0,
+    recentActivity,
+  };
+}
+
+export async function getUserProfileInsightsCached(
+  userId: string,
+  windowStartIso: string,
+): Promise<ProfileAIUsageStats> {
+  "use cache";
+
+  cacheLife("minutes");
+  cacheTag(getProfileStatsTag(userId));
+  const windowStart = new Date(windowStartIso);
+
+  const [usageStats, usageByDay, usageByPolicy, usageByWorkflow, usageByProvider] =
+    await Promise.all([
+      db
+        .select({
+          requestCount: count(),
+          totalTokens: sql<number>`coalesce(sum(${aiUsage.totalTokens}), 0)`,
+          totalCostCents: sql<number>`coalesce(sum(${aiUsage.costCents}), 0)`,
+        })
+        .from(aiUsage)
+        .where(and(eq(aiUsage.userId, userId), gt(aiUsage.createdAt, windowStart))),
+
+      db
+        .select({
+          dayKey: sql<string>`to_char(date_trunc('day', ${aiUsage.createdAt}), 'YYYY-MM-DD')`,
+          requestCount: count(),
+          totalTokens: sql<number>`coalesce(sum(${aiUsage.totalTokens}), 0)`,
+          totalCostCents: sql<number>`coalesce(sum(${aiUsage.costCents}), 0)`,
+        })
+        .from(aiUsage)
+        .where(and(eq(aiUsage.userId, userId), gt(aiUsage.createdAt, windowStart)))
+        .groupBy(sql`date_trunc('day', ${aiUsage.createdAt})`)
+        .orderBy(sql`date_trunc('day', ${aiUsage.createdAt}) asc`),
+
+      db
+        .select({
+          key: sql<string>`coalesce(${aiUsage.modelPolicy}, ${aiUsage.metadata} ->> 'modelPolicy', 'unknown')`,
+          requestCount: count(),
+          totalTokens: sql<number>`coalesce(sum(${aiUsage.totalTokens}), 0)`,
+          totalCostCents: sql<number>`coalesce(sum(${aiUsage.costCents}), 0)`,
+        })
+        .from(aiUsage)
+        .where(and(eq(aiUsage.userId, userId), gt(aiUsage.createdAt, windowStart)))
+        .groupBy(
+          sql`coalesce(${aiUsage.modelPolicy}, ${aiUsage.metadata} ->> 'modelPolicy', 'unknown')`,
+        )
+        .orderBy(desc(count()))
+        .limit(3),
+
+      db
+        .select({
+          key: sql<string>`coalesce(${aiUsage.workflow}, ${aiUsage.endpoint}, 'unknown')`,
+          requestCount: count(),
+          totalTokens: sql<number>`coalesce(sum(${aiUsage.totalTokens}), 0)`,
+          totalCostCents: sql<number>`coalesce(sum(${aiUsage.costCents}), 0)`,
+        })
+        .from(aiUsage)
+        .where(and(eq(aiUsage.userId, userId), gt(aiUsage.createdAt, windowStart)))
+        .groupBy(sql`coalesce(${aiUsage.workflow}, ${aiUsage.endpoint}, 'unknown')`)
+        .orderBy(desc(count()))
+        .limit(4),
+
+      db
+        .select({
+          key: sql<string>`coalesce(${aiUsage.provider}, ${aiUsage.metadata} ->> 'provider', 'unknown')`,
+          requestCount: count(),
+          totalTokens: sql<number>`coalesce(sum(${aiUsage.totalTokens}), 0)`,
+          totalCostCents: sql<number>`coalesce(sum(${aiUsage.costCents}), 0)`,
+        })
+        .from(aiUsage)
+        .where(and(eq(aiUsage.userId, userId), gt(aiUsage.createdAt, windowStart)))
+        .groupBy(sql`coalesce(${aiUsage.provider}, ${aiUsage.metadata} ->> 'provider', 'unknown')`)
+        .orderBy(desc(count()))
+        .limit(3),
+    ]);
 
   const usage = usageStats[0];
   const dailyByKey = new Map(
@@ -180,7 +194,7 @@ export async function getUserStatsCached(
       totalTokens: number;
       totalCostCents: number;
     }>,
-  ): AIUsageBreakdownItem[] =>
+  ): ProfileAIUsageBreakdownItem[] =>
     rows.map((row) => ({
       key: row.key,
       requestCount: Number(row.requestCount ?? 0),
@@ -208,7 +222,7 @@ export async function getUserStatsCached(
   const totalCost = Number(usage?.totalCostCents ?? 0) / 100;
   const activeDays = daily.filter((item) => item.requestCount > 0).length;
   const peakDay =
-    daily.reduce<AIUsageDailyItem | null>((currentPeak, item) => {
+    daily.reduce<ProfileAIUsageDailyItem | null>((currentPeak, item) => {
       if (item.requestCount <= 0) {
         return currentPeak;
       }
@@ -228,23 +242,32 @@ export async function getUserStatsCached(
     }, null) ?? null;
 
   return {
-    conversations: conversationCount[0]?.count || 0,
-    documents: noteCount[0]?.count || 0,
-    courses: courseCount[0]?.count || 0,
-    recentActivity,
-    aiUsage: {
-      windowStart,
-      totalTokens,
-      totalCost,
-      requestCount,
-      activeDays,
-      avgTokensPerRequest: requestCount > 0 ? totalTokens / requestCount : 0,
-      avgCostPerRequest: requestCount > 0 ? totalCost / requestCount : 0,
-      peakDay,
-      daily,
-      byPolicy: normalizeBreakdown(usageByPolicy),
-      byWorkflow: normalizeBreakdown(usageByWorkflow),
-      byProvider: normalizeBreakdown(usageByProvider),
-    },
+    windowStart,
+    totalTokens,
+    totalCost,
+    requestCount,
+    activeDays,
+    avgTokensPerRequest: requestCount > 0 ? totalTokens / requestCount : 0,
+    avgCostPerRequest: requestCount > 0 ? totalCost / requestCount : 0,
+    peakDay,
+    daily,
+    byPolicy: normalizeBreakdown(usageByPolicy),
+    byWorkflow: normalizeBreakdown(usageByWorkflow),
+    byProvider: normalizeBreakdown(usageByProvider),
+  };
+}
+
+export async function getUserStatsCached(
+  userId: string,
+  windowStartIso: string,
+): Promise<ProfileStats> {
+  const [overview, aiUsage] = await Promise.all([
+    getUserProfileOverviewCached(userId),
+    getUserProfileInsightsCached(userId, windowStartIso),
+  ]);
+
+  return {
+    ...overview,
+    aiUsage,
   };
 }

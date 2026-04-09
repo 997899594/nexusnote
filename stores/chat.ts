@@ -8,7 +8,6 @@
  * 不管理：
  * - 当前会话 ID（由 URL 管理，/chat/[id] 就是 source of truth）
  * - 消息内容（由 useChat 管理）
- * - Pending 消息（由 usePendingChatStore 管理）
  */
 
 import type { UIMessage } from "ai";
@@ -23,7 +22,6 @@ interface ChatStore {
 
   loadSessions: () => Promise<void>;
   generateBatchTitles: () => Promise<number>;
-  createSession: (title: string) => Promise<ConversationSummary | null>;
   updateSession: (id: string, updates: Partial<ConversationSummary>) => Promise<void>;
   deleteSession: (id: string) => Promise<void>;
   setCurrentSessionMessages: (messages: UIMessage[] | null) => void;
@@ -71,16 +69,6 @@ export const useChatStore = create<ChatStore>((set) => ({
       console.error("[ChatStore] Failed to generate batch titles:", error);
       return 0;
     }
-  },
-
-  createSession: async (title: string) => {
-    const session = await chatApi.createSession(title);
-    if (session) {
-      set((state) => ({
-        sessions: [session, ...state.sessions],
-      }));
-    }
-    return session;
   },
 
   updateSession: async (id: string, updates: Partial<ConversationSummary>) => {

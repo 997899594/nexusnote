@@ -8,7 +8,6 @@ const POLICY_LABELS: Record<string, string> = {
 
 const WORKFLOW_LABELS: Record<string, string> = {
   "notes:tag-generation": "标签生成",
-  "discover-skills": "技能发现",
   "ai-eval-judge": "AI 评测",
   "conversation-title-generation": "标题生成",
   "query-rewrite": "检索改写",

@@ -82,6 +82,10 @@ export const conversationsRelations = relations(conversations, ({ one, many }) =
     fields: [conversations.userId],
     references: [users.id],
   }),
+  learnCourse: one(courses, {
+    fields: [conversations.learnCourseId],
+    references: [courses.id],
+  }),
   messages: many(conversationMessages),
 }));
 

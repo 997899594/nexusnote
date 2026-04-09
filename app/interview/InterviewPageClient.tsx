@@ -64,10 +64,8 @@ function InterviewContent() {
   const isMobile = useIsMobile();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const hasAutoSwitchedToOutlineRef = useRef(false);
   const [input, setInput] = useState("");
   const [started, setStarted] = useState(false);
-  const [mobilePane, setMobilePane] = useState<"chat" | "outline">("chat");
 
   const interview = useInterview({
     initialMessage: initialMessage || undefined,
@@ -86,6 +84,7 @@ function InterviewContent() {
   const aiDegradedKind = interview.aiDegradedKind;
   const displayOutline = interview.outline.display;
   const stableOutline = interview.outline.stable;
+  const outlineActions = interview.outline.actions;
   const isOutlineLoading = interview.outline.isLoading;
   const interviewCompleted = interview.outline.isReady;
   const courseId = interview.course.id;
@@ -119,19 +118,6 @@ function InterviewContent() {
     (status === "submitted" || status === "streaming") && (!lastMsg || lastMsg.role === "user");
   const shouldShowOutlinePanel =
     Boolean(displayOutline) || Boolean(stableOutline) || isOutlineLoading || interviewCompleted;
-
-  useEffect(() => {
-    if (!shouldShowOutlinePanel) {
-      hasAutoSwitchedToOutlineRef.current = false;
-      setMobilePane("chat");
-      return;
-    }
-
-    if (isMobile && !hasAutoSwitchedToOutlineRef.current) {
-      setMobilePane("outline");
-      hasAutoSwitchedToOutlineRef.current = true;
-    }
-  }, [isMobile, shouldShowOutlinePanel]);
 
   const chatViewport = (
     <div className="mobile-scroll flex-1 overflow-y-auto px-4 py-5 md:px-6 md:py-6">
@@ -199,7 +185,7 @@ function InterviewContent() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={interviewCompleted ? "继续调整大纲..." : "继续对话..."}
+            placeholder={shouldShowOutlinePanel ? "继续调整大纲..." : "继续对话..."}
             rows={1}
             className="flex-1 min-h-[24px] max-h-[120px] resize-none border-none bg-transparent text-sm text-[var(--color-text)] outline-none placeholder:text-[#b39b69]"
           />
@@ -243,9 +229,11 @@ function InterviewContent() {
                 <OutlinePanel
                   outline={displayOutline ?? stableOutline}
                   stableOutline={stableOutline ?? null}
+                  actionOptions={outlineActions}
                   isLoading={isOutlineLoading}
                   courseId={courseId ?? undefined}
                   onCourseCreated={setCourseId}
+                  onSelectAction={(text) => sendMessage({ text })}
                 />
               </motion.div>
             </motion.div>
@@ -311,44 +299,15 @@ function InterviewContent() {
         </header>
 
         {isMobile && shouldShowOutlinePanel ? (
-          <div className="px-4 pb-3 md:hidden">
-            <div className="flex rounded-2xl border border-[#d8bc7b]/28 bg-[linear-gradient(180deg,#fffdf8_0%,#fff8ef_100%)] p-1 shadow-[0_16px_32px_-24px_rgba(197,143,42,0.18)]">
-              <button
-                type="button"
-                onClick={() => setMobilePane("chat")}
-                className={cn(
-                  "flex-1 rounded-xl px-3 py-2 text-sm transition-colors",
-                  mobilePane === "chat"
-                    ? "bg-[linear-gradient(180deg,#9a6e24_0%,#c58f2a_58%,#e8c66d_100%)] text-white shadow-[0_14px_26px_-18px_rgba(197,143,42,0.42)]"
-                    : "text-[#7b6024]",
-                )}
-              >
-                对话
-              </button>
-              <button
-                type="button"
-                onClick={() => setMobilePane("outline")}
-                className={cn(
-                  "flex-1 rounded-xl px-3 py-2 text-sm transition-colors",
-                  mobilePane === "outline"
-                    ? "bg-[linear-gradient(180deg,#9a6e24_0%,#c58f2a_58%,#e8c66d_100%)] text-white shadow-[0_14px_26px_-18px_rgba(197,143,42,0.42)]"
-                    : "text-[#7b6024]",
-                )}
-              >
-                大纲
-              </button>
-            </div>
-          </div>
-        ) : null}
-
-        {isMobile && shouldShowOutlinePanel && mobilePane === "outline" ? (
           <div className="min-h-0 flex-1">
             <OutlinePanel
               outline={displayOutline ?? stableOutline}
               stableOutline={stableOutline ?? null}
+              actionOptions={outlineActions}
               isLoading={isOutlineLoading}
               courseId={courseId ?? undefined}
               onCourseCreated={setCourseId}
+              onSelectAction={(text) => sendMessage({ text })}
             />
           </div>
         ) : (

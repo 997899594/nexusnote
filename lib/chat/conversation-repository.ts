@@ -1,32 +1,65 @@
 import { and, conversations, db, eq } from "@/db";
 
-interface ConversationOwnershipRecord {
-  userId: string | null;
-  summary: string | null;
+type ConversationRecord = typeof conversations.$inferSelect;
+
+export interface OwnedConversationUpdate {
+  title?: string;
+  intent?: string;
+  summary?: string | null;
+  messageCount?: number | null;
+  lastMessageAt?: Date | null;
+  metadata?: Record<string, unknown> | null;
+  isArchived?: boolean | null;
+  updatedAt?: Date | null;
+  titleGeneratedAt?: Date | null;
 }
 
-export interface OwnedConversationSummary {
-  exists: boolean;
-  summary: string | null;
-}
-
-export class ConversationOwnershipError extends Error {
+export class ConversationUnavailableError extends Error {
   constructor() {
-    super("Conversation ownership mismatch");
-    this.name = "ConversationOwnershipError";
+    super("Conversation is unavailable for this user");
+    this.name = "ConversationUnavailableError";
   }
 }
 
-async function getConversationOwnershipRecord(
+function isUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: string }).code === "23505"
+  );
+}
+
+export async function getOwnedConversation(
   conversationId: string,
-): Promise<ConversationOwnershipRecord | null> {
+  userId: string,
+): Promise<ConversationRecord | null> {
   const [conversation] = await db
-    .select({
-      userId: conversations.userId,
-      summary: conversations.summary,
-    })
+    .select()
     .from(conversations)
-    .where(eq(conversations.id, conversationId))
+    .where(and(eq(conversations.id, conversationId), eq(conversations.userId, userId)))
+    .limit(1);
+
+  return conversation ?? null;
+}
+
+export async function getOwnedLearnConversation(params: {
+  userId: string;
+  courseId: string;
+  chapterIndex: number;
+}): Promise<ConversationRecord | null> {
+  const { userId, courseId, chapterIndex } = params;
+  const [conversation] = await db
+    .select()
+    .from(conversations)
+    .where(
+      and(
+        eq(conversations.userId, userId),
+        eq(conversations.intent, "LEARN"),
+        eq(conversations.learnCourseId, courseId),
+        eq(conversations.learnChapterIndex, chapterIndex),
+      ),
+    )
     .limit(1);
 
   return conversation ?? null;
@@ -35,24 +68,36 @@ async function getConversationOwnershipRecord(
 export async function getOwnedConversationSummary(
   conversationId: string,
   userId: string,
-): Promise<OwnedConversationSummary> {
-  const conversation = await getConversationOwnershipRecord(conversationId);
+): Promise<string | null> {
+  const conversation = await getOwnedConversation(conversationId, userId);
+  return conversation?.summary ?? null;
+}
 
-  if (!conversation) {
-    return {
-      exists: false,
-      summary: null,
-    };
-  }
+export async function updateOwnedConversation(params: {
+  conversationId: string;
+  userId: string;
+  updates: OwnedConversationUpdate;
+}): Promise<ConversationRecord | null> {
+  const { conversationId, userId, updates } = params;
+  const [updated] = await db
+    .update(conversations)
+    .set(updates)
+    .where(and(eq(conversations.id, conversationId), eq(conversations.userId, userId)))
+    .returning();
 
-  if (conversation.userId !== userId) {
-    throw new ConversationOwnershipError();
-  }
+  return updated ?? null;
+}
 
-  return {
-    exists: true,
-    summary: conversation.summary ?? null,
-  };
+export async function deleteOwnedConversation(
+  conversationId: string,
+  userId: string,
+): Promise<boolean> {
+  const [deleted] = await db
+    .delete(conversations)
+    .where(and(eq(conversations.id, conversationId), eq(conversations.userId, userId)))
+    .returning({ id: conversations.id });
+
+  return Boolean(deleted);
 }
 
 export async function touchOwnedConversation(params: {
@@ -86,23 +131,24 @@ export async function touchOwnedConversation(params: {
       messageCount,
     });
     return;
-  } catch {
-    const conversation = await getConversationOwnershipRecord(conversationId);
-
-    if (!conversation) {
-      throw new Error("Conversation upsert race without persisted row");
+  } catch (error) {
+    if (!isUniqueViolation(error)) {
+      throw error;
     }
 
-    if (conversation.userId !== userId) {
-      throw new ConversationOwnershipError();
-    }
-
-    await db
+    const [racedUpdate] = await db
       .update(conversations)
       .set({
         messageCount,
         lastMessageAt: new Date(),
       })
-      .where(and(eq(conversations.id, conversationId), eq(conversations.userId, userId)));
+      .where(and(eq(conversations.id, conversationId), eq(conversations.userId, userId)))
+      .returning({ id: conversations.id });
+
+    if (racedUpdate) {
+      return;
+    }
+
+    throw new ConversationUnavailableError();
   }
 }

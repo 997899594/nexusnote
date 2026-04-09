@@ -13,6 +13,7 @@ import type { InterviewOutline } from "@/lib/ai/interview/schemas";
 import {
   findLatestOutline,
   findLatestStableOutline,
+  getInterviewMessageMode,
   getInterviewMessageOptions,
   getInterviewMessageText,
   type InterviewUIMessage,
@@ -23,6 +24,7 @@ export interface InterviewMessage {
   id: string;
   role: "user" | "assistant";
   text: string;
+  mode?: "question" | "outline";
   options?: string[];
 }
 
@@ -54,6 +56,7 @@ function toInterviewDisplayMessages(messages: InterviewUIMessage[]): InterviewMe
       id: message.id,
       role: message.role,
       text: getInterviewMessageText(message),
+      mode: message.role === "assistant" ? getInterviewMessageMode(message) : undefined,
       options: message.role === "assistant" ? getInterviewMessageOptions(message) : undefined,
     }))
     .filter((message) => message.text.length > 0 || (message.options?.length ?? 0) > 0);
@@ -121,13 +124,19 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
   });
 
   const { messages, status } = chat;
+  const displayMessages = toInterviewDisplayMessages(messages);
   const isLoading = status === "submitted" || status === "streaming";
   const liveOutlineResult = findLatestOutline(messages);
+  const latestAssistantMessage = [...displayMessages]
+    .reverse()
+    .find((message) => message.role === "assistant");
   const displayOutline: OutlineDisplay | null =
     isLoading && liveOutlineResult?.outline ? liveOutlineResult.outline : stableOutline;
   const outline: InterviewOutlineState = {
     display: displayOutline,
     stable: stableOutline,
+    actions:
+      latestAssistantMessage?.mode === "outline" ? (latestAssistantMessage.options ?? []) : [],
     isLoading: isOutlineLoading,
     isReady: stableOutline != null,
   };
@@ -174,7 +183,7 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
   }, [sendMessage]);
 
   return {
-    messages: toInterviewDisplayMessages(messages),
+    messages: displayMessages,
     sendMessage,
     status,
     isLoading,

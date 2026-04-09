@@ -1,7 +1,5 @@
 import { convertToModelMessages, smoothStream, validateUIMessages } from "ai";
-import { eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
-import { courses, db } from "@/db";
 import {
   aiProvider,
   classifyAIDegradation,
@@ -15,6 +13,7 @@ import {
 } from "@/lib/ai";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
+import { getOwnedCourse } from "@/lib/learning/course-repository";
 
 export const maxDuration = 300;
 
@@ -72,13 +71,8 @@ export async function POST(request: NextRequest) {
 
     let courseId: string | undefined;
     if (inputCourseId) {
-      const [existingCourse] = await db
-        .select({ id: courses.id, userId: courses.userId })
-        .from(courses)
-        .where(eq(courses.id, inputCourseId))
-        .limit(1);
-
-      if (!existingCourse || existingCourse.userId !== userId) {
+      const existingCourse = await getOwnedCourse(inputCourseId, userId);
+      if (!existingCourse) {
         throw new APIError("课程不存在", 404, "NOT_FOUND");
       }
 

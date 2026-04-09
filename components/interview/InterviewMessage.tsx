@@ -9,6 +9,7 @@ export interface InterviewMessageData {
   id: string;
   role: "user" | "assistant";
   text: string;
+  mode?: "question" | "outline";
   options?: string[];
 }
 
@@ -20,6 +21,8 @@ interface InterviewMessageProps {
 
 export function InterviewMessage({ message, onSendReply, isStreaming }: InterviewMessageProps) {
   const isUser = message.role === "user";
+  const shouldShowOptions =
+    !isUser && message.mode !== "outline" && (message.options?.length ?? 0) > 0;
 
   return (
     <motion.div
@@ -46,11 +49,13 @@ export function InterviewMessage({ message, onSendReply, isStreaming }: Intervie
               </span>
             </div>
             {message.text && <StreamdownMessage content={message.text} />}
-            <InterviewOptions
-              options={message.options ?? []}
-              onSelect={(option) => onSendReply?.(option)}
-              isStreaming={isStreaming}
-            />
+            {shouldShowOptions ? (
+              <InterviewOptions
+                options={message.options ?? []}
+                onSelect={(option) => onSendReply?.(option)}
+                isStreaming={isStreaming}
+              />
+            ) : null}
           </>
         )}
       </div>
