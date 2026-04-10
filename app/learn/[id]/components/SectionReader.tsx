@@ -11,11 +11,9 @@ import { useToast } from "@/components/ui/Toast";
 import type { Annotation } from "@/hooks/useAnnotations";
 import { useAnnotations } from "@/hooks/useAnnotations";
 import type { SectionState } from "@/hooks/useChapterSections";
-import type { GoldenPathCourseContext } from "@/lib/golden-path/types";
 import { cn } from "@/lib/utils";
 import { useLearnStore } from "@/stores/learn";
 import { AnnotationLayer } from "./AnnotationLayer";
-import { GoldenPathChapterPanel } from "./GoldenPathChapterPanel";
 import { TextSelectionToolbar } from "./TextSelectionToolbar";
 
 interface SectionDoc {
@@ -32,7 +30,6 @@ interface SectionReaderProps {
   generateSection: (index: number) => void;
   sectionDocs: SectionDoc[];
   scrollToSectionId?: string | null;
-  goldenPathContext: GoldenPathCourseContext | null;
 }
 
 function CaptureNoteDialog({
@@ -408,7 +405,6 @@ export function SectionReader({
   generateSection,
   sectionDocs,
   scrollToSectionId,
-  goldenPathContext,
 }: SectionReaderProps) {
   const {
     currentChapterIndex,
@@ -517,24 +513,25 @@ export function SectionReader({
       >
         {/* Chapter header */}
         {!isZenMode && (
-          <div className="mb-6 rounded-[30px] border border-black/5 bg-white px-5 py-5 shadow-[0_24px_56px_-40px_rgba(15,23,42,0.14)] md:mb-8 md:px-7 md:py-6">
-            <div className="mb-3 flex flex-wrap items-center gap-2.5">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eef1f5] px-2.5 py-1 text-xs font-semibold text-[#111827]">
-                <Sparkles className="w-3 h-3" />第 {currentChapterIndex + 1} 章
-              </span>
-              <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
-                Learning Chapter
-              </span>
+          <div className="sticky top-0 z-20 -mx-1 mb-6 bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(255,255,255,0.9)_72%,rgba(255,255,255,0)_100%)] px-1 pb-4 pt-1 md:mb-8">
+            <div className="rounded-[30px] border border-black/6 bg-white/95 px-5 py-4 shadow-[0_24px_56px_-40px_rgba(15,23,42,0.16)] backdrop-blur-xl md:px-7 md:py-5">
+              <div className="mb-3 flex flex-wrap items-center gap-2.5">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eef1f5] px-2.5 py-1 text-xs font-semibold text-[#111827]">
+                  <Sparkles className="w-3 h-3" />第 {currentChapterIndex + 1} 章
+                </span>
+                <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
+                  Learning Chapter
+                </span>
+              </div>
+              <h2 className="text-[1.3rem] font-semibold leading-tight tracking-[-0.04em] text-[var(--color-text)] md:text-[1.5rem]">
+                {currentChapter.title}
+              </h2>
+              {currentChapter.description && (
+                <p className="mt-2 max-w-3xl text-[0.92rem] leading-6 text-[var(--color-text-secondary)] md:text-[0.95rem]">
+                  {currentChapter.description}
+                </p>
+              )}
             </div>
-            <h2 className="text-[1.65rem] font-semibold leading-tight tracking-[-0.04em] text-[var(--color-text)] md:text-[2rem]">
-              {currentChapter.title}
-            </h2>
-            {currentChapter.description && (
-              <p className="mt-3 max-w-3xl text-[0.95rem] leading-7 text-[var(--color-text-secondary)] md:text-base">
-                {currentChapter.description}
-              </p>
-            )}
-            <GoldenPathChapterPanel context={goldenPathContext} />
           </div>
         )}
 

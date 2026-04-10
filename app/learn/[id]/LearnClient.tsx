@@ -9,7 +9,6 @@ import { useEffect, useMemo } from "react";
 import type { Annotation } from "@/hooks/useAnnotations";
 import { useChapterSections } from "@/hooks/useChapterSections";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import type { GoldenPathCourseContext } from "@/lib/golden-path/types";
 import { cn } from "@/lib/utils";
 import type { ChapterOutline } from "@/stores/learn";
 import { useLearnStore } from "@/stores/learn";
@@ -36,7 +35,6 @@ export interface LearnClientProps {
   initialChapterIndex: number;
   initialCompletedSections: string[];
   scrollToSectionId: string | null;
-  goldenPathContext: GoldenPathCourseContext | null;
 }
 
 // Sidebar width constant
@@ -75,7 +73,6 @@ export function LearnClient({
   initialChapterIndex,
   initialCompletedSections,
   scrollToSectionId,
-  goldenPathContext,
 }: LearnClientProps) {
   const setCourseId = useLearnStore((s) => s.setCourseId);
   const setChapters = useLearnStore((s) => s.setChapters);
@@ -161,13 +158,13 @@ export function LearnClient({
     return (
       <div className="ui-page-shell flex min-h-dvh flex-col bg-[#f3f4f6] safe-bottom">
         {/* Mobile header */}
-        <header className="safe-top shrink-0 bg-white/92 px-4 pb-3 pt-3 backdrop-blur-xl shadow-[0_18px_42px_-34px_rgba(15,23,42,0.14)]">
+        <header className="safe-top sticky top-0 z-30 shrink-0 border-b border-black/5 bg-white/95 px-4 pb-3 pt-3 backdrop-blur-xl shadow-[0_18px_42px_-34px_rgba(15,23,42,0.14)]">
           <div className="flex items-start justify-between gap-3">
             <div className="flex min-w-0 items-start gap-2.5">
               <button
                 type="button"
                 onClick={() => router.back()}
-                className="mt-0.5 shrink-0 rounded-xl border border-[#d8bc7b]/28 bg-[radial-gradient(circle_at_top_left,rgba(232,205,141,0.16),transparent_55%),linear-gradient(180deg,#fffdf8_0%,#fff8ef_100%)] p-2 text-[#745b25] shadow-[0_14px_28px_-22px_rgba(197,143,42,0.22)] transition-colors hover:text-[#5f4716]"
+                className="mt-0.5 shrink-0 rounded-xl border border-black/8 bg-[#f6f8fb] p-2 text-[var(--color-text-secondary)] shadow-[0_14px_28px_-22px_rgba(15,23,42,0.16)] transition-colors hover:bg-white hover:text-[var(--color-text)]"
               >
                 <ArrowLeft className="h-5 w-5" />
               </button>
@@ -180,15 +177,15 @@ export function LearnClient({
                 </p>
               </div>
             </div>
-            <div className="flex shrink-0 items-center gap-1 rounded-2xl border border-[#d8bc7b]/28 bg-[linear-gradient(180deg,#fffdf8_0%,#fff8ef_100%)] p-1 shadow-[0_14px_30px_-24px_rgba(197,143,42,0.2)]">
+            <div className="flex shrink-0 items-center gap-1 rounded-2xl border border-black/8 bg-[#f6f8fb] p-1 shadow-[0_14px_30px_-24px_rgba(15,23,42,0.14)]">
               <button
                 type="button"
                 onClick={() => setSidebarOpen(true)}
                 className={cn(
                   "rounded-xl p-2 transition-colors",
                   isSidebarOpen
-                    ? "bg-[linear-gradient(180deg,#9a6e24_0%,#c58f2a_58%,#e8c66d_100%)] text-white shadow-[0_12px_22px_-16px_rgba(197,143,42,0.45)]"
-                    : "text-[#7b6024] hover:bg-[#fff7eb]",
+                    ? "bg-[#111827] text-white shadow-[0_12px_22px_-16px_rgba(15,23,42,0.35)]"
+                    : "text-[var(--color-text-secondary)] hover:bg-white",
                 )}
               >
                 <List className="h-5 w-5" />
@@ -199,8 +196,8 @@ export function LearnClient({
                 className={cn(
                   "rounded-xl p-2 transition-colors",
                   isChatOpen
-                    ? "bg-[linear-gradient(180deg,#9a6e24_0%,#c58f2a_58%,#e8c66d_100%)] text-white shadow-[0_12px_22px_-16px_rgba(197,143,42,0.45)]"
-                    : "text-[#7b6024] hover:bg-[#fff7eb]",
+                    ? "bg-[#111827] text-white shadow-[0_12px_22px_-16px_rgba(15,23,42,0.35)]"
+                    : "text-[var(--color-text-secondary)] hover:bg-white",
                 )}
               >
                 <MessageSquare className="h-5 w-5" />
@@ -217,7 +214,6 @@ export function LearnClient({
             generateSection={generateSection}
             sectionDocs={sectionDocs}
             scrollToSectionId={scrollToSectionId}
-            goldenPathContext={goldenPathContext}
           />
         </div>
 
@@ -266,12 +262,7 @@ export function LearnClient({
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 className="fixed inset-y-0 right-0 z-50 w-full overflow-hidden bg-[#f6f7f9] shadow-xl"
               >
-                <LearnChat
-                  courseId={sessionId}
-                  courseTitle={courseTitle}
-                  variant="overlay"
-                  goldenPathContext={goldenPathContext}
-                />
+                <LearnChat courseId={sessionId} courseTitle={courseTitle} variant="overlay" />
               </motion.div>
             </>
           )}
@@ -312,7 +303,7 @@ export function LearnClient({
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="border-b border-black/5 bg-white/92 px-8 py-5 backdrop-blur-xl"
+              className="sticky top-0 z-20 border-b border-black/5 bg-white/95 px-8 py-5 backdrop-blur-xl"
             >
               <div className="min-w-0 space-y-1">
                 <div className="text-[0.6875rem] uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
@@ -339,7 +330,6 @@ export function LearnClient({
             generateSection={generateSection}
             sectionDocs={sectionDocs}
             scrollToSectionId={scrollToSectionId}
-            goldenPathContext={goldenPathContext}
           />
         </div>
 
@@ -349,13 +339,7 @@ export function LearnClient({
 
       {/* AI Chat panel - hidden in zen mode */}
       <AnimatePresence>
-        {!isZenMode && (
-          <LearnChat
-            courseId={sessionId}
-            courseTitle={courseTitle}
-            goldenPathContext={goldenPathContext}
-          />
-        )}
+        {!isZenMode && <LearnChat courseId={sessionId} courseTitle={courseTitle} />}
       </AnimatePresence>
     </div>
   );

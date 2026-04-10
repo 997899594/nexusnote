@@ -9,7 +9,6 @@ import { useChatSession } from "@/components/chat/useChatSession";
 import { AIDegradationBanner, WorkspaceEmptyState } from "@/components/common";
 import { useToast } from "@/components/ui/Toast";
 import { isUnauthorizedError, parseApiError, redirectToLogin } from "@/lib/api/client";
-import type { GoldenPathCourseContext } from "@/lib/golden-path/types";
 import { cn } from "@/lib/utils";
 import { useChatSessionStateStore } from "@/stores";
 import { useLearnStore } from "@/stores/learn";
@@ -18,31 +17,20 @@ interface LearnChatProps {
   courseId: string;
   courseTitle: string;
   variant?: "inline" | "overlay";
-  goldenPathContext?: GoldenPathCourseContext | null;
 }
 
-function buildQuickPrompts(input: { chapterTitle?: string; skillNames: string[] }): string[] {
-  const { chapterTitle, skillNames } = input;
-  const [primarySkill, secondarySkill] = skillNames;
-
+function buildQuickPrompts(chapterTitle?: string): string[] {
   const prompts = [
-    primarySkill ? `这一章里的「${primarySkill}」核心要点是什么？` : null,
-    primarySkill && secondarySkill
-      ? `这一章里「${primarySkill}」和「${secondarySkill}」分别起什么作用？`
-      : null,
+    chapterTitle ? `这一章「${chapterTitle}」最重要的三个要点是什么？` : null,
     chapterTitle ? `学完「${chapterTitle}」后，我应该真正掌握什么？` : null,
-    primarySkill ? `如果把这章用到项目里，「${primarySkill}」通常怎么落地？` : null,
+    chapterTitle ? `如果把「${chapterTitle}」用到实际项目里，通常怎么落地？` : null,
+    chapterTitle ? `这一章里最容易混淆或踩坑的地方是什么？` : null,
   ];
 
   return [...new Set(prompts.filter((prompt): prompt is string => Boolean(prompt)))].slice(0, 3);
 }
 
-export function LearnChat({
-  courseId,
-  courseTitle,
-  variant = "inline",
-  goldenPathContext = null,
-}: LearnChatProps) {
+export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnChatProps) {
   const { addToast } = useToast();
   const { currentChapterIndex, chapters, isChatOpen, setChatOpen } = useLearnStore();
   const [input, setInput] = useState("");
@@ -53,31 +41,9 @@ export function LearnChat({
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const currentChapter = chapters[currentChapterIndex];
-  const chapterSkills = useMemo(() => {
-    if (!goldenPathContext) {
-      return [];
-    }
-
-    const chapter = goldenPathContext.chapters.find(
-      (item) => item.chapterIndex === currentChapterIndex + 1,
-    );
-
-    return chapter?.matchedSkills.length && chapter.matchedSkills.length > 0
-      ? chapter.matchedSkills
-      : goldenPathContext.courseSkills.slice(0, 4);
-  }, [currentChapterIndex, goldenPathContext]);
-
-  const chapterSkillIds = useMemo(() => {
-    return chapterSkills.map((skill) => skill.id);
-  }, [chapterSkills]);
-
   const quickPrompts = useMemo(
-    () =>
-      buildQuickPrompts({
-        chapterTitle: currentChapter?.title,
-        skillNames: chapterSkills.map((skill) => skill.name),
-      }),
-    [chapterSkills, currentChapter?.title],
+    () => buildQuickPrompts(currentChapter?.title),
+    [currentChapter?.title],
   );
 
   const resetTrackedSession = useChatSessionStateStore((state) => state.resetSession);
@@ -87,7 +53,6 @@ export function LearnChat({
       metadata: {
         courseId,
         chapterIndex: currentChapterIndex,
-        chapterSkillIds,
         context: "learn",
       },
     },
@@ -265,7 +230,7 @@ export function LearnChat({
               key={prompt}
               type="button"
               onClick={() => void handleQuickPrompt(prompt)}
-              className="rounded-full border border-[#d8bc7b]/28 bg-white px-3 py-1.5 text-xs text-[#745b25] transition-colors hover:bg-[#fff8ef] hover:text-[#5f4716]"
+              className="rounded-full border border-black/8 bg-white px-3 py-1.5 text-xs text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]"
             >
               {prompt}
             </button>
@@ -275,29 +240,8 @@ export function LearnChat({
     ) : null;
 
   const shouldShowPinnedContext = variant === "overlay" || chatMessages.length === 0;
-  const chapterSkillSummary = chapterSkills
-    .slice(0, 3)
-    .map((skill) => skill.name)
-    .join(" · ");
-
-  const chapterContextHint = goldenPathContext ? (
-    <div className="flex items-center gap-2 rounded-full border border-[#d8bc7b]/35 bg-[radial-gradient(circle_at_top_left,rgba(232,205,141,0.16),transparent_55%),linear-gradient(180deg,#fffdf8_0%,#fff8ef_100%)] px-3 py-2 text-[0.72rem] text-[#7b6024] shadow-[0_14px_30px_-24px_rgba(197,143,42,0.28)]">
-      <span className="h-2 w-2 shrink-0 rounded-full bg-[#c58f2a] shadow-[0_0_0_4px_rgba(232,205,141,0.38)]" />
-      <span className="truncate">
-        <span className="font-medium text-[#5f4716]">{goldenPathContext.mainRouteName}</span>
-        {chapterSkillSummary ? ` · ${chapterSkillSummary}` : ""}
-        {chapterSkills.length > 3 ? ` 等 ${chapterSkills.length} 个节点` : ""}
-      </span>
-    </div>
-  ) : null;
-
   const pinnedContextArea =
-    shouldShowPinnedContext && (chapterContextHint || quickPromptBlock) ? (
-      <div className="space-y-2.5">
-        {chapterContextHint}
-        {chatMessages.length === 0 ? quickPromptBlock : null}
-      </div>
-    ) : null;
+    shouldShowPinnedContext && chatMessages.length === 0 ? <div>{quickPromptBlock}</div> : null;
 
   const renderEmptyState = () => {
     if (isResolvingSession) {
@@ -351,7 +295,7 @@ export function LearnChat({
         className={cn(
           "fixed bottom-6 right-6 z-50 safe-bottom",
           "w-12 h-12 rounded-full shadow-lg",
-          "border border-[#d8bc7b]/35 bg-[linear-gradient(180deg,#9a6e24_0%,#c58f2a_58%,#e8c66d_100%)] text-white shadow-[0_18px_36px_-20px_rgba(197,143,42,0.48)]",
+          "border border-black/8 bg-[#111827] text-white shadow-[0_18px_36px_-20px_rgba(15,23,42,0.38)]",
           "flex items-center justify-center",
           "transition-transform hover:scale-[1.02]",
         )}
@@ -367,8 +311,8 @@ export function LearnChat({
         {/* Header */}
         <div className="safe-top flex items-center justify-between bg-white/92 px-4 pb-3 pt-3 backdrop-blur-xl shadow-[0_16px_38px_-34px_rgba(15,23,42,0.12)]">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#d8bc7b]/28 bg-[radial-gradient(circle_at_top_left,rgba(232,205,141,0.16),transparent_55%),linear-gradient(180deg,#fffdf8_0%,#fff8ef_100%)]">
-              <BookOpen className="w-4 h-4 text-[#8c6a24]" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-black/8 bg-[#f6f8fb]">
+              <BookOpen className="w-4 h-4 text-[var(--color-text-secondary)]" />
             </div>
             <div className="min-w-0">
               <h3 className="text-sm font-semibold text-zinc-900 truncate">AI 学习助手</h3>
@@ -386,7 +330,7 @@ export function LearnChat({
                 "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs transition-colors",
                 captureDisabled
                   ? "cursor-not-allowed bg-zinc-100 text-zinc-400"
-                  : "border border-[#d8bc7b]/28 bg-[radial-gradient(circle_at_top_left,rgba(232,205,141,0.16),transparent_55%),linear-gradient(180deg,#fffdf8_0%,#fff8ef_100%)] text-[#6f5316] hover:text-[#5f4716]",
+                  : "border border-black/8 bg-white text-[var(--color-text-secondary)] hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]",
               )}
             >
               {isCapturingChat ? (
@@ -400,7 +344,7 @@ export function LearnChat({
             <button
               type="button"
               onClick={() => setChatOpen(false)}
-              className="rounded-lg border border-[#d8bc7b]/22 bg-white/80 p-1.5 text-[#8c7440] transition-colors hover:bg-[#fff8ef] hover:text-[#5f4716]"
+              className="rounded-lg border border-black/8 bg-white p-1.5 text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]"
             >
               <X className="w-4 h-4" />
             </button>
@@ -429,14 +373,14 @@ export function LearnChat({
 
         {/* Input */}
         <div className="safe-bottom border-t border-black/5 bg-white px-4 pb-4 pt-3">
-          <div className="flex items-end gap-2 rounded-[20px] border border-[#d8bc7b]/24 bg-[linear-gradient(180deg,#fffdf9_0%,#fff9f2_100%)] p-2 shadow-[0_16px_34px_-28px_rgba(197,143,42,0.18)] focus-within:border-[#c58f2a]/42 focus-within:shadow-[0_18px_36px_-28px_rgba(197,143,42,0.28)]">
+          <div className="flex items-end gap-2 rounded-[20px] border border-black/8 bg-[#f7f8fa] p-2 shadow-[0_16px_34px_-28px_rgba(15,23,42,0.12)] focus-within:border-black/15 focus-within:bg-white focus-within:shadow-[0_18px_36px_-28px_rgba(15,23,42,0.16)]">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={sessionError ? "当前章节对话暂不可用" : "针对本章节提问..."}
               rows={1}
-              className="flex-1 min-h-[24px] max-h-[80px] resize-none border-none bg-transparent text-sm text-zinc-900 outline-none placeholder:text-[#b39b69]"
+              className="flex-1 min-h-[24px] max-h-[80px] resize-none border-none bg-transparent text-sm text-zinc-900 outline-none placeholder:text-zinc-400"
               disabled={!resolvedSessionId || isResolvingSession || !!sessionError}
             />
             <motion.button
@@ -447,7 +391,7 @@ export function LearnChat({
               className={cn(
                 "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-colors",
                 input.trim() && !isLoading && resolvedSessionId && !sessionError
-                  ? "bg-[linear-gradient(180deg,#9a6e24_0%,#c58f2a_58%,#e8c66d_100%)] text-white shadow-[0_14px_26px_-18px_rgba(197,143,42,0.45)]"
+                  ? "bg-[#111827] text-white shadow-[0_14px_26px_-18px_rgba(15,23,42,0.3)]"
                   : "bg-zinc-200 text-zinc-400 cursor-not-allowed",
               )}
             >
@@ -475,8 +419,8 @@ export function LearnChat({
       <div className="border-b border-black/5 bg-white/92 px-5 py-4 backdrop-blur-xl">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#d8bc7b]/28 bg-[radial-gradient(circle_at_top_left,rgba(232,205,141,0.16),transparent_55%),linear-gradient(180deg,#fffdf8_0%,#fff8ef_100%)]">
-              <BookOpen className="h-4 w-4 text-[#8c6a24]" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-black/8 bg-[#f6f8fb]">
+              <BookOpen className="h-4 w-4 text-[var(--color-text-secondary)]" />
             </div>
             <div className="min-w-0">
               <div className="text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
@@ -497,7 +441,7 @@ export function LearnChat({
                 "inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs transition-colors",
                 captureDisabled
                   ? "cursor-not-allowed bg-zinc-100 text-zinc-400"
-                  : "border border-[#d8bc7b]/28 bg-[radial-gradient(circle_at_top_left,rgba(232,205,141,0.16),transparent_55%),linear-gradient(180deg,#fffdf8_0%,#fff8ef_100%)] text-[#6f5316] hover:text-[#5f4716]",
+                  : "border border-black/8 bg-white text-[var(--color-text-secondary)] hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]",
               )}
             >
               {isCapturingChat ? (
@@ -510,7 +454,7 @@ export function LearnChat({
             <button
               type="button"
               onClick={() => setChatOpen(false)}
-              className="rounded-xl border border-[#d8bc7b]/22 bg-white/80 p-2 text-[#8c7440] transition-colors hover:bg-[#fff8ef] hover:text-[#5f4716]"
+              className="rounded-xl border border-black/8 bg-white p-2 text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]"
             >
               <X className="h-4 w-4" />
             </button>
@@ -543,14 +487,14 @@ export function LearnChat({
 
       {/* Input */}
       <div className="border-t border-black/5 bg-white px-5 pb-5 pt-4">
-        <div className="flex items-end gap-2 rounded-[20px] border border-[#d8bc7b]/24 bg-[linear-gradient(180deg,#fffdf9_0%,#fff9f2_100%)] p-2 shadow-[0_16px_34px_-28px_rgba(197,143,42,0.18)] focus-within:border-[#c58f2a]/42 focus-within:shadow-[0_18px_36px_-28px_rgba(197,143,42,0.28)]">
+        <div className="flex items-end gap-2 rounded-[20px] border border-black/8 bg-[#f7f8fa] p-2 shadow-[0_16px_34px_-28px_rgba(15,23,42,0.12)] focus-within:border-black/15 focus-within:bg-white focus-within:shadow-[0_18px_36px_-28px_rgba(15,23,42,0.16)]">
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={sessionError ? "当前章节对话暂不可用" : "针对本章节提问..."}
             rows={1}
-            className="flex-1 min-h-[24px] max-h-[80px] resize-none border-none bg-transparent text-sm text-zinc-900 outline-none placeholder:text-[#b39b69]"
+            className="flex-1 min-h-[24px] max-h-[80px] resize-none border-none bg-transparent text-sm text-zinc-900 outline-none placeholder:text-zinc-400"
             disabled={!resolvedSessionId || isResolvingSession || !!sessionError}
           />
           <motion.button
@@ -561,7 +505,7 @@ export function LearnChat({
             className={cn(
               "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-colors",
               input.trim() && !isLoading && resolvedSessionId && !sessionError
-                ? "bg-[linear-gradient(180deg,#9a6e24_0%,#c58f2a_58%,#e8c66d_100%)] text-white shadow-[0_14px_26px_-18px_rgba(197,143,42,0.45)]"
+                ? "bg-[#111827] text-white shadow-[0_14px_26px_-18px_rgba(15,23,42,0.3)]"
                 : "bg-zinc-200 text-zinc-400 cursor-not-allowed",
             )}
           >

@@ -52,7 +52,7 @@ function ProgressRing({ progress, size = 52 }: { progress: number; size?: number
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="#c58f2a"
+          stroke="#111827"
           strokeWidth={strokeWidth}
           strokeLinecap="round"
           strokeDasharray={circumference}
@@ -62,7 +62,7 @@ function ProgressRing({ progress, size = 52 }: { progress: number; size?: number
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-sm font-bold text-[#8c6a24]">{progress}%</span>
+        <span className="text-sm font-bold text-[var(--color-text)]">{progress}%</span>
       </div>
     </div>
   );
@@ -96,9 +96,9 @@ export function LearnSidebar({ courseTitle, width }: LearnSidebarProps) {
             type="button"
             onClick={() => router.push("/")}
             className={cn(
-              "flex h-9 w-9 items-center justify-center rounded-lg border border-[#d8bc7b]/28 bg-[radial-gradient(circle_at_top_left,rgba(232,205,141,0.16),transparent_55%),linear-gradient(180deg,#fffdf8_0%,#fff8ef_100%)]",
-              "text-[#745b25]",
-              "hover:text-[#5f4716]",
+              "flex h-9 w-9 items-center justify-center rounded-lg border border-black/8 bg-white",
+              "text-[var(--color-text-secondary)]",
+              "hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]",
               "transition-all duration-200",
             )}
           >
@@ -117,25 +117,25 @@ export function LearnSidebar({ courseTitle, width }: LearnSidebarProps) {
         {/* Progress card */}
         <motion.div
           variants={itemVariants}
-          className="mx-4 mb-4 mt-4 rounded-[28px] border border-[#d8bc7b]/28 bg-[radial-gradient(circle_at_top_left,rgba(232,205,141,0.18),transparent_38%),linear-gradient(180deg,#fffdf8_0%,#fffaf1_100%)] p-4 shadow-[0_24px_56px_-40px_rgba(197,143,42,0.18)]"
+          className="mx-4 mb-4 mt-4 rounded-[28px] border border-black/6 bg-white p-4 shadow-[0_24px_56px_-40px_rgba(15,23,42,0.14)]"
         >
           <div className="flex items-center gap-4">
             <ProgressRing progress={progress} />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 mb-1">
-                <Trophy className="w-3.5 h-3.5 text-[#8c6a24]" />
-                <span className="text-xs font-semibold text-[#5f4716]">命途进度</span>
+                <Trophy className="w-3.5 h-3.5 text-[var(--color-text-secondary)]" />
+                <span className="text-xs font-semibold text-[var(--color-text)]">学习进度</span>
               </div>
-              <p className="text-xs text-[#7b6024]">
+              <p className="text-xs text-[var(--color-text-secondary)]">
                 已完成 {completedCount} / {totalSections} 节
               </p>
               <div className="flex items-center gap-3 mt-2">
-                <div className="flex items-center gap-1 text-[0.6875rem] text-[#8c7440]">
+                <div className="flex items-center gap-1 text-[0.6875rem] text-[var(--color-text-tertiary)]">
                   <Clock className="w-3 h-3" />
                   <span>约 {totalSections * 10} 分钟</span>
                 </div>
                 {completedCount > 0 && (
-                  <div className="flex items-center gap-1 text-[0.6875rem] text-[#6f5316]">
+                  <div className="flex items-center gap-1 text-[0.6875rem] text-[var(--color-text-secondary)]">
                     <Sparkles className="w-3 h-3" />
                     <span>进行中</span>
                   </div>

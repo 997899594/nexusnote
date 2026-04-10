@@ -46,7 +46,7 @@ export function ChapterList() {
               className={cn(
                 "absolute left-[14px] top-0 bottom-0 w-px",
                 isCurrent
-                  ? "bg-[linear-gradient(180deg,rgba(197,143,42,0.08),rgba(197,143,42,0.58),rgba(197,143,42,0.14))]"
+                  ? "bg-[linear-gradient(180deg,rgba(17,24,39,0.08),rgba(17,24,39,0.5),rgba(17,24,39,0.14))]"
                   : isPassed || isChapterComplete
                     ? "bg-[linear-gradient(180deg,rgba(17,24,39,0.08),rgba(17,24,39,0.24),rgba(17,24,39,0.08))]"
                     : "bg-[linear-gradient(180deg,rgba(15,23,42,0.02),rgba(15,23,42,0.1),rgba(15,23,42,0.02))]",
@@ -57,7 +57,7 @@ export function ChapterList() {
               className={cn(
                 "absolute left-[8px] top-6 h-3.5 w-3.5 rounded-full border shadow-[0_10px_24px_-18px_rgba(15,23,42,0.35)] transition-all",
                 isCurrent
-                  ? "border-[#c58f2a]/55 bg-[#c58f2a] ring-4 ring-[#f5e8c8]"
+                  ? "border-[#111827]/50 bg-[#111827] ring-4 ring-black/[0.08]"
                   : isChapterComplete
                     ? "border-[#111827] bg-[#111827]"
                     : isPassed
@@ -77,14 +77,14 @@ export function ChapterList() {
               className={cn(
                 "group relative w-full rounded-[24px] border px-3 py-3 text-left transition-all duration-200",
                 isCurrent
-                  ? "border-[#d8bc7b]/55 bg-[radial-gradient(circle_at_top_left,rgba(232,205,141,0.24),transparent_38%),linear-gradient(180deg,#fffdf8_0%,#fffaf1_100%)] text-[#111827] shadow-[0_20px_44px_-30px_rgba(197,143,42,0.28)]"
+                  ? "border-black/8 bg-white text-[#111827] shadow-[0_20px_44px_-30px_rgba(15,23,42,0.18)]"
                   : "border-transparent bg-[#f1f3f6] text-[var(--color-text)] hover:border-black/5 hover:bg-[var(--color-hover)]",
               )}
             >
               {isCurrent ? (
                 <div
                   aria-hidden="true"
-                  className="pointer-events-none absolute inset-y-3 left-0 w-[3px] rounded-full bg-[linear-gradient(180deg,#c58f2a_0%,#e8c66d_100%)]"
+                  className="pointer-events-none absolute inset-y-3 left-0 w-[3px] rounded-full bg-[linear-gradient(180deg,#111827_0%,rgba(17,24,39,0.55)_100%)]"
                 />
               ) : null}
               <div className="flex items-start gap-2.5">
@@ -94,7 +94,7 @@ export function ChapterList() {
                     isChapterComplete
                       ? "bg-[#111827] text-white"
                       : isCurrent
-                        ? "bg-[linear-gradient(180deg,#9a6e24_0%,#c58f2a_62%,#e8c66d_100%)] text-white shadow-[0_14px_28px_-18px_rgba(197,143,42,0.5)]"
+                        ? "bg-[#111827] text-white shadow-[0_14px_28px_-18px_rgba(15,23,42,0.35)]"
                         : "bg-[var(--color-surface)] text-[var(--color-text-secondary)]",
                   )}
                 >
@@ -147,7 +147,7 @@ export function ChapterList() {
                         className={cn(
                           "h-full rounded-full transition-all",
                           isCurrent
-                            ? "bg-[linear-gradient(90deg,#9a6e24_0%,#c58f2a_55%,#e8c66d_100%)]"
+                            ? "bg-[linear-gradient(90deg,#111827_0%,rgba(17,24,39,0.72)_100%)]"
                             : isChapterComplete
                               ? "bg-[#111827]"
                               : "bg-black/20",
@@ -181,7 +181,7 @@ export function ChapterList() {
                       className={cn(
                         "absolute bottom-0 left-[10px] top-2 w-px",
                         isCurrent
-                          ? "bg-[linear-gradient(180deg,rgba(197,143,42,0.45),rgba(197,143,42,0.08))]"
+                          ? "bg-[linear-gradient(180deg,rgba(17,24,39,0.3),rgba(17,24,39,0.06))]"
                           : "bg-[linear-gradient(180deg,rgba(15,23,42,0.12),rgba(15,23,42,0.03))]",
                       )}
                     />
@@ -208,7 +208,7 @@ export function ChapterList() {
                               className={cn(
                                 "absolute left-[8px] top-0 h-full w-px",
                                 isCurrentSection || isRequestedSection
-                                  ? "bg-[linear-gradient(180deg,rgba(197,143,42,0.42),rgba(197,143,42,0.08))]"
+                                  ? "bg-[linear-gradient(180deg,rgba(17,24,39,0.28),rgba(17,24,39,0.05))]"
                                   : "bg-[linear-gradient(180deg,rgba(15,23,42,0.08),rgba(15,23,42,0.02))]",
                               )}
                             />
@@ -219,7 +219,7 @@ export function ChapterList() {
                                 isCompleted
                                   ? "border-[#111827] bg-[#111827]"
                                   : isCurrentSection || isRequestedSection
-                                    ? "border-[#c58f2a]/55 bg-[#c58f2a] ring-4 ring-[#f5e8c8]"
+                                    ? "border-[#111827]/50 bg-[#111827] ring-4 ring-black/[0.08]"
                                     : "border-black/10 bg-white",
                               )}
                             />
@@ -235,7 +235,7 @@ export function ChapterList() {
                               className={cn(
                                 "w-full rounded-[18px] border px-3 py-2.5 text-left text-[0.8125rem] transition-all duration-150",
                                 isCurrentSection || isRequestedSection
-                                  ? "border-[#d8bc7b]/45 bg-[linear-gradient(180deg,#fffdf8_0%,#fffaf1_100%)] text-[#111827] shadow-[0_12px_28px_-24px_rgba(197,143,42,0.26)]"
+                                  ? "border-black/8 bg-white text-[#111827] shadow-[0_12px_28px_-24px_rgba(15,23,42,0.16)]"
                                   : "border-transparent bg-transparent text-[var(--color-text-secondary)] hover:border-black/5 hover:bg-white/70 hover:text-[var(--color-text)]",
                               )}
                             >
@@ -246,7 +246,7 @@ export function ChapterList() {
                                     isCompleted
                                       ? "border-[#111827] bg-[#111827] text-white"
                                       : isCurrentSection || isRequestedSection
-                                        ? "border-[#c58f2a]/50 bg-white text-[#9a6e24]"
+                                        ? "border-black/12 bg-white text-[#111827]"
                                         : "border-black/10 bg-white text-[var(--color-text-tertiary)]",
                                   )}
                                 >

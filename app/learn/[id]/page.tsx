@@ -1,7 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { createLoginPath } from "@/lib/auth-redirect";
-import { getGoldenPathCourseContextCached } from "@/lib/server/golden-path-data";
 import { getLearnPageSnapshotCached } from "@/lib/server/learn-data";
 import { getDynamicPageSession } from "@/lib/server/page-auth";
 import { LearnClient } from "./LearnClient";
@@ -22,10 +21,7 @@ async function LearnPageContent({ params, searchParams }: PageProps) {
     redirect(createLoginPath(callbackUrl));
   }
 
-  const [snapshot, goldenPathContext] = await Promise.all([
-    getLearnPageSnapshotCached(session.user.id, sessionId),
-    getGoldenPathCourseContextCached(session.user.id, sessionId),
-  ]);
+  const snapshot = await getLearnPageSnapshotCached(session.user.id, sessionId);
   if (!snapshot) {
     notFound();
   }
@@ -62,7 +58,6 @@ async function LearnPageContent({ params, searchParams }: PageProps) {
       initialChapterIndex={initialChapterIndex}
       initialCompletedSections={initialCompletedSections}
       scrollToSectionId={scrollToSectionId}
-      goldenPathContext={goldenPathContext}
     />
   );
 }
