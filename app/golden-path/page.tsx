@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { GoldenPathPage } from "@/components/golden-path/GoldenPathPage";
 import { FloatingHeader } from "@/components/shared/layout";
-import { getGoldenPathSnapshotCached } from "@/lib/server/golden-path-data";
+import { getCareerTreeSnapshotCached } from "@/lib/career-tree/snapshot";
 import { getDynamicPageSession } from "@/lib/server/page-auth";
 
 async function GoldenPathPageContent() {
@@ -12,7 +12,7 @@ async function GoldenPathPageContent() {
     redirect("/login?callbackUrl=%2Fgolden-path");
   }
 
-  const snapshot = await getGoldenPathSnapshotCached(session.user.id);
+  const snapshot = await getCareerTreeSnapshotCached(session.user.id);
 
   return (
     <main className="ui-page-shell min-h-dvh">

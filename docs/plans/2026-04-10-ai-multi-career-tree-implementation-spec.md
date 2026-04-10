@@ -1,330 +1,124 @@
-# AI Multi-Career Tree Implementation Spec
+# AI 多候选职业树 Phase 1 实施版
+
+## Summary
+- 直接替换当前 hardcoded `golden-path` 运行时架构；旧 ontology 和旧 mapping tables 不进入新链路。
+- 真相只在**单个用户**范围内成立：`课程证据 -> 用户隐藏能力图 -> 多棵候选职业树快照`。
+- 页面只读最新快照；**不在请求路径上跑 extraction / merge / compose**。
+- AI 负责：课程抽取、同义能力合并方案、候选职业树组织与命名。
+- 代码负责：Zod 校验、幂等、候选集裁剪、事务写入、聚合分数、状态计算、稳定 key、快照读取。
+
+## Implementation Changes
+### 1. 新数据层
+- 新建表：
+  - `career_generation_runs`
+  - `career_course_skill_evidence`
+  - `career_course_chapter_evidence`
+  - `career_user_skill_nodes`
+  - `career_user_skill_edges`
+  - `career_user_skill_node_evidence`
+  - `career_user_tree_preferences`
+  - `career_user_tree_snapshots`
+  - `career_user_graph_state`
+- 关键调整：
+  - `career_user_skill_nodes` 不保留 `cluster` 概念；隐藏图节点只表示稳定能力分支。
+  - `career_user_skill_edges` Phase 1 只落 `prerequisite`。
+  - `career_user_tree_preferences` 增加 `preference_version` 整数计数。
+  - `career_user_graph_state` 负责 `graph_version` 递增、最近 merge provenance、用户级锁定状态。
+  - `career_user_tree_snapshots` 增加 `schema_version`，`status` 扩为 `empty | pending | ready`。
+- 旧表处理：
+  - 不读取 `course_skill_mappings`、`course_chapter_skill_mappings`、旧 `skills/skill_relationships` 作为新链路真相源。
+  - 旧表只在 cutover 前保留，切换完成后删除旧运行时依赖。
+
+### 2. Flow A: 课程保存 / Backfill
+- 触发：
+  - 新建课程 outline
+  - 更新课程 outline
+  - 历史 backfill
+- 步骤：
+  1. 计算 `outline_hash`。
+  2. 用 `extract:user:{userId}:course:{courseId}:outline:{outlineHash}` 做 extraction 幂等。
+  3. 入队 `extract_course_evidence`，不在保存请求内同步跑 LLM。
+  4. extractor 输出写入 `career_course_skill_evidence` 与 `career_course_chapter_evidence`，证据行按 extract run 不可变保存。
+  5. 入队 `merge_user_skill_graph`。
+  6. merge 前先移除该用户该课程**旧 outline 版本**在 `career_user_skill_node_evidence` 中的链接；旧 evidence 行保留做审计，但不再参与聚合。
+  7. merge 事务内应用 attach/create 结果、重建该次新增的 prerequisite edges、重算受影响节点聚合值、递增 `graph_version`。
+  8. merge 成功后入队 `compose_user_career_trees`。
+  9. compose 成功后写新 snapshot，并将其设为 `is_latest=true`。
+- merge 候选裁剪：
+  - 代码先按 `canonical_label + summary + 历史 evidence title/snippet` 做词法检索。
+  - 每条新 evidence 取 top 8 候选节点。
+  - 合并去重后最多向 merge planner 提供 40 个节点、60 条历史 node-evidence links、40 条 prerequisite edges。
+  - 图小于上限时传全量。
+  - 这一步只裁上下文，不替 AI 做 attach/create 语义决策。
+
+### 3. Flow B: 用户选主树
+- `PUT /api/user/golden-path` 只做：
+  1. 校验 `selectedDirectionKey`
+  2. 写入 `career_user_tree_preferences.selected_direction_key`
+  3. `preference_version += 1`
+  4. 入队 compose
+  5. 返回 `202 Accepted`
+- 第一版不在 `PUT` 里同步返回新 snapshot。
+- `recommended_direction_key` 保持独立；用户选择只作为后续排序偏好信号，不覆盖 AI 推荐。
+
+### 4. Flow C: 页面读
+- `GET /api/user/golden-path` 只读 snapshot。
+- 返回规则：
+  - 没有已保存课程：`status = "empty"`
+  - 有课程但没有成功 snapshot：`status = "pending"`
+  - 有成功 snapshot：返回最新成功 snapshot
+  - 有新 compose 在跑且旧 snapshot 存在：继续返回旧 `ready` snapshot，不降级为 `pending`
+- 页面读路径可以在“有课程但无 snapshot”时**幂等入队** compose，但不能同步执行 LLM。
+
+### 5. AI 合约
+- 全部 AI 步骤使用 AI SDK v6 结构化 JSON 输出 + Zod 严格校验。
+- Prompt 放在 `lib/ai/prompts/resources/career-tree/`，流程编排在 `lib/career-tree/*.ts`。
+
+- Course Extractor：
+  - 输入：课程标题、描述、outline、显式 `courseSkillIds`、显式 `chapter.skillIds`
+  - 输出：skills/themes/tools/workflows/concepts 的证据项
+  - 禁止输出 progress/state
+  - 显式 skill ids 只作为高置信上下文，不强制原样输出
+
+- Merge Planner：
+  - 输入：当前用户的候选隐藏节点子集、其 prerequisite edges、新 evidence rows、同课程旧链接摘要
+  - 输出：`attach` / `create` 决策，以及 prerequisite edge 决策
+  - 代码护栏：
+    - `targetNodeId` 必须属于当前用户
+    - `evidenceIds` 必须来自当前 extract run
+    - 单次课程 merge 最多新建 20 个节点、40 条边
+    - 拒绝 self-edge
+    - 检测并丢弃 prerequisite cycle
+
+- Tree Composer：
+  - 输入：完整用户隐藏图、最新偏好、上一版 snapshot 的树 key 和 supporting node refs 摘要
+  - 输出：`1-5` 棵候选职业树
+  - 规则：
+    - 弱信号返回 `1-2` 棵
+    - 强信号返回 `2-5` 棵
+    - 可以自由重命名和重组可见节点
+    - 不得发明不存在的 `anchorRef`
+    - 不得发明 progress/state
 
-## Decision
-
-This spec replaces the current hardcoded `golden-path` ontology architecture with an AI-first,
-user-scoped career tree pipeline.
-
-Phase 1 decisions:
-
-- Do not reuse the current ontology as a runtime dependency.
-- Do not reuse the current mapping tables.
-- Do not build a global canonical skill universe first.
-- Keep truth scoped to one user.
-- Let AI own merge decisions first.
-- Keep code ownership over validation, persistence, aggregation, idempotency, and rendering reads.
-- Keep page reads snapshot-only. The page must not generate trees from scratch at request time.
-
-This is a direct refactor, not an adapter layer around the old model.
-
-## Product Goal
-
-Given a user's saved course outlines and course progress, generate `1-5` AI-organized candidate
-career trees that:
-
-- feel AI-native and dynamic to the user
-- remain continuous for the same user across regenerations
-- can grow when new courses arrive
-- allow user preference without destroying the independent AI recommendation
-
-## Non-Goals
-
-Phase 1 explicitly does not do the following:
-
-- global `skills` truth source
-- global `skill_relationships` truth source
-- target persona / job goal intake
-- note / highlight / chat / project evidence ingestion
-- page-time LLM generation
-- full graph-theory completeness across all node relationships
-
-## Phase 1 Scope
-
-Phase 1 includes exactly three runtime layers:
-
-1. Course evidence extraction
-2. User hidden skill graph
-3. Candidate tree snapshots
-
-The visible UI tree is a snapshot representation, not the source of truth.
-
-## Architecture
-
-```mermaid
-flowchart LR
-  A["Saved Course Outline + Course Progress"] --> B["AI Course Extractor"]
-  B --> C["Course Evidence Tables"]
-  C --> D["AI Merge Planner"]
-  D --> E["User Hidden Skill Graph"]
-  E --> F["AI Tree Composer"]
-  F --> G["Career Tree Snapshot"]
-  G --> H["/golden-path UI"]
-  I["User Selected Direction"] --> J["Preference Signal"]
-  J --> F
-```
-
-## Runtime Flow
-
-### Flow A: Course Save / Backfill
-
-Triggered when:
-
-- a course outline is created
-- a course outline is regenerated
-- a backfill job is run for historical courses
-
-Steps:
-
-1. Compute `outline_hash`.
-2. Deduplicate by `user_id + course_id + outline_hash`.
-3. Run AI course extractor.
-4. Persist extracted evidence rows.
-5. Run AI merge planner against the user's current hidden graph.
-6. Apply merge result transactionally to hidden graph tables.
-7. Trigger snapshot composition.
-8. Persist a new latest snapshot.
-
-### Flow B: Preference Change
-
-Triggered when:
-
-- user manually selects a current tree
-
-Steps:
-
-1. Persist `selected_direction_key`.
-2. Increment preference version.
-3. Trigger snapshot recomposition.
-4. Keep `recommended_direction_key` independent from user preference.
-
-### Flow C: Page Read
-
-Triggered when:
-
-- user opens `/golden-path`
-- profile summary or related entry points need career tree data
-
-Steps:
-
-1. Read latest successful snapshot for user.
-2. If no eligible saved courses exist, return `status = "empty"`.
-3. Do not run extraction, merge, or composition on the read path.
-
-## Data Model
-
-Phase 1 uses new tables only.
-
-### 1. `career_generation_runs`
-
-Purpose:
-
-- auditability
-- dedupe
-- prompt/model version tracking
-- retry and failure visibility
-
-Fields:
-
-| field | type | notes |
-| --- | --- | --- |
-| `id` | uuid pk | run id |
-| `user_id` | uuid | owner |
-| `course_id` | uuid nullable | set for extraction / merge runs |
-| `kind` | text enum | `extract`, `merge`, `compose` |
-| `status` | text enum | `queued`, `running`, `succeeded`, `failed` |
-| `idempotency_key` | text unique | dedupe key |
-| `model` | text | model used |
-| `prompt_version` | text | prompt contract version |
-| `input_hash` | text | hash of logical input |
-| `output_json` | jsonb nullable | raw structured AI output |
-| `error_code` | text nullable | failure type |
-| `error_message` | text nullable | internal only |
-| `started_at` | timestamptz nullable | lifecycle |
-| `finished_at` | timestamptz nullable | lifecycle |
-| `created_at` | timestamptz | default now |
-
-### 2. `career_course_skill_evidence`
-
-Purpose:
-
-- structured skill/theme evidence extracted from one course
-
-Fields:
-
-| field | type | notes |
-| --- | --- | --- |
-| `id` | uuid pk | evidence id |
-| `user_id` | uuid | owner |
-| `course_id` | uuid | source course |
-| `extract_run_id` | uuid fk | source run |
-| `title` | text | AI extracted capability label |
-| `kind` | text enum | `skill`, `theme`, `tool`, `workflow`, `concept` |
-| `summary` | text | short normalized description |
-| `confidence` | numeric | `0..1` |
-| `chapter_refs` | jsonb | chapter indices / ids |
-| `prerequisite_hints` | jsonb | strings or references |
-| `related_hints` | jsonb | strings or references |
-| `evidence_snippets` | jsonb | source fragments |
-| `source_outline_hash` | text | course version binding |
-| `created_at` | timestamptz | default now |
-
-### 3. `career_course_chapter_evidence`
-
-Purpose:
-
-- chapter-level evidence slices for supporting chapter lookups in UI
-
-Fields:
-
-| field | type | notes |
-| --- | --- | --- |
-| `id` | uuid pk | row id |
-| `user_id` | uuid | owner |
-| `course_id` | uuid | source course |
-| `chapter_key` | text | stable chapter key |
-| `chapter_index` | integer | 1-based |
-| `chapter_title` | text | chapter title |
-| `skill_evidence_ids` | uuid[] | linked course evidence rows |
-| `confidence` | numeric | `0..1` |
-| `created_at` | timestamptz | default now |
-
-### 4. `career_user_skill_nodes`
-
-Purpose:
-
-- stable hidden branches for one user
-
-Fields:
-
-| field | type | notes |
-| --- | --- | --- |
-| `id` | uuid pk | stable hidden node id |
-| `user_id` | uuid | owner |
-| `canonical_label` | text | hidden normalized label, may change slowly |
-| `display_hint` | text nullable | optional internal display hint |
-| `summary` | text nullable | internal merged summary |
-| `kind` | text enum | `skill`, `theme`, `cluster` |
-| `state` | text enum | `mastered`, `in_progress`, `ready`, `locked` |
-| `progress` | integer | `0..100`, code-aggregated |
-| `mastery_score` | integer | `0..100`, code-aggregated |
-| `evidence_score` | integer | aggregate strength |
-| `course_count` | integer | aggregate |
-| `chapter_count` | integer | aggregate |
-| `last_merged_at` | timestamptz | last update |
-| `created_at` | timestamptz | default now |
-| `updated_at` | timestamptz | default now |
-
-### 5. `career_user_skill_edges`
-
-Purpose:
-
-- sparse hidden relationships inside one user's graph
-
-Phase 1 rule:
-
-- only persist high-confidence useful edges
-- do not attempt full graph completeness
-
-Fields:
-
-| field | type | notes |
-| --- | --- | --- |
-| `id` | uuid pk | edge id |
-| `user_id` | uuid | owner |
-| `from_node_id` | uuid | source hidden node |
-| `to_node_id` | uuid | target hidden node |
-| `edge_type` | text enum | `prerequisite`, `related`, `supports` |
-| `confidence` | numeric | `0..1` |
-| `source_merge_run_id` | uuid fk | provenance |
-| `created_at` | timestamptz | default now |
-
-### 6. `career_user_skill_node_evidence`
-
-Purpose:
-
-- many-to-many link between hidden nodes and extracted evidence rows
-
-Fields:
-
-| field | type | notes |
-| --- | --- | --- |
-| `id` | uuid pk | link id |
-| `user_id` | uuid | owner |
-| `node_id` | uuid | hidden node |
-| `course_skill_evidence_id` | uuid | evidence row |
-| `merge_run_id` | uuid fk | provenance |
-| `weight` | numeric | contribution weight |
-| `created_at` | timestamptz | default now |
-
-Unique key:
-
-- `node_id + course_skill_evidence_id`
-
-### 7. `career_user_tree_preferences`
-
-Purpose:
-
-- store user-selected direction preference as ranking signal
-
-Fields:
-
-| field | type | notes |
-| --- | --- | --- |
-| `user_id` | uuid pk | owner |
-| `selected_direction_key` | text nullable | current preferred tree |
-| `selection_count` | integer | optional feedback weight |
-| `updated_at` | timestamptz | default now |
-
-### 8. `career_user_tree_snapshots`
-
-Purpose:
-
-- materialized page read model
-
-Phase 1 choice:
-
-- store full snapshot as JSONB
-- do not prematurely normalize visible tree payload
-
-Fields:
-
-| field | type | notes |
-| --- | --- | --- |
-| `id` | uuid pk | snapshot id |
-| `user_id` | uuid | owner |
-| `compose_run_id` | uuid fk | provenance |
-| `status` | text enum | `empty`, `ready` |
-| `recommended_direction_key` | text nullable | AI recommendation |
-| `selected_direction_key` | text nullable | copied from preferences |
-| `graph_version` | integer | hidden graph version used |
-| `preference_version` | integer | preference version used |
-| `payload` | jsonb | full `GoldenPathSnapshot` payload |
-| `is_latest` | boolean | only one latest per user |
-| `generated_at` | timestamptz | logical timestamp |
-| `created_at` | timestamptz | default now |
-
-## Read Models
-
-### `GoldenPathSnapshot`
-
+## Public APIs / Types
+- 新读模型：
 ```ts
 interface GoldenPathSnapshot {
-  status: "empty" | "ready";
+  schemaVersion: 1;
+  status: "empty" | "pending" | "ready";
   recommendedDirectionKey: string | null;
   selectedDirectionKey: string | null;
   trees: CandidateCareerTree[];
-  generatedAt: string;
+  generatedAt: string | null;
 }
 ```
-
-### `CandidateCareerTree`
 
 ```ts
 interface CandidateCareerTree {
   directionKey: string;
   title: string;
   summary: string;
-  confidence: number;
+  confidence: number; // 0..1
   whyThisDirection: string;
   supportingCourses: SupportingCourseRef[];
   supportingChapters: SupportingChapterRef[];
@@ -332,413 +126,137 @@ interface CandidateCareerTree {
 }
 ```
 
-### `VisibleSkillTreeNode`
-
 ```ts
 interface VisibleSkillTreeNode {
   id: string;
-  anchorRef: string;
+  anchorRef: string; // equals career_user_skill_nodes.id
   title: string;
   summary: string;
-  progress: number;
+  progress: number; // 0..100
   state: "mastered" | "in_progress" | "ready" | "locked";
   children: VisibleSkillTreeNode[];
   evidenceRefs?: string[];
 }
 ```
 
-## AI Contracts
+- 内部字段约定：
+  - `supportingNodeRefs`
+  - `matchPreviousDirectionKey`
+  - `keySeed`
+- 这些字段属于 **compose 内部元数据**，用于 key 继承和调试：
+  - 允许存在于 `career_generation_runs.output_json`
+  - 不属于 `GET /api/user/golden-path` 的公开 payload
 
-All AI steps must use structured JSON outputs with strict schema validation.
-
-### Contract A: Course Extractor
-
-Input:
-
-- course title
-- course description
-- outline data
-- explicit `courseSkillIds`
-- explicit `chapter.skillIds`
-
-Output:
-
-```json
-{
-  "items": [
-    {
-      "title": "Prompt orchestration",
-      "kind": "skill",
-      "summary": "Designing and sequencing prompts for multi-step AI workflows",
-      "confidence": 0.92,
-      "chapterRefs": ["chapter-2", "chapter-3"],
-      "prerequisiteHints": ["Basic prompting"],
-      "relatedHints": ["Tool calling", "Agent workflows"],
-      "evidenceSnippets": ["Design multi-step agents", "Chain prompts with tools"]
-    }
-  ]
-}
-```
-
-Rules:
-
-- explicit course/chapter skill ids are injected as high-confidence context
-- extractor may add additional evidence
-- extractor must not emit progress/state
-
-### Contract B: Merge Planner
-
-Input:
-
-- current hidden nodes for user
-- current hidden edges for user
-- new evidence rows from current course
-- optional prior merge summary for same user
-
-Output:
-
-```json
-{
-  "decisions": [
-    {
-      "action": "attach",
-      "targetNodeId": "uuid",
-      "evidenceIds": ["uuid-1", "uuid-2"],
-      "confidence": 0.87,
-      "reason": "Same capability branch despite wording difference"
-    },
-    {
-      "action": "create",
-      "newNode": {
-        "canonicalLabel": "Agent tool orchestration",
-        "summary": "Sequencing tools in AI agent loops",
-        "kind": "skill"
-      },
-      "evidenceIds": ["uuid-3"],
-      "confidence": 0.79,
-      "reason": "No close existing branch"
-    }
-  ],
-  "edgeDecisions": [
-    {
-      "type": "prerequisite",
-      "from": "existing-or-new-ref",
-      "to": "existing-or-new-ref",
-      "confidence": 0.72
-    }
-  ]
-}
-```
-
-Phase 1 merge rule:
-
-- AI owns attach/create decisions first
-- code does not substitute its own semantic matcher
-- code only validates and applies safe writes
-
-Code guardrails:
-
-- referenced `targetNodeId` must belong to user
-- `evidenceIds` must belong to current run payload
-- created node count per course is capped
-- self-edges are rejected
-- prerequisite cycles are dropped
-
-### Contract C: Tree Composer
-
-Input:
-
-- user hidden graph
-- latest preference
-- previous snapshot keys and tree summaries
-
-Output:
-
-```json
-{
-  "recommendedDirectionHint": "ai-product-systems",
-  "trees": [
-    {
-      "matchPreviousDirectionKey": "ai-product-systems",
-      "keySeed": "ai-product-systems",
-      "title": "AI 产品系统设计",
-      "summary": "围绕产品思维、工作流设计与系统落地的职业方向",
-      "confidence": 0.88,
-      "whyThisDirection": "Most evidence clusters around product + agent workflow nodes",
-      "supportingNodeRefs": ["node-a", "node-b", "node-c"],
-      "tree": [
-        {
-          "anchorRef": "node-a",
-          "title": "AI 产品判断",
-          "summary": "定义问题和设计能力边界",
-          "children": []
-        }
-      ]
-    }
-  ]
-}
-```
-
-Rules:
-
-- composer may rename and regroup visible branches
-- composer may not invent non-existent anchor refs
-- composer may not invent progress/state
-- composer should return `1-2` trees on weak signal, `2-5` on stronger signal
-
-## Stable Identity Rules
-
-### Hidden Node Identity
-
-- hidden node continuity is guaranteed by persisted `career_user_skill_nodes.id`
-- AI merge attaches new evidence to old node ids where appropriate
-- visible names may change, hidden node ids do not
-
-### `directionKey`
-
-`directionKey` must not be the raw title.
-
-Generation rule:
-
-1. Composer attempts to match each new tree to a previous snapshot tree.
-2. If matched, inherit previous `directionKey`.
-3. If no match exists, derive a new key from `keySeed`.
-4. Enforce uniqueness inside snapshot.
-
-Code finalizer:
-
-- normalize key seed to slug
-- preserve prior key when `matchPreviousDirectionKey` is valid
-- append suffix only on collision
+- `directionKey` 规则：
+  1. composer 输出 `matchPreviousDirectionKey`、`keySeed`、`supportingNodeRefs`
+  2. 代码先按 `supportingNodeRefs` 与上一版成功 compose 的内部元数据做 Jaccard overlap 匹配
+  3. overlap `>= 0.45` 时继承旧 `directionKey`
+  4. 否则用 `keySeed` slug 化生成新 key
+  5. 当前 snapshot 内冲突时追加 `-2/-3`
+- `anchorRef` 直接使用隐藏节点 id；不再引入单独锚点命名空间。
+- 可见节点 `id` 使用 `${directionKey}:${anchorRef}:${pathIndex}`，仅保证单快照内稳定。
 
 ## Aggregation Rules
-
-AI does not set progress/state as truth.
-
-Code computes them from graph evidence and course progress.
-
-Phase 1 deterministic aggregation:
-
-- `progress` = weighted completion across linked evidence chapters
-- `mastery_score` = weighted completion + repeated evidence support
-- `course_count` = distinct linked courses
-- `chapter_count` = distinct linked chapters
-
-State rule:
-
-- `mastered`: `progress >= 80` and evidence strong
-- `in_progress`: `progress >= 30`
-- `ready`: low progress but unlocked by graph context
-- `locked`: insufficient evidence and blocked by prerequisite edges
-
-Exact thresholds should live in code constants.
-
-## Snapshot Policy
-
-Latest snapshot is regenerated when:
-
-- hidden graph version changes
-- preference version changes
-
-Snapshot creation rule:
-
-- latest successful snapshot remains active until a new compose run succeeds
-- failed compose runs do not delete the previous snapshot
-
-## API
-
-### `GET /api/user/golden-path`
-
-Returns:
-
-- latest `GoldenPathSnapshot`
-
-Behavior:
-
-- no courses -> `status = "empty"`
-- latest snapshot available -> return snapshot
-- snapshot missing but graph exists -> optionally return last known snapshot and trigger async rebuild
-
-### `PUT /api/user/golden-path`
-
-Body:
-
-```json
-{
-  "selectedDirectionKey": "ai-product-systems"
-}
-```
-
-Behavior:
-
-- persist preference
-- trigger recomposition
-- return updated snapshot or accepted state
-
-## Jobs
-
-Phase 1 background jobs:
-
-1. `extract_course_evidence`
-2. `merge_user_skill_graph`
-3. `compose_user_career_trees`
-4. `backfill_user_career_trees`
-
-Recommended execution model:
-
-- queue-backed jobs
-- one user-level merge lock at a time
-- one latest compose lock at a time per user
-
-## Idempotency
-
-### Extraction
-
-Key:
-
-- `extract:user:{userId}:course:{courseId}:outline:{outlineHash}`
-
-### Merge
-
-Key:
-
-- `merge:user:{userId}:course:{courseId}:extract_run:{runId}`
-
-### Compose
-
-Key:
-
-- `compose:user:{userId}:graph:{graphVersion}:pref:{preferenceVersion}`
-
-## Failure Strategy
-
-If extraction fails:
-
-- keep previous user graph unchanged
-- expose internal failure only in logs/run table
-
-If merge fails:
-
-- do not partially apply graph updates
-- transaction rollback required
-
-If compose fails:
-
-- keep previous latest snapshot
-- page continues reading last successful snapshot or empty state
-
-## Caching
-
-Read cache key:
-
-- current user latest snapshot
-
-Invalidate on:
-
-- successful merge
-- successful compose
-- successful preference update
-
-## Codebase Changes
-
-### Remove / Replace
-
-- replace [lib/golden-path/types.ts](/Users/findbiao/projects/nexusnote/lib/golden-path/types.ts)
-- replace [lib/server/golden-path-data.ts](/Users/findbiao/projects/nexusnote/lib/server/golden-path-data.ts)
-- remove runtime dependency on `lib/golden-path/ontology`
-- remove old `routes / futureRoutes` assumptions from UI
-
-### Add
-
-- `db/schema/career-tree.ts`
-- `lib/career-tree/extract.ts`
-- `lib/career-tree/merge.ts`
-- `lib/career-tree/compose.ts`
-- `lib/career-tree/snapshot.ts`
-- `lib/career-tree/prompts/*`
-- `scripts/backfill-career-trees.ts`
-
-### UI Surface To Update
-
-- [app/golden-path/page.tsx](/Users/findbiao/projects/nexusnote/app/golden-path/page.tsx)
-- [components/golden-path/GoldenPathExplorer.tsx](/Users/findbiao/projects/nexusnote/components/golden-path/GoldenPathExplorer.tsx)
-- [components/profile/ProfileGoldenPathSummary.tsx](/Users/findbiao/projects/nexusnote/components/profile/ProfileGoldenPathSummary.tsx)
-- [app/api/user/golden-path/route.ts](/Users/findbiao/projects/nexusnote/app/api/user/golden-path/route.ts)
-
-## Migration / Cutover
-
-### Step 1
-
-- add new schema and code paths
-- do not read from new tables yet
-
-### Step 2
-
-- backfill all users with saved courses
-- inspect run failures and snapshot quality
-
-### Step 3
-
-- switch `GET /api/user/golden-path` to snapshot read path
-- keep old path behind feature flag for one release window if needed
-
-### Step 4
-
-- remove old ontology-based server projection logic
-- delete hardcoded ontology runtime dependency
+- 代码而不是 AI 计算 `progress`、`mastery_score`、`evidence_score`、`state`。
+- 课程进度输入：
+  - evidence 有 chapter refs 时，按对应 chapter completion ratio 聚合
+  - evidence 无 chapter refs 时，退回课程整体 progress
+- 计算：
+  - `progress = round(weighted mean of linked completion ratios, weight = evidence confidence)`
+  - `evidence_score = clamp(round(sum(weighted evidence support normalized to 0..100)), 0, 100)`
+  - `mastery_score = clamp(round(progress * 0.7 + min(20, course_count * 5) + min(10, repeatedEvidenceCount * 2)), 0, 100)`
+  - `course_count = distinct linked courses`
+  - `chapter_count = distinct linked chapters`
+- 状态常量：
+  - `MASTERED_PROGRESS_THRESHOLD = 80`
+  - `MASTERED_EVIDENCE_THRESHOLD = 60`
+  - `IN_PROGRESS_THRESHOLD = 30`
+  - `READY_PREREQ_PROGRESS_THRESHOLD = 50`
+- 状态规则：
+  - `mastered`: `progress >= 80 && evidence_score >= 60`
+  - `in_progress`: `progress >= 30`
+  - `ready`: `progress < 30` 且所有 prerequisite source nodes 的 `progress >= 50`，或根本没有 prerequisite edges
+  - `locked`: 存在 prerequisite source node 的 `progress < 50`
+
+## Stability / Identity Rules
+- 隐藏连续性：
+  - 由 `career_user_skill_nodes.id` 保证
+  - 同一用户多次再生成时，旧 node id 必须优先复用
+- 课程版本边界：
+  - `career_course_skill_evidence` 与 `career_course_chapter_evidence` 均绑定 `source_outline_hash`
+  - merge 只将**当前 course 最新 outline_hash 对应的 evidence**链接入隐藏图
+  - 旧 evidence 行保留审计，不参与当前聚合
+- 章节 identity：
+  - Phase 1 使用 `chapter_key = "chapter-" + (chapterIndex + 1)`
+  - 因为 evidence 已绑定 `source_outline_hash`，章节 key 只要求在单个 course version 内稳定
+
+## Jobs / Idempotency / Failure
+- 背景任务：
+  - `extract_course_evidence`
+  - `merge_user_skill_graph`
+  - `compose_user_career_trees`
+  - `backfill_user_career_trees`
+- 执行模型：
+  - queue-only
+  - 每个用户同一时刻最多一个 merge job
+  - 每个用户同一时刻最多一个 compose job
+- 幂等 key：
+  - extraction: `extract:user:{userId}:course:{courseId}:outline:{outlineHash}`
+  - merge: `merge:user:{userId}:course:{courseId}:extract_run:{runId}`
+  - compose: `compose:user:{userId}:graph:{graphVersion}:pref:{preferenceVersion}`
+- 失败策略：
+  - extraction 失败：不改隐藏图，不改 snapshot
+  - merge 失败：事务回滚，不做部分写入
+  - compose 失败：保留上一版 `ready` snapshot，不清空 latest successful
+
+## UI / Cutover
+- 更新：
+  - [app/golden-path/page.tsx](/Users/findbiao/projects/nexusnote/app/golden-path/page.tsx)
+  - [components/golden-path/GoldenPathExplorer.tsx](/Users/findbiao/projects/nexusnote/components/golden-path/GoldenPathExplorer.tsx)
+  - [components/profile/ProfileGoldenPathSummary.tsx](/Users/findbiao/projects/nexusnote/components/profile/ProfileGoldenPathSummary.tsx)
+  - [app/api/user/golden-path/route.ts](/Users/findbiao/projects/nexusnote/app/api/user/golden-path/route.ts)
+- UI 行为：
+  - 展示 AI 推荐树与其他候选树
+  - 当前选中树与推荐树同时可见
+  - 不再出现固定 `routes / futureRoutes / golden-path ontology` 文案
+  - `pending` 时展示生成中状态，不展示伪树
+- Cutover：
+  1. 新 schema + jobs + snapshot read model 落地
+  2. backfill 有已保存课程的用户
+  3. 切换 `GET /api/user/golden-path` 到新 snapshot
+  4. 删除旧 projection 逻辑与 ontology 运行时依赖
+
+## Defaults Chosen
+- 模型：新增统一策略 `CAREER_TREE_JSON`，Phase 1 底层绑定到**当前 interview outline 流程所用的结构化输出主模型**，extract / merge / compose 全部先用同一模型，减少模型分叉。
+- 图版本：使用 `career_user_graph_state.graph_version` 的整数递增，不用派生 hash。
+- 偏好版本：使用 `career_user_tree_preferences.preference_version` 的整数递增。
+- Edge Phase 1：只上 `prerequisite`。
+- 不引入全站 canonical skill universe。
+- 不引入 page-time generation。
+- 不复用旧 mapping tables。
 
 ## Test Plan
-
-### Consistency
-
-- same user + same course set => hidden node ids stay continuous
-- visible names may change, progress may not reset
-
-### Growth
-
-- adding one new course grows existing branches before creating many new nodes
-
-### Weak Signal
-
-- weak users produce `1-2` high-confidence trees only
-
-### Strong Signal
-
-- stronger users produce `2-5` trees
-
-### Preference
-
-- selected tree affects ordering
-- AI recommendation remains separately visible
-
-### Empty State
-
-- no saved courses returns `status = "empty"`
-
-### Engineering Baseline
-
-- `bun run typecheck`
-- `bun run lint`
-- fixture-based generation stability script
-
-## Open Decisions
-
-These decisions should be resolved before implementation starts:
-
-1. Which exact model handles extraction, merge, and composition
-2. Whether merge and compose run synchronously after course save or through queue only
-3. Whether hidden graph version is an integer counter or derived hash
-4. Whether `career_user_skill_edges` ships in Phase 1 with all three edge types or only `prerequisite`
-
-## Recommendation
-
-Start with this implementation shape exactly:
-
-- AI owns extraction
-- AI owns attach/create merge plan
-- code owns validation and aggregation
-- snapshots are JSONB
-- UI reads snapshots only
-- old ontology is removed after cutover
-
-This is the narrowest design that still produces a real AI-native multi-career-tree system.
+- Consistency：
+  - 同一用户、同一批课程，多次 compose 后隐藏 node ids 连续
+  - 可见节点允许改名，但进度不重置
+- Growth：
+  - 新增一门课程时，优先生长旧枝条；新建节点数不超过课程 cap
+- Weak Signal：
+  - 只返回 `1-2` 棵高置信树
+- Strong Signal：
+  - 返回 `2-5` 棵候选树
+- Preference：
+  - `selectedDirectionKey` 改变后，下一版 snapshot 排序受偏好影响
+  - `recommendedDirectionKey` 仍独立存在
+- Snapshot Read：
+  - 无课程 => `empty`
+  - 有课程无成功 snapshot => `pending`
+  - compose 失败 => 保留上一版 `ready`
+- Failure / Idempotency：
+  - 同 outline 重复保存不会重复抽取
+  - merge 失败不会残留半写入图
+  - compose 失败不会丢 latest successful snapshot
+- Engineering Baseline：
+  - `bun run typecheck`
+  - `bun run lint`
+  - 增加 fixture 驱动的 extraction / merge / compose 稳定性脚本
