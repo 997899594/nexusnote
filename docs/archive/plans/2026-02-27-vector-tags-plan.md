@@ -172,10 +172,10 @@ Expected: 生成新的迁移 SQL 文件
 sed -i '' 's/"halfvec(4000)"/halfvec(4000)/g' drizzle/*.sql
 ```
 
-**Step 3: 推送到数据库**
+**Step 3: 执行迁移到数据库**
 
 ```bash
-bun run db:push
+bun run db:migrate
 ```
 
 Expected: 表创建成功

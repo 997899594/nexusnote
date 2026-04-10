@@ -23,11 +23,11 @@ services:
       cpuLimit: 500m
       memoryRequest: 256Mi
       memoryLimit: 512Mi
-    # Auto-generated from package.json script db:push; review before allowing Juanie to run it
+    # Auto-generated from package.json migration script; review before allowing Juanie to run it
     migrate:
       tool: drizzle
       workingDirectory: .
-      command: npm run db:push
+      command: npm run db:migrate
       phase: preDeploy
       executionMode: manual_platform
       approvalPolicy: manual_in_production

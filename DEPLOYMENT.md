@@ -11,7 +11,7 @@ This repository no longer carries:
 ## Deployment model
 
 ```text
-Git push -> CI build -> image registry -> Juanie preDeploy migration gate -> deployment platform rollout
+Code merged to main -> CI build -> image registry -> Juanie preDeploy migration gate -> deployment platform rollout
 ```
 
 ## Container build strategy
@@ -19,7 +19,7 @@ Git push -> CI build -> image registry -> Juanie preDeploy migration gate -> dep
 - `Dockerfile.web` is the deployment source of truth
 - the image is built with a multi-stage Docker build
 - Next.js production build happens inside Docker, not on the CI host
-- the runtime image keeps the files needed for the `db:push` script
+- the runtime image keeps the files needed for the `db:migrate` script
 
 ## What the platform must provide
 
@@ -53,26 +53,25 @@ Optional but recommended:
 
 1. Push code
 2. CI builds and publishes a new image from `Dockerfile.web`
-3. Juanie creates a preDeploy migration gate for `npm run db:push`
+3. Juanie creates a preDeploy migration gate for `npm run db:migrate`
 4. Operator runs the migration through Juanie and completes the gate
 5. Only after the gate is satisfied does the deployment platform roll out the new image
 6. Verify `/api/health`, login, interview, and learn flow
 
 ## Schema sync policy
 
-This repository treats the current Drizzle schema as the deployment source of truth, but schema sync
-must happen inside the Juanie preDeploy gate, not after rollout.
+This repository treats tracked Drizzle migration files as the deployment source of truth, and migration
+execution must happen inside the Juanie preDeploy gate, not after rollout.
 
 The required migration command is:
 
 ```bash
-npm run db:push
+npm run db:migrate
 ```
 
-The sync command is non-interactive, applies the current schema directly, and fails fast if the
-runtime schema is still incomplete after sync. NexusNote now marks `/api/health` as `503` when the
-runtime schema is missing required columns, so an incomplete migration cannot hide behind a green
-deploy.
+The migration command is non-interactive, runs tracked migration files, and fails fast if the runtime
+schema is still incomplete after execution. NexusNote marks `/api/health` as `503` when the runtime
+schema is missing required columns, so an incomplete migration cannot hide behind a green deploy.
 
 ## Local development
 

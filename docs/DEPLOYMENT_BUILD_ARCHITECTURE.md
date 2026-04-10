@@ -7,7 +7,7 @@ Date: 2026-04-08
 - keep one deployment image as the source of truth
 - remove CI host-side runtime repackaging
 - keep Next.js `standalone` output for the web server
-- preserve the ability to run the `db:push` script from the deployed image
+- preserve the ability to run the `db:migrate` script from the deployed image
 
 ## Options Considered
 

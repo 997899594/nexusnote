@@ -32,7 +32,7 @@ NexusNote 的主链不是“通用笔记”，而是：
 bun install
 docker compose up -d
 cp .env.example .env
-bun run db:push
+bun run db:migrate
 bun dev
 ```
 
@@ -50,7 +50,7 @@ bun run build
 bun run start
 bun run lint
 bun run typecheck
-bun run db:push
+bun run db:migrate
 bun run db:studio
 ```
 
@@ -59,12 +59,12 @@ bun run db:studio
 The repo ships a container-image workflow:
 
 ```text
-git push -> CI build -> image registry -> deployment platform rollout -> schema sync
+代码合并到主分支 -> CI build -> image registry -> Juanie preDeploy migration gate -> deployment platform rollout
 ```
 
 - image build source of truth: `Dockerfile.web`
 - CI builds the image directly; it does not pre-package a `.docker-runtime` bundle
-- deployment schema sync uses the `db:push` script
+- deployment migration gate uses the `db:migrate` command
 - platform config: [juanie.yaml](./juanie.yaml)
 - deployment notes: [deploy/README.md](./deploy/README.md)
 - runtime env example: [deploy/deploy.env.example](./deploy/deploy.env.example)

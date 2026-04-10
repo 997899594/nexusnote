@@ -1,4 +1,4 @@
-.PHONY: help install dev build start lint typecheck db-push db-studio
+.PHONY: help install dev build start lint typecheck db-migrate db-studio
 
 help:
 	@echo "NexusNote commands:"
@@ -9,7 +9,7 @@ help:
 	@echo "  make start       - Start production server"
 	@echo "  make lint        - Run Biome"
 	@echo "  make typecheck   - Run TypeScript"
-	@echo "  make db-push     - Sync schema to the current Drizzle model"
+	@echo "  make db-migrate  - Apply tracked Drizzle migrations"
 	@echo "  make db-studio   - Open Drizzle Studio"
 
 install:
@@ -30,8 +30,8 @@ lint:
 typecheck:
 	bun run typecheck
 
-db-push:
-	bun run db:push
+db-migrate:
+	bun run db:migrate
 
 db-studio:
 	bun run db:studio

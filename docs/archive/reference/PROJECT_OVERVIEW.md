@@ -290,7 +290,7 @@ bun dev
 bunx partykit dev
 
 # 数据库操作
-bun run db:push
+bun run db:migrate
 bun run db:studio
 ```
 
