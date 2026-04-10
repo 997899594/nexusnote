@@ -104,7 +104,9 @@ export interface GoldenPathFutureRoute {
 }
 
 export interface GoldenPathSnapshot {
-  mainRouteId: string;
+  currentRouteId: string;
+  recommendedRouteId: string;
+  selectedRouteId: string | null;
   routes: GoldenPathRouteSnapshot[];
   futureRoutes: GoldenPathFutureRoute[];
   totals: {

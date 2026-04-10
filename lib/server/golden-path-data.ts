@@ -9,6 +9,7 @@ import {
   GOLDEN_PATH_PROJECTION_PRIORS,
   GOLDEN_PATH_SKILLS,
 } from "@/lib/golden-path/ontology";
+import { getUserGoldenPathPreference } from "@/lib/golden-path/preferences";
 import type {
   GoldenPathChapterSkill,
   GoldenPathCourseContext,
@@ -72,7 +73,7 @@ interface GoldenPathBaseData {
   skillSnapshots: GoldenPathNodeSnapshot[];
   routeSnapshots: GoldenPathRouteSnapshot[];
   futureRoutes: GoldenPathFutureRoute[];
-  mainRouteId: string;
+  recommendedRouteId: string;
 }
 
 function normalizeText(value: string | null | undefined): string {
@@ -628,7 +629,7 @@ async function loadGoldenPathBase(userId: string): Promise<GoldenPathBaseData> {
     };
   }).sort((left, right) => right.fitScore - left.fitScore);
 
-  const mainRouteId = routeSnapshots[0]?.id ?? "current-focus";
+  const recommendedRouteId = routeSnapshots[0]?.id ?? "current-focus";
 
   const futureRoutes: GoldenPathFutureRoute[] = routeSnapshots.slice(1).map((route) => ({
     id: route.id,
@@ -643,7 +644,7 @@ async function loadGoldenPathBase(userId: string): Promise<GoldenPathBaseData> {
     skillSnapshots,
     routeSnapshots,
     futureRoutes,
-    mainRouteId,
+    recommendedRouteId,
   };
 }
 
@@ -654,9 +655,18 @@ export async function getGoldenPathSnapshotCached(userId: string): Promise<Golde
   cacheTag(getGoldenPathTag(userId));
 
   const base = await loadGoldenPathBase(userId);
+  const preference = await getUserGoldenPathPreference(userId);
+  const routeIds = new Set(base.routeSnapshots.map((route) => route.id));
+  const selectedRouteId =
+    preference.currentRouteId && routeIds.has(preference.currentRouteId)
+      ? preference.currentRouteId
+      : null;
+  const currentRouteId = selectedRouteId ?? base.recommendedRouteId;
 
   return {
-    mainRouteId: base.mainRouteId,
+    currentRouteId,
+    recommendedRouteId: base.recommendedRouteId,
+    selectedRouteId,
     routes: base.routeSnapshots,
     futureRoutes: base.futureRoutes,
     totals: {
@@ -686,7 +696,8 @@ export async function getGoldenPathCourseContextCached(
   }
 
   const mainRoute =
-    base.routeSnapshots.find((route) => route.id === base.mainRouteId) ?? base.routeSnapshots[0];
+    base.routeSnapshots.find((route) => route.id === base.recommendedRouteId) ??
+    base.routeSnapshots[0];
 
   if (!mainRoute) {
     return null;

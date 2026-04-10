@@ -3,9 +3,8 @@ import { GoldenPathExplorer } from "./GoldenPathExplorer";
 
 interface GoldenPathPageProps {
   snapshot: GoldenPathSnapshot;
-  selectedPathId?: string;
 }
 
-export function GoldenPathPage({ snapshot, selectedPathId }: GoldenPathPageProps) {
-  return <GoldenPathExplorer snapshot={snapshot} selectedPathId={selectedPathId} />;
+export function GoldenPathPage({ snapshot }: GoldenPathPageProps) {
+  return <GoldenPathExplorer snapshot={snapshot} />;
 }

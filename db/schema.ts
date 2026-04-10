@@ -17,6 +17,7 @@ import {
   courseSkillMappings,
   courses,
 } from "./schema/courses";
+import { userGoldenPathPreferences } from "./schema/golden-path";
 import { knowledgeChunks } from "./schema/knowledge";
 import { noteSnapshots, notes, noteTags, tags } from "./schema/notes";
 import { skillRelationships, skills, userSkillMastery } from "./schema/skills";
@@ -26,6 +27,7 @@ export * from "./schema/ai-usage";
 export * from "./schema/auth";
 export * from "./schema/conversations";
 export * from "./schema/courses";
+export * from "./schema/golden-path";
 export * from "./schema/knowledge";
 export * from "./schema/notes";
 export * from "./schema/shared";
@@ -41,6 +43,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   stylePrivacySettings: many(stylePrivacySettings),
   createdSkins: many(aiSkins),
   skinPreference: many(userSkinPreferences),
+  goldenPathPreference: many(userGoldenPathPreferences),
   courseProgress: many(courseProgress),
   courseSectionAnnotations: many(courseSectionAnnotations),
   noteTags: many(noteTags),
@@ -216,6 +219,16 @@ export const userSkinPreferencesRelations = relations(userSkinPreferences, ({ on
     references: [users.id],
   }),
 }));
+
+export const userGoldenPathPreferencesRelations = relations(
+  userGoldenPathPreferences,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [userGoldenPathPreferences.userId],
+      references: [users.id],
+    }),
+  }),
+);
 
 export const accountsRelations = relations(accounts, ({ one }) => ({
   user: one(users, {

@@ -9,7 +9,7 @@ interface ProfileGoldenPathSummaryProps {
 export async function ProfileGoldenPathSummary({ userId }: ProfileGoldenPathSummaryProps) {
   const snapshot = await getGoldenPathSnapshotCached(userId);
   const mainRoute =
-    snapshot.routes.find((route) => route.id === snapshot.mainRouteId) ?? snapshot.routes[0];
+    snapshot.routes.find((route) => route.id === snapshot.currentRouteId) ?? snapshot.routes[0];
 
   if (!mainRoute) {
     return (
@@ -18,13 +18,13 @@ export async function ProfileGoldenPathSummary({ userId }: ProfileGoldenPathSumm
           <div>
             <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-[var(--color-text-muted)]">
               <Compass className="h-4 w-4" />
-              主线路径
+              成长主线
             </div>
             <h2 className="mt-3 text-xl font-semibold text-[var(--color-text)] md:text-2xl">
               还没有形成稳定主线
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-7 text-[var(--color-text-tertiary)]">
-              先通过访谈生成课程，系统才会逐步识别你的学习主线和下一步技能落点。
+              先通过访谈生成课程，系统才会逐步识别你的成长主线和下一步技能落点。
             </p>
           </div>
           <Link
@@ -48,7 +48,7 @@ export async function ProfileGoldenPathSummary({ userId }: ProfileGoldenPathSumm
         <div className="max-w-2xl">
           <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-[var(--color-text-muted)]">
             <Compass className="h-4 w-4" />
-            主线路径
+            成长主线
           </div>
           <h2 className="mt-3 text-xl font-semibold text-[var(--color-text)] md:text-2xl">
             {mainRoute.name}
@@ -59,10 +59,10 @@ export async function ProfileGoldenPathSummary({ userId }: ProfileGoldenPathSumm
         </div>
 
         <Link
-          href={`/golden-path?path=${mainRoute.id}`}
+          href="/golden-path"
           className="inline-flex items-center gap-2 rounded-full border border-black/8 bg-white px-4 py-2 text-sm font-medium text-[var(--color-text)] transition-colors hover:bg-[var(--color-hover)]"
         >
-          查看命途树
+          查看主线详情
           <ArrowRight className="h-4 w-4" />
         </Link>
       </div>
