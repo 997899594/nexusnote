@@ -1,10 +1,18 @@
+import { generateText, Output } from "ai";
 import { z } from "zod";
+import {
+  createTelemetryContext,
+  getErrorMessage,
+  getJsonModelForPolicy,
+  recordAIUsage,
+} from "@/lib/ai/core";
 import {
   IN_PROGRESS_THRESHOLD,
   MASTERED_EVIDENCE_THRESHOLD,
   MASTERED_PROGRESS_THRESHOLD,
   READY_PREREQ_PROGRESS_THRESHOLD,
 } from "@/lib/career-tree/constants";
+import { buildCareerMergePrompt, CAREER_TREE_MERGE_SYSTEM_PROMPT } from "@/lib/career-tree/prompts";
 
 export const mergeDecisionSchema = z.discriminatedUnion("action", [
   z.object({
@@ -16,6 +24,7 @@ export const mergeDecisionSchema = z.discriminatedUnion("action", [
   }),
   z.object({
     action: z.literal("create"),
+    tempNodeRef: z.string().min(1),
     newNode: z.object({
       canonicalLabel: z.string().min(1),
       summary: z.string().nullable().optional(),
@@ -38,6 +47,59 @@ export const mergePlannerOutputSchema = z.object({
 });
 
 export type MergePlannerOutput = z.infer<typeof mergePlannerOutputSchema>;
+
+export async function planCareerGraphMerge(params: {
+  userId: string;
+  courseId: string;
+  candidateContext: unknown;
+  evidenceBatch: unknown;
+  priorCourseSummary: unknown;
+}): Promise<MergePlannerOutput> {
+  const startedAt = Date.now();
+  const telemetry = createTelemetryContext({
+    endpoint: "career-tree:merge",
+    intent: "career-tree-merge",
+    workflow: "career-tree",
+    modelPolicy: "structured-high-quality",
+    promptVersion: "career-tree-merge@v1",
+    userId: params.userId,
+    metadata: {
+      courseId: params.courseId,
+    },
+  });
+
+  try {
+    const result = await generateText({
+      model: getJsonModelForPolicy("structured-high-quality"),
+      output: Output.object({ schema: mergePlannerOutputSchema }),
+      system: CAREER_TREE_MERGE_SYSTEM_PROMPT,
+      prompt: buildCareerMergePrompt({
+        candidateContext: params.candidateContext,
+        evidenceBatch: params.evidenceBatch,
+        priorCourseSummary: params.priorCourseSummary,
+      }),
+      temperature: 0.1,
+      timeout: 30_000,
+    });
+
+    await recordAIUsage({
+      ...telemetry,
+      usage: result.usage,
+      durationMs: Date.now() - startedAt,
+      success: true,
+    });
+
+    return result.output;
+  } catch (error) {
+    await recordAIUsage({
+      ...telemetry,
+      durationMs: Date.now() - startedAt,
+      success: false,
+      errorMessage: getErrorMessage(error),
+    });
+    throw error;
+  }
+}
 
 export interface AggregationInput {
   chapterCompletionRatios: Array<{ ratio: number; confidence: number }>;

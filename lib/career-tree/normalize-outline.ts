@@ -74,7 +74,7 @@ export function normalizeCareerOutline(outlineData: unknown): NormalizedCareerOu
       description: chapter.description?.trim() || "",
       explicitSkillIds: uniqueStrings(chapter.skillIds),
       sections: (chapter.sections ?? []).map((section, sectionIndex) => ({
-        sectionKey: `chapter-${chapterIndex + 1}-section-${sectionIndex + 1}`,
+        sectionKey: `section-${chapterIndex + 1}-${sectionIndex + 1}`,
         title: section.title?.trim() || `第 ${chapterIndex + 1}.${sectionIndex + 1} 节`,
         description: section.description?.trim() || "",
       })),

@@ -9,7 +9,7 @@
  * - 返回更新数量
  */
 
-import { generateObject } from "ai";
+import { generateText, Output } from "ai";
 import { and } from "drizzle-orm";
 import { z } from "zod";
 import { conversations, db, eq } from "@/db";
@@ -72,9 +72,9 @@ export const POST = withAuth(async (_request, { userId }) => {
       });
 
       // 3. 使用 AI 生成标题（10字以内）
-      const result = await generateObject({
-        schema: titleSchema,
+      const result = await generateText({
         model: getJsonModelForPolicy("interactive-fast"),
+        output: Output.object({ schema: titleSchema }),
         system:
           "你是一个专业的标题生成助手。根据用户的第一条消息，生成一个简洁、准确的标题，不超过10个字。",
         prompt: `用户消息：${firstUserMessage}\n\n请生成一个简洁的标题：`,
@@ -93,7 +93,7 @@ export const POST = withAuth(async (_request, { userId }) => {
         conversationId: conversation.id,
         userId,
         updates: {
-          title: result.object.title,
+          title: result.output.title,
           updatedAt: new Date(),
         },
       });

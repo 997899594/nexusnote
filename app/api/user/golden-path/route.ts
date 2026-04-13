@@ -22,6 +22,9 @@ const SelectCareerTreeSchema = z
 
 export const GET = withAuth(async (_request, { userId }) => {
   const snapshot = await getCareerTreeSnapshot(userId);
+  if (snapshot.status === "pending") {
+    await enqueueCareerTreeCompose(userId);
+  }
   return Response.json(snapshot);
 });
 

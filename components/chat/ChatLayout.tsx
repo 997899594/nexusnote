@@ -61,6 +61,9 @@ export function ChatLayout({ children }: ChatLayoutProps) {
       <FloatingHeader
         showMenuButton
         showSkinSelector
+        title="对话工作台"
+        subtitle="Chat"
+        variant="workspace"
         onLogoClick={() => router.push("/")}
         onMenuClick={() => setSidebarOpen(!sidebarOpen)}
       />

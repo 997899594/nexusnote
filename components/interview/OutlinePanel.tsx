@@ -9,7 +9,6 @@ import { InterviewOptions } from "@/components/interview/InterviewOptions";
 import { useToast } from "@/components/ui/Toast";
 import type { OutlineDisplay } from "@/lib/ai/interview/models";
 import type { InterviewOutline } from "@/lib/ai/interview/schemas";
-import { GOLDEN_PATH_SKILLS } from "@/lib/golden-path/ontology";
 import { cn } from "@/lib/utils";
 
 interface OutlinePanelProps {
@@ -44,10 +43,8 @@ const itemVariants = {
   },
 };
 
-const skillNameById = new Map(GOLDEN_PATH_SKILLS.map((skill) => [skill.id, skill.name]));
-
 function getSkillLabel(skillId: string) {
-  return skillNameById.get(skillId) ?? skillId;
+  return skillId;
 }
 
 export function OutlinePanel({

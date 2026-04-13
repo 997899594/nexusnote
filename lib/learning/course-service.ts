@@ -1,14 +1,6 @@
 import { eq } from "drizzle-orm";
-import {
-  courseChapterSkillMappings,
-  courseProgress,
-  courseSections,
-  courseSkillMappings,
-  courses,
-  db,
-} from "@/db";
+import { courseProgress, courseSections, courses, db } from "@/db";
 import type { InterviewOutline } from "@/lib/ai/interview";
-import { deriveCourseSkillMappings } from "@/lib/golden-path/mapping";
 import { getOwnedCourse } from "@/lib/learning/course-repository";
 
 export interface CourseOutlineSection {
@@ -137,41 +129,6 @@ export async function saveCourseFromOutline({
     if (sectionDocuments.length > 0) {
       await tx.insert(courseSections).values(sectionDocuments);
     }
-
-    await tx
-      .delete(courseChapterSkillMappings)
-      .where(eq(courseChapterSkillMappings.courseId, persistedCourseId));
-    await tx.delete(courseSkillMappings).where(eq(courseSkillMappings.courseId, persistedCourseId));
-
-    const derivedMappings = deriveCourseSkillMappings(outline);
-
-    if (derivedMappings.courseMappings.length > 0) {
-      await tx.insert(courseSkillMappings).values(
-        derivedMappings.courseMappings.map((mapping) => ({
-          courseId: persistedCourseId,
-          skillKey: mapping.skillId,
-          source: mapping.source,
-          confidence: mapping.confidence,
-          metadata: mapping.metadata,
-          updatedAt: new Date(),
-        })),
-      );
-    }
-
-    if (derivedMappings.chapterMappings.length > 0) {
-      await tx.insert(courseChapterSkillMappings).values(
-        derivedMappings.chapterMappings.map((mapping) => ({
-          courseId: persistedCourseId,
-          chapterIndex: mapping.chapterIndex,
-          skillKey: mapping.skillId,
-          source: mapping.source,
-          confidence: mapping.confidence,
-          metadata: mapping.metadata,
-          updatedAt: new Date(),
-        })),
-      );
-    }
-
     const progressValues = {
       courseId: persistedCourseId,
       userId,

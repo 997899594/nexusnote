@@ -1,4 +1,4 @@
-import { generateObject } from "ai";
+import { generateText, Output } from "ai";
 import { getJsonModelForPolicy } from "@/lib/ai/core";
 import { buildInterviewStatePrompt, INTERVIEW_STATE_SYSTEM_PROMPT } from "./prompts";
 import {
@@ -17,9 +17,9 @@ export async function extractInterviewState({
   messages,
   currentOutline,
 }: ExtractInterviewStateOptions): Promise<InterviewState> {
-  const result = await generateObject({
+  const result = await generateText({
     model: getJsonModelForPolicy("interactive-fast"),
-    schema: InterviewStateSchema,
+    output: Output.object({ schema: InterviewStateSchema }),
     system: INTERVIEW_STATE_SYSTEM_PROMPT,
     prompt: buildInterviewStatePrompt({
       messages,
@@ -29,5 +29,5 @@ export async function extractInterviewState({
     timeout: 30_000,
   });
 
-  return result.object;
+  return result.output;
 }

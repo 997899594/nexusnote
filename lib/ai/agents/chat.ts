@@ -4,7 +4,6 @@
 
 import { stepCountIs, ToolLoopAgent } from "ai";
 import { getCourseOutline } from "@/lib/cache/course-context";
-import { GOLDEN_PATH_SKILLS } from "@/lib/golden-path/ontology";
 import type { ResolvedChatMetadata } from "@/types/metadata";
 import { isResolvedLearnMetadata } from "@/types/metadata";
 import {
@@ -64,13 +63,8 @@ export async function createChatAgent(options: PersonalizationOptions = {}) {
         options.metadata.chapterTitle?.trim() ||
         chapter?.title ||
         `第 ${options.metadata.chapterIndex + 1} 章`;
-      const skillNameById = new Map(GOLDEN_PATH_SKILLS.map((skill) => [skill.id, skill.name]));
-      const chapterSkillNames = (options.metadata.chapterSkillIds ?? [])
-        .map((skillId) => skillNameById.get(skillId) ?? skillId)
-        .join("、");
-      const courseSkillNames = (options.metadata.courseSkillIds ?? [])
-        .map((skillId) => skillNameById.get(skillId) ?? skillId)
-        .join("、");
+      const chapterSkillNames = (options.metadata.chapterSkillIds ?? []).join("、");
+      const courseSkillNames = (options.metadata.courseSkillIds ?? []).join("、");
       const hint = [
         "## 当前学习上下文",
         `课程：${options.metadata.courseTitle}`,

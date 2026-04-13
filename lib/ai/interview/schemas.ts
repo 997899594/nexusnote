@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { GOLDEN_PATH_SKILL_IDS } from "@/lib/golden-path/ontology";
 
 function nullableNormalizedString(max: number) {
   return z.preprocess((value) => {
@@ -27,7 +26,12 @@ function normalizedStringArray(maxItemLength: number, maxItems: number) {
   );
 }
 
-export const InterviewOutlineSkillIdSchema = z.enum(GOLDEN_PATH_SKILL_IDS);
+export const InterviewOutlineSkillIdSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(80)
+  .transform((value) => value.trim());
 
 export const InterviewOutlineSectionSchema = z.object({
   title: z.string().min(1).max(80),

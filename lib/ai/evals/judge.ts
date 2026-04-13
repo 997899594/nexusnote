@@ -1,4 +1,4 @@
-import { generateObject } from "ai";
+import { generateText, Output } from "ai";
 import { z } from "zod";
 import { getJsonModelForPolicy } from "@/lib/ai/core";
 import { createTelemetryContext, recordAIUsage } from "@/lib/ai/core/telemetry";
@@ -27,9 +27,9 @@ export async function judgeEvalOutput(testCase: EvalCase, output: string): Promi
     },
   });
 
-  const result = await generateObject({
+  const result = await generateText({
     model: getJsonModelForPolicy("structured-high-quality"),
-    schema: EvalJudgementSchema,
+    output: Output.object({ schema: EvalJudgementSchema }),
     timeout: 30_000,
     system: `你是一个严格但公平的 AI 质量评估员。
 
@@ -60,5 +60,5 @@ ${output}`,
     success: true,
   });
 
-  return result.object;
+  return result.output;
 }

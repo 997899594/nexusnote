@@ -1,5 +1,3 @@
-import { GOLDEN_PATH_SKILLS } from "@/lib/golden-path/ontology";
-
 /**
  * 小节内容生成 Prompt
  *
@@ -47,11 +45,8 @@ export function buildSectionPrompt(params: {
     .map((t, i) => `  ${i === sectionIndex ? "→" : " "} ${chapterIndex + 1}.${i + 1} ${t}`)
     .join("\n");
 
-  const skillNameById = new Map(GOLDEN_PATH_SKILLS.map((skill) => [skill.id, skill.name]));
   const formatSkillIds = (skillIds?: string[]) =>
-    Array.isArray(skillIds) && skillIds.length > 0
-      ? skillIds.map((skillId) => skillNameById.get(skillId) ?? skillId).join("、")
-      : "未指定";
+    Array.isArray(skillIds) && skillIds.length > 0 ? skillIds.join("、") : "未指定";
 
   return `你是一位专业的课程内容创作者，正在为在线学习平台编写教学内容。
 

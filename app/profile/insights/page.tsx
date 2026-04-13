@@ -16,7 +16,13 @@ async function ProfileInsightsPageContent() {
 
   return (
     <main className="ui-page-shell min-h-dvh">
-      <FloatingHeader showBackHint showMenuButton />
+      <FloatingHeader
+        showBackHint
+        showMenuButton
+        title="学习洞察"
+        subtitle="Insights"
+        variant="compact"
+      />
 
       <div className="ui-page-frame ui-floating-header-offset max-w-4xl ui-bottom-breathing-room">
         <section className="mb-8">

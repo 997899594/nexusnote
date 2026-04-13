@@ -1,5 +1,4 @@
 import { loadPromptResource } from "@/lib/ai/prompts/load-prompt";
-import { GOLDEN_PATH_SKILLS } from "@/lib/golden-path/ontology";
 import type {
   InterviewApiMessage,
   InterviewOutline,
@@ -21,19 +20,9 @@ function formatOutline(outline: InterviewOutline | undefined) {
   return JSON.stringify(outline, null, 2);
 }
 
-function formatSkillCatalog() {
-  return GOLDEN_PATH_SKILLS.map(
-    (skill) => `- ${skill.id}: ${skill.name}（${skill.description}）`,
-  ).join("\n");
-}
-
 const INTERVIEW_SYSTEM_PROMPT_TEMPLATE = loadPromptResource("interview-system.md");
 const INTERVIEW_STATE_SYSTEM_PROMPT_TEMPLATE = loadPromptResource("interview-state-system.md");
-
-export const INTERVIEW_SYSTEM_PROMPT = INTERVIEW_SYSTEM_PROMPT_TEMPLATE.replace(
-  "{{SKILL_CATALOG}}",
-  formatSkillCatalog(),
-);
+export const INTERVIEW_SYSTEM_PROMPT = INTERVIEW_SYSTEM_PROMPT_TEMPLATE;
 
 export const INTERVIEW_STATE_SYSTEM_PROMPT = INTERVIEW_STATE_SYSTEM_PROMPT_TEMPLATE;
 
@@ -165,10 +154,7 @@ export function buildInterviewAgentInstructionsWithHint(input: {
 - 正式课程的默认结构基线是约 6 章、每章约 4 个小节；除非用户明确要求更短/更长，或主题本身明显过窄/过宽，才偏离这个基线
 - 课程草案预览应内容充实、结构完整，用户看到后应能直接判断这门课是否值得学习，而不是还要等建课后才知道真正结构
 - 课程草案预览的 options 优先使用短动作词，不要使用长句；优先从“调整章节顺序”“增加实战项目”“补基础章节”“修改项目方向”“开始生成课程”中选择最合适的 3 到 4 个
-- 所有技能字段必须使用系统技能 ID，而不是自然语言标签；不要生成列表外的新技能 ID
-
-技能 ID 列表：
-${formatSkillCatalog()}
+- 所有能力字段使用简洁稳定的中文或英文能力标签，不要使用空泛词，也不要硬凑缩写 ID
 
 ${input.currentOutline ? `当前已有课程大纲，请优先围绕它做修改与完善：\n${JSON.stringify(input.currentOutline, null, 2)}` : "当前还没有课程大纲。"}${firstQuestionHint}
 ${

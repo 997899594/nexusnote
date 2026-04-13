@@ -63,7 +63,13 @@ async function NotesIndexPageContent({
 
   return (
     <main className="ui-page-shell min-h-dvh">
-      <FloatingHeader showBackHint showMenuButton />
+      <FloatingHeader
+        showBackHint
+        showMenuButton
+        title="知识工作台"
+        subtitle="Editor"
+        variant="workspace"
+      />
 
       <div className="ui-page-frame ui-floating-header-offset max-w-5xl ui-bottom-breathing-room">
         <header className="mb-8 max-w-3xl md:mb-10">

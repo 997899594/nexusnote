@@ -10,6 +10,7 @@ import {
   revalidateProfileStats,
   revalidateRecentCourses,
 } from "@/lib/cache/tags";
+import { enqueueCareerTreeExtract } from "@/lib/career-tree/queue";
 import { getOwnedCourse } from "@/lib/learning/course-repository";
 import { expandInterviewOutlineToCourseOutline } from "@/lib/learning/course-service";
 
@@ -63,6 +64,7 @@ export async function POST(request: NextRequest) {
     revalidateProfileStats(userId);
     revalidateLearnPage(userId, result.courseId);
     revalidateGoldenPath(userId);
+    await enqueueCareerTreeExtract(userId, result.courseId);
 
     return NextResponse.json({
       success: true,

@@ -16,7 +16,13 @@ async function GoldenPathPageContent() {
 
   return (
     <main className="ui-page-shell min-h-dvh">
-      <FloatingHeader showBackHint showMenuButton />
+      <FloatingHeader
+        showBackHint
+        showMenuButton
+        title="职业树"
+        subtitle="Career Trees"
+        variant="workspace"
+      />
 
       <div className="ui-page-frame ui-floating-header-offset ui-bottom-breathing-room">
         <GoldenPathPage snapshot={snapshot} />

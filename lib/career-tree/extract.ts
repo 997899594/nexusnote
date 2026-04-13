@@ -1,5 +1,16 @@
+import { generateText, Output } from "ai";
 import { z } from "zod";
+import {
+  createTelemetryContext,
+  getErrorMessage,
+  getJsonModelForPolicy,
+  recordAIUsage,
+} from "@/lib/ai/core";
 import type { NormalizedCareerOutline } from "@/lib/career-tree/normalize-outline";
+import {
+  buildCareerExtractPrompt,
+  CAREER_TREE_EXTRACT_SYSTEM_PROMPT,
+} from "@/lib/career-tree/prompts";
 
 export const careerEvidenceKindSchema = z.enum(["skill", "theme", "tool", "workflow", "concept"]);
 
@@ -51,4 +62,54 @@ export function buildCareerCourseExtractionInput(params: {
     description: params.description,
     outline: params.outline,
   };
+}
+
+export async function extractCareerCourseEvidence(
+  input: CareerCourseExtractionInput,
+): Promise<CourseExtractorOutput> {
+  const startedAt = Date.now();
+  const telemetry = createTelemetryContext({
+    endpoint: "career-tree:extract",
+    intent: "career-tree-extract",
+    workflow: "career-tree",
+    modelPolicy: "structured-high-quality",
+    promptVersion: "career-tree-extract@v1",
+    userId: input.userId,
+    metadata: {
+      courseId: input.courseId,
+      chapterCount: input.outline.chapters.length,
+    },
+  });
+
+  try {
+    const result = await generateText({
+      model: getJsonModelForPolicy("structured-high-quality"),
+      output: Output.object({ schema: courseExtractorOutputSchema }),
+      system: CAREER_TREE_EXTRACT_SYSTEM_PROMPT,
+      prompt: buildCareerExtractPrompt({
+        title: input.title,
+        description: input.description,
+        outline: input.outline,
+      }),
+      temperature: 0.1,
+      timeout: 30_000,
+    });
+
+    await recordAIUsage({
+      ...telemetry,
+      usage: result.usage,
+      durationMs: Date.now() - startedAt,
+      success: true,
+    });
+
+    return result.output;
+  } catch (error) {
+    await recordAIUsage({
+      ...telemetry,
+      durationMs: Date.now() - startedAt,
+      success: false,
+      errorMessage: getErrorMessage(error),
+    });
+    throw error;
+  }
 }

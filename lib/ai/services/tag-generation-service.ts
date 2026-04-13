@@ -7,7 +7,7 @@
  * - 自动合并语义相同的标签
  */
 
-import { embed, generateObject } from "ai";
+import { embed, generateText, Output } from "ai";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { notes, noteTags, tags } from "@/db/schema";
@@ -95,9 +95,9 @@ class TagGenerationService {
     });
 
     try {
-      const result = await generateObject({
-        schema: TagGenerationResultSchema,
+      const result = await generateText({
         model: getJsonModelForPolicy("interactive-fast"),
+        output: Output.object({ schema: TagGenerationResultSchema }),
         system: TAG_GENERATION_SYSTEM_PROMPT,
         prompt: TAG_GENERATION_USER_PROMPT(content),
         temperature: 0.3,
@@ -111,11 +111,11 @@ class TagGenerationService {
         success: true,
         metadata: {
           ...telemetry.metadata,
-          generatedTagCount: result.object.tags.length,
+          generatedTagCount: result.output.tags.length,
         },
       });
 
-      return result.object;
+      return result.output;
     } catch (error) {
       await recordAIUsage({
         ...telemetry,

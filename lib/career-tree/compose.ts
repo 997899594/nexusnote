@@ -1,4 +1,15 @@
+import { generateText, Output } from "ai";
 import { z } from "zod";
+import {
+  createTelemetryContext,
+  getErrorMessage,
+  getJsonModelForPolicy,
+  recordAIUsage,
+} from "@/lib/ai/core";
+import {
+  buildCareerComposePrompt,
+  CAREER_TREE_COMPOSE_SYSTEM_PROMPT,
+} from "@/lib/career-tree/prompts";
 import type { CandidateCareerTree, VisibleSkillTreeNode } from "@/lib/career-tree/types";
 
 export const composerVisibleNodeSchema: z.ZodType<ComposerVisibleNode> = z.lazy(() =>
@@ -135,4 +146,53 @@ export function createPendingCandidateTree(directionKey: string): CandidateCaree
     supportingChapters: [],
     tree: [],
   };
+}
+
+export async function composeCareerTrees(params: {
+  userId: string;
+  graph: unknown;
+  preference: unknown;
+  previousSummary: unknown;
+}): Promise<TreeComposerOutput> {
+  const startedAt = Date.now();
+  const telemetry = createTelemetryContext({
+    endpoint: "career-tree:compose",
+    intent: "career-tree-compose",
+    workflow: "career-tree",
+    modelPolicy: "structured-high-quality",
+    promptVersion: "career-tree-compose@v1",
+    userId: params.userId,
+  });
+
+  try {
+    const result = await generateText({
+      model: getJsonModelForPolicy("structured-high-quality"),
+      output: Output.object({ schema: treeComposerOutputSchema }),
+      system: CAREER_TREE_COMPOSE_SYSTEM_PROMPT,
+      prompt: buildCareerComposePrompt({
+        graph: params.graph,
+        preference: params.preference,
+        previousSummary: params.previousSummary,
+      }),
+      temperature: 0.15,
+      timeout: 30_000,
+    });
+
+    await recordAIUsage({
+      ...telemetry,
+      usage: result.usage,
+      durationMs: Date.now() - startedAt,
+      success: true,
+    });
+
+    return result.output;
+  } catch (error) {
+    await recordAIUsage({
+      ...telemetry,
+      durationMs: Date.now() - startedAt,
+      success: false,
+      errorMessage: getErrorMessage(error),
+    });
+    throw error;
+  }
 }

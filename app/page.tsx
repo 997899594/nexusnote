@@ -5,7 +5,7 @@ import { FloatingHeader } from "@/components/shared/layout";
 export default function HomePage() {
   return (
     <main className="min-h-dvh bg-[var(--color-bg)]">
-      <FloatingHeader showMenuButton />
+      <FloatingHeader showMenuButton title="NexusNote" variant="compact" />
 
       <div className="ui-page-shell relative overflow-hidden">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.85),transparent_70%)]" />
