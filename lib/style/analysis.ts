@@ -5,7 +5,7 @@
  * This service coordinates between the database layer and AI analysis.
  */
 
-import { generateObject, type UIMessage } from "ai";
+import { generateText, Output, type UIMessage } from "ai";
 import { z } from "zod";
 import { db, eq, userProfiles } from "@/db";
 import { getJsonModelForPolicy } from "@/lib/ai/core";
@@ -243,9 +243,9 @@ ${
   });
 
   try {
-    const result = await generateObject({
+    const result = await generateText({
       model: getJsonModelForPolicy("structured-high-quality"),
-      schema: StyleAnalysisSchema,
+      output: Output.object({ schema: StyleAnalysisSchema }),
       prompt: userPrompt,
       system: systemPrompt,
     });
@@ -258,10 +258,10 @@ ${
     });
 
     return {
-      metrics: result.object.metrics,
-      bigFive: result.object.bigFive,
-      confidence: result.object.confidence,
-      reasoning: result.object.reasoning,
+      metrics: result.output.metrics,
+      bigFive: result.output.bigFive,
+      confidence: result.output.confidence,
+      reasoning: result.output.reasoning,
     };
   } catch (error) {
     console.error("[StyleAnalysis] AI analysis failed:", error);
