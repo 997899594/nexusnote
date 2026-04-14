@@ -16,6 +16,15 @@ export type CareerTreeJobData =
   | {
       type: "compose_user_career_trees";
       userId: string;
+    }
+  | {
+      type: "refresh_user_skill_graph";
+      userId: string;
+      courseId?: string;
+    }
+  | {
+      type: "derive_user_insights";
+      userId: string;
     };
 
 export const careerTreeQueue = new Queue<CareerTreeJobData>("career-tree", {

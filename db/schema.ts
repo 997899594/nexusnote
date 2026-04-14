@@ -9,8 +9,6 @@ import {
   verificationTokens,
 } from "./schema/auth";
 import {
-  careerCourseChapterEvidence,
-  careerCourseSkillEvidence,
   careerGenerationRuns,
   careerUserGraphState,
   careerUserSkillEdges,
@@ -21,16 +19,21 @@ import {
 } from "./schema/career-tree";
 import { conversationMessages, conversations } from "./schema/conversations";
 import {
-  courseChapterSkillMappings,
   courseProgress,
   courseSectionAnnotations,
   courseSections,
-  courseSkillMappings,
   courses,
 } from "./schema/courses";
-import { knowledgeChunks } from "./schema/knowledge";
+import {
+  knowledgeChunks,
+  knowledgeEvidence,
+  knowledgeEvidenceEventRefs,
+  knowledgeEvidenceEvents,
+  knowledgeEvidenceSourceLinks,
+  knowledgeInsightEvidence,
+  knowledgeInsights,
+} from "./schema/knowledge";
 import { noteSnapshots, notes, noteTags, tags } from "./schema/notes";
-import { skillRelationships, skills, userSkillMastery } from "./schema/skills";
 import { aiSkins, userSkinPreferences } from "./schema/skins";
 
 export * from "./schema/ai-usage";
@@ -41,14 +44,16 @@ export * from "./schema/courses";
 export * from "./schema/knowledge";
 export * from "./schema/notes";
 export * from "./schema/shared";
-export * from "./schema/skills";
 export * from "./schema/skins";
 
 export const usersRelations = relations(users, ({ many }) => ({
   courses: many(courses),
   notes: many(notes),
   conversations: many(conversations),
+  knowledgeEvidence: many(knowledgeEvidence),
   knowledgeChunks: many(knowledgeChunks),
+  knowledgeEvidenceEvents: many(knowledgeEvidenceEvents),
+  knowledgeInsights: many(knowledgeInsights),
   userProfiles: many(userProfiles),
   stylePrivacySettings: many(stylePrivacySettings),
   createdSkins: many(aiSkins),
@@ -57,8 +62,6 @@ export const usersRelations = relations(users, ({ many }) => ({
   courseSectionAnnotations: many(courseSectionAnnotations),
   noteTags: many(noteTags),
   careerGenerationRuns: many(careerGenerationRuns),
-  careerCourseSkillEvidence: many(careerCourseSkillEvidence),
-  careerCourseChapterEvidence: many(careerCourseChapterEvidence),
   careerUserSkillNodes: many(careerUserSkillNodes),
   careerUserSkillEdges: many(careerUserSkillEdges),
   careerUserSkillNodeEvidence: many(careerUserSkillNodeEvidence),
@@ -124,6 +127,65 @@ export const knowledgeChunksRelations = relations(knowledgeChunks, ({ one }) => 
   }),
 }));
 
+export const knowledgeEvidenceRelations = relations(knowledgeEvidence, ({ one, many }) => ({
+  user: one(users, {
+    fields: [knowledgeEvidence.userId],
+    references: [users.id],
+  }),
+  sourceLinks: many(knowledgeEvidenceSourceLinks),
+  insightLinks: many(knowledgeInsightEvidence),
+}));
+
+export const knowledgeEvidenceEventsRelations = relations(
+  knowledgeEvidenceEvents,
+  ({ one, many }) => ({
+    user: one(users, {
+      fields: [knowledgeEvidenceEvents.userId],
+      references: [users.id],
+    }),
+    refs: many(knowledgeEvidenceEventRefs),
+  }),
+);
+
+export const knowledgeEvidenceSourceLinksRelations = relations(
+  knowledgeEvidenceSourceLinks,
+  ({ one }) => ({
+    evidence: one(knowledgeEvidence, {
+      fields: [knowledgeEvidenceSourceLinks.evidenceId],
+      references: [knowledgeEvidence.id],
+    }),
+  }),
+);
+
+export const knowledgeInsightsRelations = relations(knowledgeInsights, ({ one, many }) => ({
+  user: one(users, {
+    fields: [knowledgeInsights.userId],
+    references: [users.id],
+  }),
+  evidenceLinks: many(knowledgeInsightEvidence),
+}));
+
+export const knowledgeInsightEvidenceRelations = relations(knowledgeInsightEvidence, ({ one }) => ({
+  insight: one(knowledgeInsights, {
+    fields: [knowledgeInsightEvidence.insightId],
+    references: [knowledgeInsights.id],
+  }),
+  evidence: one(knowledgeEvidence, {
+    fields: [knowledgeInsightEvidence.evidenceId],
+    references: [knowledgeEvidence.id],
+  }),
+}));
+
+export const knowledgeEvidenceEventRefsRelations = relations(
+  knowledgeEvidenceEventRefs,
+  ({ one }) => ({
+    event: one(knowledgeEvidenceEvents, {
+      fields: [knowledgeEvidenceEventRefs.eventId],
+      references: [knowledgeEvidenceEvents.id],
+    }),
+  }),
+);
+
 export const coursesRelations = relations(courses, ({ one, many }) => ({
   user: one(users, {
     fields: [courses.userId],
@@ -131,10 +193,6 @@ export const coursesRelations = relations(courses, ({ one, many }) => ({
   }),
   sections: many(courseSections),
   progress: many(courseProgress),
-  skillMappings: many(courseSkillMappings),
-  chapterSkillMappings: many(courseChapterSkillMappings),
-  careerCourseSkillEvidence: many(careerCourseSkillEvidence),
-  careerCourseChapterEvidence: many(careerCourseChapterEvidence),
 }));
 
 export const courseSectionsRelations = relations(courseSections, ({ one, many }) => ({
@@ -167,61 +225,10 @@ export const courseSectionAnnotationsRelations = relations(courseSectionAnnotati
   }),
 }));
 
-export const courseSkillMappingsRelations = relations(courseSkillMappings, ({ one }) => ({
-  course: one(courses, {
-    fields: [courseSkillMappings.courseId],
-    references: [courses.id],
-  }),
-}));
-
-export const courseChapterSkillMappingsRelations = relations(
-  courseChapterSkillMappings,
-  ({ one }) => ({
-    course: one(courses, {
-      fields: [courseChapterSkillMappings.courseId],
-      references: [courses.id],
-    }),
-  }),
-);
-
 export const stylePrivacySettingsRelations = relations(stylePrivacySettings, ({ one }) => ({
   user: one(users, {
     fields: [stylePrivacySettings.userId],
     references: [users.id],
-  }),
-}));
-
-export const skillsRelations = relations(skills, ({ many }) => ({
-  sourceRelationships: many(skillRelationships, {
-    relationName: "sourceRelationships",
-  }),
-  targetRelationships: many(skillRelationships, {
-    relationName: "targetRelationships",
-  }),
-  userMastery: many(userSkillMastery),
-}));
-
-export const skillRelationshipsRelations = relations(skillRelationships, ({ one }) => ({
-  sourceSkill: one(skills, {
-    fields: [skillRelationships.sourceSkillId],
-    references: [skills.id],
-    relationName: "sourceRelationships",
-  }),
-  targetSkill: one(skills, {
-    fields: [skillRelationships.targetSkillId],
-    references: [skills.id],
-    relationName: "targetRelationships",
-  }),
-}));
-
-export const userSkillMasteryRelations = relations(userSkillMastery, ({ one }) => ({
-  user: one(users, {
-    fields: [userSkillMastery.userId],
-    references: [users.id],
-  }),
-  skill: one(skills, {
-    fields: [userSkillMastery.skillId],
-    references: [skills.id],
   }),
 }));
 
@@ -250,38 +257,6 @@ export const careerGenerationRunsRelations = relations(careerGenerationRuns, ({ 
     references: [courses.id],
   }),
 }));
-
-export const careerCourseSkillEvidenceRelations = relations(
-  careerCourseSkillEvidence,
-  ({ one }) => ({
-    user: one(users, {
-      fields: [careerCourseSkillEvidence.userId],
-      references: [users.id],
-    }),
-    course: one(courses, {
-      fields: [careerCourseSkillEvidence.courseId],
-      references: [courses.id],
-    }),
-    extractRun: one(careerGenerationRuns, {
-      fields: [careerCourseSkillEvidence.extractRunId],
-      references: [careerGenerationRuns.id],
-    }),
-  }),
-);
-
-export const careerCourseChapterEvidenceRelations = relations(
-  careerCourseChapterEvidence,
-  ({ one }) => ({
-    user: one(users, {
-      fields: [careerCourseChapterEvidence.userId],
-      references: [users.id],
-    }),
-    course: one(courses, {
-      fields: [careerCourseChapterEvidence.courseId],
-      references: [courses.id],
-    }),
-  }),
-);
 
 export const careerUserSkillNodesRelations = relations(careerUserSkillNodes, ({ one, many }) => ({
   user: one(users, {
@@ -325,9 +300,9 @@ export const careerUserSkillNodeEvidenceRelations = relations(
       fields: [careerUserSkillNodeEvidence.nodeId],
       references: [careerUserSkillNodes.id],
     }),
-    courseSkillEvidence: one(careerCourseSkillEvidence, {
-      fields: [careerUserSkillNodeEvidence.courseSkillEvidenceId],
-      references: [careerCourseSkillEvidence.id],
+    knowledgeEvidence: one(knowledgeEvidence, {
+      fields: [careerUserSkillNodeEvidence.knowledgeEvidenceId],
+      references: [knowledgeEvidence.id],
     }),
   }),
 );

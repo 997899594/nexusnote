@@ -11,6 +11,12 @@ import {
   revalidateLearnPage,
   revalidateRecentCourses,
 } from "@/lib/cache/tags";
+import {
+  computeCareerOutlineHash,
+  normalizeCareerOutline,
+} from "@/lib/career-tree/normalize-outline";
+import { enqueueCareerTreeRefresh } from "@/lib/career-tree/queue";
+import { ingestEvidenceEvent } from "@/lib/knowledge/events";
 import { getOwnedCourse } from "@/lib/learning/course-repository";
 
 const RequestSchema = z.object({
@@ -127,6 +133,57 @@ export async function POST(request: NextRequest) {
         updatedAt: new Date(),
       });
     }
+
+    const normalizedOutline = normalizeCareerOutline(course.outlineData);
+    const outlineHash = computeCareerOutlineHash(normalizedOutline);
+    const completedSection = normalizedOutline.chapters
+      .flatMap((chapter) =>
+        chapter.sections.map((section) => ({
+          chapter,
+          section,
+        })),
+      )
+      .find((item) => item.section.sectionKey === sectionNodeId);
+
+    await ingestEvidenceEvent({
+      id: crypto.randomUUID(),
+      userId: session.user.id,
+      kind: "course_progress",
+      sourceType: "course",
+      sourceId: courseId,
+      sourceVersionHash: outlineHash,
+      title: course.title,
+      summary: completedSection
+        ? `完成了《${completedSection.section.title}》`
+        : `完成了 ${sectionNodeId}`,
+      confidence: 1,
+      happenedAt: new Date().toISOString(),
+      metadata: {
+        sectionNodeId,
+        completedSectionCount: completedSections.length,
+        completedChapterCount: completedChapters.length,
+      },
+      refs: [
+        {
+          refType: "section",
+          refId: sectionNodeId,
+          snippet: completedSection?.section.title ?? null,
+          weight: 1,
+        },
+        ...(completedSection
+          ? [
+              {
+                refType: "chapter",
+                refId: completedSection.chapter.chapterKey,
+                snippet: completedSection.chapter.title,
+                weight: 1,
+              },
+            ]
+          : []),
+      ],
+    });
+
+    await enqueueCareerTreeRefresh(session.user.id, courseId);
 
     revalidateRecentCourses(session.user.id);
     revalidateLearnPage(session.user.id, courseId);

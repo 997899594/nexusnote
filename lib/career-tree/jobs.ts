@@ -1,7 +1,5 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import {
-  careerCourseChapterEvidence,
-  careerCourseSkillEvidence,
   careerGenerationRuns,
   careerUserGraphState,
   careerUserSkillEdges,
@@ -11,7 +9,10 @@ import {
   courseProgress,
   courses,
   db,
+  knowledgeEvidence,
+  knowledgeEvidenceSourceLinks,
 } from "@/db";
+import { revalidateGoldenPath } from "@/lib/cache/tags";
 import {
   type ComposerVisibleNode,
   composeCareerTrees,
@@ -39,8 +40,14 @@ import {
   normalizeCareerOutline,
 } from "@/lib/career-tree/normalize-outline";
 import { getCareerTreePreference } from "@/lib/career-tree/preferences";
-import { enqueueCareerTreeCompose, enqueueCareerTreeMerge } from "@/lib/career-tree/queue";
+import {
+  enqueueCareerTreeCompose,
+  enqueueCareerTreeMerge,
+  enqueueKnowledgeInsights,
+} from "@/lib/career-tree/queue";
 import { retrieveMergeCandidateSet } from "@/lib/career-tree/retrieve-merge-candidates";
+import { ingestEvidenceEvent } from "@/lib/knowledge/events";
+import { aggregateCourseEventsToKnowledgeEvidence } from "@/lib/knowledge/evidence";
 import type { CareerTreeJobData } from "@/lib/queue/career-tree-queue";
 
 type JobPayload<T extends CareerTreeJobData["type"]> = Extract<CareerTreeJobData, { type: T }>;
@@ -74,7 +81,7 @@ async function getCourseForCareerTree(userId: string, courseId: string): Promise
 async function getOrCreateRun(params: {
   userId: string;
   courseId?: string;
-  kind: "extract" | "merge" | "compose";
+  kind: "extract" | "merge" | "compose" | "refresh";
   idempotencyKey: string;
   inputHash: string;
   model: string;
@@ -206,25 +213,61 @@ async function recomputeNodeAggregates(
   for (const nodeId of uniqueNodeIds) {
     const linkedEvidenceRows = await executor
       .select({
-        evidenceId: careerCourseSkillEvidence.id,
-        courseId: careerCourseSkillEvidence.courseId,
-        chapterKeys: careerCourseSkillEvidence.chapterKeys,
-        confidence: careerCourseSkillEvidence.confidence,
-        outlineData: courses.outlineData,
-        completedSections: courseProgress.completedSections,
-        completedChapters: courseProgress.completedChapters,
+        evidenceId: knowledgeEvidence.id,
+        sourceType: knowledgeEvidence.sourceType,
+        sourceId: knowledgeEvidence.sourceId,
+        confidence: knowledgeEvidence.confidence,
       })
       .from(careerUserSkillNodeEvidence)
       .innerJoin(
-        careerCourseSkillEvidence,
-        eq(careerUserSkillNodeEvidence.courseSkillEvidenceId, careerCourseSkillEvidence.id),
-      )
-      .innerJoin(courses, eq(careerCourseSkillEvidence.courseId, courses.id))
-      .leftJoin(
-        courseProgress,
-        and(eq(courseProgress.courseId, courses.id), eq(courseProgress.userId, userId)),
+        knowledgeEvidence,
+        eq(careerUserSkillNodeEvidence.knowledgeEvidenceId, knowledgeEvidence.id),
       )
       .where(eq(careerUserSkillNodeEvidence.nodeId, nodeId));
+
+    const linkedRefs =
+      linkedEvidenceRows.length > 0
+        ? await db
+            .select({
+              evidenceId: knowledgeEvidenceSourceLinks.evidenceId,
+              refType: knowledgeEvidenceSourceLinks.refType,
+              refId: knowledgeEvidenceSourceLinks.refId,
+            })
+            .from(knowledgeEvidenceSourceLinks)
+            .where(
+              inArray(
+                knowledgeEvidenceSourceLinks.evidenceId,
+                linkedEvidenceRows.map((row) => row.evidenceId),
+              ),
+            )
+        : [];
+
+    const linkedCourseIds = [
+      ...new Set(
+        linkedEvidenceRows
+          .filter((row) => row.sourceType === "course" && row.sourceId)
+          .map((row) => row.sourceId as string),
+      ),
+    ];
+
+    const courseRows =
+      linkedCourseIds.length > 0
+        ? await db
+            .select({
+              courseId: courses.id,
+              outlineData: courses.outlineData,
+              completedSections: courseProgress.completedSections,
+              completedChapters: courseProgress.completedChapters,
+            })
+            .from(courses)
+            .leftJoin(
+              courseProgress,
+              and(eq(courseProgress.courseId, courses.id), eq(courseProgress.userId, userId)),
+            )
+            .where(inArray(courses.id, linkedCourseIds))
+        : [];
+
+    const courseRowById = new Map(courseRows.map((row) => [row.courseId, row]));
 
     const chapterCompletionRatios: AggregationInput["chapterCompletionRatios"] = [];
     const fallbackCourseProgressRatios: AggregationInput["fallbackCourseProgressRatios"] = [];
@@ -232,15 +275,26 @@ async function recomputeNodeAggregates(
     const chapterKeys = new Set<string>();
 
     for (const row of linkedEvidenceRows) {
-      courseIds.add(row.courseId);
-      const outline = normalizeCareerOutline(row.outlineData);
+      if (row.sourceType !== "course" || !row.sourceId) {
+        continue;
+      }
+
+      const courseRow = courseRowById.get(row.sourceId);
+      if (!courseRow) {
+        continue;
+      }
+
+      courseIds.add(row.sourceId);
+      const outline = normalizeCareerOutline(courseRow.outlineData);
       const progressMap = buildChapterProgressMap(
         outline,
-        row.completedSections ?? [],
-        row.completedChapters ?? [],
+        courseRow.completedSections ?? [],
+        courseRow.completedChapters ?? [],
       );
       const confidence = Number(row.confidence);
-      const rowChapterKeys = row.chapterKeys ?? [];
+      const rowChapterKeys = linkedRefs
+        .filter((ref) => ref.evidenceId === row.evidenceId && ref.refType === "chapter")
+        .map((ref) => ref.refId);
 
       if (rowChapterKeys.length > 0) {
         for (const chapterKey of rowChapterKeys) {
@@ -388,80 +442,46 @@ export async function processCareerTreeExtractJob(
       }),
     );
 
-    await db.transaction(async (tx) => {
-      if (extracted.items.length > 0) {
-        await tx.insert(careerCourseSkillEvidence).values(
-          extracted.items.map((item) => ({
-            userId: job.userId,
-            courseId: job.courseId,
-            extractRunId: run.id,
-            title: item.title,
-            kind: item.kind,
-            summary: item.summary,
-            confidence: item.confidence.toFixed(3),
-            chapterKeys: item.chapterKeys,
-            prerequisiteHints: item.prerequisiteHints,
-            relatedHints: item.relatedHints,
-            evidenceSnippets: item.evidenceSnippets,
-            sourceOutlineHash: outlineHash,
+    for (const item of extracted.items) {
+      await ingestEvidenceEvent({
+        id: crypto.randomUUID(),
+        userId: job.userId,
+        kind: "course_outline",
+        sourceType: "course",
+        sourceId: job.courseId,
+        sourceVersionHash: outlineHash,
+        title: item.title,
+        summary: item.summary,
+        confidence: item.confidence,
+        happenedAt: new Date().toISOString(),
+        metadata: {
+          itemKind: item.kind,
+          prerequisiteHints: item.prerequisiteHints,
+          relatedHints: item.relatedHints,
+        },
+        refs: [
+          ...item.chapterKeys.map((chapterKey) => ({
+            refType: "chapter",
+            refId: chapterKey,
+            snippet:
+              outline.chapters.find((chapter) => chapter.chapterKey === chapterKey)?.title ??
+              chapterKey,
+            weight: 1,
           })),
-        );
-      }
-
-      const chapterEvidenceMap = new Map<
-        string,
-        { chapterTitle: string; skillEvidenceIds: string[]; confidence: number }
-      >();
-
-      const evidenceRows = await tx
-        .select({
-          id: careerCourseSkillEvidence.id,
-          chapterKeys: careerCourseSkillEvidence.chapterKeys,
-          confidence: careerCourseSkillEvidence.confidence,
-        })
-        .from(careerCourseSkillEvidence)
-        .where(eq(careerCourseSkillEvidence.extractRunId, run.id));
-
-      for (const row of evidenceRows) {
-        for (const chapterKey of row.chapterKeys ?? []) {
-          const chapter = outline.chapters.find((item) => item.chapterKey === chapterKey);
-          if (!chapter) {
-            continue;
-          }
-
-          const current = chapterEvidenceMap.get(chapterKey) ?? {
-            chapterTitle: chapter.title,
-            skillEvidenceIds: [],
-            confidence: 0,
-          };
-
-          current.skillEvidenceIds.push(row.id);
-          current.confidence = Math.max(current.confidence, Number(row.confidence));
-          chapterEvidenceMap.set(chapterKey, current);
-        }
-      }
-
-      if (chapterEvidenceMap.size > 0) {
-        await tx
-          .delete(careerCourseChapterEvidence)
-          .where(
-            and(
-              eq(careerCourseChapterEvidence.userId, job.userId),
-              eq(careerCourseChapterEvidence.courseId, job.courseId),
-            ),
-          );
-
-        await tx.insert(careerCourseChapterEvidence).values(
-          [...chapterEvidenceMap.entries()].map(([chapterKey, value]) => ({
-            userId: job.userId,
-            courseId: job.courseId,
-            chapterKey,
-            chapterTitle: value.chapterTitle,
-            skillEvidenceIds: value.skillEvidenceIds,
-            confidence: value.confidence.toFixed(3),
+          ...item.evidenceSnippets.map((snippet, index) => ({
+            refType: "snippet",
+            refId: `${item.title}:${index}`,
+            snippet,
+            weight: 1,
           })),
-        );
-      }
+        ],
+      });
+    }
+
+    await aggregateCourseEventsToKnowledgeEvidence({
+      userId: job.userId,
+      courseId: job.courseId,
+      sourceVersionHash: outlineHash,
     });
 
     await markRunSucceeded(db, run.id, extracted);
@@ -510,16 +530,39 @@ export async function processCareerTreeMergeJob(
 
   const evidenceRows = await db
     .select({
-      id: careerCourseSkillEvidence.id,
-      title: careerCourseSkillEvidence.title,
-      summary: careerCourseSkillEvidence.summary,
-      confidence: careerCourseSkillEvidence.confidence,
-      chapterKeys: careerCourseSkillEvidence.chapterKeys,
-      sourceOutlineHash: careerCourseSkillEvidence.sourceOutlineHash,
-      evidenceSnippets: careerCourseSkillEvidence.evidenceSnippets,
+      id: knowledgeEvidence.id,
+      title: knowledgeEvidence.title,
+      summary: knowledgeEvidence.summary,
+      confidence: knowledgeEvidence.confidence,
+      sourceVersionHash: knowledgeEvidence.sourceVersionHash,
     })
-    .from(careerCourseSkillEvidence)
-    .where(eq(careerCourseSkillEvidence.extractRunId, extractRun.id));
+    .from(knowledgeEvidence)
+    .where(
+      and(
+        eq(knowledgeEvidence.userId, job.userId),
+        eq(knowledgeEvidence.sourceType, "course"),
+        eq(knowledgeEvidence.sourceId, job.courseId),
+        eq(knowledgeEvidence.sourceVersionHash, extractRun.inputHash),
+      ),
+    );
+
+  const evidenceRefs =
+    evidenceRows.length > 0
+      ? await db
+          .select({
+            evidenceId: knowledgeEvidenceSourceLinks.evidenceId,
+            refType: knowledgeEvidenceSourceLinks.refType,
+            refId: knowledgeEvidenceSourceLinks.refId,
+            snippet: knowledgeEvidenceSourceLinks.snippet,
+          })
+          .from(knowledgeEvidenceSourceLinks)
+          .where(
+            inArray(
+              knowledgeEvidenceSourceLinks.evidenceId,
+              evidenceRows.map((row) => row.id),
+            ),
+          )
+      : [];
 
   const existingNodes = await db
     .select({
@@ -533,13 +576,13 @@ export async function processCareerTreeMergeJob(
   const existingEvidenceLinks = await db
     .select({
       nodeId: careerUserSkillNodeEvidence.nodeId,
-      title: careerCourseSkillEvidence.title,
-      summary: careerCourseSkillEvidence.summary,
+      title: knowledgeEvidence.title,
+      summary: knowledgeEvidence.summary,
     })
     .from(careerUserSkillNodeEvidence)
     .innerJoin(
-      careerCourseSkillEvidence,
-      eq(careerUserSkillNodeEvidence.courseSkillEvidenceId, careerCourseSkillEvidence.id),
+      knowledgeEvidence,
+      eq(careerUserSkillNodeEvidence.knowledgeEvidenceId, knowledgeEvidence.id),
     )
     .where(eq(careerUserSkillNodeEvidence.userId, job.userId));
 
@@ -557,10 +600,15 @@ export async function processCareerTreeMergeJob(
       kind: "skill",
       summary: row.summary,
       confidence: Number(row.confidence),
-      chapterKeys: row.chapterKeys ?? [],
+      chapterKeys: evidenceRefs
+        .filter((ref) => ref.evidenceId === row.id && ref.refType === "chapter")
+        .map((ref) => ref.refId),
       prerequisiteHints: [],
       relatedHints: [],
-      evidenceSnippets: row.evidenceSnippets ?? [],
+      evidenceSnippets: evidenceRefs
+        .filter((ref) => ref.evidenceId === row.id && ref.snippet)
+        .map((ref) => ref.snippet!)
+        .filter(Boolean),
     })),
     existingNodes,
     existingEvidenceLinks,
@@ -570,17 +618,18 @@ export async function processCareerTreeMergeJob(
   const priorCourseLinks = await db
     .select({
       nodeId: careerUserSkillNodeEvidence.nodeId,
-      evidenceId: careerUserSkillNodeEvidence.courseSkillEvidenceId,
+      evidenceId: careerUserSkillNodeEvidence.knowledgeEvidenceId,
     })
     .from(careerUserSkillNodeEvidence)
     .innerJoin(
-      careerCourseSkillEvidence,
-      eq(careerUserSkillNodeEvidence.courseSkillEvidenceId, careerCourseSkillEvidence.id),
+      knowledgeEvidence,
+      eq(careerUserSkillNodeEvidence.knowledgeEvidenceId, knowledgeEvidence.id),
     )
     .where(
       and(
         eq(careerUserSkillNodeEvidence.userId, job.userId),
-        eq(careerCourseSkillEvidence.courseId, job.courseId),
+        eq(knowledgeEvidence.sourceType, "course"),
+        eq(knowledgeEvidence.sourceId, job.courseId),
       ),
     );
 
@@ -607,13 +656,14 @@ export async function processCareerTreeMergeJob(
         })
         .from(careerUserSkillNodeEvidence)
         .innerJoin(
-          careerCourseSkillEvidence,
-          eq(careerUserSkillNodeEvidence.courseSkillEvidenceId, careerCourseSkillEvidence.id),
+          knowledgeEvidence,
+          eq(careerUserSkillNodeEvidence.knowledgeEvidenceId, knowledgeEvidence.id),
         )
         .where(
           and(
             eq(careerUserSkillNodeEvidence.userId, job.userId),
-            eq(careerCourseSkillEvidence.courseId, job.courseId),
+            eq(knowledgeEvidence.sourceType, "course"),
+            eq(knowledgeEvidence.sourceId, job.courseId),
           ),
         );
 
@@ -658,7 +708,7 @@ export async function processCareerTreeMergeJob(
               decision.evidenceIds.map((evidenceId) => ({
                 userId: job.userId,
                 nodeId: decision.targetNodeId,
-                courseSkillEvidenceId: evidenceId,
+                knowledgeEvidenceId: evidenceId,
                 mergeRunId: mergeRun.id,
                 weight: decision.confidence.toFixed(3),
               })),
@@ -691,7 +741,7 @@ export async function processCareerTreeMergeJob(
           decision.evidenceIds.map((evidenceId) => ({
             userId: job.userId,
             nodeId: createdNode.id,
-            courseSkillEvidenceId: evidenceId,
+            knowledgeEvidenceId: evidenceId,
             mergeRunId: mergeRun.id,
             weight: decision.confidence.toFixed(3),
           })),
@@ -753,6 +803,7 @@ export async function processCareerTreeMergeJob(
 
     await markRunSucceeded(db, mergeRun.id, validated);
     await enqueueCareerTreeCompose(job.userId);
+    await enqueueKnowledgeInsights(job.userId);
   } catch (error) {
     await markRunFailed(mergeRun.id, error);
     throw error;
@@ -852,16 +903,21 @@ export async function processCareerTreeComposeJob(
     const nodeEvidenceRows = await db
       .select({
         nodeId: careerUserSkillNodeEvidence.nodeId,
-        courseId: careerCourseSkillEvidence.courseId,
-        chapterKeys: careerCourseSkillEvidence.chapterKeys,
+        sourceId: knowledgeEvidence.sourceId,
         courseTitle: courses.title,
+        refType: knowledgeEvidenceSourceLinks.refType,
+        refId: knowledgeEvidenceSourceLinks.refId,
       })
       .from(careerUserSkillNodeEvidence)
       .innerJoin(
-        careerCourseSkillEvidence,
-        eq(careerUserSkillNodeEvidence.courseSkillEvidenceId, careerCourseSkillEvidence.id),
+        knowledgeEvidence,
+        eq(careerUserSkillNodeEvidence.knowledgeEvidenceId, knowledgeEvidence.id),
       )
-      .innerJoin(courses, eq(careerCourseSkillEvidence.courseId, courses.id))
+      .leftJoin(courses, eq(courses.id, knowledgeEvidence.sourceId))
+      .leftJoin(
+        knowledgeEvidenceSourceLinks,
+        eq(knowledgeEvidenceSourceLinks.evidenceId, knowledgeEvidence.id),
+      )
       .where(eq(careerUserSkillNodeEvidence.userId, job.userId));
 
     const snapshotTrees = resolvedTrees.map((tree) => {
@@ -871,21 +927,25 @@ export async function processCareerTreeComposeJob(
       const supportingCourses = [
         ...new Map(
           supportingRows.map((row) => [
-            row.courseId,
+            row.sourceId,
             {
-              courseId: row.courseId,
-              title: row.courseTitle,
+              courseId: row.sourceId,
+              title: row.courseTitle ?? "未命名课程",
             },
           ]),
         ).values(),
-      ];
+      ].filter((course): course is { courseId: string; title: string } => Boolean(course.courseId));
       const supportingChapters = supportingRows.flatMap((row) =>
-        (row.chapterKeys ?? []).map((chapterKey) => ({
-          courseId: row.courseId,
-          chapterKey,
-          chapterIndex: parseChapterIndexFromKey(chapterKey),
-          title: chapterKey,
-        })),
+        row.refType === "chapter" && row.sourceId && row.refId
+          ? [
+              {
+                courseId: row.sourceId,
+                chapterKey: row.refId,
+                chapterIndex: parseChapterIndexFromKey(row.refId),
+                title: row.refId,
+              },
+            ]
+          : [],
       );
 
       return {
@@ -948,8 +1008,82 @@ export async function processCareerTreeComposeJob(
         trees: resolvedTrees,
       });
     });
+
+    revalidateGoldenPath(job.userId);
   } catch (error) {
     await markRunFailed(composeRun.id, error);
+    throw error;
+  }
+}
+
+export async function processCareerTreeRefreshJob(
+  job: JobPayload<"refresh_user_skill_graph">,
+): Promise<void> {
+  const nodeRows = await db
+    .select({
+      nodeId: careerUserSkillNodeEvidence.nodeId,
+    })
+    .from(careerUserSkillNodeEvidence)
+    .innerJoin(
+      knowledgeEvidence,
+      eq(careerUserSkillNodeEvidence.knowledgeEvidenceId, knowledgeEvidence.id),
+    )
+    .where(
+      and(
+        eq(careerUserSkillNodeEvidence.userId, job.userId),
+        eq(knowledgeEvidence.sourceType, "course"),
+        job.courseId ? eq(knowledgeEvidence.sourceId, job.courseId) : undefined,
+      ),
+    );
+
+  const nodeIds = [...new Set(nodeRows.map((row) => row.nodeId))];
+  if (nodeIds.length === 0) {
+    return;
+  }
+
+  const refreshRun = await getOrCreateRun({
+    userId: job.userId,
+    courseId: job.courseId,
+    kind: "refresh",
+    idempotencyKey: `refresh:user:${job.userId}:course:${job.courseId ?? "all"}:${Date.now()}`,
+    inputHash: `${job.courseId ?? "all"}:${nodeIds.length}`,
+    model: "deterministic",
+    promptVersion: "career-tree-refresh@v1",
+  });
+
+  try {
+    await db.transaction(async (tx) => {
+      const existingGraphState = await tx.query.careerUserGraphState.findFirst({
+        where: eq(careerUserGraphState.userId, job.userId),
+      });
+
+      if (existingGraphState) {
+        await tx
+          .update(careerUserGraphState)
+          .set({
+            graphVersion: existingGraphState.graphVersion + 1,
+            updatedAt: new Date(),
+          })
+          .where(eq(careerUserGraphState.userId, job.userId));
+      } else {
+        await tx.insert(careerUserGraphState).values({
+          userId: job.userId,
+          graphVersion: 1,
+          updatedAt: new Date(),
+        });
+      }
+
+      await recomputeNodeAggregates(tx, job.userId, nodeIds);
+      await markRunSucceeded(tx, refreshRun.id, {
+        courseId: job.courseId ?? null,
+        refreshedNodeCount: nodeIds.length,
+      });
+    });
+
+    await enqueueCareerTreeCompose(job.userId);
+    await enqueueKnowledgeInsights(job.userId);
+  } catch (error) {
+    await markRunFailed(refreshRun.id, error);
     throw error;
   }
 }

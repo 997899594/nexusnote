@@ -4,6 +4,7 @@ import { revalidateGoldenPath } from "@/lib/cache/tags";
 import { setSelectedCareerTreeDirection } from "@/lib/career-tree/preference-write";
 import { enqueueCareerTreeCompose } from "@/lib/career-tree/queue";
 import { getCareerTreeSnapshot } from "@/lib/career-tree/snapshot";
+import { ingestEvidenceEvent } from "@/lib/knowledge/events";
 
 const SelectCareerTreeSchema = z
   .object({
@@ -33,6 +34,28 @@ export const PUT = withAuth(async (request, { userId }) => {
   const { selectedDirectionKey } = SelectCareerTreeSchema.parse(body);
 
   await setSelectedCareerTreeDirection(userId, selectedDirectionKey);
+  await ingestEvidenceEvent({
+    id: crypto.randomUUID(),
+    userId,
+    kind: "user_preference",
+    sourceType: "career_tree",
+    sourceId: selectedDirectionKey,
+    sourceVersionHash: null,
+    title: "选择当前职业树",
+    summary: selectedDirectionKey,
+    confidence: 1,
+    happenedAt: new Date().toISOString(),
+    metadata: {
+      selectedDirectionKey,
+    },
+    refs: [
+      {
+        refType: "direction_key",
+        refId: selectedDirectionKey,
+        weight: 1,
+      },
+    ],
+  });
   await enqueueCareerTreeCompose(userId);
   revalidateGoldenPath(userId);
 

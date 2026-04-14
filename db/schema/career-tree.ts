@@ -12,6 +12,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { users } from "./auth";
 import { courses } from "./courses";
+import { knowledgeEvidence } from "./knowledge";
 
 export const careerGenerationRuns = pgTable(
   "career_generation_runs",
@@ -40,64 +41,6 @@ export const careerGenerationRuns = pgTable(
     ),
     userKindIdx: index("career_generation_runs_user_kind_idx").on(table.userId, table.kind),
     courseIdx: index("career_generation_runs_course_idx").on(table.courseId),
-  }),
-);
-
-export const careerCourseSkillEvidence = pgTable(
-  "career_course_skill_evidence",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id")
-      .references(() => users.id, { onDelete: "cascade" })
-      .notNull(),
-    courseId: uuid("course_id")
-      .references(() => courses.id, { onDelete: "cascade" })
-      .notNull(),
-    extractRunId: uuid("extract_run_id")
-      .references(() => careerGenerationRuns.id, { onDelete: "cascade" })
-      .notNull(),
-    title: text("title").notNull(),
-    kind: text("kind").notNull(),
-    summary: text("summary").notNull(),
-    confidence: numeric("confidence", { precision: 4, scale: 3 }).notNull(),
-    chapterKeys: jsonb("chapter_keys").$type<string[]>().notNull().default([]),
-    prerequisiteHints: jsonb("prerequisite_hints").$type<string[]>().notNull().default([]),
-    relatedHints: jsonb("related_hints").$type<string[]>().notNull().default([]),
-    evidenceSnippets: jsonb("evidence_snippets").$type<string[]>().notNull().default([]),
-    sourceOutlineHash: text("source_outline_hash").notNull(),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-  },
-  (table) => ({
-    userCourseIdx: index("career_course_skill_evidence_user_course_idx").on(
-      table.userId,
-      table.courseId,
-    ),
-    extractRunIdx: index("career_course_skill_evidence_extract_run_idx").on(table.extractRunId),
-  }),
-);
-
-export const careerCourseChapterEvidence = pgTable(
-  "career_course_chapter_evidence",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id")
-      .references(() => users.id, { onDelete: "cascade" })
-      .notNull(),
-    courseId: uuid("course_id")
-      .references(() => courses.id, { onDelete: "cascade" })
-      .notNull(),
-    chapterKey: text("chapter_key").notNull(),
-    chapterTitle: text("chapter_title").notNull(),
-    skillEvidenceIds: jsonb("skill_evidence_ids").$type<string[]>().notNull().default([]),
-    confidence: numeric("confidence", { precision: 4, scale: 3 }).notNull(),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-  },
-  (table) => ({
-    userCourseChapterIdx: uniqueIndex("career_course_chapter_evidence_user_course_chapter_idx").on(
-      table.userId,
-      table.courseId,
-      table.chapterKey,
-    ),
   }),
 );
 
@@ -168,8 +111,8 @@ export const careerUserSkillNodeEvidence = pgTable(
     nodeId: uuid("node_id")
       .references(() => careerUserSkillNodes.id, { onDelete: "cascade" })
       .notNull(),
-    courseSkillEvidenceId: uuid("course_skill_evidence_id")
-      .references(() => careerCourseSkillEvidence.id, { onDelete: "cascade" })
+    knowledgeEvidenceId: uuid("knowledge_evidence_id")
+      .references(() => knowledgeEvidence.id, { onDelete: "cascade" })
       .notNull(),
     mergeRunId: uuid("merge_run_id").references(() => careerGenerationRuns.id, {
       onDelete: "cascade",
@@ -180,7 +123,7 @@ export const careerUserSkillNodeEvidence = pgTable(
   (table) => ({
     uniqueNodeEvidenceIdx: uniqueIndex("career_user_skill_node_evidence_unique_idx").on(
       table.nodeId,
-      table.courseSkillEvidenceId,
+      table.knowledgeEvidenceId,
     ),
     userNodeIdx: index("career_user_skill_node_evidence_user_node_idx").on(
       table.userId,

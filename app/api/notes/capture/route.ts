@@ -4,6 +4,9 @@ import { z } from "zod";
 import { courseSections, courses, db } from "@/db";
 import { tagGenerationService } from "@/lib/ai/services/tag-generation-service";
 import { auth } from "@/lib/auth";
+import { enqueueKnowledgeInsights } from "@/lib/career-tree/queue";
+import { ingestEvidenceEvent } from "@/lib/knowledge/events";
+import { aggregateSourceEventsToKnowledgeEvidence } from "@/lib/knowledge/evidence";
 import {
   buildCapturedNoteHtml,
   buildCapturedNotePlainText,
@@ -93,6 +96,41 @@ export async function POST(request: NextRequest) {
         plainText,
       },
     });
+
+    await ingestEvidenceEvent({
+      id: crypto.randomUUID(),
+      userId,
+      kind: "capture",
+      sourceType: "note",
+      sourceId: note.id,
+      sourceVersionHash: null,
+      title: note.title,
+      summary: selectionText,
+      confidence: 1,
+      happenedAt: new Date().toISOString(),
+      metadata: {
+        courseId: section.courseId,
+        courseTitle: section.courseTitle,
+        sectionId: section.sectionId,
+        sectionTitle: section.sectionTitle,
+      },
+      refs: [
+        {
+          refType: "course_section",
+          refId: section.sectionId,
+          snippet: selectionText,
+          weight: 1,
+        },
+      ],
+    });
+
+    await aggregateSourceEventsToKnowledgeEvidence({
+      userId,
+      sourceType: "note",
+      sourceId: note.id,
+      sourceVersionHash: null,
+    });
+    await enqueueKnowledgeInsights(userId);
 
     try {
       await tagGenerationService.generateTags(note.id);

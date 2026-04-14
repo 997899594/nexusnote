@@ -27,3 +27,18 @@ export async function enqueueCareerTreeCompose(userId: string): Promise<void> {
     userId,
   });
 }
+
+export async function enqueueCareerTreeRefresh(userId: string, courseId?: string): Promise<void> {
+  await careerTreeQueue.add("refresh_user_skill_graph", {
+    type: "refresh_user_skill_graph",
+    userId,
+    courseId,
+  });
+}
+
+export async function enqueueKnowledgeInsights(userId: string): Promise<void> {
+  await careerTreeQueue.add("derive_user_insights", {
+    type: "derive_user_insights",
+    userId,
+  });
+}

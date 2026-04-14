@@ -2,6 +2,9 @@ import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { tagGenerationService } from "@/lib/ai/services/tag-generation-service";
 import { auth } from "@/lib/auth";
+import { enqueueKnowledgeInsights } from "@/lib/career-tree/queue";
+import { ingestEvidenceEvent } from "@/lib/knowledge/events";
+import { aggregateSourceEventsToKnowledgeEvidence } from "@/lib/knowledge/evidence";
 import { resolveOwnedLearnContext } from "@/lib/learning/resolve-learn-context";
 import {
   buildLearnChatCapturedHtml,
@@ -101,6 +104,40 @@ export async function POST(request: NextRequest) {
         plainText,
       },
     });
+
+    await ingestEvidenceEvent({
+      id: crypto.randomUUID(),
+      userId,
+      kind: "capture",
+      sourceType: "note",
+      sourceId: note.id,
+      sourceVersionHash: null,
+      title: note.title,
+      summary: normalizedMessages[normalizedMessages.length - 1]?.text ?? note.title,
+      confidence: 1,
+      happenedAt: new Date().toISOString(),
+      metadata: {
+        courseId,
+        chapterIndex,
+        messageCount: normalizedMessages.length,
+        courseTitle: learnContext.courseTitle,
+        chapterTitle: learnContext.chapterTitle,
+      },
+      refs: normalizedMessages.map((message, index) => ({
+        refType: `conversation_message_${message.role}`,
+        refId: `${courseId}:${chapterIndex}:${index}`,
+        snippet: message.text,
+        weight: 1,
+      })),
+    });
+
+    await aggregateSourceEventsToKnowledgeEvidence({
+      userId,
+      sourceType: "note",
+      sourceId: note.id,
+      sourceVersionHash: null,
+    });
+    await enqueueKnowledgeInsights(userId);
 
     try {
       await tagGenerationService.generateTags(note.id);

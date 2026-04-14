@@ -1,7 +1,9 @@
 import { ArrowRight, Compass, GraduationCap, Sparkles } from "lucide-react";
 import Link from "next/link";
+import { KnowledgeInsightStrip } from "@/components/knowledge/KnowledgeInsightStrip";
 import { getCareerTreeSnapshotCached } from "@/lib/career-tree/snapshot";
 import type { CandidateCareerTree, VisibleSkillTreeNode } from "@/lib/career-tree/types";
+import { getTopKnowledgeInsightsCached } from "@/lib/server/knowledge-insights-data";
 
 interface ProfileGoldenPathSummaryProps {
   userId: string;
@@ -42,7 +44,10 @@ function getTreeMetrics(tree: CandidateCareerTree) {
 }
 
 export async function ProfileGoldenPathSummary({ userId }: ProfileGoldenPathSummaryProps) {
-  const snapshot = await getCareerTreeSnapshotCached(userId);
+  const [snapshot, insights] = await Promise.all([
+    getCareerTreeSnapshotCached(userId),
+    getTopKnowledgeInsightsCached(userId, 3),
+  ]);
 
   if (snapshot.status === "empty") {
     return (
@@ -196,6 +201,15 @@ export async function ProfileGoldenPathSummary({ userId }: ProfileGoldenPathSumm
           </div>
         </div>
       </div>
+
+      {insights.length > 0 ? (
+        <div className="mt-5">
+          <div className="mb-3 text-[11px] uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
+            最近洞察
+          </div>
+          <KnowledgeInsightStrip insights={insights} />
+        </div>
+      ) : null}
     </section>
   );
 }

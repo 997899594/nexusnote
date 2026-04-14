@@ -3,7 +3,9 @@ import {
   processCareerTreeComposeJob,
   processCareerTreeExtractJob,
   processCareerTreeMergeJob,
+  processCareerTreeRefreshJob,
 } from "@/lib/career-tree/jobs";
+import { processKnowledgeInsightsJob } from "@/lib/knowledge/insights/jobs";
 import { redis } from "@/lib/redis";
 import type { CareerTreeJobData } from "./career-tree-queue";
 
@@ -26,6 +28,12 @@ export function startCareerTreeWorker(): Worker<CareerTreeJobData> {
           break;
         case "compose_user_career_trees":
           await processCareerTreeComposeJob(job.data);
+          break;
+        case "refresh_user_skill_graph":
+          await processCareerTreeRefreshJob(job.data);
+          break;
+        case "derive_user_insights":
+          await processKnowledgeInsightsJob(job.data);
           break;
       }
     },

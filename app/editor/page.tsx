@@ -9,8 +9,10 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
+import { KnowledgeInsightStrip } from "@/components/knowledge/KnowledgeInsightStrip";
 import { FloatingHeader } from "@/components/shared/layout";
 import { getNotesWorkbenchCached, type NoteWorkbenchKind } from "@/lib/server/editor-data";
+import { getTopKnowledgeInsightsCached } from "@/lib/server/knowledge-insights-data";
 import { requireDynamicPageAuth } from "@/lib/server/page-auth";
 
 function buildExcerpt(plainText: string | null, fallback: string | null) {
@@ -52,7 +54,10 @@ async function NotesIndexPageContent({
 }) {
   const session = await requireDynamicPageAuth("/editor");
   const { kind: rawKind, courseId } = await searchParams;
-  const snapshot = await getNotesWorkbenchCached(session.user.id);
+  const [snapshot, insights] = await Promise.all([
+    getNotesWorkbenchCached(session.user.id),
+    getTopKnowledgeInsightsCached(session.user.id, 3),
+  ]);
   const activeKind = (rawKind as NoteWorkbenchKind | undefined) ?? "all";
 
   const filteredNotes = snapshot.items.filter((note) => {
@@ -84,6 +89,20 @@ async function NotesIndexPageContent({
             把高亮、课程笔记和学习沉淀统一收口，不再困在单门课程里。
           </p>
         </header>
+
+        {insights.length > 0 ? (
+          <section className="mb-8">
+            <div className="mb-4">
+              <p className="text-[11px] uppercase tracking-[0.22em] text-[var(--color-text-muted)]">
+                AI 洞察
+              </p>
+              <h2 className="mt-2 text-xl font-medium text-[var(--color-text)]">
+                系统当前看到的知识信号
+              </h2>
+            </div>
+            <KnowledgeInsightStrip insights={insights} />
+          </section>
+        ) : null}
 
         {snapshot.items.length === 0 ? (
           <section className="ui-surface-card-lg rounded-[32px] p-8 md:p-10">

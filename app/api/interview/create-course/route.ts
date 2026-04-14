@@ -10,7 +10,12 @@ import {
   revalidateProfileStats,
   revalidateRecentCourses,
 } from "@/lib/cache/tags";
-import { enqueueCareerTreeExtract } from "@/lib/career-tree/queue";
+import {
+  computeCareerOutlineHash,
+  normalizeCareerOutline,
+} from "@/lib/career-tree/normalize-outline";
+import { enqueueCareerTreeExtract, enqueueKnowledgeInsights } from "@/lib/career-tree/queue";
+import { ingestEvidenceEvent } from "@/lib/knowledge/events";
 import { getOwnedCourse } from "@/lib/learning/course-repository";
 import { expandInterviewOutlineToCourseOutline } from "@/lib/learning/course-service";
 
@@ -64,7 +69,39 @@ export async function POST(request: NextRequest) {
     revalidateProfileStats(userId);
     revalidateLearnPage(userId, result.courseId);
     revalidateGoldenPath(userId);
+
+    const normalizedOutline = normalizeCareerOutline(expandedOutline);
+    const outlineHash = computeCareerOutlineHash(normalizedOutline);
+
+    await ingestEvidenceEvent({
+      id: crypto.randomUUID(),
+      userId,
+      kind: "course_outline",
+      sourceType: "course",
+      sourceId: result.courseId,
+      sourceVersionHash: outlineHash,
+      title: expandedOutline.title,
+      summary: expandedOutline.description,
+      confidence: 1,
+      happenedAt: new Date().toISOString(),
+      metadata: {
+        chapterCount: normalizedOutline.chapters.length,
+        courseSkillIds: normalizedOutline.courseSkillIds,
+        chapterSkillIds: normalizedOutline.chapters.map((chapter) => ({
+          chapterKey: chapter.chapterKey,
+          skillIds: chapter.explicitSkillIds,
+        })),
+      },
+      refs: normalizedOutline.chapters.map((chapter) => ({
+        refType: "chapter",
+        refId: chapter.chapterKey,
+        snippet: chapter.title,
+        weight: 1,
+      })),
+    });
+
     await enqueueCareerTreeExtract(userId, result.courseId);
+    await enqueueKnowledgeInsights(userId);
 
     return NextResponse.json({
       success: true,
