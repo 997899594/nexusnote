@@ -7,9 +7,16 @@ import { courseSectionAnnotations, courseSections, courses, db } from "@/db";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
 import { revalidateLearnPage } from "@/lib/cache/tags";
-import { enqueueKnowledgeInsights } from "@/lib/career-tree/queue";
+import {
+  enqueueCareerTreeRefresh,
+  enqueueKnowledgeInsights,
+  enqueueKnowledgeSourceMerge,
+} from "@/lib/career-tree/queue";
 import { deleteEvidenceEventsBySource, ingestEvidenceEvent } from "@/lib/knowledge/events";
-import { aggregateSourceEventsToKnowledgeEvidence } from "@/lib/knowledge/evidence";
+import {
+  aggregateSourceEventsToKnowledgeEvidence,
+  listLinkedNodeIdsForEvidenceSource,
+} from "@/lib/knowledge/evidence";
 
 const AnnotationSchema = z.object({
   id: z.string(),
@@ -44,6 +51,11 @@ export async function PATCH(request: NextRequest) {
     }
 
     const { sectionId, annotations } = parsed.data;
+    const affectedNodeIds = await listLinkedNodeIdsForEvidenceSource({
+      userId,
+      sourceType: "annotation",
+      sourceId: sectionId,
+    });
 
     const [section] = await db
       .select({ id: courseSections.id, courseId: courses.id })
@@ -138,7 +150,20 @@ export async function PATCH(request: NextRequest) {
       sourceId: sectionId,
       sourceVersionHash: null,
     });
-    await enqueueKnowledgeInsights(userId);
+
+    if (annotations.length > 0) {
+      await enqueueKnowledgeSourceMerge({
+        userId,
+        sourceType: "annotation",
+        sourceId: sectionId,
+        sourceVersionHash: null,
+        affectedNodeIds,
+      });
+    } else if (affectedNodeIds.length > 0) {
+      await enqueueCareerTreeRefresh(userId, undefined, affectedNodeIds);
+    } else {
+      await enqueueKnowledgeInsights(userId);
+    }
 
     revalidateLearnPage(userId, section.courseId);
 

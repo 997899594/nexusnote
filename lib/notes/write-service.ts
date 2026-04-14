@@ -5,9 +5,12 @@ import {
   revalidateNotesIndex,
   revalidateProfileStats,
 } from "@/lib/cache/tags";
-import { enqueueKnowledgeInsights } from "@/lib/career-tree/queue";
+import { enqueueCareerTreeRefresh, enqueueKnowledgeSourceMerge } from "@/lib/career-tree/queue";
 import { deleteEvidenceEventsBySource, ingestEvidenceEvent } from "@/lib/knowledge/events";
-import { aggregateSourceEventsToKnowledgeEvidence } from "@/lib/knowledge/evidence";
+import {
+  aggregateSourceEventsToKnowledgeEvidence,
+  listLinkedNodeIdsForEvidenceSource,
+} from "@/lib/knowledge/evidence";
 import { htmlToPlainText, plainTextToHtml } from "@/lib/notes/content";
 import { indexNote } from "@/lib/rag/chunker";
 
@@ -103,10 +106,6 @@ function appendPlainTextAsParagraph(existingHtml: string, plainText: string): st
   return `${existingHtml}${addition}`;
 }
 
-function isKnowledgeTrackedNote(note: Pick<NoteRecord, "sourceType">): boolean {
-  return note.sourceType === "course_capture";
-}
-
 function buildTrackedNoteRefs(note: Pick<NoteRecord, "id" | "plainText" | "sourceContext">) {
   const refs: Array<{
     refType: string;
@@ -152,10 +151,16 @@ function buildTrackedNoteRefs(note: Pick<NoteRecord, "id" | "plainText" | "sourc
   return refs;
 }
 
+function resolveNoteEvidenceKind(note: Pick<NoteRecord, "sourceType">): "capture" | "note" {
+  return note.sourceType === "course_capture" ? "capture" : "note";
+}
+
 async function syncTrackedNoteKnowledge(note: NoteRecord): Promise<void> {
-  if (!isKnowledgeTrackedNote(note)) {
-    return;
-  }
+  const affectedNodeIds = await listLinkedNodeIdsForEvidenceSource({
+    userId: note.userId,
+    sourceType: "note",
+    sourceId: note.id,
+  });
 
   await deleteEvidenceEventsBySource({
     userId: note.userId,
@@ -167,7 +172,7 @@ async function syncTrackedNoteKnowledge(note: NoteRecord): Promise<void> {
   await ingestEvidenceEvent({
     id: crypto.randomUUID(),
     userId: note.userId,
-    kind: "capture",
+    kind: resolveNoteEvidenceKind(note),
     sourceType: "note",
     sourceId: note.id,
     sourceVersionHash: null,
@@ -188,10 +193,22 @@ async function syncTrackedNoteKnowledge(note: NoteRecord): Promise<void> {
     sourceId: note.id,
     sourceVersionHash: null,
   });
-  await enqueueKnowledgeInsights(note.userId);
+  await enqueueKnowledgeSourceMerge({
+    userId: note.userId,
+    sourceType: "note",
+    sourceId: note.id,
+    sourceVersionHash: null,
+    affectedNodeIds,
+  });
 }
 
 async function clearTrackedNoteKnowledge(noteId: string, userId: string): Promise<void> {
+  const affectedNodeIds = await listLinkedNodeIdsForEvidenceSource({
+    userId,
+    sourceType: "note",
+    sourceId: noteId,
+  });
+
   await deleteEvidenceEventsBySource({
     userId,
     sourceType: "note",
@@ -204,7 +221,10 @@ async function clearTrackedNoteKnowledge(noteId: string, userId: string): Promis
     sourceId: noteId,
     sourceVersionHash: null,
   });
-  await enqueueKnowledgeInsights(userId);
+
+  if (affectedNodeIds.length > 0) {
+    await enqueueCareerTreeRefresh(userId, undefined, affectedNodeIds);
+  }
 }
 
 export async function getOwnedNote(noteId: string, userId: string): Promise<NoteRecord | null> {

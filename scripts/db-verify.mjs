@@ -33,6 +33,8 @@ const REQUIRED_TABLES = [
   "style_privacy_settings",
   "tags",
   "user_profiles",
+  "user_focus_snapshots",
+  "user_profile_snapshots",
   "user_skin_preferences",
   "users",
   "verification_tokens",

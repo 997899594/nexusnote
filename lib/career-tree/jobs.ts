@@ -1,4 +1,5 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { createHash } from "node:crypto";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import {
   careerGenerationRuns,
   careerUserGraphState,
@@ -11,6 +12,9 @@ import {
   db,
   knowledgeEvidence,
   knowledgeEvidenceSourceLinks,
+  knowledgeInsights,
+  userFocusSnapshots,
+  userProfileSnapshots,
 } from "@/db";
 import { revalidateGoldenPath } from "@/lib/cache/tags";
 import {
@@ -43,11 +47,15 @@ import { getCareerTreePreference } from "@/lib/career-tree/preferences";
 import {
   enqueueCareerTreeCompose,
   enqueueCareerTreeMerge,
+  enqueueCareerTreeRefresh,
   enqueueKnowledgeInsights,
 } from "@/lib/career-tree/queue";
 import { retrieveMergeCandidateSet } from "@/lib/career-tree/retrieve-merge-candidates";
 import { ingestEvidenceEvent } from "@/lib/knowledge/events";
-import { aggregateCourseEventsToKnowledgeEvidence } from "@/lib/knowledge/evidence";
+import {
+  aggregateCourseEventsToKnowledgeEvidence,
+  listLinkedNodeIdsForEvidenceSource,
+} from "@/lib/knowledge/evidence";
 import type { CareerTreeJobData } from "@/lib/queue/career-tree-queue";
 
 type JobPayload<T extends CareerTreeJobData["type"]> = Extract<CareerTreeJobData, { type: T }>;
@@ -58,6 +66,14 @@ interface CourseRow {
   title: string;
   description: string | null;
   outlineData: unknown;
+}
+
+interface EvidenceMergeRow {
+  id: string;
+  title: string;
+  summary: string;
+  confidence: string;
+  sourceVersionHash: string | null;
 }
 
 type CareerTreeExecutor = Pick<typeof db, "select" | "update">;
@@ -76,6 +92,70 @@ async function getCourseForCareerTree(userId: string, courseId: string): Promise
     .limit(1);
 
   return course ?? null;
+}
+
+function buildSourceVersionCondition<T>(field: T, sourceVersionHash: string | null | undefined) {
+  if (sourceVersionHash === undefined) {
+    return undefined;
+  }
+
+  return sourceVersionHash === null
+    ? isNull(field as never)
+    : eq(field as never, sourceVersionHash);
+}
+
+async function loadSourceEvidenceRows(params: {
+  userId: string;
+  sourceType: string;
+  sourceId: string;
+  sourceVersionHash?: string | null;
+}): Promise<EvidenceMergeRow[]> {
+  return db
+    .select({
+      id: knowledgeEvidence.id,
+      title: knowledgeEvidence.title,
+      summary: knowledgeEvidence.summary,
+      confidence: knowledgeEvidence.confidence,
+      sourceVersionHash: knowledgeEvidence.sourceVersionHash,
+    })
+    .from(knowledgeEvidence)
+    .where(
+      and(
+        eq(knowledgeEvidence.userId, params.userId),
+        eq(knowledgeEvidence.sourceType, params.sourceType),
+        eq(knowledgeEvidence.sourceId, params.sourceId),
+        buildSourceVersionCondition(knowledgeEvidence.sourceVersionHash, params.sourceVersionHash),
+      ),
+    );
+}
+
+async function loadEvidenceRefs(evidenceIds: string[]) {
+  if (evidenceIds.length === 0) {
+    return [];
+  }
+
+  return db
+    .select({
+      evidenceId: knowledgeEvidenceSourceLinks.evidenceId,
+      refType: knowledgeEvidenceSourceLinks.refType,
+      refId: knowledgeEvidenceSourceLinks.refId,
+      snippet: knowledgeEvidenceSourceLinks.snippet,
+    })
+    .from(knowledgeEvidenceSourceLinks)
+    .where(inArray(knowledgeEvidenceSourceLinks.evidenceId, evidenceIds));
+}
+
+function computeEvidenceBatchHash(rows: EvidenceMergeRow[]): string {
+  return createHash("sha256")
+    .update(
+      rows
+        .map(
+          (row) =>
+            `${row.id}:${row.title}:${row.summary}:${row.confidence}:${row.sourceVersionHash ?? ""}`,
+        )
+        .join("|"),
+    )
+    .digest("hex");
 }
 
 async function getOrCreateRun(params: {
@@ -405,6 +485,24 @@ function parseChapterIndexFromKey(chapterKey: string): number {
   return match ? Number(match[1]) : 0;
 }
 
+function flattenVisibleNodes(
+  nodes: Array<import("@/lib/career-tree/types").VisibleSkillTreeNode>,
+): Array<import("@/lib/career-tree/types").VisibleSkillTreeNode> {
+  return nodes.flatMap((node) => [node, ...flattenVisibleNodes(node.children)]);
+}
+
+function findFocusNode(
+  nodes: Array<import("@/lib/career-tree/types").VisibleSkillTreeNode>,
+): import("@/lib/career-tree/types").VisibleSkillTreeNode | null {
+  const flattened = flattenVisibleNodes(nodes);
+  return (
+    flattened.find((node) => node.state === "in_progress") ??
+    flattened.find((node) => node.state === "ready") ??
+    flattened[0] ??
+    null
+  );
+}
+
 export async function processCareerTreeExtractJob(
   job: JobPayload<"extract_course_evidence">,
 ): Promise<void> {
@@ -478,6 +576,13 @@ export async function processCareerTreeExtractJob(
       });
     }
 
+    const affectedNodeIds = await listLinkedNodeIdsForEvidenceSource({
+      userId: job.userId,
+      sourceType: "course",
+      sourceId: job.courseId,
+      sourceVersionHash: null,
+    });
+
     await aggregateCourseEventsToKnowledgeEvidence({
       userId: job.userId,
       courseId: job.courseId,
@@ -485,7 +590,7 @@ export async function processCareerTreeExtractJob(
     });
 
     await markRunSucceeded(db, run.id, extracted);
-    await enqueueCareerTreeMerge(job.userId, job.courseId, run.id);
+    await enqueueCareerTreeMerge(job.userId, job.courseId, run.id, affectedNodeIds);
   } catch (error) {
     await markRunFailed(run.id, error);
     throw error;
@@ -697,7 +802,10 @@ export async function processCareerTreeMergeJob(
       }
 
       const tempNodeRefMap = new Map<string, string>();
-      const touchedNodeIds = new Set(oldCourseLinkRows.map((row) => row.nodeId));
+      const touchedNodeIds = new Set([
+        ...oldCourseLinkRows.map((row) => row.nodeId),
+        ...(job.affectedNodeIds ?? []),
+      ]);
 
       for (const decision of validated.decisions) {
         if (decision.action === "attach") {
@@ -774,6 +882,229 @@ export async function processCareerTreeMergeJob(
           touchedNodeIds.add(edge.fromNodeId);
           touchedNodeIds.add(edge.toNodeId);
         }
+      }
+
+      const existingGraphState = await tx.query.careerUserGraphState.findFirst({
+        where: eq(careerUserGraphState.userId, job.userId),
+      });
+
+      if (existingGraphState) {
+        await tx
+          .update(careerUserGraphState)
+          .set({
+            graphVersion: existingGraphState.graphVersion + 1,
+            lastMergeRunId: mergeRun.id,
+            updatedAt: new Date(),
+          })
+          .where(eq(careerUserGraphState.userId, job.userId));
+      } else {
+        await tx.insert(careerUserGraphState).values({
+          userId: job.userId,
+          graphVersion: 1,
+          lastMergeRunId: mergeRun.id,
+          updatedAt: new Date(),
+        });
+      }
+
+      await recomputeNodeAggregates(tx, job.userId, [...touchedNodeIds]);
+    });
+
+    await markRunSucceeded(db, mergeRun.id, validated);
+    await enqueueCareerTreeCompose(job.userId);
+    await enqueueKnowledgeInsights(job.userId);
+  } catch (error) {
+    await markRunFailed(mergeRun.id, error);
+    throw error;
+  }
+}
+
+export async function processKnowledgeSourceMergeJob(
+  job: JobPayload<"merge_knowledge_source_evidence">,
+): Promise<void> {
+  const evidenceRows = await loadSourceEvidenceRows({
+    userId: job.userId,
+    sourceType: job.sourceType,
+    sourceId: job.sourceId,
+    sourceVersionHash: job.sourceVersionHash,
+  });
+  const evidenceBatchHash = computeEvidenceBatchHash(evidenceRows);
+
+  if (evidenceRows.length === 0) {
+    if ((job.affectedNodeIds ?? []).length > 0) {
+      await enqueueCareerTreeRefresh(job.userId, undefined, job.affectedNodeIds);
+    } else {
+      await enqueueKnowledgeInsights(job.userId);
+    }
+    return;
+  }
+
+  const mergeRun = await getOrCreateRun({
+    userId: job.userId,
+    kind: "merge",
+    idempotencyKey: `merge:user:${job.userId}:source:${job.sourceType}:${job.sourceId}:hash:${evidenceBatchHash}`,
+    inputHash: evidenceBatchHash,
+    model: "CAREER_TREE_JSON",
+    promptVersion: "career-tree-merge@v1",
+  });
+
+  if (mergeRun.status === "succeeded") {
+    await enqueueCareerTreeCompose(job.userId);
+    return;
+  }
+
+  const evidenceRefs = await loadEvidenceRefs(evidenceRows.map((row) => row.id));
+
+  const existingNodes = await db
+    .select({
+      id: careerUserSkillNodes.id,
+      canonicalLabel: careerUserSkillNodes.canonicalLabel,
+      summary: careerUserSkillNodes.summary,
+    })
+    .from(careerUserSkillNodes)
+    .where(eq(careerUserSkillNodes.userId, job.userId));
+
+  const existingEvidenceLinks = await db
+    .select({
+      nodeId: careerUserSkillNodeEvidence.nodeId,
+      title: knowledgeEvidence.title,
+      summary: knowledgeEvidence.summary,
+    })
+    .from(careerUserSkillNodeEvidence)
+    .innerJoin(
+      knowledgeEvidence,
+      eq(careerUserSkillNodeEvidence.knowledgeEvidenceId, knowledgeEvidence.id),
+    )
+    .where(eq(careerUserSkillNodeEvidence.userId, job.userId));
+
+  const existingPrerequisiteEdges = await db
+    .select({
+      fromNodeId: careerUserSkillEdges.fromNodeId,
+      toNodeId: careerUserSkillEdges.toNodeId,
+    })
+    .from(careerUserSkillEdges)
+    .where(eq(careerUserSkillEdges.userId, job.userId));
+
+  const candidateSet = retrieveMergeCandidateSet({
+    evidenceItems: evidenceRows.map((row) => ({
+      title: row.title,
+      kind: "skill",
+      summary: row.summary,
+      confidence: Number(row.confidence),
+      chapterKeys: evidenceRefs
+        .filter((ref) => ref.evidenceId === row.id && ref.refType === "chapter")
+        .map((ref) => ref.refId),
+      prerequisiteHints: [],
+      relatedHints: [],
+      evidenceSnippets: evidenceRefs
+        .filter((ref) => ref.evidenceId === row.id && ref.snippet)
+        .map((ref) => ref.snippet!)
+        .filter(Boolean),
+    })),
+    existingNodes,
+    existingEvidenceLinks,
+    existingPrerequisiteEdges,
+  });
+
+  try {
+    const planned = await planCareerGraphMerge({
+      userId: job.userId,
+      courseId: `${job.sourceType}:${job.sourceId}`,
+      candidateContext: candidateSet,
+      evidenceBatch: evidenceRows,
+      priorCourseSummary: {
+        sourceType: job.sourceType,
+        sourceId: job.sourceId,
+      },
+    });
+
+    const validated = validateMergePlannerOutput({
+      output: planned,
+      allowedTargetNodeIds: new Set(existingNodes.map((node) => node.id)),
+      allowedEvidenceIds: new Set(evidenceRows.map((row) => row.id)),
+    });
+
+    await db.transaction(async (tx) => {
+      const existingSourceLinkRows = await tx
+        .select({
+          id: careerUserSkillNodeEvidence.id,
+          nodeId: careerUserSkillNodeEvidence.nodeId,
+        })
+        .from(careerUserSkillNodeEvidence)
+        .innerJoin(
+          knowledgeEvidence,
+          eq(careerUserSkillNodeEvidence.knowledgeEvidenceId, knowledgeEvidence.id),
+        )
+        .where(
+          and(
+            eq(careerUserSkillNodeEvidence.userId, job.userId),
+            eq(knowledgeEvidence.sourceType, job.sourceType),
+            eq(knowledgeEvidence.sourceId, job.sourceId),
+            buildSourceVersionCondition(knowledgeEvidence.sourceVersionHash, job.sourceVersionHash),
+          ),
+        );
+
+      if (existingSourceLinkRows.length > 0) {
+        await tx.delete(careerUserSkillNodeEvidence).where(
+          inArray(
+            careerUserSkillNodeEvidence.id,
+            existingSourceLinkRows.map((row) => row.id),
+          ),
+        );
+      }
+
+      const tempNodeRefMap = new Map<string, string>();
+      const touchedNodeIds = new Set([
+        ...existingSourceLinkRows.map((row) => row.nodeId),
+        ...(job.affectedNodeIds ?? []),
+      ]);
+
+      for (const decision of validated.decisions) {
+        if (decision.action === "attach") {
+          touchedNodeIds.add(decision.targetNodeId);
+          await tx
+            .insert(careerUserSkillNodeEvidence)
+            .values(
+              decision.evidenceIds.map((evidenceId) => ({
+                userId: job.userId,
+                nodeId: decision.targetNodeId,
+                knowledgeEvidenceId: evidenceId,
+                mergeRunId: mergeRun.id,
+                weight: decision.confidence.toFixed(3),
+              })),
+            )
+            .onConflictDoNothing();
+          continue;
+        }
+
+        const [createdNode] = await tx
+          .insert(careerUserSkillNodes)
+          .values({
+            userId: job.userId,
+            canonicalLabel: decision.newNode.canonicalLabel,
+            summary: decision.newNode.summary ?? null,
+            state: "ready",
+            progress: 0,
+            masteryScore: 0,
+            evidenceScore: 0,
+            courseCount: 0,
+            chapterCount: 0,
+            lastMergedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .returning({ id: careerUserSkillNodes.id });
+
+        tempNodeRefMap.set(decision.tempNodeRef, createdNode.id);
+        touchedNodeIds.add(createdNode.id);
+
+        await tx.insert(careerUserSkillNodeEvidence).values(
+          decision.evidenceIds.map((evidenceId) => ({
+            userId: job.userId,
+            nodeId: createdNode.id,
+            knowledgeEvidenceId: evidenceId,
+            mergeRunId: mergeRun.id,
+            weight: decision.confidence.toFixed(3),
+          })),
+        );
       }
 
       const existingGraphState = await tx.query.careerUserGraphState.findFirst({
@@ -969,6 +1300,24 @@ export async function processCareerTreeComposeJob(
       snapshotTrees[0]?.directionKey ??
       null;
 
+    const focusTree =
+      snapshotTrees.find((tree) => tree.directionKey === preference.selectedDirectionKey) ??
+      snapshotTrees.find((tree) => tree.directionKey === recommendedDirectionKey) ??
+      snapshotTrees[0] ??
+      null;
+    const focusNode = focusTree ? findFocusNode(focusTree.tree) : null;
+    const topInsights = await db
+      .select({
+        kind: knowledgeInsights.kind,
+        title: knowledgeInsights.title,
+        summary: knowledgeInsights.summary,
+        confidence: knowledgeInsights.confidence,
+      })
+      .from(knowledgeInsights)
+      .where(eq(knowledgeInsights.userId, job.userId))
+      .orderBy(desc(knowledgeInsights.confidence))
+      .limit(3);
+
     const payload = {
       schemaVersion: CAREER_TREE_SCHEMA_VERSION,
       status: "ready" as const,
@@ -1003,6 +1352,72 @@ export async function processCareerTreeComposeJob(
         generatedAt: new Date(),
       });
 
+      const [latestTreeSnapshot] = await tx
+        .select({ id: careerUserTreeSnapshots.id })
+        .from(careerUserTreeSnapshots)
+        .where(
+          and(
+            eq(careerUserTreeSnapshots.userId, job.userId),
+            eq(careerUserTreeSnapshots.composeRunId, composeRun.id),
+          ),
+        )
+        .orderBy(desc(careerUserTreeSnapshots.createdAt))
+        .limit(1);
+
+      await tx
+        .update(userFocusSnapshots)
+        .set({ isLatest: false })
+        .where(
+          and(eq(userFocusSnapshots.userId, job.userId), eq(userFocusSnapshots.isLatest, true)),
+        );
+
+      const [focusSnapshot] = await tx
+        .insert(userFocusSnapshots)
+        .values({
+          userId: job.userId,
+          treeSnapshotId: latestTreeSnapshot?.id ?? null,
+          directionKey: focusTree?.directionKey ?? null,
+          nodeId: focusNode?.id ?? null,
+          title: focusNode?.title ?? focusTree?.title ?? "当前焦点生成中",
+          summary: focusNode?.summary ?? focusTree?.whyThisDirection ?? "系统正在整理当前焦点。",
+          progress: focusNode?.progress ?? 0,
+          state: focusNode?.state ?? "ready",
+          payload: {
+            directionKey: focusTree?.directionKey ?? null,
+            treeTitle: focusTree?.title ?? null,
+            whyThisDirection: focusTree?.whyThisDirection ?? null,
+            node: focusNode,
+          },
+          isLatest: true,
+          generatedAt: new Date(),
+        })
+        .returning({ id: userFocusSnapshots.id });
+
+      await tx
+        .update(userProfileSnapshots)
+        .set({ isLatest: false })
+        .where(
+          and(eq(userProfileSnapshots.userId, job.userId), eq(userProfileSnapshots.isLatest, true)),
+        );
+
+      await tx.insert(userProfileSnapshots).values({
+        userId: job.userId,
+        treeSnapshotId: latestTreeSnapshot?.id ?? null,
+        focusSnapshotId: focusSnapshot?.id ?? null,
+        payload: {
+          recommendedDirectionKey,
+          selectedDirectionKey: preference.selectedDirectionKey,
+          treesCount: snapshotTrees.length,
+          focus: focusNode,
+          insights: topInsights.map((insight) => ({
+            ...insight,
+            confidence: Number(insight.confidence),
+          })),
+        },
+        isLatest: true,
+        generatedAt: new Date(),
+      });
+
       await markRunSucceeded(tx, composeRun.id, {
         recommendedDirectionHint: parsed.recommendedDirectionHint ?? null,
         trees: resolvedTrees,
@@ -1019,24 +1434,32 @@ export async function processCareerTreeComposeJob(
 export async function processCareerTreeRefreshJob(
   job: JobPayload<"refresh_user_skill_graph">,
 ): Promise<void> {
-  const nodeRows = await db
-    .select({
-      nodeId: careerUserSkillNodeEvidence.nodeId,
-    })
-    .from(careerUserSkillNodeEvidence)
-    .innerJoin(
-      knowledgeEvidence,
-      eq(careerUserSkillNodeEvidence.knowledgeEvidenceId, knowledgeEvidence.id),
-    )
-    .where(
-      and(
-        eq(careerUserSkillNodeEvidence.userId, job.userId),
-        eq(knowledgeEvidence.sourceType, "course"),
-        job.courseId ? eq(knowledgeEvidence.sourceId, job.courseId) : undefined,
-      ),
-    );
+  const nodeIds =
+    job.nodeIds && job.nodeIds.length > 0
+      ? [...new Set(job.nodeIds)]
+      : [
+          ...new Set(
+            (
+              await db
+                .select({
+                  nodeId: careerUserSkillNodeEvidence.nodeId,
+                })
+                .from(careerUserSkillNodeEvidence)
+                .innerJoin(
+                  knowledgeEvidence,
+                  eq(careerUserSkillNodeEvidence.knowledgeEvidenceId, knowledgeEvidence.id),
+                )
+                .where(
+                  and(
+                    eq(careerUserSkillNodeEvidence.userId, job.userId),
+                    eq(knowledgeEvidence.sourceType, "course"),
+                    job.courseId ? eq(knowledgeEvidence.sourceId, job.courseId) : undefined,
+                  ),
+                )
+            ).map((row) => row.nodeId),
+          ),
+        ];
 
-  const nodeIds = [...new Set(nodeRows.map((row) => row.nodeId))];
   if (nodeIds.length === 0) {
     return;
   }

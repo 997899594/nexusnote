@@ -4,6 +4,7 @@ import {
   processCareerTreeExtractJob,
   processCareerTreeMergeJob,
   processCareerTreeRefreshJob,
+  processKnowledgeSourceMergeJob,
 } from "@/lib/career-tree/jobs";
 import { processKnowledgeInsightsJob } from "@/lib/knowledge/insights/jobs";
 import { redis } from "@/lib/redis";
@@ -25,6 +26,9 @@ export function startCareerTreeWorker(): Worker<CareerTreeJobData> {
           break;
         case "merge_user_skill_graph":
           await processCareerTreeMergeJob(job.data);
+          break;
+        case "merge_knowledge_source_evidence":
+          await processKnowledgeSourceMergeJob(job.data);
           break;
         case "compose_user_career_trees":
           await processCareerTreeComposeJob(job.data);

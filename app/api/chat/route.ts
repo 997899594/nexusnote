@@ -25,6 +25,7 @@ import { createNexusNoteStreamResponse } from "@/lib/ai/core/streaming";
 import { buildPersonalization } from "@/lib/ai/personalization";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
+import { syncLearnConversationKnowledge } from "@/lib/chat/conversation-knowledge";
 import { buildConversationMemoryContext } from "@/lib/chat/conversation-memory";
 import {
   getConversationActiveStreamId,
@@ -195,6 +196,13 @@ export async function POST(request: NextRequest) {
 
         await persistConversationMessages(sessionId, userId, messages);
         await setConversationActiveStreamId(sessionId, userId, null);
+        after(async () => {
+          await syncLearnConversationKnowledge({
+            conversationId: sessionId,
+            userId,
+            messages,
+          });
+        });
       },
       consumeSseStream: async ({ stream }) => {
         if (!hasPersistentSession || !sessionId) {

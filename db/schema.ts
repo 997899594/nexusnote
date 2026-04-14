@@ -16,6 +16,8 @@ import {
   careerUserSkillNodes,
   careerUserTreePreferences,
   careerUserTreeSnapshots,
+  userFocusSnapshots,
+  userProfileSnapshots,
 } from "./schema/career-tree";
 import { conversationMessages, conversations } from "./schema/conversations";
 import {
@@ -68,6 +70,8 @@ export const usersRelations = relations(users, ({ many }) => ({
   careerUserTreePreferences: many(careerUserTreePreferences),
   careerUserTreeSnapshots: many(careerUserTreeSnapshots),
   careerUserGraphState: many(careerUserGraphState),
+  userFocusSnapshots: many(userFocusSnapshots),
+  userProfileSnapshots: many(userProfileSnapshots),
 }));
 
 export const notesRelations = relations(notes, ({ one, many }) => ({
@@ -325,6 +329,32 @@ export const careerUserTreeSnapshotsRelations = relations(careerUserTreeSnapshot
   composeRun: one(careerGenerationRuns, {
     fields: [careerUserTreeSnapshots.composeRunId],
     references: [careerGenerationRuns.id],
+  }),
+}));
+
+export const userFocusSnapshotsRelations = relations(userFocusSnapshots, ({ one }) => ({
+  user: one(users, {
+    fields: [userFocusSnapshots.userId],
+    references: [users.id],
+  }),
+  treeSnapshot: one(careerUserTreeSnapshots, {
+    fields: [userFocusSnapshots.treeSnapshotId],
+    references: [careerUserTreeSnapshots.id],
+  }),
+}));
+
+export const userProfileSnapshotsRelations = relations(userProfileSnapshots, ({ one }) => ({
+  user: one(users, {
+    fields: [userProfileSnapshots.userId],
+    references: [users.id],
+  }),
+  treeSnapshot: one(careerUserTreeSnapshots, {
+    fields: [userProfileSnapshots.treeSnapshotId],
+    references: [careerUserTreeSnapshots.id],
+  }),
+  focusSnapshot: one(userFocusSnapshots, {
+    fields: [userProfileSnapshots.focusSnapshotId],
+    references: [userFocusSnapshots.id],
   }),
 }));
 

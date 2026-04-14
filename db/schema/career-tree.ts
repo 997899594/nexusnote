@@ -196,6 +196,55 @@ export const careerUserTreeSnapshots = pgTable(
   }),
 );
 
+export const userFocusSnapshots = pgTable(
+  "user_focus_snapshots",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    treeSnapshotId: uuid("tree_snapshot_id").references(() => careerUserTreeSnapshots.id, {
+      onDelete: "set null",
+    }),
+    directionKey: text("direction_key"),
+    nodeId: text("node_id"),
+    title: text("title").notNull(),
+    summary: text("summary").notNull(),
+    progress: integer("progress").notNull().default(0),
+    state: text("state").notNull(),
+    payload: jsonb("payload").notNull(),
+    isLatest: boolean("is_latest").notNull().default(false),
+    generatedAt: timestamp("generated_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    userLatestIdx: index("user_focus_snapshots_user_latest_idx").on(table.userId, table.isLatest),
+  }),
+);
+
+export const userProfileSnapshots = pgTable(
+  "user_profile_snapshots",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    treeSnapshotId: uuid("tree_snapshot_id").references(() => careerUserTreeSnapshots.id, {
+      onDelete: "set null",
+    }),
+    focusSnapshotId: uuid("focus_snapshot_id").references(() => userFocusSnapshots.id, {
+      onDelete: "set null",
+    }),
+    payload: jsonb("payload").notNull(),
+    isLatest: boolean("is_latest").notNull().default(false),
+    generatedAt: timestamp("generated_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    userLatestIdx: index("user_profile_snapshots_user_latest_idx").on(table.userId, table.isLatest),
+  }),
+);
+
 export type CareerGenerationRun = typeof careerGenerationRuns.$inferSelect;
 export type NewCareerGenerationRun = typeof careerGenerationRuns.$inferInsert;
 export type CareerUserTreePreference = typeof careerUserTreePreferences.$inferSelect;
@@ -204,3 +253,7 @@ export type CareerUserGraphState = typeof careerUserGraphState.$inferSelect;
 export type NewCareerUserGraphState = typeof careerUserGraphState.$inferInsert;
 export type CareerUserTreeSnapshotRecord = typeof careerUserTreeSnapshots.$inferSelect;
 export type NewCareerUserTreeSnapshotRecord = typeof careerUserTreeSnapshots.$inferInsert;
+export type UserFocusSnapshot = typeof userFocusSnapshots.$inferSelect;
+export type NewUserFocusSnapshot = typeof userFocusSnapshots.$inferInsert;
+export type UserProfileSnapshot = typeof userProfileSnapshots.$inferSelect;
+export type NewUserProfileSnapshot = typeof userProfileSnapshots.$inferInsert;

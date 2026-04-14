@@ -1,5 +1,21 @@
-import { and, eq } from "drizzle-orm";
-import { db, knowledgeEvidence, knowledgeEvidenceSourceLinks } from "@/db";
+import { and, eq, isNull } from "drizzle-orm";
+import {
+  careerUserSkillNodeEvidence,
+  db,
+  knowledgeEvidence,
+  knowledgeEvidenceSourceLinks,
+} from "@/db";
+
+function buildSourceVersionCondition(
+  sourceVersionHash: string | null | undefined,
+  field: typeof knowledgeEvidence.sourceVersionHash,
+) {
+  if (sourceVersionHash === undefined) {
+    return undefined;
+  }
+
+  return sourceVersionHash === null ? isNull(field) : eq(field, sourceVersionHash);
+}
 
 export async function listCourseKnowledgeEvidence(params: {
   userId: string;
@@ -30,4 +46,31 @@ export async function listCourseKnowledgeEvidence(params: {
         eq(knowledgeEvidence.sourceVersionHash, params.sourceVersionHash),
       ),
     );
+}
+
+export async function listLinkedNodeIdsForEvidenceSource(params: {
+  userId: string;
+  sourceType: string;
+  sourceId: string;
+  sourceVersionHash?: string | null;
+}) {
+  const rows = await db
+    .select({
+      nodeId: careerUserSkillNodeEvidence.nodeId,
+    })
+    .from(careerUserSkillNodeEvidence)
+    .innerJoin(
+      knowledgeEvidence,
+      eq(careerUserSkillNodeEvidence.knowledgeEvidenceId, knowledgeEvidence.id),
+    )
+    .where(
+      and(
+        eq(careerUserSkillNodeEvidence.userId, params.userId),
+        eq(knowledgeEvidence.sourceType, params.sourceType),
+        eq(knowledgeEvidence.sourceId, params.sourceId),
+        buildSourceVersionCondition(params.sourceVersionHash, knowledgeEvidence.sourceVersionHash),
+      ),
+    );
+
+  return [...new Set(rows.map((row) => row.nodeId))];
 }

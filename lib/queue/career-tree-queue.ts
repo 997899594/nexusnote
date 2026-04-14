@@ -12,6 +12,15 @@ export type CareerTreeJobData =
       userId: string;
       courseId: string;
       extractRunId?: string;
+      affectedNodeIds?: string[];
+    }
+  | {
+      type: "merge_knowledge_source_evidence";
+      userId: string;
+      sourceType: string;
+      sourceId: string;
+      sourceVersionHash?: string | null;
+      affectedNodeIds?: string[];
     }
   | {
       type: "compose_user_career_trees";
@@ -21,6 +30,7 @@ export type CareerTreeJobData =
       type: "refresh_user_skill_graph";
       userId: string;
       courseId?: string;
+      nodeIds?: string[];
     }
   | {
       type: "derive_user_insights";

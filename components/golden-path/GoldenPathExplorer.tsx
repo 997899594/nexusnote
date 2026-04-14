@@ -4,16 +4,19 @@ import { motion } from "framer-motion";
 import { ArrowRight, Compass, GraduationCap, Sparkles, Target, Waypoints } from "lucide-react";
 import Link from "next/link";
 import { type CSSProperties, useEffect, useMemo, useState } from "react";
+import { KnowledgeInsightStrip } from "@/components/knowledge/KnowledgeInsightStrip";
 import { useToast } from "@/components/ui/Toast";
 import type {
   CandidateCareerTree,
   GoldenPathSnapshot,
   VisibleSkillTreeNode,
 } from "@/lib/career-tree/types";
+import type { KnowledgeInsight } from "@/lib/knowledge/insights";
 import { cn } from "@/lib/utils";
 
 interface GoldenPathExplorerProps {
   snapshot: GoldenPathSnapshot;
+  insights: KnowledgeInsight[];
 }
 
 interface FlattenedNode {
@@ -264,7 +267,7 @@ function PendingState() {
   );
 }
 
-export function GoldenPathExplorer({ snapshot }: GoldenPathExplorerProps) {
+export function GoldenPathExplorer({ snapshot, insights }: GoldenPathExplorerProps) {
   const { addToast } = useToast();
   const [currentDirectionKey, setCurrentDirectionKey] = useState<string | null>(
     getInitialDirectionKey(snapshot),
@@ -373,8 +376,19 @@ export function GoldenPathExplorer({ snapshot }: GoldenPathExplorerProps) {
               <span className="text-[#d7ba7e]">当前偏好</span>
             ) : null}
           </div>
+
+          <div className="max-w-3xl border-l border-[#5c4120]/60 pl-4 text-sm leading-7 text-[#d9ccb7]">
+            {currentTree.whyThisDirection}
+          </div>
         </div>
       </section>
+
+      {insights.length > 0 ? (
+        <section className="space-y-3 border-b border-[#2f2418] pb-6">
+          <div className="text-[11px] uppercase tracking-[0.2em] text-[#b98a43]">成长信号</div>
+          <KnowledgeInsightStrip insights={insights} />
+        </section>
+      ) : null}
 
       <section className="overflow-hidden border-y border-[#2e2419] bg-[linear-gradient(180deg,#111111_0%,#0c0d0e_100%)]">
         <div className="border-b border-[#2f2418] px-5 py-4">

@@ -12,12 +12,31 @@ export async function enqueueCareerTreeMerge(
   userId: string,
   courseId: string,
   extractRunId?: string,
+  affectedNodeIds?: string[],
 ): Promise<void> {
   await careerTreeQueue.add("merge_user_skill_graph", {
     type: "merge_user_skill_graph",
     userId,
     courseId,
     extractRunId,
+    affectedNodeIds,
+  });
+}
+
+export async function enqueueKnowledgeSourceMerge(params: {
+  userId: string;
+  sourceType: string;
+  sourceId: string;
+  sourceVersionHash?: string | null;
+  affectedNodeIds?: string[];
+}): Promise<void> {
+  await careerTreeQueue.add("merge_knowledge_source_evidence", {
+    type: "merge_knowledge_source_evidence",
+    userId: params.userId,
+    sourceType: params.sourceType,
+    sourceId: params.sourceId,
+    sourceVersionHash: params.sourceVersionHash,
+    affectedNodeIds: params.affectedNodeIds,
   });
 }
 
@@ -28,11 +47,16 @@ export async function enqueueCareerTreeCompose(userId: string): Promise<void> {
   });
 }
 
-export async function enqueueCareerTreeRefresh(userId: string, courseId?: string): Promise<void> {
+export async function enqueueCareerTreeRefresh(
+  userId: string,
+  courseId?: string,
+  nodeIds?: string[],
+): Promise<void> {
   await careerTreeQueue.add("refresh_user_skill_graph", {
     type: "refresh_user_skill_graph",
     userId,
     courseId,
+    nodeIds,
   });
 }
 

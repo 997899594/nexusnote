@@ -25,14 +25,15 @@
   - `lib/queue/career-tree-queue.ts`
   - `lib/queue/career-tree-worker.ts`
 - 页面主读链路已经切到新 snapshot 模型
+- `knowledge_evidence_events -> knowledge_evidence -> knowledge_insights` 主链路已经落到代码
 - 旧 golden-path runtime 已经基本退出代码主链路
 
 还没有闭环的部分有：
 
 - 数据库迁移
 - backfill
-- 真实 extract -> merge -> compose 落库验证
-- fixture 驱动稳定性测试
+- 真实 extract -> merge -> compose 在生产库上的落库验证
+- 更完整的 fixture / eval 稳定性覆盖
 
 所以执行顺序必须现实一点：
 
@@ -64,8 +65,10 @@
 落地并验证这些表：
 
 - `career_generation_runs`
-- `career_course_skill_evidence`
-- `career_course_chapter_evidence`
+- `knowledge_evidence_events`
+- `knowledge_evidence_event_refs`
+- `knowledge_evidence`
+- `knowledge_evidence_source_links`
 - `career_user_skill_nodes`
 - `career_user_skill_edges`
 - `career_user_skill_node_evidence`
@@ -119,7 +122,7 @@
 - `bun run lint`
 - `bun run typecheck`
 - `SKIP_ENV_VALIDATION=true bun run build`
-- fixture 稳定性脚本通过
+- `bun run career-tree:check`
 
 ## 成本
 
