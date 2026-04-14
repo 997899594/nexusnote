@@ -1,0 +1,13 @@
+{
+  "planId": "b0cc6af6-0b6c-4ac8-a09f-95c9423b6137",
+  "title": "生成 repair migration PR",
+  "summary": "数据库账本与仓库 Drizzle 迁移链不一致",
+  "planKind": "repair_pr_required",
+  "stateStatus": "drifted",
+  "databaseName": "postgresql",
+  "tool": "drizzle",
+  "databaseType": "postgresql",
+  "migrationPath": "drizzle",
+  "expectedVersion": "0001_soft_hedge_knight",
+  "actualVersion": "710158e3a37b515597b585ef2fd9c2ae0614053d5fa836a24618206fd8f09fdd"
+}
