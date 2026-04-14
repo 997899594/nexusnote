@@ -1,0 +1,15 @@
+name: Schema Repair b0cc6af6
+on:
+  pull_request:
+    branches: [main, master]
+jobs:
+  atlas-repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+      - uses: ariga/setup-atlas@v0
+      - run: chmod +x .juanie/schema-repair/b0cc6af6-0b6c-4ac8-a09f-95c9423b6137.atlas.sh
+      - run: .juanie/schema-repair/b0cc6af6-0b6c-4ac8-a09f-95c9423b6137.atlas.sh
