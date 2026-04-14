@@ -20,6 +20,79 @@ function formatOutline(outline: InterviewOutline | undefined) {
   return JSON.stringify(outline, null, 2);
 }
 
+function formatGenerationContext(
+  generationContext:
+    | {
+        currentDirection: {
+          directionKey: string | null;
+          title: string | null;
+          summary: string | null;
+          whyThisDirection: string | null;
+        } | null;
+        currentFocus: {
+          nodeId: string | null;
+          title: string | null;
+          summary: string | null;
+          state: string | null;
+          progress: number | null;
+        } | null;
+        insights: Array<{
+          kind: string;
+          title: string;
+          summary: string;
+          confidence: number;
+        }>;
+      }
+    | undefined,
+) {
+  if (!generationContext) {
+    return "暂无成长上下文。";
+  }
+
+  const parts: string[] = [];
+
+  if (generationContext.currentDirection?.title) {
+    parts.push(
+      `当前主方向：${generationContext.currentDirection.title}${
+        generationContext.currentDirection.summary
+          ? `\n方向摘要：${generationContext.currentDirection.summary}`
+          : ""
+      }${
+        generationContext.currentDirection.whyThisDirection
+          ? `\n推荐理由：${generationContext.currentDirection.whyThisDirection}`
+          : ""
+      }`,
+    );
+  }
+
+  if (generationContext.currentFocus?.title) {
+    parts.push(
+      `当前焦点：${generationContext.currentFocus.title}${
+        generationContext.currentFocus.summary
+          ? `\n焦点摘要：${generationContext.currentFocus.summary}`
+          : ""
+      }${
+        generationContext.currentFocus.state
+          ? `\n状态：${generationContext.currentFocus.state} / 进度 ${generationContext.currentFocus.progress ?? 0}%`
+          : ""
+      }`,
+    );
+  }
+
+  if (generationContext.insights.length > 0) {
+    parts.push(
+      `最近成长信号：\n${generationContext.insights
+        .map(
+          (insight) =>
+            `- [${insight.kind}] ${insight.title} (${Math.round(insight.confidence * 100)}%)：${insight.summary}`,
+        )
+        .join("\n")}`,
+    );
+  }
+
+  return parts.length > 0 ? parts.join("\n\n") : "暂无成长上下文。";
+}
+
 const INTERVIEW_SYSTEM_PROMPT_TEMPLATE = loadPromptResource("interview-system.md");
 const INTERVIEW_STATE_SYSTEM_PROMPT_TEMPLATE = loadPromptResource("interview-state-system.md");
 export const INTERVIEW_SYSTEM_PROMPT = INTERVIEW_SYSTEM_PROMPT_TEMPLATE;
@@ -116,6 +189,27 @@ export function buildInterviewAgentInstructionsWithHint(input: {
   currentOutline?: InterviewOutline;
   latestUserMessage?: string;
   preferOutlinePreview?: boolean;
+  generationContext?: {
+    currentDirection: {
+      directionKey: string | null;
+      title: string | null;
+      summary: string | null;
+      whyThisDirection: string | null;
+    } | null;
+    currentFocus: {
+      nodeId: string | null;
+      title: string | null;
+      summary: string | null;
+      state: string | null;
+      progress: number | null;
+    } | null;
+    insights: Array<{
+      kind: string;
+      title: string;
+      summary: string;
+      confidence: number;
+    }>;
+  };
 }) {
   const firstQuestionHint = buildFirstQuestionHint(input.latestUserMessage);
 
@@ -155,8 +249,13 @@ export function buildInterviewAgentInstructionsWithHint(input: {
 - 课程草案预览应内容充实、结构完整，用户看到后应能直接判断这门课是否值得学习，而不是还要等建课后才知道真正结构
 - 课程草案预览的 options 优先使用短动作词，不要使用长句；优先从“调整章节顺序”“增加实战项目”“补基础章节”“修改项目方向”“开始生成课程”中选择最合适的 3 到 4 个
 - 所有能力字段使用简洁稳定的中文或英文能力标签，不要使用空泛词，也不要硬凑缩写 ID
+- 如果存在成长上下文，要把它当作课程生成约束：优先顺着当前焦点延展，或围绕当前缺口补齐，不要无视用户已形成的成长主线
+- 但成长上下文只能作为约束和排序信号，不能压过用户这一轮明确提出的新目标
 
-${input.currentOutline ? `当前已有课程大纲，请优先围绕它做修改与完善：\n${JSON.stringify(input.currentOutline, null, 2)}` : "当前还没有课程大纲。"}${firstQuestionHint}
+${input.currentOutline ? `当前已有课程大纲，请优先围绕它做修改与完善：\n${JSON.stringify(input.currentOutline, null, 2)}` : "当前还没有课程大纲。"}
+
+当前成长上下文：
+${formatGenerationContext(input.generationContext)}${firstQuestionHint}
 ${
   input.preferOutlinePreview
     ? `

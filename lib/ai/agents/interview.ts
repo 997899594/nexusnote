@@ -16,6 +16,27 @@ export interface InterviewAgentOptions {
   courseId?: string;
   currentOutline?: InterviewOutline;
   messages?: UIMessage[];
+  generationContext?: {
+    currentDirection: {
+      directionKey: string | null;
+      title: string | null;
+      summary: string | null;
+      whyThisDirection: string | null;
+    } | null;
+    currentFocus: {
+      nodeId: string | null;
+      title: string | null;
+      summary: string | null;
+      state: string | null;
+      progress: number | null;
+    } | null;
+    insights: Array<{
+      kind: string;
+      title: string;
+      summary: string;
+      confidence: number;
+    }>;
+  };
   telemetry?: AITelemetryContext;
 }
 
@@ -67,6 +88,7 @@ export function createInterviewAgent(options: InterviewAgentOptions) {
       currentOutline: options.currentOutline,
       latestUserMessage,
       preferOutlinePreview,
+      generationContext: options.generationContext,
     }),
     tools,
     toolChoice: "required",

@@ -1,6 +1,7 @@
 export * from "./compose";
 export * from "./constants";
 export * from "./extract";
+export * from "./generation-context";
 export * from "./merge";
 export * from "./normalize-outline";
 export * from "./preference-write";

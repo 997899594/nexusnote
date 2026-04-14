@@ -12,8 +12,9 @@ import {
 } from "@/lib/cache/tags";
 import {
   computeCareerOutlineHash,
+  getUserGenerationContext,
   normalizeCareerOutline,
-} from "@/lib/career-tree/normalize-outline";
+} from "@/lib/career-tree";
 import { enqueueCareerTreeExtract, enqueueKnowledgeInsights } from "@/lib/career-tree/queue";
 import { ingestEvidenceEvent } from "@/lib/knowledge/events";
 import { getOwnedCourse } from "@/lib/learning/course-repository";
@@ -49,6 +50,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { outline, courseId } = parsed.data;
+    const generationContext = await getUserGenerationContext(userId);
 
     if (courseId) {
       const existingCourse = await getOwnedCourse(courseId, userId);
@@ -87,6 +89,7 @@ export async function POST(request: NextRequest) {
       metadata: {
         chapterCount: normalizedOutline.chapters.length,
         courseSkillIds: normalizedOutline.courseSkillIds,
+        generationContext,
         chapterSkillIds: normalizedOutline.chapters.map((chapter) => ({
           chapterKey: chapter.chapterKey,
           skillIds: chapter.explicitSkillIds,
