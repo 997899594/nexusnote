@@ -8,7 +8,7 @@ import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
 import { revalidateLearnPage } from "@/lib/cache/tags";
 import { enqueueKnowledgeInsights } from "@/lib/career-tree/queue";
-import { ingestEvidenceEvent } from "@/lib/knowledge/events";
+import { deleteEvidenceEventsBySource, ingestEvidenceEvent } from "@/lib/knowledge/events";
 import { aggregateSourceEventsToKnowledgeEvidence } from "@/lib/knowledge/evidence";
 
 const AnnotationSchema = z.object({
@@ -64,6 +64,13 @@ export async function PATCH(request: NextRequest) {
           eq(courseSectionAnnotations.userId, userId),
         ),
       );
+
+    await deleteEvidenceEventsBySource({
+      userId,
+      sourceType: "annotation",
+      sourceId: sectionId,
+      sourceVersionHash: null,
+    });
 
     if (annotations.length > 0) {
       const inserted = await db
@@ -123,15 +130,15 @@ export async function PATCH(request: NextRequest) {
           ],
         });
       }
-
-      await aggregateSourceEventsToKnowledgeEvidence({
-        userId,
-        sourceType: "annotation",
-        sourceId: sectionId,
-        sourceVersionHash: null,
-      });
-      await enqueueKnowledgeInsights(userId);
     }
+
+    await aggregateSourceEventsToKnowledgeEvidence({
+      userId,
+      sourceType: "annotation",
+      sourceId: sectionId,
+      sourceVersionHash: null,
+    });
+    await enqueueKnowledgeInsights(userId);
 
     revalidateLearnPage(userId, section.courseId);
 

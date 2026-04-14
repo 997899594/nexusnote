@@ -5,6 +5,9 @@ import {
   revalidateNotesIndex,
   revalidateProfileStats,
 } from "@/lib/cache/tags";
+import { enqueueKnowledgeInsights } from "@/lib/career-tree/queue";
+import { deleteEvidenceEventsBySource, ingestEvidenceEvent } from "@/lib/knowledge/events";
+import { aggregateSourceEventsToKnowledgeEvidence } from "@/lib/knowledge/evidence";
 import { htmlToPlainText, plainTextToHtml } from "@/lib/notes/content";
 import { indexNote } from "@/lib/rag/chunker";
 
@@ -100,6 +103,110 @@ function appendPlainTextAsParagraph(existingHtml: string, plainText: string): st
   return `${existingHtml}${addition}`;
 }
 
+function isKnowledgeTrackedNote(note: Pick<NoteRecord, "sourceType">): boolean {
+  return note.sourceType === "course_capture";
+}
+
+function buildTrackedNoteRefs(note: Pick<NoteRecord, "id" | "plainText" | "sourceContext">) {
+  const refs: Array<{
+    refType: string;
+    refId: string;
+    snippet?: string | null;
+    weight: number;
+  }> = [];
+
+  const sourceContext = note.sourceContext ?? null;
+  const primarySnippet =
+    sourceContext?.selectionText ??
+    sourceContext?.latestExcerpt ??
+    note.plainText?.slice(0, 240) ??
+    null;
+
+  if (sourceContext?.sectionId) {
+    refs.push({
+      refType: "course_section",
+      refId: sourceContext.sectionId,
+      snippet: primarySnippet,
+      weight: 1,
+    });
+  }
+
+  if (sourceContext?.chatCapture && sourceContext.courseId) {
+    refs.push({
+      refType: "conversation_capture",
+      refId: `${sourceContext.courseId}:${sourceContext.chapterIndex ?? "unknown"}`,
+      snippet: sourceContext.latestExcerpt ?? primarySnippet,
+      weight: 1,
+    });
+  }
+
+  if (refs.length === 0) {
+    refs.push({
+      refType: "note",
+      refId: note.id,
+      snippet: primarySnippet,
+      weight: 1,
+    });
+  }
+
+  return refs;
+}
+
+async function syncTrackedNoteKnowledge(note: NoteRecord): Promise<void> {
+  if (!isKnowledgeTrackedNote(note)) {
+    return;
+  }
+
+  await deleteEvidenceEventsBySource({
+    userId: note.userId,
+    sourceType: "note",
+    sourceId: note.id,
+    sourceVersionHash: null,
+  });
+
+  await ingestEvidenceEvent({
+    id: crypto.randomUUID(),
+    userId: note.userId,
+    kind: "capture",
+    sourceType: "note",
+    sourceId: note.id,
+    sourceVersionHash: null,
+    title: note.title,
+    summary: note.plainText ?? note.title,
+    confidence: 1,
+    happenedAt: new Date().toISOString(),
+    metadata: {
+      sourceType: note.sourceType,
+      sourceContext: note.sourceContext ?? null,
+    },
+    refs: buildTrackedNoteRefs(note),
+  });
+
+  await aggregateSourceEventsToKnowledgeEvidence({
+    userId: note.userId,
+    sourceType: "note",
+    sourceId: note.id,
+    sourceVersionHash: null,
+  });
+  await enqueueKnowledgeInsights(note.userId);
+}
+
+async function clearTrackedNoteKnowledge(noteId: string, userId: string): Promise<void> {
+  await deleteEvidenceEventsBySource({
+    userId,
+    sourceType: "note",
+    sourceId: noteId,
+    sourceVersionHash: null,
+  });
+  await aggregateSourceEventsToKnowledgeEvidence({
+    userId,
+    sourceType: "note",
+    sourceId: noteId,
+    sourceVersionHash: null,
+  });
+  await enqueueKnowledgeInsights(userId);
+}
+
 export async function getOwnedNote(noteId: string, userId: string): Promise<NoteRecord | null> {
   return (
     (await db.query.notes.findFirst({
@@ -125,6 +232,7 @@ export async function createOwnedNote(params: CreateOwnedNoteParams): Promise<No
     .returning();
 
   await syncNoteIndex(note, userId);
+  await syncTrackedNoteKnowledge(note);
   revalidateNoteCaches(userId, note.id);
 
   return note;
@@ -163,6 +271,7 @@ export async function updateOwnedNote(params: UpdateOwnedNoteParams): Promise<No
   }
 
   await syncNoteIndex(note, userId);
+  await syncTrackedNoteKnowledge(note);
   revalidateNoteCaches(userId, note.id);
 
   return note;
@@ -223,6 +332,7 @@ export async function deleteOwnedNote(noteId: string, userId: string): Promise<N
     return null;
   }
 
+  await clearTrackedNoteKnowledge(noteId, userId);
   revalidateNoteCaches(userId, noteId);
   return deleted;
 }
