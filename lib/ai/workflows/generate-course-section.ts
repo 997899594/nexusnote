@@ -7,6 +7,7 @@ import { buildSectionPrompt } from "@/lib/ai/prompts/learn";
 import { APIError } from "@/lib/api";
 import { invalidateChapterCache } from "@/lib/cache/course-context";
 import { revalidateLearnPage } from "@/lib/cache/tags";
+import { getUserGenerationContext } from "@/lib/career-tree/generation-context";
 import { getOwnedCourse } from "@/lib/learning/course-repository";
 import { createLearnTrace } from "@/lib/learning/observability";
 import { ragQueue } from "@/lib/queue";
@@ -77,6 +78,7 @@ export async function runGenerateCourseSectionWorkflow({
   });
 
   const outline = course.outlineData as CourseOutlineData | null;
+  const generationContext = await getUserGenerationContext(userId);
   const chapter = outline?.chapters?.[chapterIndex];
   if (!chapter) {
     trace.finish({
@@ -140,6 +142,7 @@ export async function runGenerateCourseSectionWorkflow({
     sectionDescription: section.description,
     siblingTitles,
     totalChapters: outline?.chapters?.length ?? 0,
+    generationContext,
   });
   trace.step("generation-start", {
     outlineNodeId,
