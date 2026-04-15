@@ -1,55 +1,18 @@
 import { eq } from "drizzle-orm";
-import { courseProgress, courseSections, courses, db } from "@/db";
-import type { InterviewOutline } from "@/lib/ai/interview";
+import {
+  courseOutlineNodes,
+  courseOutlineVersions,
+  courseProgress,
+  courseSections,
+  courses,
+  db,
+} from "@/db";
 import { getOwnedCourse } from "@/lib/learning/course-repository";
-
-export interface CourseOutlineSection {
-  title: string;
-  description: string;
-}
-
-export interface CourseOutlineChapter {
-  title: string;
-  description: string;
-  sections: CourseOutlineSection[];
-  practiceType?: "exercise" | "project" | "quiz" | "none";
-  skillIds?: string[];
-}
-
-export interface CourseOutline {
-  title: string;
-  description: string;
-  targetAudience: string;
-  prerequisites?: string[];
-  difficulty: "beginner" | "intermediate" | "advanced";
-  courseSkillIds?: string[];
-  chapters: CourseOutlineChapter[];
-  learningOutcome: string;
-}
-
-export async function expandInterviewOutlineToCourseOutline(
-  outline: InterviewOutline,
-): Promise<CourseOutline> {
-  return {
-    title: outline.title,
-    description: outline.description,
-    targetAudience: outline.targetAudience,
-    prerequisites: undefined,
-    difficulty: outline.difficulty,
-    courseSkillIds: outline.courseSkillIds,
-    learningOutcome: outline.learningOutcome,
-    chapters: outline.chapters.map((chapter) => ({
-      title: chapter.title,
-      description: chapter.description,
-      practiceType: chapter.practiceType,
-      skillIds: chapter.skillIds,
-      sections: chapter.sections.map((section) => ({
-        title: section.title,
-        description: section.description,
-      })),
-    })),
-  };
-}
+import {
+  buildCourseOutlineNodeValues,
+  buildCourseOutlineVersionValues,
+} from "@/lib/learning/course-structure";
+import type { CourseOutline } from "./course-outline";
 
 interface SaveCourseFromOutlineOptions {
   userId: string;
@@ -92,7 +55,6 @@ export async function saveCourseFromOutline({
       description: outline.description,
       difficulty: outline.difficulty,
       estimatedMinutes: estimateCourseMinutes(outline),
-      outlineData: outline,
       updatedAt: new Date(),
     };
 
@@ -114,13 +76,35 @@ export async function saveCourseFromOutline({
       persistedCourseId = createdCourse.id;
     }
 
+    await tx
+      .update(courseOutlineVersions)
+      .set({ isLatest: false, updatedAt: new Date() })
+      .where(eq(courseOutlineVersions.courseId, persistedCourseId));
+
+    const [outlineVersion] = await tx
+      .insert(courseOutlineVersions)
+      .values(buildCourseOutlineVersionValues({ courseId: persistedCourseId, outline }))
+      .returning({ id: courseOutlineVersions.id });
+
+    await tx
+      .delete(courseOutlineNodes)
+      .where(eq(courseOutlineNodes.outlineVersionId, outlineVersion.id));
+
+    await tx.insert(courseOutlineNodes).values(
+      buildCourseOutlineNodeValues({
+        courseId: persistedCourseId,
+        outlineVersionId: outlineVersion.id,
+        outline,
+      }),
+    );
+
     await tx.delete(courseSections).where(eq(courseSections.courseId, persistedCourseId));
 
     const sectionDocuments = outline.chapters.flatMap((chapter, chapterIndex) =>
       chapter.sections.map((section, sectionIndex) => ({
         title: section.title,
         courseId: persistedCourseId,
-        outlineNodeId: `section-${chapterIndex + 1}-${sectionIndex + 1}`,
+        outlineNodeKey: `section-${chapterIndex + 1}-${sectionIndex + 1}`,
         contentMarkdown: null,
         plainText: null,
       })),

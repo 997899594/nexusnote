@@ -1,0 +1,191 @@
+{
+  "cases": [
+    {
+      "name": "mixed-evidence-and-growth-signals",
+      "input": {
+        "evidenceRows": [
+          {
+            "id": "e1",
+            "title": "SQL 查询",
+            "summary": "最近频繁在课程里强化 SQL 查询和聚合分析",
+            "confidence": 0.9,
+            "kind": "course_skill",
+            "sourceType": "course"
+          },
+          {
+            "id": "e2",
+            "title": "SQL 查询",
+            "summary": "在笔记里沉淀了 SQL 排错经验",
+            "confidence": 0.7,
+            "kind": "note",
+            "sourceType": "note"
+          },
+          {
+            "id": "e3",
+            "title": "业务表达",
+            "summary": "最近在对话里反复讨论汇报表达和结论组织",
+            "confidence": 0.8,
+            "kind": "conversation",
+            "sourceType": "conversation"
+          },
+          {
+            "id": "e4",
+            "title": "业务表达",
+            "summary": "课程高亮集中在可视化与结论表达",
+            "confidence": 0.6,
+            "kind": "highlight",
+            "sourceType": "highlight"
+          },
+          {
+            "id": "e5",
+            "title": "数据建模",
+            "summary": "刚开始接触星型模型与指标口径",
+            "confidence": 0.55,
+            "kind": "course_skill",
+            "sourceType": "course"
+          }
+        ],
+        "skillNodes": [
+          {
+            "id": "n1",
+            "canonicalLabel": "SQL 查询",
+            "progress": 84,
+            "state": "mastered",
+            "evidenceScore": 72
+          },
+          {
+            "id": "n2",
+            "canonicalLabel": "业务表达",
+            "progress": 48,
+            "state": "in_progress",
+            "evidenceScore": 58
+          },
+          {
+            "id": "n3",
+            "canonicalLabel": "数据建模",
+            "progress": 18,
+            "state": "ready",
+            "evidenceScore": 44
+          },
+          {
+            "id": "n4",
+            "canonicalLabel": "指标体系",
+            "progress": 12,
+            "state": "locked",
+            "evidenceScore": 52
+          },
+          {
+            "id": "n5",
+            "canonicalLabel": "数据清洗",
+            "progress": 72,
+            "state": "in_progress",
+            "evidenceScore": 60
+          }
+        ],
+        "recentEvents": [
+          {
+            "id": "ev1",
+            "kind": "course_progress",
+            "sourceType": "course"
+          },
+          {
+            "id": "ev2",
+            "kind": "note",
+            "sourceType": "note"
+          },
+          {
+            "id": "ev3",
+            "kind": "conversation",
+            "sourceType": "conversation"
+          },
+          {
+            "id": "ev4",
+            "kind": "highlight",
+            "sourceType": "highlight"
+          },
+          {
+            "id": "ev5",
+            "kind": "capture",
+            "sourceType": "capture"
+          }
+        ],
+        "focusSnapshot": {
+          "directionKey": "data-analyst",
+          "nodeId": "n2",
+          "title": "业务表达",
+          "summary": "把分析结果组织成业务方可采纳的表达",
+          "progress": 48,
+          "state": "in_progress"
+        }
+      },
+      "expected": {
+        "inputHash": "c161f5da953a11dd37f33494f96dcef46893161da7e1cfc1390b17def3d9d702",
+        "items": [
+          {
+            "kind": "theme",
+            "title": "SQL 查询",
+            "confidence": 0.76,
+            "evidenceIds": ["e1", "e2"],
+            "summaryIncludes": ["SQL 查询", "聚合分析"]
+          },
+          {
+            "kind": "theme",
+            "title": "业务表达",
+            "confidence": 0.665,
+            "evidenceIds": ["e3", "e4"],
+            "summaryIncludes": ["汇报表达", "结论组织"]
+          },
+          {
+            "kind": "theme",
+            "title": "数据建模",
+            "confidence": 0.468,
+            "evidenceIds": ["e5"],
+            "summaryIncludes": ["星型模型", "指标口径"]
+          },
+          {
+            "kind": "strength",
+            "title": "SQL 查询",
+            "confidence": 0.84,
+            "evidenceIds": [],
+            "summaryIncludes": ["稳定掌握"]
+          },
+          {
+            "kind": "strength",
+            "title": "数据清洗",
+            "confidence": 0.72,
+            "evidenceIds": [],
+            "summaryIncludes": ["持续稳定生长"]
+          },
+          {
+            "kind": "gap",
+            "title": "指标体系",
+            "confidence": 0.52,
+            "evidenceIds": [],
+            "summaryIncludes": ["前置能力", "没完全打开"]
+          },
+          {
+            "kind": "gap",
+            "title": "数据建模",
+            "confidence": 0.44,
+            "evidenceIds": [],
+            "summaryIncludes": ["基础证据", "值得优先推进"]
+          },
+          {
+            "kind": "trajectory",
+            "title": "捕获 · 对话 · 课程轨迹",
+            "confidence": 0.7,
+            "evidenceIds": [],
+            "summaryIncludes": ["捕获 1 条", "对话 1 条", "课程 1 条"]
+          },
+          {
+            "kind": "recommendation_reason",
+            "title": "业务表达",
+            "confidence": 0.48,
+            "evidenceIds": [],
+            "summaryIncludes": ["业务方可采纳"]
+          }
+        ]
+      }
+    }
+  ]
+}

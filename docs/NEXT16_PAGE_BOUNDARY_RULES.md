@@ -88,7 +88,7 @@ export default function Page() {
 - [app/chat/layout.tsx](/Users/findbiao/projects/nexusnote/app/chat/layout.tsx)
 - [app/editor/page.tsx](/Users/findbiao/projects/nexusnote/app/editor/page.tsx)
 - [app/editor/[id]/page.tsx](/Users/findbiao/projects/nexusnote/app/editor/[id]/page.tsx)
-- [app/golden-path/page.tsx](/Users/findbiao/projects/nexusnote/app/golden-path/page.tsx)
+- [app/career-trees/page.tsx](/Users/findbiao/projects/nexusnote/app/career-trees/page.tsx)
 - [app/interview/page.tsx](/Users/findbiao/projects/nexusnote/app/interview/page.tsx)
 - [app/learn/[id]/page.tsx](/Users/findbiao/projects/nexusnote/app/learn/[id]/page.tsx)
 - [app/profile/page.tsx](/Users/findbiao/projects/nexusnote/app/profile/page.tsx)

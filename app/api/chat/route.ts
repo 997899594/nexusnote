@@ -25,7 +25,7 @@ import { createNexusNoteStreamResponse } from "@/lib/ai/core/streaming";
 import { buildPersonalization } from "@/lib/ai/personalization";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
-import { syncLearnConversationKnowledge } from "@/lib/chat/conversation-knowledge";
+import { syncConversationKnowledge } from "@/lib/chat/conversation-knowledge";
 import { buildConversationMemoryContext } from "@/lib/chat/conversation-memory";
 import {
   getConversationActiveStreamId,
@@ -38,6 +38,7 @@ import {
   touchOwnedConversation,
 } from "@/lib/chat/conversation-repository";
 import { isUuidString } from "@/lib/chat/session-id";
+import { getUserGrowthContext } from "@/lib/growth/generation-context";
 import { checkRateLimitOrThrow } from "@/lib/rate-limit";
 
 export const maxDuration = 300;
@@ -167,11 +168,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Get agent with personalization
+    const generationContext = await getUserGrowthContext(userId);
+
     const agent = await getAgent(profileId, {
       userId,
       behaviorPrompt,
       skinPrompt,
       userContext,
+      generationContext,
       courseId: resolvedCourseId,
       metadata: resolvedMetadata,
       telemetry,
@@ -197,7 +201,7 @@ export async function POST(request: NextRequest) {
         await persistConversationMessages(sessionId, userId, messages);
         await setConversationActiveStreamId(sessionId, userId, null);
         after(async () => {
-          await syncLearnConversationKnowledge({
+          await syncConversationKnowledge({
             conversationId: sessionId,
             userId,
             messages,

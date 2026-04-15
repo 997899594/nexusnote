@@ -9,6 +9,8 @@ import { useChatSession } from "@/components/chat/useChatSession";
 import { AIDegradationBanner, WorkspaceEmptyState } from "@/components/common";
 import { useToast } from "@/components/ui/Toast";
 import { isUnauthorizedError, parseApiError, redirectToLogin } from "@/lib/api/client";
+import type { GrowthFocusSummary, GrowthInsightSummary } from "@/lib/growth/projection-types";
+import { buildLearnQuickPrompts } from "@/lib/learning/alignment";
 import { cn } from "@/lib/utils";
 import { useChatSessionStateStore } from "@/stores";
 import { useLearnStore } from "@/stores/learn";
@@ -16,21 +18,18 @@ import { useLearnStore } from "@/stores/learn";
 interface LearnChatProps {
   courseId: string;
   courseTitle: string;
+  growthFocus: GrowthFocusSummary | null;
+  insights: GrowthInsightSummary[];
   variant?: "inline" | "overlay";
 }
 
-function buildQuickPrompts(chapterTitle?: string): string[] {
-  const prompts = [
-    chapterTitle ? `这一章「${chapterTitle}」最重要的三个要点是什么？` : null,
-    chapterTitle ? `学完「${chapterTitle}」后，我应该真正掌握什么？` : null,
-    chapterTitle ? `如果把「${chapterTitle}」用到实际项目里，通常怎么落地？` : null,
-    chapterTitle ? `这一章里最容易混淆或踩坑的地方是什么？` : null,
-  ];
-
-  return [...new Set(prompts.filter((prompt): prompt is string => Boolean(prompt)))].slice(0, 3);
-}
-
-export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnChatProps) {
+export function LearnChat({
+  courseId,
+  courseTitle,
+  growthFocus,
+  insights,
+  variant = "inline",
+}: LearnChatProps) {
   const { addToast } = useToast();
   const { currentChapterIndex, chapters, isChatOpen, setChatOpen } = useLearnStore();
   const [input, setInput] = useState("");
@@ -42,8 +41,13 @@ export function LearnChat({ courseId, courseTitle, variant = "inline" }: LearnCh
 
   const currentChapter = chapters[currentChapterIndex];
   const quickPrompts = useMemo(
-    () => buildQuickPrompts(currentChapter?.title),
-    [currentChapter?.title],
+    () =>
+      buildLearnQuickPrompts({
+        chapterTitle: currentChapter?.title,
+        growthFocus,
+        insights,
+      }),
+    [currentChapter?.title, growthFocus, insights],
   );
 
   const resetTrackedSession = useChatSessionStateStore((state) => state.resetSession);

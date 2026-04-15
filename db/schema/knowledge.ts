@@ -133,6 +133,7 @@ export const knowledgeInsights = pgTable(
     title: text("title").notNull(),
     summary: text("summary").notNull(),
     confidence: numeric("confidence", { precision: 4, scale: 3 }).notNull(),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
     createdByRunId: uuid("created_by_run_id"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -165,28 +166,27 @@ export const knowledgeInsightEvidence = pgTable(
   }),
 );
 
-export const knowledgeChunks = pgTable(
-  "knowledge_chunks",
+export const knowledgeEvidenceChunks = pgTable(
+  "knowledge_evidence_chunks",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    sourceType: text("source_type").notNull().default("note"),
-    sourceId: uuid("source_id").notNull(),
+    knowledgeEvidenceId: uuid("knowledge_evidence_id")
+      .references(() => knowledgeEvidence.id, { onDelete: "cascade" })
+      .notNull(),
     content: text("content").notNull(),
     embedding: embeddingVector("embedding"),
     chunkIndex: integer("chunk_index").notNull(),
-    userId: uuid("user_id").references(() => users.id, {
-      onDelete: "cascade",
-    }),
-    metadata: jsonb("metadata"),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
     createdAt: timestamp("created_at").defaultNow(),
   },
   (table) => ({
-    sourceIdx: index("knowledge_chunks_source_idx").on(table.sourceType, table.sourceId),
-    userIdIdx: index("knowledge_chunks_user_id_idx").on(table.userId),
+    evidenceIdx: index("knowledge_evidence_chunks_evidence_idx").on(table.knowledgeEvidenceId),
+    evidenceChunkUniqueIdx: uniqueIndex("knowledge_evidence_chunks_evidence_chunk_unique_idx").on(
+      table.knowledgeEvidenceId,
+      table.chunkIndex,
+    ),
   }),
 );
-
-export const noteChunks = knowledgeChunks;
 
 export type KnowledgeEvidenceEvent = typeof knowledgeEvidenceEvents.$inferSelect;
 export type NewKnowledgeEvidenceEvent = typeof knowledgeEvidenceEvents.$inferInsert;
@@ -200,7 +200,5 @@ export type KnowledgeInsight = typeof knowledgeInsights.$inferSelect;
 export type NewKnowledgeInsight = typeof knowledgeInsights.$inferInsert;
 export type KnowledgeInsightEvidence = typeof knowledgeInsightEvidence.$inferSelect;
 export type NewKnowledgeInsightEvidence = typeof knowledgeInsightEvidence.$inferInsert;
-export type KnowledgeChunk = typeof knowledgeChunks.$inferSelect;
-export type NewKnowledgeChunk = typeof knowledgeChunks.$inferInsert;
-export type NoteChunk = KnowledgeChunk;
-export type NewNoteChunk = NewKnowledgeChunk;
+export type KnowledgeEvidenceChunk = typeof knowledgeEvidenceChunks.$inferSelect;
+export type NewKnowledgeEvidenceChunk = typeof knowledgeEvidenceChunks.$inferInsert;

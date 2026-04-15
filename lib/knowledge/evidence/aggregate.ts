@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import {
   db,
@@ -6,6 +7,321 @@ import {
   knowledgeEvidenceEvents,
   knowledgeEvidenceSourceLinks,
 } from "@/db";
+
+interface SelectedEvidenceEventRow {
+  id: string;
+  kind: string;
+  title: string;
+  summary: string;
+  confidence: number | string;
+  sourceType: string;
+  sourceId: string | null;
+  sourceVersionHash: string | null;
+  metadata?: Record<string, unknown> | null;
+}
+
+interface SelectedEvidenceRefRow {
+  eventId: string;
+  refType: string;
+  refId: string;
+  snippet: string | null;
+  weight: number | string;
+}
+
+interface AggregatedEvidenceRecord {
+  kind: string;
+  title: string;
+  summary: string;
+  confidence: string;
+  sourceVersionHash: string | null;
+  refs: Array<{
+    refType: string;
+    refId: string;
+    snippet: string | null;
+    weight: string;
+  }>;
+}
+
+interface ExistingAggregatedEvidenceRecord extends AggregatedEvidenceRecord {
+  id: string;
+}
+
+function normalizeConfidence(value: number | string): string {
+  const numeric = typeof value === "string" ? Number(value) : value;
+  if (!Number.isFinite(numeric)) {
+    return "0.500";
+  }
+
+  return Math.min(1, Math.max(0, numeric)).toFixed(3);
+}
+
+function normalizeWeight(value: number | string): string {
+  const numeric = typeof value === "string" ? Number(value) : value;
+  if (!Number.isFinite(numeric)) {
+    return "1.000";
+  }
+
+  return Math.max(0, numeric).toFixed(3);
+}
+
+function normalizeText(value: string): string {
+  return value.trim().replace(/\s+/g, " ");
+}
+
+function buildRefsByEventId(refs: SelectedEvidenceRefRow[]) {
+  const refsByEventId = new Map<string, SelectedEvidenceRefRow[]>();
+
+  for (const ref of refs) {
+    const existing = refsByEventId.get(ref.eventId) ?? [];
+    existing.push(ref);
+    refsByEventId.set(ref.eventId, existing);
+  }
+
+  return refsByEventId;
+}
+
+function normalizeAggregatedRefs(refs: SelectedEvidenceRefRow[]) {
+  return [...refs]
+    .map((ref) => ({
+      refType: ref.refType,
+      refId: ref.refId,
+      snippet: ref.snippet ?? null,
+      weight: normalizeWeight(ref.weight),
+    }))
+    .sort((left, right) => {
+      const leftKey = `${left.refType}:${left.refId}:${left.snippet ?? ""}:${left.weight}`;
+      const rightKey = `${right.refType}:${right.refId}:${right.snippet ?? ""}:${right.weight}`;
+      return leftKey.localeCompare(rightKey, "en");
+    });
+}
+
+function buildGenericAggregatedEvidenceRecord(
+  event: SelectedEvidenceEventRow,
+  refs: SelectedEvidenceRefRow[],
+): AggregatedEvidenceRecord {
+  const normalizedRefs = normalizeAggregatedRefs(refs);
+
+  return {
+    kind: event.kind,
+    title: event.title,
+    summary: event.summary,
+    confidence: normalizeConfidence(event.confidence),
+    sourceVersionHash: event.sourceVersionHash,
+    refs: normalizedRefs,
+  };
+}
+
+function buildCourseAggregatedEvidenceRecord(
+  event: SelectedEvidenceEventRow,
+  refs: SelectedEvidenceRefRow[],
+): AggregatedEvidenceRecord | null {
+  const normalizedRefs = normalizeAggregatedRefs(refs);
+  const itemKind =
+    event.metadata && typeof event.metadata === "object" && "itemKind" in event.metadata
+      ? event.metadata.itemKind
+      : null;
+  const evidenceKind =
+    typeof itemKind === "string" && itemKind.length > 0
+      ? "course_skill"
+      : event.kind === "course_progress"
+        ? "course_progress"
+        : null;
+
+  if (!evidenceKind) {
+    return null;
+  }
+
+  return {
+    kind: evidenceKind,
+    title: event.title,
+    summary: event.summary,
+    confidence: normalizeConfidence(event.confidence),
+    sourceVersionHash: event.sourceVersionHash,
+    refs: normalizedRefs,
+  };
+}
+
+function buildEvidenceMatchKey(record: AggregatedEvidenceRecord): string {
+  const refKeys = record.refs
+    .map((ref) => `${ref.refType}:${ref.refId}`)
+    .sort((left, right) => {
+      return left.localeCompare(right, "en");
+    });
+
+  return JSON.stringify({
+    kind: record.kind,
+    sourceVersionHash: record.sourceVersionHash,
+    title: normalizeText(record.title),
+    refs: refKeys,
+    summary: refKeys.length === 0 ? normalizeText(record.summary) : null,
+  });
+}
+
+async function loadExistingAggregatedEvidence(
+  executor: Pick<typeof db, "select">,
+  params: {
+    userId: string;
+    sourceType: string;
+    sourceId: string;
+  },
+): Promise<ExistingAggregatedEvidenceRecord[]> {
+  const rows = await executor
+    .select({
+      id: knowledgeEvidence.id,
+      kind: knowledgeEvidence.kind,
+      title: knowledgeEvidence.title,
+      summary: knowledgeEvidence.summary,
+      confidence: knowledgeEvidence.confidence,
+      sourceVersionHash: knowledgeEvidence.sourceVersionHash,
+    })
+    .from(knowledgeEvidence)
+    .where(
+      and(
+        eq(knowledgeEvidence.userId, params.userId),
+        eq(knowledgeEvidence.sourceType, params.sourceType),
+        eq(knowledgeEvidence.sourceId, params.sourceId),
+      ),
+    );
+
+  if (rows.length === 0) {
+    return [];
+  }
+
+  const refs = await executor
+    .select({
+      evidenceId: knowledgeEvidenceSourceLinks.evidenceId,
+      refType: knowledgeEvidenceSourceLinks.refType,
+      refId: knowledgeEvidenceSourceLinks.refId,
+      snippet: knowledgeEvidenceSourceLinks.snippet,
+      weight: knowledgeEvidenceSourceLinks.weight,
+    })
+    .from(knowledgeEvidenceSourceLinks)
+    .where(
+      inArray(
+        knowledgeEvidenceSourceLinks.evidenceId,
+        rows.map((row) => row.id),
+      ),
+    );
+
+  const refsByEvidenceId = new Map<string, SelectedEvidenceRefRow[]>();
+  for (const ref of refs) {
+    const existingRefs = refsByEvidenceId.get(ref.evidenceId) ?? [];
+    existingRefs.push({
+      eventId: ref.evidenceId,
+      refType: ref.refType,
+      refId: ref.refId,
+      snippet: ref.snippet,
+      weight: ref.weight,
+    });
+    refsByEvidenceId.set(ref.evidenceId, existingRefs);
+  }
+
+  return rows.map((row) => ({
+    id: row.id,
+    kind: row.kind,
+    title: row.title,
+    summary: row.summary,
+    confidence: normalizeConfidence(row.confidence),
+    sourceVersionHash: row.sourceVersionHash,
+    refs: normalizeAggregatedRefs(refsByEvidenceId.get(row.id) ?? []),
+  }));
+}
+
+function assignEvidenceIds(
+  records: AggregatedEvidenceRecord[],
+  existingRows: ExistingAggregatedEvidenceRecord[],
+) {
+  const availableIdsByKey = new Map<string, string[]>();
+  for (const row of existingRows) {
+    const key = buildEvidenceMatchKey(row);
+    const ids = availableIdsByKey.get(key) ?? [];
+    ids.push(row.id);
+    availableIdsByKey.set(key, ids);
+  }
+
+  const desiredRecords = records.map((record) => {
+    const matchKey = buildEvidenceMatchKey(record);
+    const matchedId = availableIdsByKey.get(matchKey)?.shift();
+
+    return {
+      id: matchedId ?? randomUUID(),
+      ...record,
+    };
+  });
+
+  const matchedIds = new Set(desiredRecords.map((record) => record.id));
+  const obsoleteIds = existingRows.map((row) => row.id).filter((rowId) => !matchedIds.has(rowId));
+
+  return { desiredRecords, obsoleteIds };
+}
+
+async function applyAggregatedEvidenceSet(params: {
+  userId: string;
+  sourceType: string;
+  sourceId: string;
+  records: AggregatedEvidenceRecord[];
+}): Promise<void> {
+  await db.transaction(async (tx) => {
+    const existingRows = await loadExistingAggregatedEvidence(tx, params);
+    const { desiredRecords, obsoleteIds } = assignEvidenceIds(params.records, existingRows);
+    const existingIds = existingRows.map((row) => row.id);
+
+    if (existingIds.length > 0) {
+      await tx
+        .delete(knowledgeEvidenceSourceLinks)
+        .where(inArray(knowledgeEvidenceSourceLinks.evidenceId, existingIds));
+    }
+
+    if (obsoleteIds.length > 0) {
+      await tx.delete(knowledgeEvidence).where(inArray(knowledgeEvidence.id, obsoleteIds));
+    }
+
+    for (const record of desiredRecords) {
+      await tx
+        .insert(knowledgeEvidence)
+        .values({
+          id: record.id,
+          userId: params.userId,
+          kind: record.kind,
+          sourceType: params.sourceType,
+          sourceId: params.sourceId,
+          sourceVersionHash: record.sourceVersionHash,
+          title: record.title,
+          summary: record.summary,
+          confidence: record.confidence,
+        })
+        .onConflictDoUpdate({
+          target: knowledgeEvidence.id,
+          set: {
+            kind: record.kind,
+            sourceType: params.sourceType,
+            sourceId: params.sourceId,
+            sourceVersionHash: record.sourceVersionHash,
+            title: record.title,
+            summary: record.summary,
+            confidence: record.confidence,
+            updatedAt: new Date(),
+          },
+        });
+    }
+
+    const sourceLinks = desiredRecords.flatMap((record) =>
+      record.refs.map((ref) => ({
+        evidenceId: record.id,
+        sourceType: params.sourceType,
+        sourceId: params.sourceId,
+        refType: ref.refType,
+        refId: ref.refId,
+        snippet: ref.snippet,
+        weight: ref.weight,
+      })),
+    );
+
+    if (sourceLinks.length > 0) {
+      await tx.insert(knowledgeEvidenceSourceLinks).values(sourceLinks);
+    }
+  });
+}
 
 interface AggregateCourseEventsToEvidenceOptions {
   userId: string;
@@ -21,6 +337,7 @@ export async function aggregateCourseEventsToKnowledgeEvidence({
   const events = await db
     .select({
       id: knowledgeEvidenceEvents.id,
+      kind: knowledgeEvidenceEvents.kind,
       title: knowledgeEvidenceEvents.title,
       summary: knowledgeEvidenceEvents.summary,
       confidence: knowledgeEvidenceEvents.confidence,
@@ -39,15 +356,13 @@ export async function aggregateCourseEventsToKnowledgeEvidence({
       ),
     );
 
-  const extractedEvents = events.filter((event) => {
-    if (!event.metadata || typeof event.metadata !== "object") {
-      return false;
-    }
-
-    return "itemKind" in event.metadata;
-  });
-
-  if (extractedEvents.length === 0) {
+  if (events.length === 0) {
+    await applyAggregatedEvidenceSet({
+      userId,
+      sourceType: "course",
+      sourceId: courseId,
+      records: [],
+    });
     return;
   }
 
@@ -63,83 +378,20 @@ export async function aggregateCourseEventsToKnowledgeEvidence({
     .where(
       inArray(
         knowledgeEvidenceEventRefs.eventId,
-        extractedEvents.map((event) => event.id),
+        events.map((event) => event.id),
       ),
     );
 
-  await db.transaction(async (tx) => {
-    await tx
-      .delete(knowledgeEvidenceSourceLinks)
-      .where(
-        and(
-          eq(knowledgeEvidenceSourceLinks.sourceType, "course"),
-          eq(knowledgeEvidenceSourceLinks.sourceId, courseId),
-        ),
-      );
+  const refsByEventId = buildRefsByEventId(refs);
+  const records = events
+    .map((event) => buildCourseAggregatedEvidenceRecord(event, refsByEventId.get(event.id) ?? []))
+    .filter((record): record is AggregatedEvidenceRecord => Boolean(record));
 
-    await tx
-      .delete(knowledgeEvidence)
-      .where(
-        and(
-          eq(knowledgeEvidence.userId, userId),
-          eq(knowledgeEvidence.sourceType, "course"),
-          eq(knowledgeEvidence.sourceId, courseId),
-          eq(knowledgeEvidence.sourceVersionHash, sourceVersionHash),
-        ),
-      );
-
-    const insertedEvidence = [];
-    for (const event of extractedEvents) {
-      const [inserted] = await tx
-        .insert(knowledgeEvidence)
-        .values({
-          userId,
-          kind: "course_skill",
-          sourceType: event.sourceType,
-          sourceId: event.sourceId,
-          sourceVersionHash: event.sourceVersionHash,
-          title: event.title,
-          summary: event.summary,
-          confidence: event.confidence,
-        })
-        .returning({
-          id: knowledgeEvidence.id,
-        });
-
-      if (inserted) {
-        insertedEvidence.push({
-          eventId: event.id,
-          evidenceId: inserted.id,
-        });
-      }
-    }
-
-    const evidenceIdByEventId = new Map(
-      insertedEvidence.map((row) => [row.eventId, row.evidenceId]),
-    );
-
-    const sourceLinks = extractedEvents.flatMap((event) => {
-      const evidenceId = evidenceIdByEventId.get(event.id);
-      if (!evidenceId) {
-        return [];
-      }
-
-      return refs
-        .filter((ref) => ref.eventId === event.id)
-        .map((ref) => ({
-          evidenceId,
-          sourceType: "course",
-          sourceId: courseId,
-          refType: ref.refType,
-          refId: ref.refId,
-          snippet: ref.snippet ?? null,
-          weight: ref.weight,
-        }));
-    });
-
-    if (sourceLinks.length > 0) {
-      await tx.insert(knowledgeEvidenceSourceLinks).values(sourceLinks);
-    }
+  await applyAggregatedEvidenceSet({
+    userId,
+    sourceType: "course",
+    sourceId: courseId,
+    records,
   });
 }
 
@@ -184,6 +436,16 @@ export async function aggregateSourceEventsToKnowledgeEvidence({
       ),
     );
 
+  if (events.length === 0) {
+    await applyAggregatedEvidenceSet({
+      userId,
+      sourceType,
+      sourceId,
+      records: [],
+    });
+    return;
+  }
+
   const refs = await db
     .select({
       eventId: knowledgeEvidenceEventRefs.eventId,
@@ -206,82 +468,15 @@ export async function aggregateSourceEventsToKnowledgeEvidence({
       ),
     );
 
-  await db.transaction(async (tx) => {
-    await tx
-      .delete(knowledgeEvidenceSourceLinks)
-      .where(
-        and(
-          eq(knowledgeEvidenceSourceLinks.sourceType, sourceType),
-          eq(knowledgeEvidenceSourceLinks.sourceId, sourceId),
-        ),
-      );
+  const refsByEventId = buildRefsByEventId(refs);
+  const records = events.map((event) =>
+    buildGenericAggregatedEvidenceRecord(event, refsByEventId.get(event.id) ?? []),
+  );
 
-    await tx
-      .delete(knowledgeEvidence)
-      .where(
-        and(
-          eq(knowledgeEvidence.userId, userId),
-          eq(knowledgeEvidence.sourceType, sourceType),
-          eq(knowledgeEvidence.sourceId, sourceId),
-          buildSourceVersionCondition(knowledgeEvidence.sourceVersionHash, sourceVersionHash),
-        ),
-      );
-
-    if (events.length === 0) {
-      return;
-    }
-
-    const insertedEvidence = [];
-    for (const event of events) {
-      const [inserted] = await tx
-        .insert(knowledgeEvidence)
-        .values({
-          userId,
-          kind: event.kind,
-          sourceType: event.sourceType,
-          sourceId: event.sourceId,
-          sourceVersionHash: event.sourceVersionHash,
-          title: event.title,
-          summary: event.summary,
-          confidence: event.confidence,
-        })
-        .returning({
-          id: knowledgeEvidence.id,
-        });
-
-      if (inserted) {
-        insertedEvidence.push({
-          eventId: event.id,
-          evidenceId: inserted.id,
-        });
-      }
-    }
-
-    const evidenceIdByEventId = new Map(
-      insertedEvidence.map((row) => [row.eventId, row.evidenceId]),
-    );
-
-    const sourceLinks = events.flatMap((event) => {
-      const evidenceId = evidenceIdByEventId.get(event.id);
-      if (!evidenceId) {
-        return [];
-      }
-
-      return refs
-        .filter((ref) => ref.eventId === event.id)
-        .map((ref) => ({
-          evidenceId,
-          sourceType,
-          sourceId,
-          refType: ref.refType,
-          refId: ref.refId,
-          snippet: ref.snippet ?? null,
-          weight: ref.weight,
-        }));
-    });
-
-    if (sourceLinks.length > 0) {
-      await tx.insert(knowledgeEvidenceSourceLinks).values(sourceLinks);
-    }
+  await applyAggregatedEvidenceSet({
+    userId,
+    sourceType,
+    sourceId,
+    records,
   });
 }

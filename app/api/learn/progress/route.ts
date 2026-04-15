@@ -7,39 +7,20 @@ import { courseProgress, db } from "@/db";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
 import {
-  revalidateGoldenPath,
+  revalidateCareerTrees,
   revalidateLearnPage,
   revalidateRecentCourses,
 } from "@/lib/cache/tags";
-import {
-  computeCareerOutlineHash,
-  normalizeCareerOutline,
-} from "@/lib/career-tree/normalize-outline";
-import { enqueueCareerTreeRefresh } from "@/lib/career-tree/queue";
+import { computeGrowthOutlineHash, normalizeGrowthOutline } from "@/lib/growth/normalize-outline";
+import { enqueueGrowthRefresh } from "@/lib/growth/queue";
 import { ingestEvidenceEvent } from "@/lib/knowledge/events";
-import { getOwnedCourse } from "@/lib/learning/course-repository";
+import { aggregateCourseEventsToKnowledgeEvidence } from "@/lib/knowledge/evidence";
+import { getOwnedCourseWithOutline } from "@/lib/learning/course-repository";
 
 const RequestSchema = z.object({
   courseId: z.string().uuid(),
   sectionNodeId: z.string().min(1),
 });
-
-interface OutlineSection {
-  title: string;
-  description?: string;
-}
-
-interface OutlineChapter {
-  title: string;
-  description?: string;
-  sections: OutlineSection[];
-}
-
-interface OutlineData {
-  title?: string;
-  description?: string;
-  chapters?: OutlineChapter[];
-}
 
 interface CourseProgress {
   currentChapter: number;
@@ -59,7 +40,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { courseId, sectionNodeId } = RequestSchema.parse(body);
 
-    const course = await getOwnedCourse(courseId, session.user.id);
+    const course = await getOwnedCourseWithOutline(courseId, session.user.id);
     if (!course) {
       throw new APIError("课程不存在", 404, "NOT_FOUND");
     }
@@ -88,8 +69,7 @@ export async function POST(request: NextRequest) {
     completedSections.push(sectionNodeId);
 
     // Check chapter completion: if all sections in a chapter are done, mark chapter complete
-    const outline = course.outlineData as OutlineData | null;
-    const chapters = outline?.chapters ?? [];
+    const chapters = course.outline.chapters;
     const completedChapters = existing.completedChapters ?? [];
 
     for (let chIdx = 0; chIdx < chapters.length; chIdx++) {
@@ -134,8 +114,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const normalizedOutline = normalizeCareerOutline(course.outlineData);
-    const outlineHash = computeCareerOutlineHash(normalizedOutline);
+    const normalizedOutline = normalizeGrowthOutline(course.outline);
+    const outlineHash = computeGrowthOutlineHash(normalizedOutline);
     const completedSection = normalizedOutline.chapters
       .flatMap((chapter) =>
         chapter.sections.map((section) => ({
@@ -183,11 +163,22 @@ export async function POST(request: NextRequest) {
       ],
     });
 
-    await enqueueCareerTreeRefresh(session.user.id, courseId);
+    await aggregateCourseEventsToKnowledgeEvidence({
+      userId: session.user.id,
+      courseId,
+      sourceVersionHash: outlineHash,
+    });
+
+    await enqueueGrowthRefresh(
+      session.user.id,
+      courseId,
+      undefined,
+      `course-progress:${courseId}:${completedSections.length}:${completedChapters.length}:${sectionNodeId}`,
+    );
 
     revalidateRecentCourses(session.user.id);
     revalidateLearnPage(session.user.id, courseId);
-    revalidateGoldenPath(session.user.id);
+    revalidateCareerTrees(session.user.id);
 
     return NextResponse.json({
       ok: true,
@@ -216,7 +207,7 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const { courseId, currentChapter } = ChapterSchema.parse(body);
 
-    const course = await getOwnedCourse(courseId, session.user.id);
+    const course = await getOwnedCourseWithOutline(courseId, session.user.id);
     if (!course) {
       throw new APIError("课程不存在", 404, "NOT_FOUND");
     }
@@ -258,7 +249,7 @@ export async function PATCH(request: NextRequest) {
 
     revalidateRecentCourses(session.user.id);
     revalidateLearnPage(session.user.id, courseId);
-    revalidateGoldenPath(session.user.id);
+    revalidateCareerTrees(session.user.id);
 
     return NextResponse.json({ ok: true });
   } catch (error) {

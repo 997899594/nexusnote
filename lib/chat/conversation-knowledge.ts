@@ -1,16 +1,17 @@
 import type { UIMessage } from "ai";
-import {
-  enqueueCareerTreeRefresh,
-  enqueueKnowledgeInsights,
-  enqueueKnowledgeSourceMerge,
-} from "@/lib/career-tree/queue";
 import { extractMessageText } from "@/lib/chat/conversation-messages";
 import { getOwnedConversation } from "@/lib/chat/conversation-repository";
+import {
+  enqueueGrowthRefresh,
+  enqueueKnowledgeInsights,
+  enqueueKnowledgeSourceMerge,
+} from "@/lib/growth/queue";
 import { deleteEvidenceEventsBySource, ingestEvidenceEvent } from "@/lib/knowledge/events";
 import {
   aggregateSourceEventsToKnowledgeEvidence,
   listLinkedNodeIdsForEvidenceSource,
 } from "@/lib/knowledge/evidence";
+import { syncSourceKnowledgeEvidenceChunks } from "@/lib/rag/chunker";
 
 function getConversationSnippets(messages: UIMessage[]) {
   return messages
@@ -32,13 +33,13 @@ function buildConversationSummary(messages: UIMessage[]) {
   return summary.length > 800 ? `${summary.slice(0, 800).trim()}...` : summary;
 }
 
-export async function syncLearnConversationKnowledge(params: {
+export async function syncConversationKnowledge(params: {
   conversationId: string;
   userId: string;
   messages: UIMessage[];
 }): Promise<void> {
   const conversation = await getOwnedConversation(params.conversationId, params.userId);
-  if (!conversation?.learnCourseId) {
+  if (!conversation) {
     return;
   }
 
@@ -66,14 +67,15 @@ export async function syncLearnConversationKnowledge(params: {
       sourceType: "conversation",
       sourceId: params.conversationId,
       sourceVersionHash: null,
-      title: conversation.title || "学习对话",
+      title: conversation.title || "对话记录",
       summary,
       confidence: 1,
       happenedAt: new Date().toISOString(),
       metadata: {
         intent: conversation.intent,
-        courseId: conversation.learnCourseId,
-        chapterIndex: conversation.learnChapterIndex,
+        courseId: conversation.learnCourseId ?? null,
+        chapterIndex: conversation.learnChapterIndex ?? null,
+        messageCount: conversation.messageCount ?? 0,
       },
       refs: [
         ...snippets.map((item) => ({
@@ -82,6 +84,16 @@ export async function syncLearnConversationKnowledge(params: {
           snippet: item.text,
           weight: 1,
         })),
+        ...(conversation.learnCourseId
+          ? [
+              {
+                refType: "course",
+                refId: conversation.learnCourseId,
+                snippet: null,
+                weight: 1,
+              },
+            ]
+          : []),
         ...(typeof conversation.learnChapterIndex === "number"
           ? [
               {
@@ -102,6 +114,18 @@ export async function syncLearnConversationKnowledge(params: {
     sourceId: params.conversationId,
     sourceVersionHash: null,
   });
+  await syncSourceKnowledgeEvidenceChunks({
+    userId: params.userId,
+    sourceType: "conversation",
+    sourceId: params.conversationId,
+    sourceVersionHash: null,
+    metadata: {
+      intent: conversation.intent,
+      courseId: conversation.learnCourseId ?? null,
+      chapterIndex: conversation.learnChapterIndex ?? null,
+      messageCount: conversation.messageCount ?? 0,
+    },
+  });
 
   if (summary.length > 0) {
     await enqueueKnowledgeSourceMerge({
@@ -115,7 +139,12 @@ export async function syncLearnConversationKnowledge(params: {
   }
 
   if (affectedNodeIds.length > 0) {
-    await enqueueCareerTreeRefresh(params.userId, undefined, affectedNodeIds);
+    await enqueueGrowthRefresh(
+      params.userId,
+      undefined,
+      affectedNodeIds,
+      `conversation-clear:${params.conversationId}`,
+    );
   } else {
     await enqueueKnowledgeInsights(params.userId);
   }

@@ -13,7 +13,7 @@ import {
 } from "@/lib/ai";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
-import { getUserGenerationContext } from "@/lib/career-tree/generation-context";
+import { getUserGrowthContext } from "@/lib/growth/generation-context";
 import { getOwnedCourse } from "@/lib/learning/course-repository";
 
 export const maxDuration = 300;
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
       courseId = existingCourse.id;
     }
 
-    const generationContext = await getUserGenerationContext(userId);
+    const generationContext = await getUserGrowthContext(userId);
 
     const validatedMessages = await validateUIMessages<InterviewUIMessage>({ messages });
 

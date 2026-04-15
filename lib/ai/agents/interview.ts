@@ -8,6 +8,7 @@ import { createToolContext } from "@/lib/ai/core/tool-context";
 import type { InterviewOutline } from "@/lib/ai/interview";
 import { buildInterviewAgentInstructionsWithHint } from "@/lib/ai/interview/prompts";
 import { createInterviewTools } from "@/lib/ai/tools/interview";
+import type { GrowthGenerationContext } from "@/lib/growth/generation-context-format";
 
 const MAX_STEPS = 12;
 
@@ -16,27 +17,7 @@ export interface InterviewAgentOptions {
   courseId?: string;
   currentOutline?: InterviewOutline;
   messages?: UIMessage[];
-  generationContext?: {
-    currentDirection: {
-      directionKey: string | null;
-      title: string | null;
-      summary: string | null;
-      whyThisDirection: string | null;
-    } | null;
-    currentFocus: {
-      nodeId: string | null;
-      title: string | null;
-      summary: string | null;
-      state: string | null;
-      progress: number | null;
-    } | null;
-    insights: Array<{
-      kind: string;
-      title: string;
-      summary: string;
-      confidence: number;
-    }>;
-  };
+  generationContext?: GrowthGenerationContext;
   telemetry?: AITelemetryContext;
 }
 

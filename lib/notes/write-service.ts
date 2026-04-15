@@ -1,18 +1,19 @@
-import { and, db, eq, knowledgeChunks, notes } from "@/db";
+import { and, db, eq, notes } from "@/db";
 import type { NoteSourceContext } from "@/db/schema/notes";
 import {
   revalidateNoteDetail,
   revalidateNotesIndex,
   revalidateProfileStats,
 } from "@/lib/cache/tags";
-import { enqueueCareerTreeRefresh, enqueueKnowledgeSourceMerge } from "@/lib/career-tree/queue";
+import { enqueueGrowthRefresh, enqueueKnowledgeSourceMerge } from "@/lib/growth/queue";
 import { deleteEvidenceEventsBySource, ingestEvidenceEvent } from "@/lib/knowledge/events";
 import {
   aggregateSourceEventsToKnowledgeEvidence,
   listLinkedNodeIdsForEvidenceSource,
 } from "@/lib/knowledge/evidence";
+import { resolveNoteBackedKnowledgeSourceType } from "@/lib/knowledge/source-types";
 import { htmlToPlainText, plainTextToHtml } from "@/lib/notes/content";
-import { indexNote } from "@/lib/rag/chunker";
+import { syncSourceKnowledgeEvidenceChunks } from "@/lib/rag/chunker";
 
 type NoteRecord = typeof notes.$inferSelect;
 
@@ -86,17 +87,6 @@ function revalidateNoteCaches(userId: string, noteId: string) {
   revalidateProfileStats(userId);
 }
 
-async function syncNoteIndex(note: NoteRecord, userId: string): Promise<void> {
-  try {
-    await indexNote(note.id, note.plainText ?? "", {
-      userId,
-      metadata: buildNoteIndexMetadata(note),
-    });
-  } catch (error) {
-    console.error("[NoteWriteService] Failed to index note:", error);
-  }
-}
-
 function appendPlainTextAsParagraph(existingHtml: string, plainText: string): string {
   const addition = plainTextToHtml(plainText);
   if (!addition) {
@@ -151,20 +141,17 @@ function buildTrackedNoteRefs(note: Pick<NoteRecord, "id" | "plainText" | "sourc
   return refs;
 }
 
-function resolveNoteEvidenceKind(note: Pick<NoteRecord, "sourceType">): "capture" | "note" {
-  return note.sourceType === "course_capture" ? "capture" : "note";
-}
-
 async function syncTrackedNoteKnowledge(note: NoteRecord): Promise<void> {
+  const knowledgeSourceType = resolveNoteBackedKnowledgeSourceType(note.sourceType);
   const affectedNodeIds = await listLinkedNodeIdsForEvidenceSource({
     userId: note.userId,
-    sourceType: "note",
+    sourceType: knowledgeSourceType,
     sourceId: note.id,
   });
 
   await deleteEvidenceEventsBySource({
     userId: note.userId,
-    sourceType: "note",
+    sourceType: knowledgeSourceType,
     sourceId: note.id,
     sourceVersionHash: null,
   });
@@ -172,8 +159,8 @@ async function syncTrackedNoteKnowledge(note: NoteRecord): Promise<void> {
   await ingestEvidenceEvent({
     id: crypto.randomUUID(),
     userId: note.userId,
-    kind: resolveNoteEvidenceKind(note),
-    sourceType: "note",
+    kind: knowledgeSourceType === "capture" ? "capture" : "note",
+    sourceType: knowledgeSourceType,
     sourceId: note.id,
     sourceVersionHash: null,
     title: note.title,
@@ -189,41 +176,53 @@ async function syncTrackedNoteKnowledge(note: NoteRecord): Promise<void> {
 
   await aggregateSourceEventsToKnowledgeEvidence({
     userId: note.userId,
-    sourceType: "note",
+    sourceType: knowledgeSourceType,
     sourceId: note.id,
     sourceVersionHash: null,
   });
+  await syncSourceKnowledgeEvidenceChunks({
+    userId: note.userId,
+    sourceType: knowledgeSourceType,
+    sourceId: note.id,
+    sourceVersionHash: null,
+    metadata: buildNoteIndexMetadata(note),
+  });
   await enqueueKnowledgeSourceMerge({
     userId: note.userId,
-    sourceType: "note",
+    sourceType: knowledgeSourceType,
     sourceId: note.id,
     sourceVersionHash: null,
     affectedNodeIds,
   });
 }
 
-async function clearTrackedNoteKnowledge(noteId: string, userId: string): Promise<void> {
+async function clearTrackedNoteKnowledge(
+  noteId: string,
+  userId: string,
+  noteSourceType: string,
+): Promise<void> {
+  const knowledgeSourceType = resolveNoteBackedKnowledgeSourceType(noteSourceType);
   const affectedNodeIds = await listLinkedNodeIdsForEvidenceSource({
     userId,
-    sourceType: "note",
+    sourceType: knowledgeSourceType,
     sourceId: noteId,
   });
 
   await deleteEvidenceEventsBySource({
     userId,
-    sourceType: "note",
+    sourceType: knowledgeSourceType,
     sourceId: noteId,
     sourceVersionHash: null,
   });
   await aggregateSourceEventsToKnowledgeEvidence({
     userId,
-    sourceType: "note",
+    sourceType: knowledgeSourceType,
     sourceId: noteId,
     sourceVersionHash: null,
   });
 
   if (affectedNodeIds.length > 0) {
-    await enqueueCareerTreeRefresh(userId, undefined, affectedNodeIds);
+    await enqueueGrowthRefresh(userId, undefined, affectedNodeIds, `note-clear:${noteId}`);
   }
 }
 
@@ -251,7 +250,6 @@ export async function createOwnedNote(params: CreateOwnedNoteParams): Promise<No
     })
     .returning();
 
-  await syncNoteIndex(note, userId);
   await syncTrackedNoteKnowledge(note);
   revalidateNoteCaches(userId, note.id);
 
@@ -290,7 +288,6 @@ export async function updateOwnedNote(params: UpdateOwnedNoteParams): Promise<No
     return null;
   }
 
-  await syncNoteIndex(note, userId);
   await syncTrackedNoteKnowledge(note);
   revalidateNoteCaches(userId, note.id);
 
@@ -336,10 +333,6 @@ export async function deleteOwnedNote(noteId: string, userId: string): Promise<N
       return [];
     }
 
-    await tx
-      .delete(knowledgeChunks)
-      .where(and(eq(knowledgeChunks.sourceType, "note"), eq(knowledgeChunks.sourceId, noteId)));
-
     const [note] = await tx
       .delete(notes)
       .where(and(eq(notes.id, noteId), eq(notes.userId, userId)))
@@ -352,7 +345,7 @@ export async function deleteOwnedNote(noteId: string, userId: string): Promise<N
     return null;
   }
 
-  await clearTrackedNoteKnowledge(noteId, userId);
+  await clearTrackedNoteKnowledge(noteId, userId, deleted.sourceType);
   revalidateNoteCaches(userId, noteId);
   return deleted;
 }

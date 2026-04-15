@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const evidenceEventKindSchema = z.enum([
   "course_outline",
+  "course_section",
   "course_progress",
   "highlight",
   "note",
@@ -37,3 +38,9 @@ export const evidenceEventRefSchema = z.object({
 });
 
 export type EvidenceEventRef = z.infer<typeof evidenceEventRefSchema>;
+
+export const evidenceEventWithRefsSchema = evidenceEventSchema.extend({
+  refs: z.array(evidenceEventRefSchema).default([]),
+});
+
+export type EvidenceEventWithRefs = z.infer<typeof evidenceEventWithRefsSchema>;

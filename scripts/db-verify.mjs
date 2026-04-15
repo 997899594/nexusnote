@@ -6,20 +6,22 @@ const REQUIRED_TABLES = [
   "accounts",
   "ai_skins",
   "ai_usage",
-  "career_generation_runs",
-  "career_user_graph_state",
-  "career_user_skill_edges",
-  "career_user_skill_node_evidence",
-  "career_user_skill_nodes",
-  "career_user_tree_preferences",
-  "career_user_tree_snapshots",
+  "knowledge_generation_runs",
+  "user_growth_state",
+  "user_skill_edges",
+  "user_skill_node_evidence",
+  "user_skill_nodes",
+  "user_career_tree_preferences",
+  "user_career_tree_snapshots",
   "conversation_messages",
   "conversations",
+  "course_outline_nodes",
+  "course_outline_versions",
   "course_progress",
   "course_section_annotations",
   "course_sections",
   "courses",
-  "knowledge_chunks",
+  "knowledge_evidence_chunks",
   "knowledge_evidence",
   "knowledge_evidence_event_refs",
   "knowledge_evidence_events",
@@ -41,6 +43,13 @@ const REQUIRED_TABLES = [
 ];
 
 const FORBIDDEN_TABLES = [
+  "career_generation_runs",
+  "career_user_graph_state",
+  "career_user_skill_edges",
+  "career_user_skill_node_evidence",
+  "career_user_skill_nodes",
+  "career_user_tree_preferences",
+  "career_user_tree_snapshots",
   "course_sessions",
   "course_chapter_skill_mappings",
   "course_skill_mappings",
@@ -48,6 +57,7 @@ const FORBIDDEN_TABLES = [
   "document_tags",
   "documents",
   "extracted_notes",
+  "knowledge_chunks",
   "persona_subscriptions",
   "personas",
   "skill_relationships",
@@ -74,7 +84,9 @@ const REQUIRED_COLUMNS = [
   ["conversations", "learn_chapter_index"],
   ["conversations", "learn_course_id"],
   ["conversations", "metadata"],
-  ["knowledge_chunks", "embedding"],
+  ["course_sections", "outline_node_key"],
+  ["knowledge_evidence_chunks", "knowledge_evidence_id"],
+  ["knowledge_evidence_chunks", "embedding"],
   ["notes", "content_html"],
   ["notes", "source_context"],
   ["notes", "source_type"],
@@ -83,7 +95,13 @@ const REQUIRED_COLUMNS = [
   ["user_skin_preferences", "default_skin_slug"],
 ];
 
-const FORBIDDEN_COLUMNS = [["conversations", "messages"]];
+const FORBIDDEN_COLUMNS = [
+  ["conversations", "messages"],
+  ["courses", "outline_data"],
+  ["knowledge_evidence_chunks", "source_id"],
+  ["knowledge_evidence_chunks", "source_type"],
+  ["knowledge_evidence_chunks", "user_id"],
+];
 
 function getConnectionString(connectionString = process.env.DATABASE_URL) {
   if (!connectionString) {

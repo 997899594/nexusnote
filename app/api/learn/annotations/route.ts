@@ -8,10 +8,10 @@ import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
 import { revalidateLearnPage } from "@/lib/cache/tags";
 import {
-  enqueueCareerTreeRefresh,
+  enqueueGrowthRefresh,
   enqueueKnowledgeInsights,
   enqueueKnowledgeSourceMerge,
-} from "@/lib/career-tree/queue";
+} from "@/lib/growth/queue";
 import { deleteEvidenceEventsBySource, ingestEvidenceEvent } from "@/lib/knowledge/events";
 import {
   aggregateSourceEventsToKnowledgeEvidence,
@@ -160,7 +160,12 @@ export async function PATCH(request: NextRequest) {
         affectedNodeIds,
       });
     } else if (affectedNodeIds.length > 0) {
-      await enqueueCareerTreeRefresh(userId, undefined, affectedNodeIds);
+      await enqueueGrowthRefresh(
+        userId,
+        undefined,
+        affectedNodeIds,
+        `annotation-clear:${sectionId}`,
+      );
     } else {
       await enqueueKnowledgeInsights(userId);
     }

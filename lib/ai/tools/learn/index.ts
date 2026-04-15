@@ -21,7 +21,7 @@ export function createLearnContextTools(ctx: ToolContext) {
   return {
     loadLearnContext: tool({
       description:
-        "加载当前课程指定章节的教学内容。在回答学习相关问题前调用此工具获取章节详细内容。可选择性加载特定小节。",
+        "加载当前课程指定章节的教学内容，并返回章节描述与能力目标。在回答学习相关问题前调用此工具获取章节详细内容。可选择性加载特定小节。",
       inputSchema: z.object({
         chapterIndex: z.number().int().min(0).describe("章节索引（从 0 开始）"),
         sectionIndices: z
@@ -55,6 +55,9 @@ export function createLearnContextTools(ctx: ToolContext) {
 
         return {
           chapterTitle: chapter.chapterTitle,
+          chapterDescription: chapter.chapterDescription,
+          chapterSkillIds: chapter.chapterSkillIds,
+          courseSkillIds: chapter.courseSkillIds,
           chapterIndex,
           sectionCount: chapter.sections.length,
           loadedSections: truncated.length,

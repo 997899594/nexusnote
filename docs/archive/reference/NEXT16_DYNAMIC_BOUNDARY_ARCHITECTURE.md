@@ -102,7 +102,7 @@ This rule is now applied to:
 
 - [app/interview/page.tsx](/Users/findbiao/projects/nexusnote/app/interview/page.tsx)
 - [app/profile/page.tsx](/Users/findbiao/projects/nexusnote/app/profile/page.tsx)
-- [app/golden-path/page.tsx](/Users/findbiao/projects/nexusnote/app/golden-path/page.tsx)
+- [app/career-trees/page.tsx](/Users/findbiao/projects/nexusnote/app/career-trees/page.tsx)
 - [app/editor/page.tsx](/Users/findbiao/projects/nexusnote/app/editor/page.tsx)
 - [app/chat/[id]/page.tsx](/Users/findbiao/projects/nexusnote/app/chat/[id]/page.tsx)
 - [app/editor/[id]/page.tsx](/Users/findbiao/projects/nexusnote/app/editor/[id]/page.tsx)

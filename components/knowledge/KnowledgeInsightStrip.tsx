@@ -1,34 +1,14 @@
 import { AlertCircle, Brain, Compass, type LucideIcon, Sparkles, TrendingUp } from "lucide-react";
 import type { KnowledgeInsight } from "@/lib/knowledge/insights";
+import { getKnowledgeInsightKindLabel } from "@/lib/knowledge/presentation";
 import { cn } from "@/lib/utils";
 
-const KIND_META: Record<
-  KnowledgeInsight["kind"],
-  {
-    label: string;
-    icon: LucideIcon;
-  }
-> = {
-  theme: {
-    label: "主题",
-    icon: Sparkles,
-  },
-  strength: {
-    label: "优势",
-    icon: TrendingUp,
-  },
-  gap: {
-    label: "待补",
-    icon: AlertCircle,
-  },
-  trajectory: {
-    label: "走向",
-    icon: Compass,
-  },
-  recommendation_reason: {
-    label: "依据",
-    icon: Brain,
-  },
+const KIND_ICONS: Record<KnowledgeInsight["kind"], LucideIcon> = {
+  theme: Sparkles,
+  strength: TrendingUp,
+  gap: AlertCircle,
+  trajectory: Compass,
+  recommendation_reason: Brain,
 };
 
 interface KnowledgeInsightStripProps {
@@ -44,8 +24,7 @@ export function KnowledgeInsightStrip({ insights, className }: KnowledgeInsightS
   return (
     <div className={cn("grid gap-3 md:grid-cols-3", className)}>
       {insights.map((insight) => {
-        const meta = KIND_META[insight.kind];
-        const Icon = meta.icon;
+        const Icon = KIND_ICONS[insight.kind];
 
         return (
           <article
@@ -55,7 +34,7 @@ export function KnowledgeInsightStrip({ insights, className }: KnowledgeInsightS
             <div className="flex items-center justify-between gap-3">
               <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
                 <Icon className="h-3.5 w-3.5" />
-                {meta.label}
+                {getKnowledgeInsightKindLabel(insight.kind)}
               </div>
               <div className="text-[11px] font-medium text-[var(--color-text-muted)]">
                 {Math.round(insight.confidence * 100)}%

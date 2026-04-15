@@ -1,5 +1,24 @@
 import { revalidateTag } from "next/cache";
 
+function canIgnoreRevalidateError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return error.message.includes("static generation store missing");
+}
+
+function revalidateTagSafely(tag: string): void {
+  try {
+    revalidateTag(tag, "max");
+  } catch (error) {
+    if (canIgnoreRevalidateError(error)) {
+      return;
+    }
+    throw error;
+  }
+}
+
 export function getRecentCoursesTag(userId: string): string {
   return `recent-courses:${userId}`;
 }
@@ -12,8 +31,8 @@ export function getLearnPageTag(userId: string, courseId: string): string {
   return `learn-page:${userId}:${courseId}`;
 }
 
-export function getGoldenPathTag(userId: string): string {
-  return `golden-path:${userId}`;
+export function getCareerTreesTag(userId: string): string {
+  return `career-trees:${userId}`;
 }
 
 export function getNotesIndexTag(userId: string): string {
@@ -25,25 +44,25 @@ export function getNoteDetailTag(userId: string, noteId: string): string {
 }
 
 export function revalidateRecentCourses(userId: string): void {
-  revalidateTag(getRecentCoursesTag(userId), "max");
+  revalidateTagSafely(getRecentCoursesTag(userId));
 }
 
 export function revalidateProfileStats(userId: string): void {
-  revalidateTag(getProfileStatsTag(userId), "max");
+  revalidateTagSafely(getProfileStatsTag(userId));
 }
 
 export function revalidateLearnPage(userId: string, courseId: string): void {
-  revalidateTag(getLearnPageTag(userId, courseId), "max");
+  revalidateTagSafely(getLearnPageTag(userId, courseId));
 }
 
-export function revalidateGoldenPath(userId: string): void {
-  revalidateTag(getGoldenPathTag(userId), "max");
+export function revalidateCareerTrees(userId: string): void {
+  revalidateTagSafely(getCareerTreesTag(userId));
 }
 
 export function revalidateNotesIndex(userId: string): void {
-  revalidateTag(getNotesIndexTag(userId), "max");
+  revalidateTagSafely(getNotesIndexTag(userId));
 }
 
 export function revalidateNoteDetail(userId: string, noteId: string): void {
-  revalidateTag(getNoteDetailTag(userId, noteId), "max");
+  revalidateTagSafely(getNoteDetailTag(userId, noteId));
 }

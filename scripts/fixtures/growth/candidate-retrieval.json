@@ -1,0 +1,40 @@
+{
+  "evidenceItems": [
+    {
+      "title": "React state management",
+      "kind": "skill",
+      "summary": "管理组件状态与副作用",
+      "confidence": 0.9,
+      "chapterKeys": ["chapter-1"],
+      "prerequisiteHints": [],
+      "relatedHints": [],
+      "evidenceSnippets": ["状态管理", "副作用控制", "React 组件"]
+    }
+  ],
+  "existingNodes": [
+    {
+      "id": "node-react",
+      "canonicalLabel": "React state architecture",
+      "summary": "组件状态、副作用与交互管理"
+    },
+    {
+      "id": "node-sql",
+      "canonicalLabel": "SQL querying",
+      "summary": "关系型查询与索引设计"
+    }
+  ],
+  "existingEvidenceLinks": [
+    {
+      "nodeId": "node-react",
+      "title": "React rendering flow",
+      "summary": "组件状态更新机制"
+    },
+    {
+      "nodeId": "node-sql",
+      "title": "SQL basics",
+      "summary": "基础查询语法"
+    }
+  ],
+  "existingPrerequisiteEdges": [],
+  "expectedNodeIds": ["node-react"]
+}

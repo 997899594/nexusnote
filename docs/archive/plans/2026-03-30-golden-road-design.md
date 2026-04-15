@@ -351,7 +351,7 @@ V1 不应把职业路线做成平台固定死菜单，而应采用：
 
 V1 推荐新增独立页面：
 
-- `/golden-path`
+- `/career-trees`
 
 页面结构：
 
@@ -479,7 +479,7 @@ V1 暂时不做：
 - 建立能力 ontology
 - 建立技能节点聚合逻辑
 - 建立 path projection 逻辑
-- 新增 `/golden-path`
+- 新增 `/career-trees`
 
 ### Phase 2: Profile 入口替换
 

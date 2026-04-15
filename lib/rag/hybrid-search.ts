@@ -2,7 +2,7 @@
  * RAG Service - Hybrid Search
  *
  * Combines vector search + keyword search + RRF merging + Query Rewriter
- * Supports multiple sources: note | conversation
+ * Supports multiple sources: note | capture | conversation | course_section
  */
 
 import { embedMany } from "ai";
@@ -58,13 +58,13 @@ async function vectorSearch(
 
     const sourceTypeFilter =
       sourceTypes && sourceTypes.length > 0
-        ? sql`AND source_type IN (${sql.join(
+        ? sql`AND ke.source_type IN (${sql.join(
             sourceTypes.map((sourceType) => sql`${sourceType}`),
             sql`, `,
           )})`
         : sql``;
 
-    const userFilter = userId ? sql`AND user_id = ${userId}` : sql``;
+    const userFilter = userId ? sql`AND ke.user_id = ${userId}` : sql``;
 
     const results = await db.execute<{
       id: string;
@@ -74,16 +74,17 @@ async function vectorSearch(
       similarity: number;
     }>(sql`
       SELECT
-        id,
-        source_id,
-        source_type,
-        content,
-        1 - (embedding <=> ${JSON.stringify(queryEmbedding)}::vector) as similarity
-      FROM knowledge_chunks
-      WHERE embedding IS NOT NULL
+        kec.id,
+        ke.source_id,
+        ke.source_type,
+        kec.content,
+        1 - (kec.embedding <=> ${JSON.stringify(queryEmbedding)}::vector) as similarity
+      FROM knowledge_evidence_chunks kec
+      INNER JOIN knowledge_evidence ke ON ke.id = kec.knowledge_evidence_id
+      WHERE kec.embedding IS NOT NULL
       ${sourceTypeFilter}
       ${userFilter}
-      ORDER BY embedding <=> ${JSON.stringify(queryEmbedding)}::vector
+      ORDER BY kec.embedding <=> ${JSON.stringify(queryEmbedding)}::vector
       LIMIT ${topK}
     `);
 
@@ -111,13 +112,13 @@ async function keywordSearch(
   try {
     const sourceTypeFilter =
       sourceTypes && sourceTypes.length > 0
-        ? sql`AND source_type IN (${sql.join(
+        ? sql`AND ke.source_type IN (${sql.join(
             sourceTypes.map((sourceType) => sql`${sourceType}`),
             sql`, `,
           )})`
         : sql``;
 
-    const userFilter = userId ? sql`AND user_id = ${userId}` : sql``;
+    const userFilter = userId ? sql`AND ke.user_id = ${userId}` : sql``;
 
     const results = await db.execute<{
       id: string;
@@ -127,16 +128,17 @@ async function keywordSearch(
       rank: number;
     }>(sql`
       SELECT
-        id,
-        source_id,
-        source_type,
-        content,
+        kec.id,
+        ke.source_id,
+        ke.source_type,
+        kec.content,
         ts_rank(
-          to_tsvector('simple', content),
+          to_tsvector('simple', kec.content),
           plainto_tsquery('simple', ${query})
         ) as rank
-      FROM knowledge_chunks
-      WHERE to_tsvector('simple', content) @@ plainto_tsquery('simple', ${query})
+      FROM knowledge_evidence_chunks kec
+      INNER JOIN knowledge_evidence ke ON ke.id = kec.knowledge_evidence_id
+      WHERE to_tsvector('simple', kec.content) @@ plainto_tsquery('simple', ${query})
       ${sourceTypeFilter}
       ${userFilter}
       ORDER BY rank DESC

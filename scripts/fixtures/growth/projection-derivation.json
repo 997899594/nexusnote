@@ -1,0 +1,186 @@
+{
+  "cases": [
+    {
+      "name": "selected-tree-drives-focus-and-profile",
+      "input": {
+        "resolvedTrees": [
+          {
+            "directionKey": "frontend-core",
+            "keySeed": "frontend-core",
+            "title": "前端主树",
+            "summary": "围绕交互、组件和状态组织成长路径。",
+            "confidence": 0.88,
+            "whyThisDirection": "课程和笔记里持续出现 UI 与状态管理信号。",
+            "supportingNodeRefs": ["node-ui", "node-state"],
+            "tree": [
+              {
+                "anchorRef": "node-ui",
+                "title": "组件设计",
+                "summary": "把界面拆成稳定可复用的结构。",
+                "children": [
+                  {
+                    "anchorRef": "node-state",
+                    "title": "状态管理",
+                    "summary": "让复杂交互保持清晰可控。",
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "directionKey": "data-engineer",
+            "keySeed": "data-engineer",
+            "title": "数据工程",
+            "summary": "围绕 SQL、清洗与数据流组织能力。",
+            "confidence": 0.81,
+            "whyThisDirection": "已有建模和管道证据，可收成一条完整方向。",
+            "supportingNodeRefs": ["node-sql", "node-pipeline"],
+            "tree": [
+              {
+                "anchorRef": "node-sql",
+                "title": "SQL 建模",
+                "summary": "能写出稳定查询和分析逻辑。",
+                "children": [
+                  {
+                    "anchorRef": "node-pipeline",
+                    "title": "数据管道",
+                    "summary": "把多源数据稳定整理成可用输入。",
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "recommendedDirectionHint": "frontend-core",
+        "selectedDirectionKey": "data-engineer",
+        "hiddenNodes": [
+          { "id": "node-ui", "progress": 72, "state": "in_progress" },
+          { "id": "node-state", "progress": 24, "state": "ready" },
+          { "id": "node-sql", "progress": 88, "state": "mastered" },
+          { "id": "node-pipeline", "progress": 42, "state": "in_progress" }
+        ],
+        "supportingRows": [
+          {
+            "nodeId": "node-ui",
+            "sourceId": "course-frontend",
+            "courseTitle": "现代前端实战",
+            "refType": "chapter",
+            "refId": "chapter-1"
+          },
+          {
+            "nodeId": "node-state",
+            "sourceId": "course-frontend",
+            "courseTitle": "现代前端实战",
+            "refType": "chapter",
+            "refId": "chapter-2"
+          },
+          {
+            "nodeId": "node-sql",
+            "sourceId": "course-data",
+            "courseTitle": "数据建模课",
+            "refType": "chapter",
+            "refId": "chapter-1"
+          },
+          {
+            "nodeId": "node-pipeline",
+            "sourceId": "course-data",
+            "courseTitle": "数据建模课",
+            "refType": "chapter",
+            "refId": "chapter-2"
+          }
+        ],
+        "generatedAt": "2026-04-15T09:00:00.000Z"
+      },
+      "expected": {
+        "recommendedDirectionKey": "frontend-core",
+        "focusDirectionKey": "data-engineer",
+        "focusNodeTitle": "数据管道",
+        "currentDirectionTitle": "数据工程",
+        "treesCount": 2,
+        "supportingCoursesCount": 1,
+        "supportingChaptersCount": 2,
+        "metrics": {
+          "total": 2,
+          "mastered": 1,
+          "inProgress": 1,
+          "ready": 0,
+          "locked": 0,
+          "averageProgress": 65
+        }
+      }
+    },
+    {
+      "name": "evidence-growth-can-shift-default-focus-node",
+      "input": {
+        "resolvedTrees": [
+          {
+            "directionKey": "frontend-core",
+            "keySeed": "frontend-core",
+            "title": "前端主树",
+            "summary": "围绕交互、组件和状态组织成长路径。",
+            "confidence": 0.9,
+            "whyThisDirection": "前端证据最集中，仍是当前推荐方向。",
+            "supportingNodeRefs": ["node-ui", "node-state"],
+            "tree": [
+              {
+                "anchorRef": "node-ui",
+                "title": "组件设计",
+                "summary": "把界面拆成稳定可复用的结构。",
+                "children": [
+                  {
+                    "anchorRef": "node-state",
+                    "title": "状态管理",
+                    "summary": "让复杂交互保持清晰可控。",
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "recommendedDirectionHint": "frontend-core",
+        "selectedDirectionKey": null,
+        "hiddenNodes": [
+          { "id": "node-ui", "progress": 91, "state": "mastered" },
+          { "id": "node-state", "progress": 58, "state": "in_progress" }
+        ],
+        "supportingRows": [
+          {
+            "nodeId": "node-ui",
+            "sourceId": "course-frontend",
+            "courseTitle": "现代前端实战",
+            "refType": "chapter",
+            "refId": "chapter-1"
+          },
+          {
+            "nodeId": "node-state",
+            "sourceId": "course-frontend",
+            "courseTitle": "现代前端实战",
+            "refType": "chapter",
+            "refId": "chapter-2"
+          }
+        ],
+        "generatedAt": "2026-04-15T10:00:00.000Z"
+      },
+      "expected": {
+        "recommendedDirectionKey": "frontend-core",
+        "focusDirectionKey": "frontend-core",
+        "focusNodeTitle": "状态管理",
+        "currentDirectionTitle": "前端主树",
+        "treesCount": 1,
+        "supportingCoursesCount": 1,
+        "supportingChaptersCount": 2,
+        "metrics": {
+          "total": 2,
+          "mastered": 1,
+          "inProgress": 1,
+          "ready": 0,
+          "locked": 0,
+          "averageProgress": 75
+        }
+      }
+    }
+  ]
+}

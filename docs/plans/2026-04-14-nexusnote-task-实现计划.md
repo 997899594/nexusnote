@@ -16,17 +16,24 @@
 现在代码已经具备的基础有：
 
 - 新职业树链路骨架已经存在：
-  - `lib/career-tree/*`
-  - `db/schema/career-tree.ts`
-  - `app/api/user/golden-path/route.ts`
-  - `components/golden-path/GoldenPathExplorer.tsx`
-  - `components/profile/ProfileGoldenPathSummary.tsx`
+  - `lib/growth/*`
+  - `db/schema/growth.ts`
+  - `app/api/user/career-trees/route.ts`
+  - `components/career-trees/CareerTreesExplorer.tsx`
+  - `components/profile/ProfileCareerTreeSummary.tsx`
+- 用户侧职业树壳层已经切到：
+  - `/career-trees`
+  - `/api/user/career-trees`
 - queue / worker 骨架已经存在：
-  - `lib/queue/career-tree-queue.ts`
-  - `lib/queue/career-tree-worker.ts`
+  - `lib/queue/growth-queue.ts`
+  - `lib/queue/growth-worker.ts`
 - 页面主读链路已经切到新 snapshot 模型
 - `knowledge_evidence_events -> knowledge_evidence -> knowledge_insights` 主链路已经落到代码
-- 旧 golden-path runtime 已经基本退出代码主链路
+- 通用对话与学习对话都已进入统一 knowledge event 链路
+- insight 层已经具备 `metadata`，可作为稳定中间层继续向 profile / editor / career trees 投影
+- create-course workflow 已显式消费成长上下文，先整理 growth-aware 课程蓝图，再落库
+- Editor workbench 已开始按 focus / insight 重排知识流，不再只是最近笔记列表
+- 旧 hardcoded 职业树 runtime 已经基本退出代码主链路
 
 还没有闭环的部分有：
 
@@ -53,7 +60,7 @@
 
 ## 本阶段完成后用户能得到什么
 
-- `/golden-path` 读到真实 snapshot
+- `/career-trees` 读到真实 snapshot
 - 能看到 `1-5` 棵候选职业树
 - 用户手动选树会影响后续排序
 - 隐藏能力分支前后连续，不会每次重置
@@ -64,50 +71,50 @@
 
 落地并验证这些表：
 
-- `career_generation_runs`
+- `knowledge_generation_runs`
 - `knowledge_evidence_events`
 - `knowledge_evidence_event_refs`
 - `knowledge_evidence`
 - `knowledge_evidence_source_links`
-- `career_user_skill_nodes`
-- `career_user_skill_edges`
-- `career_user_skill_node_evidence`
-- `career_user_tree_preferences`
-- `career_user_tree_snapshots`
-- `career_user_graph_state`
+- `user_skill_nodes`
+- `user_skill_edges`
+- `user_skill_node_evidence`
+- `user_career_tree_preferences`
+- `user_career_tree_snapshots`
+- `user_growth_state`
 
 ### 2. 跑通三段式任务
 
 - `extract_course_evidence`
 - `merge_user_skill_graph`
-- `compose_user_career_trees`
+- `compose_user_growth_snapshot`
 
 ### 3. 跑通 backfill
 
 对应脚本：
 
-- [scripts/backfill-career-trees.ts](/Users/findbiao/projects/nexusnote/scripts/backfill-career-trees.ts)
+- [scripts/backfill-user-growth.ts](/Users/findbiao/projects/nexusnote/scripts/backfill-user-growth.ts)
 
 ### 4. 验证前端链路
 
 对应页面与组件：
 
-- [app/golden-path/page.tsx](/Users/findbiao/projects/nexusnote/app/golden-path/page.tsx)
-- [components/golden-path/GoldenPathExplorer.tsx](/Users/findbiao/projects/nexusnote/components/golden-path/GoldenPathExplorer.tsx)
-- [components/profile/ProfileGoldenPathSummary.tsx](/Users/findbiao/projects/nexusnote/components/profile/ProfileGoldenPathSummary.tsx)
+- [app/career-trees/page.tsx](/Users/findbiao/projects/nexusnote/app/career-trees/page.tsx)
+- [components/career-trees/CareerTreesExplorer.tsx](/Users/findbiao/projects/nexusnote/components/career-trees/CareerTreesExplorer.tsx)
+- [components/profile/ProfileCareerTreeSummary.tsx](/Users/findbiao/projects/nexusnote/components/profile/ProfileCareerTreeSummary.tsx)
 
 ## 主要改动模块
 
-- [lib/career-tree/normalize-outline.ts](/Users/findbiao/projects/nexusnote/lib/career-tree/normalize-outline.ts)
-- [lib/career-tree/extract.ts](/Users/findbiao/projects/nexusnote/lib/career-tree/extract.ts)
-- [lib/career-tree/retrieve-merge-candidates.ts](/Users/findbiao/projects/nexusnote/lib/career-tree/retrieve-merge-candidates.ts)
-- [lib/career-tree/merge.ts](/Users/findbiao/projects/nexusnote/lib/career-tree/merge.ts)
-- [lib/career-tree/compose.ts](/Users/findbiao/projects/nexusnote/lib/career-tree/compose.ts)
-- [lib/career-tree/jobs.ts](/Users/findbiao/projects/nexusnote/lib/career-tree/jobs.ts)
-- [lib/career-tree/snapshot.ts](/Users/findbiao/projects/nexusnote/lib/career-tree/snapshot.ts)
-- [lib/career-tree/preferences.ts](/Users/findbiao/projects/nexusnote/lib/career-tree/preferences.ts)
-- [lib/career-tree/preference-write.ts](/Users/findbiao/projects/nexusnote/lib/career-tree/preference-write.ts)
-- [app/api/user/golden-path/route.ts](/Users/findbiao/projects/nexusnote/app/api/user/golden-path/route.ts)
+- [lib/growth/normalize-outline.ts](/Users/findbiao/projects/nexusnote/lib/growth/normalize-outline.ts)
+- [lib/growth/extract.ts](/Users/findbiao/projects/nexusnote/lib/growth/extract.ts)
+- [lib/growth/retrieve-merge-candidates.ts](/Users/findbiao/projects/nexusnote/lib/growth/retrieve-merge-candidates.ts)
+- [lib/growth/merge.ts](/Users/findbiao/projects/nexusnote/lib/growth/merge.ts)
+- [lib/growth/compose.ts](/Users/findbiao/projects/nexusnote/lib/growth/compose.ts)
+- [lib/growth/jobs.ts](/Users/findbiao/projects/nexusnote/lib/growth/jobs.ts)
+- [lib/growth/snapshot.ts](/Users/findbiao/projects/nexusnote/lib/growth/snapshot.ts)
+- [lib/growth/preferences.ts](/Users/findbiao/projects/nexusnote/lib/growth/preferences.ts)
+- [lib/growth/preference-write.ts](/Users/findbiao/projects/nexusnote/lib/growth/preference-write.ts)
+- [app/api/user/career-trees/route.ts](/Users/findbiao/projects/nexusnote/app/api/user/career-trees/route.ts)
 
 ## 验收标准
 
@@ -115,14 +122,14 @@
 - 同一用户、同一批课程多次 compose 后隐藏 node 连续
 - 弱信号用户返回 `1-2` 棵高置信树
 - 强信号用户返回 `2-5` 棵候选树
-- `PUT /api/user/golden-path` 返回 `202`
-- `GET /api/user/golden-path` 只读 snapshot
+- `PUT /api/user/career-trees` 返回 `202`
+- `GET /api/user/career-trees` 只读 snapshot
 
 ### 工程
 - `bun run lint`
 - `bun run typecheck`
 - `SKIP_ENV_VALIDATION=true bun run build`
-- `bun run career-tree:check`
+- `bun run growth:check`
 
 ## 成本
 
@@ -199,8 +206,9 @@
 
 说明：
 
-- 这一步不要求立即删除 `career_*`
-- 但要明确 `career_*` 不再是最终数据模型
+- 这一步不要求立即删除旧 feature 模块目录
+- 但内部 runtime 不再保留旧 `career-tree` / `career_*` 执行命名
+- 投影层保留 `user_career_tree_*`，因为它表达的是产品层“职业树快照”语义
 - 也不建议再让页面数据直接越过 event 层写入最终 evidence
 
 ## 验收标准
@@ -258,8 +266,8 @@ Insight 层的作用就是把系统从“会存东西”升级成“会理解结
 
 ## 主要消费方
 
-- [components/profile/ProfileGoldenPathSummary.tsx](/Users/findbiao/projects/nexusnote/components/profile/ProfileGoldenPathSummary.tsx)
-- [components/golden-path/GoldenPathExplorer.tsx](/Users/findbiao/projects/nexusnote/components/golden-path/GoldenPathExplorer.tsx)
+- [components/profile/ProfileCareerTreeSummary.tsx](/Users/findbiao/projects/nexusnote/components/profile/ProfileCareerTreeSummary.tsx)
+- [components/career-trees/CareerTreesExplorer.tsx](/Users/findbiao/projects/nexusnote/components/career-trees/CareerTreesExplorer.tsx)
 - Editor 工作台
 - 未来学习焦点推荐
 
@@ -301,7 +309,7 @@ Insight 层的作用就是把系统从“会存东西”升级成“会理解结
 - [lib/learning/course-service.ts](/Users/findbiao/projects/nexusnote/lib/learning/course-service.ts)
 - [lib/ai/workflows/generate-course-section.ts](/Users/findbiao/projects/nexusnote/lib/ai/workflows/generate-course-section.ts)
 - [lib/ai/agents/chat.ts](/Users/findbiao/projects/nexusnote/lib/ai/agents/chat.ts)
-- [components/golden-path](/Users/findbiao/projects/nexusnote/components/golden-path)
+- [components/career-trees](/Users/findbiao/projects/nexusnote/components/career-trees)
 - [components/profile](/Users/findbiao/projects/nexusnote/components/profile)
 - 未来的 `lib/knowledge/focus/`
 
@@ -406,7 +414,7 @@ Insight 层的作用就是把系统从“会存东西”升级成“会理解结
 
 - `course_skill_mappings`
 - `course_chapter_skill_mappings`
-- 旧 golden-path runtime
+- 旧 hardcoded 职业树 runtime
 - 旧固定 route 语义
 - 旧全站 canonical skill 主链路
 

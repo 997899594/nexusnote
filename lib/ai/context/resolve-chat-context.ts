@@ -58,6 +58,8 @@ export async function resolveChatContext({
       courseTitle: learnContext.courseTitle,
       chapterIndex: learnContext.chapterIndex,
       chapterTitle: learnContext.chapterTitle,
+      chapterDescription: learnContext.chapterDescription,
+      sectionTitles: learnContext.sectionTitles,
       courseSkillIds: learnContext.courseSkillIds,
       chapterSkillIds: learnContext.chapterSkillIds,
     },

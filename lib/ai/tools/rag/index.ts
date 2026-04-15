@@ -6,7 +6,8 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import { hybridSearch } from "@/lib/rag";
+import { expandNoteBackedKnowledgeSourceTypes } from "@/lib/knowledge/source-types";
+import { hybridSearch, type SourceType } from "@/lib/rag";
 
 export const HybridSearchSchema = z.object({
   query: z.string().min(1).max(500),
@@ -27,10 +28,13 @@ export function createRagTools(userId: string) {
       inputSchema: HybridSearchSchema,
       execute: async (args) => {
         try {
+          const effectiveSourceTypes = expandNoteBackedKnowledgeSourceTypes(args.sourceTypes) as
+            | SourceType[]
+            | undefined;
           const results = await hybridSearch({
             query: args.query,
             topK: args.topK,
-            sourceTypes: args.sourceTypes,
+            sourceTypes: effectiveSourceTypes,
             userId, // 权限验证
           });
           return {

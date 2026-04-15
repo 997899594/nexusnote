@@ -1,10 +1,5 @@
 import { and, eq, isNull } from "drizzle-orm";
-import {
-  careerUserSkillNodeEvidence,
-  db,
-  knowledgeEvidence,
-  knowledgeEvidenceSourceLinks,
-} from "@/db";
+import { db, knowledgeEvidence, knowledgeEvidenceSourceLinks, userSkillNodeEvidence } from "@/db";
 
 function buildSourceVersionCondition(
   sourceVersionHash: string | null | undefined,
@@ -56,16 +51,16 @@ export async function listLinkedNodeIdsForEvidenceSource(params: {
 }) {
   const rows = await db
     .select({
-      nodeId: careerUserSkillNodeEvidence.nodeId,
+      nodeId: userSkillNodeEvidence.nodeId,
     })
-    .from(careerUserSkillNodeEvidence)
+    .from(userSkillNodeEvidence)
     .innerJoin(
       knowledgeEvidence,
-      eq(careerUserSkillNodeEvidence.knowledgeEvidenceId, knowledgeEvidence.id),
+      eq(userSkillNodeEvidence.knowledgeEvidenceId, knowledgeEvidence.id),
     )
     .where(
       and(
-        eq(careerUserSkillNodeEvidence.userId, params.userId),
+        eq(userSkillNodeEvidence.userId, params.userId),
         eq(knowledgeEvidence.sourceType, params.sourceType),
         eq(knowledgeEvidence.sourceId, params.sourceId),
         buildSourceVersionCondition(params.sourceVersionHash, knowledgeEvidence.sourceVersionHash),

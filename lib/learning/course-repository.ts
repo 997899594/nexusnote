@@ -1,7 +1,15 @@
-import { and, courses, db, eq } from "@/db";
+import { and, courseOutlineNodes, courseOutlineVersions, courses, db, desc, eq } from "@/db";
+import type { CourseOutline } from "@/lib/learning/course-outline";
+import { materializeCourseOutline } from "@/lib/learning/course-structure";
 
 type CourseRecord = typeof courses.$inferSelect;
 type CourseLookupExecutor = Pick<typeof db, "select">;
+
+export interface OwnedCourseWithOutline extends CourseRecord {
+  outline: CourseOutline;
+  outlineVersionId: string;
+  outlineVersionHash: string;
+}
 
 export async function getOwnedCourse(
   courseId: string,
@@ -15,4 +23,75 @@ export async function getOwnedCourse(
     .limit(1);
 
   return course ?? null;
+}
+
+export async function getOwnedCourseWithOutline(
+  courseId: string,
+  userId: string,
+): Promise<OwnedCourseWithOutline | null> {
+  const course = await getOwnedCourse(courseId, userId);
+  if (!course) {
+    return null;
+  }
+
+  const outlineVersion = await db.query.courseOutlineVersions.findFirst({
+    where: and(
+      eq(courseOutlineVersions.courseId, courseId),
+      eq(courseOutlineVersions.isLatest, true),
+    ),
+    orderBy: desc(courseOutlineVersions.createdAt),
+  });
+  if (!outlineVersion) {
+    return null;
+  }
+
+  const nodes = await db
+    .select()
+    .from(courseOutlineNodes)
+    .where(eq(courseOutlineNodes.outlineVersionId, outlineVersion.id));
+
+  return {
+    ...course,
+    outline: materializeCourseOutline({
+      version: outlineVersion,
+      nodes,
+    }),
+    outlineVersionId: outlineVersion.id,
+    outlineVersionHash: outlineVersion.versionHash,
+  };
+}
+
+export async function getCourseWithOutline(
+  courseId: string,
+): Promise<OwnedCourseWithOutline | null> {
+  const [course] = await db.select().from(courses).where(eq(courses.id, courseId)).limit(1);
+  if (!course) {
+    return null;
+  }
+
+  const outlineVersion = await db.query.courseOutlineVersions.findFirst({
+    where: and(
+      eq(courseOutlineVersions.courseId, courseId),
+      eq(courseOutlineVersions.isLatest, true),
+    ),
+    orderBy: desc(courseOutlineVersions.createdAt),
+  });
+  if (!outlineVersion) {
+    return null;
+  }
+
+  const nodes = await db
+    .select()
+    .from(courseOutlineNodes)
+    .where(eq(courseOutlineNodes.outlineVersionId, outlineVersion.id));
+
+  return {
+    ...course,
+    outline: materializeCourseOutline({
+      version: outlineVersion,
+      nodes,
+    }),
+    outlineVersionId: outlineVersion.id,
+    outlineVersionHash: outlineVersion.versionHash,
+  };
 }

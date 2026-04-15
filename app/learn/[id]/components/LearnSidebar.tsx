@@ -1,8 +1,10 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ArrowLeft, Clock, Sparkles, Trophy } from "lucide-react";
+import { ArrowLeft, Brain, Clock, Compass, Sparkles, Trophy } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { getGrowthStateLabel } from "@/lib/growth/presentation";
+import type { GrowthFocusSummary, GrowthInsightSummary } from "@/lib/growth/projection-types";
 import { cn } from "@/lib/utils";
 import { useLearnStore } from "@/stores/learn";
 import { ChapterList } from "./ChapterList";
@@ -10,6 +12,8 @@ import { ChapterList } from "./ChapterList";
 interface LearnSidebarProps {
   courseTitle: string;
   width: number;
+  growthFocus: GrowthFocusSummary | null;
+  insights: GrowthInsightSummary[];
 }
 
 const contentVariants = {
@@ -68,7 +72,7 @@ function ProgressRing({ progress, size = 52 }: { progress: number; size?: number
   );
 }
 
-export function LearnSidebar({ courseTitle, width }: LearnSidebarProps) {
+export function LearnSidebar({ courseTitle, width, growthFocus, insights }: LearnSidebarProps) {
   const router = useRouter();
   const { chapters, completedSections } = useLearnStore();
 
@@ -144,6 +148,60 @@ export function LearnSidebar({ courseTitle, width }: LearnSidebarProps) {
             </div>
           </div>
         </motion.div>
+
+        {/* Growth alignment */}
+        {growthFocus ? (
+          <motion.div
+            variants={itemVariants}
+            className="mx-4 mb-4 rounded-[28px] border border-black/6 bg-white p-4 shadow-[0_24px_56px_-40px_rgba(15,23,42,0.14)]"
+          >
+            <div className="flex items-center gap-2 text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
+              <Compass className="h-3.5 w-3.5" />
+              当前成长焦点
+            </div>
+            <h3 className="mt-3 text-sm font-semibold leading-6 text-[var(--color-text)]">
+              {growthFocus.title}
+            </h3>
+            <p className="mt-2 text-xs leading-6 text-[var(--color-text-secondary)]">
+              {growthFocus.summary}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2 text-[0.6875rem] text-[var(--color-text-secondary)]">
+              <span className="rounded-full bg-[var(--color-panel-soft)] px-2.5 py-1">
+                进度 {growthFocus.progress}%
+              </span>
+              <span className="rounded-full bg-[var(--color-panel-soft)] px-2.5 py-1">
+                {getGrowthStateLabel(growthFocus.state)}
+              </span>
+            </div>
+          </motion.div>
+        ) : null}
+
+        {insights.length > 0 ? (
+          <motion.div
+            variants={itemVariants}
+            className="mx-4 mb-4 rounded-[28px] border border-black/6 bg-white p-4 shadow-[0_24px_56px_-40px_rgba(15,23,42,0.14)]"
+          >
+            <div className="flex items-center gap-2 text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
+              <Brain className="h-3.5 w-3.5" />
+              最近成长信号
+            </div>
+            <div className="mt-3 space-y-3">
+              {insights.slice(0, 2).map((insight) => (
+                <div
+                  key={insight.id}
+                  className="rounded-2xl bg-[var(--color-panel-soft)] px-3 py-3"
+                >
+                  <div className="text-xs font-medium text-[var(--color-text)]">
+                    {insight.title}
+                  </div>
+                  <div className="mt-1 text-[0.6875rem] leading-5 text-[var(--color-text-secondary)]">
+                    {insight.summary}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        ) : null}
 
         {/* Chapter list header */}
         <motion.div variants={itemVariants} className="px-5 pb-3 pt-2">

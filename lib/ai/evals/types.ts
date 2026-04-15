@@ -1,6 +1,6 @@
 import type { InterviewOutline } from "@/lib/ai/interview";
 
-export type EvalDomain = "chat" | "interview" | "learn" | "notes";
+export type EvalDomain = "chat" | "interview" | "learn" | "notes" | "growth";
 
 export interface ChatEvalInput {
   message: string;
@@ -19,6 +19,42 @@ export interface LearnEvalInput {
 export interface NotesEvalInput {
   instruction: string;
   noteExcerpt: string;
+}
+
+export interface GrowthEvalNode {
+  id: string;
+  canonicalLabel: string;
+  summary: string | null;
+  progress: number;
+  state: string;
+  courseCount: number;
+  chapterCount: number;
+  evidenceScore: number;
+}
+
+export interface GrowthEvalEdge {
+  from: string;
+  to: string;
+  confidence: number;
+}
+
+export interface GrowthEvalInput {
+  graph: {
+    nodes: GrowthEvalNode[];
+    prerequisiteEdges: GrowthEvalEdge[];
+  };
+  preference: {
+    selectedDirectionKey: string | null;
+    preferenceVersion: number;
+  };
+  previousSummary: {
+    trees: Array<{
+      directionKey: string;
+      supportingNodeRefs: string[];
+    }>;
+  } | null;
+  expectedMinTrees: number;
+  expectedMaxTrees: number;
 }
 
 export interface EvalRegressionSpec {

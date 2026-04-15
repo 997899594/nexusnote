@@ -1,4 +1,8 @@
 import { loadPromptResource } from "@/lib/ai/prompts/load-prompt";
+import {
+  formatGrowthGenerationContext,
+  type GrowthGenerationContext,
+} from "@/lib/growth/generation-context-format";
 import type {
   InterviewApiMessage,
   InterviewOutline,
@@ -18,79 +22,6 @@ function formatOutline(outline: InterviewOutline | undefined) {
   }
 
   return JSON.stringify(outline, null, 2);
-}
-
-function formatGenerationContext(
-  generationContext:
-    | {
-        currentDirection: {
-          directionKey: string | null;
-          title: string | null;
-          summary: string | null;
-          whyThisDirection: string | null;
-        } | null;
-        currentFocus: {
-          nodeId: string | null;
-          title: string | null;
-          summary: string | null;
-          state: string | null;
-          progress: number | null;
-        } | null;
-        insights: Array<{
-          kind: string;
-          title: string;
-          summary: string;
-          confidence: number;
-        }>;
-      }
-    | undefined,
-) {
-  if (!generationContext) {
-    return "暂无成长上下文。";
-  }
-
-  const parts: string[] = [];
-
-  if (generationContext.currentDirection?.title) {
-    parts.push(
-      `当前主方向：${generationContext.currentDirection.title}${
-        generationContext.currentDirection.summary
-          ? `\n方向摘要：${generationContext.currentDirection.summary}`
-          : ""
-      }${
-        generationContext.currentDirection.whyThisDirection
-          ? `\n推荐理由：${generationContext.currentDirection.whyThisDirection}`
-          : ""
-      }`,
-    );
-  }
-
-  if (generationContext.currentFocus?.title) {
-    parts.push(
-      `当前焦点：${generationContext.currentFocus.title}${
-        generationContext.currentFocus.summary
-          ? `\n焦点摘要：${generationContext.currentFocus.summary}`
-          : ""
-      }${
-        generationContext.currentFocus.state
-          ? `\n状态：${generationContext.currentFocus.state} / 进度 ${generationContext.currentFocus.progress ?? 0}%`
-          : ""
-      }`,
-    );
-  }
-
-  if (generationContext.insights.length > 0) {
-    parts.push(
-      `最近成长信号：\n${generationContext.insights
-        .map(
-          (insight) =>
-            `- [${insight.kind}] ${insight.title} (${Math.round(insight.confidence * 100)}%)：${insight.summary}`,
-        )
-        .join("\n")}`,
-    );
-  }
-
-  return parts.length > 0 ? parts.join("\n\n") : "暂无成长上下文。";
 }
 
 const INTERVIEW_SYSTEM_PROMPT_TEMPLATE = loadPromptResource("interview-system.md");
@@ -189,27 +120,7 @@ export function buildInterviewAgentInstructionsWithHint(input: {
   currentOutline?: InterviewOutline;
   latestUserMessage?: string;
   preferOutlinePreview?: boolean;
-  generationContext?: {
-    currentDirection: {
-      directionKey: string | null;
-      title: string | null;
-      summary: string | null;
-      whyThisDirection: string | null;
-    } | null;
-    currentFocus: {
-      nodeId: string | null;
-      title: string | null;
-      summary: string | null;
-      state: string | null;
-      progress: number | null;
-    } | null;
-    insights: Array<{
-      kind: string;
-      title: string;
-      summary: string;
-      confidence: number;
-    }>;
-  };
+  generationContext?: GrowthGenerationContext;
 }) {
   const firstQuestionHint = buildFirstQuestionHint(input.latestUserMessage);
 
@@ -255,7 +166,7 @@ export function buildInterviewAgentInstructionsWithHint(input: {
 ${input.currentOutline ? `当前已有课程大纲，请优先围绕它做修改与完善：\n${JSON.stringify(input.currentOutline, null, 2)}` : "当前还没有课程大纲。"}
 
 当前成长上下文：
-${formatGenerationContext(input.generationContext)}${firstQuestionHint}
+${formatGrowthGenerationContext(input.generationContext, { style: "detailed" })}${firstQuestionHint}
 ${
   input.preferOutlinePreview
     ? `

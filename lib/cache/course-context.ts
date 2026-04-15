@@ -6,7 +6,8 @@
  * Graceful fallback: if Redis is unavailable, queries DB directly.
  */
 
-import { and, courseSections, courses, db, eq, inArray } from "@/db";
+import { and, courseSections, db, eq, inArray } from "@/db";
+import { getCourseWithOutline } from "@/lib/learning/course-repository";
 import { redis } from "@/lib/redis";
 
 const CACHE_TTL = 300; // 5 minutes
@@ -17,15 +18,19 @@ const CACHE_TTL = 300; // 5 minutes
 
 interface OutlineSection {
   title: string;
+  description?: string;
 }
 
 interface OutlineChapter {
   title: string;
+  description?: string;
+  skillIds?: string[];
   sections: OutlineSection[];
 }
 
 export interface CourseOutline {
   courseTitle: string;
+  courseSkillIds: string[];
   chapters: OutlineChapter[];
 }
 
@@ -36,6 +41,9 @@ interface SectionContent {
 
 export interface ChapterContent {
   chapterTitle: string;
+  chapterDescription: string;
+  chapterSkillIds: string[];
+  courseSkillIds: string[];
   sections: SectionContent[];
 }
 
@@ -54,30 +62,20 @@ export async function getCourseOutline(courseId: string): Promise<CourseOutline 
     // Redis unavailable, fall through to DB
   }
 
-  // Query DB
-  const [course] = await db
-    .select({ title: courses.title, outlineData: courses.outlineData })
-    .from(courses)
-    .where(eq(courses.id, courseId))
-    .limit(1);
-
+  const course = await getCourseWithOutline(courseId);
   if (!course) return null;
-
-  const outline = course.outlineData as {
-    title?: string;
-    chapters?: Array<{
-      title: string;
-      sections?: Array<{ title: string }>;
-    }>;
-  } | null;
-
-  if (!outline?.chapters) return null;
 
   const result: CourseOutline = {
     courseTitle: course.title ?? "未知课程",
-    chapters: outline.chapters.map((ch) => ({
+    courseSkillIds: course.outline.courseSkillIds ?? [],
+    chapters: course.outline.chapters.map((ch) => ({
       title: ch.title,
-      sections: (ch.sections ?? []).map((s) => ({ title: s.title })),
+      description: ch.description ?? "",
+      skillIds: ch.skillIds ?? [],
+      sections: ch.sections.map((s) => ({
+        title: s.title,
+        description: s.description ?? "",
+      })),
     })),
   };
 
@@ -114,7 +112,13 @@ export async function getChapterContent(
 
   const sectionCount = chapter.sections.length;
   if (sectionCount === 0) {
-    return { chapterTitle: chapter.title, sections: [] };
+    return {
+      chapterTitle: chapter.title,
+      chapterDescription: chapter.description ?? "",
+      chapterSkillIds: chapter.skillIds ?? [],
+      courseSkillIds: outline.courseSkillIds,
+      sections: [],
+    };
   }
 
   // Batch query: single SQL instead of N queries
@@ -127,18 +131,18 @@ export async function getChapterContent(
     .select({
       title: courseSections.title,
       content: courseSections.contentMarkdown,
-      outlineNodeId: courseSections.outlineNodeId,
+      outlineNodeKey: courseSections.outlineNodeKey,
     })
     .from(courseSections)
     .where(
-      and(eq(courseSections.courseId, courseId), inArray(courseSections.outlineNodeId, nodeIds)),
+      and(eq(courseSections.courseId, courseId), inArray(courseSections.outlineNodeKey, nodeIds)),
     );
 
   // Build ordered sections
   const docMap = new Map<string, { title: string; text: string }>();
   for (const doc of docs) {
-    if (doc.content && doc.outlineNodeId) {
-      docMap.set(doc.outlineNodeId, { title: doc.title, text: doc.content });
+    if (doc.content && doc.outlineNodeKey) {
+      docMap.set(doc.outlineNodeKey, { title: doc.title, text: doc.content });
     }
   }
 
@@ -152,6 +156,9 @@ export async function getChapterContent(
 
   const result: ChapterContent = {
     chapterTitle: chapter.title,
+    chapterDescription: chapter.description ?? "",
+    chapterSkillIds: chapter.skillIds ?? [],
+    courseSkillIds: outline.courseSkillIds,
     sections,
   };
 

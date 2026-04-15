@@ -3,68 +3,10 @@
  *
  * 根据课程大纲和小节信息，生成聚焦单个知识点的教学内容。
  */
-interface SectionGenerationContext {
-  currentDirection: {
-    directionKey: string | null;
-    title: string | null;
-    summary: string | null;
-    whyThisDirection: string | null;
-  } | null;
-  currentFocus: {
-    nodeId: string | null;
-    title: string | null;
-    summary: string | null;
-    state: string | null;
-    progress: number | null;
-  } | null;
-  insights: Array<{
-    kind: string;
-    title: string;
-    summary: string;
-    confidence: number;
-  }>;
-}
-
-function formatGenerationContext(context?: SectionGenerationContext): string {
-  if (!context) {
-    return "暂无成长上下文。";
-  }
-
-  const chunks: string[] = [];
-
-  if (context.currentDirection?.title) {
-    chunks.push(
-      `- 当前主方向：${context.currentDirection.title}${
-        context.currentDirection.summary ? `（${context.currentDirection.summary}）` : ""
-      }`,
-    );
-  }
-
-  if (context.currentFocus?.title) {
-    chunks.push(
-      `- 当前焦点：${context.currentFocus.title}${
-        context.currentFocus.summary ? `（${context.currentFocus.summary}）` : ""
-      }${
-        context.currentFocus.state
-          ? `，状态 ${context.currentFocus.state}，进度 ${context.currentFocus.progress ?? 0}%`
-          : ""
-      }`,
-    );
-  }
-
-  if (context.insights.length > 0) {
-    chunks.push(
-      `- 最近成长信号：${context.insights
-        .map(
-          (insight) =>
-            `${insight.title}（${insight.kind}，${Math.round(insight.confidence * 100)}%）`,
-        )
-        .join("；")}`,
-    );
-  }
-
-  return chunks.length > 0 ? chunks.join("\n") : "暂无成长上下文。";
-}
+import {
+  formatLearningAlignmentBrief,
+  type LearningAlignmentBrief,
+} from "@/lib/learning/alignment";
 
 export function buildSectionPrompt(params: {
   courseTitle: string;
@@ -82,7 +24,7 @@ export function buildSectionPrompt(params: {
   sectionDescription: string;
   siblingTitles: string[]; // other section titles in the same chapter
   totalChapters: number;
-  generationContext?: SectionGenerationContext;
+  alignmentBrief: LearningAlignmentBrief;
 }): string {
   const {
     courseTitle,
@@ -100,7 +42,7 @@ export function buildSectionPrompt(params: {
     sectionDescription,
     siblingTitles,
     totalChapters,
-    generationContext,
+    alignmentBrief,
   } = params;
 
   const difficultyLabel =
@@ -135,8 +77,8 @@ ${siblingContext}
 - ${chapterIndex + 1}.${sectionIndex + 1} ${sectionTitle}
 - 描述：${sectionDescription}
 
-## 当前成长上下文
-${formatGenerationContext(generationContext)}
+## 当前学习对齐简报
+${formatLearningAlignmentBrief(alignmentBrief, "prompt")}
 
 ## 内容生成要求
 
@@ -156,9 +98,10 @@ ${formatGenerationContext(generationContext)}
    - 如果是项目型章节，要多写决策思路、常见坑和交付标准
    - 不要只写概念定义，要让学习者知道这节内容如何推进对应能力
 7. **成长对齐**：
-   - 如果当前成长上下文里有“当前焦点”或“主方向”，解释时要明确这节内容与它们的关系
-   - 优先强调这节内容如何帮助补当前短板、推进当前焦点，或巩固当前主方向
-   - 不要凭空扩展到与当前成长方向无关的大话题
+   - 严格参考“当前学习对齐简报”来决定这节内容是直接推进、支撑前置，还是边界清晰的补充扩展
+   - 如果对齐关系是“直接推进”，要明确这节内容学完后会如何推进当前焦点
+   - 如果对齐关系是“支撑前置”，要重点讲清它是为哪个更高层能力打基础
+   - 如果对齐关系偏弱，要把边界讲清楚，不要凭空扩展到与当前成长方向无关的大话题
 
 直接输出教学内容，不要输出任何前缀说明。`;
 }
