@@ -52,7 +52,7 @@ export async function processKnowledgeSourceMergeJob(
     idempotencyKey: `merge:user:${job.userId}:source:${job.sourceType}:${job.sourceId}:hash:${evidenceBatchHash}`,
     inputHash: evidenceBatchHash,
     model: GROWTH_AI_MODEL_LABEL,
-    promptVersion: "growth-merge@v1",
+    promptVersion: "growth-merge@v2",
     reuseCompleted: true,
   });
 
@@ -72,6 +72,7 @@ export async function processKnowledgeSourceMergeJob(
       evidenceRows,
       evidenceRefs,
       priorSummary: {
+        kind: "source",
         sourceType: job.sourceType,
         sourceId: job.sourceId,
       },

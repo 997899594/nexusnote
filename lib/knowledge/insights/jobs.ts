@@ -7,6 +7,7 @@ import {
   knowledgeInsightEvidence,
   knowledgeInsights,
   userFocusSnapshots,
+  userSkillNodeEvidence,
   userSkillNodes,
 } from "@/db";
 import {
@@ -19,6 +20,7 @@ import {
   markGenerationRunFailed,
   markGenerationRunSucceeded,
 } from "@/lib/generation-runs";
+import { focusSnapshotPayloadSchema } from "@/lib/growth/projection-types";
 import {
   deriveKnowledgeInsights,
   hashKnowledgeInsightInputs,
@@ -26,6 +28,14 @@ import {
 import type { GrowthJobData } from "@/lib/queue/growth-queue";
 
 type JobPayload<T extends GrowthJobData["type"]> = Extract<GrowthJobData, { type: T }>;
+
+function compareInsightText(left: string, right: string): number {
+  return left.localeCompare(right, "zh-Hans-CN");
+}
+
+function uniqueStrings(values: string[]): string[] {
+  return [...new Set(values)];
+}
 
 function sortObjectKeys(value: unknown): unknown {
   if (Array.isArray(value)) {
@@ -142,55 +152,147 @@ function assignInsightIds(
 export async function processKnowledgeInsightsJob(
   job: JobPayload<"derive_user_insights">,
 ): Promise<void> {
-  const [evidenceRows, skillNodes, recentEvents, focusSnapshot] = await Promise.all([
-    db
-      .select({
-        id: knowledgeEvidence.id,
-        title: knowledgeEvidence.title,
-        summary: knowledgeEvidence.summary,
-        confidence: knowledgeEvidence.confidence,
-        kind: knowledgeEvidence.kind,
-        sourceType: knowledgeEvidence.sourceType,
-      })
-      .from(knowledgeEvidence)
-      .where(eq(knowledgeEvidence.userId, job.userId)),
-    db
-      .select({
-        id: userSkillNodes.id,
-        canonicalLabel: userSkillNodes.canonicalLabel,
-        progress: userSkillNodes.progress,
-        state: userSkillNodes.state,
-        evidenceScore: userSkillNodes.evidenceScore,
-      })
-      .from(userSkillNodes)
-      .where(eq(userSkillNodes.userId, job.userId)),
-    db
-      .select({
-        id: knowledgeEvidenceEvents.id,
-        kind: knowledgeEvidenceEvents.kind,
-        sourceType: knowledgeEvidenceEvents.sourceType,
-      })
-      .from(knowledgeEvidenceEvents)
-      .where(eq(knowledgeEvidenceEvents.userId, job.userId))
-      .orderBy(desc(knowledgeEvidenceEvents.happenedAt), desc(knowledgeEvidenceEvents.createdAt))
-      .limit(12),
-    db.query.userFocusSnapshots.findFirst({
-      where: and(eq(userFocusSnapshots.userId, job.userId), eq(userFocusSnapshots.isLatest, true)),
-      orderBy: desc(userFocusSnapshots.createdAt),
-      columns: {
-        directionKey: true,
-        nodeId: true,
-        title: true,
-        summary: true,
-        progress: true,
-        state: true,
+  const [evidenceRows, skillNodes, nodeEvidenceRows, recentEvents, focusSnapshotRow] =
+    await Promise.all([
+      db
+        .select({
+          id: knowledgeEvidence.id,
+          title: knowledgeEvidence.title,
+          summary: knowledgeEvidence.summary,
+          confidence: knowledgeEvidence.confidence,
+          kind: knowledgeEvidence.kind,
+          sourceType: knowledgeEvidence.sourceType,
+        })
+        .from(knowledgeEvidence)
+        .where(eq(knowledgeEvidence.userId, job.userId)),
+      db
+        .select({
+          id: userSkillNodes.id,
+          canonicalLabel: userSkillNodes.canonicalLabel,
+          progress: userSkillNodes.progress,
+          state: userSkillNodes.state,
+          evidenceScore: userSkillNodes.evidenceScore,
+        })
+        .from(userSkillNodes)
+        .where(eq(userSkillNodes.userId, job.userId)),
+      db
+        .select({
+          nodeId: userSkillNodeEvidence.nodeId,
+          evidenceId: knowledgeEvidence.id,
+          sourceType: knowledgeEvidence.sourceType,
+          kind: knowledgeEvidence.kind,
+          title: knowledgeEvidence.title,
+          summary: knowledgeEvidence.summary,
+          confidence: knowledgeEvidence.confidence,
+        })
+        .from(userSkillNodeEvidence)
+        .innerJoin(
+          knowledgeEvidence,
+          eq(userSkillNodeEvidence.knowledgeEvidenceId, knowledgeEvidence.id),
+        )
+        .where(eq(userSkillNodeEvidence.userId, job.userId)),
+      db
+        .select({
+          id: knowledgeEvidenceEvents.id,
+          kind: knowledgeEvidenceEvents.kind,
+          sourceType: knowledgeEvidenceEvents.sourceType,
+        })
+        .from(knowledgeEvidenceEvents)
+        .where(eq(knowledgeEvidenceEvents.userId, job.userId))
+        .orderBy(desc(knowledgeEvidenceEvents.happenedAt), desc(knowledgeEvidenceEvents.createdAt))
+        .limit(12),
+      db.query.userFocusSnapshots.findFirst({
+        where: and(
+          eq(userFocusSnapshots.userId, job.userId),
+          eq(userFocusSnapshots.isLatest, true),
+        ),
+        orderBy: desc(userFocusSnapshots.createdAt),
+        columns: {
+          directionKey: true,
+          nodeId: true,
+          title: true,
+          summary: true,
+          progress: true,
+          state: true,
+          payload: true,
+        },
+      }),
+    ]);
+
+  const evidenceRowsByNodeId = new Map<
+    string,
+    Array<{
+      evidenceId: string;
+      sourceType: string;
+      kind: string;
+      title: string;
+      summary: string;
+      confidence: string;
+    }>
+  >();
+
+  for (const row of nodeEvidenceRows) {
+    const existing = evidenceRowsByNodeId.get(row.nodeId) ?? [];
+    existing.push(row);
+    evidenceRowsByNodeId.set(row.nodeId, existing);
+  }
+
+  const enrichedSkillNodes = skillNodes.map((node) => {
+    const linkedEvidenceRows = [...(evidenceRowsByNodeId.get(node.id) ?? [])].sort(
+      (left, right) => {
+        const confidenceDiff = Number(right.confidence) - Number(left.confidence);
+        if (confidenceDiff !== 0) {
+          return confidenceDiff;
+        }
+
+        const titleCompare = compareInsightText(left.title, right.title);
+        if (titleCompare !== 0) {
+          return titleCompare;
+        }
+
+        return compareInsightText(left.evidenceId, right.evidenceId);
       },
-    }),
-  ]);
+    );
+
+    return {
+      ...node,
+      evidenceIds: uniqueStrings(linkedEvidenceRows.map((row) => row.evidenceId)),
+      sourceTypes: uniqueStrings(linkedEvidenceRows.map((row) => row.sourceType)).sort(
+        compareInsightText,
+      ),
+      evidenceKinds: uniqueStrings(linkedEvidenceRows.map((row) => row.kind)).sort(
+        compareInsightText,
+      ),
+    };
+  });
+
+  const skillNodeById = new Map(enrichedSkillNodes.map((node) => [node.id, node]));
+  const parsedFocusPayload = focusSnapshotRow
+    ? focusSnapshotPayloadSchema.safeParse(focusSnapshotRow.payload)
+    : null;
+  const focusAnchorRef = parsedFocusPayload?.success
+    ? (parsedFocusPayload.data.node?.anchorRef ?? focusSnapshotRow?.nodeId ?? null)
+    : (focusSnapshotRow?.nodeId ?? null);
+  const focusSnapshot = focusSnapshotRow
+    ? {
+        directionKey: focusSnapshotRow.directionKey,
+        anchorRef: focusAnchorRef,
+        title: focusSnapshotRow.title,
+        summary: focusSnapshotRow.summary,
+        progress: focusSnapshotRow.progress,
+        state: focusSnapshotRow.state,
+        evidenceIds: uniqueStrings([
+          ...(parsedFocusPayload?.success
+            ? (parsedFocusPayload.data.node?.evidenceRefs ?? [])
+            : []),
+          ...(focusAnchorRef ? (skillNodeById.get(focusAnchorRef)?.evidenceIds ?? []) : []),
+        ]),
+      }
+    : null;
 
   const derivationInput = {
     evidenceRows,
-    skillNodes,
+    skillNodes: enrichedSkillNodes,
     recentEvents,
     focusSnapshot: focusSnapshot ?? null,
   };
@@ -199,10 +301,10 @@ export async function processKnowledgeInsightsJob(
   const run = await getOrCreateGenerationRun({
     userId: job.userId,
     kind: "insight",
-    idempotencyKey: `insight:user:${job.userId}:input:${inputHash}`,
+    idempotencyKey: `insight:v4:user:${job.userId}:input:${inputHash}`,
     inputHash,
     model: "heuristic",
-    promptVersion: "insight-derive@v3",
+    promptVersion: "insight-derive@v4",
     reuseCompleted: true,
   });
 

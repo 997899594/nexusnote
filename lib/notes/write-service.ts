@@ -5,13 +5,10 @@ import {
   revalidateNotesIndex,
   revalidateProfileStats,
 } from "@/lib/cache/tags";
-import { enqueueGrowthRefresh, enqueueKnowledgeSourceMerge } from "@/lib/growth/queue";
-import { deleteEvidenceEventsBySource, ingestEvidenceEvent } from "@/lib/knowledge/events";
-import {
-  aggregateSourceEventsToKnowledgeEvidence,
-  listLinkedNodeIdsForEvidenceSource,
-} from "@/lib/knowledge/evidence";
+import { ingestEvidenceEvent } from "@/lib/knowledge/events";
+import { syncKnowledgeSource } from "@/lib/knowledge/source-sync";
 import { resolveNoteBackedKnowledgeSourceType } from "@/lib/knowledge/source-types";
+import { buildChapterOutlineNodeKey } from "@/lib/learning/outline-node-key";
 import { htmlToPlainText, plainTextToHtml } from "@/lib/notes/content";
 import { syncSourceKnowledgeEvidenceChunks } from "@/lib/rag/chunker";
 
@@ -35,6 +32,13 @@ interface UpdateOwnedNoteParams {
   userId: string;
   title?: string;
   content?: NoteContentInput;
+}
+
+interface TrackedNoteRef {
+  refType: string;
+  refId: string;
+  snippet?: string | null;
+  weight: number;
 }
 
 function normalizeStoredValue(value: string): string | null {
@@ -97,12 +101,7 @@ function appendPlainTextAsParagraph(existingHtml: string, plainText: string): st
 }
 
 function buildTrackedNoteRefs(note: Pick<NoteRecord, "id" | "plainText" | "sourceContext">) {
-  const refs: Array<{
-    refType: string;
-    refId: string;
-    snippet?: string | null;
-    weight: number;
-  }> = [];
+  const refs: TrackedNoteRef[] = [];
 
   const sourceContext = note.sourceContext ?? null;
   const primarySnippet =
@@ -110,6 +109,29 @@ function buildTrackedNoteRefs(note: Pick<NoteRecord, "id" | "plainText" | "sourc
     sourceContext?.latestExcerpt ??
     note.plainText?.slice(0, 240) ??
     null;
+  const chapterKey =
+    typeof sourceContext?.chapterIndex === "number"
+      ? buildChapterOutlineNodeKey(sourceContext.chapterIndex)
+      : null;
+  const chapterSnippet = sourceContext?.chatCapture ? (sourceContext.sectionTitle ?? null) : null;
+
+  if (sourceContext?.courseId) {
+    refs.push({
+      refType: "course",
+      refId: sourceContext.courseId,
+      snippet: sourceContext.courseTitle ?? null,
+      weight: 1,
+    });
+  }
+
+  if (chapterKey) {
+    refs.push({
+      refType: "chapter",
+      refId: chapterKey,
+      snippet: chapterSnippet,
+      weight: 1,
+    });
+  }
 
   if (sourceContext?.sectionId) {
     refs.push({
@@ -143,56 +165,42 @@ function buildTrackedNoteRefs(note: Pick<NoteRecord, "id" | "plainText" | "sourc
 
 async function syncTrackedNoteKnowledge(note: NoteRecord): Promise<void> {
   const knowledgeSourceType = resolveNoteBackedKnowledgeSourceType(note.sourceType);
-  const affectedNodeIds = await listLinkedNodeIdsForEvidenceSource({
-    userId: note.userId,
-    sourceType: knowledgeSourceType,
-    sourceId: note.id,
-  });
+  const metadata = {
+    sourceType: note.sourceType,
+    sourceContext: note.sourceContext ?? null,
+  };
 
-  await deleteEvidenceEventsBySource({
+  await syncKnowledgeSource({
     userId: note.userId,
     sourceType: knowledgeSourceType,
     sourceId: note.id,
-    sourceVersionHash: null,
-  });
-
-  await ingestEvidenceEvent({
-    id: crypto.randomUUID(),
-    userId: note.userId,
-    kind: knowledgeSourceType === "capture" ? "capture" : "note",
-    sourceType: knowledgeSourceType,
-    sourceId: note.id,
-    sourceVersionHash: null,
-    title: note.title,
-    summary: note.plainText ?? note.title,
-    confidence: 1,
-    happenedAt: new Date().toISOString(),
-    metadata: {
-      sourceType: note.sourceType,
-      sourceContext: note.sourceContext ?? null,
+    hasContent: true,
+    clearReason: `note-clear:${note.id}`,
+    replaceEvents: async () => {
+      await ingestEvidenceEvent({
+        id: crypto.randomUUID(),
+        userId: note.userId,
+        kind: knowledgeSourceType === "capture" ? "capture" : "note",
+        sourceType: knowledgeSourceType,
+        sourceId: note.id,
+        sourceVersionHash: null,
+        title: note.title,
+        summary: note.plainText ?? note.title,
+        confidence: 1,
+        happenedAt: new Date().toISOString(),
+        metadata,
+        refs: buildTrackedNoteRefs(note),
+      });
     },
-    refs: buildTrackedNoteRefs(note),
-  });
-
-  await aggregateSourceEventsToKnowledgeEvidence({
-    userId: note.userId,
-    sourceType: knowledgeSourceType,
-    sourceId: note.id,
-    sourceVersionHash: null,
-  });
-  await syncSourceKnowledgeEvidenceChunks({
-    userId: note.userId,
-    sourceType: knowledgeSourceType,
-    sourceId: note.id,
-    sourceVersionHash: null,
-    metadata: buildNoteIndexMetadata(note),
-  });
-  await enqueueKnowledgeSourceMerge({
-    userId: note.userId,
-    sourceType: knowledgeSourceType,
-    sourceId: note.id,
-    sourceVersionHash: null,
-    affectedNodeIds,
+    syncChunks: async () => {
+      await syncSourceKnowledgeEvidenceChunks({
+        userId: note.userId,
+        sourceType: knowledgeSourceType,
+        sourceId: note.id,
+        sourceVersionHash: null,
+        metadata: buildNoteIndexMetadata(note),
+      });
+    },
   });
 }
 
@@ -202,28 +210,14 @@ async function clearTrackedNoteKnowledge(
   noteSourceType: string,
 ): Promise<void> {
   const knowledgeSourceType = resolveNoteBackedKnowledgeSourceType(noteSourceType);
-  const affectedNodeIds = await listLinkedNodeIdsForEvidenceSource({
+  await syncKnowledgeSource({
     userId,
     sourceType: knowledgeSourceType,
     sourceId: noteId,
+    hasContent: false,
+    clearReason: `note-clear:${noteId}`,
+    enqueueInsightsOnEmpty: false,
   });
-
-  await deleteEvidenceEventsBySource({
-    userId,
-    sourceType: knowledgeSourceType,
-    sourceId: noteId,
-    sourceVersionHash: null,
-  });
-  await aggregateSourceEventsToKnowledgeEvidence({
-    userId,
-    sourceType: knowledgeSourceType,
-    sourceId: noteId,
-    sourceVersionHash: null,
-  });
-
-  if (affectedNodeIds.length > 0) {
-    await enqueueGrowthRefresh(userId, undefined, affectedNodeIds, `note-clear:${noteId}`);
-  }
 }
 
 export async function getOwnedNote(noteId: string, userId: string): Promise<NoteRecord | null> {

@@ -6,7 +6,7 @@ export interface GrowthGenerationContext {
     whyThisDirection: string | null;
   } | null;
   currentFocus: {
-    nodeId: string | null;
+    anchorRef: string | null;
     title: string | null;
     summary: string | null;
     state: string | null;

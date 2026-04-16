@@ -7,34 +7,61 @@ import {
   recordAIUsage,
 } from "@/lib/ai/core";
 import {
-  GROWTH_STRUCTURED_AI_TIMEOUT_MS,
+  GROWTH_MERGE_AI_TIMEOUT_MS,
   IN_PROGRESS_THRESHOLD,
   MASTERED_EVIDENCE_THRESHOLD,
   MASTERED_PROGRESS_THRESHOLD,
   READY_PREREQ_PROGRESS_THRESHOLD,
 } from "@/lib/growth/constants";
 import { buildGrowthMergePrompt, GROWTH_MERGE_SYSTEM_PROMPT } from "@/lib/growth/prompts";
+import type { MergeCandidateSet } from "@/lib/growth/retrieve-merge-candidates";
 
-export const mergeDecisionSchema = z.discriminatedUnion("action", [
-  z.object({
-    action: z.literal("attach"),
-    targetNodeId: z.string(),
-    evidenceIds: z.array(z.string()).min(1),
-    confidence: z.number().min(0).max(1),
-    reason: z.string(),
-  }),
-  z.object({
-    action: z.literal("create"),
-    tempNodeRef: z.string().min(1),
-    newNode: z.object({
-      canonicalLabel: z.string().min(1),
-      summary: z.string().nullable().optional(),
-    }),
-    evidenceIds: z.array(z.string()).min(1),
-    confidence: z.number().min(0).max(1),
-    reason: z.string(),
-  }),
-]);
+export interface MergePlannerEvidenceBatchItem {
+  id: string;
+  title: string;
+  summary: string;
+  confidence: number;
+  chapterKeys: string[];
+  evidenceSnippets: string[];
+}
+
+export interface MergePlannerPriorCourseLink {
+  nodeId: string;
+  evidenceId: string;
+}
+
+export type GrowthMergePriorSummary =
+  | {
+      kind: "course";
+      links: MergePlannerPriorCourseLink[];
+    }
+  | {
+      kind: "source";
+      sourceType: string;
+      sourceId: string;
+    };
+
+export interface GrowthMergePlannerInput {
+  candidateContext: MergeCandidateSet;
+  evidenceBatch: MergePlannerEvidenceBatchItem[];
+  priorCourseSummary: GrowthMergePriorSummary;
+}
+
+const mergeAttachDecisionSchema = z.object({
+  targetNodeId: z.string(),
+  evidenceIds: z.array(z.string()).min(1),
+  confidence: z.number().min(0).max(1),
+  reason: z.string(),
+});
+
+const mergeCreateDecisionSchema = z.object({
+  tempNodeRef: z.string().min(1),
+  canonicalLabel: z.string().min(1),
+  summary: z.string().nullable().optional(),
+  evidenceIds: z.array(z.string()).min(1),
+  confidence: z.number().min(0).max(1),
+  reason: z.string(),
+});
 
 export const prerequisiteEdgeDecisionSchema = z.object({
   from: z.string(),
@@ -43,44 +70,91 @@ export const prerequisiteEdgeDecisionSchema = z.object({
 });
 
 export const mergePlannerOutputSchema = z.object({
-  decisions: z.array(mergeDecisionSchema),
+  attachDecisions: z.array(mergeAttachDecisionSchema).default([]),
+  createDecisions: z.array(mergeCreateDecisionSchema).default([]),
   prerequisiteEdges: z.array(prerequisiteEdgeDecisionSchema).default([]),
 });
 
-export type MergePlannerOutput = z.infer<typeof mergePlannerOutputSchema>;
+type RawMergePlannerOutput = z.infer<typeof mergePlannerOutputSchema>;
+
+export type MergePlannerOutput = {
+  decisions: Array<
+    | {
+        action: "attach";
+        targetNodeId: string;
+        evidenceIds: string[];
+        confidence: number;
+        reason: string;
+      }
+    | {
+        action: "create";
+        tempNodeRef: string;
+        newNode: {
+          canonicalLabel: string;
+          summary?: string | null;
+        };
+        evidenceIds: string[];
+        confidence: number;
+        reason: string;
+      }
+  >;
+  prerequisiteEdges: Array<z.infer<typeof prerequisiteEdgeDecisionSchema>>;
+};
+
+function normalizeMergePlannerOutput(output: RawMergePlannerOutput): MergePlannerOutput {
+  return {
+    decisions: [
+      ...output.attachDecisions.map((decision) => ({
+        action: "attach" as const,
+        targetNodeId: decision.targetNodeId,
+        evidenceIds: decision.evidenceIds,
+        confidence: decision.confidence,
+        reason: decision.reason,
+      })),
+      ...output.createDecisions.map((decision) => ({
+        action: "create" as const,
+        tempNodeRef: decision.tempNodeRef,
+        newNode: {
+          canonicalLabel: decision.canonicalLabel,
+          summary: decision.summary ?? null,
+        },
+        evidenceIds: decision.evidenceIds,
+        confidence: decision.confidence,
+        reason: decision.reason,
+      })),
+    ],
+    prerequisiteEdges: output.prerequisiteEdges,
+  };
+}
 
 export async function planGrowthGraphMerge(params: {
   userId: string;
   courseId: string;
-  candidateContext: unknown;
-  evidenceBatch: unknown;
-  priorCourseSummary: unknown;
+  input: GrowthMergePlannerInput;
 }): Promise<MergePlannerOutput> {
   const startedAt = Date.now();
   const telemetry = createTelemetryContext({
     endpoint: "growth:merge",
     intent: "growth-merge",
     workflow: "growth",
-    modelPolicy: "structured-high-quality",
-    promptVersion: "growth-merge@v1",
+    modelPolicy: "interactive-fast",
+    promptVersion: "growth-merge@v2",
     userId: params.userId,
     metadata: {
       courseId: params.courseId,
+      evidenceCount: params.input.evidenceBatch.length,
+      candidateNodeCount: params.input.candidateContext.nodes.length,
     },
   });
 
   try {
     const result = await generateText({
-      model: getJsonModelForPolicy("structured-high-quality"),
+      model: getJsonModelForPolicy("interactive-fast"),
       output: Output.object({ schema: mergePlannerOutputSchema }),
       system: GROWTH_MERGE_SYSTEM_PROMPT,
-      prompt: buildGrowthMergePrompt({
-        candidateContext: params.candidateContext,
-        evidenceBatch: params.evidenceBatch,
-        priorCourseSummary: params.priorCourseSummary,
-      }),
+      prompt: buildGrowthMergePrompt(params.input),
       temperature: 0.1,
-      timeout: GROWTH_STRUCTURED_AI_TIMEOUT_MS,
+      timeout: GROWTH_MERGE_AI_TIMEOUT_MS,
     });
 
     await recordAIUsage({
@@ -90,7 +164,7 @@ export async function planGrowthGraphMerge(params: {
       success: true,
     });
 
-    return result.output;
+    return normalizeMergePlannerOutput(result.output);
   } catch (error) {
     await recordAIUsage({
       ...telemetry,

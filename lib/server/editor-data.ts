@@ -22,6 +22,7 @@ import type { KnowledgeInsight } from "@/lib/knowledge/insights";
 import { NOTE_BACKED_KNOWLEDGE_SOURCE_TYPES } from "@/lib/knowledge/source-types";
 
 export type NoteWorkbenchKind = "all" | "highlight" | "note" | "capture" | "manual";
+type NoteRecord = typeof notes.$inferSelect;
 
 export interface NoteWorkbenchItem {
   id: string;
@@ -29,7 +30,7 @@ export interface NoteWorkbenchItem {
   plainText: string | null;
   updatedAt: Date | null;
   sourceType: string;
-  sourceContext: typeof notes.$inferSelect.sourceContext | null;
+  sourceContext: NoteRecord["sourceContext"] | null;
   kind: Exclude<NoteWorkbenchKind, "all">;
   relevanceScore: number;
   isFocusRelated: boolean;
@@ -68,7 +69,7 @@ const TOKEN_SEGMENTER = new Intl.Segmenter("zh-Hans", { granularity: "word" });
 
 function classifyNoteKind(note: {
   sourceType: string;
-  sourceContext: typeof notes.$inferSelect.sourceContext | null;
+  sourceContext: NoteRecord["sourceContext"] | null;
 }): Exclude<NoteWorkbenchKind, "all"> {
   if (note.sourceType === "course_capture") {
     if (note.sourceContext?.chatCapture || note.sourceContext?.source === "learn_chat_capture") {
@@ -136,6 +137,38 @@ function computeRecencyScore(updatedAt: Date | null): number {
     return 4;
   }
   return 1;
+}
+
+function getNoteWorkbenchCandidateParts(
+  note: Pick<NoteRecord, "title" | "plainText" | "sourceContext">,
+): Array<string | null | undefined> {
+  return [
+    note.title,
+    note.plainText,
+    note.sourceContext?.courseTitle,
+    note.sourceContext?.sectionTitle,
+    note.sourceContext?.selectionText,
+    note.sourceContext?.latestExcerpt,
+  ];
+}
+
+function getNoteKindWeight(kind: NoteWorkbenchItem["kind"]): number {
+  switch (kind) {
+    case "capture":
+      return 8;
+    case "note":
+      return 6;
+    case "highlight":
+      return 4;
+    case "manual":
+      return 2;
+  }
+}
+
+function compareUpdatedAtDesc(left: Date | null, right: Date | null): number {
+  const leftTime = left?.getTime() ?? 0;
+  const rightTime = right?.getTime() ?? 0;
+  return rightTime - leftTime;
 }
 
 function buildKnowledgeInsight(
@@ -323,35 +356,19 @@ export async function getNotesWorkbenchCached(userId: string): Promise<NotesWork
   const items: NoteWorkbenchItem[] = rows
     .map((note) => {
       const kind = classifyNoteKind(note);
+      const candidateParts = getNoteWorkbenchCandidateParts(note);
       const noteInsightKinds = [
         ...(itemInsightKinds.get(note.id) ?? new Set<KnowledgeInsight["kind"]>()),
       ];
       const isFocusRelated = focusRelatedNoteIdSet.has(note.id);
-      const focusLexicalScore = computeOverlapScore(focusTokens, [
-        note.title,
-        note.plainText,
-        note.sourceContext?.courseTitle,
-        note.sourceContext?.sectionTitle,
-        note.sourceContext?.selectionText,
-        note.sourceContext?.latestExcerpt,
-      ]);
-      const insightLexicalScore = computeOverlapScore(insightTokens, [
-        note.title,
-        note.plainText,
-        note.sourceContext?.courseTitle,
-        note.sourceContext?.sectionTitle,
-        note.sourceContext?.selectionText,
-        note.sourceContext?.latestExcerpt,
-      ]);
-
-      const kindWeight =
-        kind === "capture" ? 8 : kind === "note" ? 6 : kind === "highlight" ? 4 : 2;
+      const focusLexicalScore = computeOverlapScore(focusTokens, candidateParts);
+      const insightLexicalScore = computeOverlapScore(insightTokens, candidateParts);
       const relevanceScore =
         (isFocusRelated ? 100 : 0) +
         noteInsightKinds.length * 28 +
         focusLexicalScore * 40 +
         insightLexicalScore * 18 +
-        kindWeight +
+        getNoteKindWeight(kind) +
         computeRecencyScore(note.updatedAt ?? null);
 
       return {
@@ -372,9 +389,7 @@ export async function getNotesWorkbenchCached(userId: string): Promise<NotesWork
         return right.relevanceScore - left.relevanceScore;
       }
 
-      const leftTime = left.updatedAt?.getTime() ?? 0;
-      const rightTime = right.updatedAt?.getTime() ?? 0;
-      return rightTime - leftTime;
+      return compareUpdatedAtDesc(left.updatedAt, right.updatedAt);
     });
 
   const counts: Record<NoteWorkbenchKind, number> = {
@@ -427,22 +442,21 @@ export async function getNotesWorkbenchCached(userId: string): Promise<NotesWork
     }
   }
 
-  const courses = Array.from(courseMap.values()).sort((a, b) => {
-    const left = a.latestUpdatedAt?.getTime() ?? 0;
-    const right = b.latestUpdatedAt?.getTime() ?? 0;
-    return right - left;
-  });
+  const courses = Array.from(courseMap.values()).sort((a, b) =>
+    compareUpdatedAtDesc(a.latestUpdatedAt, b.latestUpdatedAt),
+  );
 
   const focusRelatedItems = items
     .filter((item) => item.isFocusRelated)
     .slice(0, 6)
     .map((item) => item.id);
 
+  const visibleItemIds = new Set(items.map((item) => item.id));
   const insightGroups: NotesWorkbenchInsightGroup[] = insights
     .map((insight) => ({
       insight,
       itemIds: (insightNoteIdMap.get(insight.id) ?? []).filter((noteId) =>
-        items.some((item) => item.id === noteId),
+        visibleItemIds.has(noteId),
       ),
     }))
     .filter((group) => group.itemIds.length > 0)

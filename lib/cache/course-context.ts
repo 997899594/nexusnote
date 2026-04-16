@@ -8,13 +8,10 @@
 
 import { and, courseSections, db, eq, inArray } from "@/db";
 import { getCourseWithOutline } from "@/lib/learning/course-repository";
+import { buildSectionOutlineNodeKey } from "@/lib/learning/outline-node-key";
 import { redis } from "@/lib/redis";
 
 const CACHE_TTL = 300; // 5 minutes
-
-// ============================================
-// Types
-// ============================================
 
 interface OutlineSection {
   title: string;
@@ -47,23 +44,49 @@ export interface ChapterContent {
   sections: SectionContent[];
 }
 
-// ============================================
-// Cache Functions
-// ============================================
+function getOutlineCacheKey(courseId: string): string {
+  return `course:outline:${courseId}`;
+}
 
-export async function getCourseOutline(courseId: string): Promise<CourseOutline | null> {
-  const cacheKey = `course:outline:${courseId}`;
+function getChapterCacheKey(courseId: string, chapterIndex: number): string {
+  return `course:chapter:${courseId}:${chapterIndex}`;
+}
 
-  // Try cache first
+async function readJsonCache<T>(cacheKey: string): Promise<T | null> {
   try {
     const cached = await redis.get(cacheKey);
-    if (cached) return JSON.parse(cached);
+    return cached ? (JSON.parse(cached) as T) : null;
   } catch {
-    // Redis unavailable, fall through to DB
+    return null;
+  }
+}
+
+async function writeJsonCache(cacheKey: string, value: unknown): Promise<void> {
+  try {
+    await redis.set(cacheKey, JSON.stringify(value), "EX", CACHE_TTL);
+  } catch {
+    // Redis unavailable, skip caching
+  }
+}
+
+async function deleteCacheKey(cacheKey: string): Promise<void> {
+  try {
+    await redis.del(cacheKey);
+  } catch {
+    // Redis unavailable, skip invalidation
+  }
+}
+
+export async function getCourseOutline(courseId: string): Promise<CourseOutline | null> {
+  const cached = await readJsonCache<CourseOutline>(getOutlineCacheKey(courseId));
+  if (cached) {
+    return cached;
   }
 
   const course = await getCourseWithOutline(courseId);
-  if (!course) return null;
+  if (!course) {
+    return null;
+  }
 
   const result: CourseOutline = {
     courseTitle: course.title ?? "未知课程",
@@ -79,13 +102,7 @@ export async function getCourseOutline(courseId: string): Promise<CourseOutline 
     })),
   };
 
-  // Write back to cache
-  try {
-    await redis.set(cacheKey, JSON.stringify(result), "EX", CACHE_TTL);
-  } catch {
-    // Redis unavailable, skip caching
-  }
-
+  await writeJsonCache(getOutlineCacheKey(courseId), result);
   return result;
 }
 
@@ -93,22 +110,20 @@ export async function getChapterContent(
   courseId: string,
   chapterIndex: number,
 ): Promise<ChapterContent | null> {
-  const cacheKey = `course:chapter:${courseId}:${chapterIndex}`;
-
-  // Try cache first
-  try {
-    const cached = await redis.get(cacheKey);
-    if (cached) return JSON.parse(cached);
-  } catch {
-    // Redis unavailable, fall through to DB
+  const cached = await readJsonCache<ChapterContent>(getChapterCacheKey(courseId, chapterIndex));
+  if (cached) {
+    return cached;
   }
 
-  // Get outline to know section count
   const outline = await getCourseOutline(courseId);
-  if (!outline) return null;
+  if (!outline) {
+    return null;
+  }
 
   const chapter = outline.chapters[chapterIndex];
-  if (!chapter) return null;
+  if (!chapter) {
+    return null;
+  }
 
   const sectionCount = chapter.sections.length;
   if (sectionCount === 0) {
@@ -121,10 +136,8 @@ export async function getChapterContent(
     };
   }
 
-  // Batch query: single SQL instead of N queries
-  const nodeIds = Array.from(
-    { length: sectionCount },
-    (_, si) => `section-${chapterIndex + 1}-${si + 1}`,
+  const nodeIds = Array.from({ length: sectionCount }, (_, si) =>
+    buildSectionOutlineNodeKey(chapterIndex, si),
   );
 
   const docs = await db
@@ -138,7 +151,6 @@ export async function getChapterContent(
       and(eq(courseSections.courseId, courseId), inArray(courseSections.outlineNodeKey, nodeIds)),
     );
 
-  // Build ordered sections
   const docMap = new Map<string, { title: string; text: string }>();
   for (const doc of docs) {
     if (doc.content && doc.outlineNodeKey) {
@@ -162,13 +174,7 @@ export async function getChapterContent(
     sections,
   };
 
-  // Write back to cache
-  try {
-    await redis.set(cacheKey, JSON.stringify(result), "EX", CACHE_TTL);
-  } catch {
-    // Redis unavailable, skip caching
-  }
-
+  await writeJsonCache(getChapterCacheKey(courseId, chapterIndex), result);
   return result;
 }
 
@@ -176,19 +182,12 @@ export async function invalidateChapterCache(
   courseId: string,
   chapterIndex: number,
 ): Promise<void> {
-  try {
-    await redis.del(`course:chapter:${courseId}:${chapterIndex}`);
-  } catch {
-    // Redis unavailable, skip
-  }
+  await deleteCacheKey(getChapterCacheKey(courseId, chapterIndex));
 }
 
 export async function invalidateCourseCache(courseId: string): Promise<void> {
   try {
-    // Delete outline cache
-    await redis.del(`course:outline:${courseId}`);
-
-    // Delete all chapter caches (scan pattern)
+    await redis.del(getOutlineCacheKey(courseId));
     const pattern = `course:chapter:${courseId}:*`;
     let cursor = "0";
     do {
@@ -199,6 +198,6 @@ export async function invalidateCourseCache(courseId: string): Promise<void> {
       }
     } while (cursor !== "0");
   } catch {
-    // Redis unavailable, skip
+    // Redis unavailable, skip invalidation
   }
 }

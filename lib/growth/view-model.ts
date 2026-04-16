@@ -4,10 +4,29 @@ import type {
   CareerTreeSnapshot,
   VisibleSkillTreeNode,
 } from "@/lib/growth/types";
+import { selectFocusNodeFromNodes } from "@/lib/knowledge/focus";
 
 export interface FocusNodeReference {
   id?: string | null;
   anchorRef?: string | null;
+}
+
+function findNode(
+  nodes: VisibleSkillTreeNode[],
+  matcher: (node: VisibleSkillTreeNode) => boolean,
+): VisibleSkillTreeNode | null {
+  for (const node of nodes) {
+    if (matcher(node)) {
+      return node;
+    }
+
+    const child = findNode(node.children, matcher);
+    if (child) {
+      return child;
+    }
+  }
+
+  return null;
 }
 
 export function flattenVisibleNodes(nodes: VisibleSkillTreeNode[]): VisibleSkillTreeNode[] {
@@ -89,18 +108,7 @@ export function findNodeById(
     return null;
   }
 
-  for (const node of nodes) {
-    if (node.id === nodeId) {
-      return node;
-    }
-
-    const child = findNodeById(node.children, nodeId);
-    if (child) {
-      return child;
-    }
-  }
-
-  return null;
+  return findNode(nodes, (node) => node.id === nodeId);
 }
 
 export function findNodeByAnchorRef(
@@ -111,18 +119,7 @@ export function findNodeByAnchorRef(
     return null;
   }
 
-  for (const node of nodes) {
-    if (node.anchorRef === anchorRef) {
-      return node;
-    }
-
-    const child = findNodeByAnchorRef(node.children, anchorRef);
-    if (child) {
-      return child;
-    }
-  }
-
-  return null;
+  return findNode(nodes, (node) => node.anchorRef === anchorRef);
 }
 
 export function resolveProjectedFocusNode(
@@ -140,11 +137,5 @@ export function resolveProjectedFocusNode(
 }
 
 export function findDefaultFocusNode(nodes: VisibleSkillTreeNode[]): VisibleSkillTreeNode | null {
-  const flattened = flattenVisibleNodes(nodes);
-  return (
-    flattened.find((node) => node.state === "in_progress") ??
-    flattened.find((node) => node.state === "ready") ??
-    flattened[0] ??
-    null
-  );
+  return selectFocusNodeFromNodes(nodes).node;
 }

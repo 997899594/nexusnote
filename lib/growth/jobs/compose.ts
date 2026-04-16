@@ -1,4 +1,5 @@
 import { and, desc, eq, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import {
   courses,
   db,
@@ -20,13 +21,16 @@ import {
 import {
   composeGrowthTrees,
   resolveDirectionKeys,
+  sortResolvedTreesByPreference,
   treeComposerOutputSchema,
 } from "@/lib/growth/compose";
-import { CAREER_TREE_SCHEMA_VERSION, GROWTH_COMPOSE_RUNTIME_LABEL } from "@/lib/growth/constants";
+import { CAREER_TREE_SCHEMA_VERSION, GROWTH_COMPOSE_MODEL_LABEL } from "@/lib/growth/constants";
 import { getGrowthPreference } from "@/lib/growth/preferences";
 import { buildComposeGraph, buildGrowthSnapshotArtifacts } from "@/lib/growth/projections";
 import { enqueueGrowthProjection } from "@/lib/growth/queue";
 import type { GrowthJobExecutionOptions, JobPayload } from "./shared";
+
+const supportingRefCourses = alias(courses, "supporting_ref_courses");
 
 function resolvePreviousDirections(outputJson: unknown): Array<{
   directionKey: string;
@@ -94,8 +98,8 @@ export async function processGrowthComposeJob(
     kind: "compose",
     idempotencyKey: `compose:user:${job.userId}:graph:${graphState?.graphVersion ?? 0}:pref:${preference.preferenceVersion}`,
     inputHash: `${graphState?.graphVersion ?? 0}:${preference.preferenceVersion}`,
-    model: GROWTH_COMPOSE_RUNTIME_LABEL,
-    promptVersion: "growth-compose@v1",
+    model: GROWTH_COMPOSE_MODEL_LABEL,
+    promptVersion: "growth-compose@v4",
     reuseCompleted: true,
   });
 
@@ -129,14 +133,22 @@ export async function processGrowthComposeJob(
       trees: parsed.trees,
       previousDirections: resolvePreviousDirections(previousComposeRun?.outputJson ?? null),
     });
+    const sortedTrees = sortResolvedTreesByPreference({
+      trees: resolvedTrees,
+      preference,
+    });
 
     const nodeEvidenceRows = await db
       .select({
         nodeId: userSkillNodeEvidence.nodeId,
+        evidenceId: knowledgeEvidence.id,
+        sourceType: knowledgeEvidence.sourceType,
         sourceId: knowledgeEvidence.sourceId,
-        courseTitle: courses.title,
+        sourceCourseTitle: courses.title,
         refType: knowledgeEvidenceSourceLinks.refType,
         refId: knowledgeEvidenceSourceLinks.refId,
+        refSnippet: knowledgeEvidenceSourceLinks.snippet,
+        refCourseTitle: supportingRefCourses.title,
       })
       .from(userSkillNodeEvidence)
       .innerJoin(
@@ -148,10 +160,14 @@ export async function processGrowthComposeJob(
         knowledgeEvidenceSourceLinks,
         eq(knowledgeEvidenceSourceLinks.evidenceId, knowledgeEvidence.id),
       )
+      .leftJoin(
+        supportingRefCourses,
+        sql`${supportingRefCourses.id}::text = ${knowledgeEvidenceSourceLinks.refId}`,
+      )
       .where(eq(userSkillNodeEvidence.userId, job.userId));
 
     const snapshotArtifacts = buildGrowthSnapshotArtifacts({
-      resolvedTrees,
+      resolvedTrees: sortedTrees,
       recommendedDirectionHint: parsed.recommendedDirectionHint ?? null,
       selectedDirectionKey: preference.selectedDirectionKey,
       hiddenNodes: nodes,
@@ -186,7 +202,7 @@ export async function processGrowthComposeJob(
 
       await markGenerationRunSucceeded(tx, composeRun.id, {
         recommendedDirectionHint: parsed.recommendedDirectionHint ?? null,
-        trees: resolvedTrees,
+        trees: sortedTrees,
       });
     });
 

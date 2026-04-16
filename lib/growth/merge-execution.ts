@@ -10,75 +10,35 @@ import {
 import { recomputeNodeAggregates } from "@/lib/growth/aggregation";
 import type { EvidenceMergeRow, EvidenceRefRow } from "@/lib/growth/data-access";
 import { bumpGrowthGraphState } from "@/lib/growth/graph-state";
-import { planGrowthGraphMerge, validateMergePlannerOutput } from "@/lib/growth/merge";
+import {
+  type GrowthMergePriorSummary,
+  type MergePlannerEvidenceBatchItem,
+  planGrowthGraphMerge,
+  validateMergePlannerOutput,
+} from "@/lib/growth/merge";
 import { retrieveMergeCandidateSet } from "@/lib/growth/retrieve-merge-candidates";
 
 type GrowthTransaction = Pick<typeof db, "delete" | "insert" | "query" | "select" | "update">;
 
 type ValidatedGrowthMerge = ReturnType<typeof validateMergePlannerOutput>;
 
-function normalizeBootstrapLabel(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]+/gu, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function buildBootstrapGrowthMerge(evidenceRows: EvidenceMergeRow[]): ValidatedGrowthMerge {
-  const groupedDecisions = new Map<
-    string,
-    {
-      tempNodeRef: string;
-      canonicalLabel: string;
-      summary: string | null;
-      confidence: number;
-      evidenceIds: string[];
-    }
-  >();
-
-  for (const [index, row] of evidenceRows.entries()) {
-    const normalizedLabel = normalizeBootstrapLabel(row.title);
-    const decisionKey = normalizedLabel || `evidence-${index + 1}`;
-    const existing = groupedDecisions.get(decisionKey);
-
-    if (existing) {
-      existing.evidenceIds.push(row.id);
-      if (!existing.summary && row.summary) {
-        existing.summary = row.summary;
-      }
-      existing.confidence = Math.max(existing.confidence, Number(row.confidence));
-      continue;
-    }
-
-    groupedDecisions.set(decisionKey, {
-      tempNodeRef: `bootstrap-${index + 1}`,
-      canonicalLabel: row.title.trim() || `能力 ${index + 1}`,
-      summary: row.summary?.trim() || null,
-      confidence: Number(row.confidence),
-      evidenceIds: [row.id],
-    });
-  }
-
-  return validateMergePlannerOutput({
-    output: {
-      decisions: [...groupedDecisions.values()].map((decision) => ({
-        action: "create" as const,
-        tempNodeRef: decision.tempNodeRef,
-        newNode: {
-          canonicalLabel: decision.canonicalLabel,
-          summary: decision.summary,
-        },
-        evidenceIds: decision.evidenceIds,
-        confidence: decision.confidence,
-        reason: "Bootstrap user skill graph from new evidence with no attach candidates.",
-      })),
-      prerequisiteEdges: [],
-    },
-    allowedTargetNodeIds: new Set<string>(),
-    allowedEvidenceIds: new Set(evidenceRows.map((row) => row.id)),
-  });
+function buildMergePlannerEvidenceBatch(
+  evidenceRows: EvidenceMergeRow[],
+  evidenceRefs: EvidenceRefRow[],
+): MergePlannerEvidenceBatchItem[] {
+  return evidenceRows.map((row) => ({
+    id: row.id,
+    title: row.title,
+    summary: row.summary,
+    confidence: Number(row.confidence),
+    chapterKeys: evidenceRefs
+      .filter((ref) => ref.evidenceId === row.id && ref.refType === "chapter")
+      .map((ref) => ref.refId),
+    evidenceSnippets: evidenceRefs
+      .filter((ref) => ref.evidenceId === row.id && ref.snippet)
+      .map((ref) => ref.snippet!)
+      .filter(Boolean),
+  }));
 }
 
 export async function planValidatedGrowthMerge(params: {
@@ -86,7 +46,7 @@ export async function planValidatedGrowthMerge(params: {
   plannerResourceId: string;
   evidenceRows: EvidenceMergeRow[];
   evidenceRefs: EvidenceRefRow[];
-  priorSummary: unknown;
+  priorSummary: GrowthMergePriorSummary;
 }): Promise<ValidatedGrowthMerge> {
   const [existingNodes, existingEvidenceLinks, existingPrerequisiteEdges] = await Promise.all([
     db
@@ -118,37 +78,32 @@ export async function planValidatedGrowthMerge(params: {
       .where(eq(userSkillEdges.userId, params.userId)),
   ]);
 
+  const evidenceBatch = buildMergePlannerEvidenceBatch(params.evidenceRows, params.evidenceRefs);
+
   const candidateSet = retrieveMergeCandidateSet({
-    evidenceItems: params.evidenceRows.map((row) => ({
-      title: row.title,
+    evidenceItems: evidenceBatch.map((item) => ({
+      title: item.title,
       kind: "skill",
-      summary: row.summary,
-      confidence: Number(row.confidence),
-      chapterKeys: params.evidenceRefs
-        .filter((ref) => ref.evidenceId === row.id && ref.refType === "chapter")
-        .map((ref) => ref.refId),
+      summary: item.summary,
+      confidence: item.confidence,
+      chapterKeys: item.chapterKeys,
       prerequisiteHints: [],
       relatedHints: [],
-      evidenceSnippets: params.evidenceRefs
-        .filter((ref) => ref.evidenceId === row.id && ref.snippet)
-        .map((ref) => ref.snippet!)
-        .filter(Boolean),
+      evidenceSnippets: item.evidenceSnippets,
     })),
     existingNodes,
     existingEvidenceLinks,
     existingPrerequisiteEdges,
   });
 
-  if (candidateSet.nodes.length === 0) {
-    return buildBootstrapGrowthMerge(params.evidenceRows);
-  }
-
   const planned = await planGrowthGraphMerge({
     userId: params.userId,
     courseId: params.plannerResourceId,
-    candidateContext: candidateSet,
-    evidenceBatch: params.evidenceRows,
-    priorCourseSummary: params.priorSummary,
+    input: {
+      candidateContext: candidateSet,
+      evidenceBatch,
+      priorCourseSummary: params.priorSummary,
+    },
   });
 
   return validateMergePlannerOutput({

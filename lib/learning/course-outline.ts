@@ -4,6 +4,7 @@ import { aiProvider, type InterviewOutline, InterviewOutlineSchema } from "@/lib
 import { getJsonModelForPolicy } from "@/lib/ai/core/model-policy";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { loadPromptResource } from "@/lib/ai/prompts/load-prompt";
+import { APIError } from "@/lib/api";
 import {
   formatGrowthGenerationContext,
   type GrowthGenerationContext,
@@ -112,18 +113,18 @@ export async function expandInterviewOutlineToCourseOutline({
   generationContext,
   courseId,
 }: ExpandInterviewOutlineToCourseOutlineOptions): Promise<CourseOutline> {
-  const fallbackOutline = mapInterviewOutlineToCourseOutline(outline);
+  const baseOutline = mapInterviewOutlineToCourseOutline(outline);
   const alignmentBrief = buildCourseBlueprintAlignmentBrief({
-    courseTitle: fallbackOutline.title,
-    courseDescription: fallbackOutline.description,
-    courseSkillIds: fallbackOutline.courseSkillIds,
-    chapterTitles: fallbackOutline.chapters.map((chapter) => chapter.title),
-    chapterSkillIds: fallbackOutline.chapters.flatMap((chapter) => chapter.skillIds ?? []),
+    courseTitle: baseOutline.title,
+    courseDescription: baseOutline.description,
+    courseSkillIds: baseOutline.courseSkillIds,
+    chapterTitles: baseOutline.chapters.map((chapter) => chapter.title),
+    chapterSkillIds: baseOutline.chapters.flatMap((chapter) => chapter.skillIds ?? []),
     generationContext,
   });
 
   if (!aiProvider.isConfigured()) {
-    return fallbackOutline;
+    throw new APIError("AI 服务未配置", 503, "AI_NOT_CONFIGURED");
   }
 
   const startedAt = Date.now();
@@ -137,7 +138,7 @@ export async function expandInterviewOutlineToCourseOutline({
       courseId: courseId ?? null,
       hasGrowthContext: Boolean(generationContext),
       currentDirection: generationContext?.currentDirection?.directionKey ?? null,
-      currentFocus: generationContext?.currentFocus?.nodeId ?? null,
+      currentFocus: generationContext?.currentFocus?.anchorRef ?? null,
       insightCount: generationContext?.insights.length ?? 0,
       alignmentRelation: alignmentBrief.relation,
       alignmentFocus: alignmentBrief.focusTitle,
@@ -148,16 +149,16 @@ export async function expandInterviewOutlineToCourseOutline({
     const result = await generateText({
       model: getJsonModelForPolicy("structured-high-quality"),
       system: COURSE_BLUEPRINT_REFINER_PROMPT,
-      prompt: buildRefinementPrompt(fallbackOutline, alignmentBrief, generationContext),
+      prompt: buildRefinementPrompt(baseOutline, alignmentBrief, generationContext),
       temperature: 0.2,
       maxRetries: 1,
       output: Output.object({ schema: CourseOutlineSchema }),
     });
 
     const refinedOutline = result.output;
-    const resolvedOutline = hasStableOutlineShape(fallbackOutline, refinedOutline)
-      ? refinedOutline
-      : fallbackOutline;
+    if (!hasStableOutlineShape(baseOutline, refinedOutline)) {
+      throw new Error("Course blueprint shape mismatch");
+    }
 
     await recordAIUsage({
       ...telemetry,
@@ -166,12 +167,11 @@ export async function expandInterviewOutlineToCourseOutline({
       success: true,
       metadata: {
         ...telemetry.metadata,
-        usedFallbackShape: resolvedOutline === fallbackOutline,
         relevantInsightTitles: alignmentBrief.relevantInsightTitles,
       },
     });
 
-    return resolvedOutline;
+    return refinedOutline;
   } catch (error) {
     await recordAIUsage({
       ...telemetry,
@@ -179,11 +179,6 @@ export async function expandInterviewOutlineToCourseOutline({
       success: false,
       errorMessage: getErrorMessage(error),
     });
-
-    console.warn(
-      "[CourseOutline] Failed to refine course blueprint, fallback to base outline",
-      error,
-    );
-    return fallbackOutline;
+    throw error;
   }
 }

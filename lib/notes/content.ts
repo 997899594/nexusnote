@@ -1,4 +1,4 @@
-function escapeHtml(value: string) {
+export function escapeHtml(value: string): string {
   return value
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
@@ -7,7 +7,7 @@ function escapeHtml(value: string) {
     .replaceAll("'", "&#39;");
 }
 
-export function plainTextToHtml(value: string) {
+export function plainTextToHtml(value: string): string {
   const trimmed = value.trim();
   if (!trimmed) {
     return "";
@@ -19,7 +19,7 @@ export function plainTextToHtml(value: string) {
     .join("");
 }
 
-export function htmlToPlainText(value: string) {
+export function htmlToPlainText(value: string): string {
   return value
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/p>\s*<p>/gi, "\n\n")

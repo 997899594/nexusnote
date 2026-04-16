@@ -16,6 +16,7 @@ import type { GrowthFocusSummary, GrowthInsightSummary } from "@/lib/growth/proj
 import type { KnowledgeInsight } from "@/lib/knowledge/insights";
 import { getOwnedCourseWithOutline } from "@/lib/learning/course-repository";
 import { createLearnTrace } from "@/lib/learning/observability";
+import { buildSectionOutlineNodeKey } from "@/lib/learning/outline-node-key";
 
 export interface LearnSectionData {
   title: string;
@@ -85,7 +86,7 @@ export async function getLearnPageSnapshotCached(
     sections: ch.sections.map((sec, secIdx) => ({
       title: sec.title,
       description: sec.description ?? "",
-      nodeId: `section-${chIdx + 1}-${secIdx + 1}`,
+      nodeId: buildSectionOutlineNodeKey(chIdx, secIdx),
     })),
   }));
   trace.step("course-loaded", {

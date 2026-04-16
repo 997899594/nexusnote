@@ -7,16 +7,9 @@ import { courseSectionAnnotations, courseSections, courses, db } from "@/db";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
 import { revalidateLearnPage } from "@/lib/cache/tags";
-import {
-  enqueueGrowthRefresh,
-  enqueueKnowledgeInsights,
-  enqueueKnowledgeSourceMerge,
-} from "@/lib/growth/queue";
-import { deleteEvidenceEventsBySource, ingestEvidenceEvent } from "@/lib/knowledge/events";
-import {
-  aggregateSourceEventsToKnowledgeEvidence,
-  listLinkedNodeIdsForEvidenceSource,
-} from "@/lib/knowledge/evidence";
+import { ingestEvidenceEvent } from "@/lib/knowledge/events";
+import { syncKnowledgeSource } from "@/lib/knowledge/source-sync";
+import { parseSectionOutlineNodeKey } from "@/lib/learning/outline-node-key";
 
 const AnnotationSchema = z.object({
   id: z.string(),
@@ -36,6 +29,123 @@ const RequestSchema = z.object({
   annotations: z.array(AnnotationSchema),
 });
 
+type AnnotationInput = z.infer<typeof AnnotationSchema>;
+
+function buildAnnotationEvidenceRefs(params: {
+  annotationId: string;
+  sectionId: string;
+  sectionText: string;
+  courseId: string;
+  courseTitle: string;
+  chapterKey: string | null;
+}): Array<{
+  refType: string;
+  refId: string;
+  snippet: string | null;
+  weight: number;
+}> {
+  const refs: Array<{
+    refType: string;
+    refId: string;
+    snippet: string | null;
+    weight: number;
+  }> = [
+    {
+      refType: "annotation",
+      refId: params.annotationId,
+      snippet: params.sectionText,
+      weight: 1,
+    },
+    {
+      refType: "course_section",
+      refId: params.sectionId,
+      snippet: params.sectionText,
+      weight: 1,
+    },
+    {
+      refType: "course",
+      refId: params.courseId,
+      snippet: params.courseTitle,
+      weight: 1,
+    },
+  ];
+
+  if (params.chapterKey) {
+    refs.push({
+      refType: "chapter",
+      refId: params.chapterKey,
+      snippet: null,
+      weight: 1,
+    });
+  }
+
+  return refs;
+}
+
+function buildAnnotationEventTitle(type: z.infer<typeof AnnotationSchema>["type"]): string {
+  return type === "note" ? "课程标注笔记" : "课程高亮";
+}
+
+function buildAnnotationRows(params: {
+  sectionId: string;
+  userId: string;
+  annotations: AnnotationInput[];
+}): Array<typeof courseSectionAnnotations.$inferInsert> {
+  return params.annotations.map((annotation) => ({
+    courseSectionId: params.sectionId,
+    userId: params.userId,
+    type: annotation.type,
+    anchor: annotation.anchor,
+    color: annotation.color ?? null,
+    noteContent: annotation.noteContent ?? null,
+    createdAt: new Date(annotation.createdAt),
+    updatedAt: new Date(),
+  }));
+}
+
+async function ingestAnnotationEvents(params: {
+  inserted: Array<{ id: string }>;
+  annotations: AnnotationInput[];
+  userId: string;
+  sectionId: string;
+  courseId: string;
+  courseTitle: string;
+  chapterKey: string | null;
+}): Promise<void> {
+  for (let index = 0; index < params.inserted.length; index++) {
+    const saved = params.inserted[index];
+    const original = params.annotations[index];
+    const annotationType = original.type;
+
+    await ingestEvidenceEvent({
+      id: crypto.randomUUID(),
+      userId: params.userId,
+      kind: annotationType === "note" ? "note" : "highlight",
+      sourceType: "annotation",
+      sourceId: params.sectionId,
+      sourceVersionHash: null,
+      title: buildAnnotationEventTitle(annotationType),
+      summary: original.noteContent?.trim() || original.anchor.textContent,
+      confidence: 1,
+      happenedAt: new Date(original.createdAt).toISOString(),
+      metadata: {
+        annotationId: saved.id,
+        sectionId: params.sectionId,
+        annotationType,
+        color: original.color ?? null,
+      },
+      refs: buildAnnotationEvidenceRefs({
+        annotationId: saved.id,
+        sectionId: params.sectionId,
+        sectionText: original.anchor.textContent,
+        courseId: params.courseId,
+        courseTitle: params.courseTitle,
+        chapterKey: params.chapterKey,
+      }),
+    });
+  }
+}
+
 export async function PATCH(request: NextRequest) {
   try {
     const session = await auth();
@@ -51,14 +161,14 @@ export async function PATCH(request: NextRequest) {
     }
 
     const { sectionId, annotations } = parsed.data;
-    const affectedNodeIds = await listLinkedNodeIdsForEvidenceSource({
-      userId,
-      sourceType: "annotation",
-      sourceId: sectionId,
-    });
 
     const [section] = await db
-      .select({ id: courseSections.id, courseId: courses.id })
+      .select({
+        id: courseSections.id,
+        courseId: courses.id,
+        courseTitle: courses.title,
+        outlineNodeKey: courseSections.outlineNodeKey,
+      })
       .from(courseSections)
       .innerJoin(courses, eq(courseSections.courseId, courses.id))
       .where(and(eq(courseSections.id, sectionId), eq(courses.userId, userId)))
@@ -67,6 +177,9 @@ export async function PATCH(request: NextRequest) {
     if (!section) {
       throw new APIError("小节不存在", 404, "NOT_FOUND");
     }
+
+    const parsedSectionKey = parseSectionOutlineNodeKey(section.outlineNodeKey);
+    const chapterKey = parsedSectionKey?.chapterKey ?? null;
 
     await db
       .delete(courseSectionAnnotations)
@@ -77,98 +190,35 @@ export async function PATCH(request: NextRequest) {
         ),
       );
 
-    await deleteEvidenceEventsBySource({
+    await syncKnowledgeSource({
       userId,
       sourceType: "annotation",
       sourceId: sectionId,
-      sourceVersionHash: null,
-    });
+      hasContent: annotations.length > 0,
+      clearReason: `annotation-clear:${sectionId}`,
+      replaceEvents: async () => {
+        if (annotations.length === 0) {
+          return;
+        }
 
-    if (annotations.length > 0) {
-      const inserted = await db
-        .insert(courseSectionAnnotations)
-        .values(
-          annotations.map((annotation) => ({
-            courseSectionId: sectionId,
-            userId,
-            type: annotation.type,
-            anchor: annotation.anchor,
-            color: annotation.color ?? null,
-            noteContent: annotation.noteContent ?? null,
-            createdAt: new Date(annotation.createdAt),
-            updatedAt: new Date(),
-          })),
-        )
-        .returning({
-          id: courseSectionAnnotations.id,
-          type: courseSectionAnnotations.type,
-          noteContent: courseSectionAnnotations.noteContent,
-          anchor: courseSectionAnnotations.anchor,
-        });
+        const inserted = await db
+          .insert(courseSectionAnnotations)
+          .values(buildAnnotationRows({ sectionId, userId, annotations }))
+          .returning({
+            id: courseSectionAnnotations.id,
+          });
 
-      for (let index = 0; index < inserted.length; index++) {
-        const saved = inserted[index];
-        const original = annotations[index];
-        await ingestEvidenceEvent({
-          id: crypto.randomUUID(),
+        await ingestAnnotationEvents({
+          inserted,
+          annotations,
           userId,
-          kind: saved.type === "note" ? "note" : "highlight",
-          sourceType: "annotation",
-          sourceId: sectionId,
-          sourceVersionHash: null,
-          title: saved.type === "note" ? "课程标注笔记" : "课程高亮",
-          summary: original.noteContent?.trim() || original.anchor.textContent,
-          confidence: 1,
-          happenedAt: new Date(original.createdAt).toISOString(),
-          metadata: {
-            annotationId: saved.id,
-            sectionId,
-            annotationType: saved.type,
-            color: original.color ?? null,
-          },
-          refs: [
-            {
-              refType: "annotation",
-              refId: saved.id,
-              snippet: original.anchor.textContent,
-              weight: 1,
-            },
-            {
-              refType: "course_section",
-              refId: sectionId,
-              snippet: original.anchor.textContent,
-              weight: 1,
-            },
-          ],
+          sectionId,
+          courseId: section.courseId,
+          courseTitle: section.courseTitle,
+          chapterKey,
         });
-      }
-    }
-
-    await aggregateSourceEventsToKnowledgeEvidence({
-      userId,
-      sourceType: "annotation",
-      sourceId: sectionId,
-      sourceVersionHash: null,
+      },
     });
-
-    if (annotations.length > 0) {
-      await enqueueKnowledgeSourceMerge({
-        userId,
-        sourceType: "annotation",
-        sourceId: sectionId,
-        sourceVersionHash: null,
-        affectedNodeIds,
-      });
-    } else if (affectedNodeIds.length > 0) {
-      await enqueueGrowthRefresh(
-        userId,
-        undefined,
-        affectedNodeIds,
-        `annotation-clear:${sectionId}`,
-      );
-    } else {
-      await enqueueKnowledgeInsights(userId);
-    }
 
     revalidateLearnPage(userId, section.courseId);
 

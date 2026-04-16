@@ -64,31 +64,47 @@
         "supportingRows": [
           {
             "nodeId": "node-ui",
+            "evidenceId": "evidence-ui",
+            "sourceType": "course",
             "sourceId": "course-frontend",
-            "courseTitle": "现代前端实战",
+            "sourceCourseTitle": "现代前端实战",
             "refType": "chapter",
-            "refId": "chapter-1"
+            "refId": "chapter-1",
+            "refSnippet": "组件设计",
+            "refCourseTitle": null
           },
           {
             "nodeId": "node-state",
+            "evidenceId": "evidence-state",
+            "sourceType": "course",
             "sourceId": "course-frontend",
-            "courseTitle": "现代前端实战",
+            "sourceCourseTitle": "现代前端实战",
             "refType": "chapter",
-            "refId": "chapter-2"
+            "refId": "chapter-2",
+            "refSnippet": "状态管理",
+            "refCourseTitle": null
           },
           {
             "nodeId": "node-sql",
+            "evidenceId": "evidence-sql",
+            "sourceType": "course",
             "sourceId": "course-data",
-            "courseTitle": "数据建模课",
+            "sourceCourseTitle": "数据建模课",
             "refType": "chapter",
-            "refId": "chapter-1"
+            "refId": "chapter-1",
+            "refSnippet": "SQL 建模",
+            "refCourseTitle": null
           },
           {
             "nodeId": "node-pipeline",
+            "evidenceId": "evidence-pipeline",
+            "sourceType": "course",
             "sourceId": "course-data",
-            "courseTitle": "数据建模课",
+            "sourceCourseTitle": "数据建模课",
             "refType": "chapter",
-            "refId": "chapter-2"
+            "refId": "chapter-2",
+            "refSnippet": "数据管道",
+            "refCourseTitle": null
           }
         ],
         "generatedAt": "2026-04-15T09:00:00.000Z"
@@ -149,17 +165,25 @@
         "supportingRows": [
           {
             "nodeId": "node-ui",
+            "evidenceId": "evidence-ui",
+            "sourceType": "course",
             "sourceId": "course-frontend",
-            "courseTitle": "现代前端实战",
+            "sourceCourseTitle": "现代前端实战",
             "refType": "chapter",
-            "refId": "chapter-1"
+            "refId": "chapter-1",
+            "refSnippet": "组件设计",
+            "refCourseTitle": null
           },
           {
             "nodeId": "node-state",
+            "evidenceId": "evidence-state",
+            "sourceType": "course",
             "sourceId": "course-frontend",
-            "courseTitle": "现代前端实战",
+            "sourceCourseTitle": "现代前端实战",
             "refType": "chapter",
-            "refId": "chapter-2"
+            "refId": "chapter-2",
+            "refSnippet": "状态管理",
+            "refCourseTitle": null
           }
         ],
         "generatedAt": "2026-04-15T10:00:00.000Z"

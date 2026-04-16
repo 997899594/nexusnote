@@ -1,6 +1,9 @@
-import { enqueueKnowledgeInsights } from "@/lib/growth/queue";
-import { deleteEvidenceEventsBySource, ingestEvidenceEvent } from "@/lib/knowledge/events";
-import { aggregateSourceEventsToKnowledgeEvidence } from "@/lib/knowledge/evidence";
+import { ingestEvidenceEvent } from "@/lib/knowledge/events";
+import { syncKnowledgeSource } from "@/lib/knowledge/source-sync";
+import {
+  buildChapterOutlineNodeKey,
+  buildSectionOutlineNodeKey,
+} from "@/lib/learning/outline-node-key";
 import { syncSourceKnowledgeEvidenceChunks } from "@/lib/rag/chunker";
 
 interface SyncCourseSectionKnowledgeParams {
@@ -16,71 +19,62 @@ interface SyncCourseSectionKnowledgeParams {
 export async function syncCourseSectionKnowledge(
   params: SyncCourseSectionKnowledgeParams,
 ): Promise<void> {
-  await deleteEvidenceEventsBySource({
-    userId: params.userId,
-    sourceType: "course_section",
-    sourceId: params.documentId,
-    sourceVersionHash: null,
-  });
+  const metadata = {
+    courseId: params.courseId,
+    chapterIndex: params.chapterIndex,
+    sectionIndex: params.sectionIndex,
+    sectionTitle: params.sectionTitle,
+  };
 
-  await ingestEvidenceEvent({
-    id: crypto.randomUUID(),
+  await syncKnowledgeSource({
     userId: params.userId,
-    kind: "course_section",
     sourceType: "course_section",
     sourceId: params.documentId,
-    sourceVersionHash: null,
-    title: params.sectionTitle,
-    summary: params.plainText,
-    confidence: 1,
-    happenedAt: new Date().toISOString(),
-    metadata: {
-      courseId: params.courseId,
-      chapterIndex: params.chapterIndex,
-      sectionIndex: params.sectionIndex,
-      sectionTitle: params.sectionTitle,
+    hasContent: params.plainText.trim().length > 0,
+    clearReason: `course-section-clear:${params.documentId}`,
+    replaceEvents: async () => {
+      await ingestEvidenceEvent({
+        id: crypto.randomUUID(),
+        userId: params.userId,
+        kind: "course_section",
+        sourceType: "course_section",
+        sourceId: params.documentId,
+        sourceVersionHash: null,
+        title: params.sectionTitle,
+        summary: params.plainText,
+        confidence: 1,
+        happenedAt: new Date().toISOString(),
+        metadata,
+        refs: [
+          {
+            refType: "course",
+            refId: params.courseId,
+            snippet: params.sectionTitle,
+            weight: 1,
+          },
+          {
+            refType: "chapter",
+            refId: buildChapterOutlineNodeKey(params.chapterIndex),
+            snippet: params.sectionTitle,
+            weight: 1,
+          },
+          {
+            refType: "section",
+            refId: buildSectionOutlineNodeKey(params.chapterIndex, params.sectionIndex),
+            snippet: params.sectionTitle,
+            weight: 1,
+          },
+        ],
+      });
     },
-    refs: [
-      {
-        refType: "course",
-        refId: params.courseId,
-        snippet: params.sectionTitle,
-        weight: 1,
-      },
-      {
-        refType: "chapter",
-        refId: `chapter-${params.chapterIndex + 1}`,
-        snippet: params.sectionTitle,
-        weight: 1,
-      },
-      {
-        refType: "section",
-        refId: `section-${params.chapterIndex + 1}-${params.sectionIndex + 1}`,
-        snippet: params.sectionTitle,
-        weight: 1,
-      },
-    ],
-  });
-
-  await aggregateSourceEventsToKnowledgeEvidence({
-    userId: params.userId,
-    sourceType: "course_section",
-    sourceId: params.documentId,
-    sourceVersionHash: null,
-  });
-
-  await syncSourceKnowledgeEvidenceChunks({
-    userId: params.userId,
-    sourceType: "course_section",
-    sourceId: params.documentId,
-    sourceVersionHash: null,
-    metadata: {
-      courseId: params.courseId,
-      chapterIndex: params.chapterIndex,
-      sectionIndex: params.sectionIndex,
-      sectionTitle: params.sectionTitle,
+    syncChunks: async () => {
+      await syncSourceKnowledgeEvidenceChunks({
+        userId: params.userId,
+        sourceType: "course_section",
+        sourceId: params.documentId,
+        sourceVersionHash: null,
+        metadata,
+      });
     },
   });
-
-  await enqueueKnowledgeInsights(params.userId);
 }

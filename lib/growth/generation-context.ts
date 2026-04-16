@@ -11,6 +11,69 @@ import type { GrowthGenerationContext } from "./generation-context-format";
 
 export interface UserGrowthContext extends GrowthGenerationContext {}
 
+function resolveLatestFocusReference(params: {
+  activeTree: ReturnType<typeof getCurrentGrowthTree>;
+  latestFocusSnapshot: Awaited<ReturnType<typeof getLatestFocusSnapshot>>;
+}) {
+  const { activeTree, latestFocusSnapshot } = params;
+  if (!activeTree || !latestFocusSnapshot) {
+    return null;
+  }
+
+  if (latestFocusSnapshot.directionKey !== activeTree.directionKey) {
+    return null;
+  }
+
+  return (
+    latestFocusSnapshot.node ?? {
+      id: latestFocusSnapshot.nodeId,
+      anchorRef: latestFocusSnapshot.anchorRef,
+    }
+  );
+}
+
+function buildCurrentDirection(
+  activeTree: ReturnType<typeof getCurrentGrowthTree>,
+): UserGrowthContext["currentDirection"] {
+  if (!activeTree) {
+    return null;
+  }
+
+  return {
+    directionKey: activeTree.directionKey,
+    title: activeTree.title,
+    summary: activeTree.summary,
+    whyThisDirection: activeTree.whyThisDirection,
+  };
+}
+
+function buildCurrentFocus(params: {
+  activeFocusNode: ReturnType<typeof findDefaultFocusNode>;
+  latestFocusSnapshot: Awaited<ReturnType<typeof getLatestFocusSnapshot>>;
+}): UserGrowthContext["currentFocus"] {
+  if (params.activeFocusNode) {
+    return {
+      anchorRef: params.activeFocusNode.anchorRef,
+      title: params.activeFocusNode.title,
+      summary: params.activeFocusNode.summary,
+      state: params.activeFocusNode.state,
+      progress: params.activeFocusNode.progress,
+    };
+  }
+
+  if (!params.latestFocusSnapshot) {
+    return null;
+  }
+
+  return {
+    anchorRef: params.latestFocusSnapshot.anchorRef ?? params.latestFocusSnapshot.nodeId,
+    title: params.latestFocusSnapshot.title,
+    summary: params.latestFocusSnapshot.summary,
+    state: params.latestFocusSnapshot.state,
+    progress: params.latestFocusSnapshot.progress,
+  };
+}
+
 export async function getUserGrowthContext(userId: string): Promise<UserGrowthContext> {
   const [snapshot, latestFocusSnapshot, insightRows] = await Promise.all([
     getGrowthSnapshot(userId),
@@ -29,44 +92,21 @@ export async function getUserGrowthContext(userId: string): Promise<UserGrowthCo
   ]);
 
   const activeTree = getCurrentGrowthTree(snapshot);
+  const latestFocusReference = resolveLatestFocusReference({
+    activeTree,
+    latestFocusSnapshot,
+  });
   const activeFocusNode = activeTree
-    ? (resolveProjectedFocusNode(
-        activeTree.tree,
-        latestFocusSnapshot?.directionKey === activeTree.directionKey
-          ? (latestFocusSnapshot.node ?? {
-              id: latestFocusSnapshot.nodeId,
-              anchorRef: latestFocusSnapshot.anchorRef,
-            })
-          : null,
-      ) ?? findDefaultFocusNode(activeTree.tree))
+    ? (resolveProjectedFocusNode(activeTree.tree, latestFocusReference) ??
+      findDefaultFocusNode(activeTree.tree))
     : null;
 
   return {
-    currentDirection: activeTree
-      ? {
-          directionKey: activeTree.directionKey,
-          title: activeTree.title,
-          summary: activeTree.summary,
-          whyThisDirection: activeTree.whyThisDirection,
-        }
-      : null,
-    currentFocus: activeFocusNode
-      ? {
-          nodeId: activeFocusNode.id,
-          title: activeFocusNode.title,
-          summary: activeFocusNode.summary,
-          state: activeFocusNode.state,
-          progress: activeFocusNode.progress,
-        }
-      : latestFocusSnapshot
-        ? {
-            nodeId: latestFocusSnapshot.nodeId,
-            title: latestFocusSnapshot.title,
-            summary: latestFocusSnapshot.summary,
-            state: latestFocusSnapshot.state,
-            progress: latestFocusSnapshot.progress,
-          }
-        : null,
+    currentDirection: buildCurrentDirection(activeTree),
+    currentFocus: buildCurrentFocus({
+      activeFocusNode,
+      latestFocusSnapshot,
+    }),
     insights: insightRows.map((insight) => ({
       kind: insight.kind,
       title: insight.title,

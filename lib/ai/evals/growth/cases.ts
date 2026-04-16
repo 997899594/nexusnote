@@ -8,7 +8,7 @@ export const growthEvalSuite = createEvalSuite({
       id: "growth-compose-strong-signal-frontend",
       title: "强信号用户应生成多棵有区分度的职业树",
       domain: "growth",
-      promptVersion: "growth-compose@v1",
+      promptVersion: "growth-compose@v4",
       input: {
         graph: {
           nodes: [
@@ -72,6 +72,19 @@ export const growthEvalSuite = createEvalSuite({
         preference: {
           selectedDirectionKey: "frontend-engineer",
           preferenceVersion: 3,
+          selectionCount: 5,
+          directionSignals: [
+            {
+              directionKey: "frontend-engineer",
+              selectionCount: 4,
+              latestSelectedAt: "2026-04-15T10:00:00.000Z",
+            },
+            {
+              directionKey: "fullstack-web",
+              selectionCount: 1,
+              latestSelectedAt: "2026-04-10T10:00:00.000Z",
+            },
+          ],
         },
         previousSummary: {
           trees: [
@@ -103,7 +116,7 @@ export const growthEvalSuite = createEvalSuite({
       id: "growth-compose-weak-signal-conservative",
       title: "弱信号用户应保守生成少量高置信方向",
       domain: "growth",
-      promptVersion: "growth-compose@v1",
+      promptVersion: "growth-compose@v4",
       input: {
         graph: {
           nodes: [

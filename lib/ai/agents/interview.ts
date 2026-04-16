@@ -7,6 +7,7 @@ import {
 import { createToolContext } from "@/lib/ai/core/tool-context";
 import type { InterviewOutline } from "@/lib/ai/interview";
 import { buildInterviewAgentInstructionsWithHint } from "@/lib/ai/interview/prompts";
+import { extractUIMessageText } from "@/lib/ai/message-text";
 import { createInterviewTools } from "@/lib/ai/tools/interview";
 import type { GrowthGenerationContext } from "@/lib/growth/generation-context-format";
 
@@ -44,13 +45,12 @@ function shouldPreferOutlinePreview(latestUserMessage?: string) {
 
 export function createInterviewAgent(options: InterviewAgentOptions) {
   const startedAt = Date.now();
-  const latestUserMessage = [...(options.messages ?? [])]
+  const latestUserTurn = [...(options.messages ?? [])]
     .reverse()
-    .find((message) => message.role === "user")
-    ?.parts.filter((part) => part.type === "text")
-    .map((part) => part.text)
-    .join("")
-    .trim();
+    .find((message) => message.role === "user");
+  const latestUserMessage = latestUserTurn
+    ? extractUIMessageText(latestUserTurn, { separator: "" })
+    : undefined;
   const preferOutlinePreview =
     !options.currentOutline && shouldPreferOutlinePreview(latestUserMessage);
 

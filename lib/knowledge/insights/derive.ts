@@ -16,6 +16,9 @@ export interface InsightDerivationSkillNode {
   progress: number;
   state: string;
   evidenceScore: number;
+  evidenceIds: string[];
+  sourceTypes: string[];
+  evidenceKinds: string[];
 }
 
 export interface InsightDerivationRecentEvent {
@@ -26,11 +29,12 @@ export interface InsightDerivationRecentEvent {
 
 export interface InsightDerivationFocusSnapshot {
   directionKey: string | null;
-  nodeId: string | null;
+  anchorRef: string | null;
   title: string;
   summary: string;
   progress: number;
   state: string;
+  evidenceIds: string[];
 }
 
 export interface DerivedKnowledgeInsight {
@@ -65,6 +69,19 @@ function clampConfidence(value: number, fallback = 0.5): number {
   }
 
   return Math.round(Math.min(1, Math.max(0, value)) * 1000) / 1000;
+}
+
+function uniqueValues(values: string[], limit = values.length): string[] {
+  return [...new Set(values)].slice(0, limit);
+}
+
+function normalizeSkillNodeFields(node: InsightDerivationSkillNode): InsightDerivationSkillNode {
+  return {
+    ...node,
+    evidenceIds: node.evidenceIds ?? [],
+    sourceTypes: node.sourceTypes ?? [],
+    evidenceKinds: node.evidenceKinds ?? [],
+  };
 }
 
 function normalizeLabel(value: string): string {
@@ -130,7 +147,7 @@ function normalizeEvidenceRows(rows: InsightDerivationEvidenceRow[]) {
 }
 
 function normalizeSkillNodes(nodes: InsightDerivationSkillNode[]) {
-  return [...nodes].sort((left, right) => {
+  return nodes.map(normalizeSkillNodeFields).sort((left, right) => {
     if (right.progress !== left.progress) {
       return right.progress - left.progress;
     }
@@ -146,6 +163,26 @@ function normalizeSkillNodes(nodes: InsightDerivationSkillNode[]) {
 
     return compareText(left.id, right.id);
   });
+}
+
+function rankEvidenceRowsByConfidence(evidenceRows: InsightDerivationEvidenceRow[]) {
+  return [...evidenceRows]
+    .map((row) => ({
+      ...row,
+      confidence: Number(row.confidence),
+    }))
+    .sort((left, right) => {
+      if (right.confidence !== left.confidence) {
+        return right.confidence - left.confidence;
+      }
+
+      const labelCompare = compareText(left.title, right.title);
+      if (labelCompare !== 0) {
+        return labelCompare;
+      }
+
+      return compareText(left.id, right.id);
+    });
 }
 
 function normalizeRecentEvents(events: InsightDerivationRecentEvent[]) {
@@ -233,7 +270,7 @@ function buildStrengthInsights(
   skillNodes: InsightDerivationSkillNode[],
 ): DerivedKnowledgeInsight[] {
   return normalizeSkillNodes(skillNodes)
-    .filter((node) => node.progress >= 70)
+    .filter((node) => node.progress >= 70 && node.evidenceIds.length > 0)
     .slice(0, 2)
     .map((node) => ({
       kind: "strength",
@@ -243,12 +280,15 @@ function buildStrengthInsights(
           ? "这条能力分支已经形成稳定掌握。"
           : "这条能力分支正在持续稳定生长。",
       confidence: clampConfidence(Math.max(node.progress, 70) / 100, 0.7),
-      evidenceIds: [],
+      evidenceIds: uniqueValues(node.evidenceIds, 6),
       metadata: {
         nodeId: node.id,
         progress: node.progress,
         state: node.state,
         evidenceScore: node.evidenceScore,
+        evidenceIds: uniqueValues(node.evidenceIds, 6),
+        sourceTypes: node.sourceTypes,
+        evidenceKinds: node.evidenceKinds,
       },
     }));
 }
@@ -256,7 +296,10 @@ function buildStrengthInsights(
 function buildGapInsights(skillNodes: InsightDerivationSkillNode[]): DerivedKnowledgeInsight[] {
   return normalizeSkillNodes(skillNodes)
     .filter(
-      (node) => (node.state === "ready" || node.state === "locked") && node.evidenceScore >= 20,
+      (node) =>
+        (node.state === "ready" || node.state === "locked") &&
+        node.evidenceScore >= 20 &&
+        node.evidenceIds.length > 0,
     )
     .sort((left, right) => {
       if (right.evidenceScore !== left.evidenceScore) {
@@ -274,17 +317,21 @@ function buildGapInsights(skillNodes: InsightDerivationSkillNode[]): DerivedKnow
           ? "这条能力分支已有明显信号，但前置能力还没完全打开。"
           : "这条能力分支已经有基础证据，值得优先推进。",
       confidence: clampConfidence(Math.max(node.evidenceScore, 35) / 100, 0.55),
-      evidenceIds: [],
+      evidenceIds: uniqueValues(node.evidenceIds, 6),
       metadata: {
         nodeId: node.id,
         progress: node.progress,
         state: node.state,
         evidenceScore: node.evidenceScore,
+        evidenceIds: uniqueValues(node.evidenceIds, 6),
+        sourceTypes: node.sourceTypes,
+        evidenceKinds: node.evidenceKinds,
       },
     }));
 }
 
 function buildTrajectoryInsight(
+  evidenceRows: InsightDerivationEvidenceRow[],
   recentEvents: InsightDerivationRecentEvent[],
 ): DerivedKnowledgeInsight[] {
   if (recentEvents.length === 0) {
@@ -310,6 +357,13 @@ function buildTrajectoryInsight(
     .slice(0, 3)
     .map(([sourceType, count]) => `${describeSourceType(sourceType)} ${count} 条`)
     .join("、");
+  const dominantSourceTypes = rankedSources.slice(0, 2).map(([sourceType]) => sourceType);
+  const evidenceIds = uniqueValues(
+    rankEvidenceRowsByConfidence(evidenceRows)
+      .filter((row) => dominantSourceTypes.includes(row.sourceType))
+      .map((row) => row.id),
+    6,
+  );
 
   return [
     {
@@ -317,11 +371,13 @@ function buildTrajectoryInsight(
       title: buildTrajectoryTitle(rankedSources),
       summary: `最近的知识输入主要来自${sourceSummary}，系统会据此重排当前成长判断。`,
       confidence: clampConfidence(0.55 + recentEvents.length * 0.03, 0.65),
-      evidenceIds: [],
+      evidenceIds,
       metadata: {
         recentEventIds: normalizeRecentEvents(recentEvents).map((event) => event.id),
         sourceBreakdown: Object.fromEntries(rankedSources),
         eventKinds: [...eventKinds].sort(compareText),
+        evidenceIds,
+        sourceTypes: dominantSourceTypes,
       },
     },
   ];
@@ -329,23 +385,40 @@ function buildTrajectoryInsight(
 
 function buildRecommendationInsight(
   focusSnapshot: InsightDerivationFocusSnapshot | null,
+  skillNodes: InsightDerivationSkillNode[],
 ): DerivedKnowledgeInsight[] {
   if (!focusSnapshot) {
     return [];
   }
 
+  const normalizedFocus = normalizeFocusSnapshot(focusSnapshot);
+  if (!normalizedFocus) {
+    return [];
+  }
+
+  const matchedNode = normalizedFocus.anchorRef
+    ? skillNodes.find((node) => node.id === normalizedFocus.anchorRef)
+    : null;
+  const evidenceIds = uniqueValues(
+    [...normalizedFocus.evidenceIds, ...(matchedNode?.evidenceIds ?? [])],
+    6,
+  );
+
   return [
     {
       kind: "recommendation_reason",
-      title: focusSnapshot.title,
-      summary: focusSnapshot.summary || "这是系统当前最建议优先推进的能力焦点。",
-      confidence: clampConfidence(Math.max(focusSnapshot.progress, 45) / 100, 0.72),
-      evidenceIds: [],
+      title: normalizedFocus.title,
+      summary: normalizedFocus.summary || "这是系统当前最建议优先推进的能力焦点。",
+      confidence: clampConfidence(Math.max(normalizedFocus.progress, 45) / 100, 0.72),
+      evidenceIds,
       metadata: {
-        directionKey: focusSnapshot.directionKey,
-        nodeId: focusSnapshot.nodeId,
-        state: focusSnapshot.state,
-        progress: focusSnapshot.progress,
+        directionKey: normalizedFocus.directionKey,
+        ...(matchedNode?.id ? { nodeId: matchedNode.id } : {}),
+        state: normalizedFocus.state,
+        progress: normalizedFocus.progress,
+        evidenceIds,
+        sourceTypes: matchedNode?.sourceTypes ?? [],
+        evidenceKinds: matchedNode?.evidenceKinds ?? [],
       },
     },
   ];
@@ -358,9 +431,20 @@ export function deriveKnowledgeInsights(
     ...buildThemeInsights(input.evidenceRows),
     ...buildStrengthInsights(input.skillNodes),
     ...buildGapInsights(input.skillNodes),
-    ...buildTrajectoryInsight(input.recentEvents),
-    ...buildRecommendationInsight(input.focusSnapshot),
+    ...buildTrajectoryInsight(input.evidenceRows, input.recentEvents),
+    ...buildRecommendationInsight(input.focusSnapshot, input.skillNodes),
   ];
+}
+
+function normalizeFocusSnapshot(focusSnapshot: InsightDerivationFocusSnapshot | null) {
+  if (!focusSnapshot) {
+    return null;
+  }
+
+  return {
+    ...focusSnapshot,
+    evidenceIds: [...(focusSnapshot.evidenceIds ?? [])].sort(compareText),
+  };
 }
 
 export function hashKnowledgeInsightInputs(input: DeriveKnowledgeInsightsInput): string {
@@ -369,9 +453,14 @@ export function hashKnowledgeInsightInputs(input: DeriveKnowledgeInsightsInput):
       ...row,
       confidence: Number(row.confidence),
     })),
-    skillNodes: normalizeSkillNodes(input.skillNodes),
+    skillNodes: normalizeSkillNodes(input.skillNodes).map((node) => ({
+      ...node,
+      evidenceIds: [...node.evidenceIds].sort(compareText),
+      sourceTypes: [...node.sourceTypes].sort(compareText),
+      evidenceKinds: [...node.evidenceKinds].sort(compareText),
+    })),
     recentEvents: normalizeRecentEvents(input.recentEvents),
-    focusSnapshot: input.focusSnapshot,
+    focusSnapshot: normalizeFocusSnapshot(input.focusSnapshot),
   };
 
   return createHash("sha256").update(JSON.stringify(normalized)).digest("hex");

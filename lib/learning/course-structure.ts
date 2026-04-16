@@ -6,24 +6,11 @@ import type {
   NewCourseOutlineVersion,
 } from "@/db";
 import type { CourseOutline } from "@/lib/learning/course-outline";
-
-function stableStringify(value: unknown): string {
-  if (Array.isArray(value)) {
-    return `[${value.map(stableStringify).join(",")}]`;
-  }
-
-  if (value && typeof value === "object") {
-    const objectValue = value as Record<string, unknown>;
-    const keys = Object.keys(objectValue).sort();
-    return `{${keys.map((key) => `${JSON.stringify(key)}:${stableStringify(objectValue[key])}`).join(",")}}`;
-  }
-
-  return JSON.stringify(value);
-}
-
-function normalizeStringArray(values: string[] | undefined): string[] {
-  return [...new Set((values ?? []).map((value) => value.trim()).filter(Boolean))];
-}
+import {
+  buildChapterOutlineNodeKey,
+  buildSectionOutlineNodeKey,
+} from "@/lib/learning/outline-node-key";
+import { normalizeStringList, stableStringify } from "@/lib/utils/stable-data";
 
 export function computeCourseOutlineVersionHash(outline: CourseOutline): string {
   return createHash("sha256").update(stableStringify(outline)).digest("hex");
@@ -42,8 +29,8 @@ export function buildCourseOutlineVersionValues(params: {
     targetAudience: outline.targetAudience,
     difficulty: outline.difficulty,
     learningOutcome: outline.learningOutcome,
-    courseSkillIds: normalizeStringArray(outline.courseSkillIds),
-    prerequisites: normalizeStringArray(outline.prerequisites),
+    courseSkillIds: normalizeStringList(outline.courseSkillIds),
+    prerequisites: normalizeStringList(outline.prerequisites),
     isLatest: true,
     updatedAt: new Date(),
   };
@@ -57,7 +44,7 @@ export function buildCourseOutlineNodeValues(params: {
   const { courseId, outlineVersionId, outline } = params;
 
   return outline.chapters.flatMap((chapter, chapterIndex) => {
-    const chapterNodeKey = `chapter-${chapterIndex + 1}`;
+    const chapterNodeKey = buildChapterOutlineNodeKey(chapterIndex);
     const chapterNode: NewCourseOutlineNode = {
       courseId,
       outlineVersionId,
@@ -69,7 +56,7 @@ export function buildCourseOutlineNodeValues(params: {
       position: chapterIndex,
       title: chapter.title,
       description: chapter.description,
-      skillIds: normalizeStringArray(chapter.skillIds),
+      skillIds: normalizeStringList(chapter.skillIds),
       practiceType: chapter.practiceType ?? null,
       updatedAt: new Date(),
     };
@@ -78,7 +65,7 @@ export function buildCourseOutlineNodeValues(params: {
       courseId,
       outlineVersionId,
       nodeType: "section",
-      nodeKey: `section-${chapterIndex + 1}-${sectionIndex + 1}`,
+      nodeKey: buildSectionOutlineNodeKey(chapterIndex, sectionIndex),
       parentNodeKey: chapterNodeKey,
       chapterIndex,
       sectionIndex,
@@ -132,9 +119,9 @@ export function materializeCourseOutline(params: {
     title: version.title,
     description: version.description ?? "",
     targetAudience: version.targetAudience ?? "",
-    prerequisites: normalizeStringArray(version.prerequisites ?? []),
+    prerequisites: normalizeStringList(version.prerequisites ?? []),
     difficulty: version.difficulty as CourseOutline["difficulty"],
-    courseSkillIds: normalizeStringArray(version.courseSkillIds ?? []),
+    courseSkillIds: normalizeStringList(version.courseSkillIds ?? []),
     learningOutcome: version.learningOutcome ?? "",
     chapters: chapterNodes.map((chapterNode) => ({
       title: chapterNode.title,
@@ -142,7 +129,7 @@ export function materializeCourseOutline(params: {
       practiceType: (chapterNode.practiceType ?? undefined) as
         | CourseOutline["chapters"][number]["practiceType"]
         | undefined,
-      skillIds: normalizeStringArray(chapterNode.skillIds ?? []),
+      skillIds: normalizeStringList(chapterNode.skillIds ?? []),
       sections: nodes
         .filter((node) => node.nodeType === "section" && node.parentNodeKey === chapterNode.nodeKey)
         .sort(

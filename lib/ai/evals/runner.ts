@@ -10,12 +10,15 @@ import {
   getInterviewMessageText,
   type InterviewUIMessage,
 } from "@/lib/ai/interview";
+import { extractUIMessageText } from "@/lib/ai/message-text";
 import { composeGrowthTrees, treeComposerOutputSchema } from "@/lib/growth/compose";
 import { judgeEvalOutput } from "./judge";
 import type {
   ChatEvalInput,
   EvalCase,
+  EvalContractAssessment,
   EvalExecutionResult,
+  EvalQualityAssessment,
   EvalRegressionSpec,
   EvalRuleCheck,
   EvalRuntimeMetrics,
@@ -606,6 +609,17 @@ function runRuleChecks(testCase: EvalCase, output: string): EvalRuleCheck[] {
   ];
 }
 
+function buildContractAssessment(ruleChecks: EvalRuleCheck[]): EvalContractAssessment {
+  const failedRuleNames = ruleChecks.filter((check) => !check.passed).map((check) => check.name);
+  const passedRuleCount = ruleChecks.filter((check) => check.passed).length;
+
+  return {
+    score: ruleChecks.length > 0 ? passedRuleCount / ruleChecks.length : 1,
+    passed: failedRuleNames.length === 0,
+    failedRuleNames,
+  };
+}
+
 export async function runEvalCase(testCase: EvalCase): Promise<EvalExecutionResult> {
   const startedAt = Date.now();
 
@@ -664,18 +678,32 @@ export async function runEvalCase(testCase: EvalCase): Promise<EvalExecutionResu
     }
 
     const ruleChecks = runRuleChecks(testCase, generationResult.output);
+    const contract = buildContractAssessment(ruleChecks);
     const judgement =
       testCase.domain === "growth"
         ? buildGrowthDeterministicJudgement(testCase, generationResult.output, ruleChecks)
         : await judgeEvalOutput(testCase, generationResult.output);
-    const deterministicPassed = ruleChecks.every((check) => check.passed);
+    const quality: EvalQualityAssessment =
+      testCase.domain === "growth"
+        ? {
+            source: "deterministic",
+            score: judgement.score,
+            passed: judgement.score >= 0.8,
+            notes: judgement.notes,
+          }
+        : {
+            source: "ai-judge",
+            score: judgement.score,
+            passed: judgement.score >= 0.8,
+            notes: judgement.notes,
+          };
 
     return {
       caseId: testCase.id,
       title: testCase.title,
-      score: judgement.score,
-      passed: judgement.score >= 0.8 && deterministicPassed,
-      notes: judgement.notes,
+      passed: contract.passed,
+      contract,
+      quality,
       output: generationResult.output,
       ruleChecks,
       runtimeMetrics: generationResult.runtimeMetrics,
@@ -684,9 +712,18 @@ export async function runEvalCase(testCase: EvalCase): Promise<EvalExecutionResu
     return {
       caseId: testCase.id,
       title: testCase.title,
-      score: 0,
       passed: false,
-      notes: [`Eval execution failed: ${getErrorMessage(error)}`],
+      contract: {
+        score: 0,
+        passed: false,
+        failedRuleNames: ["execution-error"],
+      },
+      quality: {
+        source: "deterministic",
+        score: 0,
+        passed: false,
+        notes: [`Eval execution failed: ${getErrorMessage(error)}`],
+      },
       output: "",
       ruleChecks: [],
       runtimeMetrics: {
@@ -795,11 +832,7 @@ async function runChatEval({
       latestById.set(uiMessage.id, uiMessage);
 
       if (firstTextMs == null && uiMessage.role === "assistant") {
-        const text = uiMessage.parts
-          .filter((part) => part.type === "text")
-          .map((part) => part.text)
-          .join("")
-          .trim();
+        const text = extractUIMessageText(uiMessage, { separator: "" });
 
         if (text.length > 0) {
           firstTextMs = Date.now() - startedAt;
@@ -811,12 +844,7 @@ async function runChatEval({
     const lastAssistant = [...finalMessages]
       .reverse()
       .find((message) => message.role === "assistant");
-    const text =
-      lastAssistant?.parts
-        ?.filter((part) => part.type === "text")
-        .map((part) => part.text)
-        .join("\n")
-        .trim() ?? "";
+    const text = lastAssistant ? extractUIMessageText(lastAssistant) : "";
 
     const totalMs = Date.now() - startedAt;
 
@@ -1010,14 +1038,26 @@ export async function runEvalSuite<TInput>(
     options?.onCaseComplete?.(result);
   }
 
-  const totalScore = results.reduce((sum, result) => sum + result.score, 0);
-  const passedCount = results.filter((result) => result.passed).length;
+  const totalContractScore = results.reduce((sum, result) => sum + result.contract.score, 0);
+  const qualityScores = results
+    .map((result) => result.quality?.score ?? null)
+    .filter((score): score is number => score != null);
+  const contractPassCount = results.filter((result) => result.passed).length;
+  const qualityWarningCount = results.filter(
+    (result) => result.passed && result.quality != null && !result.quality.passed,
+  ).length;
 
   return {
     domain: suite.domain,
     version: suite.version,
-    averageScore: results.length > 0 ? totalScore / results.length : 0,
-    passedCount,
+    averageContractScore: results.length > 0 ? totalContractScore / results.length : 0,
+    averageQualityScore:
+      qualityScores.length > 0
+        ? qualityScores.reduce((sum, score) => sum + score, 0) / qualityScores.length
+        : null,
+    contractPassCount,
+    qualityWarningCount,
+    qualityCaseCount: qualityScores.length,
     totalCount: results.length,
     results,
   };

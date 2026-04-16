@@ -4,9 +4,14 @@
  * 工厂模式：绑定 userId 用于用量追踪和日志归属
  */
 
-import { tool } from "ai";
+import { generateText, Output, tool } from "ai";
 import { z } from "zod";
-import { callNestedAI } from "@/lib/ai/core/nested-ai";
+import {
+  createTelemetryContext,
+  getErrorMessage,
+  getJsonModelForPolicy,
+  recordAIUsage,
+} from "@/lib/ai/core";
 
 // ============================================
 // Schemas
@@ -31,10 +36,68 @@ const MindMapDataSchema = z.object({
 });
 
 const SummaryDataSchema = z.object({
-  mainPoints: z.array(z.string()),
-  summary: z.string(),
-  keyTakeaways: z.array(z.string()),
+  style: z.enum(["bullet_points", "paragraph", "key_takeaways"]),
+  content: z.string(),
 });
+
+interface StructuredLearningCallOptions<T> {
+  userId: string;
+  prompt: string;
+  schema: z.ZodSchema<T>;
+  timeout: number;
+  temperature?: number;
+  telemetry: {
+    intent: string;
+    promptVersion: string;
+    metadata?: Record<string, unknown>;
+  };
+}
+
+async function generateStructuredLearningOutput<T>({
+  userId,
+  prompt,
+  schema,
+  timeout,
+  temperature = 0.3,
+  telemetry,
+}: StructuredLearningCallOptions<T>): Promise<T> {
+  const startedAt = Date.now();
+  const telemetryContext = createTelemetryContext({
+    endpoint: "tools:learning-enhance",
+    userId,
+    intent: telemetry.intent,
+    promptVersion: telemetry.promptVersion,
+    modelPolicy: "interactive-fast",
+    metadata: telemetry.metadata,
+  });
+
+  try {
+    const result = await generateText({
+      model: getJsonModelForPolicy("interactive-fast"),
+      prompt,
+      temperature,
+      timeout,
+      output: Output.object({ schema }),
+    });
+
+    await recordAIUsage({
+      ...telemetryContext,
+      usage: result.usage,
+      durationMs: Date.now() - startedAt,
+      success: true,
+    });
+
+    return result.output;
+  } catch (error) {
+    await recordAIUsage({
+      ...telemetryContext,
+      durationMs: Date.now() - startedAt,
+      success: false,
+      errorMessage: getErrorMessage(error),
+    });
+    throw new Error(getErrorMessage(error));
+  }
+}
 
 // ============================================
 // Tool Factories
@@ -75,19 +138,39 @@ ${content.slice(0, 2000)}
 - 最大层级深度：${maxDepth}
 - 每个父节点最多 5 个子节点`;
 
-      const result = await callNestedAI(prompt, MindMapDataSchema, {
-        timeout: 45_000,
-      });
+      try {
+        const result = await generateStructuredLearningOutput({
+          userId,
+          prompt,
+          schema: MindMapDataSchema,
+          timeout: 45_000,
+          telemetry: {
+            intent: "learning-mind-map",
+            promptVersion: "learning-enhance:mind-map@v1",
+            metadata: {
+              topic,
+              maxDepth,
+              hasContent: Boolean(content),
+              contentLength: content?.length ?? 0,
+            },
+          },
+        });
 
-      if (!result.success) {
-        console.error("[Tool] mindMap error:", result.error, { userId });
-        return { success: false, error: result.error, mindMap: null };
+        return {
+          success: true,
+          mindMap: {
+            topic,
+            maxDepth,
+            layout: "mindmap" as const,
+            hasContent: Boolean(content),
+            nodes: result.nodes,
+          },
+        };
+      } catch (error) {
+        const errorMessage = getErrorMessage(error);
+        console.error("[Tool] mindMap error:", errorMessage, { userId });
+        return { success: false, error: errorMessage, mindMap: null };
       }
-
-      return {
-        success: true,
-        mindMap: { topic, maxDepth, nodes: result.data!.nodes },
-      };
     },
   });
 
@@ -116,22 +199,39 @@ ${content.slice(0, 4000)}
 
 要求：
 - 摘要长度：${lengthGuide[length]}
-- 提取 3-5 个主要要点
-- 提取 2-3 个关键收获`;
+- 返回适合直接展示的摘要正文
+- style 只能是 bullet_points、paragraph、key_takeaways 之一`;
 
-      const result = await callNestedAI(prompt, SummaryDataSchema, {
-        timeout: 20_000,
-      });
+      try {
+        const result = await generateStructuredLearningOutput({
+          userId,
+          prompt,
+          schema: SummaryDataSchema,
+          timeout: 20_000,
+          telemetry: {
+            intent: "learning-summarize",
+            promptVersion: "learning-enhance:summarize@v1",
+            metadata: {
+              length,
+              contentLength: content.length,
+            },
+          },
+        });
 
-      if (!result.success) {
-        console.error("[Tool] summarize error:", result.error, { userId });
-        return { success: false, error: result.error, summary: null };
+        return {
+          success: true,
+          summary: {
+            sourceLength: content.length,
+            length,
+            style: result.style,
+            content: result.content,
+          },
+        };
+      } catch (error) {
+        const errorMessage = getErrorMessage(error);
+        console.error("[Tool] summarize error:", errorMessage, { userId });
+        return { success: false, error: errorMessage, summary: null };
       }
-
-      return {
-        success: true,
-        summary: { sourceLength: content.length, length, ...result.data! },
-      };
     },
   });
 

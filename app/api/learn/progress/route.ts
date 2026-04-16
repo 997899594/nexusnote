@@ -16,6 +16,7 @@ import { enqueueGrowthRefresh } from "@/lib/growth/queue";
 import { ingestEvidenceEvent } from "@/lib/knowledge/events";
 import { aggregateCourseEventsToKnowledgeEvidence } from "@/lib/knowledge/evidence";
 import { getOwnedCourseWithOutline } from "@/lib/learning/course-repository";
+import { buildSectionOutlineNodeKey } from "@/lib/learning/outline-node-key";
 
 const RequestSchema = z.object({
   courseId: z.string().uuid(),
@@ -30,33 +31,83 @@ interface CourseProgress {
   completedAt: Date | null;
 }
 
+interface PersistedCourseProgressRecord extends CourseProgress {
+  id?: string;
+}
+
+async function getOwnedCourseOrThrow(userId: string, courseId: string) {
+  const course = await getOwnedCourseWithOutline(courseId, userId);
+  if (!course) {
+    throw new APIError("课程不存在", 404, "NOT_FOUND");
+  }
+
+  return course;
+}
+
+async function getPersistedCourseProgress(
+  courseId: string,
+): Promise<PersistedCourseProgressRecord | null> {
+  const [progressRecord] = await db
+    .select({
+      id: courseProgress.id,
+      currentChapter: courseProgress.currentChapter,
+      completedChapters: courseProgress.completedChapters,
+      completedSections: courseProgress.completedSections,
+      startedAt: courseProgress.startedAt,
+      completedAt: courseProgress.completedAt,
+    })
+    .from(courseProgress)
+    .where(eq(courseProgress.courseId, courseId))
+    .limit(1);
+
+  return progressRecord ?? null;
+}
+
+async function persistCourseProgress(params: {
+  courseId: string;
+  userId: string;
+  progress: CourseProgress;
+  existingRecordId?: string;
+}): Promise<void> {
+  const values = {
+    ...params.progress,
+    updatedAt: new Date(),
+  };
+
+  if (params.existingRecordId) {
+    await db
+      .update(courseProgress)
+      .set(values)
+      .where(eq(courseProgress.id, params.existingRecordId));
+    return;
+  }
+
+  await db.insert(courseProgress).values({
+    courseId: params.courseId,
+    userId: params.userId,
+    ...values,
+  });
+}
+
+function revalidateCourseProgressViews(userId: string, courseId: string): void {
+  revalidateRecentCourses(userId);
+  revalidateLearnPage(userId, courseId);
+  revalidateCareerTrees(userId);
+}
+
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
-    if (!session?.user?.id) {
+    const userId = session?.user?.id;
+    if (!userId) {
       throw new APIError("未登录", 401, "UNAUTHORIZED");
     }
 
     const body = await request.json();
     const { courseId, sectionNodeId } = RequestSchema.parse(body);
 
-    const course = await getOwnedCourseWithOutline(courseId, session.user.id);
-    if (!course) {
-      throw new APIError("课程不存在", 404, "NOT_FOUND");
-    }
-
-    const [progressRecord] = await db
-      .select({
-        id: courseProgress.id,
-        currentChapter: courseProgress.currentChapter,
-        completedChapters: courseProgress.completedChapters,
-        completedSections: courseProgress.completedSections,
-        startedAt: courseProgress.startedAt,
-        completedAt: courseProgress.completedAt,
-      })
-      .from(courseProgress)
-      .where(eq(courseProgress.courseId, courseId))
-      .limit(1);
+    const course = await getOwnedCourseOrThrow(userId, courseId);
+    const progressRecord = await getPersistedCourseProgress(courseId);
 
     const existing: Partial<CourseProgress> = progressRecord ?? {};
     const completedSections = existing.completedSections ?? [];
@@ -77,7 +128,7 @@ export async function POST(request: NextRequest) {
 
       const chapterSections = chapters[chIdx].sections ?? [];
       const allDone = chapterSections.every((_, secIdx) => {
-        const nodeId = `section-${chIdx + 1}-${secIdx + 1}`;
+        const nodeId = buildSectionOutlineNodeKey(chIdx, secIdx);
         return completedSections.includes(nodeId);
       });
 
@@ -100,19 +151,12 @@ export async function POST(request: NextRequest) {
       completedAt,
     };
 
-    if (progressRecord) {
-      await db
-        .update(courseProgress)
-        .set({ ...updatedProgress, updatedAt: new Date() })
-        .where(eq(courseProgress.courseId, courseId));
-    } else {
-      await db.insert(courseProgress).values({
-        courseId,
-        userId: session.user.id,
-        ...updatedProgress,
-        updatedAt: new Date(),
-      });
-    }
+    await persistCourseProgress({
+      courseId,
+      userId,
+      progress: updatedProgress,
+      existingRecordId: progressRecord?.id,
+    });
 
     const normalizedOutline = normalizeGrowthOutline(course.outline);
     const outlineHash = computeGrowthOutlineHash(normalizedOutline);
@@ -127,7 +171,7 @@ export async function POST(request: NextRequest) {
 
     await ingestEvidenceEvent({
       id: crypto.randomUUID(),
-      userId: session.user.id,
+      userId,
       kind: "course_progress",
       sourceType: "course",
       sourceId: courseId,
@@ -164,21 +208,19 @@ export async function POST(request: NextRequest) {
     });
 
     await aggregateCourseEventsToKnowledgeEvidence({
-      userId: session.user.id,
+      userId,
       courseId,
       sourceVersionHash: outlineHash,
     });
 
     await enqueueGrowthRefresh(
-      session.user.id,
+      userId,
       courseId,
       undefined,
       `course-progress:${courseId}:${completedSections.length}:${completedChapters.length}:${sectionNodeId}`,
     );
 
-    revalidateRecentCourses(session.user.id);
-    revalidateLearnPage(session.user.id, courseId);
-    revalidateCareerTrees(session.user.id);
+    revalidateCourseProgressViews(userId, courseId);
 
     return NextResponse.json({
       ok: true,
@@ -200,29 +242,16 @@ const ChapterSchema = z.object({
 export async function PATCH(request: NextRequest) {
   try {
     const session = await auth();
-    if (!session?.user?.id) {
+    const userId = session?.user?.id;
+    if (!userId) {
       throw new APIError("未登录", 401, "UNAUTHORIZED");
     }
 
     const body = await request.json();
     const { courseId, currentChapter } = ChapterSchema.parse(body);
 
-    const course = await getOwnedCourseWithOutline(courseId, session.user.id);
-    if (!course) {
-      throw new APIError("课程不存在", 404, "NOT_FOUND");
-    }
-
-    const [progressRecord] = await db
-      .select({
-        currentChapter: courseProgress.currentChapter,
-        completedChapters: courseProgress.completedChapters,
-        completedSections: courseProgress.completedSections,
-        startedAt: courseProgress.startedAt,
-        completedAt: courseProgress.completedAt,
-      })
-      .from(courseProgress)
-      .where(eq(courseProgress.courseId, courseId))
-      .limit(1);
+    await getOwnedCourseOrThrow(userId, courseId);
+    const progressRecord = await getPersistedCourseProgress(courseId);
 
     const existing: Partial<CourseProgress> = progressRecord ?? {};
     const updatedProgress: CourseProgress = {
@@ -233,23 +262,14 @@ export async function PATCH(request: NextRequest) {
       completedAt: existing.completedAt ?? null,
     };
 
-    if (progressRecord) {
-      await db
-        .update(courseProgress)
-        .set({ ...updatedProgress, updatedAt: new Date() })
-        .where(eq(courseProgress.courseId, courseId));
-    } else {
-      await db.insert(courseProgress).values({
-        courseId,
-        userId: session.user.id,
-        ...updatedProgress,
-        updatedAt: new Date(),
-      });
-    }
+    await persistCourseProgress({
+      courseId,
+      userId,
+      progress: updatedProgress,
+      existingRecordId: progressRecord?.id,
+    });
 
-    revalidateRecentCourses(session.user.id);
-    revalidateLearnPage(session.user.id, courseId);
-    revalidateCareerTrees(session.user.id);
+    revalidateCourseProgressViews(userId, courseId);
 
     return NextResponse.json({ ok: true });
   } catch (error) {

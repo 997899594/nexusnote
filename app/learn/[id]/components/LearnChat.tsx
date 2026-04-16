@@ -8,6 +8,7 @@ import { ChatMessage, LoadingDots } from "@/components/chat/ChatMessage";
 import { useChatSession } from "@/components/chat/useChatSession";
 import { AIDegradationBanner, WorkspaceEmptyState } from "@/components/common";
 import { useToast } from "@/components/ui/Toast";
+import { extractUIMessageText } from "@/lib/ai/message-text";
 import { isUnauthorizedError, parseApiError, redirectToLogin } from "@/lib/api/client";
 import type { GrowthFocusSummary, GrowthInsightSummary } from "@/lib/growth/projection-types";
 import { buildLearnQuickPrompts } from "@/lib/learning/alignment";
@@ -66,13 +67,7 @@ export function LearnChat({
   const isLoading = status === "submitted" || status === "streaming" || isResolvingSession;
   const chatMessages = messages.filter((m: UIMessage) => m.role !== "system");
 
-  const getMessageText = useCallback((message: UIMessage) => {
-    return message.parts
-      .filter((part) => part.type === "text")
-      .map((part) => part.text)
-      .join("\n")
-      .trim();
-  }, []);
+  const getMessageText = useCallback((message: UIMessage) => extractUIMessageText(message), []);
 
   // Auto-scroll
   useEffect(() => {

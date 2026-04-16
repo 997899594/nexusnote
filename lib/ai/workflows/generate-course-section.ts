@@ -11,6 +11,7 @@ import { getUserGrowthContext } from "@/lib/growth/generation-context";
 import { buildLearningAlignmentBrief } from "@/lib/learning/alignment";
 import { getOwnedCourseWithOutline } from "@/lib/learning/course-repository";
 import { createLearnTrace } from "@/lib/learning/observability";
+import { buildSectionOutlineNodeKey } from "@/lib/learning/outline-node-key";
 import { ragQueue } from "@/lib/queue/rag-queue";
 
 interface GenerateCourseSectionWorkflowOptions {
@@ -84,7 +85,7 @@ export async function runGenerateCourseSectionWorkflow({
     throw new APIError("小节不存在", 404, "SECTION_NOT_FOUND");
   }
 
-  const outlineNodeId = `section-${chapterIndex + 1}-${sectionIndex + 1}`;
+  const outlineNodeId = buildSectionOutlineNodeKey(chapterIndex, sectionIndex);
   const [existingSection] = await db
     .select({ id: courseSections.id, content: courseSections.contentMarkdown })
     .from(courseSections)

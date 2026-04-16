@@ -110,6 +110,19 @@ async function ProfilePageContent() {
   const overview = await getUserProfileOverviewCached(session.user.id);
   const primaryActivity = overview.recentActivity[0] ?? null;
   const secondaryActivities = overview.recentActivity.slice(1, 4);
+  const primaryLearningEntry = primaryActivity
+    ? {
+        title: primaryActivity.title,
+        description: `上次更新于 ${formatActivityTime(primaryActivity.updatedAt)}。从这里继续，不需要先翻整页记录。`,
+        href: `/chat/${primaryActivity.id}`,
+        cta: "继续这次对话",
+      }
+    : {
+        title: "还没有可继续的学习记录",
+        description: "从一次课程访谈开始，生成第一门课后，这里就会成为你的学习起点。",
+        href: "/interview",
+        cta: "开始课程访谈",
+      };
 
   return (
     <WorkspacePageShell
@@ -177,44 +190,21 @@ async function ProfilePageContent() {
                 <Brain className="h-4 w-4" />
                 继续学习
               </div>
-              {primaryActivity ? (
-                <>
-                  <h2 className="mt-3 text-xl font-semibold text-[var(--color-text)] md:text-2xl">
-                    {primaryActivity.title}
-                  </h2>
-                  <p className="mt-2 text-sm leading-7 text-[var(--color-text-tertiary)]">
-                    上次更新于 {formatActivityTime(primaryActivity.updatedAt)}
-                    。从这里继续，不需要先翻整页记录。
-                  </p>
-                  <div className="mt-4">
-                    <Link
-                      href={`/chat/${primaryActivity.id}`}
-                      className="inline-flex items-center gap-2 rounded-full bg-[#111827] px-4 py-2 text-sm font-medium text-white transition-transform hover:-translate-y-0.5"
-                    >
-                      继续这次对话
-                      <ArrowRight className="h-4 w-4" />
-                    </Link>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <h2 className="mt-3 text-xl font-semibold text-[var(--color-text)] md:text-2xl">
-                    还没有可继续的学习记录
-                  </h2>
-                  <p className="mt-2 text-sm leading-7 text-[var(--color-text-tertiary)]">
-                    从一次课程访谈开始，生成第一门课后，这里就会成为你的学习起点。
-                  </p>
-                  <div className="mt-4">
-                    <Link
-                      href="/interview"
-                      className="inline-flex items-center gap-2 rounded-full bg-[#111827] px-4 py-2 text-sm font-medium text-white transition-transform hover:-translate-y-0.5"
-                    >
-                      开始课程访谈
-                      <ArrowRight className="h-4 w-4" />
-                    </Link>
-                  </div>
-                </>
-              )}
+              <h2 className="mt-3 text-xl font-semibold text-[var(--color-text)] md:text-2xl">
+                {primaryLearningEntry.title}
+              </h2>
+              <p className="mt-2 text-sm leading-7 text-[var(--color-text-tertiary)]">
+                {primaryLearningEntry.description}
+              </p>
+              <div className="mt-4">
+                <Link
+                  href={primaryLearningEntry.href}
+                  className="inline-flex items-center gap-2 rounded-full bg-[#111827] px-4 py-2 text-sm font-medium text-white transition-transform hover:-translate-y-0.5"
+                >
+                  {primaryLearningEntry.cta}
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
             </div>
           </div>
 

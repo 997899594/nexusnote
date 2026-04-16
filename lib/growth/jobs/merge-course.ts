@@ -46,7 +46,7 @@ export async function processGrowthMergeJob(
     idempotencyKey: `merge:user:${job.userId}:course:${job.courseId}:extract_run:${extractRun.id}`,
     inputHash: extractRun.inputHash,
     model: GROWTH_AI_MODEL_LABEL,
-    promptVersion: "growth-merge@v1",
+    promptVersion: "growth-merge@v2",
     reuseCompleted: true,
   });
 
@@ -118,7 +118,10 @@ export async function processGrowthMergeJob(
       plannerResourceId: job.courseId,
       evidenceRows,
       evidenceRefs,
-      priorSummary: priorCourseLinks,
+      priorSummary: {
+        kind: "course",
+        links: priorCourseLinks,
+      },
     });
 
     await db.transaction(async (tx) => {

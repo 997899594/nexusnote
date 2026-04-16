@@ -1,4 +1,4 @@
-import type { ComposerVisibleNode } from "@/lib/growth/compose";
+import type { ComposerVisibleNode } from "@/lib/growth/compose-shared";
 import {
   CAREER_PROJECTION_SCHEMA_VERSION,
   CAREER_TREE_SCHEMA_VERSION,
@@ -10,11 +10,8 @@ import type {
   GrowthNodeState,
   VisibleSkillTreeNode,
 } from "@/lib/growth/types";
-import {
-  countVisibleTreeMetrics,
-  findDefaultFocusNode,
-  getCurrentGrowthTree,
-} from "@/lib/growth/view-model";
+import { countVisibleTreeMetrics, getCurrentGrowthTree } from "@/lib/growth/view-model";
+import { selectFocusTargetFromSnapshot } from "@/lib/knowledge/focus";
 
 export interface ProjectionHiddenNode {
   id: string;
@@ -24,15 +21,20 @@ export interface ProjectionHiddenNode {
 
 export interface ProjectionEvidenceRow {
   nodeId: string;
+  evidenceId: string;
+  sourceType: string;
   sourceId: string | null;
-  courseTitle: string | null;
+  sourceCourseTitle: string | null;
   refType: string | null;
   refId: string | null;
+  refSnippet: string | null;
+  refCourseTitle: string | null;
 }
 
 export interface ResolvedComposerTree {
   directionKey: string;
   keySeed?: string;
+  matchPreviousDirectionKey?: string;
   title: string;
   summary: string;
   confidence: number;
@@ -46,6 +48,8 @@ export interface GrowthProjectionArtifacts {
   recommendedDirectionKey: string | null;
   focusTree: CandidateCareerTree | null;
   focusNode: VisibleSkillTreeNode | null;
+  focusSummary: string | null;
+  focusScore: number | null;
   focusPayload: FocusSnapshotPayload;
   profilePayload: ProfileSnapshotPayload;
 }
@@ -97,6 +101,7 @@ export function materializeTreeNodes(
       state: string;
     }
   >,
+  nodeEvidenceMap: Map<string, string[]>,
   pathPrefix = "0",
 ): VisibleSkillTreeNode[] {
   return nodes.map((node, index) => {
@@ -109,8 +114,14 @@ export function materializeTreeNodes(
       summary: node.summary,
       progress: hiddenNode?.progress ?? 0,
       state: (hiddenNode?.state as GrowthNodeState) ?? "ready",
-      children: materializeTreeNodes(directionKey, node.children, nodeMap, pathIndex),
-      evidenceRefs: undefined,
+      children: materializeTreeNodes(
+        directionKey,
+        node.children,
+        nodeMap,
+        nodeEvidenceMap,
+        pathIndex,
+      ),
+      evidenceRefs: nodeEvidenceMap.get(node.anchorRef) ?? undefined,
     };
   });
 }
@@ -118,6 +129,118 @@ export function materializeTreeNodes(
 export function parseChapterIndexFromKey(chapterKey: string): number {
   const match = /^chapter-(\d+)$/.exec(chapterKey);
   return match ? Number(match[1]) : 0;
+}
+
+interface ResolvedSupportingCourse {
+  courseId: string;
+  title: string;
+}
+
+interface ResolvedSupportingChapter {
+  courseId: string;
+  chapterKey: string;
+  chapterIndex: number;
+  title: string;
+}
+
+function buildNodeEvidenceMap(rows: ProjectionEvidenceRow[]): Map<string, string[]> {
+  const nodeEvidenceMap = new Map<string, string[]>();
+
+  for (const row of rows) {
+    const existing = nodeEvidenceMap.get(row.nodeId) ?? [];
+    if (existing.includes(row.evidenceId)) {
+      continue;
+    }
+
+    existing.push(row.evidenceId);
+    nodeEvidenceMap.set(row.nodeId, existing);
+  }
+
+  return nodeEvidenceMap;
+}
+
+function buildSupportingCourseByEvidenceId(
+  rows: ProjectionEvidenceRow[],
+): Map<string, ResolvedSupportingCourse> {
+  const courseByEvidenceId = new Map<string, ResolvedSupportingCourse>();
+
+  for (const row of rows) {
+    const directCourseId = row.sourceType === "course" ? row.sourceId : null;
+    const directTitle = row.sourceCourseTitle;
+    const refCourseId = row.refType === "course" ? row.refId : null;
+    const refTitle = row.refCourseTitle ?? row.refSnippet;
+    const courseId = directCourseId ?? refCourseId;
+
+    if (!courseId) {
+      continue;
+    }
+
+    const existing = courseByEvidenceId.get(row.evidenceId);
+    const resolvedTitle =
+      directTitle ?? refTitle ?? existing?.title ?? row.sourceCourseTitle ?? "未命名课程";
+
+    courseByEvidenceId.set(row.evidenceId, {
+      courseId,
+      title: resolvedTitle,
+    });
+  }
+
+  return courseByEvidenceId;
+}
+
+function buildSupportingCourses(
+  coursesByEvidenceId: Map<string, ResolvedSupportingCourse>,
+): ResolvedSupportingCourse[] {
+  return [
+    ...new Map(
+      [...coursesByEvidenceId.values()].map((course) => [course.courseId, course]),
+    ).values(),
+  ];
+}
+
+function buildSupportingChapters(params: {
+  rows: ProjectionEvidenceRow[];
+  coursesByEvidenceId: Map<string, ResolvedSupportingCourse>;
+}): ResolvedSupportingChapter[] {
+  const supportingChapterMap = new Map<string, ResolvedSupportingChapter>();
+
+  for (const row of params.rows) {
+    if (row.refType !== "chapter" || !row.refId) {
+      continue;
+    }
+
+    const supportingCourse = params.coursesByEvidenceId.get(row.evidenceId);
+    if (!supportingCourse) {
+      continue;
+    }
+
+    const chapterKey = row.refId;
+    supportingChapterMap.set(`${supportingCourse.courseId}:${chapterKey}`, {
+      courseId: supportingCourse.courseId,
+      chapterKey,
+      chapterIndex: parseChapterIndexFromKey(chapterKey),
+      title: row.refSnippet ?? chapterKey,
+    });
+  }
+
+  return [...supportingChapterMap.values()];
+}
+
+function resolveRecommendedDirectionKey(params: {
+  resolvedTrees: ResolvedComposerTree[];
+  recommendedDirectionHint?: string | null;
+  snapshotTrees: CandidateCareerTree[];
+}): string | null {
+  return (
+    params.resolvedTrees.find(
+      (tree) =>
+        tree.keySeed === params.recommendedDirectionHint ||
+        tree.matchPreviousDirectionKey === params.recommendedDirectionHint ||
+        tree.directionKey === params.recommendedDirectionHint,
+    )?.directionKey ??
+    params.snapshotTrees[0]?.directionKey ??
+    null
+  );
 }
 
 export function buildGrowthSnapshotArtifacts(params: {
@@ -129,38 +252,17 @@ export function buildGrowthSnapshotArtifacts(params: {
   generatedAt?: string;
 }): Pick<GrowthProjectionArtifacts, "snapshot" | "recommendedDirectionKey"> {
   const nodeMap = new Map(params.hiddenNodes.map((node) => [node.id, node]));
+  const nodeEvidenceMap = buildNodeEvidenceMap(params.supportingRows);
   const snapshotTrees: CandidateCareerTree[] = params.resolvedTrees.map((tree) => {
     const supportingRows = params.supportingRows.filter((row) =>
       tree.supportingNodeRefs.includes(row.nodeId),
     );
-    const supportingCourses = [
-      ...new Map(
-        supportingRows
-          .filter((row) => row.sourceId)
-          .map((row) => [
-            row.sourceId,
-            {
-              courseId: row.sourceId as string,
-              title: row.courseTitle ?? "未命名课程",
-            },
-          ]),
-      ).values(),
-    ];
-    const supportingChapters = [
-      ...new Map(
-        supportingRows
-          .filter((row) => row.refType === "chapter" && row.sourceId && row.refId)
-          .map((row) => [
-            `${row.sourceId}:${row.refId}`,
-            {
-              courseId: row.sourceId as string,
-              chapterKey: row.refId as string,
-              chapterIndex: parseChapterIndexFromKey(row.refId as string),
-              title: row.refId as string,
-            },
-          ]),
-      ).values(),
-    ];
+    const supportingCoursesByEvidenceId = buildSupportingCourseByEvidenceId(supportingRows);
+    const supportingCourses = buildSupportingCourses(supportingCoursesByEvidenceId);
+    const supportingChapters = buildSupportingChapters({
+      rows: supportingRows,
+      coursesByEvidenceId: supportingCoursesByEvidenceId,
+    });
 
     return {
       directionKey: tree.directionKey,
@@ -170,18 +272,15 @@ export function buildGrowthSnapshotArtifacts(params: {
       whyThisDirection: tree.whyThisDirection,
       supportingCourses,
       supportingChapters,
-      tree: materializeTreeNodes(tree.directionKey, tree.tree, nodeMap),
+      tree: materializeTreeNodes(tree.directionKey, tree.tree, nodeMap, nodeEvidenceMap),
     };
   });
 
-  const recommendedDirectionKey =
-    params.resolvedTrees.find(
-      (tree) =>
-        tree.keySeed === params.recommendedDirectionHint ||
-        tree.directionKey === params.recommendedDirectionHint,
-    )?.directionKey ??
-    snapshotTrees[0]?.directionKey ??
-    null;
+  const recommendedDirectionKey = resolveRecommendedDirectionKey({
+    resolvedTrees: params.resolvedTrees,
+    recommendedDirectionHint: params.recommendedDirectionHint,
+    snapshotTrees,
+  });
 
   const generatedAt = params.generatedAt ?? new Date().toISOString();
 
@@ -201,19 +300,24 @@ export function buildGrowthSnapshotArtifacts(params: {
 export function buildGrowthViewProjectionArtifacts(
   snapshot: CareerTreeSnapshot,
 ): Omit<GrowthProjectionArtifacts, "snapshot"> {
-  const focusTree = getCurrentGrowthTree(snapshot);
-  const focusNode = focusTree ? findDefaultFocusNode(focusTree.tree) : null;
+  const focusSelection = selectFocusTargetFromSnapshot(snapshot);
+  const focusTree = focusSelection.tree ?? getCurrentGrowthTree(snapshot);
+  const focusNode = focusSelection.node;
 
   return {
     recommendedDirectionKey: snapshot.recommendedDirectionKey,
     focusTree,
     focusNode,
+    focusSummary: focusSelection.summary,
+    focusScore: focusSelection.score,
     focusPayload: {
       schemaVersion: CAREER_PROJECTION_SCHEMA_VERSION,
       directionKey: focusTree?.directionKey ?? null,
       treeTitle: focusTree?.title ?? null,
       whyThisDirection: focusTree?.whyThisDirection ?? null,
       node: focusNode,
+      summary: focusSelection.summary,
+      score: focusSelection.score,
     },
     profilePayload: {
       schemaVersion: CAREER_PROJECTION_SCHEMA_VERSION,
@@ -253,6 +357,8 @@ export function buildGrowthProjectionArtifacts(params: {
     recommendedDirectionKey: snapshotArtifacts.recommendedDirectionKey,
     focusTree: viewProjectionArtifacts.focusTree,
     focusNode: viewProjectionArtifacts.focusNode,
+    focusSummary: viewProjectionArtifacts.focusSummary,
+    focusScore: viewProjectionArtifacts.focusScore,
     focusPayload: viewProjectionArtifacts.focusPayload,
     profilePayload: viewProjectionArtifacts.profilePayload,
   };

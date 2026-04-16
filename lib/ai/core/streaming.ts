@@ -12,12 +12,6 @@ import {
 import { classifyAIDegradation } from "@/lib/ai/core/degradation";
 import { createPresentationFilteredStreamResponse } from "@/lib/ai/core/ui-stream-filter";
 
-// ============================================
-// Types
-// ============================================
-
-type StreamableAgent = Agent<never, ToolSet, never>;
-
 export interface StreamOptions {
   /** 会话 ID */
   sessionId?: string;
@@ -25,6 +19,8 @@ export interface StreamOptions {
   resourceId?: string;
   /** 允许下发的工具展示类型 */
   presentation?: "chat" | "interview";
+  /** 是否向前端发送 reasoning */
+  sendReasoning?: boolean;
   /** 流结束回调 */
   onFinish?: (options: {
     messages: UIMessage[];
@@ -112,12 +108,22 @@ function createFallbackStream(
  * - 错误时 Graceful 降级
  * - 自动添加响应头
  */
-export async function createNexusNoteStreamResponse(
-  agent: StreamableAgent,
+export async function createNexusNoteStreamResponse<
+  CALL_OPTIONS = never,
+  TOOLS extends ToolSet = ToolSet,
+>(
+  agent: Agent<CALL_OPTIONS, TOOLS, never>,
   messages: UIMessage[],
   options: StreamOptions = {},
 ): Promise<Response> {
-  const { sessionId, resourceId, presentation = "chat", onFinish, consumeSseStream } = options;
+  const {
+    sessionId,
+    resourceId,
+    presentation = "chat",
+    sendReasoning = false,
+    onFinish,
+    consumeSseStream,
+  } = options;
 
   try {
     const modelMessages = await convertToModelMessages(messages, {
@@ -132,7 +138,9 @@ export async function createNexusNoteStreamResponse(
     });
 
     const response = createPresentationFilteredStreamResponse({
-      stream: result.toUIMessageStream(),
+      stream: result.toUIMessageStream({
+        sendReasoning,
+      }),
       originalMessages: messages,
       allowedPresentation: presentation,
       onError: getFallbackMessage,

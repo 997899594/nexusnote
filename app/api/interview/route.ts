@@ -1,16 +1,16 @@
-import { convertToModelMessages, smoothStream, validateUIMessages } from "ai";
+import { validateUIMessages } from "ai";
 import { type NextRequest, NextResponse } from "next/server";
 import {
   aiProvider,
   classifyAIDegradation,
   createInterviewAgent,
-  createPresentationFilteredStreamResponse,
   createTelemetryContext,
   getErrorMessage,
   InterviewApiRequestSchema,
   type InterviewUIMessage,
   recordAIUsage,
 } from "@/lib/ai";
+import { createNexusNoteStreamResponse } from "@/lib/ai/core/streaming";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
 import { getUserGrowthContext } from "@/lib/growth/generation-context";
@@ -93,31 +93,13 @@ export async function POST(request: NextRequest) {
       telemetry,
     });
 
-    const modelMessages = await convertToModelMessages(validatedMessages, {
-      tools: agent.tools,
+    const response = await createNexusNoteStreamResponse(agent, validatedMessages, {
+      sessionId,
+      presentation: "interview",
+      sendReasoning: false,
     });
-
-    const result = await agent.stream({
-      prompt: modelMessages,
-      experimental_transform: smoothStream({
-        chunking: new Intl.Segmenter("zh-Hans", { granularity: "word" }),
-      }),
-    });
-
-    return createPresentationFilteredStreamResponse({
-      stream: result.toUIMessageStream<InterviewUIMessage>({
-        sendReasoning: false,
-      }),
-      originalMessages: validatedMessages,
-      allowedPresentation: "interview",
-      onError: getErrorMessage,
-      headers: {
-        "X-Request-Id": requestId,
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-cache, no-store, must-revalidate",
-        ...(sessionId ? { "X-Session-Id": sessionId } : {}),
-      },
-    });
+    response.headers.set("X-Request-Id", requestId);
+    return response;
   } catch (error) {
     const degradation = classifyAIDegradation(error);
     await recordAIUsage({

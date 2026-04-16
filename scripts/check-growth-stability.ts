@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { resolveDirectionKeys } from "@/lib/growth/compose";
+import { resolveDirectionKeys, sortResolvedTreesByPreference } from "@/lib/growth/compose";
 import { validateMergePlannerOutput } from "@/lib/growth/merge";
 import { buildGrowthProjectionArtifacts } from "@/lib/growth/projections";
 import { retrieveMergeCandidateSet } from "@/lib/growth/retrieve-merge-candidates";
@@ -43,6 +43,22 @@ function checkDirectionKeyStability() {
     JSON.stringify(resolved.map((tree) => tree.directionKey)) ===
       JSON.stringify(fixture.expectedDirectionKeys),
     "expected fixture direction keys to remain stable",
+  );
+}
+
+function checkPreferenceOrdering() {
+  const fixture = loadFixture<
+    Parameters<typeof sortResolvedTreesByPreference>[0] & {
+      expectedDirectionKeys: string[];
+    }
+  >("preference-ordering.json");
+  const { expectedDirectionKeys, ...input } = fixture;
+  const sorted = sortResolvedTreesByPreference(input);
+
+  assert(
+    JSON.stringify(sorted.map((tree) => tree.directionKey)) ===
+      JSON.stringify(expectedDirectionKeys),
+    "expected preference ordering to remain stable",
   );
 }
 
@@ -322,6 +338,7 @@ function checkProjectionDerivation() {
 
 function main() {
   checkDirectionKeyStability();
+  checkPreferenceOrdering();
   checkCandidateRetrieval();
   checkMergeValidation();
   checkLearnAlignment();

@@ -46,6 +46,12 @@ export interface GrowthEvalInput {
   preference: {
     selectedDirectionKey: string | null;
     preferenceVersion: number;
+    selectionCount?: number;
+    directionSignals?: Array<{
+      directionKey: string;
+      selectionCount: number;
+      latestSelectedAt: string;
+    }>;
   };
   previousSummary: {
     trees: Array<{
@@ -84,19 +90,35 @@ export interface EvalSuite<TInput = Record<string, unknown>> {
 export interface EvalExecutionResult {
   caseId: string;
   title: string;
-  score: number;
   passed: boolean;
-  notes: string[];
+  contract: EvalContractAssessment;
+  quality: EvalQualityAssessment | null;
   output: string;
   ruleChecks?: EvalRuleCheck[];
   runtimeMetrics?: EvalRuntimeMetrics;
 }
 
+export interface EvalContractAssessment {
+  score: number;
+  passed: boolean;
+  failedRuleNames: string[];
+}
+
+export interface EvalQualityAssessment {
+  source: "ai-judge" | "deterministic";
+  score: number;
+  passed: boolean;
+  notes: string[];
+}
+
 export interface EvalSuiteRunResult {
   domain: EvalDomain;
   version: string;
-  averageScore: number;
-  passedCount: number;
+  averageContractScore: number;
+  averageQualityScore: number | null;
+  contractPassCount: number;
+  qualityWarningCount: number;
+  qualityCaseCount: number;
   totalCount: number;
   results: EvalExecutionResult[];
 }

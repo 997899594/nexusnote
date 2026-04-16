@@ -6,7 +6,7 @@ import {
   getJsonModelForPolicy,
   recordAIUsage,
 } from "@/lib/ai/core";
-import { GROWTH_STRUCTURED_AI_TIMEOUT_MS } from "@/lib/growth/constants";
+import { GROWTH_EXTRACT_AI_TIMEOUT_MS } from "@/lib/growth/constants";
 import type { NormalizedGrowthOutline } from "@/lib/growth/normalize-outline";
 import { buildGrowthExtractPrompt, GROWTH_EXTRACT_SYSTEM_PROMPT } from "@/lib/growth/prompts";
 
@@ -90,7 +90,7 @@ export async function extractGrowthCourseEvidence(
         outline: input.outline,
       }),
       temperature: 0.1,
-      timeout: GROWTH_STRUCTURED_AI_TIMEOUT_MS,
+      timeout: GROWTH_EXTRACT_AI_TIMEOUT_MS,
     });
 
     await recordAIUsage({

@@ -5,8 +5,6 @@ export * from "./capability-profiles";
 export * from "./degradation";
 // Model Policy
 export * from "./model-policy";
-// Nested AI
-export * from "./nested-ai";
 // Prompt Registry
 export * from "./prompt-registry";
 // AI Provider

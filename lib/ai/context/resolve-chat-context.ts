@@ -8,6 +8,35 @@ export interface ResolvedChatContext {
   metadata?: ResolvedChatMetadata;
 }
 
+function buildRequestedLearnContext(params: {
+  courseId?: string | null;
+  metadata?: ChatMetadata;
+}): { courseId: string; chapterIndex: number } | null {
+  if (params.metadata?.context === "learn") {
+    return {
+      courseId: params.metadata.courseId,
+      chapterIndex: params.metadata.chapterIndex,
+    };
+  }
+
+  if (!params.courseId) {
+    return null;
+  }
+
+  return {
+    courseId: params.courseId,
+    chapterIndex: 0,
+  };
+}
+
+function getBasicChatMetadata(metadata?: ChatMetadata): ResolvedChatMetadata | undefined {
+  if (metadata?.context === "editor" || metadata?.context === "default") {
+    return metadata;
+  }
+
+  return undefined;
+}
+
 export async function resolveChatContext({
   userId,
   courseId,
@@ -17,25 +46,16 @@ export async function resolveChatContext({
   courseId?: string | null;
   metadata?: ChatMetadata;
 }): Promise<ResolvedChatContext> {
-  const requestedLearnContext =
-    metadata?.context === "learn"
-      ? {
-          courseId: metadata.courseId,
-          chapterIndex: metadata.chapterIndex,
-        }
-      : courseId
-        ? {
-            courseId,
-            chapterIndex: 0,
-          }
-        : null;
+  const requestedLearnContext = buildRequestedLearnContext({
+    courseId,
+    metadata,
+  });
 
   if (!requestedLearnContext) {
     return {
       profileId: "CHAT_BASIC",
       courseId: undefined,
-      metadata:
-        metadata?.context === "editor" || metadata?.context === "default" ? metadata : undefined,
+      metadata: getBasicChatMetadata(metadata),
     };
   }
 

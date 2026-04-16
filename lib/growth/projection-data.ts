@@ -29,13 +29,14 @@ export async function getLatestFocusSnapshot(
 
   return {
     directionKey: row.directionKey ?? parsed.data.directionKey,
-    nodeId: row.nodeId ?? parsed.data.node?.id ?? null,
-    anchorRef: parsed.data.node?.anchorRef ?? null,
+    nodeId: parsed.data.node?.id ?? row.nodeId ?? null,
+    anchorRef: parsed.data.node?.anchorRef ?? row.nodeId ?? null,
     title: row.title,
-    summary: row.summary,
+    summary: row.summary || parsed.data.summary || "",
     progress: row.progress,
     state: normalizeProjectionState(row.state),
     whyThisDirection: parsed.data.whyThisDirection,
+    score: parsed.data.score ?? null,
     node: parsed.data.node,
   };
 }

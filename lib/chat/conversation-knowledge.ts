@@ -1,17 +1,17 @@
 import type { UIMessage } from "ai";
 import { extractMessageText } from "@/lib/chat/conversation-messages";
 import { getOwnedConversation } from "@/lib/chat/conversation-repository";
-import {
-  enqueueGrowthRefresh,
-  enqueueKnowledgeInsights,
-  enqueueKnowledgeSourceMerge,
-} from "@/lib/growth/queue";
-import { deleteEvidenceEventsBySource, ingestEvidenceEvent } from "@/lib/knowledge/events";
-import {
-  aggregateSourceEventsToKnowledgeEvidence,
-  listLinkedNodeIdsForEvidenceSource,
-} from "@/lib/knowledge/evidence";
+import { ingestEvidenceEvent } from "@/lib/knowledge/events";
+import { syncKnowledgeSource } from "@/lib/knowledge/source-sync";
+import { buildChapterOutlineNodeKey } from "@/lib/learning/outline-node-key";
 import { syncSourceKnowledgeEvidenceChunks } from "@/lib/rag/chunker";
+
+interface ConversationRef {
+  refType: string;
+  refId: string;
+  snippet: string | null;
+  weight: number;
+}
 
 function getConversationSnippets(messages: UIMessage[]) {
   return messages
@@ -33,6 +33,40 @@ function buildConversationSummary(messages: UIMessage[]) {
   return summary.length > 800 ? `${summary.slice(0, 800).trim()}...` : summary;
 }
 
+function buildConversationRefs(params: {
+  conversationId: string;
+  learnCourseId: string | null;
+  learnChapterIndex: number | null;
+  snippets: ReturnType<typeof getConversationSnippets>;
+}): ConversationRef[] {
+  const refs: ConversationRef[] = params.snippets.map((item) => ({
+    refType: `conversation_message_${item.role}`,
+    refId: `${params.conversationId}:${item.index}`,
+    snippet: item.text,
+    weight: 1,
+  }));
+
+  if (params.learnCourseId) {
+    refs.push({
+      refType: "course",
+      refId: params.learnCourseId,
+      snippet: null,
+      weight: 1,
+    });
+  }
+
+  if (typeof params.learnChapterIndex === "number") {
+    refs.push({
+      refType: "chapter",
+      refId: buildChapterOutlineNodeKey(params.learnChapterIndex),
+      snippet: null,
+      weight: 1,
+    });
+  }
+
+  return refs;
+}
+
 export async function syncConversationKnowledge(params: {
   conversationId: string;
   userId: string;
@@ -43,109 +77,54 @@ export async function syncConversationKnowledge(params: {
     return;
   }
 
-  const affectedNodeIds = await listLinkedNodeIdsForEvidenceSource({
-    userId: params.userId,
-    sourceType: "conversation",
-    sourceId: params.conversationId,
-  });
-
-  await deleteEvidenceEventsBySource({
-    userId: params.userId,
-    sourceType: "conversation",
-    sourceId: params.conversationId,
-    sourceVersionHash: null,
-  });
-
   const snippets = getConversationSnippets(params.messages);
   const summary = buildConversationSummary(params.messages);
+  const metadata: Record<string, unknown> = {
+    intent: conversation.intent,
+    courseId: conversation.learnCourseId ?? null,
+    chapterIndex: conversation.learnChapterIndex ?? null,
+    messageCount: conversation.messageCount ?? 0,
+  };
 
-  if (summary.length > 0) {
-    await ingestEvidenceEvent({
-      id: crypto.randomUUID(),
-      userId: params.userId,
-      kind: "conversation",
-      sourceType: "conversation",
-      sourceId: params.conversationId,
-      sourceVersionHash: null,
-      title: conversation.title || "对话记录",
-      summary,
-      confidence: 1,
-      happenedAt: new Date().toISOString(),
-      metadata: {
-        intent: conversation.intent,
-        courseId: conversation.learnCourseId ?? null,
-        chapterIndex: conversation.learnChapterIndex ?? null,
-        messageCount: conversation.messageCount ?? 0,
-      },
-      refs: [
-        ...snippets.map((item) => ({
-          refType: `conversation_message_${item.role}`,
-          refId: `${params.conversationId}:${item.index}`,
-          snippet: item.text,
-          weight: 1,
-        })),
-        ...(conversation.learnCourseId
-          ? [
-              {
-                refType: "course",
-                refId: conversation.learnCourseId,
-                snippet: null,
-                weight: 1,
-              },
-            ]
-          : []),
-        ...(typeof conversation.learnChapterIndex === "number"
-          ? [
-              {
-                refType: "chapter",
-                refId: `chapter-${conversation.learnChapterIndex + 1}`,
-                snippet: null,
-                weight: 1,
-              },
-            ]
-          : []),
-      ],
-    });
-  }
-
-  await aggregateSourceEventsToKnowledgeEvidence({
+  await syncKnowledgeSource({
     userId: params.userId,
     sourceType: "conversation",
     sourceId: params.conversationId,
-    sourceVersionHash: null,
-  });
-  await syncSourceKnowledgeEvidenceChunks({
-    userId: params.userId,
-    sourceType: "conversation",
-    sourceId: params.conversationId,
-    sourceVersionHash: null,
-    metadata: {
-      intent: conversation.intent,
-      courseId: conversation.learnCourseId ?? null,
-      chapterIndex: conversation.learnChapterIndex ?? null,
-      messageCount: conversation.messageCount ?? 0,
+    hasContent: summary.length > 0,
+    clearReason: `conversation-clear:${params.conversationId}`,
+    replaceEvents: async () => {
+      if (summary.length === 0) {
+        return;
+      }
+
+      await ingestEvidenceEvent({
+        id: crypto.randomUUID(),
+        userId: params.userId,
+        kind: "conversation",
+        sourceType: "conversation",
+        sourceId: params.conversationId,
+        sourceVersionHash: null,
+        title: conversation.title || "对话记录",
+        summary,
+        confidence: 1,
+        happenedAt: new Date().toISOString(),
+        metadata,
+        refs: buildConversationRefs({
+          conversationId: params.conversationId,
+          learnCourseId: conversation.learnCourseId ?? null,
+          learnChapterIndex: conversation.learnChapterIndex ?? null,
+          snippets,
+        }),
+      });
+    },
+    syncChunks: async () => {
+      await syncSourceKnowledgeEvidenceChunks({
+        userId: params.userId,
+        sourceType: "conversation",
+        sourceId: params.conversationId,
+        sourceVersionHash: null,
+        metadata,
+      });
     },
   });
-
-  if (summary.length > 0) {
-    await enqueueKnowledgeSourceMerge({
-      userId: params.userId,
-      sourceType: "conversation",
-      sourceId: params.conversationId,
-      sourceVersionHash: null,
-      affectedNodeIds,
-    });
-    return;
-  }
-
-  if (affectedNodeIds.length > 0) {
-    await enqueueGrowthRefresh(
-      params.userId,
-      undefined,
-      affectedNodeIds,
-      `conversation-clear:${params.conversationId}`,
-    );
-  } else {
-    await enqueueKnowledgeInsights(params.userId);
-  }
 }

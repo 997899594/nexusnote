@@ -37,6 +37,8 @@ export const focusSnapshotPayloadSchema = z.object({
   treeTitle: z.string().nullable(),
   whyThisDirection: z.string().nullable(),
   node: visibleSkillTreeNodeSchema.nullable(),
+  summary: z.string().nullable().optional(),
+  score: z.number().nullable().optional(),
 });
 
 export type FocusSnapshotPayload = z.infer<typeof focusSnapshotPayloadSchema>;
@@ -50,6 +52,7 @@ export interface FocusSnapshotProjection {
   progress: number;
   state: GrowthNodeState;
   whyThisDirection: string | null;
+  score: number | null;
   node: VisibleSkillTreeNode | null;
 }
 

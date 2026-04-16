@@ -12,6 +12,7 @@ import {
   buildCourseOutlineNodeValues,
   buildCourseOutlineVersionValues,
 } from "@/lib/learning/course-structure";
+import { buildSectionOutlineNodeKey } from "@/lib/learning/outline-node-key";
 import type { CourseOutline } from "./course-outline";
 
 interface SaveCourseFromOutlineOptions {
@@ -104,7 +105,7 @@ export async function saveCourseFromOutline({
       chapter.sections.map((section, sectionIndex) => ({
         title: section.title,
         courseId: persistedCourseId,
-        outlineNodeKey: `section-${chapterIndex + 1}-${sectionIndex + 1}`,
+        outlineNodeKey: buildSectionOutlineNodeKey(chapterIndex, sectionIndex),
         contentMarkdown: null,
         plainText: null,
       })),

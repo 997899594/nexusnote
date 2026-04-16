@@ -59,10 +59,10 @@ export async function processGrowthProjectionJob(
   const projectionRun = await getOrCreateGenerationRun({
     userId: job.userId,
     kind: "projection",
-    idempotencyKey: `projection:user:${job.userId}:tree:${latestTreeSnapshotRow.id}`,
+    idempotencyKey: `projection:v2:user:${job.userId}:tree:${latestTreeSnapshotRow.id}`,
     inputHash: latestTreeSnapshotRow.id,
     model: GROWTH_PROJECTION_RUNTIME_LABEL,
-    promptVersion: "growth-projection@v1",
+    promptVersion: "growth-projection@v2",
     reuseCompleted: true,
   });
 
@@ -81,6 +81,7 @@ export async function processGrowthProjectionJob(
     const focusTitle =
       projectionArtifacts.focusNode?.title ?? projectionArtifacts.focusTree?.title ?? null;
     const focusSummary =
+      projectionArtifacts.focusSummary ??
       projectionArtifacts.focusNode?.summary ??
       projectionArtifacts.focusTree?.whyThisDirection ??
       null;
@@ -103,7 +104,7 @@ export async function processGrowthProjectionJob(
           userId: job.userId,
           treeSnapshotId: latestTreeSnapshotRow.id,
           directionKey: projectionArtifacts.focusTree?.directionKey ?? null,
-          nodeId: projectionArtifacts.focusNode?.id ?? null,
+          nodeId: projectionArtifacts.focusNode?.anchorRef ?? null,
           title: focusTitle,
           summary: focusSummary,
           progress: projectionArtifacts.focusNode?.progress ?? 0,
@@ -133,7 +134,8 @@ export async function processGrowthProjectionJob(
       await markGenerationRunSucceeded(tx, projectionRun.id, {
         treeSnapshotId: latestTreeSnapshotRow.id,
         directionKey: projectionArtifacts.focusTree?.directionKey ?? null,
-        nodeId: projectionArtifacts.focusNode?.id ?? null,
+        nodeId: projectionArtifacts.focusNode?.anchorRef ?? null,
+        focusScore: projectionArtifacts.focusScore,
       });
     });
 

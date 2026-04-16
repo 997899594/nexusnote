@@ -1,20 +1,32 @@
 import { z } from "zod";
+import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core";
+import { buildDeterministicGrowthTree } from "@/lib/growth/compose-layout";
+import {
+  composeGrowthDirectionMetadata,
+  type GrowthDirectionMetadata,
+} from "@/lib/growth/compose-metadata";
+import { planGrowthDirections } from "@/lib/growth/compose-planner";
+import {
+  type ComposeDirectionSignal,
+  type ComposeGraph,
+  type ComposePreviousSummary,
+  type ComposerVisibleNode,
+  collectComposerAnchorRefs,
+  composeGraphSchema,
+  composePreferenceSchema,
+  composePreviousSummarySchema,
+  composerVisibleNodeSchema,
+  jaccardOverlap,
+  normalizeText,
+  type PreviousDirectionIdentity,
+  slugify,
+  sortComposeGraph,
+  sortPreviousSummary,
+} from "@/lib/growth/compose-shared";
+import { GROWTH_COMPOSE_MODEL_LABEL } from "@/lib/growth/constants";
 
-export const composerVisibleNodeSchema: z.ZodType<ComposerVisibleNode> = z.lazy(() =>
-  z.object({
-    anchorRef: z.string().trim().min(1),
-    title: z.string().trim().min(1),
-    summary: z.string().trim().min(1),
-    children: z.array(composerVisibleNodeSchema),
-  }),
-);
-
-export interface ComposerVisibleNode {
-  anchorRef: string;
-  title: string;
-  summary: string;
-  children: ComposerVisibleNode[];
-}
+export { composerVisibleNodeSchema };
+export type { ComposerVisibleNode, PreviousDirectionIdentity };
 
 export const composerTreeSchema = z.object({
   matchPreviousDirectionKey: z.string().trim().min(1).optional(),
@@ -28,573 +40,126 @@ export const composerTreeSchema = z.object({
 });
 
 export const treeComposerOutputSchema = z.object({
-  recommendedDirectionHint: z.string().trim().min(1).nullable(),
+  recommendedDirectionHint: z.string().trim().min(1),
   trees: z.array(composerTreeSchema).min(1).max(5),
 });
 
 export type TreeComposerOutput = z.infer<typeof treeComposerOutputSchema>;
 
-export interface PreviousDirectionIdentity {
-  directionKey: string;
-  supportingNodeRefs: string[];
-}
-
-const composeGraphNodeSchema = z.object({
-  id: z.string().trim().min(1),
-  canonicalLabel: z.string().trim().min(1),
-  summary: z.string().nullable(),
-  progress: z.number().min(0).max(100),
-  state: z.string().trim().min(1),
-  courseCount: z.number().int().nonnegative(),
-  chapterCount: z.number().int().nonnegative(),
-  evidenceScore: z.number().min(0).max(100),
-});
-
-const composeGraphEdgeSchema = z.object({
-  from: z.string().trim().min(1),
-  to: z.string().trim().min(1),
-  confidence: z.number().min(0).max(1).default(0.5),
-});
-
-const composeGraphSchema = z.object({
-  nodes: z.array(composeGraphNodeSchema),
-  prerequisiteEdges: z.array(composeGraphEdgeSchema).default([]),
-});
-
-const composePreferenceSchema = z
-  .object({
-    selectedDirectionKey: z.string().nullable().optional(),
-    preferenceVersion: z.number().int().nonnegative().optional(),
-  })
-  .passthrough();
-
-const composePreviousSummarySchema = z
-  .object({
-    trees: z
-      .array(
-        z.object({
-          directionKey: z.string().trim().min(1),
-          supportingNodeRefs: z.array(z.string().trim().min(1)).default([]),
-        }),
-      )
-      .default([]),
-  })
-  .nullable()
-  .optional();
-
-type ComposeGraphNode = z.infer<typeof composeGraphNodeSchema>;
-type ComposeGraphEdge = z.infer<typeof composeGraphEdgeSchema>;
-type ComposeGraph = z.infer<typeof composeGraphSchema>;
-type ComposePreference = z.infer<typeof composePreferenceSchema>;
-type ComposePreviousSummary = NonNullable<z.infer<typeof composePreviousSummarySchema>>;
-
-interface CandidateBundle {
-  seedId: string;
-  nodeIds: string[];
-  supportingNodeRefs: string[];
-  matchPreviousDirectionKey?: string;
-  score: number;
-}
-
-interface DirectionSemantic {
-  keySeed: string;
-  title: string;
-  labelParts: string[];
-}
-
-const MAX_TREE_COUNT = 5;
-const MAX_BUNDLE_NODES = 6;
-const MAX_BFS_DEPTH = 2;
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
-}
-
-function slugify(value: string): string {
-  const slug = value
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s-]+/gu, "")
-    .trim()
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-");
-
-  return slug || "direction";
-}
-
-function normalizeText(value: string | null | undefined): string {
-  return (value ?? "")
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s-]+/gu, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function normalizeLabelIdentity(value: string): string {
-  return normalizeText(value)
-    .replace(/\b(and|for|the|with|to|of|in|on)\b/gu, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function jaccardOverlap(left: string[], right: string[]): number {
-  const leftSet = new Set(left);
-  const rightSet = new Set(right);
-
-  if (leftSet.size === 0 || rightSet.size === 0) {
-    return 0;
-  }
-
-  let intersection = 0;
-  for (const value of leftSet) {
-    if (rightSet.has(value)) {
-      intersection += 1;
-    }
-  }
-
-  const union = new Set([...leftSet, ...rightSet]).size;
-  return union === 0 ? 0 : intersection / union;
-}
-
-function buildNodeScore(node: ComposeGraphNode, preferredNodeIds: Set<string>): number {
-  const stateBoost =
-    node.state === "mastered"
-      ? 10
-      : node.state === "in_progress"
-        ? 12
-        : node.state === "ready"
-          ? 6
-          : 2;
-  const preferenceBoost = preferredNodeIds.has(node.id) ? 18 : 0;
-
-  return (
-    node.progress * 0.45 +
-    node.evidenceScore * 0.35 +
-    Math.min(10, node.courseCount * 3) +
-    Math.min(8, node.chapterCount * 2) +
-    stateBoost +
-    preferenceBoost
-  );
-}
-
-function buildPreferredNodeIds(
-  preference: ComposePreference,
-  previousSummary: ComposePreviousSummary,
-): Set<string> {
-  if (!preference.selectedDirectionKey) {
-    return new Set<string>();
-  }
-
-  const preferredTree = previousSummary.trees.find(
-    (tree) => tree.directionKey === preference.selectedDirectionKey,
-  );
-
-  return new Set(preferredTree?.supportingNodeRefs ?? []);
-}
-
-function buildUndirectedAdjacency(edges: ComposeGraphEdge[]): Map<string, Set<string>> {
-  const adjacency = new Map<string, Set<string>>();
-
-  for (const edge of edges) {
-    const fromNeighbors = adjacency.get(edge.from) ?? new Set<string>();
-    fromNeighbors.add(edge.to);
-    adjacency.set(edge.from, fromNeighbors);
-
-    const toNeighbors = adjacency.get(edge.to) ?? new Set<string>();
-    toNeighbors.add(edge.from);
-    adjacency.set(edge.to, toNeighbors);
-  }
-
-  return adjacency;
-}
-
-function sortNodeIdsByScore(
-  nodeIds: Iterable<string>,
-  scoreByNodeId: Map<string, number>,
-): string[] {
-  return [...nodeIds].sort(
-    (left, right) => (scoreByNodeId.get(right) ?? 0) - (scoreByNodeId.get(left) ?? 0),
-  );
-}
-
-function collectBundleNodeIds(params: {
-  seedId: string;
-  adjacency: Map<string, Set<string>>;
-  scoreByNodeId: Map<string, number>;
-}): string[] {
-  const visited = new Set<string>([params.seedId]);
-  const queue: Array<{ nodeId: string; depth: number }> = [{ nodeId: params.seedId, depth: 0 }];
-
-  while (queue.length > 0 && visited.size < MAX_BUNDLE_NODES) {
-    const current = queue.shift();
-    if (!current || current.depth >= MAX_BFS_DEPTH) {
-      continue;
-    }
-
-    const neighbors = sortNodeIdsByScore(
-      params.adjacency.get(current.nodeId) ?? [],
-      params.scoreByNodeId,
-    );
-
-    for (const neighborId of neighbors) {
-      if (visited.has(neighborId)) {
-        continue;
-      }
-
-      visited.add(neighborId);
-      queue.push({ nodeId: neighborId, depth: current.depth + 1 });
-
-      if (visited.size >= MAX_BUNDLE_NODES) {
-        break;
-      }
-    }
-  }
-
-  return sortNodeIdsByScore(visited, params.scoreByNodeId);
-}
-
-function findBestPreviousDirection(
-  supportingNodeRefs: string[],
-  previousDirections: PreviousDirectionIdentity[],
-): string | undefined {
-  const rankedMatches = previousDirections
-    .map((previous) => ({
-      directionKey: previous.directionKey,
-      overlap: jaccardOverlap(supportingNodeRefs, previous.supportingNodeRefs),
-    }))
-    .sort((left, right) => right.overlap - left.overlap);
-
-  return (rankedMatches[0]?.overlap ?? 0) >= 0.45 ? rankedMatches[0]?.directionKey : undefined;
-}
-
-function deriveTargetTreeCount(
-  nodes: ComposeGraphNode[],
-  scoreByNodeId: Map<string, number>,
-): number {
-  const strongNodes = nodes.filter(
-    (node) =>
-      (scoreByNodeId.get(node.id) ?? 0) >= 55 || node.progress >= 45 || node.evidenceScore >= 50,
-  ).length;
-
-  if (nodes.length <= 2 || strongNodes <= 1) {
-    return 1;
-  }
-
-  if (strongNodes <= 3) {
-    return 2;
-  }
-
-  if (strongNodes <= 5) {
-    return 3;
-  }
-
-  if (strongNodes <= 7) {
-    return 4;
-  }
-
-  return MAX_TREE_COUNT;
-}
-
-function buildCandidateBundles(params: {
-  graph: ComposeGraph;
-  scoreByNodeId: Map<string, number>;
-  previousDirections: PreviousDirectionIdentity[];
-  preferredNodeIds: Set<string>;
-}): CandidateBundle[] {
-  const adjacency = buildUndirectedAdjacency(params.graph.prerequisiteEdges);
-  const rankedNodeIds = [...params.graph.nodes]
-    .sort(
-      (left, right) =>
-        (params.scoreByNodeId.get(right.id) ?? 0) - (params.scoreByNodeId.get(left.id) ?? 0),
-    )
-    .map((node) => node.id);
-
-  const targetCount = Math.min(
-    deriveTargetTreeCount(params.graph.nodes, params.scoreByNodeId),
-    MAX_TREE_COUNT,
-  );
-  const bundles: CandidateBundle[] = [];
-
-  for (const seedId of rankedNodeIds) {
-    const nodeIds = collectBundleNodeIds({
-      seedId,
-      adjacency,
-      scoreByNodeId: params.scoreByNodeId,
-    });
-    const supportingNodeRefs = [...nodeIds];
-
-    if (
-      bundles.some((bundle) => jaccardOverlap(bundle.supportingNodeRefs, supportingNodeRefs) >= 0.7)
-    ) {
-      continue;
-    }
-
-    const score =
-      nodeIds
-        .slice(0, 3)
-        .reduce((sum, nodeId) => sum + (params.scoreByNodeId.get(nodeId) ?? 0), 0) /
-      Math.min(nodeIds.length, 3);
-
-    bundles.push({
-      seedId,
-      nodeIds,
-      supportingNodeRefs,
-      matchPreviousDirectionKey: findBestPreviousDirection(
-        supportingNodeRefs,
-        params.previousDirections,
-      ),
-      score,
-    });
-
-    if (bundles.length >= targetCount) {
-      break;
-    }
-  }
-
-  if (bundles.length === 0 && rankedNodeIds[0]) {
-    bundles.push({
-      seedId: rankedNodeIds[0],
-      nodeIds: [rankedNodeIds[0]],
-      supportingNodeRefs: [rankedNodeIds[0]],
-      matchPreviousDirectionKey: findBestPreviousDirection(
-        [rankedNodeIds[0]],
-        params.previousDirections,
-      ),
-      score: params.scoreByNodeId.get(rankedNodeIds[0]) ?? 0,
-    });
-  }
-
-  const selectedDirectionKey =
-    [...params.preferredNodeIds].length > 0
-      ? params.previousDirections.find((direction) =>
-          direction.supportingNodeRefs.some((nodeId) => params.preferredNodeIds.has(nodeId)),
-        )?.directionKey
-      : null;
-
-  return bundles
-    .sort((left, right) => {
-      const leftScore =
-        left.score +
-        (left.matchPreviousDirectionKey && left.matchPreviousDirectionKey === selectedDirectionKey
-          ? 12
-          : 0);
-      const rightScore =
-        right.score +
-        (right.matchPreviousDirectionKey && right.matchPreviousDirectionKey === selectedDirectionKey
-          ? 12
-          : 0);
-      return rightScore - leftScore;
-    })
-    .slice(0, targetCount);
-}
-
-function collectSemanticLabels(seedNode: ComposeGraphNode, nodes: ComposeGraphNode[]): string[] {
-  const orderedLabels = [seedNode.canonicalLabel, ...nodes.map((node) => node.canonicalLabel)];
-  const labels: string[] = [];
+function ensureUniqueNormalizedValues(values: string[], label: string) {
   const seen = new Set<string>();
 
-  for (const label of orderedLabels) {
-    const trimmed = label.trim();
-    if (!trimmed) {
-      continue;
+  for (const value of values) {
+    const normalized = normalizeText(value);
+    if (!normalized) {
+      throw new Error(`Growth compose returned empty normalized ${label}`);
     }
-
-    const normalized = normalizeLabelIdentity(trimmed);
-    if (!normalized || seen.has(normalized)) {
-      continue;
+    if (seen.has(normalized)) {
+      throw new Error(`Growth compose returned duplicate ${label}: ${value}`);
     }
-
     seen.add(normalized);
-    labels.push(trimmed);
   }
-
-  return labels;
 }
 
-function buildSemanticTitle(labelParts: string[]): string {
-  if (labelParts.length <= 1) {
-    return labelParts[0] ?? "Direction";
+function ensureUniqueValues(values: string[], label: string) {
+  const seen = new Set<string>();
+
+  for (const value of values) {
+    if (seen.has(value)) {
+      throw new Error(`Growth compose returned duplicate ${label}: ${value}`);
+    }
+    seen.add(value);
   }
-
-  return `${labelParts[0]} · ${labelParts[1]}`;
 }
 
-function buildSemanticKeySeed(labelParts: string[]): string {
-  return slugify(labelParts.slice(0, 2).join(" "));
-}
+function validateComposerTree(params: {
+  tree: z.infer<typeof composerTreeSchema>;
+  graphNodeIds: Set<string>;
+  previousDirectionKeys: Set<string>;
+}) {
+  ensureUniqueValues(
+    params.tree.supportingNodeRefs,
+    `supportingNodeRefs for ${params.tree.keySeed}`,
+  );
 
-function inferDirectionSemantic(
-  seedNode: ComposeGraphNode,
-  nodes: ComposeGraphNode[],
-): DirectionSemantic {
-  const labelParts = collectSemanticLabels(seedNode, nodes);
-
-  return {
-    keySeed: buildSemanticKeySeed(labelParts),
-    title: buildSemanticTitle(labelParts),
-    labelParts,
-  };
-}
-
-function ensureDistinctTreeSemantics(
-  trees: Array<
-    z.infer<typeof composerTreeSchema> & {
-      semanticLabelParts: string[];
-    }
-  >,
-): z.infer<typeof composerTreeSchema>[] {
-  const usedTitles = new Set<string>();
-  const usedKeySeeds = new Set<string>();
-
-  return trees.map((tree) => {
-    const { semanticLabelParts: _semanticLabelParts, ...treeWithoutSemanticParts } = tree;
-    let title = tree.title;
-    let keySeed = tree.keySeed;
-    let extraIndex = 2;
-
-    while (
-      usedTitles.has(title.toLocaleLowerCase("zh-CN")) ||
-      usedKeySeeds.has(keySeed.toLocaleLowerCase("zh-CN"))
-    ) {
-      const extraLabel = tree.semanticLabelParts[extraIndex];
-
-      if (extraLabel) {
-        title = `${tree.title} · ${extraLabel}`;
-        keySeed = slugify(`${tree.keySeed} ${extraLabel}`);
-        extraIndex += 1;
-        continue;
-      }
-
-      title = `${tree.title} (${extraIndex - 1})`;
-      keySeed = `${tree.keySeed}-${extraIndex - 1}`;
-      extraIndex += 1;
-    }
-
-    usedTitles.add(title.toLocaleLowerCase("zh-CN"));
-    usedKeySeeds.add(keySeed.toLocaleLowerCase("zh-CN"));
-
-    return {
-      ...treeWithoutSemanticParts,
-      title,
-      keySeed,
-    };
-  });
-}
-
-function formatNodeSummary(node: ComposeGraphNode): string {
-  if (node.summary?.trim()) {
-    return node.summary.trim();
-  }
-
-  const stateLabel =
-    node.state === "mastered"
-      ? "已掌握"
-      : node.state === "in_progress"
-        ? "学习中"
-        : node.state === "ready"
-          ? "可开始"
-          : "待解锁";
-
-  return `${stateLabel}，当前进度 ${Math.round(node.progress)}%。`;
-}
-
-function chooseParentByChild(params: {
-  nodeIds: Set<string>;
-  edges: ComposeGraphEdge[];
-  scoreByNodeId: Map<string, number>;
-}): Map<string, string> {
-  const parentByChild = new Map<string, string>();
-  const bestEdgeWeightByChild = new Map<string, number>();
-
-  for (const edge of params.edges) {
-    if (!params.nodeIds.has(edge.from) || !params.nodeIds.has(edge.to)) {
-      continue;
-    }
-
-    const weight = edge.confidence * 100 + (params.scoreByNodeId.get(edge.from) ?? 0) * 0.1;
-    const currentWeight = bestEdgeWeightByChild.get(edge.to) ?? -1;
-
-    if (weight > currentWeight) {
-      bestEdgeWeightByChild.set(edge.to, weight);
-      parentByChild.set(edge.to, edge.from);
+  for (const nodeRef of params.tree.supportingNodeRefs) {
+    if (!params.graphNodeIds.has(nodeRef)) {
+      throw new Error(`Growth compose returned unknown supporting node ref: ${nodeRef}`);
     }
   }
 
-  return parentByChild;
-}
-
-function buildBundleTree(params: {
-  bundle: CandidateBundle;
-  graph: ComposeGraph;
-  nodeById: Map<string, ComposeGraphNode>;
-  scoreByNodeId: Map<string, number>;
-}): ComposerVisibleNode[] {
-  const bundleNodeIds = new Set(params.bundle.nodeIds);
-  const parentByChild = chooseParentByChild({
-    nodeIds: bundleNodeIds,
-    edges: params.graph.prerequisiteEdges,
-    scoreByNodeId: params.scoreByNodeId,
-  });
-  const childMap = new Map<string, string[]>();
-
-  for (const [childId, parentId] of parentByChild.entries()) {
-    const siblings = childMap.get(parentId) ?? [];
-    siblings.push(childId);
-    siblings.sort(
-      (left, right) =>
-        (params.scoreByNodeId.get(right) ?? 0) - (params.scoreByNodeId.get(left) ?? 0),
+  if (
+    params.tree.matchPreviousDirectionKey &&
+    !params.previousDirectionKeys.has(params.tree.matchPreviousDirectionKey)
+  ) {
+    throw new Error(
+      `Growth compose returned unknown previous direction match: ${params.tree.matchPreviousDirectionKey}`,
     );
-    childMap.set(parentId, siblings);
   }
 
-  const rootIds = params.bundle.nodeIds.filter((nodeId) => !parentByChild.has(nodeId));
-  const orderedRootIds = rootIds.length > 0 ? rootIds : [params.bundle.seedId];
-  const visited = new Set<string>();
+  const anchorRefs = collectComposerAnchorRefs(params.tree.tree);
+  ensureUniqueValues(anchorRefs, `anchor refs for ${params.tree.keySeed}`);
 
-  const buildNode = (nodeId: string): ComposerVisibleNode => {
-    const node = params.nodeById.get(nodeId);
-    if (!node) {
-      throw new Error(`Missing growth node for ${nodeId}`);
-    }
-
-    visited.add(nodeId);
-    const childIds = (childMap.get(nodeId) ?? []).filter((childId) => !visited.has(childId));
-
-    return {
-      anchorRef: node.id,
-      title: node.canonicalLabel.trim(),
-      summary: formatNodeSummary(node),
-      children: childIds.map((childId) => buildNode(childId)),
-    };
-  };
-
-  const roots = orderedRootIds.map((nodeId) => buildNode(nodeId));
-
-  for (const nodeId of params.bundle.nodeIds) {
-    if (!visited.has(nodeId)) {
-      roots.push(buildNode(nodeId));
-    }
+  if (anchorRefs.length === 0) {
+    throw new Error(`Growth compose returned empty visible tree for ${params.tree.keySeed}`);
   }
 
-  return roots;
+  const supportingRefSet = new Set(params.tree.supportingNodeRefs);
+  for (const anchorRef of anchorRefs) {
+    if (!params.graphNodeIds.has(anchorRef)) {
+      throw new Error(`Growth compose returned unknown anchor ref: ${anchorRef}`);
+    }
+    if (!supportingRefSet.has(anchorRef)) {
+      throw new Error(
+        `Growth compose tree ${params.tree.keySeed} used anchorRef outside supportingNodeRefs: ${anchorRef}`,
+      );
+    }
+  }
 }
 
-function buildDirectionSummary(nodes: ComposeGraphNode[], semantic: DirectionSemantic): string {
-  const labels = nodes.slice(0, 3).map((node) => node.canonicalLabel.trim());
-  return `围绕 ${labels.join("、")} 继续扩展，当前重心是 ${semantic.title}。`;
-}
+function validateTreeComposerOutput(params: {
+  output: unknown;
+  graph: ComposeGraph;
+  previousSummary: ComposePreviousSummary;
+}): TreeComposerOutput {
+  const parsed = treeComposerOutputSchema.parse(params.output);
+  const graphNodeIds = new Set(params.graph.nodes.map((node) => node.id));
+  const previousDirectionKeys = new Set(
+    params.previousSummary.trees.map((tree) => tree.directionKey),
+  );
 
-function buildDirectionReason(
-  nodes: ComposeGraphNode[],
-  semantic: DirectionSemantic,
-  matchPreviousDirectionKey?: string,
-): string {
-  const primaryNode = nodes[0];
-  const continuityText = matchPreviousDirectionKey ? "并保持了已有方向的连续性，" : "";
-  return `${continuityText}当前最强信号来自 ${primaryNode.canonicalLabel}（进度 ${Math.round(primaryNode.progress)}%，证据 ${Math.round(primaryNode.evidenceScore)}%），适合继续组织为${semantic.title}。`;
-}
+  ensureUniqueNormalizedValues(
+    parsed.trees.map((tree) => tree.title),
+    "direction titles",
+  );
+  ensureUniqueNormalizedValues(
+    parsed.trees.map((tree) => tree.keySeed),
+    "direction key seeds",
+  );
 
-function buildTreeConfidence(bundleScore: number): number {
-  return clamp(Number(((bundleScore - 20) / 80).toFixed(2)), 0.35, 0.95);
+  for (const tree of parsed.trees) {
+    validateComposerTree({
+      tree,
+      graphNodeIds,
+      previousDirectionKeys,
+    });
+  }
+
+  const validHints = new Set(
+    parsed.trees.flatMap((tree) =>
+      [tree.keySeed, tree.matchPreviousDirectionKey].filter(
+        (value): value is string => typeof value === "string" && value.length > 0,
+      ),
+    ),
+  );
+
+  if (!validHints.has(parsed.recommendedDirectionHint)) {
+    throw new Error(
+      `Growth compose returned invalid recommendedDirectionHint: ${parsed.recommendedDirectionHint}`,
+    );
+  }
+
+  return parsed;
 }
 
 export function resolveDirectionKeys(params: {
@@ -632,6 +197,138 @@ export function resolveDirectionKeys(params: {
   });
 }
 
+function sortPreferenceSignals(signals: ComposeDirectionSignal[]): ComposeDirectionSignal[] {
+  return [...signals].sort((left, right) => {
+    if (right.selectionCount !== left.selectionCount) {
+      return right.selectionCount - left.selectionCount;
+    }
+    const latestCompare = right.latestSelectedAt.localeCompare(left.latestSelectedAt, "en");
+    if (latestCompare !== 0) {
+      return latestCompare;
+    }
+    return left.directionKey.localeCompare(right.directionKey, "en");
+  });
+}
+
+function collectTreeIdentityKeys(tree: {
+  directionKey: string;
+  keySeed?: string;
+  matchPreviousDirectionKey?: string;
+}): string[] {
+  return [tree.directionKey, tree.matchPreviousDirectionKey, tree.keySeed].filter(
+    (value): value is string => typeof value === "string" && value.length > 0,
+  );
+}
+
+function computePreferenceBiasScore(params: {
+  tree: {
+    directionKey: string;
+    keySeed?: string;
+    matchPreviousDirectionKey?: string;
+  };
+  preference: z.infer<typeof composePreferenceSchema>;
+  rankedSignals: ComposeDirectionSignal[];
+}): number {
+  const identityKeys = new Set(collectTreeIdentityKeys(params.tree));
+  let score = 0;
+
+  if (
+    params.preference.selectedDirectionKey &&
+    identityKeys.has(params.preference.selectedDirectionKey)
+  ) {
+    score += 1_000;
+  }
+
+  const matchedSignalIndex = params.rankedSignals.findIndex((signal) =>
+    identityKeys.has(signal.directionKey),
+  );
+  if (matchedSignalIndex === -1) {
+    return score;
+  }
+
+  const matchedSignal = params.rankedSignals[matchedSignalIndex];
+  const rankBonus = Math.max(0, params.rankedSignals.length - matchedSignalIndex) * 10;
+  return score + matchedSignal.selectionCount * 100 + rankBonus;
+}
+
+export function sortResolvedTreesByPreference(params: {
+  trees: Array<z.infer<typeof composerTreeSchema> & { directionKey: string }>;
+  preference: unknown;
+}): Array<z.infer<typeof composerTreeSchema> & { directionKey: string }> {
+  const preference = composePreferenceSchema.parse(params.preference ?? {});
+  const rankedSignals = sortPreferenceSignals(preference.directionSignals ?? []);
+
+  return [...params.trees]
+    .map((tree, index) => ({
+      tree,
+      index,
+      preferenceScore: computePreferenceBiasScore({
+        tree,
+        preference,
+        rankedSignals,
+      }),
+    }))
+    .sort((left, right) => {
+      if (right.preferenceScore !== left.preferenceScore) {
+        return right.preferenceScore - left.preferenceScore;
+      }
+      return left.index - right.index;
+    })
+    .map((entry) => entry.tree);
+}
+
+function flattenTreeNodes(nodes: ComposerVisibleNode[]): ComposerVisibleNode[] {
+  return nodes.flatMap((node) => [node, ...flattenTreeNodes(node.children)]);
+}
+
+function computeDirectionConfidence(params: {
+  graph: ComposeGraph;
+  supportingNodeRefs: string[];
+}): number {
+  const supportingNodes = params.supportingNodeRefs
+    .map((nodeId) => params.graph.nodes.find((node) => node.id === nodeId))
+    .filter((node): node is ComposeGraph["nodes"][number] => !!node);
+
+  if (supportingNodes.length === 0) {
+    return 0;
+  }
+
+  const averageProgress =
+    supportingNodes.reduce((sum, node) => sum + node.progress, 0) / supportingNodes.length;
+  const averageEvidence =
+    supportingNodes.reduce((sum, node) => sum + node.evidenceScore, 0) / supportingNodes.length;
+  const momentumNodes = supportingNodes.filter(
+    (node) => node.state === "mastered" || node.state === "in_progress",
+  ).length;
+
+  const confidence =
+    (averageProgress / 100) * 0.45 +
+    (averageEvidence / 100) * 0.35 +
+    Math.min(0.1, supportingNodes.length * 0.03) +
+    Math.min(0.1, momentumNodes * 0.03);
+
+  return Math.round(Math.min(1, Math.max(0, confidence)) * 100) / 100;
+}
+
+function applyDirectionMetadata(params: {
+  tree: ComposerVisibleNode[];
+  metadata: GrowthDirectionMetadata;
+}): ComposerVisibleNode[] {
+  const labelMap = new Map(params.metadata.nodeLabels.map((label) => [label.anchorRef, label]));
+
+  const applyNode = (node: ComposerVisibleNode): ComposerVisibleNode => {
+    const label = labelMap.get(node.anchorRef);
+    return {
+      anchorRef: node.anchorRef,
+      title: label?.title ?? node.title,
+      summary: label?.summary ?? node.summary,
+      children: node.children.map(applyNode),
+    };
+  };
+
+  return params.tree.map(applyNode);
+}
+
 export async function composeGrowthTrees(params: {
   userId: string;
   graph: unknown;
@@ -639,70 +336,135 @@ export async function composeGrowthTrees(params: {
   previousSummary: unknown;
   recordUsage?: boolean;
 }): Promise<TreeComposerOutput> {
-  const graph = composeGraphSchema.parse(params.graph);
+  const graph = sortComposeGraph(composeGraphSchema.parse(params.graph));
   const preference = composePreferenceSchema.parse(params.preference ?? {});
-  const previousSummary = composePreviousSummarySchema.parse(params.previousSummary) ?? {
-    trees: [],
-  };
-  const previousDirections = previousSummary.trees.map((tree) => ({
-    directionKey: tree.directionKey,
-    supportingNodeRefs: tree.supportingNodeRefs,
-  }));
-  const preferredNodeIds = buildPreferredNodeIds(preference, previousSummary);
-  const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
-  const scoreByNodeId = new Map(
-    graph.nodes.map((node) => [node.id, buildNodeScore(node, preferredNodeIds)]),
+  const previousSummary = sortPreviousSummary(
+    composePreviousSummarySchema.parse(params.previousSummary) ?? {
+      trees: [],
+    },
   );
-
-  const bundles = buildCandidateBundles({
-    graph,
-    scoreByNodeId,
-    previousDirections,
-    preferredNodeIds,
+  const startedAt = Date.now();
+  const telemetry = createTelemetryContext({
+    endpoint: "growth:compose",
+    intent: "growth-compose",
+    workflow: "growth",
+    modelPolicy: "interactive-fast",
+    promptVersion: "growth-compose@v4",
+    userId: params.userId,
+    metadata: {
+      nodeCount: graph.nodes.length,
+      edgeCount: graph.prerequisiteEdges.length,
+      previousTreeCount: previousSummary.trees.length,
+      selectedDirectionKey: preference.selectedDirectionKey ?? null,
+      preferenceVersion: preference.preferenceVersion ?? 0,
+      selectionCount: preference.selectionCount ?? 0,
+      preferenceSignalCount: preference.directionSignals?.length ?? 0,
+      strategy: "planner-deterministic-layout-metadata",
+    },
   });
 
-  const trees = ensureDistinctTreeSemantics(
-    bundles.map((bundle) => {
-      const bundleNodes = bundle.nodeIds
-        .map((nodeId) => nodeById.get(nodeId))
-        .filter((node): node is ComposeGraphNode => Boolean(node));
-      const seedNode = nodeById.get(bundle.seedId);
-      if (!seedNode) {
-        throw new Error(`Missing growth seed node for ${bundle.seedId}`);
-      }
-      const semantic = inferDirectionSemantic(seedNode, bundleNodes);
+  try {
+    const planned = await planGrowthDirections({
+      userId: params.userId,
+      graph,
+      preference,
+      previousSummary,
+      recordUsage: params.recordUsage,
+    });
 
-      return {
-        matchPreviousDirectionKey: bundle.matchPreviousDirectionKey,
-        keySeed: semantic.keySeed,
-        title: semantic.title,
-        summary: buildDirectionSummary(bundleNodes, semantic),
-        confidence: buildTreeConfidence(bundle.score),
-        whyThisDirection: buildDirectionReason(
-          bundleNodes,
-          semantic,
-          bundle.matchPreviousDirectionKey,
-        ),
-        supportingNodeRefs: bundle.supportingNodeRefs,
-        semanticLabelParts: semantic.labelParts,
-        tree: buildBundleTree({
-          bundle,
-          graph,
-          nodeById,
-          scoreByNodeId,
-        }),
-      };
-    }),
-  );
+    const deterministicDirections = planned.directions.map((direction) => ({
+      ...direction,
+      tree: buildDeterministicGrowthTree({
+        graph,
+        supportingNodeRefs: direction.supportingNodeRefs,
+      }),
+      confidence: computeDirectionConfidence({
+        graph,
+        supportingNodeRefs: direction.supportingNodeRefs,
+      }),
+    }));
 
-  const recommendedTree =
-    trees.find((tree) => tree.matchPreviousDirectionKey === preference.selectedDirectionKey) ??
-    trees[0] ??
-    null;
+    const metadata = await composeGrowthDirectionMetadata({
+      userId: params.userId,
+      graph,
+      directions: deterministicDirections.map((direction) => ({
+        keySeed: direction.keySeed,
+        matchPreviousDirectionKey: direction.matchPreviousDirectionKey,
+        supportingNodeRefs: direction.supportingNodeRefs,
+        tree: direction.tree,
+      })),
+      recordUsage: params.recordUsage,
+    });
+    const metadataByKeySeed = new Map(metadata.map((direction) => [direction.keySeed, direction]));
 
-  return treeComposerOutputSchema.parse({
-    recommendedDirectionHint:
-      recommendedTree?.matchPreviousDirectionKey ?? recommendedTree?.keySeed ?? null,
-    trees,
-  });
+    const output = {
+      recommendedDirectionHint:
+        deterministicDirections[planned.recommendedDirectionIndex]?.matchPreviousDirectionKey ??
+        deterministicDirections[planned.recommendedDirectionIndex]?.keySeed ??
+        deterministicDirections[0]?.keySeed ??
+        "direction",
+      trees: deterministicDirections.map((direction) => {
+        const directionMetadata = metadataByKeySeed.get(direction.keySeed);
+        if (!directionMetadata) {
+          throw new Error(`Missing metadata for growth direction ${direction.keySeed}`);
+        }
+
+        const tree = applyDirectionMetadata({
+          tree: direction.tree,
+          metadata: directionMetadata,
+        });
+
+        if (flattenTreeNodes(tree).length === 0) {
+          throw new Error(`Growth compose built an empty tree for ${direction.keySeed}`);
+        }
+
+        return {
+          matchPreviousDirectionKey: direction.matchPreviousDirectionKey,
+          keySeed: direction.keySeed,
+          title: directionMetadata.title,
+          summary: directionMetadata.summary,
+          confidence: direction.confidence,
+          whyThisDirection: directionMetadata.whyThisDirection,
+          supportingNodeRefs: direction.supportingNodeRefs,
+          tree,
+        };
+      }),
+    };
+
+    const validated = validateTreeComposerOutput({
+      output,
+      graph,
+      previousSummary,
+    });
+
+    if (params.recordUsage !== false) {
+      await recordAIUsage({
+        ...telemetry,
+        durationMs: Date.now() - startedAt,
+        success: true,
+        metadata: {
+          ...telemetry.metadata,
+          model: GROWTH_COMPOSE_MODEL_LABEL,
+          treeCount: validated.trees.length,
+          recommendedDirectionHint: validated.recommendedDirectionHint,
+        },
+      });
+    }
+
+    return validated;
+  } catch (error) {
+    if (params.recordUsage !== false) {
+      await recordAIUsage({
+        ...telemetry,
+        durationMs: Date.now() - startedAt,
+        success: false,
+        errorMessage: getErrorMessage(error),
+        metadata: {
+          ...telemetry.metadata,
+          model: GROWTH_COMPOSE_MODEL_LABEL,
+        },
+      });
+    }
+    throw error;
+  }
 }

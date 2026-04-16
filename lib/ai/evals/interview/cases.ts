@@ -2,7 +2,7 @@ import { createEvalSuite } from "../runner";
 
 export const interviewEvalSuite = createEvalSuite({
   domain: "interview",
-  version: "v1",
+  version: "v2",
   cases: [
     {
       id: "interview-frontend-react-roadmap",
@@ -28,8 +28,8 @@ export const interviewEvalSuite = createEvalSuite({
         userGoal: "我想从运营转数据分析，重点补 SQL、Python 和可视化。",
       },
       expectations: [
-        "访谈中应确认业务背景和目标岗位",
-        "outline 需要区分 SQL、Python、分析方法、可视化四层结构",
+        "在信息还不够时，可以继续澄清；澄清维度可以是业务背景、当前基础、目标岗位或使用场景之一，不要求固定顺序",
+        "如果直接给出 outline，应能区分 SQL、Python、分析方法、可视化四层；如果暂不出 outline，追问也应服务于这些训练维度的收敛",
         "不要在未确认需求前直接创建课程",
       ],
       tags: ["discovery", "curriculum-structure"],

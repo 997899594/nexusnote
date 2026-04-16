@@ -49,14 +49,45 @@ const KIND_META = {
   manual: { icon: FileText, description: "手动创建或通过编辑动作生成的笔记" },
 } as const;
 
-function getNoteSourceLabel(note: NoteWorkbenchItem) {
-  return note.kind === "highlight"
-    ? "课程高亮"
-    : note.kind === "note"
-      ? "课程笔记"
-      : note.kind === "capture"
-        ? "对话沉淀"
-        : "手动笔记";
+function getNoteSourceLabel(note: NoteWorkbenchItem): string {
+  switch (note.kind) {
+    case "highlight":
+      return "课程高亮";
+    case "note":
+      return "课程笔记";
+    case "capture":
+      return "对话沉淀";
+    case "manual":
+      return "手动笔记";
+  }
+}
+
+function matchesNoteWorkbenchFilters(
+  note: NoteWorkbenchItem,
+  activeKind: NoteWorkbenchKind,
+  courseId?: string,
+): boolean {
+  const matchesKind = activeKind === "all" || note.kind === activeKind;
+  const matchesCourse = !courseId || note.sourceContext?.courseId === courseId;
+  return matchesKind && matchesCourse;
+}
+
+function resolveFilteredItems(params: {
+  itemIds: string[];
+  itemById: Map<string, NoteWorkbenchItem>;
+  activeKind: NoteWorkbenchKind;
+  courseId?: string;
+  limit: number;
+}): NoteWorkbenchItem[] {
+  return params.itemIds
+    .map((itemId) => params.itemById.get(itemId))
+    .filter((item): item is NoteWorkbenchItem => Boolean(item))
+    .filter((item) => matchesNoteWorkbenchFilters(item, params.activeKind, params.courseId))
+    .slice(0, params.limit);
+}
+
+function getEditorKindHref(kind: NoteWorkbenchKind): string {
+  return kind === "all" ? "/editor" : `/editor?kind=${kind}`;
 }
 
 function NoteCard({ note, emphasize = false }: { note: NoteWorkbenchItem; emphasize?: boolean }) {
@@ -136,29 +167,29 @@ async function NotesIndexPageContent({
   const snapshot = await getNotesWorkbenchCached(session.user.id);
   const activeKind = (rawKind as NoteWorkbenchKind | undefined) ?? "all";
   const insights = snapshot.insights.slice(0, 3);
-
-  const matchesFilters = (note: NoteWorkbenchItem) => {
-    const matchesKind = activeKind === "all" ? true : note.kind === activeKind;
-    const matchesCourse = courseId ? note.sourceContext?.courseId === courseId : true;
-    return matchesKind && matchesCourse;
-  };
-
-  const filteredNotes = snapshot.items.filter(matchesFilters);
   const itemById = new Map(snapshot.items.map((item) => [item.id, item]));
-  const focusItems =
-    snapshot.focus?.relatedItemIds
-      .map((itemId) => itemById.get(itemId))
-      .filter((item): item is NoteWorkbenchItem => Boolean(item))
-      .filter(matchesFilters)
-      .slice(0, 3) ?? [];
+  const filteredNotes = snapshot.items.filter((note) =>
+    matchesNoteWorkbenchFilters(note, activeKind, courseId),
+  );
+  const focusItems = snapshot.focus
+    ? resolveFilteredItems({
+        itemIds: snapshot.focus.relatedItemIds,
+        itemById,
+        activeKind,
+        courseId,
+        limit: 3,
+      })
+    : [];
   const insightCollections = snapshot.insightGroups
     .map((group) => ({
       ...group,
-      items: group.itemIds
-        .map((itemId) => itemById.get(itemId))
-        .filter((item): item is NoteWorkbenchItem => Boolean(item))
-        .filter(matchesFilters)
-        .slice(0, 3),
+      items: resolveFilteredItems({
+        itemIds: group.itemIds,
+        itemById,
+        activeKind,
+        courseId,
+        limit: 3,
+      }),
     }))
     .filter((group) => group.items.length > 0);
 
@@ -340,7 +371,7 @@ async function NotesIndexPageContent({
               return (
                 <Link
                   key={kind}
-                  href={kind === "all" ? "/editor" : `/editor?kind=${kind}`}
+                  href={getEditorKindHref(kind)}
                   className={`rounded-[26px] border px-4 py-4 transition-[transform,box-shadow] hover:-translate-y-0.5 ${
                     isActive
                       ? "border-black/10 bg-white shadow-[0_24px_56px_-40px_rgba(15,23,42,0.16)]"
@@ -417,7 +448,7 @@ async function NotesIndexPageContent({
               </div>
               {courseId && (
                 <Link
-                  href={activeKind === "all" ? "/editor" : `/editor?kind=${activeKind}`}
+                  href={getEditorKindHref(activeKind)}
                   className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
                 >
                   清除课程筛选

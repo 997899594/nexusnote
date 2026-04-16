@@ -1,4 +1,5 @@
 import type { Annotation } from "@/hooks/useAnnotations";
+import { escapeHtml } from "@/lib/notes/content";
 
 export interface CourseCaptureInput {
   courseTitle: string;
@@ -138,13 +139,4 @@ export function buildLearnChatCapturedHtml({
   ]
     .filter(Boolean)
     .join("");
-}
-
-function escapeHtml(value: string) {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
 }
