@@ -1,5 +1,5 @@
 import { convertToModelMessages, generateText, readUIMessageStream, type UIMessage } from "ai";
-import { createInterviewAgent } from "@/lib/ai/agents/interview";
+import { createInterviewSessionAgent } from "@/lib/ai/agents/interview-session";
 import { getModelForPolicy } from "@/lib/ai/core/model-policy";
 import { buildPromptInstructions } from "@/lib/ai/core/prompt-registry";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
@@ -908,7 +908,7 @@ async function runInterviewEval({
       },
     ];
 
-    const agent = await createInterviewAgent({
+    const agent = await createInterviewSessionAgent({
       userId: "eval-user",
       currentOutline,
       messages,

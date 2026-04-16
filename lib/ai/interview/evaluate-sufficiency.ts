@@ -3,6 +3,10 @@ import type { InterviewOutline, InterviewState, InterviewSufficiency } from "./s
 type MissingCoreField = InterviewSufficiency["missingCoreFields"][number];
 type NextFocus = InterviewSufficiency["nextFocus"];
 
+interface InterviewSufficiencyContext {
+  currentOutline?: InterviewOutline;
+}
+
 function hasContent(value: string | null | undefined) {
   return typeof value === "string" && value.trim().length >= 2;
 }
@@ -20,24 +24,20 @@ function resolveNextFocus(state: InterviewState, missingCoreFields: MissingCoreF
     return missingCoreFields[0];
   }
 
-  if (!hasConstraints(state)) {
-    return "constraints";
-  }
-
-  return "currentBaseline";
+  return "constraints";
 }
 
 export function evaluateInterviewSufficiency(
   state: InterviewState,
-  currentOutline?: InterviewOutline,
+  context: InterviewSufficiencyContext,
 ): InterviewSufficiency {
-  if (state.phase === "revise" && currentOutline) {
+  if (state.phase === "revise" && context.currentOutline) {
     const reviseAllowed = hasContent(state.revisionIntent) || state.confidence >= 0.45;
 
     return {
       allowOutline: reviseAllowed,
       missingCoreFields: [],
-      nextFocus: reviseAllowed ? "revision" : "revision",
+      nextFocus: "revision",
       reason: reviseAllowed
         ? "用户已经给出可执行的修改方向，可以直接返回更新版课程草案。"
         : "当前仍然是大纲修改语境，但修改点还不够具体，需要先澄清一轮。",

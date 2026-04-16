@@ -36,8 +36,8 @@ function buildFocusGuidance(
       return "下一问只负责确认用户当前大概处于什么基础，不要顺手再问目标。";
     case "constraints":
       return state.constraints.length > 0
-        ? "当前约束已经有一些信号；下一问只补最关键但仍缺的限制条件，例如时间、深度、节奏或应用场景。"
-        : "下一问只补一个关键约束，例如时间、节奏、深度边界或现实使用场景。";
+        ? "当前约束已经有一些信号；下一问只补最关键但仍缺的一个限制条件，例如时间、深度、节奏或应用场景。options 也必须只围绕这一个维度展开。"
+        : "下一问只补一个关键约束，例如时间、节奏、深度边界或现实使用场景。options 也必须只围绕这一个维度展开。";
     case "revision":
       return "下一问只帮助用户把修改意图说得更具体，例如想删什么、加强什么、顺序怎么调整。";
     default:
@@ -103,6 +103,7 @@ ${formatGrowthGenerationContext(input.generationContext, { style: "detailed" })}
 执行要求：
 - 代码已经决定本轮是继续追问还是直接给大纲，你不能更改 action
 - 如果 action=question，只能围绕 focus 推进一个问题，不要同时追问多个维度
+- 如果 action=question，options 也必须只服务这一个问题维度，不能把不同维度混在一起
 - 如果 action=outline，直接给完整课程草案，不要再附带新的追问
 - 这是全领域课程访谈，不默认用户学的是技术主题
 - 不要重复确认用户已经明确说过的信息
