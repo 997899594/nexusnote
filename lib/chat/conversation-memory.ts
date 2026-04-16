@@ -1,15 +1,12 @@
 import { generateText, type UIMessage } from "ai";
 import { getPlainModelForPolicy } from "@/lib/ai";
 import { classifyAIDegradation } from "@/lib/ai/core/degradation";
+import { extractMessageText } from "@/lib/chat/conversation-messages";
 
 function extractPlainTranscript(messages: UIMessage[]): string {
   return messages
     .map((message) => {
-      const text = message.parts
-        .filter((part) => part.type === "text")
-        .map((part) => part.text)
-        .join("\n")
-        .trim();
+      const text = extractMessageText(message).trim();
 
       if (!text) {
         return null;

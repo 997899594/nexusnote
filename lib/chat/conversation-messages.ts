@@ -1,26 +1,15 @@
 import type { UIMessage } from "ai";
 import { asc, eq, inArray } from "drizzle-orm";
 import { conversationMessages, db } from "@/db";
+import { extractUIMessageText } from "@/lib/ai/message-text";
 
 interface ConversationMessageRowInput {
   conversationId: string;
   messages: UIMessage[];
 }
 
-function extractTextFromParts(parts: UIMessage["parts"] | undefined): string {
-  if (!parts || !Array.isArray(parts)) {
-    return "";
-  }
-
-  return parts
-    .filter((part) => part?.type === "text")
-    .map((part) => ("text" in part ? part.text : ""))
-    .filter((text) => text.length > 0)
-    .join("\n");
-}
-
 export function extractMessageText(message: UIMessage): string {
-  return extractTextFromParts(message.parts);
+  return extractUIMessageText(message);
 }
 
 export function buildConversationMessageRows({

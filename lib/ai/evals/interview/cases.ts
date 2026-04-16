@@ -2,14 +2,15 @@ import { createEvalSuite } from "../runner";
 
 export const interviewEvalSuite = createEvalSuite({
   domain: "interview",
-  version: "v1",
+  version: "v3",
   cases: [
     {
-      id: "interview-frontend-react-roadmap",
-      title: "前端转 React 课程访谈",
+      id: "interview-natural-frontend-react-roadmap",
+      title: "自然访谈下的 React 课程访谈",
       domain: "interview",
-      promptVersion: "interview@v1",
+      promptVersion: "interview@natural-v2",
       input: {
+        mode: "natural",
         userGoal: "我会 HTML/CSS/JS，想系统学 React 并做一个作品集项目。",
       },
       expectations: [
@@ -17,29 +18,31 @@ export const interviewEvalSuite = createEvalSuite({
         "最终 outline 应覆盖 React 基础、状态管理、路由、实战项目",
         "不应直接跳到泛泛而谈的职业建议",
       ],
-      tags: ["outline-quality", "goal-clarity"],
+      tags: ["outline-quality", "goal-clarity", "natural"],
     },
     {
-      id: "interview-data-analyst-sql-python",
-      title: "数据分析转型课程访谈",
+      id: "interview-structured-data-analyst-sql-python",
+      title: "结构化访谈下的数据分析转型课程",
       domain: "interview",
-      promptVersion: "interview@v1",
+      promptVersion: "interview@structured-v2",
       input: {
+        mode: "structured",
         userGoal: "我想从运营转数据分析，重点补 SQL、Python 和可视化。",
       },
       expectations: [
-        "访谈中应确认业务背景和目标岗位",
-        "outline 需要区分 SQL、Python、分析方法、可视化四层结构",
-        "不要在未确认需求前直接创建课程",
+        "在信息还不够时，可以继续澄清；澄清应优先围绕当前最缺的一维，不要一次追问多个维度",
+        "不应先退回到技术关键词驱动的默认追问，而要围绕主题、目标结果、当前基础、关键约束来收敛",
+        "如果直接给出 outline，应能区分 SQL、Python、分析方法、可视化四层",
       ],
-      tags: ["discovery", "curriculum-structure"],
+      tags: ["discovery", "curriculum-structure", "structured"],
     },
     {
-      id: "interview-revise-outline-practical-focus",
-      title: "已有大纲后增强实战导向",
+      id: "interview-structured-revise-outline-practical-focus",
+      title: "结构化访谈下的已有大纲增强实战导向",
       domain: "interview",
-      promptVersion: "interview@v1",
+      promptVersion: "interview@structured-v2",
       input: {
+        mode: "structured",
         userGoal: "这个大纲不错，但我想减少理论，增加一个从零做数据分析作品集的实战项目。",
         currentOutline: {
           title: "运营转数据分析课程",
@@ -106,14 +109,31 @@ export const interviewEvalSuite = createEvalSuite({
         "返回的 outline 需要保留原方向，同时增强实战项目部分",
         "options 应更像修改动作，而不是回到初始访谈选项",
       ],
-      tags: ["revise", "outline-adjustment"],
+      tags: ["revise", "outline-adjustment", "structured"],
     },
     {
-      id: "interview-vague-goal-should-keep-discovering",
-      title: "目标模糊时应继续追问而不是抢先出大纲",
+      id: "interview-structured-ppt-work-report",
+      title: "结构化访谈下的非技术 PPT 课程",
       domain: "interview",
-      promptVersion: "interview@v1",
+      promptVersion: "interview@structured-v2",
       input: {
+        mode: "structured",
+        userGoal: "我想学做 PPT，两周后能独立完成工作汇报，目前基本零基础。",
+      },
+      expectations: [
+        "不应把用户拉回技术课程语境",
+        "可以直接给出课程草案，或者只补一个真正关键的使用约束",
+        "如果给出 outline，应围绕汇报目标、结构表达、视觉呈现、实战演练展开",
+      ],
+      tags: ["all-domain", "non-technical", "structured"],
+    },
+    {
+      id: "interview-natural-vague-goal-should-keep-discovering",
+      title: "自然访谈下目标模糊时应继续追问",
+      domain: "interview",
+      promptVersion: "interview@natural-v2",
+      input: {
+        mode: "natural",
         userGoal: "我想学 AI，但还没想好具体方向。",
       },
       expectations: [
@@ -121,7 +141,7 @@ export const interviewEvalSuite = createEvalSuite({
         "返回应包含可执行的下一步选项，帮助用户缩小范围",
         "问题应聚焦，不要一次性发散到太多维度",
       ],
-      tags: ["discovery", "guardrail"],
+      tags: ["discovery", "guardrail", "natural"],
     },
   ],
 });

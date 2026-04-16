@@ -17,6 +17,15 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
+async function getOwnedRouteNote(
+  params: RouteParams["params"],
+  userId: string,
+): Promise<{ noteId: string; note: Awaited<ReturnType<typeof getOwnedNote>> }> {
+  const { id: noteId } = await params;
+  const note = await getOwnedNote(noteId, userId);
+  return { noteId, note };
+}
+
 // GET /api/notes/[id]/tags
 export async function GET(_request: NextRequest, { params }: RouteParams) {
   const session = await auth();
@@ -24,11 +33,8 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id: noteId } = await params;
-
   try {
-    const note = await getOwnedNote(noteId, session.user.id);
-
+    const { noteId, note } = await getOwnedRouteNote(params, session.user.id);
     if (!note) {
       return NextResponse.json({ error: "笔记不存在或无权访问" }, { status: 404 });
     }
@@ -63,11 +69,8 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id: noteId } = await params;
-
   try {
-    const note = await getOwnedNote(noteId, session.user.id);
-
+    const { noteId, note } = await getOwnedRouteNote(params, session.user.id);
     if (!note) {
       return NextResponse.json({ error: "笔记不存在或无权访问" }, { status: 404 });
     }

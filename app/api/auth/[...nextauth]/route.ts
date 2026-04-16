@@ -2,9 +2,5 @@
  * Auth.js v5 Route Handlers (formerly NextAuth)
  */
 
-import NextAuth from "next-auth";
-import { authConfig } from "./config";
-
-export const { handlers, auth, signIn, signOut } = NextAuth(authConfig);
-
+import { handlers } from "./auth";
 export const { GET, POST } = handlers;

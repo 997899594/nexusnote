@@ -13,10 +13,6 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-async function findOwnedNote(noteId: string, userId: string) {
-  return getOwnedNote(noteId, userId);
-}
-
 export async function GET(_request: NextRequest, { params }: RouteParams) {
   const session = await auth();
   const userId = session?.user?.id;
@@ -25,7 +21,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
   }
 
   const { id } = await params;
-  const note = await findOwnedNote(id, userId);
+  const note = await getOwnedNote(id, userId);
 
   if (!note) {
     return NextResponse.json({ error: "Note not found" }, { status: 404 });
@@ -59,7 +55,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   }
 
   const { id } = await params;
-  const existing = await findOwnedNote(id, userId);
+  const existing = await getOwnedNote(id, userId);
 
   if (!existing) {
     return NextResponse.json({ error: "Note not found" }, { status: 404 });

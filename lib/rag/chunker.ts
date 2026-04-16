@@ -1,14 +1,25 @@
 /**
- * RAG Service - Knowledge Chunker
+ * RAG Service - Knowledge Evidence Chunker
  *
- * Unified knowledge chunking and indexing for multiple sources:
- * - note: Notes
- * - conversation: Chat conversations
+ * Unified chunking and indexing for searchable evidence sources:
+ * - note
+ * - capture
+ * - conversation
+ * - course_section
  */
 
 import { embedMany } from "ai";
-import { and, db, eq, knowledgeChunks, notes } from "@/db";
+import {
+  and,
+  db,
+  eq,
+  inArray,
+  knowledgeEvidence,
+  knowledgeEvidenceChunks,
+  knowledgeEvidenceSourceLinks,
+} from "@/db";
 import { aiProvider } from "@/lib/ai";
+import { buildSourceVersionCondition } from "@/lib/growth/source-version";
 import { createRagTrace } from "./observability";
 
 export interface ChunkOptions {
@@ -16,7 +27,23 @@ export interface ChunkOptions {
   overlap?: number;
 }
 
-export type SourceType = "note" | "conversation" | "course_section";
+export type SourceType = "note" | "capture" | "conversation" | "course_section";
+
+interface SyncSourceKnowledgeEvidenceChunksOptions extends ChunkOptions {
+  userId: string;
+  sourceType: SourceType;
+  sourceId: string;
+  sourceVersionHash?: string | null;
+  metadata?: Record<string, unknown>;
+}
+
+interface SearchableEvidenceRow {
+  id: string;
+  sourceType: string;
+  sourceId: string | null;
+  title: string;
+  summary: string;
+}
 
 const DEFAULT_CHUNK_SIZE = 500;
 const DEFAULT_OVERLAP = 50;
@@ -52,6 +79,34 @@ async function createEmbeddingsOrNull(
   }
 }
 
+function uniqueTextParts(parts: Array<string | null | undefined>): string[] {
+  const values = [];
+  const seen = new Set<string>();
+
+  for (const part of parts) {
+    const normalized = part?.replace(/\s+/g, " ").trim();
+    if (!normalized || seen.has(normalized)) {
+      continue;
+    }
+
+    seen.add(normalized);
+    values.push(normalized);
+  }
+
+  return values;
+}
+
+function buildEvidenceChunkContent(
+  evidence: SearchableEvidenceRow,
+  refs: Array<{ snippet: string | null }>,
+): string {
+  return uniqueTextParts([
+    evidence.title,
+    evidence.summary,
+    ...refs.map((ref) => ref.snippet),
+  ]).join("\n\n");
+}
+
 export function chunkText(
   text: string,
   chunkSize: number = DEFAULT_CHUNK_SIZE,
@@ -85,190 +140,131 @@ export function chunkText(
   return chunks;
 }
 
-interface IndexOptions extends ChunkOptions {
-  userId?: string;
-  metadata?: Record<string, unknown>;
-}
+async function deleteChunksByEvidenceIds(evidenceIds: string[]): Promise<void> {
+  if (evidenceIds.length === 0) {
+    return;
+  }
 
-async function deleteChunksBySource(sourceType: SourceType, sourceId: string): Promise<void> {
   await db
-    .delete(knowledgeChunks)
-    .where(and(eq(knowledgeChunks.sourceType, sourceType), eq(knowledgeChunks.sourceId, sourceId)));
+    .delete(knowledgeEvidenceChunks)
+    .where(inArray(knowledgeEvidenceChunks.knowledgeEvidenceId, evidenceIds));
 }
 
-export async function indexNote(
-  noteId: string,
-  plainText: string,
-  options: IndexOptions = {},
-): Promise<{ success: boolean; chunksCount: number }> {
-  const { chunkSize = DEFAULT_CHUNK_SIZE, overlap = DEFAULT_OVERLAP, userId, metadata } = options;
-  const trace = createRagTrace("index-note", {
-    noteId,
-    textLength: plainText.length,
-    hasUserId: Boolean(userId),
+export async function syncSourceKnowledgeEvidenceChunks(
+  options: SyncSourceKnowledgeEvidenceChunksOptions,
+): Promise<{ success: boolean; chunksCount: number; evidenceCount: number }> {
+  const {
+    chunkSize = DEFAULT_CHUNK_SIZE,
+    overlap = DEFAULT_OVERLAP,
+    userId,
+    sourceType,
+    sourceId,
+    sourceVersionHash,
+    metadata,
+  } = options;
+  const trace = createRagTrace("sync-source-evidence-chunks", {
+    userId,
+    sourceType,
+    sourceId,
+    sourceVersionHash: sourceVersionHash ?? null,
   });
 
   try {
-    const note = await db.query.notes.findFirst({
-      where: eq(notes.id, noteId),
+    const evidenceRows = await db
+      .select({
+        id: knowledgeEvidence.id,
+        sourceType: knowledgeEvidence.sourceType,
+        sourceId: knowledgeEvidence.sourceId,
+        title: knowledgeEvidence.title,
+        summary: knowledgeEvidence.summary,
+      })
+      .from(knowledgeEvidence)
+      .where(
+        and(
+          eq(knowledgeEvidence.userId, userId),
+          eq(knowledgeEvidence.sourceType, sourceType),
+          eq(knowledgeEvidence.sourceId, sourceId),
+          buildSourceVersionCondition(knowledgeEvidence.sourceVersionHash, sourceVersionHash),
+        ),
+      );
+
+    if (evidenceRows.length === 0) {
+      trace.finish({ evidenceCount: 0, chunksCount: 0 });
+      return { success: true, chunksCount: 0, evidenceCount: 0 };
+    }
+
+    const evidenceIds = evidenceRows.map((row) => row.id);
+    const sourceLinks = await db
+      .select({
+        evidenceId: knowledgeEvidenceSourceLinks.evidenceId,
+        snippet: knowledgeEvidenceSourceLinks.snippet,
+      })
+      .from(knowledgeEvidenceSourceLinks)
+      .where(inArray(knowledgeEvidenceSourceLinks.evidenceId, evidenceIds));
+
+    const refsByEvidenceId = new Map<string, typeof sourceLinks>();
+    for (const sourceLink of sourceLinks) {
+      const existing = refsByEvidenceId.get(sourceLink.evidenceId) ?? [];
+      existing.push(sourceLink);
+      refsByEvidenceId.set(sourceLink.evidenceId, existing);
+    }
+
+    await deleteChunksByEvidenceIds(evidenceIds);
+    trace.step("delete-old-chunks", { evidenceCount: evidenceRows.length });
+
+    let totalChunks = 0;
+    for (const evidence of evidenceRows) {
+      const searchableContent = buildEvidenceChunkContent(
+        evidence,
+        refsByEvidenceId.get(evidence.id) ?? [],
+      );
+      const chunks = chunkText(searchableContent, chunkSize, overlap);
+      if (chunks.length === 0) {
+        continue;
+      }
+
+      const embeddings = await createEmbeddingsOrNull(
+        chunks,
+        `${sourceType}:${sourceId}:${evidence.id}`,
+      );
+      const newChunks = chunks.map((content, index) => ({
+        knowledgeEvidenceId: evidence.id,
+        content,
+        embedding: embeddings[index],
+        chunkIndex: index,
+        metadata: {
+          ...metadata,
+          sourceType: evidence.sourceType,
+          sourceId: evidence.sourceId,
+        },
+      }));
+
+      const batchSize = 50;
+      for (let offset = 0; offset < newChunks.length; offset += batchSize) {
+        await db
+          .insert(knowledgeEvidenceChunks)
+          .values(newChunks.slice(offset, offset + batchSize));
+      }
+
+      totalChunks += chunks.length;
+    }
+
+    trace.finish({
+      evidenceCount: evidenceRows.length,
+      chunksCount: totalChunks,
     });
-
-    if (!note) {
-      throw new Error(`Note not found: ${noteId}`);
-    }
-
-    await deleteChunksBySource("note", noteId);
-    trace.step("delete-old-chunks");
-
-    const chunks = chunkText(plainText, chunkSize, overlap);
-    trace.step("chunked", { chunksCount: chunks.length, chunkSize, overlap });
-
-    if (chunks.length === 0) {
-      trace.finish({ chunksCount: 0, embeddingsCount: 0 });
-      return { success: true, chunksCount: 0 };
-    }
-
-    const embeddings = await createEmbeddingsOrNull(chunks, `note:${noteId}`);
-    const embeddingsCount = embeddings.filter((item) => item !== null).length;
-    trace.step("embedded", { embeddingsCount, chunksCount: chunks.length });
-
-    const newChunks = chunks.map((content, index) => ({
-      sourceType: "note" as const,
-      sourceId: noteId,
-      content,
-      embedding: embeddings[index],
-      chunkIndex: index,
-      userId: userId || null,
-      metadata: metadata || null,
-    }));
-
-    const batchSize = 50;
-    for (let i = 0; i < newChunks.length; i += batchSize) {
-      const batch = newChunks.slice(i, i + batchSize);
-      await db.insert(knowledgeChunks).values(batch);
-    }
-    trace.finish({ chunksCount: chunks.length, embeddingsCount });
 
     return {
       success: true,
-      chunksCount: chunks.length,
+      chunksCount: totalChunks,
+      evidenceCount: evidenceRows.length,
     };
   } catch (error) {
-    trace.fail(error, { noteId });
-    throw error;
-  }
-}
-
-export async function indexConversation(
-  conversationId: string,
-  plainText: string,
-  userId: string,
-  options: IndexOptions = {},
-): Promise<{ success: boolean; chunksCount: number }> {
-  const { chunkSize = DEFAULT_CHUNK_SIZE, overlap = DEFAULT_OVERLAP, metadata } = options;
-  const trace = createRagTrace("index-conversation", {
-    conversationId,
-    textLength: plainText.length,
-    userId,
-  });
-
-  try {
-    await deleteChunksBySource("conversation", conversationId);
-    trace.step("delete-old-chunks");
-
-    const chunks = chunkText(plainText, chunkSize, overlap);
-    trace.step("chunked", { chunksCount: chunks.length, chunkSize, overlap });
-
-    if (chunks.length === 0) {
-      trace.finish({ chunksCount: 0, embeddingsCount: 0 });
-      return { success: true, chunksCount: 0 };
-    }
-
-    const startTime = Date.now();
-    const embeddings = await createEmbeddingsOrNull(chunks, `conversation:${conversationId}`);
-    const embeddingsCount = embeddings.filter((item) => item !== null).length;
-    trace.step("embedded", {
-      chunksCount: chunks.length,
-      embeddingsCount,
-      embeddingMs: Date.now() - startTime,
+    trace.fail(error, {
+      userId,
+      sourceType,
+      sourceId,
     });
-
-    const newChunks = chunks.map((content, index) => ({
-      sourceType: "conversation" as SourceType,
-      sourceId: conversationId,
-      content,
-      embedding: embeddings[index],
-      chunkIndex: index,
-      userId,
-      metadata: metadata || null,
-    }));
-
-    const batchSize = 50;
-    for (let i = 0; i < newChunks.length; i += batchSize) {
-      const batch = newChunks.slice(i, i + batchSize);
-      await db.insert(knowledgeChunks).values(batch);
-    }
-    trace.finish({ chunksCount: chunks.length, embeddingsCount });
-
-    return {
-      success: true,
-      chunksCount: chunks.length,
-    };
-  } catch (error) {
-    trace.fail(error, { conversationId });
-    throw error;
-  }
-}
-
-export async function indexCourseSection(
-  documentId: string,
-  plainText: string,
-  userId: string,
-  courseId: string,
-  options: IndexOptions = {},
-): Promise<{ success: boolean; chunksCount: number }> {
-  const { chunkSize = DEFAULT_CHUNK_SIZE, overlap = DEFAULT_OVERLAP, metadata } = options;
-  const trace = createRagTrace("index-course-section", {
-    documentId,
-    courseId,
-    textLength: plainText.length,
-    userId,
-  });
-
-  try {
-    await deleteChunksBySource("course_section", documentId);
-    trace.step("delete-old-chunks");
-
-    const chunks = chunkText(plainText, chunkSize, overlap);
-    trace.step("chunked", { chunksCount: chunks.length, chunkSize, overlap });
-    if (chunks.length === 0) {
-      trace.finish({ chunksCount: 0, embeddingsCount: 0 });
-      return { success: true, chunksCount: 0 };
-    }
-
-    const embeddings = await createEmbeddingsOrNull(chunks, `course_section:${documentId}`);
-    const embeddingsCount = embeddings.filter((item) => item !== null).length;
-    trace.step("embedded", { chunksCount: chunks.length, embeddingsCount });
-
-    const newChunks = chunks.map((content, index) => ({
-      sourceType: "course_section" as SourceType,
-      sourceId: documentId,
-      content,
-      embedding: embeddings[index],
-      chunkIndex: index,
-      userId,
-      metadata: { ...metadata, courseId },
-    }));
-
-    const batchSize = 50;
-    for (let i = 0; i < newChunks.length; i += batchSize) {
-      const batch = newChunks.slice(i, i + batchSize);
-      await db.insert(knowledgeChunks).values(batch);
-    }
-    trace.finish({ chunksCount: chunks.length, embeddingsCount });
-    return { success: true, chunksCount: chunks.length };
-  } catch (error) {
-    trace.fail(error, { documentId, courseId });
     throw error;
   }
 }

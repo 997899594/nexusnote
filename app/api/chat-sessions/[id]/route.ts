@@ -25,6 +25,38 @@ interface UpdateSessionBody {
   isArchived?: boolean;
 }
 
+type UpdatedSessionSnapshot = Awaited<ReturnType<typeof saveOwnedConversationSnapshot>>;
+
+function buildSessionUpdates(body: UpdateSessionBody): {
+  title?: string;
+  summary?: string;
+  isArchived?: boolean;
+  updatedAt: Date;
+} {
+  const updates: {
+    title?: string;
+    summary?: string;
+    isArchived?: boolean;
+    updatedAt: Date;
+  } = {
+    updatedAt: new Date(),
+  };
+
+  if (body.title !== undefined) {
+    updates.title = body.title;
+  }
+
+  if (body.summary !== undefined) {
+    updates.summary = body.summary;
+  }
+
+  if (body.isArchived !== undefined) {
+    updates.isArchived = body.isArchived;
+  }
+
+  return updates;
+}
+
 export const GET = withDynamicAuth<unknown, { id: string }>(
   async (_request, { userId, params }) => {
     const { id } = params;
@@ -62,40 +94,34 @@ export const PATCH = withDynamicAuth<unknown, { id: string }>(
     const body: UpdateSessionBody = await request.json();
     const { title, messages, summary, isArchived } = body;
 
-    const updated =
-      messages !== undefined
-        ? await saveOwnedConversationSnapshot({
-            conversationId: id,
-            userId,
-            existingSummary: existing.summary ?? null,
-            messages,
-            title,
-            summary,
-            isArchived,
-            trimmedSummaryFallback: "较早的对话内容已折叠，仅保留最近消息。",
-          })
-        : await (async () => {
-            const conversation = await updateOwnedConversation({
-              conversationId: id,
-              userId,
-              updates: {
-                ...(title !== undefined && { title }),
-                ...(summary !== undefined && { summary }),
-                ...(isArchived !== undefined && { isArchived }),
-                updatedAt: new Date(),
-              },
-            });
+    let updated: UpdatedSessionSnapshot;
+    if (messages !== undefined) {
+      updated = await saveOwnedConversationSnapshot({
+        conversationId: id,
+        userId,
+        existingSummary: existing.summary ?? null,
+        messages,
+        title,
+        summary,
+        isArchived,
+        trimmedSummaryFallback: "较早的对话内容已折叠，仅保留最近消息。",
+      });
+    } else {
+      const conversation = await updateOwnedConversation({
+        conversationId: id,
+        userId,
+        updates: buildSessionUpdates(body),
+      });
 
-            if (!conversation) {
-              return null;
-            }
+      if (!conversation) {
+        return Response.json({ error: "Session not found" }, { status: 404 });
+      }
 
-            const persistedMessages = await loadConversationMessages(id);
-            return {
-              conversation,
-              messages: persistedMessages,
-            };
-          })();
+      updated = {
+        conversation,
+        messages: await loadConversationMessages(id),
+      };
+    }
 
     if (!updated) {
       return Response.json({ error: "Session not found" }, { status: 404 });

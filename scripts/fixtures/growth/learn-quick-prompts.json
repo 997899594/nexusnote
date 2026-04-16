@@ -1,0 +1,32 @@
+{
+  "cases": [
+    {
+      "name": "chapter-focus-and-insight-prompts",
+      "input": {
+        "chapterTitle": "业务可视化表达",
+        "growthFocus": {
+          "directionKey": "data-analyst",
+          "title": "业务可视化表达",
+          "summary": "把分析结果表达给团队并推动业务决策",
+          "progress": 46,
+          "state": "in_progress"
+        },
+        "insights": [
+          {
+            "id": "insight-gap-expression",
+            "kind": "gap",
+            "title": "业务表达",
+            "summary": "分析结果表达还不够稳定，容易停在图表层面",
+            "confidence": 0.82
+          }
+        ]
+      },
+      "expectedPrompts": [
+        "这一章「业务可视化表达」最重要的三个要点是什么？",
+        "这一章和我当前焦点「业务可视化表达」到底是什么关系？",
+        "学完这一章后，我该怎么把它用来推进「业务可视化表达」？",
+        "结合我最近的「业务表达」，这一章我最该盯住什么？"
+      ]
+    }
+  ]
+}

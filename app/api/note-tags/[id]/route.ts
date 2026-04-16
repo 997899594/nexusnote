@@ -28,6 +28,18 @@ async function getOwnedNoteTag(noteTagId: string, userId: string) {
   return result;
 }
 
+async function getOwnedRouteNoteTag(
+  params: RouteParams["params"],
+  userId: string,
+): Promise<{
+  noteTagId: string;
+  ownedTag: Awaited<ReturnType<typeof getOwnedNoteTag>>;
+}> {
+  const { id: noteTagId } = await params;
+  const ownedTag = await getOwnedNoteTag(noteTagId, userId);
+  return { noteTagId, ownedTag };
+}
+
 // PATCH /api/note-tags/[id]
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const session = await auth();
@@ -35,10 +47,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id: noteTagId } = await params;
-
   try {
-    const ownedTag = await getOwnedNoteTag(noteTagId, session.user.id);
+    const { noteTagId, ownedTag } = await getOwnedRouteNoteTag(params, session.user.id);
     if (!ownedTag) {
       return NextResponse.json({ error: "标签关联不存在或无权访问" }, { status: 404 });
     }
@@ -85,10 +95,8 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id: noteTagId } = await params;
-
   try {
-    const ownedTag = await getOwnedNoteTag(noteTagId, session.user.id);
+    const { noteTagId, ownedTag } = await getOwnedRouteNoteTag(params, session.user.id);
     if (!ownedTag) {
       return NextResponse.json({ error: "标签关联不存在或无权访问" }, { status: 404 });
     }

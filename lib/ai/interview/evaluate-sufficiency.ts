@@ -1,129 +1,79 @@
 import type { InterviewOutline, InterviewState, InterviewSufficiency } from "./schemas";
 
+type MissingCoreField = InterviewSufficiency["missingCoreFields"][number];
 type NextFocus = InterviewSufficiency["nextFocus"];
 
 function hasContent(value: string | null | undefined) {
   return typeof value === "string" && value.trim().length >= 2;
 }
 
-function inferUseCaseFromGoal(goal: string | null) {
-  if (!goal) {
-    return false;
-  }
-
-  const normalized = goal.toLowerCase();
-  return [
-    "项目",
-    "工作",
-    "作品集",
-    "面试",
-    "考研",
-    "考试",
-    "转岗",
-    "求职",
-    "分析",
-    "可视化",
-    "网站",
-    "应用",
-  ].some((keyword) => normalized.includes(keyword));
+function hasConstraints(state: InterviewState) {
+  return state.constraints.length > 0;
 }
 
-function hasConcreteDeliverable(state: InterviewState) {
-  const combined = [state.goal, state.useCase, ...state.preferences.focusAreas]
-    .filter((value): value is string => hasContent(value))
-    .join(" ")
-    .toLowerCase();
-
-  return [
-    "作品集",
-    "项目",
-    "网站",
-    "应用",
-    "后台",
-    "仪表盘",
-    "dashboard",
-    "portfolio",
-    "demo",
-    "案例",
-    "原型",
-    "落地",
-  ].some((keyword) => combined.includes(keyword));
-}
-
-function resolveNextFocus(
-  state: InterviewState,
-  missingCoreFields: Array<"goal" | "background" | "useCase">,
-): NextFocus {
-  if (state.mode === "revise") {
-    return "revise";
+function resolveNextFocus(state: InterviewState, missingCoreFields: MissingCoreField[]): NextFocus {
+  if (state.phase === "revise") {
+    return "revision";
   }
 
   if (missingCoreFields.length > 0) {
     return missingCoreFields[0];
   }
 
-  if (!hasContent(state.preferences.style) || state.preferences.focusAreas.length === 0) {
-    return "preferences";
-  }
-
-  if (!hasContent(state.constraints.preferredDepth)) {
+  if (!hasConstraints(state)) {
     return "constraints";
   }
 
-  return "preferences";
+  return "currentBaseline";
 }
 
 export function evaluateInterviewSufficiency(
   state: InterviewState,
   currentOutline?: InterviewOutline,
 ): InterviewSufficiency {
-  const missingCoreFields: Array<"goal" | "background" | "useCase"> = [];
-
-  if (!hasContent(state.goal)) {
-    missingCoreFields.push("goal");
-  }
-
-  if (!hasContent(state.background)) {
-    missingCoreFields.push("background");
-  }
-
-  if (!hasContent(state.useCase) && !inferUseCaseFromGoal(state.goal)) {
-    missingCoreFields.push("useCase");
-  }
-
-  if (state.mode === "revise" && currentOutline) {
-    const reviseAllowed =
-      state.openQuestions.length <= 2 || state.confidence >= 0.55 || hasContent(state.goal);
+  if (state.phase === "revise" && currentOutline) {
+    const reviseAllowed = hasContent(state.revisionIntent) || state.confidence >= 0.45;
 
     return {
       allowOutline: reviseAllowed,
-      missingCoreFields: reviseAllowed ? [] : missingCoreFields,
-      nextFocus: reviseAllowed ? "revise" : resolveNextFocus(state, missingCoreFields),
+      missingCoreFields: [],
+      nextFocus: reviseAllowed ? "revision" : "revision",
       reason: reviseAllowed
-        ? "用户已经在现有大纲上提出修改，可以直接返回更新版。"
-        : "当前修改意图仍不够具体，需要先澄清关键调整方向。",
+        ? "用户已经给出可执行的修改方向，可以直接返回更新版课程草案。"
+        : "当前仍然是大纲修改语境，但修改点还不够具体，需要先澄清一轮。",
     };
   }
 
-  const draftFirstAllowed =
-    missingCoreFields.length === 0 &&
-    hasConcreteDeliverable(state) &&
-    hasContent(state.background) &&
-    state.confidence >= 0.35;
+  const missingCoreFields: MissingCoreField[] = [];
+  const hasTopic = hasContent(state.topic);
+  const hasTargetOutcome = hasContent(state.targetOutcome);
+  const hasBaseline = hasContent(state.currentBaseline);
+  const hasKeyConstraints = hasConstraints(state);
+
+  if (!hasTopic) {
+    missingCoreFields.push("topic");
+  }
+
+  if (!hasTargetOutcome) {
+    missingCoreFields.push("targetOutcome");
+  }
+
+  if (!hasBaseline && !hasKeyConstraints) {
+    missingCoreFields.push("currentBaseline");
+  }
 
   const allowOutline =
-    missingCoreFields.length === 0 && (state.confidence >= 0.7 || draftFirstAllowed);
+    hasTopic && hasTargetOutcome && (hasBaseline || hasKeyConstraints) && state.confidence >= 0.58;
+  const nextFocus = resolveNextFocus(state, missingCoreFields);
 
   return {
     allowOutline,
     missingCoreFields,
-    nextFocus: allowOutline ? "revise" : resolveNextFocus(state, missingCoreFields),
+    nextFocus,
     reason: allowOutline
-      ? draftFirstAllowed && state.confidence < 0.7
-        ? "主题、基础和具体产出目标已经明确，可以先给出课程草案，再继续微调。"
-        : "核心信息已经足够，可以生成课程草案。"
+      ? "主题、目标结果，以及基础或关键约束已经足够，可以生成课程草案。"
       : missingCoreFields.length > 0
-        ? `仍缺少关键访谈信息：${missingCoreFields.join("、")}。`
-        : "核心方向已明确，但还需要再补一个关键约束后再生成更稳。",
+        ? `还缺少关键课程设计信息：${missingCoreFields.join("、")}。`
+        : "主题和目标已经清楚，但还需要补一个关键限制条件再生成更稳。",
   };
 }

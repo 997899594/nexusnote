@@ -3,7 +3,7 @@
  */
 
 import { z } from "zod";
-import { InterviewOutlineSchema } from "@/lib/ai/interview";
+import { InterviewOutlineSchema, InterviewSessionModeSchema } from "@/lib/ai/interview";
 import { ChatMetadataSchema } from "@/types/metadata";
 
 const BaseConversationRequestSchema = z.object({
@@ -26,6 +26,7 @@ export const InterviewApiRequestSchema = BaseConversationRequestSchema.extend({
   messages: z.array(z.unknown()).min(1),
   courseId: z.string().uuid().nullish(),
   outline: InterviewOutlineSchema.nullish(),
+  mode: InterviewSessionModeSchema.default("natural"),
 });
 
 export type ChatApiRequest = z.infer<typeof ChatApiRequestSchema>;

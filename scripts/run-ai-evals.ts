@@ -2,6 +2,7 @@ import {
   chatEvalSuite,
   type EvalDomain,
   type EvalSuite,
+  growthEvalSuite,
   interviewEvalSuite,
   learnEvalSuite,
   notesEvalSuite,
@@ -10,6 +11,7 @@ import {
 
 const SUITES: Record<EvalDomain, EvalSuite<any>> = {
   chat: chatEvalSuite,
+  growth: growthEvalSuite,
   interview: interviewEvalSuite,
   learn: learnEvalSuite,
   notes: notesEvalSuite,
@@ -33,6 +35,7 @@ async function main() {
         const metrics = caseResult.runtimeMetrics;
         const failedRules =
           caseResult.ruleChecks?.filter((check) => !check.passed).map((check) => check.name) ?? [];
+        const quality = caseResult.quality;
         const metricSummary = metrics
           ? ` total=${metrics.totalMs}ms firstText=${metrics.firstTextMs ?? "-"} firstOptions=${metrics.firstOptionsMs ?? "-"} firstOutline=${metrics.firstOutlineMs ?? "-"}`
           : "";
@@ -42,9 +45,18 @@ async function main() {
             : "";
         const failedRuleSummary =
           failedRules.length > 0 ? ` failedRules=${failedRules.join(",")}` : "";
+        const qualitySummary = quality
+          ? ` quality=${quality.score.toFixed(2)}(${quality.source}${quality.passed ? "" : ",warn"})`
+          : "";
+        const status =
+          caseResult.passed && quality && !quality.passed
+            ? "PASS_WITH_WARN"
+            : caseResult.passed
+              ? "PASS"
+              : "FAIL";
 
         console.log(
-          `[AI Eval] ${caseResult.passed ? "PASS" : "FAIL"} ${caseResult.caseId} score=${caseResult.score.toFixed(2)}${ruleSummary}${failedRuleSummary}${metricSummary}`,
+          `[AI Eval] ${status} ${caseResult.caseId} contract=${caseResult.contract.score.toFixed(2)}${qualitySummary}${ruleSummary}${failedRuleSummary}${metricSummary}`,
         );
       },
     });

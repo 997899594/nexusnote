@@ -20,6 +20,8 @@ export const ResolvedLearnMetadataSchema = z.object({
   courseTitle: z.string(),
   chapterIndex: z.number().int().min(0),
   chapterTitle: z.string(),
+  chapterDescription: z.string().optional(),
+  sectionTitles: z.array(z.string()).max(8).optional(),
   courseSkillIds: z.array(z.string()).max(12).optional(),
   chapterSkillIds: z.array(z.string()).max(8).optional(),
 });

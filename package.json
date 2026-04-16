@@ -7,9 +7,11 @@
     "build": "bun ./node_modules/.bin/next build",
     "start": "node scripts/start.mjs",
     "lint": "biome check .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "bun ./node_modules/.bin/next typegen && tsc --noEmit",
     "ai:eval": "bun scripts/run-ai-evals.ts",
-    "career-tree:backfill": "bun scripts/backfill-career-trees.ts",
+    "growth:backfill": "bun scripts/backfill-user-growth.ts",
+    "growth:check": "bun scripts/check-growth-stability.ts",
+    "growth:verify": "bun scripts/verify-growth-runtime.ts",
     "db:migrate": "node scripts/db-migrate.mjs",
     "db:studio": "drizzle-kit studio --config drizzle.config.mjs",
     "db:generate": "drizzle-kit generate --config drizzle.config.mjs"

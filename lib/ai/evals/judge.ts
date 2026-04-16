@@ -9,6 +9,8 @@ const EvalJudgementSchema = z.object({
   notes: z.array(z.string()).min(1).max(5),
 });
 
+const EVAL_RECORD_USAGE = false;
+
 export interface EvalJudgement {
   score: number;
   notes: string[];
@@ -53,12 +55,14 @@ ${output}`,
     temperature: 0,
   });
 
-  await recordAIUsage({
-    ...telemetry,
-    usage: result.usage,
-    durationMs: Date.now() - startedAt,
-    success: true,
-  });
+  if (EVAL_RECORD_USAGE) {
+    await recordAIUsage({
+      ...telemetry,
+      usage: result.usage,
+      durationMs: Date.now() - startedAt,
+      success: true,
+    });
+  }
 
   return result.output;
 }

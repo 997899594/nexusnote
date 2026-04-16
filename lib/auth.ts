@@ -7,7 +7,7 @@
 
 import { redirect } from "next/navigation";
 import { AuthError } from "next-auth";
-import { auth as nextAuth } from "@/app/api/auth/[...nextauth]/route";
+import { auth as nextAuth } from "@/app/api/auth/[...nextauth]/auth";
 import { createLoginPath } from "@/lib/auth-redirect";
 
 /**

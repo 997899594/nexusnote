@@ -9,6 +9,7 @@ import { useEffect, useMemo } from "react";
 import type { Annotation } from "@/hooks/useAnnotations";
 import { useChapterSections } from "@/hooks/useChapterSections";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import type { GrowthFocusSummary, GrowthInsightSummary } from "@/lib/growth/projection-types";
 import { cn } from "@/lib/utils";
 import type { ChapterOutline } from "@/stores/learn";
 import { useLearnStore } from "@/stores/learn";
@@ -23,7 +24,7 @@ export interface SectionDoc {
   id: string;
   title: string | null;
   content: string | null;
-  outlineNodeId: string | null;
+  outlineNodeKey: string | null;
   annotations: Annotation[];
 }
 
@@ -32,6 +33,8 @@ export interface LearnClientProps {
   courseTitle: string;
   chapters: ChapterOutline[];
   sectionDocs: SectionDoc[];
+  growthFocus: GrowthFocusSummary | null;
+  insights: GrowthInsightSummary[];
   initialChapterIndex: number;
   initialCompletedSections: string[];
   scrollToSectionId: string | null;
@@ -70,6 +73,8 @@ export function LearnClient({
   courseTitle,
   chapters,
   sectionDocs,
+  growthFocus,
+  insights,
   initialChapterIndex,
   initialCompletedSections,
   scrollToSectionId,
@@ -114,8 +119,8 @@ export function LearnClient({
   const initialContent = useMemo(() => {
     const map = new Map<string, { content: string; documentId: string }>();
     for (const doc of sectionDocs) {
-      if (doc.content && doc.outlineNodeId) {
-        map.set(doc.outlineNodeId, { content: doc.content, documentId: doc.id });
+      if (doc.content && doc.outlineNodeKey) {
+        map.set(doc.outlineNodeKey, { content: doc.content, documentId: doc.id });
       }
     }
     return map;
@@ -238,7 +243,12 @@ export function LearnClient({
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 className="fixed inset-y-0 left-0 z-50 w-[min(88vw,336px)] overflow-hidden rounded-r-[28px] bg-[#f6f7f9] shadow-xl"
               >
-                <LearnSidebar courseTitle={courseTitle} width={SIDEBAR_WIDTH} />
+                <LearnSidebar
+                  courseTitle={courseTitle}
+                  width={SIDEBAR_WIDTH}
+                  growthFocus={growthFocus}
+                  insights={insights}
+                />
               </motion.div>
             </>
           )}
@@ -262,7 +272,13 @@ export function LearnClient({
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 className="fixed inset-y-0 right-0 z-50 w-full overflow-hidden bg-[#f6f7f9] shadow-xl"
               >
-                <LearnChat courseId={sessionId} courseTitle={courseTitle} variant="overlay" />
+                <LearnChat
+                  courseId={sessionId}
+                  courseTitle={courseTitle}
+                  growthFocus={growthFocus}
+                  insights={insights}
+                  variant="overlay"
+                />
               </motion.div>
             </>
           )}
@@ -284,7 +300,12 @@ export function LearnClient({
             exit="exit"
             className="flex-shrink-0 overflow-hidden rounded-[30px] border border-black/5 bg-[#f6f7f9] shadow-[0_22px_54px_-40px_rgba(15,23,42,0.22)]"
           >
-            <LearnSidebar courseTitle={courseTitle} width={SIDEBAR_WIDTH} />
+            <LearnSidebar
+              courseTitle={courseTitle}
+              width={SIDEBAR_WIDTH}
+              growthFocus={growthFocus}
+              insights={insights}
+            />
           </motion.div>
         )}
       </AnimatePresence>
@@ -339,7 +360,14 @@ export function LearnClient({
 
       {/* AI Chat panel - hidden in zen mode */}
       <AnimatePresence>
-        {!isZenMode && <LearnChat courseId={sessionId} courseTitle={courseTitle} />}
+        {!isZenMode && (
+          <LearnChat
+            courseId={sessionId}
+            courseTitle={courseTitle}
+            growthFocus={growthFocus}
+            insights={insights}
+          />
+        )}
       </AnimatePresence>
     </div>
   );

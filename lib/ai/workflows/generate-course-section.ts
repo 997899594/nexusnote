@@ -7,9 +7,12 @@ import { buildSectionPrompt } from "@/lib/ai/prompts/learn";
 import { APIError } from "@/lib/api";
 import { invalidateChapterCache } from "@/lib/cache/course-context";
 import { revalidateLearnPage } from "@/lib/cache/tags";
-import { getOwnedCourse } from "@/lib/learning/course-repository";
+import { getUserGrowthContext } from "@/lib/growth/generation-context";
+import { buildLearningAlignmentBrief } from "@/lib/learning/alignment";
+import { getOwnedCourseWithOutline } from "@/lib/learning/course-repository";
 import { createLearnTrace } from "@/lib/learning/observability";
-import { ragQueue } from "@/lib/queue";
+import { buildSectionOutlineNodeKey } from "@/lib/learning/outline-node-key";
+import { ragQueue } from "@/lib/queue/rag-queue";
 
 interface GenerateCourseSectionWorkflowOptions {
   userId: string;
@@ -18,20 +21,6 @@ interface GenerateCourseSectionWorkflowOptions {
   sectionIndex: number;
   traceId?: string;
 }
-
-type CourseOutlineData = {
-  title?: string;
-  description?: string;
-  learningOutcome?: string;
-  courseSkillIds?: string[];
-  targetAudience?: string;
-  chapters?: Array<{
-    title: string;
-    description?: string;
-    skillIds?: string[];
-    sections?: Array<{ title: string; description: string }>;
-  }>;
-};
 
 export async function runGenerateCourseSectionWorkflow({
   userId,
@@ -55,7 +44,7 @@ export async function runGenerateCourseSectionWorkflow({
     endpoint: "/api/learn/generate",
     userId,
     workflow: "generate-course-section",
-    promptVersion: "course-section@v2",
+    promptVersion: "course-section@v3",
     modelPolicy: "structured-high-quality",
     metadata: {
       courseId,
@@ -64,7 +53,7 @@ export async function runGenerateCourseSectionWorkflow({
     },
   });
 
-  const course = await getOwnedCourse(courseId, userId);
+  const course = await getOwnedCourseWithOutline(courseId, userId);
   if (!course) {
     trace.finish({
       found: false,
@@ -76,8 +65,9 @@ export async function runGenerateCourseSectionWorkflow({
     title: course.title,
   });
 
-  const outline = course.outlineData as CourseOutlineData | null;
-  const chapter = outline?.chapters?.[chapterIndex];
+  const outline = course.outline;
+  const generationContext = await getUserGrowthContext(userId);
+  const chapter = outline.chapters[chapterIndex];
   if (!chapter) {
     trace.finish({
       found: false,
@@ -86,7 +76,7 @@ export async function runGenerateCourseSectionWorkflow({
     throw new APIError("章节不存在", 404, "CHAPTER_NOT_FOUND");
   }
 
-  const section = chapter.sections?.[sectionIndex];
+  const section = chapter.sections[sectionIndex];
   if (!section) {
     trace.finish({
       found: false,
@@ -95,12 +85,12 @@ export async function runGenerateCourseSectionWorkflow({
     throw new APIError("小节不存在", 404, "SECTION_NOT_FOUND");
   }
 
-  const outlineNodeId = `section-${chapterIndex + 1}-${sectionIndex + 1}`;
+  const outlineNodeId = buildSectionOutlineNodeKey(chapterIndex, sectionIndex);
   const [existingSection] = await db
     .select({ id: courseSections.id, content: courseSections.contentMarkdown })
     .from(courseSections)
     .where(
-      and(eq(courseSections.courseId, courseId), eq(courseSections.outlineNodeId, outlineNodeId)),
+      and(eq(courseSections.courseId, courseId), eq(courseSections.outlineNodeKey, outlineNodeId)),
     )
     .limit(1);
   trace.step("section-resolved", {
@@ -124,13 +114,22 @@ export async function runGenerateCourseSectionWorkflow({
   }
 
   const siblingTitles = (chapter.sections ?? []).map((item) => item.title);
+  const alignmentBrief = buildLearningAlignmentBrief({
+    chapterTitle: chapter.title,
+    chapterDescription: chapter.description ?? "",
+    chapterSkillIds: chapter.skillIds,
+    courseSkillIds: outline.courseSkillIds,
+    sectionTitle: section.title,
+    sectionDescription: section.description,
+    generationContext,
+  });
   const systemPrompt = buildSectionPrompt({
     courseTitle: course.title ?? "",
-    courseDescription: outline?.description ?? "",
-    targetAudience: outline?.targetAudience ?? "",
+    courseDescription: outline.description ?? "",
+    targetAudience: outline.targetAudience ?? "",
     difficulty: course.difficulty ?? "beginner",
-    learningOutcome: outline?.learningOutcome,
-    courseSkillIds: outline?.courseSkillIds,
+    learningOutcome: outline.learningOutcome,
+    courseSkillIds: outline.courseSkillIds,
     chapterIndex,
     chapterTitle: chapter.title,
     chapterDescription: chapter.description ?? "",
@@ -139,12 +138,15 @@ export async function runGenerateCourseSectionWorkflow({
     sectionTitle: section.title,
     sectionDescription: section.description,
     siblingTitles,
-    totalChapters: outline?.chapters?.length ?? 0,
+    totalChapters: outline.chapters.length,
+    alignmentBrief,
   });
   trace.step("generation-start", {
     outlineNodeId,
     siblingCount: siblingTitles.length,
     chapterSkillCount: chapter.skillIds?.length ?? 0,
+    alignmentRelation: alignmentBrief.relation,
+    focusTitle: alignmentBrief.focusTitle,
   });
 
   const result = streamText({
@@ -174,7 +176,7 @@ export async function runGenerateCourseSectionWorkflow({
             .values({
               title: section.title,
               courseId,
-              outlineNodeId,
+              outlineNodeKey: outlineNodeId,
               contentMarkdown: text,
               plainText: text,
             })

@@ -77,7 +77,7 @@ bun run db:generate  # Generate a fresh baseline only after re-baselining drizzl
 | Variables/Functions | camelCase | `getUserData()`, `isLoading` |
 | Constants | UPPER_SNAKE_CASE | `DEFAULT_TIMEOUT`, `MAX_RETRIES` |
 | Types/Interfaces | PascalCase | `UserProfile`, `ChatMessage` |
-| Database Tables | snake_case | `user_profiles`, `knowledge_chunks` |
+| Database Tables | snake_case | `user_profiles`, `knowledge_evidence_chunks` |
 
 ### TypeScript Guidelines
 

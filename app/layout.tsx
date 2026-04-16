@@ -1,16 +1,7 @@
 import type { Metadata, Viewport } from "next";
-import { Instrument_Serif } from "next/font/google";
 import "./globals.css";
 import { AuthSync, SessionProvider } from "@/components/auth";
 import { ToastProvider } from "@/components/ui/Toast";
-
-const instrumentSerif = Instrument_Serif({
-  weight: "400",
-  style: ["normal", "italic"],
-  subsets: ["latin"],
-  variable: "--font-instrument-serif",
-  display: "swap",
-});
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -39,7 +30,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="zh-CN" data-theme="default" className={instrumentSerif.variable}>
+    <html lang="zh-CN" data-theme="default">
       <body suppressHydrationWarning>
         <SessionProvider>
           <ToastProvider>

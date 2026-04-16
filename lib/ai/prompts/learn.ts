@@ -3,6 +3,11 @@
  *
  * 根据课程大纲和小节信息，生成聚焦单个知识点的教学内容。
  */
+import {
+  formatLearningAlignmentBrief,
+  type LearningAlignmentBrief,
+} from "@/lib/learning/alignment";
+
 export function buildSectionPrompt(params: {
   courseTitle: string;
   courseDescription: string;
@@ -19,6 +24,7 @@ export function buildSectionPrompt(params: {
   sectionDescription: string;
   siblingTitles: string[]; // other section titles in the same chapter
   totalChapters: number;
+  alignmentBrief: LearningAlignmentBrief;
 }): string {
   const {
     courseTitle,
@@ -36,6 +42,7 @@ export function buildSectionPrompt(params: {
     sectionDescription,
     siblingTitles,
     totalChapters,
+    alignmentBrief,
   } = params;
 
   const difficultyLabel =
@@ -70,6 +77,9 @@ ${siblingContext}
 - ${chapterIndex + 1}.${sectionIndex + 1} ${sectionTitle}
 - 描述：${sectionDescription}
 
+## 当前学习对齐简报
+${formatLearningAlignmentBrief(alignmentBrief, "prompt")}
+
 ## 内容生成要求
 
 1. **篇幅**：500-1500 字，聚焦单个知识点
@@ -87,6 +97,11 @@ ${siblingContext}
    - 讲解时要服务于“本章训练能力”和“课程学习成果”
    - 如果是项目型章节，要多写决策思路、常见坑和交付标准
    - 不要只写概念定义，要让学习者知道这节内容如何推进对应能力
+7. **成长对齐**：
+   - 严格参考“当前学习对齐简报”来决定这节内容是直接推进、支撑前置，还是边界清晰的补充扩展
+   - 如果对齐关系是“直接推进”，要明确这节内容学完后会如何推进当前焦点
+   - 如果对齐关系是“支撑前置”，要重点讲清它是为哪个更高层能力打基础
+   - 如果对齐关系偏弱，要把边界讲清楚，不要凭空扩展到与当前成长方向无关的大话题
 
 直接输出教学内容，不要输出任何前缀说明。`;
 }

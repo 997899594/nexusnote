@@ -14,9 +14,9 @@ RAG 链路要同时满足三件事：
 
 ### 向量检索
 
-`knowledge_chunks.embedding` 使用 HNSW 索引：
+`knowledge_evidence_chunks.embedding` 使用 HNSW 索引：
 
-- `knowledge_chunks_embedding_hnsw_idx`
+- `knowledge_evidence_chunks_embedding_hnsw_idx`
 
 `tags.name_embedding` 使用 HNSW 索引：
 
@@ -24,9 +24,9 @@ RAG 链路要同时满足三件事：
 
 ### 关键词检索
 
-`knowledge_chunks.content` 使用全文检索 GIN 表达式索引：
+`knowledge_evidence_chunks.content` 使用全文检索 GIN 表达式索引：
 
-- `knowledge_chunks_content_fts_idx`
+- `knowledge_evidence_chunks_content_fts_idx`
 
 ### 最近数据读取
 

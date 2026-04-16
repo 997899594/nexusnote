@@ -7,7 +7,12 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { db } from "@/db";
-import { hybridSearch } from "@/lib/rag";
+import {
+  expandNoteBackedKnowledgeSourceTypes,
+  isNoteBackedKnowledgeSourceType,
+  NOTE_KNOWLEDGE_SOURCE_TYPE,
+} from "@/lib/knowledge/source-types";
+import { hybridSearch, type SourceType } from "@/lib/rag";
 
 export const SearchNotesSchema = z.object({
   query: z.string().min(1).max(500),
@@ -28,10 +33,13 @@ export function createSearchTools(userId: string) {
       inputSchema: SearchNotesSchema,
       execute: async (args) => {
         try {
+          const effectiveSourceTypes: SourceType[] = (expandNoteBackedKnowledgeSourceTypes(
+            args.sourceTypes,
+          ) as SourceType[] | undefined) ?? [NOTE_KNOWLEDGE_SOURCE_TYPE, "conversation"];
           const results = await hybridSearch({
             query: args.query,
             topK: args.limit,
-            sourceTypes: args.sourceTypes,
+            sourceTypes: effectiveSourceTypes,
             userId, // 权限验证
           });
 
@@ -45,7 +53,7 @@ export function createSearchTools(userId: string) {
           }
 
           const noteSourceIds = results
-            .filter((r) => r.sourceType === "note")
+            .filter((r) => isNoteBackedKnowledgeSourceType(r.sourceType))
             .map((r) => r.sourceId);
 
           const foundNotes =
@@ -66,7 +74,9 @@ export function createSearchTools(userId: string) {
               id: r.id,
               sourceId: r.sourceId,
               sourceType: r.sourceType,
-              title: r.sourceType === "note" ? noteMap.get(r.sourceId) || "未知笔记" : "聊天记录",
+              title: isNoteBackedKnowledgeSourceType(r.sourceType)
+                ? noteMap.get(r.sourceId) || "未知笔记"
+                : "聊天记录",
               content: r.content.slice(0, 300),
               relevance: Math.round(r.score * 100),
               source: r.source,

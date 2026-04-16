@@ -14,7 +14,7 @@ NexusNote 当前是一个以 Next.js 16 为核心的 AI-native 学习应用：
 
 目标不是“拼很多技术”，而是保持一条清晰主链：
 
-`课程生成 -> 学习 -> 对话 -> 笔记/沉淀 -> 技能/路线`
+`课程生成 -> 学习行为 -> evidence event -> knowledge evidence -> insight -> 成长树 / 知识工作台`
 
 ## 分层
 
@@ -37,7 +37,7 @@ NexusNote 当前是一个以 Next.js 16 为核心的 AI-native 学习应用：
 ### 2. Server Domain Layer
 
 - `lib/server/`: 页面数据加载和 cache/tag 策略
-- `lib/chat/`, `lib/learning/`, `lib/notes/`, `lib/skills/`, `lib/golden-path/`
+- `lib/chat/`, `lib/learning/`, `lib/notes/`, `lib/knowledge/`, `lib/growth/`
 - `lib/api/`: API 错误和响应收口
 
 规则：
@@ -64,7 +64,7 @@ NexusNote 当前是一个以 Next.js 16 为核心的 AI-native 学习应用：
 ### 4. Retrieval Layer
 
 - `lib/rag/`: rewrite、hybrid search、chunking、trace
-- `knowledge_chunks` 表承载统一检索索引
+- `knowledge_evidence_chunks` 表承载统一检索索引
 - 向量、全文、最近数据索引与查询路径严格对齐
 
 更多见：
@@ -80,13 +80,13 @@ NexusNote 当前是一个以 Next.js 16 为核心的 AI-native 学习应用：
 当前 schema 已按以下领域拆分：
 
 - auth
-- personas
 - notes
 - conversations
 - knowledge
 - courses
-- skills
+- growth
 - ai-usage
+- skins
 
 ### 6. Async / Collaboration
 

@@ -8,6 +8,25 @@ import { type NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { appendOwnedNoteText, createOwnedNote, getOwnedNote } from "@/lib/notes/write-service";
 
+async function appendToOwnedNote(params: {
+  noteId: string;
+  userId: string;
+  plainText: string;
+}): Promise<boolean> {
+  const note = await getOwnedNote(params.noteId, params.userId);
+  if (!note) {
+    return false;
+  }
+
+  await appendOwnedNoteText({
+    noteId: params.noteId,
+    userId: params.userId,
+    plainText: params.plainText,
+  });
+
+  return true;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
@@ -24,17 +43,14 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: "Missing targetId or newContent" }, { status: 400 });
         }
 
-        const note = await getOwnedNote(targetId, session.user.id);
-
-        if (!note) {
-          return NextResponse.json({ error: "Note not found" }, { status: 404 });
-        }
-
-        await appendOwnedNoteText({
+        const appended = await appendToOwnedNote({
           noteId: targetId,
           userId: session.user.id,
           plainText: newContent,
         });
+        if (!appended) {
+          return NextResponse.json({ error: "Note not found" }, { status: 404 });
+        }
 
         return NextResponse.json({
           success: true,
@@ -60,22 +76,19 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: "Missing content" }, { status: 400 });
         }
 
-        if (targetId) {
-          const note = await getOwnedNote(targetId, session.user.id);
-
-          if (note) {
-            await appendOwnedNoteText({
-              noteId: targetId,
-              userId: session.user.id,
-              plainText: content,
-            });
-
-            return NextResponse.json({
-              success: true,
-              message: "Content appended to note",
-              noteId: targetId,
-            });
-          }
+        if (
+          targetId &&
+          (await appendToOwnedNote({
+            noteId: targetId,
+            userId: session.user.id,
+            plainText: content,
+          }))
+        ) {
+          return NextResponse.json({
+            success: true,
+            message: "Content appended to note",
+            noteId: targetId,
+          });
         }
 
         const newNote = await createOwnedNote({

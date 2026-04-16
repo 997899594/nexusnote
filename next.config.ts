@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   reactCompiler: true,
   cacheComponents: true,
   output: "standalone",
+  serverExternalPackages: ["bullmq"],
 };
 
 export default nextConfig;

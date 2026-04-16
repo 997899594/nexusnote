@@ -1,0 +1,50 @@
+{
+  "cases": [
+    {
+      "name": "direct-focus-alignment",
+      "input": {
+        "chapterTitle": "业务可视化表达",
+        "chapterDescription": "把分析结果转成业务可以理解和决策的表达方式",
+        "chapterSkillIds": ["dashboard_design", "business_storytelling"],
+        "courseSkillIds": ["sql_analysis", "dashboard_design", "business_storytelling"],
+        "sectionTitle": "故事化表达与看板结构",
+        "sectionDescription": "围绕业务问题组织图表、结论和行动建议",
+        "generationContext": {
+          "currentDirection": {
+            "directionKey": "data-analyst",
+            "title": "数据分析成长线",
+            "summary": "从 SQL 与 Python 走向业务分析、可视化和汇报表达",
+            "whyThisDirection": "最近课程与知识信号持续集中在数据分析与表达闭环"
+          },
+          "currentFocus": {
+            "nodeId": "focus-1",
+            "title": "业务可视化表达",
+            "summary": "把分析结果表达给团队并推动业务决策",
+            "state": "in_progress",
+            "progress": 46
+          },
+          "insights": [
+            {
+              "kind": "gap",
+              "title": "业务表达",
+              "summary": "分析结果表达还不够稳定，容易停在图表层面",
+              "confidence": 0.82
+            },
+            {
+              "kind": "strength",
+              "title": "SQL 查询",
+              "summary": "查询与基础分析能力已经比较稳定",
+              "confidence": 0.72
+            }
+          ]
+        }
+      },
+      "expected": {
+        "relation": "direct",
+        "focusTitle": "业务可视化表达",
+        "relevantInsightTitles": ["业务表达", "SQL 查询"],
+        "summaryIncludes": ["直接推进", "业务可视化表达", "业务表达", "SQL 查询"]
+      }
+    }
+  ]
+}

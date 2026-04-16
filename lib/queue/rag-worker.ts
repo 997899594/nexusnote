@@ -7,7 +7,7 @@
 
 import { Worker } from "bullmq";
 import { defaults } from "@/config/env";
-import { indexCourseSection } from "@/lib/rag/chunker";
+import { syncCourseSectionKnowledge } from "@/lib/learning/course-section-knowledge";
 import { redis } from "@/lib/redis";
 import type { RagIndexJobData } from "./rag-queue";
 
@@ -27,8 +27,14 @@ export function startRagWorker(): Worker<RagIndexJobData> {
 
       switch (type) {
         case "course_section":
-          await indexCourseSection(documentId, plainText, userId, courseId, {
-            metadata: metadata ?? undefined,
+          await syncCourseSectionKnowledge({
+            documentId,
+            plainText,
+            userId,
+            courseId,
+            chapterIndex: metadata?.chapterIndex ?? 0,
+            sectionIndex: metadata?.sectionIndex ?? 0,
+            sectionTitle: metadata?.sectionTitle ?? "课程内容",
           });
           break;
         default:

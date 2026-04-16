@@ -53,7 +53,6 @@ export function MobileHeader({
 
   const handleBack = () => {
     if (backConfirm) {
-      // TODO: 显示确认对话框
       if (confirm("有未保存的内容，确定要离开吗？")) {
         router.back();
       }

@@ -1,0 +1,75 @@
+{
+  "trees": [
+    {
+      "directionKey": "fullstack-web",
+      "matchPreviousDirectionKey": "fullstack-web",
+      "keySeed": "fullstack-web",
+      "title": "全栈 Web",
+      "summary": "从前端延伸到服务端交付。",
+      "confidence": 0.73,
+      "whyThisDirection": "现有能力已经覆盖前端和接口协作。",
+      "supportingNodeRefs": ["node-react", "node-api"],
+      "tree": [
+        {
+          "anchorRef": "node-react",
+          "title": "React 基础",
+          "summary": "作为前端主骨架。",
+          "children": []
+        }
+      ]
+    },
+    {
+      "directionKey": "frontend-engineer",
+      "matchPreviousDirectionKey": "frontend-engineer",
+      "keySeed": "frontend-engineer",
+      "title": "前端工程",
+      "summary": "围绕 UI、状态和工程化继续深入。",
+      "confidence": 0.76,
+      "whyThisDirection": "当前最连续的能力积累仍在前端侧。",
+      "supportingNodeRefs": ["node-react", "node-state"],
+      "tree": [
+        {
+          "anchorRef": "node-state",
+          "title": "状态管理",
+          "summary": "连接页面交互和应用结构。",
+          "children": []
+        }
+      ]
+    },
+    {
+      "directionKey": "product-frontend",
+      "keySeed": "product-frontend",
+      "title": "产品型前端",
+      "summary": "强化体验和业务表达。",
+      "confidence": 0.64,
+      "whyThisDirection": "适合把技术能力继续贴近产品落地。",
+      "supportingNodeRefs": ["node-ui", "node-state"],
+      "tree": [
+        {
+          "anchorRef": "node-ui",
+          "title": "界面体验",
+          "summary": "面向用户体验输出。",
+          "children": []
+        }
+      ]
+    }
+  ],
+  "preference": {
+    "selectedDirectionKey": "frontend-engineer",
+    "preferenceVersion": 5,
+    "selectionCount": 6,
+    "directionSignals": [
+      {
+        "directionKey": "frontend-engineer",
+        "selectionCount": 4,
+        "latestSelectedAt": "2026-04-15T10:00:00.000Z"
+      },
+      {
+        "directionKey": "fullstack-web",
+        "selectionCount": 2,
+        "latestSelectedAt": "2026-04-10T10:00:00.000Z"
+      }
+    ]
+  },
+  "expectedDirectionKeys": ["frontend-engineer", "fullstack-web", "product-frontend"]
+}

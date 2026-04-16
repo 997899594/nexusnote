@@ -4,6 +4,14 @@
 
 import { stepCountIs, ToolLoopAgent } from "ai";
 import { getCourseOutline } from "@/lib/cache/course-context";
+import {
+  formatGrowthGenerationContext,
+  type GrowthGenerationContext,
+} from "@/lib/growth/generation-context-format";
+import {
+  buildLearningAlignmentBrief,
+  formatLearningAlignmentBrief,
+} from "@/lib/learning/alignment";
 import type { ResolvedChatMetadata } from "@/types/metadata";
 import { isResolvedLearnMetadata } from "@/types/metadata";
 import {
@@ -23,6 +31,7 @@ export interface PersonalizationOptions {
   userContext?: string;
   userId?: string;
   courseId?: string;
+  generationContext?: GrowthGenerationContext;
   metadata?: ResolvedChatMetadata;
   profile?: Extract<AgentProfile, "CHAT_BASIC" | "LEARN_ASSIST" | "NOTE_ASSIST">;
   telemetry?: AITelemetryContext;
@@ -56,28 +65,53 @@ export async function createChatAgent(options: PersonalizationOptions = {}) {
     options.courseId &&
     isResolvedLearnMetadata(options.metadata)
   ) {
+    const chapterTitle =
+      options.metadata.chapterTitle?.trim() || `第 ${options.metadata.chapterIndex + 1} 章`;
     const outline = await getCourseOutline(options.courseId);
-    if (outline) {
-      const chapter = outline.chapters[options.metadata.chapterIndex];
-      const chapterTitle =
-        options.metadata.chapterTitle?.trim() ||
-        chapter?.title ||
-        `第 ${options.metadata.chapterIndex + 1} 章`;
-      const chapterSkillNames = (options.metadata.chapterSkillIds ?? []).join("、");
-      const courseSkillNames = (options.metadata.courseSkillIds ?? []).join("、");
-      const hint = [
-        "## 当前学习上下文",
-        `课程：${options.metadata.courseTitle}`,
-        `当前章节：第 ${options.metadata.chapterIndex + 1} 章 - ${chapterTitle}`,
-        chapterSkillNames ? `本章能力目标：${chapterSkillNames}` : "",
-        courseSkillNames ? `课程核心能力：${courseSkillNames}` : "",
-        chapter ? `小节：${chapter.sections.map((s) => s.title).join("、")}` : "",
-        "提示：使用 loadLearnContext 工具获取章节详细内容后再回答问题。",
-      ]
-        .filter(Boolean)
-        .join("\n");
-      userContextParts.push(hint);
+    const chapter = outline?.chapters[options.metadata.chapterIndex];
+    const chapterSkillNames = (options.metadata.chapterSkillIds ?? []).join("、");
+    const courseSkillNames = (options.metadata.courseSkillIds ?? []).join("、");
+    const sectionTitles =
+      chapter?.sections.map((section) => section.title) ?? options.metadata.sectionTitles ?? [];
+    const hint = [
+      "## 当前学习上下文",
+      `课程：${options.metadata.courseTitle}`,
+      `当前章节：第 ${options.metadata.chapterIndex + 1} 章 - ${chapter?.title || chapterTitle}`,
+      options.metadata.chapterDescription ? `章节描述：${options.metadata.chapterDescription}` : "",
+      chapterSkillNames ? `本章能力目标：${chapterSkillNames}` : "",
+      courseSkillNames ? `课程核心能力：${courseSkillNames}` : "",
+      sectionTitles.length > 0 ? `小节：${sectionTitles.join("、")}` : "",
+      "提示：使用 loadLearnContext 工具获取章节详细内容后再回答问题。",
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    userContextParts.push(hint);
+
+    if (options.generationContext) {
+      const alignmentBrief = buildLearningAlignmentBrief({
+        chapterTitle,
+        chapterDescription: options.metadata.chapterDescription,
+        chapterSkillIds: options.metadata.chapterSkillIds,
+        courseSkillIds: options.metadata.courseSkillIds,
+        generationContext: options.generationContext,
+      });
+
+      userContextParts.push(
+        ["## 当前学习对齐简报", formatLearningAlignmentBrief(alignmentBrief, "prompt")].join("\n"),
+      );
     }
+  }
+
+  if (options.generationContext && profileId !== "LEARN_ASSIST") {
+    userContextParts.push(
+      [
+        "## 当前成长上下文",
+        formatGrowthGenerationContext(options.generationContext, {
+          style: "detailed",
+        }),
+      ].join("\n"),
+    );
   }
 
   const instructions = buildPromptInstructions(profile.promptKey, {

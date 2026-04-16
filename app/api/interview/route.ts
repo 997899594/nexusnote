@@ -1,18 +1,19 @@
-import { convertToModelMessages, smoothStream, validateUIMessages } from "ai";
+import { validateUIMessages } from "ai";
 import { type NextRequest, NextResponse } from "next/server";
 import {
   aiProvider,
   classifyAIDegradation,
   createInterviewAgent,
-  createPresentationFilteredStreamResponse,
   createTelemetryContext,
   getErrorMessage,
   InterviewApiRequestSchema,
   type InterviewUIMessage,
   recordAIUsage,
 } from "@/lib/ai";
+import { createNexusNoteStreamResponse } from "@/lib/ai/core/streaming";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
+import { getUserGrowthContext } from "@/lib/growth/generation-context";
 import { getOwnedCourse } from "@/lib/learning/course-repository";
 
 export const maxDuration = 300;
@@ -23,9 +24,9 @@ export async function POST(request: NextRequest) {
   let telemetry = createTelemetryContext({
     requestId,
     endpoint: "/api/interview",
-    promptVersion: "interview@agent-v1",
+    promptVersion: "interview@natural-v2",
     modelPolicy: "interactive-fast",
-    workflow: "interview-agent",
+    workflow: "interview-agent-natural",
   });
 
   try {
@@ -51,17 +52,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { messages, sessionId, courseId: inputCourseId, outline } = validation.data;
+    const { messages, sessionId, courseId: inputCourseId, outline, mode } = validation.data;
+    const modelPolicy = mode === "structured" ? "structured-high-quality" : "interactive-fast";
+    const promptVersion =
+      mode === "structured" ? "interview@structured-v2" : "interview@natural-v2";
+    const workflow =
+      mode === "structured" ? "interview-agent-structured" : "interview-agent-natural";
     telemetry = createTelemetryContext({
       requestId,
       endpoint: "/api/interview",
       userId,
-      promptVersion: "interview@agent-v1",
-      modelPolicy: "interactive-fast",
-      workflow: "interview-agent",
+      promptVersion,
+      modelPolicy,
+      workflow,
       metadata: {
         sessionId: sessionId ?? null,
         courseId: inputCourseId ?? null,
+        sessionMode: mode,
       },
     });
 
@@ -79,41 +86,27 @@ export async function POST(request: NextRequest) {
       courseId = existingCourse.id;
     }
 
+    const generationContext = await getUserGrowthContext(userId);
+
     const validatedMessages = await validateUIMessages<InterviewUIMessage>({ messages });
 
-    const agent = createInterviewAgent({
+    const agent = await createInterviewAgent({
       userId,
       courseId,
       currentOutline: outline ?? undefined,
       messages: validatedMessages,
+      mode,
+      generationContext,
       telemetry,
     });
 
-    const modelMessages = await convertToModelMessages(validatedMessages, {
-      tools: agent.tools,
+    const response = await createNexusNoteStreamResponse(agent, validatedMessages, {
+      sessionId,
+      presentation: "interview",
+      sendReasoning: false,
     });
-
-    const result = await agent.stream({
-      prompt: modelMessages,
-      experimental_transform: smoothStream({
-        chunking: new Intl.Segmenter("zh-Hans", { granularity: "word" }),
-      }),
-    });
-
-    return createPresentationFilteredStreamResponse({
-      stream: result.toUIMessageStream<InterviewUIMessage>({
-        sendReasoning: false,
-      }),
-      originalMessages: validatedMessages,
-      allowedPresentation: "interview",
-      onError: getErrorMessage,
-      headers: {
-        "X-Request-Id": requestId,
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-cache, no-store, must-revalidate",
-        ...(sessionId ? { "X-Session-Id": sessionId } : {}),
-      },
-    });
+    response.headers.set("X-Request-Id", requestId);
+    return response;
   } catch (error) {
     const degradation = classifyAIDegradation(error);
     await recordAIUsage({

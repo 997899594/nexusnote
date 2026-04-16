@@ -1,12 +1,22 @@
 import "server-only";
 
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
-import { courseProgress, courseSectionAnnotations, courseSections, db } from "@/db";
+import {
+  courseProgress,
+  courseSectionAnnotations,
+  courseSections,
+  db,
+  knowledgeInsights,
+} from "@/db";
 import type { Annotation } from "@/hooks/useAnnotations";
-import { getLearnPageTag } from "@/lib/cache/tags";
-import { getOwnedCourse } from "@/lib/learning/course-repository";
+import { getCareerTreesTag, getLearnPageTag, getProfileStatsTag } from "@/lib/cache/tags";
+import { getLatestFocusSnapshot } from "@/lib/growth/projection-data";
+import type { GrowthFocusSummary, GrowthInsightSummary } from "@/lib/growth/projection-types";
+import type { KnowledgeInsight } from "@/lib/knowledge/insights";
+import { getOwnedCourseWithOutline } from "@/lib/learning/course-repository";
 import { createLearnTrace } from "@/lib/learning/observability";
+import { buildSectionOutlineNodeKey } from "@/lib/learning/outline-node-key";
 
 export interface LearnSectionData {
   title: string;
@@ -17,12 +27,6 @@ export interface LearnChapterData {
   title: string;
   description: string;
   sections: LearnSectionData[];
-}
-
-interface OutlineData {
-  title?: string;
-  description?: string;
-  chapters?: LearnChapterData[];
 }
 
 export interface LearnPageSnapshot {
@@ -40,7 +44,7 @@ export interface LearnPageSnapshot {
     id: string;
     title: string | null;
     content: string | null;
-    outlineNodeId: string | null;
+    outlineNodeKey: string | null;
     annotations: Annotation[];
   }>;
   progressRecord: {
@@ -48,6 +52,8 @@ export interface LearnPageSnapshot {
     completedSections: string[];
     completedAt: Date | null;
   } | null;
+  growthFocus: GrowthFocusSummary | null;
+  insights: GrowthInsightSummary[];
 }
 
 export async function getLearnPageSnapshotCached(
@@ -58,13 +64,15 @@ export async function getLearnPageSnapshotCached(
 
   cacheLife("minutes");
   cacheTag(getLearnPageTag(userId, courseId));
+  cacheTag(getCareerTreesTag(userId));
+  cacheTag(getProfileStatsTag(userId));
 
   const trace = createLearnTrace("page-snapshot", {
     userId,
     courseId,
   });
 
-  const courseSession = await getOwnedCourse(courseId, userId);
+  const courseSession = await getOwnedCourseWithOutline(courseId, userId);
   if (!courseSession) {
     trace.finish({
       found: false,
@@ -72,36 +80,51 @@ export async function getLearnPageSnapshotCached(
     return null;
   }
 
-  const outlineData = courseSession.outlineData as OutlineData | null;
-  const chapters = (outlineData?.chapters ?? []).map((ch, chIdx) => ({
+  const chapters = courseSession.outline.chapters.map((ch, chIdx) => ({
     title: ch.title,
     description: ch.description ?? "",
-    sections: (ch.sections ?? []).map((sec, secIdx) => ({
+    sections: ch.sections.map((sec, secIdx) => ({
       title: sec.title,
       description: sec.description ?? "",
-      nodeId: `section-${chIdx + 1}-${secIdx + 1}`,
+      nodeId: buildSectionOutlineNodeKey(chIdx, secIdx),
     })),
   }));
   trace.step("course-loaded", {
     chapterCount: chapters.length,
   });
 
-  const [progressRecord] = await db
-    .select({
-      currentChapter: courseProgress.currentChapter,
-      completedSections: courseProgress.completedSections,
-      completedAt: courseProgress.completedAt,
-    })
-    .from(courseProgress)
-    .where(and(eq(courseProgress.courseId, courseId), eq(courseProgress.userId, userId)))
-    .limit(1);
+  const [progressRecord, focusSnapshot, insightRows] = await Promise.all([
+    db
+      .select({
+        currentChapter: courseProgress.currentChapter,
+        completedSections: courseProgress.completedSections,
+        completedAt: courseProgress.completedAt,
+      })
+      .from(courseProgress)
+      .where(and(eq(courseProgress.courseId, courseId), eq(courseProgress.userId, userId)))
+      .limit(1)
+      .then((rows) => rows[0] ?? null),
+    getLatestFocusSnapshot(userId),
+    db
+      .select({
+        id: knowledgeInsights.id,
+        kind: knowledgeInsights.kind,
+        title: knowledgeInsights.title,
+        summary: knowledgeInsights.summary,
+        confidence: knowledgeInsights.confidence,
+      })
+      .from(knowledgeInsights)
+      .where(eq(knowledgeInsights.userId, userId))
+      .orderBy(desc(knowledgeInsights.confidence), desc(knowledgeInsights.updatedAt))
+      .limit(3),
+  ]);
 
   const rawSections = await db
     .select({
       id: courseSections.id,
       title: courseSections.title,
       content: courseSections.contentMarkdown,
-      outlineNodeId: courseSections.outlineNodeId,
+      outlineNodeKey: courseSections.outlineNodeKey,
     })
     .from(courseSections)
     .where(eq(courseSections.courseId, courseId));
@@ -148,7 +171,7 @@ export async function getLearnPageSnapshotCached(
     id: doc.id,
     title: doc.title,
     content: doc.content,
-    outlineNodeId: doc.outlineNodeId,
+    outlineNodeKey: doc.outlineNodeKey,
     annotations: annotationsBySectionId.get(doc.id) ?? [],
   }));
 
@@ -163,6 +186,22 @@ export async function getLearnPageSnapshotCached(
     courseTitle: courseSession.title ?? "Untitled Course",
     chapters,
     sectionDocs,
-    progressRecord: progressRecord ?? null,
+    progressRecord,
+    growthFocus: focusSnapshot
+      ? {
+          directionKey: focusSnapshot.directionKey,
+          title: focusSnapshot.title,
+          summary: focusSnapshot.summary,
+          progress: focusSnapshot.progress,
+          state: focusSnapshot.state,
+        }
+      : null,
+    insights: insightRows.map((insight) => ({
+      id: insight.id,
+      kind: insight.kind as KnowledgeInsight["kind"],
+      title: insight.title,
+      summary: insight.summary,
+      confidence: Number(insight.confidence),
+    })),
   };
 }

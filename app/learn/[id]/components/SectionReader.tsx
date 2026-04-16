@@ -20,7 +20,7 @@ interface SectionDoc {
   id: string;
   title: string | null;
   content: string | null;
-  outlineNodeId: string | null;
+  outlineNodeKey: string | null;
   annotations: Annotation[];
 }
 
@@ -539,7 +539,7 @@ export function SectionReader({
         {currentChapter.sections.map((sec, secIdx) => {
           const state = sections.get(secIdx) ?? { content: "", status: "idle" as const };
           const nodeId = sec.nodeId;
-          const sectionDoc = sectionDocs.find((d) => d.outlineNodeId === nodeId);
+          const sectionDoc = sectionDocs.find((d) => d.outlineNodeKey === nodeId);
 
           return (
             <SectionBlock

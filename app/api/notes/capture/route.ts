@@ -4,6 +4,7 @@ import { z } from "zod";
 import { courseSections, courses, db } from "@/db";
 import { tagGenerationService } from "@/lib/ai/services/tag-generation-service";
 import { auth } from "@/lib/auth";
+import { parseSectionOutlineNodeKey } from "@/lib/learning/outline-node-key";
 import {
   buildCapturedNoteHtml,
   buildCapturedNotePlainText,
@@ -45,6 +46,7 @@ export async function POST(request: NextRequest) {
       .select({
         sectionId: courseSections.id,
         sectionTitle: courseSections.title,
+        outlineNodeKey: courseSections.outlineNodeKey,
         courseId: courses.id,
         courseTitle: courses.title,
       })
@@ -56,6 +58,9 @@ export async function POST(request: NextRequest) {
     if (!section) {
       return NextResponse.json({ error: "Section not found" }, { status: 404 });
     }
+
+    const parsedSectionKey = parseSectionOutlineNodeKey(section.outlineNodeKey);
+    const chapterIndex = parsedSectionKey?.chapterIndex;
 
     const plainText = buildCapturedNotePlainText({
       courseTitle: section.courseTitle,
@@ -82,6 +87,7 @@ export async function POST(request: NextRequest) {
         courseTitle: section.courseTitle,
         sectionId: section.sectionId,
         sectionTitle: section.sectionTitle,
+        chapterIndex: chapterIndex ?? undefined,
         selectionText,
         anchor: serializeCaptureAnchor(anchor),
         annotationId,

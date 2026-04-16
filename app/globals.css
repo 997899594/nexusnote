@@ -139,6 +139,8 @@
   --font-body:
     system-ui, -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC",
     sans-serif;
+  --font-instrument-serif:
+    "Iowan Old Style", "Palatino Linotype", "URW Palladio L", "Baskerville", "Times New Roman";
 
   /* Layout */
   --header-height: 56px;

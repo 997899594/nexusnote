@@ -10,6 +10,7 @@ import { z } from "zod";
 import { db, eq, userProfiles } from "@/db";
 import { getJsonModelForPolicy } from "@/lib/ai/core";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
+import { extractUIMessageText } from "@/lib/ai/message-text";
 import { loadConversationMessages } from "@/lib/chat/conversation-messages";
 import { getOwnedConversation } from "@/lib/chat/conversation-repository";
 import { type EMAValue, updateEMA } from "./ema";
@@ -175,18 +176,8 @@ export async function analyzeConversationStyle(
   }
 
   // Combine user message content for analysis
-  // UIMessage has parts array with text content
   const conversationText = userMessages
-    .map((m) => {
-      // UIMessage has parts array
-      const parts = (m as unknown as { parts?: Array<{ type: string; text?: string }> }).parts;
-      if (!parts) return "";
-
-      return parts
-        .filter((part) => part.type === "text" && part.text)
-        .map((part) => part.text)
-        .join("\n");
-    })
+    .map((message) => extractUIMessageText(message))
     .filter((text) => text.length > 0)
     .join("\n\n---\n\n");
 

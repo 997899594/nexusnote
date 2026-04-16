@@ -9,11 +9,9 @@
 
 import type { UIMessage } from "ai";
 import { withAuth } from "@/lib/api";
-import { extractMessageText } from "@/lib/chat/conversation-messages";
+import { syncConversationKnowledge } from "@/lib/chat/conversation-knowledge";
 import { getOwnedConversation } from "@/lib/chat/conversation-repository";
 import { isUuidString } from "@/lib/chat/session-id";
-import { indexConversation } from "@/lib/rag/chunker";
-import { conversationToParagraphs } from "@/lib/rag/semantic-chunker";
 
 interface IndexSessionBody {
   sessionId: string;
@@ -41,29 +39,14 @@ export const POST = withAuth(async (request, { userId }) => {
     return Response.json({ error: "Invalid messages array" }, { status: 400 });
   }
 
-  // Convert UIMessage to simple format for indexing
-  const simpleMessages = messages.map((msg) => ({
-    role: msg.role,
-    content: extractMessageText(msg),
-  }));
-
-  // Convert conversation to paragraphs for better indexing
-  const paragraphs = conversationToParagraphs(simpleMessages);
-  const plainText = paragraphs.join("\n\n");
-
-  // Trigger indexing (runs synchronously for now, can be moved to queue later)
-  const result = await indexConversation(sessionId, plainText, userId, {
-    metadata: {
-      messageCount: messages.length,
-      title: conversation.title,
-      intent: conversation.intent,
-      indexedAt: new Date().toISOString(),
-    },
+  await syncConversationKnowledge({
+    conversationId: sessionId,
+    userId,
+    messages,
   });
 
   return Response.json({
     success: true,
-    chunksIndexed: result.chunksCount,
     sessionId,
   });
 });
