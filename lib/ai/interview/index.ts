@@ -1,5 +1,6 @@
 export * from "./evaluate-sufficiency";
 export * from "./extract-state";
+export * from "./message-history";
 export * from "./models";
 export * from "./prompts";
 export * from "./schemas";

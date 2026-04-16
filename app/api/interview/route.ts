@@ -3,13 +3,13 @@ import { type NextRequest, NextResponse } from "next/server";
 import {
   aiProvider,
   classifyAIDegradation,
-  createInterviewAgent,
   createTelemetryContext,
   getErrorMessage,
   InterviewApiRequestSchema,
   type InterviewUIMessage,
   recordAIUsage,
 } from "@/lib/ai";
+import { createInterviewSessionAgent } from "@/lib/ai/agents/interview-session";
 import { createNexusNoteStreamResponse } from "@/lib/ai/core/streaming";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
@@ -24,9 +24,9 @@ export async function POST(request: NextRequest) {
   let telemetry = createTelemetryContext({
     requestId,
     endpoint: "/api/interview",
-    promptVersion: "interview@natural-v2",
+    promptVersion: "interview@agent-v1",
     modelPolicy: "interactive-fast",
-    workflow: "interview-agent-natural",
+    workflow: "interview-agent",
   });
 
   try {
@@ -54,10 +54,8 @@ export async function POST(request: NextRequest) {
 
     const { messages, sessionId, courseId: inputCourseId, outline, mode } = validation.data;
     const modelPolicy = mode === "structured" ? "structured-high-quality" : "interactive-fast";
-    const promptVersion =
-      mode === "structured" ? "interview@structured-v2" : "interview@natural-v2";
-    const workflow =
-      mode === "structured" ? "interview-agent-structured" : "interview-agent-natural";
+    const promptVersion = mode === "structured" ? "interview@structured-v2" : "interview@agent-v1";
+    const workflow = mode === "structured" ? "interview-agent-structured" : "interview-agent";
     telemetry = createTelemetryContext({
       requestId,
       endpoint: "/api/interview",
@@ -68,7 +66,7 @@ export async function POST(request: NextRequest) {
       metadata: {
         sessionId: sessionId ?? null,
         courseId: inputCourseId ?? null,
-        sessionMode: mode,
+        ...(mode === "structured" ? { sessionMode: mode } : {}),
       },
     });
 
@@ -90,7 +88,7 @@ export async function POST(request: NextRequest) {
 
     const validatedMessages = await validateUIMessages<InterviewUIMessage>({ messages });
 
-    const agent = await createInterviewAgent({
+    const agent = await createInterviewSessionAgent({
       userId,
       courseId,
       currentOutline: outline ?? undefined,
