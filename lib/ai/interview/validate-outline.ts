@@ -1,7 +1,25 @@
 import type { InterviewOutline, InterviewState } from "./schemas";
 
-function hasContent(value: string | null | undefined) {
+function hasContent(value: string | null | undefined): value is string {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function tokenize(value: string | null | undefined) {
+  if (!hasContent(value)) {
+    return [];
+  }
+
+  const normalizedValue = value.trim().toLowerCase();
+
+  return normalizedValue
+    .toLowerCase()
+    .split(/[\s,，。；;、()（）\-_/]+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 2);
+}
+
+function shouldEnforceSemanticOverlap(tokens: string[]) {
+  return tokens.some((token) => token.length >= 4) || tokens.length >= 2;
 }
 
 export function validateOutlineForState(
@@ -15,34 +33,43 @@ export function validateOutlineForState(
     };
   }
 
-  if (outline.chapters.length < 2) {
+  if (outline.chapters.length < 5) {
     return {
       valid: false,
-      reason: "当前大纲章节过少，先补充一轮再生成更完整的课程。",
+      reason: "当前大纲章节过少，先补成完整课程结构。",
     };
   }
 
-  if (outline.chapters.some((chapter) => chapter.sections.length === 0)) {
+  if (outline.chapters.some((chapter) => chapter.sections.length < 4)) {
     return {
       valid: false,
-      reason: "有章节还没有小节，先补充课程结构。",
+      reason: "有章节小节不足，先补齐完整结构再展示。",
     };
   }
 
-  if (state.goal && outline.title.length > 0) {
-    const goalText = state.goal.toLowerCase();
-    const titleText = outline.title.toLowerCase();
-    const hasKeywordOverlap = goalText
-      .split(/[\s,，。；;、]+/)
-      .filter((token) => token.length >= 2)
-      .some((token) => titleText.includes(token));
+  const outlineText = [
+    outline.title,
+    outline.description,
+    outline.learningOutcome,
+    outline.targetAudience,
+    ...outline.chapters.flatMap((chapter) => [chapter.title, chapter.description]),
+    ...outline.chapters.flatMap((chapter) =>
+      chapter.sections.flatMap((section) => [section.title, section.description]),
+    ),
+  ]
+    .filter((value): value is string => typeof value === "string")
+    .join(" ")
+    .toLowerCase();
 
-    if (!hasKeywordOverlap && state.mode === "discover") {
-      return {
-        valid: false,
-        reason: "当前课程标题和用户目标贴合度不够，先进一步收敛方向。",
-      };
-    }
+  const topicTokens = tokenize(state.topic);
+  if (
+    shouldEnforceSemanticOverlap(topicTokens) &&
+    !topicTokens.some((token) => outlineText.includes(token))
+  ) {
+    return {
+      valid: false,
+      reason: "当前大纲和用户想学的主题贴合度不够，先进一步对齐课程方向。",
+    };
   }
 
   return { valid: true };

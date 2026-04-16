@@ -1,12 +1,15 @@
 import { generateText, Output } from "ai";
 import { getJsonModelForPolicy } from "@/lib/ai/core";
-import { buildInterviewStatePrompt, INTERVIEW_STATE_SYSTEM_PROMPT } from "./prompts";
 import {
   type InterviewApiMessage,
   type InterviewOutline,
   type InterviewState,
   InterviewStateSchema,
 } from "./schemas";
+import {
+  buildStructuredInterviewStatePrompt,
+  STRUCTURED_STATE_SYSTEM_PROMPT,
+} from "./structured-prompts";
 
 interface ExtractInterviewStateOptions {
   messages: InterviewApiMessage[];
@@ -18,14 +21,14 @@ export async function extractInterviewState({
   currentOutline,
 }: ExtractInterviewStateOptions): Promise<InterviewState> {
   const result = await generateText({
-    model: getJsonModelForPolicy("interactive-fast"),
+    model: getJsonModelForPolicy("structured-high-quality"),
     output: Output.object({ schema: InterviewStateSchema }),
-    system: INTERVIEW_STATE_SYSTEM_PROMPT,
-    prompt: buildInterviewStatePrompt({
+    system: STRUCTURED_STATE_SYSTEM_PROMPT,
+    prompt: buildStructuredInterviewStatePrompt({
       messages,
       currentOutline,
     }),
-    temperature: 0.1,
+    temperature: 0,
     timeout: 30_000,
   });
 

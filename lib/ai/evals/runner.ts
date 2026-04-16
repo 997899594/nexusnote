@@ -66,6 +66,7 @@ async function buildEvalGenerationInput(testCase: EvalCase): Promise<
       mode: "agent-interview";
       prompt: string;
       currentOutline?: InterviewEvalInput["currentOutline"];
+      sessionMode?: InterviewEvalInput["mode"];
     }
   | {
       mode: "text";
@@ -93,6 +94,7 @@ async function buildEvalGenerationInput(testCase: EvalCase): Promise<
         mode: "agent-interview",
         prompt: input.userGoal,
         currentOutline: input.currentOutline,
+        sessionMode: input.mode,
       };
     }
     case "learn": {
@@ -130,10 +132,15 @@ async function buildEvalGenerationInput(testCase: EvalCase): Promise<
 function getPolicyForCase(testCase: EvalCase) {
   switch (testCase.domain) {
     case "chat":
-    case "interview":
     case "learn":
     case "notes":
       return "interactive-fast" as const;
+    case "interview": {
+      const input = testCase.input as unknown as InterviewEvalInput;
+      return input.mode === "structured"
+        ? ("structured-high-quality" as const)
+        : ("interactive-fast" as const);
+    }
     case "growth":
       return "interactive-fast" as const;
     default:
@@ -657,6 +664,7 @@ export async function runEvalCase(testCase: EvalCase): Promise<EvalExecutionResu
       generationResult = await runInterviewEval({
         prompt: generationInput.prompt,
         currentOutline: generationInput.currentOutline,
+        mode: generationInput.sessionMode,
         telemetry,
         startedAt,
       });
@@ -878,11 +886,13 @@ async function runChatEval({
 async function runInterviewEval({
   prompt,
   currentOutline,
+  mode,
   telemetry,
   startedAt,
 }: {
   prompt: string;
   currentOutline?: InterviewEvalInput["currentOutline"];
+  mode?: InterviewEvalInput["mode"];
   telemetry: ReturnType<typeof createTelemetryContext>;
   startedAt: number;
 }): Promise<EvalGenerationResult> {
@@ -898,10 +908,11 @@ async function runInterviewEval({
       },
     ];
 
-    const agent = createInterviewAgent({
+    const agent = await createInterviewAgent({
       userId: "eval-user",
       currentOutline,
       messages,
+      mode,
       telemetry,
     });
 

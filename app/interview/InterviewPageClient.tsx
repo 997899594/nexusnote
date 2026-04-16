@@ -8,9 +8,15 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { LoadingDots } from "@/components/chat/ChatMessage";
 import { AIDegradationBanner, PromptChip, WorkspaceEmptyState } from "@/components/common";
 import { InterviewMessage } from "@/components/interview/InterviewMessage";
+import { InterviewModePicker } from "@/components/interview/InterviewModePicker";
 import { OutlinePanel } from "@/components/interview/OutlinePanel";
 import { useInterview } from "@/hooks/useInterview";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import {
+  getInterviewSessionModeDescription,
+  getInterviewSessionModeLabel,
+  normalizeInterviewSessionMode,
+} from "@/lib/ai/interview/session-mode";
 import { cn } from "@/lib/utils";
 
 const panelVariants = {
@@ -61,6 +67,7 @@ const mainContentVariants = {
 function InterviewContent() {
   const searchParams = useSearchParams();
   const initialMessage = searchParams.get("msg");
+  const initialMode = normalizeInterviewSessionMode(searchParams.get("mode"));
   const isMobile = useIsMobile();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -69,6 +76,7 @@ function InterviewContent() {
 
   const interview = useInterview({
     initialMessage: initialMessage || undefined,
+    initialMode,
   });
 
   useEffect(() => {
@@ -82,6 +90,9 @@ function InterviewContent() {
   const status = interview.status;
   const isLoading = interview.isLoading;
   const aiDegradedKind = interview.aiDegradedKind;
+  const sessionMode = interview.sessionMode;
+  const setSessionMode = interview.setSessionMode;
+  const canChangeMode = interview.canChangeMode;
   const displayOutline = interview.outline.display;
   const stableOutline = interview.outline.stable;
   const outlineActions = interview.outline.actions;
@@ -130,27 +141,34 @@ function InterviewContent() {
               icon={GraduationCap}
               eyebrow="Course Interview"
               title="你想学什么？"
-              description="告诉我你的学习目标，我会先访谈澄清方向，再生成可直接预览的课程大纲。"
+              description="先选一种访谈方式，再告诉我你想学什么，我会访谈澄清方向并生成可预览的大纲。"
               footer={
-                <div className="flex flex-wrap justify-center gap-2">
-                  {["我想学 Python", "我想学做 PPT", "考研数学怎么准备", "教我做川菜"].map(
-                    (example, index) => (
-                      <motion.div
-                        key={example}
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: 0.1 + index * 0.05 }}
-                      >
-                        <PromptChip
-                          label={example}
-                          onClick={() => {
-                            setStarted(true);
-                            void sendMessage({ text: example });
-                          }}
-                        />
-                      </motion.div>
-                    ),
-                  )}
+                <div className="space-y-4">
+                  <InterviewModePicker
+                    value={sessionMode}
+                    onChange={setSessionMode}
+                    disabled={!canChangeMode}
+                  />
+                  <div className="flex flex-wrap justify-center gap-2">
+                    {["我想学 Python", "我想学做 PPT", "考研数学怎么准备", "教我做川菜"].map(
+                      (example, index) => (
+                        <motion.div
+                          key={example}
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: 0.1 + index * 0.05 }}
+                        >
+                          <PromptChip
+                            label={example}
+                            onClick={() => {
+                              setStarted(true);
+                              void sendMessage({ text: example });
+                            }}
+                          />
+                        </motion.div>
+                      ),
+                    )}
+                  </div>
                 </div>
               }
               className="mx-auto max-w-2xl"
@@ -262,11 +280,12 @@ function InterviewContent() {
             <div>
               <h1 className="font-semibold text-[var(--color-text)]">课程访谈</h1>
               <p className="text-xs text-[var(--color-text-tertiary)]">
+                {getInterviewSessionModeLabel(sessionMode)} ·{" "}
                 {interviewCompleted
                   ? "大纲已生成"
                   : shouldShowOutlinePanel
                     ? "正在整理课程蓝图"
-                    : "告诉我你想学什么"}
+                    : getInterviewSessionModeDescription(sessionMode)}
               </p>
               {!interviewCompleted &&
                 chatMessages.length > 0 &&

@@ -56,36 +56,29 @@ export const InterviewOutlineSchema = z.object({
   chapters: z.array(InterviewOutlineChapterSchema).min(5).max(7),
 });
 
-export const InterviewModeSchema = z.enum(["discover", "revise"]);
+export const InterviewPhaseSchema = z.enum(["discover", "revise"]);
 
 export const InterviewStateSchema = z.object({
-  mode: InterviewModeSchema,
-  goal: nullableNormalizedString(300),
-  background: nullableNormalizedString(300),
-  useCase: nullableNormalizedString(300),
-  constraints: z.object({
-    preferredDepth: nullableNormalizedString(120),
-  }),
-  preferences: z.object({
-    style: nullableNormalizedString(120),
-    focusAreas: normalizedStringArray(80, 8),
-  }),
-  openQuestions: normalizedStringArray(120, 6),
+  phase: InterviewPhaseSchema,
+  topic: nullableNormalizedString(240),
+  targetOutcome: nullableNormalizedString(280),
+  currentBaseline: nullableNormalizedString(280),
+  constraints: normalizedStringArray(120, 4),
+  revisionIntent: nullableNormalizedString(240),
   confidence: z.number().min(0).max(1),
 });
 
 export const InterviewNextFocusSchema = z.enum([
-  "goal",
-  "background",
-  "useCase",
+  "topic",
+  "targetOutcome",
+  "currentBaseline",
   "constraints",
-  "preferences",
-  "revise",
+  "revision",
 ]);
 
 export const InterviewSufficiencySchema = z.object({
   allowOutline: z.boolean(),
-  missingCoreFields: z.array(z.enum(["goal", "background", "useCase"])).max(3),
+  missingCoreFields: z.array(z.enum(["topic", "targetOutcome", "currentBaseline"])).max(3),
   nextFocus: InterviewNextFocusSchema,
   reason: z.string().min(1).max(240),
 });
@@ -115,7 +108,7 @@ export const InterviewApiMessageSchema = z.object({
 });
 
 export type InterviewApiMessage = z.infer<typeof InterviewApiMessageSchema>;
-export type InterviewMode = z.infer<typeof InterviewModeSchema>;
+export type InterviewPhase = z.infer<typeof InterviewPhaseSchema>;
 export type InterviewOutline = z.infer<typeof InterviewOutlineSchema>;
 export type InterviewState = z.infer<typeof InterviewStateSchema>;
 export type InterviewSufficiency = z.infer<typeof InterviewSufficiencySchema>;

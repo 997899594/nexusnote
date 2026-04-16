@@ -24,9 +24,9 @@ export async function POST(request: NextRequest) {
   let telemetry = createTelemetryContext({
     requestId,
     endpoint: "/api/interview",
-    promptVersion: "interview@agent-v1",
+    promptVersion: "interview@natural-v2",
     modelPolicy: "interactive-fast",
-    workflow: "interview-agent",
+    workflow: "interview-agent-natural",
   });
 
   try {
@@ -52,17 +52,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { messages, sessionId, courseId: inputCourseId, outline } = validation.data;
+    const { messages, sessionId, courseId: inputCourseId, outline, mode } = validation.data;
+    const modelPolicy = mode === "structured" ? "structured-high-quality" : "interactive-fast";
+    const promptVersion =
+      mode === "structured" ? "interview@structured-v2" : "interview@natural-v2";
+    const workflow =
+      mode === "structured" ? "interview-agent-structured" : "interview-agent-natural";
     telemetry = createTelemetryContext({
       requestId,
       endpoint: "/api/interview",
       userId,
-      promptVersion: "interview@agent-v1",
-      modelPolicy: "interactive-fast",
-      workflow: "interview-agent",
+      promptVersion,
+      modelPolicy,
+      workflow,
       metadata: {
         sessionId: sessionId ?? null,
         courseId: inputCourseId ?? null,
+        sessionMode: mode,
       },
     });
 
@@ -84,11 +90,12 @@ export async function POST(request: NextRequest) {
 
     const validatedMessages = await validateUIMessages<InterviewUIMessage>({ messages });
 
-    const agent = createInterviewAgent({
+    const agent = await createInterviewAgent({
       userId,
       courseId,
       currentOutline: outline ?? undefined,
       messages: validatedMessages,
+      mode,
       generationContext,
       telemetry,
     });

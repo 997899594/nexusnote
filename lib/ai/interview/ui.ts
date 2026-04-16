@@ -9,16 +9,14 @@ import type {
 } from "@/lib/ai/tools/interview";
 import { isInterviewVisibleTool } from "@/lib/ai/tools/shared";
 import type { OutlineDisplay } from "./models";
-import { type InterviewMode, type InterviewOutline, InterviewOutlineSchema } from "./schemas";
+import { type InterviewOutline, InterviewOutlineSchema } from "./schemas";
 
 export interface InterviewOutlinePreviewData {
-  mode: InterviewMode;
   outline: OutlineDisplay;
   isComplete: boolean;
 }
 
 export interface InterviewStableOutlineData {
-  mode: InterviewMode;
   outline: InterviewOutline;
 }
 
@@ -223,7 +221,6 @@ export function findLatestOutline(
   const outline = normalizePartialOutline(input?.outline);
   if (outline) {
     return {
-      mode: "revise",
       outline,
       isComplete: part.state === "input-available" || part.state === "output-available",
     };
@@ -244,7 +241,6 @@ export function findLatestStableOutline(
   const outline = normalizeStableOutline(input?.outline);
   if (outline) {
     return {
-      mode: "revise",
       outline,
     };
   }

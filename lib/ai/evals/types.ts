@@ -1,4 +1,4 @@
-import type { InterviewOutline } from "@/lib/ai/interview";
+import type { InterviewOutline, InterviewSessionMode } from "@/lib/ai/interview";
 
 export type EvalDomain = "chat" | "interview" | "learn" | "notes" | "growth";
 
@@ -9,6 +9,7 @@ export interface ChatEvalInput {
 export interface InterviewEvalInput {
   userGoal: string;
   currentOutline?: InterviewOutline;
+  mode?: InterviewSessionMode;
 }
 
 export interface LearnEvalInput {

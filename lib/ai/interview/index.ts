@@ -3,5 +3,7 @@ export * from "./extract-state";
 export * from "./models";
 export * from "./prompts";
 export * from "./schemas";
+export * from "./session-mode";
+export * from "./structured-prompts";
 export * from "./ui";
 export * from "./validate-outline";
