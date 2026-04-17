@@ -4,12 +4,8 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import {
-  createOwnedNote,
-  deleteOwnedNote,
-  getOwnedNote,
-  updateOwnedNote,
-} from "@/lib/notes/write-service";
+import { getOwnedNote } from "@/lib/notes/repository";
+import { createOwnedNote, deleteOwnedNote, updateOwnedNote } from "@/lib/notes/write-service";
 
 export const CreateNoteSchema = z.object({
   title: z.string().min(1).max(200),

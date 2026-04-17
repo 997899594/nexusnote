@@ -21,6 +21,32 @@ interface SyncKnowledgeSourceParams {
   enqueueInsightsOnEmpty?: boolean;
 }
 
+async function enqueueSyncKnowledgeSourceFollowups(
+  params: SyncKnowledgeSourceParams,
+  affectedNodeIds: string[],
+  sourceVersionHash: string | null,
+): Promise<void> {
+  if (params.hasContent) {
+    await enqueueKnowledgeSourceMerge({
+      userId: params.userId,
+      sourceType: params.sourceType,
+      sourceId: params.sourceId,
+      sourceVersionHash,
+      affectedNodeIds,
+    });
+    return;
+  }
+
+  if (affectedNodeIds.length > 0) {
+    await enqueueGrowthRefresh(params.userId, undefined, affectedNodeIds, params.clearReason);
+    return;
+  }
+
+  if (params.enqueueInsightsOnEmpty ?? true) {
+    await enqueueKnowledgeInsights(params.userId);
+  }
+}
+
 export async function syncKnowledgeSource(params: SyncKnowledgeSourceParams): Promise<string[]> {
   const sourceVersionHash = params.sourceVersionHash ?? null;
   const affectedNodeIds = await listLinkedNodeIdsForEvidenceSource({
@@ -37,9 +63,7 @@ export async function syncKnowledgeSource(params: SyncKnowledgeSourceParams): Pr
     sourceVersionHash,
   });
 
-  if (params.replaceEvents) {
-    await params.replaceEvents();
-  }
+  await params.replaceEvents?.();
 
   await aggregateSourceEventsToKnowledgeEvidence({
     userId: params.userId,
@@ -48,29 +72,8 @@ export async function syncKnowledgeSource(params: SyncKnowledgeSourceParams): Pr
     sourceVersionHash,
   });
 
-  if (params.syncChunks) {
-    await params.syncChunks();
-  }
+  await params.syncChunks?.();
 
-  if (params.hasContent) {
-    await enqueueKnowledgeSourceMerge({
-      userId: params.userId,
-      sourceType: params.sourceType,
-      sourceId: params.sourceId,
-      sourceVersionHash,
-      affectedNodeIds,
-    });
-    return affectedNodeIds;
-  }
-
-  if (affectedNodeIds.length > 0) {
-    await enqueueGrowthRefresh(params.userId, undefined, affectedNodeIds, params.clearReason);
-    return affectedNodeIds;
-  }
-
-  if (params.enqueueInsightsOnEmpty ?? true) {
-    await enqueueKnowledgeInsights(params.userId);
-  }
-
+  await enqueueSyncKnowledgeSourceFollowups(params, affectedNodeIds, sourceVersionHash);
   return affectedNodeIds;
 }

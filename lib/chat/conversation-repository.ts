@@ -30,17 +30,29 @@ function isUniqueViolation(error: unknown): boolean {
   );
 }
 
+export function matchOwnedConversation(conversationId: string, userId: string) {
+  return and(eq(conversations.id, conversationId), eq(conversations.userId, userId));
+}
+
+async function findConversation(
+  whereClause: ReturnType<typeof and>,
+): Promise<ConversationRecord | null> {
+  const [conversation] = await db.select().from(conversations).where(whereClause).limit(1);
+  return conversation ?? null;
+}
+
+function buildConversationTouchUpdate(messageCount: number) {
+  return {
+    messageCount,
+    lastMessageAt: new Date(),
+  };
+}
+
 export async function getOwnedConversation(
   conversationId: string,
   userId: string,
 ): Promise<ConversationRecord | null> {
-  const [conversation] = await db
-    .select()
-    .from(conversations)
-    .where(and(eq(conversations.id, conversationId), eq(conversations.userId, userId)))
-    .limit(1);
-
-  return conversation ?? null;
+  return findConversation(matchOwnedConversation(conversationId, userId));
 }
 
 export async function getOwnedLearnConversation(params: {
@@ -49,20 +61,14 @@ export async function getOwnedLearnConversation(params: {
   chapterIndex: number;
 }): Promise<ConversationRecord | null> {
   const { userId, courseId, chapterIndex } = params;
-  const [conversation] = await db
-    .select()
-    .from(conversations)
-    .where(
-      and(
-        eq(conversations.userId, userId),
-        eq(conversations.intent, "LEARN"),
-        eq(conversations.learnCourseId, courseId),
-        eq(conversations.learnChapterIndex, chapterIndex),
-      ),
-    )
-    .limit(1);
-
-  return conversation ?? null;
+  return findConversation(
+    and(
+      eq(conversations.userId, userId),
+      eq(conversations.intent, "LEARN"),
+      eq(conversations.learnCourseId, courseId),
+      eq(conversations.learnChapterIndex, chapterIndex),
+    ),
+  );
 }
 
 export async function getOwnedConversationSummary(
@@ -82,7 +88,7 @@ export async function updateOwnedConversation(params: {
   const [updated] = await db
     .update(conversations)
     .set(updates)
-    .where(and(eq(conversations.id, conversationId), eq(conversations.userId, userId)))
+    .where(matchOwnedConversation(conversationId, userId))
     .returning();
 
   return updated ?? null;
@@ -94,7 +100,7 @@ export async function deleteOwnedConversation(
 ): Promise<boolean> {
   const [deleted] = await db
     .delete(conversations)
-    .where(and(eq(conversations.id, conversationId), eq(conversations.userId, userId)))
+    .where(matchOwnedConversation(conversationId, userId))
     .returning({ id: conversations.id });
 
   return Boolean(deleted);
@@ -111,11 +117,8 @@ export async function touchOwnedConversation(params: {
 
   const [updated] = await db
     .update(conversations)
-    .set({
-      messageCount,
-      lastMessageAt: new Date(),
-    })
-    .where(and(eq(conversations.id, conversationId), eq(conversations.userId, userId)))
+    .set(buildConversationTouchUpdate(messageCount))
+    .where(matchOwnedConversation(conversationId, userId))
     .returning({ id: conversations.id });
 
   if (updated) {
@@ -138,11 +141,8 @@ export async function touchOwnedConversation(params: {
 
     const [racedUpdate] = await db
       .update(conversations)
-      .set({
-        messageCount,
-        lastMessageAt: new Date(),
-      })
-      .where(and(eq(conversations.id, conversationId), eq(conversations.userId, userId)))
+      .set(buildConversationTouchUpdate(messageCount))
+      .where(matchOwnedConversation(conversationId, userId))
       .returning({ id: conversations.id });
 
     if (racedUpdate) {

@@ -11,7 +11,7 @@ import { db } from "@/db";
 import { noteTags, tags } from "@/db/schema";
 import { tagGenerationService } from "@/lib/ai/services/tag-generation-service";
 import { auth } from "@/lib/auth";
-import { getOwnedNote } from "@/lib/notes/write-service";
+import { getOwnedNote } from "@/lib/notes/repository";
 
 interface RouteParams {
   params: Promise<{ id: string }>;

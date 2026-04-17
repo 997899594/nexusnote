@@ -7,7 +7,7 @@ import {
   knowledgeEvidence,
   knowledgeInsightEvidence,
   knowledgeInsights,
-  notes,
+  type notes,
   userSkillNodeEvidence,
 } from "@/db";
 import {
@@ -20,6 +20,7 @@ import { getLatestFocusSnapshot } from "@/lib/growth/projection-data";
 import type { FocusSnapshotProjection } from "@/lib/growth/projection-types";
 import type { KnowledgeInsight } from "@/lib/knowledge/insights";
 import { NOTE_BACKED_KNOWLEDGE_SOURCE_TYPES } from "@/lib/knowledge/source-types";
+import { getOwnedNote, listOwnedRecentNotes } from "@/lib/notes/repository";
 
 export type NoteWorkbenchKind = "all" | "highlight" | "note" | "capture" | "manual";
 type NoteRecord = typeof notes.$inferSelect;
@@ -171,6 +172,14 @@ function compareUpdatedAtDesc(left: Date | null, right: Date | null): number {
   return rightTime - leftTime;
 }
 
+function pushUniqueMapValue(map: Map<string, string[]>, key: string, value: string): void {
+  const existingValues = map.get(key) ?? [];
+  if (!existingValues.includes(value)) {
+    existingValues.push(value);
+    map.set(key, existingValues);
+  }
+}
+
 function buildKnowledgeInsight(
   row: {
     id: string;
@@ -263,18 +272,90 @@ async function getInsightNoteIdMap(insightIds: string[]): Promise<Map<string, st
 
   const noteIdsByInsightId = new Map<string, string[]>();
   for (const row of rows) {
-    if (!row.noteId) {
-      continue;
+    if (row.noteId) {
+      pushUniqueMapValue(noteIdsByInsightId, row.insightId, row.noteId);
     }
-
-    const existing = noteIdsByInsightId.get(row.insightId) ?? [];
-    if (!existing.includes(row.noteId)) {
-      existing.push(row.noteId);
-    }
-    noteIdsByInsightId.set(row.insightId, existing);
   }
 
   return noteIdsByInsightId;
+}
+
+function buildItemInsightKinds(
+  insights: KnowledgeInsight[],
+  insightNoteIdMap: Map<string, string[]>,
+): Map<string, Set<KnowledgeInsight["kind"]>> {
+  const itemInsightKinds = new Map<string, Set<KnowledgeInsight["kind"]>>();
+
+  for (const insight of insights) {
+    const noteIds = insightNoteIdMap.get(insight.id) ?? [];
+    for (const noteId of noteIds) {
+      const kinds = itemInsightKinds.get(noteId) ?? new Set<KnowledgeInsight["kind"]>();
+      kinds.add(insight.kind);
+      itemInsightKinds.set(noteId, kinds);
+    }
+  }
+
+  return itemInsightKinds;
+}
+
+function buildWorkbenchCounts(items: NoteWorkbenchItem[]): Record<NoteWorkbenchKind, number> {
+  const counts: Record<NoteWorkbenchKind, number> = {
+    all: items.length,
+    highlight: 0,
+    note: 0,
+    capture: 0,
+    manual: 0,
+  };
+
+  for (const item of items) {
+    counts[item.kind] += 1;
+  }
+
+  return counts;
+}
+
+function buildNoteCourseSummaries(items: NoteWorkbenchItem[]): NotesWorkbenchSnapshot["courses"] {
+  const courseMap = new Map<
+    string,
+    {
+      courseId: string;
+      courseTitle: string;
+      noteCount: number;
+      latestUpdatedAt: Date | null;
+    }
+  >();
+
+  for (const item of items) {
+    const courseId = item.sourceContext?.courseId;
+    const courseTitle = item.sourceContext?.courseTitle?.trim();
+
+    if (!courseId || !courseTitle) {
+      continue;
+    }
+
+    const existing = courseMap.get(courseId);
+    if (!existing) {
+      courseMap.set(courseId, {
+        courseId,
+        courseTitle,
+        noteCount: 1,
+        latestUpdatedAt: item.updatedAt,
+      });
+      continue;
+    }
+
+    existing.noteCount += 1;
+    if (
+      item.updatedAt &&
+      (!existing.latestUpdatedAt || item.updatedAt.getTime() > existing.latestUpdatedAt.getTime())
+    ) {
+      existing.latestUpdatedAt = item.updatedAt;
+    }
+  }
+
+  return Array.from(courseMap.values()).sort((a, b) =>
+    compareUpdatedAtDesc(a.latestUpdatedAt, b.latestUpdatedAt),
+  );
 }
 
 function buildFocusProjection(
@@ -301,11 +382,7 @@ export async function getRecentNotesCached(userId: string, limit = 24) {
   cacheLife("minutes");
   cacheTag(getNotesIndexTag(userId));
 
-  return db.query.notes.findMany({
-    where: eq(notes.userId, userId),
-    orderBy: desc(notes.updatedAt),
-    limit,
-  });
+  return listOwnedRecentNotes(userId, limit);
 }
 
 export async function getNotesWorkbenchCached(userId: string): Promise<NotesWorkbenchSnapshot> {
@@ -317,11 +394,7 @@ export async function getNotesWorkbenchCached(userId: string): Promise<NotesWork
   cacheTag(getProfileStatsTag(userId));
 
   const [rows, focusSnapshot, insights] = await Promise.all([
-    db.query.notes.findMany({
-      where: eq(notes.userId, userId),
-      orderBy: desc(notes.updatedAt),
-      limit: 200,
-    }),
+    listOwnedRecentNotes(userId, 200),
     getLatestFocusSnapshot(userId),
     getTopInsights(userId, 4),
   ]);
@@ -343,15 +416,7 @@ export async function getNotesWorkbenchCached(userId: string): Promise<NotesWork
     insights.flatMap((insight) => [insight.title, insight.summary]),
   );
 
-  const itemInsightKinds = new Map<string, Set<KnowledgeInsight["kind"]>>();
-  for (const insight of insights) {
-    const noteIds = insightNoteIdMap.get(insight.id) ?? [];
-    for (const noteId of noteIds) {
-      const kinds = itemInsightKinds.get(noteId) ?? new Set<KnowledgeInsight["kind"]>();
-      kinds.add(insight.kind);
-      itemInsightKinds.set(noteId, kinds);
-    }
-  }
+  const itemInsightKinds = buildItemInsightKinds(insights, insightNoteIdMap);
 
   const items: NoteWorkbenchItem[] = rows
     .map((note) => {
@@ -392,59 +457,8 @@ export async function getNotesWorkbenchCached(userId: string): Promise<NotesWork
       return compareUpdatedAtDesc(left.updatedAt, right.updatedAt);
     });
 
-  const counts: Record<NoteWorkbenchKind, number> = {
-    all: items.length,
-    highlight: 0,
-    note: 0,
-    capture: 0,
-    manual: 0,
-  };
-
-  for (const item of items) {
-    counts[item.kind] += 1;
-  }
-
-  const courseMap = new Map<
-    string,
-    {
-      courseId: string;
-      courseTitle: string;
-      noteCount: number;
-      latestUpdatedAt: Date | null;
-    }
-  >();
-
-  for (const item of items) {
-    const courseId = item.sourceContext?.courseId;
-    const courseTitle = item.sourceContext?.courseTitle?.trim();
-
-    if (!courseId || !courseTitle) {
-      continue;
-    }
-
-    const existing = courseMap.get(courseId);
-    if (!existing) {
-      courseMap.set(courseId, {
-        courseId,
-        courseTitle,
-        noteCount: 1,
-        latestUpdatedAt: item.updatedAt,
-      });
-      continue;
-    }
-
-    existing.noteCount += 1;
-    if (
-      item.updatedAt &&
-      (!existing.latestUpdatedAt || item.updatedAt.getTime() > existing.latestUpdatedAt.getTime())
-    ) {
-      existing.latestUpdatedAt = item.updatedAt;
-    }
-  }
-
-  const courses = Array.from(courseMap.values()).sort((a, b) =>
-    compareUpdatedAtDesc(a.latestUpdatedAt, b.latestUpdatedAt),
-  );
+  const counts = buildWorkbenchCounts(items);
+  const courses = buildNoteCourseSummaries(items);
 
   const focusRelatedItems = items
     .filter((item) => item.isFocusRelated)
@@ -479,7 +493,5 @@ export async function getNoteDetailCached(userId: string, noteId: string) {
   cacheTag(getNotesIndexTag(userId));
   cacheTag(getNoteDetailTag(userId, noteId));
 
-  return db.query.notes.findFirst({
-    where: (table, { and, eq }) => and(eq(table.id, noteId), eq(table.userId, userId)),
-  });
+  return getOwnedNote(noteId, userId);
 }

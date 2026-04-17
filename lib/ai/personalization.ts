@@ -7,12 +7,11 @@
  * - userContext: 推断式上下文
  */
 
-import { eq } from "drizzle-orm";
-import { db, userProfiles } from "@/db";
 import { buildExplicitPreferencePolicy } from "@/lib/ai/policy/compile-preferences";
 import { DEFAULT_AI_PREFERENCES, normalizeAIPreferences } from "@/lib/ai/preferences";
 import { getSkin, getUserSkinPreference } from "@/lib/ai/skins";
 import { buildChatContext } from "@/lib/memory/chat-context-builder";
+import { getUserProfile } from "@/lib/profile";
 
 export interface PersonalizationResult {
   behaviorPrompt: string;
@@ -39,9 +38,7 @@ export async function buildPersonalization(
 
   const [skin, profile, context] = await Promise.all([
     getExplicitOrDefaultSkin(userId, options?.skinSlug),
-    db.query.userProfiles.findFirst({
-      where: eq(userProfiles.userId, userId),
-    }),
+    getUserProfile(userId),
     buildChatContext(userId),
   ]);
 

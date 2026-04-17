@@ -1,12 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import {
   db,
   knowledgeEvidence,
   knowledgeEvidenceEvents,
   knowledgeInsightEvidence,
   knowledgeInsights,
-  userFocusSnapshots,
   userSkillNodeEvidence,
   userSkillNodes,
 } from "@/db";
@@ -20,6 +19,7 @@ import {
   markGenerationRunFailed,
   markGenerationRunSucceeded,
 } from "@/lib/generation-runs";
+import { getLatestFocusSnapshotRow } from "@/lib/growth/projection-data";
 import { focusSnapshotPayloadSchema } from "@/lib/growth/projection-types";
 import {
   deriveKnowledgeInsights,
@@ -28,6 +28,27 @@ import {
 import type { GrowthJobData } from "@/lib/queue/growth-queue";
 
 type JobPayload<T extends GrowthJobData["type"]> = Extract<GrowthJobData, { type: T }>;
+
+type NodeEvidenceRow = {
+  nodeId: string;
+  evidenceId: string;
+  sourceType: string;
+  kind: string;
+  title: string;
+  summary: string;
+  confidence: string;
+};
+
+type EnrichedSkillNode = {
+  id: string;
+  canonicalLabel: string;
+  progress: number;
+  state: string;
+  evidenceScore: number;
+  evidenceIds: string[];
+  sourceTypes: string[];
+  evidenceKinds: string[];
+};
 
 function compareInsightText(left: string, right: string): number {
   return left.localeCompare(right, "zh-Hans-CN");
@@ -149,6 +170,100 @@ function assignInsightIds(
   return { desiredInsights, obsoleteInsightIds };
 }
 
+function groupNodeEvidenceRows(rows: NodeEvidenceRow[]): Map<string, NodeEvidenceRow[]> {
+  const rowsByNodeId = new Map<string, NodeEvidenceRow[]>();
+
+  for (const row of rows) {
+    const existing = rowsByNodeId.get(row.nodeId) ?? [];
+    existing.push(row);
+    rowsByNodeId.set(row.nodeId, existing);
+  }
+
+  return rowsByNodeId;
+}
+
+function sortLinkedEvidenceRows(rows: NodeEvidenceRow[]): NodeEvidenceRow[] {
+  return [...rows].sort((left, right) => {
+    const confidenceDiff = Number(right.confidence) - Number(left.confidence);
+    if (confidenceDiff !== 0) {
+      return confidenceDiff;
+    }
+
+    const titleCompare = compareInsightText(left.title, right.title);
+    if (titleCompare !== 0) {
+      return titleCompare;
+    }
+
+    return compareInsightText(left.evidenceId, right.evidenceId);
+  });
+}
+
+function enrichSkillNodes(
+  skillNodes: Array<{
+    id: string;
+    canonicalLabel: string;
+    progress: number;
+    state: string;
+    evidenceScore: number;
+  }>,
+  nodeEvidenceRows: NodeEvidenceRow[],
+): EnrichedSkillNode[] {
+  const evidenceRowsByNodeId = groupNodeEvidenceRows(nodeEvidenceRows);
+
+  return skillNodes.map((node) => {
+    const linkedEvidenceRows = sortLinkedEvidenceRows(evidenceRowsByNodeId.get(node.id) ?? []);
+
+    return {
+      ...node,
+      evidenceIds: uniqueStrings(linkedEvidenceRows.map((row) => row.evidenceId)),
+      sourceTypes: uniqueStrings(linkedEvidenceRows.map((row) => row.sourceType)).sort(
+        compareInsightText,
+      ),
+      evidenceKinds: uniqueStrings(linkedEvidenceRows.map((row) => row.kind)).sort(
+        compareInsightText,
+      ),
+    };
+  });
+}
+
+function buildDerivedFocusSnapshot(params: {
+  focusSnapshotRow:
+    | {
+        directionKey: string | null;
+        nodeId: string | null;
+        title: string;
+        summary: string;
+        progress: number;
+        state: string;
+        payload: unknown;
+      }
+    | null
+    | undefined;
+  skillNodeById: Map<string, EnrichedSkillNode>;
+}) {
+  if (!params.focusSnapshotRow) {
+    return null;
+  }
+
+  const parsedFocusPayload = focusSnapshotPayloadSchema.safeParse(params.focusSnapshotRow.payload);
+  const focusAnchorRef = parsedFocusPayload.success
+    ? (parsedFocusPayload.data.node?.anchorRef ?? params.focusSnapshotRow.nodeId ?? null)
+    : (params.focusSnapshotRow.nodeId ?? null);
+
+  return {
+    directionKey: params.focusSnapshotRow.directionKey,
+    anchorRef: focusAnchorRef,
+    title: params.focusSnapshotRow.title,
+    summary: params.focusSnapshotRow.summary,
+    progress: params.focusSnapshotRow.progress,
+    state: params.focusSnapshotRow.state,
+    evidenceIds: uniqueStrings([
+      ...(parsedFocusPayload.success ? (parsedFocusPayload.data.node?.evidenceRefs ?? []) : []),
+      ...(focusAnchorRef ? (params.skillNodeById.get(focusAnchorRef)?.evidenceIds ?? []) : []),
+    ]),
+  };
+}
+
 export async function processKnowledgeInsightsJob(
   job: JobPayload<"derive_user_insights">,
 ): Promise<void> {
@@ -201,94 +316,16 @@ export async function processKnowledgeInsightsJob(
         .where(eq(knowledgeEvidenceEvents.userId, job.userId))
         .orderBy(desc(knowledgeEvidenceEvents.happenedAt), desc(knowledgeEvidenceEvents.createdAt))
         .limit(12),
-      db.query.userFocusSnapshots.findFirst({
-        where: and(
-          eq(userFocusSnapshots.userId, job.userId),
-          eq(userFocusSnapshots.isLatest, true),
-        ),
-        orderBy: desc(userFocusSnapshots.createdAt),
-        columns: {
-          directionKey: true,
-          nodeId: true,
-          title: true,
-          summary: true,
-          progress: true,
-          state: true,
-          payload: true,
-        },
-      }),
+      getLatestFocusSnapshotRow(job.userId),
     ]);
 
-  const evidenceRowsByNodeId = new Map<
-    string,
-    Array<{
-      evidenceId: string;
-      sourceType: string;
-      kind: string;
-      title: string;
-      summary: string;
-      confidence: string;
-    }>
-  >();
-
-  for (const row of nodeEvidenceRows) {
-    const existing = evidenceRowsByNodeId.get(row.nodeId) ?? [];
-    existing.push(row);
-    evidenceRowsByNodeId.set(row.nodeId, existing);
-  }
-
-  const enrichedSkillNodes = skillNodes.map((node) => {
-    const linkedEvidenceRows = [...(evidenceRowsByNodeId.get(node.id) ?? [])].sort(
-      (left, right) => {
-        const confidenceDiff = Number(right.confidence) - Number(left.confidence);
-        if (confidenceDiff !== 0) {
-          return confidenceDiff;
-        }
-
-        const titleCompare = compareInsightText(left.title, right.title);
-        if (titleCompare !== 0) {
-          return titleCompare;
-        }
-
-        return compareInsightText(left.evidenceId, right.evidenceId);
-      },
-    );
-
-    return {
-      ...node,
-      evidenceIds: uniqueStrings(linkedEvidenceRows.map((row) => row.evidenceId)),
-      sourceTypes: uniqueStrings(linkedEvidenceRows.map((row) => row.sourceType)).sort(
-        compareInsightText,
-      ),
-      evidenceKinds: uniqueStrings(linkedEvidenceRows.map((row) => row.kind)).sort(
-        compareInsightText,
-      ),
-    };
-  });
+  const enrichedSkillNodes = enrichSkillNodes(skillNodes, nodeEvidenceRows);
 
   const skillNodeById = new Map(enrichedSkillNodes.map((node) => [node.id, node]));
-  const parsedFocusPayload = focusSnapshotRow
-    ? focusSnapshotPayloadSchema.safeParse(focusSnapshotRow.payload)
-    : null;
-  const focusAnchorRef = parsedFocusPayload?.success
-    ? (parsedFocusPayload.data.node?.anchorRef ?? focusSnapshotRow?.nodeId ?? null)
-    : (focusSnapshotRow?.nodeId ?? null);
-  const focusSnapshot = focusSnapshotRow
-    ? {
-        directionKey: focusSnapshotRow.directionKey,
-        anchorRef: focusAnchorRef,
-        title: focusSnapshotRow.title,
-        summary: focusSnapshotRow.summary,
-        progress: focusSnapshotRow.progress,
-        state: focusSnapshotRow.state,
-        evidenceIds: uniqueStrings([
-          ...(parsedFocusPayload?.success
-            ? (parsedFocusPayload.data.node?.evidenceRefs ?? [])
-            : []),
-          ...(focusAnchorRef ? (skillNodeById.get(focusAnchorRef)?.evidenceIds ?? []) : []),
-        ]),
-      }
-    : null;
+  const focusSnapshot = buildDerivedFocusSnapshot({
+    focusSnapshotRow,
+    skillNodeById,
+  });
 
   const derivationInput = {
     evidenceRows,

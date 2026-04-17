@@ -8,7 +8,7 @@ import {
   userSkillNodes,
 } from "@/db";
 import { recomputeNodeAggregates } from "@/lib/growth/aggregation";
-import type { EvidenceMergeRow, EvidenceRefRow } from "@/lib/growth/data-access";
+import type { EvidenceMergeRow } from "@/lib/growth/data-access";
 import { bumpGrowthGraphState } from "@/lib/growth/graph-state";
 import {
   type GrowthMergePriorSummary,
@@ -17,14 +17,16 @@ import {
   validateMergePlannerOutput,
 } from "@/lib/growth/merge";
 import { retrieveMergeCandidateSet } from "@/lib/growth/retrieve-merge-candidates";
+import type { EvidenceSourceLinkRow } from "@/lib/knowledge/evidence/source-links";
 
 type GrowthTransaction = Pick<typeof db, "delete" | "insert" | "query" | "select" | "update">;
+type GrowthReadExecutor = Pick<typeof db, "select">;
 
 type ValidatedGrowthMerge = ReturnType<typeof validateMergePlannerOutput>;
 
 function buildMergePlannerEvidenceBatch(
   evidenceRows: EvidenceMergeRow[],
-  evidenceRefs: EvidenceRefRow[],
+  evidenceRefs: EvidenceSourceLinkRow[],
 ): MergePlannerEvidenceBatchItem[] {
   return evidenceRows.map((row) => ({
     id: row.id,
@@ -45,7 +47,7 @@ export async function planValidatedGrowthMerge(params: {
   userId: string;
   plannerResourceId: string;
   evidenceRows: EvidenceMergeRow[];
-  evidenceRefs: EvidenceRefRow[];
+  evidenceRefs: EvidenceSourceLinkRow[];
   priorSummary: GrowthMergePriorSummary;
 }): Promise<ValidatedGrowthMerge> {
   const [existingNodes, existingEvidenceLinks, existingPrerequisiteEdges] = await Promise.all([
@@ -232,11 +234,14 @@ export async function applyValidatedGrowthMerge(params: {
 }
 
 export async function listSourceMergeRunIds(params: {
+  executor?: GrowthReadExecutor;
   userId: string;
   sourceType: string;
   sourceId: string;
 }): Promise<string[]> {
-  const rows = await db
+  const executor = params.executor ?? db;
+
+  const rows = await executor
     .select({ id: knowledgeGenerationRuns.id })
     .from(knowledgeGenerationRuns)
     .where(
@@ -247,6 +252,27 @@ export async function listSourceMergeRunIds(params: {
           knowledgeGenerationRuns.idempotencyKey,
           `merge:user:${params.userId}:source:${params.sourceType}:${params.sourceId}:hash:%`,
         ),
+      ),
+    );
+
+  return rows.map((row) => row.id);
+}
+
+export async function listCourseMergeRunIds(params: {
+  executor?: GrowthReadExecutor;
+  userId: string;
+  courseId: string;
+}): Promise<string[]> {
+  const executor = params.executor ?? db;
+
+  const rows = await executor
+    .select({ id: knowledgeGenerationRuns.id })
+    .from(knowledgeGenerationRuns)
+    .where(
+      and(
+        eq(knowledgeGenerationRuns.userId, params.userId),
+        eq(knowledgeGenerationRuns.courseId, params.courseId),
+        eq(knowledgeGenerationRuns.kind, "merge"),
       ),
     );
 

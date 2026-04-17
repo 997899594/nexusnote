@@ -1,13 +1,15 @@
 import type { UIMessage } from "ai";
-import { and, conversationMessages, conversations, db, eq } from "@/db";
+import { conversationMessages, conversations, db, eq } from "@/db";
 import { summarizeDroppedConversationMessages } from "@/lib/chat/conversation-memory";
 import {
   buildConversationMessageRows,
   loadConversationMessages,
 } from "@/lib/chat/conversation-messages";
+import { getOwnedConversation, matchOwnedConversation } from "@/lib/chat/conversation-repository";
 import { buildPersistedMessageSnapshot } from "@/lib/chat/session-messages";
 
 type ConversationMetadata = Record<string, unknown>;
+type OwnedConversationRecord = NonNullable<Awaited<ReturnType<typeof getOwnedConversation>>>;
 
 function normalizeMetadata(metadata: unknown): ConversationMetadata {
   if (metadata && typeof metadata === "object" && !Array.isArray(metadata)) {
@@ -17,24 +19,73 @@ function normalizeMetadata(metadata: unknown): ConversationMetadata {
   return {};
 }
 
+async function replaceConversationMessages(
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  conversationId: string,
+  messages: UIMessage[],
+): Promise<void> {
+  const rows = buildConversationMessageRows({
+    conversationId,
+    messages,
+  });
+
+  await tx
+    .delete(conversationMessages)
+    .where(eq(conversationMessages.conversationId, conversationId));
+
+  if (rows.length === 0) {
+    return;
+  }
+
+  await tx.insert(conversationMessages).values(rows);
+}
+
+async function loadOwnedConversationWithMetadata(
+  conversationId: string,
+  userId: string,
+): Promise<{
+  conversation: OwnedConversationRecord;
+  metadata: ConversationMetadata;
+} | null> {
+  const conversation = await getOwnedConversation(conversationId, userId);
+  if (!conversation) {
+    return null;
+  }
+
+  return {
+    conversation,
+    metadata: normalizeMetadata(conversation.metadata),
+  };
+}
+
+function buildConversationActivityUpdate(params: {
+  messageCount: number;
+  title?: string;
+  summary?: string | null;
+  isArchived?: boolean;
+}) {
+  return {
+    ...(params.title !== undefined && { title: params.title }),
+    ...(params.summary !== undefined && { summary: params.summary }),
+    ...(params.isArchived !== undefined && { isArchived: params.isArchived }),
+    messageCount: params.messageCount,
+    lastMessageAt: new Date(),
+    updatedAt: new Date(),
+  };
+}
+
 export async function setConversationActiveStreamId(
   conversationId: string,
   userId: string,
   activeStreamId: string | null,
 ): Promise<void> {
-  const [existing] = await db
-    .select({ metadata: conversations.metadata })
-    .from(conversations)
-    .where(and(eq(conversations.id, conversationId), eq(conversations.userId, userId)))
-    .limit(1);
-
-  if (!existing) {
+  const loadedConversation = await loadOwnedConversationWithMetadata(conversationId, userId);
+  if (!loadedConversation) {
     return;
   }
 
-  const metadata = normalizeMetadata(existing?.metadata);
   const nextMetadata = {
-    ...metadata,
+    ...loadedConversation.metadata,
     activeStreamId,
   };
 
@@ -44,21 +95,15 @@ export async function setConversationActiveStreamId(
       metadata: nextMetadata,
       updatedAt: new Date(),
     })
-    .where(and(eq(conversations.id, conversationId), eq(conversations.userId, userId)));
+    .where(matchOwnedConversation(conversationId, userId));
 }
 
 export async function getConversationActiveStreamId(
   conversationId: string,
   userId: string,
 ): Promise<string | null> {
-  const [existing] = await db
-    .select({ metadata: conversations.metadata })
-    .from(conversations)
-    .where(and(eq(conversations.id, conversationId), eq(conversations.userId, userId)))
-    .limit(1);
-
-  const metadata = normalizeMetadata(existing?.metadata);
-  const activeStreamId = metadata.activeStreamId;
+  const loadedConversation = await loadOwnedConversationWithMetadata(conversationId, userId);
+  const activeStreamId = loadedConversation?.metadata.activeStreamId;
 
   return typeof activeStreamId === "string" && activeStreamId.length > 0 ? activeStreamId : null;
 }
@@ -98,33 +143,22 @@ export async function saveOwnedConversationSnapshot(params: {
   const [result] = await db.transaction(async (tx) => {
     const [conversation] = await tx
       .update(conversations)
-      .set({
-        ...(title !== undefined && { title }),
-        ...(summaryUpdate !== undefined && { summary: summaryUpdate }),
-        ...(isArchived !== undefined && { isArchived }),
-        messageCount: messages.length,
-        lastMessageAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .where(and(eq(conversations.id, conversationId), eq(conversations.userId, userId)))
+      .set(
+        buildConversationActivityUpdate({
+          title,
+          summary: summaryUpdate,
+          isArchived,
+          messageCount: messages.length,
+        }),
+      )
+      .where(matchOwnedConversation(conversationId, userId))
       .returning();
 
     if (!conversation) {
       return [];
     }
 
-    const rows = buildConversationMessageRows({
-      conversationId,
-      messages: snapshot.messages,
-    });
-
-    await tx
-      .delete(conversationMessages)
-      .where(eq(conversationMessages.conversationId, conversationId));
-
-    if (rows.length > 0) {
-      await tx.insert(conversationMessages).values(rows);
-    }
+    await replaceConversationMessages(tx, conversationId, snapshot.messages);
 
     return [
       {
@@ -142,47 +176,31 @@ export async function persistConversationMessages(
   userId: string,
   messages: UIMessage[],
 ): Promise<UIMessage[]> {
-  const [existing] = await db
-    .select({ summary: conversations.summary })
-    .from(conversations)
-    .where(and(eq(conversations.id, conversationId), eq(conversations.userId, userId)))
-    .limit(1);
-
-  if (!existing) {
+  const loadedConversation = await loadOwnedConversationWithMetadata(conversationId, userId);
+  if (!loadedConversation) {
     return messages;
   }
 
   const snapshot = buildPersistedMessageSnapshot(messages);
   const nextSummary = snapshot.trimmed
     ? await summarizeDroppedConversationMessages({
-        existingSummary: existing?.summary ?? null,
+        existingSummary: loadedConversation.conversation.summary ?? null,
         droppedMessages: snapshot.droppedMessages,
       })
-    : (existing?.summary ?? null);
+    : (loadedConversation.conversation.summary ?? null);
 
   await db.transaction(async (tx) => {
     await tx
       .update(conversations)
-      .set({
-        messageCount: messages.length,
-        lastMessageAt: new Date(),
-        summary: nextSummary,
-        updatedAt: new Date(),
-      })
-      .where(and(eq(conversations.id, conversationId), eq(conversations.userId, userId)));
+      .set(
+        buildConversationActivityUpdate({
+          messageCount: messages.length,
+          summary: nextSummary,
+        }),
+      )
+      .where(matchOwnedConversation(conversationId, userId));
 
-    const rows = buildConversationMessageRows({
-      conversationId,
-      messages: snapshot.messages,
-    });
-
-    await tx
-      .delete(conversationMessages)
-      .where(eq(conversationMessages.conversationId, conversationId));
-
-    if (rows.length > 0) {
-      await tx.insert(conversationMessages).values(rows);
-    }
+    await replaceConversationMessages(tx, conversationId, snapshot.messages);
   });
 
   return loadConversationMessages(conversationId);

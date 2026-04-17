@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import {
   db,
   knowledgeEvidence,
@@ -7,6 +7,11 @@ import {
   knowledgeEvidenceEvents,
   knowledgeEvidenceSourceLinks,
 } from "@/db";
+import { buildSourceVersionCondition } from "@/lib/growth/source-version";
+import {
+  groupEvidenceSourceLinksByEvidenceId,
+  listEvidenceSourceLinks,
+} from "@/lib/knowledge/evidence/source-links";
 
 interface SelectedEvidenceEventRow {
   id: string;
@@ -20,12 +25,15 @@ interface SelectedEvidenceEventRow {
   metadata?: Record<string, unknown> | null;
 }
 
-interface SelectedEvidenceRefRow {
-  eventId: string;
+interface AggregatedRefRow {
   refType: string;
   refId: string;
   snippet: string | null;
   weight: number | string;
+}
+
+interface SelectedEvidenceRefRow extends AggregatedRefRow {
+  eventId: string;
 }
 
 interface AggregatedEvidenceRecord {
@@ -80,7 +88,7 @@ function buildRefsByEventId(refs: SelectedEvidenceRefRow[]) {
   return refsByEventId;
 }
 
-function normalizeAggregatedRefs(refs: SelectedEvidenceRefRow[]) {
+function normalizeAggregatedRefs(refs: AggregatedRefRow[]) {
   return [...refs]
     .map((ref) => ({
       refType: ref.refType,
@@ -187,34 +195,12 @@ async function loadExistingAggregatedEvidence(
     return [];
   }
 
-  const refs = await executor
-    .select({
-      evidenceId: knowledgeEvidenceSourceLinks.evidenceId,
-      refType: knowledgeEvidenceSourceLinks.refType,
-      refId: knowledgeEvidenceSourceLinks.refId,
-      snippet: knowledgeEvidenceSourceLinks.snippet,
-      weight: knowledgeEvidenceSourceLinks.weight,
-    })
-    .from(knowledgeEvidenceSourceLinks)
-    .where(
-      inArray(
-        knowledgeEvidenceSourceLinks.evidenceId,
-        rows.map((row) => row.id),
-      ),
-    );
-
-  const refsByEvidenceId = new Map<string, SelectedEvidenceRefRow[]>();
-  for (const ref of refs) {
-    const existingRefs = refsByEvidenceId.get(ref.evidenceId) ?? [];
-    existingRefs.push({
-      eventId: ref.evidenceId,
-      refType: ref.refType,
-      refId: ref.refId,
-      snippet: ref.snippet,
-      weight: ref.weight,
-    });
-    refsByEvidenceId.set(ref.evidenceId, existingRefs);
-  }
+  const refsByEvidenceId = groupEvidenceSourceLinksByEvidenceId(
+    await listEvidenceSourceLinks({
+      executor,
+      evidenceIds: rows.map((row) => row.id),
+    }),
+  );
 
   return rows.map((row) => ({
     id: row.id,
@@ -402,19 +388,14 @@ interface AggregateSourceEventsToEvidenceOptions {
   sourceVersionHash?: string | null;
 }
 
-function buildSourceVersionCondition<T extends { sourceVersionHash: unknown }>(
-  field: T["sourceVersionHash"],
-  sourceVersionHash: string | null | undefined,
-) {
-  return sourceVersionHash == null ? isNull(field as never) : eq(field as never, sourceVersionHash);
-}
-
 export async function aggregateSourceEventsToKnowledgeEvidence({
   userId,
   sourceType,
   sourceId,
   sourceVersionHash,
 }: AggregateSourceEventsToEvidenceOptions): Promise<void> {
+  const normalizedSourceVersionHash = sourceVersionHash ?? null;
+
   const events = await db
     .select({
       id: knowledgeEvidenceEvents.id,
@@ -432,7 +413,10 @@ export async function aggregateSourceEventsToKnowledgeEvidence({
         eq(knowledgeEvidenceEvents.userId, userId),
         eq(knowledgeEvidenceEvents.sourceType, sourceType),
         eq(knowledgeEvidenceEvents.sourceId, sourceId),
-        buildSourceVersionCondition(knowledgeEvidenceEvents.sourceVersionHash, sourceVersionHash),
+        buildSourceVersionCondition(
+          knowledgeEvidenceEvents.sourceVersionHash,
+          normalizedSourceVersionHash,
+        ),
       ),
     );
 
@@ -464,7 +448,10 @@ export async function aggregateSourceEventsToKnowledgeEvidence({
         eq(knowledgeEvidenceEvents.userId, userId),
         eq(knowledgeEvidenceEvents.sourceType, sourceType),
         eq(knowledgeEvidenceEvents.sourceId, sourceId),
-        buildSourceVersionCondition(knowledgeEvidenceEvents.sourceVersionHash, sourceVersionHash),
+        buildSourceVersionCondition(
+          knowledgeEvidenceEvents.sourceVersionHash,
+          normalizedSourceVersionHash,
+        ),
       ),
     );
 

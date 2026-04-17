@@ -22,6 +22,34 @@ export interface SkinPreference {
   lastSwitchedAt: Date | null;
 }
 
+function buildBuiltInSkinRecord(slug: string): AISkin | null {
+  const builtIn = getBuiltInSkin(slug);
+  if (!builtIn) {
+    return null;
+  }
+
+  return toSkinRecord({
+    id: `builtin-${builtIn.slug}`,
+    slug: builtIn.slug,
+    name: builtIn.name,
+    description: builtIn.description,
+    avatar: builtIn.avatar || null,
+    systemPrompt: builtIn.systemPrompt,
+    style: builtIn.style,
+    examples: builtIn.examples,
+    isBuiltIn: true,
+    isEnabled: true,
+    usageCount: 0,
+    rating: null,
+  });
+}
+
+async function getUserSkinPreferenceRow(userId: string) {
+  return db.query.userSkinPreferences.findFirst({
+    where: eq(userSkinPreferences.userId, userId),
+  });
+}
+
 function toSkinRecord(
   skin: Pick<
     AISkin,
@@ -56,22 +84,9 @@ function toSkinRecord(
 }
 
 export async function getSkin(slug: string): Promise<AISkin | null> {
-  const builtIn = getBuiltInSkin(slug);
+  const builtIn = buildBuiltInSkinRecord(slug);
   if (builtIn) {
-    return toSkinRecord({
-      id: `builtin-${builtIn.slug}`,
-      slug: builtIn.slug,
-      name: builtIn.name,
-      description: builtIn.description,
-      avatar: builtIn.avatar || null,
-      systemPrompt: builtIn.systemPrompt,
-      style: builtIn.style,
-      examples: builtIn.examples,
-      isBuiltIn: true,
-      isEnabled: true,
-      usageCount: 0,
-      rating: null,
-    });
+    return builtIn;
   }
 
   const skin = await db.query.aiSkins.findFirst({
@@ -99,22 +114,10 @@ export async function getSkin(slug: string): Promise<AISkin | null> {
 }
 
 export async function getAvailableSkins(userId: string): Promise<AISkin[]> {
-  const skins: AISkin[] = BUILT_IN_SKINS.map((skin) =>
-    toSkinRecord({
-      id: `builtin-${skin.slug}`,
-      slug: skin.slug,
-      name: skin.name,
-      description: skin.description,
-      avatar: skin.avatar || null,
-      systemPrompt: skin.systemPrompt,
-      style: skin.style,
-      examples: skin.examples,
-      isBuiltIn: true,
-      isEnabled: true,
-      usageCount: 0,
-      rating: null,
-    }),
-  );
+  const skins: AISkin[] = BUILT_IN_SKINS.flatMap((skin) => {
+    const record = buildBuiltInSkinRecord(skin.slug);
+    return record ? [record] : [];
+  });
 
   const customSkins = await db.query.aiSkins.findMany({
     where: eq(aiSkins.authorId, userId),
@@ -147,9 +150,7 @@ export async function getAvailableSkins(userId: string): Promise<AISkin[]> {
 }
 
 export async function getUserSkinPreference(userId: string): Promise<SkinPreference> {
-  const preference = await db.query.userSkinPreferences.findFirst({
-    where: eq(userSkinPreferences.userId, userId),
-  });
+  const preference = await getUserSkinPreferenceRow(userId);
 
   return {
     defaultSkinSlug: preference?.defaultSkinSlug || "default",
@@ -163,9 +164,7 @@ export async function setUserSkinPreference(userId: string, skinSlug: string): P
     throw new Error(`Skin not found: ${skinSlug}`);
   }
 
-  const existing = await db.query.userSkinPreferences.findFirst({
-    where: eq(userSkinPreferences.userId, userId),
-  });
+  const existing = await getUserSkinPreferenceRow(userId);
 
   if (existing) {
     await db

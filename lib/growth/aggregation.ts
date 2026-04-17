@@ -4,9 +4,8 @@ import {
   courseOutlineVersions,
   courseProgress,
   courses,
-  db,
+  type db,
   knowledgeEvidence,
-  knowledgeEvidenceSourceLinks,
   userSkillEdges,
   userSkillNodeEvidence,
   userSkillNodes,
@@ -22,6 +21,7 @@ import {
   type NormalizedGrowthOutline,
   normalizeGrowthOutline,
 } from "@/lib/growth/normalize-outline";
+import { listEvidenceSourceLinks } from "@/lib/knowledge/evidence/source-links";
 
 export type GrowthExecutor = Pick<typeof db, "select" | "update">;
 
@@ -87,19 +87,10 @@ export async function recomputeNodeAggregates(
 
     const linkedRefs =
       linkedEvidenceRows.length > 0
-        ? await db
-            .select({
-              evidenceId: knowledgeEvidenceSourceLinks.evidenceId,
-              refType: knowledgeEvidenceSourceLinks.refType,
-              refId: knowledgeEvidenceSourceLinks.refId,
-            })
-            .from(knowledgeEvidenceSourceLinks)
-            .where(
-              inArray(
-                knowledgeEvidenceSourceLinks.evidenceId,
-                linkedEvidenceRows.map((row) => row.evidenceId),
-              ),
-            )
+        ? await listEvidenceSourceLinks({
+            executor,
+            evidenceIds: linkedEvidenceRows.map((row) => row.evidenceId),
+          })
         : [];
 
     const linkedCourseIds = [
@@ -112,7 +103,7 @@ export async function recomputeNodeAggregates(
 
     const courseRows =
       linkedCourseIds.length > 0
-        ? await db
+        ? await executor
             .select({
               courseId: courses.id,
               outlineVersionId: courseOutlineVersions.id,

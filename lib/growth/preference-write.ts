@@ -1,13 +1,12 @@
 import { eq } from "drizzle-orm";
 import { db, userCareerTreePreferences } from "@/db";
+import { getGrowthPreferenceRow } from "@/lib/growth/preferences";
 
 export async function setSelectedGrowthDirection(
   userId: string,
   selectedDirectionKey: string,
 ): Promise<void> {
-  const existing = await db.query.userCareerTreePreferences.findFirst({
-    where: eq(userCareerTreePreferences.userId, userId),
-  });
+  const existing = await getGrowthPreferenceRow(userId);
 
   if (existing) {
     await db

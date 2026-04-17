@@ -6,12 +6,12 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import { db } from "@/db";
 import {
   expandNoteBackedKnowledgeSourceTypes,
   isNoteBackedKnowledgeSourceType,
   NOTE_KNOWLEDGE_SOURCE_TYPE,
 } from "@/lib/knowledge/source-types";
+import { listOwnedNotesByIds } from "@/lib/notes/repository";
 import { hybridSearch, type SourceType } from "@/lib/rag";
 
 export const SearchNotesSchema = z.object({
@@ -57,12 +57,7 @@ export function createSearchTools(userId: string) {
             .map((r) => r.sourceId);
 
           const foundNotes =
-            noteSourceIds.length > 0
-              ? await db.query.notes.findMany({
-                  where: (table, { and, eq, inArray }) =>
-                    and(eq(table.userId, userId), inArray(table.id, noteSourceIds)),
-                })
-              : [];
+            noteSourceIds.length > 0 ? await listOwnedNotesByIds(userId, noteSourceIds) : [];
 
           const noteMap = new Map(foundNotes.map((note) => [note.id, note.title]));
 

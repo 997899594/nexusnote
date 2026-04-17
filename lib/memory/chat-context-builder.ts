@@ -5,8 +5,7 @@
  * Converts style metrics into actionable AI instructions.
  */
 
-import { eq } from "drizzle-orm";
-import { db, userProfiles } from "@/db";
+import { getUserProfile } from "@/lib/profile";
 import type { EMAValue } from "@/types/profile";
 
 // ============================================
@@ -19,9 +18,7 @@ import type { EMAValue } from "@/types/profile";
  * Reads user profile and converts style metrics into AI-readable instructions.
  */
 export async function buildChatContext(userId: string): Promise<string | null> {
-  const profile = await db.query.userProfiles.findFirst({
-    where: eq(userProfiles.userId, userId),
-  });
+  const profile = await getUserProfile(userId);
 
   if (!profile) {
     return null;

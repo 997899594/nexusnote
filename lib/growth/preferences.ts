@@ -14,11 +14,15 @@ export interface GrowthPreference {
   directionSignals: GrowthDirectionPreferenceSignal[];
 }
 
+export async function getGrowthPreferenceRow(userId: string) {
+  return db.query.userCareerTreePreferences.findFirst({
+    where: eq(userCareerTreePreferences.userId, userId),
+  });
+}
+
 export async function getGrowthPreference(userId: string): Promise<GrowthPreference> {
   const [preference, directionSignalRows] = await Promise.all([
-    db.query.userCareerTreePreferences.findFirst({
-      where: eq(userCareerTreePreferences.userId, userId),
-    }),
+    getGrowthPreferenceRow(userId),
     db
       .select({
         directionKey: knowledgeEvidenceEvents.sourceId,

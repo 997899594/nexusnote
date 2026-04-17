@@ -6,7 +6,8 @@
 
 import { type NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { appendOwnedNoteText, createOwnedNote, getOwnedNote } from "@/lib/notes/write-service";
+import { getOwnedNote } from "@/lib/notes/repository";
+import { appendOwnedNoteText, createOwnedNote } from "@/lib/notes/write-service";
 
 async function appendToOwnedNote(params: {
   noteId: string;

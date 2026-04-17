@@ -10,9 +10,8 @@ import { syncKnowledgeSource } from "@/lib/knowledge/source-sync";
 import { resolveNoteBackedKnowledgeSourceType } from "@/lib/knowledge/source-types";
 import { buildChapterOutlineNodeKey } from "@/lib/learning/outline-node-key";
 import { htmlToPlainText, plainTextToHtml } from "@/lib/notes/content";
+import { getOwnedNote, type NoteRecord } from "@/lib/notes/repository";
 import { syncSourceKnowledgeEvidenceChunks } from "@/lib/rag/chunker";
-
-type NoteRecord = typeof notes.$inferSelect;
 
 export type NoteContentInput =
   | { kind: "html"; contentHtml: string }
@@ -218,14 +217,6 @@ async function clearTrackedNoteKnowledge(
     clearReason: `note-clear:${noteId}`,
     enqueueInsightsOnEmpty: false,
   });
-}
-
-export async function getOwnedNote(noteId: string, userId: string): Promise<NoteRecord | null> {
-  return (
-    (await db.query.notes.findFirst({
-      where: (table, { and, eq }) => and(eq(table.id, noteId), eq(table.userId, userId)),
-    })) ?? null
-  );
 }
 
 export async function createOwnedNote(params: CreateOwnedNoteParams): Promise<NoteRecord> {

@@ -1,7 +1,17 @@
 import { eq } from "drizzle-orm";
-import { type db, userGrowthState } from "@/db";
+import { type db as DbType, db, userGrowthState } from "@/db";
 
-type GrowthGraphStateTransaction = Pick<typeof db, "insert" | "query" | "update">;
+type GrowthGraphStateExecutor = Pick<typeof DbType, "query">;
+type GrowthGraphStateTransaction = Pick<typeof DbType, "insert" | "query" | "update">;
+
+export async function getGrowthGraphStateRow(
+  userId: string,
+  executor: GrowthGraphStateExecutor = db,
+) {
+  return executor.query.userGrowthState.findFirst({
+    where: eq(userGrowthState.userId, userId),
+  });
+}
 
 export async function bumpGrowthGraphState(
   tx: GrowthGraphStateTransaction,
@@ -10,9 +20,7 @@ export async function bumpGrowthGraphState(
     lastMergeRunId?: string | null;
   },
 ): Promise<number> {
-  const existingGraphState = await tx.query.userGrowthState.findFirst({
-    where: eq(userGrowthState.userId, params.userId),
-  });
+  const existingGraphState = await getGrowthGraphStateRow(params.userId, tx);
   const nextGraphVersion = (existingGraphState?.graphVersion ?? 0) + 1;
 
   if (existingGraphState) {

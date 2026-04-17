@@ -1,5 +1,5 @@
-import { and, eq, inArray } from "drizzle-orm";
-import { db, knowledgeEvidence, knowledgeEvidenceSourceLinks } from "@/db";
+import { and, eq } from "drizzle-orm";
+import { db, knowledgeEvidence } from "@/db";
 import { buildSourceVersionCondition } from "@/lib/growth/source-version";
 import type { CourseOutline } from "@/lib/learning/course-outline";
 import { getOwnedCourseWithOutline } from "@/lib/learning/course-repository";
@@ -18,13 +18,6 @@ export interface EvidenceMergeRow {
   summary: string;
   confidence: string;
   sourceVersionHash: string | null;
-}
-
-export interface EvidenceRefRow {
-  evidenceId: string;
-  refType: string;
-  refId: string;
-  snippet: string | null;
 }
 
 export async function getCourseForGrowth(
@@ -50,6 +43,7 @@ export async function loadSourceEvidenceRows(params: {
   sourceType: string;
   sourceId: string;
   sourceVersionHash?: string | null;
+  kind?: string;
 }): Promise<EvidenceMergeRow[]> {
   return db
     .select({
@@ -65,23 +59,8 @@ export async function loadSourceEvidenceRows(params: {
         eq(knowledgeEvidence.userId, params.userId),
         eq(knowledgeEvidence.sourceType, params.sourceType),
         eq(knowledgeEvidence.sourceId, params.sourceId),
+        params.kind ? eq(knowledgeEvidence.kind, params.kind) : undefined,
         buildSourceVersionCondition(knowledgeEvidence.sourceVersionHash, params.sourceVersionHash),
       ),
     );
-}
-
-export async function loadEvidenceRefs(evidenceIds: string[]): Promise<EvidenceRefRow[]> {
-  if (evidenceIds.length === 0) {
-    return [];
-  }
-
-  return db
-    .select({
-      evidenceId: knowledgeEvidenceSourceLinks.evidenceId,
-      refType: knowledgeEvidenceSourceLinks.refType,
-      refId: knowledgeEvidenceSourceLinks.refId,
-      snippet: knowledgeEvidenceSourceLinks.snippet,
-    })
-    .from(knowledgeEvidenceSourceLinks)
-    .where(inArray(knowledgeEvidenceSourceLinks.evidenceId, evidenceIds));
 }

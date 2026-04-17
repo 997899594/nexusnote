@@ -8,27 +8,30 @@ import {
   processKnowledgeSourceMergeJob,
 } from "./jobs";
 
+const NO_FOLLOWUPS = { enqueueFollowups: false } as const;
+
+async function runWithoutFollowups<T>(
+  runner: (payload: T, options: typeof NO_FOLLOWUPS) => Promise<void>,
+  payload: T,
+): Promise<void> {
+  await runner(payload, NO_FOLLOWUPS);
+}
+
 export async function runGrowthCoursePipeline(params: {
   userId: string;
   courseId: string;
 }): Promise<void> {
-  await processGrowthExtractJob(
-    {
-      type: "extract_course_evidence",
-      userId: params.userId,
-      courseId: params.courseId,
-    },
-    { enqueueFollowups: false },
-  );
+  await runWithoutFollowups(processGrowthExtractJob, {
+    type: "extract_course_evidence",
+    userId: params.userId,
+    courseId: params.courseId,
+  });
 
-  await processGrowthMergeJob(
-    {
-      type: "merge_user_skill_graph",
-      userId: params.userId,
-      courseId: params.courseId,
-    },
-    { enqueueFollowups: false },
-  );
+  await runWithoutFollowups(processGrowthMergeJob, {
+    type: "merge_user_skill_graph",
+    userId: params.userId,
+    courseId: params.courseId,
+  });
 }
 
 export async function runGrowthSourcePipeline(params: {
@@ -38,17 +41,14 @@ export async function runGrowthSourcePipeline(params: {
   sourceVersionHash?: string | null;
   affectedNodeIds?: string[];
 }): Promise<void> {
-  await processKnowledgeSourceMergeJob(
-    {
-      type: "merge_knowledge_source_evidence",
-      userId: params.userId,
-      sourceType: params.sourceType,
-      sourceId: params.sourceId,
-      sourceVersionHash: params.sourceVersionHash,
-      affectedNodeIds: params.affectedNodeIds,
-    },
-    { enqueueFollowups: false },
-  );
+  await runWithoutFollowups(processKnowledgeSourceMergeJob, {
+    type: "merge_knowledge_source_evidence",
+    userId: params.userId,
+    sourceType: params.sourceType,
+    sourceId: params.sourceId,
+    sourceVersionHash: params.sourceVersionHash,
+    affectedNodeIds: params.affectedNodeIds,
+  });
 }
 
 export async function runGrowthRefreshPipeline(params: {
@@ -57,34 +57,25 @@ export async function runGrowthRefreshPipeline(params: {
   nodeIds?: string[];
   reasonKey?: string;
 }): Promise<void> {
-  await processGrowthRefreshJob(
-    {
-      type: "refresh_user_skill_graph",
-      userId: params.userId,
-      courseId: params.courseId,
-      nodeIds: params.nodeIds,
-      reasonKey: params.reasonKey,
-    },
-    { enqueueFollowups: false },
-  );
+  await runWithoutFollowups(processGrowthRefreshJob, {
+    type: "refresh_user_skill_graph",
+    userId: params.userId,
+    courseId: params.courseId,
+    nodeIds: params.nodeIds,
+    reasonKey: params.reasonKey,
+  });
 }
 
 export async function runGrowthProjectionPipeline(userId: string): Promise<void> {
-  await processGrowthComposeJob(
-    {
-      type: "compose_user_growth_snapshot",
-      userId,
-    },
-    { enqueueFollowups: false },
-  );
+  await runWithoutFollowups(processGrowthComposeJob, {
+    type: "compose_user_growth_snapshot",
+    userId,
+  });
 
-  await processGrowthProjectionJob(
-    {
-      type: "project_user_growth_views",
-      userId,
-    },
-    { enqueueFollowups: false },
-  );
+  await runWithoutFollowups(processGrowthProjectionJob, {
+    type: "project_user_growth_views",
+    userId,
+  });
 
   await processKnowledgeInsightsJob({
     type: "derive_user_insights",

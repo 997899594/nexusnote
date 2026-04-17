@@ -9,6 +9,7 @@
  */
 
 import { db, eq, stylePrivacySettings, userProfiles } from "@/db";
+import { buildDefaultProfileAnalysisFields } from "@/lib/profile";
 
 // ============================================
 // Type Definitions
@@ -34,6 +35,22 @@ export interface PrivacySettings {
   bigFiveConsentGivenAt: Date | null;
 }
 
+function toPrivacySettings(settings: typeof stylePrivacySettings.$inferSelect): PrivacySettings {
+  return {
+    analysisEnabled: settings.analysisEnabled,
+    bigFiveEnabled: settings.bigFiveEnabled,
+    autoDeleteAfterDays: settings.autoDeleteAfterDays,
+    consentGivenAt: settings.consentGivenAt,
+    bigFiveConsentGivenAt: settings.bigFiveConsentGivenAt,
+  };
+}
+
+async function getPrivacySettingsRow(userId: string) {
+  return db.query.stylePrivacySettings.findFirst({
+    where: eq(stylePrivacySettings.userId, userId),
+  });
+}
+
 // ============================================
 // Privacy Settings Functions
 // ============================================
@@ -45,21 +62,8 @@ export interface PrivacySettings {
  * @returns Privacy settings or null if not found
  */
 export async function getPrivacySettings(userId: string): Promise<PrivacySettings | null> {
-  const settings = await db.query.stylePrivacySettings.findFirst({
-    where: eq(stylePrivacySettings.userId, userId),
-  });
-
-  if (!settings) {
-    return null;
-  }
-
-  return {
-    analysisEnabled: settings.analysisEnabled,
-    bigFiveEnabled: settings.bigFiveEnabled,
-    autoDeleteAfterDays: settings.autoDeleteAfterDays,
-    consentGivenAt: settings.consentGivenAt,
-    bigFiveConsentGivenAt: settings.bigFiveConsentGivenAt,
-  };
+  const settings = await getPrivacySettingsRow(userId);
+  return settings ? toPrivacySettings(settings) : null;
 }
 
 /**
@@ -76,10 +80,10 @@ export async function updatePrivacySettings(
   userId: string,
   input: PrivacySettingsInput,
 ): Promise<PrivacySettings> {
-  const existing = await getPrivacySettings(userId);
+  const existing = await getPrivacySettingsRow(userId);
 
   const now = new Date();
-  let result: PrivacySettings;
+  let result: typeof stylePrivacySettings.$inferSelect;
 
   if (existing) {
     // Update existing settings
@@ -132,13 +136,7 @@ export async function updatePrivacySettings(
     result = created;
   }
 
-  return {
-    analysisEnabled: result.analysisEnabled,
-    bigFiveEnabled: result.bigFiveEnabled,
-    autoDeleteAfterDays: result.autoDeleteAfterDays,
-    consentGivenAt: result.consentGivenAt,
-    bigFiveConsentGivenAt: result.bigFiveConsentGivenAt,
-  };
+  return toPrivacySettings(result);
 }
 
 /**
@@ -150,33 +148,10 @@ export async function updatePrivacySettings(
  * @param userId - User ID
  */
 export async function deleteStyleData(userId: string): Promise<void> {
-  // Reset all style analysis metrics to default values
-  const defaultEMA = { value: 0.5, confidence: 0, samples: 0, lastAnalyzedAt: "" };
-
   await db
     .update(userProfiles)
     .set({
-      // Reset language complexity metrics
-      vocabularyComplexity: defaultEMA,
-      sentenceComplexity: defaultEMA,
-      abstractionLevel: defaultEMA,
-
-      // Reset communication style metrics
-      directness: defaultEMA,
-      conciseness: defaultEMA,
-      formality: defaultEMA,
-      emotionalIntensity: defaultEMA,
-
-      // Reset Big Five traits
-      openness: defaultEMA,
-      conscientiousness: defaultEMA,
-      extraversion: defaultEMA,
-      agreeableness: defaultEMA,
-      neuroticism: defaultEMA,
-
-      // Reset analysis metadata
-      totalMessagesAnalyzed: 0,
-      totalConversationsAnalyzed: 0,
+      ...buildDefaultProfileAnalysisFields(),
       lastAnalyzedAt: null,
       updatedAt: new Date(),
     })

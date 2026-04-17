@@ -7,6 +7,7 @@
 
 import { db, eq, userProfiles } from "@/db";
 import { type AIPreferences, DEFAULT_AI_PREFERENCES } from "@/lib/ai/preferences";
+import type { EMAValue } from "@/types/profile";
 
 export type { EMAValue } from "@/types/profile";
 
@@ -35,6 +36,40 @@ export interface UpdateProfileInput {
   aiPreferences?: AIPreferences;
 }
 
+export function createDefaultEMAValue(): EMAValue {
+  return {
+    value: 0.5,
+    confidence: 0,
+    samples: 0,
+    lastAnalyzedAt: "",
+  };
+}
+
+export function buildDefaultProfileAnalysisFields() {
+  return {
+    vocabularyComplexity: createDefaultEMAValue(),
+    sentenceComplexity: createDefaultEMAValue(),
+    abstractionLevel: createDefaultEMAValue(),
+    directness: createDefaultEMAValue(),
+    conciseness: createDefaultEMAValue(),
+    formality: createDefaultEMAValue(),
+    emotionalIntensity: createDefaultEMAValue(),
+    openness: createDefaultEMAValue(),
+    conscientiousness: createDefaultEMAValue(),
+    extraversion: createDefaultEMAValue(),
+    agreeableness: createDefaultEMAValue(),
+    neuroticism: createDefaultEMAValue(),
+    totalMessagesAnalyzed: 0,
+    totalConversationsAnalyzed: 0,
+  };
+}
+
+export async function getUserProfile(userId: string) {
+  return db.query.userProfiles.findFirst({
+    where: eq(userProfiles.userId, userId),
+  });
+}
+
 /**
  * Get or create a user profile
  * @param userId - The user's ID
@@ -42,9 +77,7 @@ export interface UpdateProfileInput {
  */
 export async function getOrCreate(userId: string) {
   // Try to get existing profile
-  const existing = await db.query.userProfiles.findFirst({
-    where: eq(userProfiles.userId, userId),
-  });
+  const existing = await getUserProfile(userId);
 
   if (existing) {
     return existing;
@@ -56,20 +89,7 @@ export async function getOrCreate(userId: string) {
       userId,
       learningStyle: { preferredFormat: "mixed", pace: "moderate" },
       aiPreferences: DEFAULT_AI_PREFERENCES,
-      vocabularyComplexity: { value: 0.5, confidence: 0, samples: 0, lastAnalyzedAt: "" },
-      sentenceComplexity: { value: 0.5, confidence: 0, samples: 0, lastAnalyzedAt: "" },
-      abstractionLevel: { value: 0.5, confidence: 0, samples: 0, lastAnalyzedAt: "" },
-      directness: { value: 0.5, confidence: 0, samples: 0, lastAnalyzedAt: "" },
-      conciseness: { value: 0.5, confidence: 0, samples: 0, lastAnalyzedAt: "" },
-      formality: { value: 0.5, confidence: 0, samples: 0, lastAnalyzedAt: "" },
-      emotionalIntensity: { value: 0.5, confidence: 0, samples: 0, lastAnalyzedAt: "" },
-      openness: { value: 0.5, confidence: 0, samples: 0, lastAnalyzedAt: "" },
-      conscientiousness: { value: 0.5, confidence: 0, samples: 0, lastAnalyzedAt: "" },
-      extraversion: { value: 0.5, confidence: 0, samples: 0, lastAnalyzedAt: "" },
-      agreeableness: { value: 0.5, confidence: 0, samples: 0, lastAnalyzedAt: "" },
-      neuroticism: { value: 0.5, confidence: 0, samples: 0, lastAnalyzedAt: "" },
-      totalMessagesAnalyzed: 0,
-      totalConversationsAnalyzed: 0,
+      ...buildDefaultProfileAnalysisFields(),
     })
     .returning();
 

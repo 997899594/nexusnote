@@ -7,11 +7,12 @@ import {
 } from "@/lib/generation-runs";
 import { recomputeNodeAggregates } from "@/lib/growth/aggregation";
 import { bumpGrowthGraphState } from "@/lib/growth/graph-state";
-import type { GrowthJobExecutionOptions, JobPayload } from "./shared";
 import {
   computeGrowthRefreshInputHash,
   dedupeNodeIds,
-  enqueueGrowthProjectionRefresh,
+  enqueueGrowthProjectionRefreshIfEnabled,
+  type GrowthJobExecutionOptions,
+  type JobPayload,
 } from "./shared";
 
 async function resolveRefreshNodeIds(
@@ -68,9 +69,7 @@ export async function processGrowthRefreshJob(
   });
 
   if (refreshRun.status === "succeeded") {
-    if (enqueueFollowups) {
-      await enqueueGrowthProjectionRefresh(job.userId);
-    }
+    await enqueueGrowthProjectionRefreshIfEnabled(job.userId, enqueueFollowups);
     return;
   }
 
@@ -84,9 +83,7 @@ export async function processGrowthRefreshJob(
       });
     });
 
-    if (enqueueFollowups) {
-      await enqueueGrowthProjectionRefresh(job.userId);
-    }
+    await enqueueGrowthProjectionRefreshIfEnabled(job.userId, enqueueFollowups);
   } catch (error) {
     await markGenerationRunFailed(refreshRun.id, error);
     throw error;

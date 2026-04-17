@@ -9,17 +9,13 @@
  */
 
 import { embedMany } from "ai";
-import {
-  and,
-  db,
-  eq,
-  inArray,
-  knowledgeEvidence,
-  knowledgeEvidenceChunks,
-  knowledgeEvidenceSourceLinks,
-} from "@/db";
+import { and, db, eq, inArray, knowledgeEvidence, knowledgeEvidenceChunks } from "@/db";
 import { aiProvider } from "@/lib/ai";
 import { buildSourceVersionCondition } from "@/lib/growth/source-version";
+import {
+  groupEvidenceSourceLinksByEvidenceId,
+  listEvidenceSourceLinks,
+} from "@/lib/knowledge/evidence/source-links";
 import { createRagTrace } from "./observability";
 
 export interface ChunkOptions {
@@ -194,20 +190,9 @@ export async function syncSourceKnowledgeEvidenceChunks(
     }
 
     const evidenceIds = evidenceRows.map((row) => row.id);
-    const sourceLinks = await db
-      .select({
-        evidenceId: knowledgeEvidenceSourceLinks.evidenceId,
-        snippet: knowledgeEvidenceSourceLinks.snippet,
-      })
-      .from(knowledgeEvidenceSourceLinks)
-      .where(inArray(knowledgeEvidenceSourceLinks.evidenceId, evidenceIds));
-
-    const refsByEvidenceId = new Map<string, typeof sourceLinks>();
-    for (const sourceLink of sourceLinks) {
-      const existing = refsByEvidenceId.get(sourceLink.evidenceId) ?? [];
-      existing.push(sourceLink);
-      refsByEvidenceId.set(sourceLink.evidenceId, existing);
-    }
+    const refsByEvidenceId = groupEvidenceSourceLinksByEvidenceId(
+      await listEvidenceSourceLinks({ evidenceIds }),
+    );
 
     await deleteChunksByEvidenceIds(evidenceIds);
     trace.step("delete-old-chunks", { evidenceCount: evidenceRows.length });

@@ -1,16 +1,8 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db, knowledgeEvidence, knowledgeEvidenceSourceLinks, userSkillNodeEvidence } from "@/db";
+import { buildSourceVersionCondition } from "@/lib/growth/source-version";
 
-function buildSourceVersionCondition(
-  sourceVersionHash: string | null | undefined,
-  field: typeof knowledgeEvidence.sourceVersionHash,
-) {
-  if (sourceVersionHash === undefined) {
-    return undefined;
-  }
-
-  return sourceVersionHash === null ? isNull(field) : eq(field, sourceVersionHash);
-}
+type EvidenceSelectorDb = Pick<typeof db, "select">;
 
 export async function listCourseKnowledgeEvidence(params: {
   userId: string;
@@ -49,9 +41,25 @@ export async function listLinkedNodeIdsForEvidenceSource(params: {
   sourceId: string;
   sourceVersionHash?: string | null;
 }) {
-  const rows = await db
+  const rows = await listLinkedNodeEvidenceRows(params);
+
+  return [...new Set(rows.map((row) => row.nodeId))];
+}
+
+export async function listLinkedNodeEvidenceRows(params: {
+  executor?: EvidenceSelectorDb;
+  userId: string;
+  sourceType: string;
+  sourceId: string;
+  sourceVersionHash?: string | null;
+}) {
+  const executor = params.executor ?? db;
+
+  return executor
     .select({
+      id: userSkillNodeEvidence.id,
       nodeId: userSkillNodeEvidence.nodeId,
+      evidenceId: userSkillNodeEvidence.knowledgeEvidenceId,
     })
     .from(userSkillNodeEvidence)
     .innerJoin(
@@ -63,9 +71,7 @@ export async function listLinkedNodeIdsForEvidenceSource(params: {
         eq(userSkillNodeEvidence.userId, params.userId),
         eq(knowledgeEvidence.sourceType, params.sourceType),
         eq(knowledgeEvidence.sourceId, params.sourceId),
-        buildSourceVersionCondition(params.sourceVersionHash, knowledgeEvidence.sourceVersionHash),
+        buildSourceVersionCondition(knowledgeEvidence.sourceVersionHash, params.sourceVersionHash),
       ),
     );
-
-  return [...new Set(rows.map((row) => row.nodeId))];
 }

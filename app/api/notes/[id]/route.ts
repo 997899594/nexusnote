@@ -2,7 +2,8 @@ import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { plainTextToHtml } from "@/lib/notes/content";
-import { getOwnedNote, updateOwnedNote } from "@/lib/notes/write-service";
+import { getOwnedNote } from "@/lib/notes/repository";
+import { updateOwnedNote } from "@/lib/notes/write-service";
 
 const UpdateNoteSchema = z.object({
   title: z.string().min(1).max(200),

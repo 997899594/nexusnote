@@ -1,21 +1,45 @@
-import { and, eq } from "drizzle-orm";
-import { db, knowledgeEvidence, userSkillNodeEvidence } from "@/db";
+import { db } from "@/db";
 import {
   getOrCreateGenerationRun,
   markGenerationRunFailed,
   markGenerationRunSucceeded,
 } from "@/lib/generation-runs";
 import { GROWTH_AI_MODEL_LABEL } from "@/lib/growth/constants";
-import { loadEvidenceRefs, loadSourceEvidenceRows } from "@/lib/growth/data-access";
+import { loadSourceEvidenceRows } from "@/lib/growth/data-access";
 import {
   applyValidatedGrowthMerge,
   listSourceMergeRunIds,
   planValidatedGrowthMerge,
 } from "@/lib/growth/merge-execution";
-import { enqueueGrowthRefresh, enqueueKnowledgeInsights } from "@/lib/growth/queue";
-import { buildSourceVersionCondition } from "@/lib/growth/source-version";
-import type { GrowthJobExecutionOptions, JobPayload } from "./shared";
-import { computeEvidenceBatchHash, enqueueGrowthProjectionRefresh } from "./shared";
+import { enqueueGrowthRefresh } from "@/lib/growth/queue";
+import { listLinkedNodeEvidenceRows } from "@/lib/knowledge/evidence/selectors";
+import { listEvidenceSourceLinks } from "@/lib/knowledge/evidence/source-links";
+import {
+  computeEvidenceBatchHash,
+  enqueueGrowthProjectionRefreshIfEnabled,
+  enqueueKnowledgeInsightsIfEnabled,
+  type GrowthJobExecutionOptions,
+  type JobPayload,
+} from "./shared";
+
+async function handleEmptySourceEvidence(
+  job: JobPayload<"merge_knowledge_source_evidence">,
+  enqueueFollowups: boolean,
+): Promise<void> {
+  if ((job.affectedNodeIds ?? []).length === 0) {
+    await enqueueKnowledgeInsightsIfEnabled(job.userId, enqueueFollowups);
+    return;
+  }
+
+  if (enqueueFollowups) {
+    await enqueueGrowthRefresh(
+      job.userId,
+      undefined,
+      job.affectedNodeIds,
+      `source-clear:${job.sourceType}:${job.sourceId}:${job.sourceVersionHash ?? "null"}`,
+    );
+  }
+}
 
 export async function processKnowledgeSourceMergeJob(
   job: JobPayload<"merge_knowledge_source_evidence">,
@@ -31,18 +55,7 @@ export async function processKnowledgeSourceMergeJob(
   const evidenceBatchHash = computeEvidenceBatchHash(evidenceRows);
 
   if (evidenceRows.length === 0) {
-    if ((job.affectedNodeIds ?? []).length > 0) {
-      if (enqueueFollowups) {
-        await enqueueGrowthRefresh(
-          job.userId,
-          undefined,
-          job.affectedNodeIds,
-          `source-clear:${job.sourceType}:${job.sourceId}:${job.sourceVersionHash ?? "null"}`,
-        );
-      }
-    } else if (enqueueFollowups) {
-      await enqueueKnowledgeInsights(job.userId);
-    }
+    await handleEmptySourceEvidence(job, enqueueFollowups);
     return;
   }
 
@@ -57,13 +70,13 @@ export async function processKnowledgeSourceMergeJob(
   });
 
   if (mergeRun.status === "succeeded") {
-    if (enqueueFollowups) {
-      await enqueueGrowthProjectionRefresh(job.userId);
-    }
+    await enqueueGrowthProjectionRefreshIfEnabled(job.userId, enqueueFollowups);
     return;
   }
 
-  const evidenceRefs = await loadEvidenceRefs(evidenceRows.map((row) => row.id));
+  const evidenceRefs = await listEvidenceSourceLinks({
+    evidenceIds: evidenceRows.map((row) => row.id),
+  });
 
   try {
     const validated = await planValidatedGrowthMerge({
@@ -85,24 +98,13 @@ export async function processKnowledgeSourceMergeJob(
     });
 
     await db.transaction(async (tx) => {
-      const existingSourceLinkRows = await tx
-        .select({
-          id: userSkillNodeEvidence.id,
-          nodeId: userSkillNodeEvidence.nodeId,
-        })
-        .from(userSkillNodeEvidence)
-        .innerJoin(
-          knowledgeEvidence,
-          eq(userSkillNodeEvidence.knowledgeEvidenceId, knowledgeEvidence.id),
-        )
-        .where(
-          and(
-            eq(userSkillNodeEvidence.userId, job.userId),
-            eq(knowledgeEvidence.sourceType, job.sourceType),
-            eq(knowledgeEvidence.sourceId, job.sourceId),
-            buildSourceVersionCondition(knowledgeEvidence.sourceVersionHash, job.sourceVersionHash),
-          ),
-        );
+      const existingSourceLinkRows = await listLinkedNodeEvidenceRows({
+        executor: tx,
+        userId: job.userId,
+        sourceType: job.sourceType,
+        sourceId: job.sourceId,
+        sourceVersionHash: job.sourceVersionHash,
+      });
 
       await applyValidatedGrowthMerge({
         tx,
@@ -116,9 +118,7 @@ export async function processKnowledgeSourceMergeJob(
     });
 
     await markGenerationRunSucceeded(db, mergeRun.id, validated);
-    if (enqueueFollowups) {
-      await enqueueGrowthProjectionRefresh(job.userId);
-    }
+    await enqueueGrowthProjectionRefreshIfEnabled(job.userId, enqueueFollowups);
   } catch (error) {
     await markGenerationRunFailed(mergeRun.id, error);
     throw error;

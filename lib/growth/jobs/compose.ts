@@ -1,19 +1,18 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import {
   courses,
   db,
   knowledgeEvidence,
   knowledgeEvidenceSourceLinks,
-  knowledgeGenerationRuns,
   userCareerTreeSnapshots,
-  userGrowthState,
   userSkillEdges,
   userSkillNodeEvidence,
   userSkillNodes,
 } from "@/db";
 import { revalidateCareerTrees } from "@/lib/cache/tags";
 import {
+  getGenerationRunById,
   getOrCreateGenerationRun,
   markGenerationRunFailed,
   markGenerationRunSucceeded,
@@ -25,12 +24,22 @@ import {
   treeComposerOutputSchema,
 } from "@/lib/growth/compose";
 import { CAREER_TREE_SCHEMA_VERSION, GROWTH_COMPOSE_MODEL_LABEL } from "@/lib/growth/constants";
+import { getGrowthGraphStateRow } from "@/lib/growth/graph-state";
 import { getGrowthPreference } from "@/lib/growth/preferences";
 import { buildComposeGraph, buildGrowthSnapshotArtifacts } from "@/lib/growth/projections";
 import { enqueueGrowthProjection } from "@/lib/growth/queue";
+import { getLatestCareerTreeSnapshotRow } from "@/lib/growth/snapshot-data";
 import type { GrowthJobExecutionOptions, JobPayload } from "./shared";
 
 const supportingRefCourses = alias(courses, "supporting_ref_courses");
+
+async function enqueueProjectionIfNeeded(userId: string, enqueueFollowups: boolean): Promise<void> {
+  if (!enqueueFollowups) {
+    return;
+  }
+
+  await enqueueGrowthProjection(userId);
+}
 
 function resolvePreviousDirections(outputJson: unknown): Array<{
   directionKey: string;
@@ -74,19 +83,11 @@ export async function processGrowthComposeJob(
   const { enqueueFollowups = true } = options;
   const [userCourses, graphState, preference, nodes, edges, latestSnapshot] = await Promise.all([
     db.select({ id: courses.id }).from(courses).where(eq(courses.userId, job.userId)).limit(1),
-    db.query.userGrowthState.findFirst({
-      where: eq(userGrowthState.userId, job.userId),
-    }),
+    getGrowthGraphStateRow(job.userId),
     getGrowthPreference(job.userId),
     db.select().from(userSkillNodes).where(eq(userSkillNodes.userId, job.userId)),
     db.select().from(userSkillEdges).where(eq(userSkillEdges.userId, job.userId)),
-    db.query.userCareerTreeSnapshots.findFirst({
-      where: and(
-        eq(userCareerTreeSnapshots.userId, job.userId),
-        eq(userCareerTreeSnapshots.isLatest, true),
-      ),
-      orderBy: desc(userCareerTreeSnapshots.createdAt),
-    }),
+    getLatestCareerTreeSnapshotRow(job.userId),
   ]);
 
   if (userCourses.length === 0) {
@@ -104,9 +105,7 @@ export async function processGrowthComposeJob(
   });
 
   if (composeRun.status === "succeeded") {
-    if (enqueueFollowups) {
-      await enqueueGrowthProjection(job.userId);
-    }
+    await enqueueProjectionIfNeeded(job.userId, enqueueFollowups);
     return;
   }
 
@@ -115,9 +114,7 @@ export async function processGrowthComposeJob(
   }
 
   const previousComposeRun = latestSnapshot?.composeRunId
-    ? await db.query.knowledgeGenerationRuns.findFirst({
-        where: eq(knowledgeGenerationRuns.id, latestSnapshot.composeRunId),
-      })
+    ? await getGenerationRunById(latestSnapshot.composeRunId)
     : null;
 
   try {
@@ -207,9 +204,7 @@ export async function processGrowthComposeJob(
     });
 
     revalidateCareerTrees(job.userId);
-    if (enqueueFollowups) {
-      await enqueueGrowthProjection(job.userId);
-    }
+    await enqueueProjectionIfNeeded(job.userId, enqueueFollowups);
   } catch (error) {
     await markGenerationRunFailed(composeRun.id, error);
     throw error;

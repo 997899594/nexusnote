@@ -1,18 +1,12 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db, knowledgeEvidenceEventRefs, knowledgeEvidenceEvents } from "@/db";
+import { buildSourceVersionCondition } from "@/lib/growth/source-version";
 import type { EvidenceEvent, EvidenceEventRef } from "./types";
 
 type IngestEvidenceEventRef = Omit<EvidenceEventRef, "eventId">;
 
 export interface IngestEvidenceEventInput extends EvidenceEvent {
   refs?: IngestEvidenceEventRef[];
-}
-
-function buildSourceVersionCondition(
-  sourceVersionHash: string | null | undefined,
-  field: typeof knowledgeEvidenceEvents.sourceVersionHash,
-) {
-  return sourceVersionHash == null ? isNull(field) : eq(field, sourceVersionHash);
 }
 
 export async function ingestEvidenceEvent(input: IngestEvidenceEventInput): Promise<string> {
@@ -56,6 +50,8 @@ export async function deleteEvidenceEventsBySource(input: {
   sourceId: string;
   sourceVersionHash?: string | null;
 }): Promise<void> {
+  const sourceVersionHash = input.sourceVersionHash ?? null;
+
   await db
     .delete(knowledgeEvidenceEvents)
     .where(
@@ -63,10 +59,7 @@ export async function deleteEvidenceEventsBySource(input: {
         eq(knowledgeEvidenceEvents.userId, input.userId),
         eq(knowledgeEvidenceEvents.sourceType, input.sourceType),
         eq(knowledgeEvidenceEvents.sourceId, input.sourceId),
-        buildSourceVersionCondition(
-          input.sourceVersionHash,
-          knowledgeEvidenceEvents.sourceVersionHash,
-        ),
+        buildSourceVersionCondition(knowledgeEvidenceEvents.sourceVersionHash, sourceVersionHash),
       ),
     );
 }

@@ -8,30 +8,49 @@ import {
   createPendingCareerTreeSnapshot,
 } from "@/lib/growth/types";
 
-async function getSavedCourseCount(userId: string): Promise<number> {
+async function hasSavedCourse(userId: string): Promise<boolean> {
   const rows = await db
     .select({ id: courses.id })
     .from(courses)
     .where(eq(courses.userId, userId))
     .limit(1);
 
-  return rows.length;
+  return rows.length > 0;
+}
+
+export async function getLatestCareerTreeSnapshotRow(userId: string) {
+  return db.query.userCareerTreeSnapshots.findFirst({
+    where: and(
+      eq(userCareerTreeSnapshots.userId, userId),
+      eq(userCareerTreeSnapshots.isLatest, true),
+    ),
+    orderBy: desc(userCareerTreeSnapshots.createdAt),
+  });
+}
+
+export function parseCareerTreeSnapshotPayload(payload: unknown): CareerTreeSnapshot | null {
+  const parsed = careerTreeSnapshotSchema.safeParse(payload);
+  return parsed.success ? parsed.data : null;
+}
+
+function applySelectedDirectionPreference(
+  snapshot: CareerTreeSnapshot,
+  selectedDirectionKey: string | null,
+): CareerTreeSnapshot {
+  return {
+    ...snapshot,
+    selectedDirectionKey: selectedDirectionKey ?? snapshot.selectedDirectionKey,
+  };
 }
 
 export async function getGrowthSnapshot(userId: string): Promise<CareerTreeSnapshot> {
-  const [savedCourseCount, preference, latestSnapshot] = await Promise.all([
-    getSavedCourseCount(userId),
+  const [savedCourseExists, preference, latestSnapshot] = await Promise.all([
+    hasSavedCourse(userId),
     getGrowthPreference(userId),
-    db.query.userCareerTreeSnapshots.findFirst({
-      where: and(
-        eq(userCareerTreeSnapshots.userId, userId),
-        eq(userCareerTreeSnapshots.isLatest, true),
-      ),
-      orderBy: desc(userCareerTreeSnapshots.createdAt),
-    }),
+    getLatestCareerTreeSnapshotRow(userId),
   ]);
 
-  if (savedCourseCount === 0) {
+  if (!savedCourseExists) {
     return createEmptyCareerTreeSnapshot();
   }
 
@@ -39,13 +58,10 @@ export async function getGrowthSnapshot(userId: string): Promise<CareerTreeSnaps
     return createPendingCareerTreeSnapshot(preference.selectedDirectionKey);
   }
 
-  const parsed = careerTreeSnapshotSchema.safeParse(latestSnapshot.payload);
-  if (!parsed.success) {
+  const parsedSnapshot = parseCareerTreeSnapshotPayload(latestSnapshot.payload);
+  if (!parsedSnapshot) {
     return createPendingCareerTreeSnapshot(preference.selectedDirectionKey);
   }
 
-  return {
-    ...parsed.data,
-    selectedDirectionKey: preference.selectedDirectionKey ?? parsed.data.selectedDirectionKey,
-  };
+  return applySelectedDirectionPreference(parsedSnapshot, preference.selectedDirectionKey);
 }

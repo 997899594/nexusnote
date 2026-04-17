@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import type { EvidenceMergeRow } from "@/lib/growth/data-access";
-import { enqueueGrowthCompose } from "@/lib/growth/queue";
+import { enqueueGrowthCompose, enqueueKnowledgeInsights } from "@/lib/growth/queue";
 import type { GrowthJobData } from "@/lib/queue/growth-queue";
 
 export type JobPayload<T extends GrowthJobData["type"]> = Extract<GrowthJobData, { type: T }>;
@@ -40,6 +40,28 @@ export function computeGrowthRefreshInputHash(params: {
 
 export async function enqueueGrowthProjectionRefresh(userId: string): Promise<void> {
   await enqueueGrowthCompose(userId);
+}
+
+export async function enqueueGrowthProjectionRefreshIfEnabled(
+  userId: string,
+  enabled: boolean,
+): Promise<void> {
+  if (!enabled) {
+    return;
+  }
+
+  await enqueueGrowthProjectionRefresh(userId);
+}
+
+export async function enqueueKnowledgeInsightsIfEnabled(
+  userId: string,
+  enabled: boolean,
+): Promise<void> {
+  if (!enabled) {
+    return;
+  }
+
+  await enqueueKnowledgeInsights(userId);
 }
 
 export function dedupeNodeIds(nodeIds: string[]): string[] {

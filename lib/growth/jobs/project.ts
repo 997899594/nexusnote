@@ -1,5 +1,5 @@
-import { and, desc, eq } from "drizzle-orm";
-import { db, userCareerTreeSnapshots, userFocusSnapshots, userProfileSnapshots } from "@/db";
+import { and, eq } from "drizzle-orm";
+import { db, userFocusSnapshots, userProfileSnapshots } from "@/db";
 import { revalidateCareerTrees, revalidateProfileStats } from "@/lib/cache/tags";
 import {
   getOrCreateGenerationRun,
@@ -7,10 +7,44 @@ import {
   markGenerationRunSucceeded,
 } from "@/lib/generation-runs";
 import { GROWTH_PROJECTION_RUNTIME_LABEL } from "@/lib/growth/constants";
+import {
+  getLatestFocusSnapshotRow,
+  getLatestProfileSnapshotRow,
+} from "@/lib/growth/projection-data";
 import { buildGrowthViewProjectionArtifacts } from "@/lib/growth/projections";
-import { enqueueKnowledgeInsights } from "@/lib/growth/queue";
-import { careerTreeSnapshotSchema } from "@/lib/growth/types";
-import type { GrowthJobExecutionOptions, JobPayload } from "./shared";
+import {
+  getLatestCareerTreeSnapshotRow,
+  parseCareerTreeSnapshotPayload,
+} from "@/lib/growth/snapshot-data";
+import {
+  enqueueKnowledgeInsightsIfEnabled,
+  type GrowthJobExecutionOptions,
+  type JobPayload,
+} from "./shared";
+
+type ProjectionTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+async function loadLatestProjectionRows(userId: string) {
+  return Promise.all([
+    getLatestCareerTreeSnapshotRow(userId),
+    getLatestFocusSnapshotRow(userId),
+    getLatestProfileSnapshotRow(userId),
+  ]);
+}
+
+async function clearLatestFocusSnapshots(tx: ProjectionTx, userId: string): Promise<void> {
+  await tx
+    .update(userFocusSnapshots)
+    .set({ isLatest: false })
+    .where(and(eq(userFocusSnapshots.userId, userId), eq(userFocusSnapshots.isLatest, true)));
+}
+
+async function clearLatestProfileSnapshots(tx: ProjectionTx, userId: string): Promise<void> {
+  await tx
+    .update(userProfileSnapshots)
+    .set({ isLatest: false })
+    .where(and(eq(userProfileSnapshots.userId, userId), eq(userProfileSnapshots.isLatest, true)));
+}
 
 export async function processGrowthProjectionJob(
   job: JobPayload<"project_user_growth_views">,
@@ -19,40 +53,18 @@ export async function processGrowthProjectionJob(
   const { enqueueFollowups = true } = options;
 
   const [latestTreeSnapshotRow, latestFocusSnapshotRow, latestProfileSnapshotRow] =
-    await Promise.all([
-      db.query.userCareerTreeSnapshots.findFirst({
-        where: and(
-          eq(userCareerTreeSnapshots.userId, job.userId),
-          eq(userCareerTreeSnapshots.isLatest, true),
-        ),
-        orderBy: desc(userCareerTreeSnapshots.createdAt),
-      }),
-      db.query.userFocusSnapshots.findFirst({
-        where: and(
-          eq(userFocusSnapshots.userId, job.userId),
-          eq(userFocusSnapshots.isLatest, true),
-        ),
-        orderBy: desc(userFocusSnapshots.createdAt),
-      }),
-      db.query.userProfileSnapshots.findFirst({
-        where: and(
-          eq(userProfileSnapshots.userId, job.userId),
-          eq(userProfileSnapshots.isLatest, true),
-        ),
-        orderBy: desc(userProfileSnapshots.createdAt),
-      }),
-    ]);
+    await loadLatestProjectionRows(job.userId);
 
   if (!latestTreeSnapshotRow) {
     return;
   }
 
-  const parsedSnapshot = careerTreeSnapshotSchema.safeParse(latestTreeSnapshotRow.payload);
-  if (!parsedSnapshot.success || parsedSnapshot.data.status !== "ready") {
+  const parsedSnapshot = parseCareerTreeSnapshotPayload(latestTreeSnapshotRow.payload);
+  if (!parsedSnapshot || parsedSnapshot.status !== "ready") {
     return;
   }
 
-  if (parsedSnapshot.data.trees.length === 0) {
+  if (parsedSnapshot.trees.length === 0) {
     return;
   }
 
@@ -70,14 +82,12 @@ export async function processGrowthProjectionJob(
   const hasAlignedProfile = latestProfileSnapshotRow?.treeSnapshotId === latestTreeSnapshotRow.id;
 
   if (projectionRun.status === "succeeded" && hasAlignedFocus && hasAlignedProfile) {
-    if (enqueueFollowups) {
-      await enqueueKnowledgeInsights(job.userId);
-    }
+    await enqueueKnowledgeInsightsIfEnabled(job.userId, enqueueFollowups);
     return;
   }
 
   try {
-    const projectionArtifacts = buildGrowthViewProjectionArtifacts(parsedSnapshot.data);
+    const projectionArtifacts = buildGrowthViewProjectionArtifacts(parsedSnapshot);
     const focusTitle =
       projectionArtifacts.focusNode?.title ?? projectionArtifacts.focusTree?.title ?? null;
     const focusSummary =
@@ -91,12 +101,7 @@ export async function processGrowthProjectionJob(
     }
 
     await db.transaction(async (tx) => {
-      await tx
-        .update(userFocusSnapshots)
-        .set({ isLatest: false })
-        .where(
-          and(eq(userFocusSnapshots.userId, job.userId), eq(userFocusSnapshots.isLatest, true)),
-        );
+      await clearLatestFocusSnapshots(tx, job.userId);
 
       const [focusSnapshot] = await tx
         .insert(userFocusSnapshots)
@@ -115,12 +120,7 @@ export async function processGrowthProjectionJob(
         })
         .returning({ id: userFocusSnapshots.id });
 
-      await tx
-        .update(userProfileSnapshots)
-        .set({ isLatest: false })
-        .where(
-          and(eq(userProfileSnapshots.userId, job.userId), eq(userProfileSnapshots.isLatest, true)),
-        );
+      await clearLatestProfileSnapshots(tx, job.userId);
 
       await tx.insert(userProfileSnapshots).values({
         userId: job.userId,
@@ -142,9 +142,7 @@ export async function processGrowthProjectionJob(
     revalidateCareerTrees(job.userId);
     revalidateProfileStats(job.userId);
 
-    if (enqueueFollowups) {
-      await enqueueKnowledgeInsights(job.userId);
-    }
+    await enqueueKnowledgeInsightsIfEnabled(job.userId, enqueueFollowups);
   } catch (error) {
     await markGenerationRunFailed(projectionRun.id, error);
     throw error;

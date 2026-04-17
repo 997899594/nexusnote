@@ -13,6 +13,7 @@ import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai
 import { extractUIMessageText } from "@/lib/ai/message-text";
 import { loadConversationMessages } from "@/lib/chat/conversation-messages";
 import { getOwnedConversation } from "@/lib/chat/conversation-repository";
+import { getUserProfile } from "@/lib/profile";
 import { type EMAValue, updateEMA } from "./ema";
 
 // ============================================
@@ -290,9 +291,7 @@ export async function updateUserStyleProfile(
   }
 
   // Fetch current user profile
-  const profile = await db.query.userProfiles.findFirst({
-    where: eq(userProfiles.userId, userId),
-  });
+  const profile = await getUserProfile(userId);
 
   if (!profile) {
     throw new Error(`User profile not found for user: ${userId}`);
@@ -364,9 +363,7 @@ export async function updateUserStyleProfile(
  * @returns User style profile or null if not found
  */
 export async function getUserStyleProfile(userId: string): Promise<UserStyleProfile | null> {
-  const profile = await db.query.userProfiles.findFirst({
-    where: eq(userProfiles.userId, userId),
-  });
+  const profile = await getUserProfile(userId);
 
   if (!profile) {
     return null;

@@ -44,6 +44,8 @@ export interface ChapterContent {
   sections: SectionContent[];
 }
 
+type CourseWithOutline = NonNullable<Awaited<ReturnType<typeof getCourseWithOutline>>>;
+
 function getOutlineCacheKey(courseId: string): string {
   return `course:outline:${courseId}`;
 }
@@ -77,6 +79,74 @@ async function deleteCacheKey(cacheKey: string): Promise<void> {
   }
 }
 
+function buildCourseOutline(course: CourseWithOutline): CourseOutline {
+  return {
+    courseTitle: course.title ?? "未知课程",
+    courseSkillIds: course.outline.courseSkillIds ?? [],
+    chapters: course.outline.chapters.map((chapter) => ({
+      title: chapter.title,
+      description: chapter.description ?? "",
+      skillIds: chapter.skillIds ?? [],
+      sections: chapter.sections.map((section) => ({
+        title: section.title,
+        description: section.description ?? "",
+      })),
+    })),
+  };
+}
+
+function buildEmptyChapterContent(
+  chapter: OutlineChapter,
+  courseSkillIds: string[],
+): ChapterContent {
+  return {
+    chapterTitle: chapter.title,
+    chapterDescription: chapter.description ?? "",
+    chapterSkillIds: chapter.skillIds ?? [],
+    courseSkillIds,
+    sections: [],
+  };
+}
+
+function buildSectionNodeIds(chapterIndex: number, sectionCount: number): string[] {
+  return Array.from({ length: sectionCount }, (_, sectionIndex) =>
+    buildSectionOutlineNodeKey(chapterIndex, sectionIndex),
+  );
+}
+
+function buildSectionDocMap(
+  docs: Array<{
+    title: string;
+    content: string | null;
+    outlineNodeKey: string | null;
+  }>,
+): Map<string, SectionContent> {
+  const docMap = new Map<string, SectionContent>();
+
+  for (const doc of docs) {
+    if (!doc.content || !doc.outlineNodeKey) {
+      continue;
+    }
+
+    docMap.set(doc.outlineNodeKey, {
+      title: doc.title,
+      text: doc.content,
+    });
+  }
+
+  return docMap;
+}
+
+function mapSectionsFromNodeIds(
+  nodeIds: string[],
+  docMap: Map<string, SectionContent>,
+): SectionContent[] {
+  return nodeIds.flatMap((nodeId) => {
+    const doc = docMap.get(nodeId);
+    return doc ? [doc] : [];
+  });
+}
+
 export async function getCourseOutline(courseId: string): Promise<CourseOutline | null> {
   const cached = await readJsonCache<CourseOutline>(getOutlineCacheKey(courseId));
   if (cached) {
@@ -88,19 +158,7 @@ export async function getCourseOutline(courseId: string): Promise<CourseOutline 
     return null;
   }
 
-  const result: CourseOutline = {
-    courseTitle: course.title ?? "未知课程",
-    courseSkillIds: course.outline.courseSkillIds ?? [],
-    chapters: course.outline.chapters.map((ch) => ({
-      title: ch.title,
-      description: ch.description ?? "",
-      skillIds: ch.skillIds ?? [],
-      sections: ch.sections.map((s) => ({
-        title: s.title,
-        description: s.description ?? "",
-      })),
-    })),
-  };
+  const result = buildCourseOutline(course);
 
   await writeJsonCache(getOutlineCacheKey(courseId), result);
   return result;
@@ -127,18 +185,10 @@ export async function getChapterContent(
 
   const sectionCount = chapter.sections.length;
   if (sectionCount === 0) {
-    return {
-      chapterTitle: chapter.title,
-      chapterDescription: chapter.description ?? "",
-      chapterSkillIds: chapter.skillIds ?? [],
-      courseSkillIds: outline.courseSkillIds,
-      sections: [],
-    };
+    return buildEmptyChapterContent(chapter, outline.courseSkillIds);
   }
 
-  const nodeIds = Array.from({ length: sectionCount }, (_, si) =>
-    buildSectionOutlineNodeKey(chapterIndex, si),
-  );
+  const nodeIds = buildSectionNodeIds(chapterIndex, sectionCount);
 
   const docs = await db
     .select({
@@ -151,20 +201,7 @@ export async function getChapterContent(
       and(eq(courseSections.courseId, courseId), inArray(courseSections.outlineNodeKey, nodeIds)),
     );
 
-  const docMap = new Map<string, { title: string; text: string }>();
-  for (const doc of docs) {
-    if (doc.content && doc.outlineNodeKey) {
-      docMap.set(doc.outlineNodeKey, { title: doc.title, text: doc.content });
-    }
-  }
-
-  const sections: SectionContent[] = [];
-  for (const nodeId of nodeIds) {
-    const doc = docMap.get(nodeId);
-    if (doc) {
-      sections.push(doc);
-    }
-  }
+  const sections = mapSectionsFromNodeIds(nodeIds, buildSectionDocMap(docs));
 
   const result: ChapterContent = {
     chapterTitle: chapter.title,

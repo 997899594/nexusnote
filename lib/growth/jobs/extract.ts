@@ -20,6 +20,47 @@ import {
 } from "@/lib/knowledge/evidence";
 import type { GrowthJobExecutionOptions, JobPayload } from "./shared";
 
+async function enqueueMergeIfNeeded(
+  job: JobPayload<"extract_course_evidence">,
+  runId: string,
+  affectedNodeIds: string[] | undefined,
+  enqueueFollowups: boolean,
+): Promise<void> {
+  if (!enqueueFollowups) {
+    return;
+  }
+
+  await enqueueGrowthMerge(job.userId, job.courseId, runId, affectedNodeIds);
+}
+
+function buildEvidenceRefs(params: {
+  item: {
+    title: string;
+    chapterKeys: string[];
+    evidenceSnippets: string[];
+  };
+  outline: ReturnType<typeof normalizeGrowthOutline>;
+}) {
+  const chapterTitleByKey = new Map(
+    params.outline.chapters.map((chapter) => [chapter.chapterKey, chapter.title]),
+  );
+
+  return [
+    ...params.item.chapterKeys.map((chapterKey) => ({
+      refType: "chapter",
+      refId: chapterKey,
+      snippet: chapterTitleByKey.get(chapterKey) ?? chapterKey,
+      weight: 1,
+    })),
+    ...params.item.evidenceSnippets.map((snippet, index) => ({
+      refType: "snippet",
+      refId: `${params.item.title}:${index}`,
+      snippet,
+      weight: 1,
+    })),
+  ];
+}
+
 export async function processGrowthExtractJob(
   job: JobPayload<"extract_course_evidence">,
   options: GrowthJobExecutionOptions = {},
@@ -45,9 +86,7 @@ export async function processGrowthExtractJob(
   });
 
   if (run.status === "succeeded") {
-    if (enqueueFollowups) {
-      await enqueueGrowthMerge(job.userId, job.courseId, run.id);
-    }
+    await enqueueMergeIfNeeded(job, run.id, undefined, enqueueFollowups);
     return;
   }
 
@@ -79,22 +118,7 @@ export async function processGrowthExtractJob(
           prerequisiteHints: item.prerequisiteHints,
           relatedHints: item.relatedHints,
         },
-        refs: [
-          ...item.chapterKeys.map((chapterKey) => ({
-            refType: "chapter",
-            refId: chapterKey,
-            snippet:
-              outline.chapters.find((chapter) => chapter.chapterKey === chapterKey)?.title ??
-              chapterKey,
-            weight: 1,
-          })),
-          ...item.evidenceSnippets.map((snippet, index) => ({
-            refType: "snippet",
-            refId: `${item.title}:${index}`,
-            snippet,
-            weight: 1,
-          })),
-        ],
+        refs: buildEvidenceRefs({ item, outline }),
       });
     }
 
@@ -111,9 +135,7 @@ export async function processGrowthExtractJob(
     });
 
     await markGenerationRunSucceeded(db, run.id, extracted);
-    if (enqueueFollowups) {
-      await enqueueGrowthMerge(job.userId, job.courseId, run.id, affectedNodeIds);
-    }
+    await enqueueMergeIfNeeded(job, run.id, affectedNodeIds, enqueueFollowups);
   } catch (error) {
     await markGenerationRunFailed(run.id, error);
     throw error;
