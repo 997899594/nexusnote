@@ -39,11 +39,5 @@
 **/Thumbs.db
 **/desktop.ini
 
-# 文档（可选）
-**/*.md
-**/README.md
-**/CHANGELOG.md
-!lib/ai/prompts/resources/**
-
 # Legacy runtime bundle is no longer part of the Docker build flow.
 **/.docker-runtime

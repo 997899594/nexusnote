@@ -6,7 +6,7 @@
  * instead of silently falling back to per-process memory state.
  */
 
-import { redis } from "@/lib/redis";
+import { getRedis } from "@/lib/redis";
 
 interface RateLimitResult {
   allowed: boolean;
@@ -36,7 +36,7 @@ async function checkRateLimit(
 ): Promise<RateLimitResult> {
   try {
     const namespacedKey = `rate-limit:${key}`;
-    const result = (await redis.eval(
+    const result = (await getRedis().eval(
       INCREMENT_WITH_TTL_SCRIPT,
       1,
       namespacedKey,

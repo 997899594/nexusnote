@@ -12,7 +12,7 @@ import { buildLearningAlignmentBrief } from "@/lib/learning/alignment";
 import { getOwnedCourseWithOutline } from "@/lib/learning/course-repository";
 import { createLearnTrace } from "@/lib/learning/observability";
 import { buildSectionOutlineNodeKey } from "@/lib/learning/outline-node-key";
-import { ragQueue } from "@/lib/queue/rag-queue";
+import { getRagQueue } from "@/lib/queue/rag-queue";
 
 interface GenerateCourseSectionWorkflowOptions {
   userId: string;
@@ -186,7 +186,7 @@ export async function runGenerateCourseSectionWorkflow({
         }
 
         if (sectionDocumentId && text.length > 0) {
-          ragQueue
+          getRagQueue()
             .add("course-section", {
               type: "course_section",
               documentId: sectionDocumentId,

@@ -9,7 +9,7 @@
 import { and, courseSections, db, eq, inArray } from "@/db";
 import { getCourseWithOutline } from "@/lib/learning/course-repository";
 import { buildSectionOutlineNodeKey } from "@/lib/learning/outline-node-key";
-import { redis } from "@/lib/redis";
+import { getRedis } from "@/lib/redis";
 
 const CACHE_TTL = 300; // 5 minutes
 
@@ -54,7 +54,7 @@ function getChapterCacheKey(courseId: string, chapterIndex: number): string {
 
 async function readJsonCache<T>(cacheKey: string): Promise<T | null> {
   try {
-    const cached = await redis.get(cacheKey);
+    const cached = await getRedis().get(cacheKey);
     return cached ? (JSON.parse(cached) as T) : null;
   } catch {
     return null;
@@ -63,7 +63,7 @@ async function readJsonCache<T>(cacheKey: string): Promise<T | null> {
 
 async function writeJsonCache(cacheKey: string, value: unknown): Promise<void> {
   try {
-    await redis.set(cacheKey, JSON.stringify(value), "EX", CACHE_TTL);
+    await getRedis().set(cacheKey, JSON.stringify(value), "EX", CACHE_TTL);
   } catch {
     // Redis unavailable, skip caching
   }
@@ -71,7 +71,7 @@ async function writeJsonCache(cacheKey: string, value: unknown): Promise<void> {
 
 async function deleteCacheKey(cacheKey: string): Promise<void> {
   try {
-    await redis.del(cacheKey);
+    await getRedis().del(cacheKey);
   } catch {
     // Redis unavailable, skip invalidation
   }
@@ -187,6 +187,7 @@ export async function invalidateChapterCache(
 
 export async function invalidateCourseCache(courseId: string): Promise<void> {
   try {
+    const redis = getRedis();
     await redis.del(getOutlineCacheKey(courseId));
     const pattern = `course:chapter:${courseId}:*`;
     let cursor = "0";
