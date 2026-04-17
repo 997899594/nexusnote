@@ -8,7 +8,7 @@ import {
   processKnowledgeSourceMergeJob,
 } from "@/lib/growth/jobs";
 import { processKnowledgeInsightsJob } from "@/lib/knowledge/insights/jobs";
-import { redis } from "@/lib/redis";
+import { getRedis } from "@/lib/redis";
 import type { GrowthJobData } from "./growth-queue";
 
 let worker: Worker<GrowthJobData> | null = null;
@@ -46,7 +46,7 @@ export function startGrowthWorker(): Worker<GrowthJobData> {
       }
     },
     {
-      connection: redis as never,
+      connection: getRedis() as never,
       concurrency: 1,
     },
   );

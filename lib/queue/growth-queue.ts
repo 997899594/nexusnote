@@ -1,5 +1,5 @@
 import { Queue } from "bullmq";
-import { redis } from "@/lib/redis";
+import { getRedis } from "@/lib/redis";
 
 export type GrowthJobData =
   | {
@@ -42,15 +42,25 @@ export type GrowthJobData =
       userId: string;
     };
 
-export const growthQueue = new Queue<GrowthJobData>("growth", {
-  connection: redis as never,
-  defaultJobOptions: {
-    attempts: 3,
-    backoff: {
-      type: "exponential",
-      delay: 1000,
+let growthQueue: Queue<GrowthJobData> | null = null;
+
+export function getGrowthQueue(): Queue<GrowthJobData> {
+  if (growthQueue) {
+    return growthQueue;
+  }
+
+  growthQueue = new Queue<GrowthJobData>("growth", {
+    connection: getRedis() as never,
+    defaultJobOptions: {
+      attempts: 3,
+      backoff: {
+        type: "exponential",
+        delay: 1000,
+      },
+      removeOnComplete: { count: 1000 },
+      removeOnFail: { count: 5000 },
     },
-    removeOnComplete: { count: 1000 },
-    removeOnFail: { count: 5000 },
-  },
-});
+  });
+
+  return growthQueue;
+}

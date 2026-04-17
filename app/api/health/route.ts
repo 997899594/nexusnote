@@ -1,5 +1,5 @@
 import { db, sql } from "@/db";
-import { redis } from "@/lib/redis";
+import { getRedis } from "@/lib/redis";
 import { assertSchemaCompatibility } from "@/lib/server/schema-compatibility";
 import packageJson from "@/package.json";
 
@@ -51,7 +51,7 @@ async function runCheck(task: () => Promise<unknown>): Promise<DependencyCheckRe
 export async function GET() {
   const [database, redisCheck, schema] = await Promise.all([
     runCheck(() => db.execute(sql`select 1`)),
-    runCheck(() => redis.ping()),
+    runCheck(() => getRedis().ping()),
     runCheck(() => assertSchemaCompatibility()),
   ]);
 

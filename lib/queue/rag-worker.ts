@@ -8,7 +8,7 @@
 import { Worker } from "bullmq";
 import { defaults } from "@/config/env";
 import { syncCourseSectionKnowledge } from "@/lib/learning/course-section-knowledge";
-import { redis } from "@/lib/redis";
+import { getRedis } from "@/lib/redis";
 import type { RagIndexJobData } from "./rag-queue";
 
 let worker: Worker<RagIndexJobData> | null = null;
@@ -42,7 +42,7 @@ export function startRagWorker(): Worker<RagIndexJobData> {
       }
     },
     {
-      connection: redis as never,
+      connection: getRedis() as never,
       concurrency: defaults.queue.ragConcurrency,
     },
   );

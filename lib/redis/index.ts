@@ -13,15 +13,31 @@ const globalForRedis = globalThis as unknown as {
 };
 
 function createRedisClient(): Redis {
-  return new Redis(env.REDIS_URL, {
+  const client = new Redis(env.REDIS_URL, {
     lazyConnect: true,
     maxRetriesPerRequest: null, // required by BullMQ
     enableReadyCheck: false,
   });
+
+  client.on("error", (error) => {
+    if (env.APP_TRACE_LOGS) {
+      console.warn("[Redis] Connection error:", error);
+    }
+  });
+
+  return client;
 }
 
-export const redis = globalForRedis.redis ?? createRedisClient();
+export function getRedis(): Redis {
+  if (globalForRedis.redis) {
+    return globalForRedis.redis;
+  }
 
-if (env.NODE_ENV !== "production") {
-  globalForRedis.redis = redis;
+  const client = createRedisClient();
+
+  if (env.NODE_ENV !== "production") {
+    globalForRedis.redis = client;
+  }
+
+  return client;
 }

@@ -7,7 +7,7 @@
 
 import { Queue } from "bullmq";
 import { defaults } from "@/config/env";
-import { redis } from "@/lib/redis";
+import { getRedis } from "@/lib/redis";
 
 export interface RagIndexJobData {
   type: "course_section";
@@ -22,15 +22,25 @@ export interface RagIndexJobData {
   };
 }
 
-export const ragQueue = new Queue<RagIndexJobData>("rag-index", {
-  connection: redis as never,
-  defaultJobOptions: {
-    attempts: defaults.queue.ragMaxRetries,
-    backoff: {
-      type: "exponential",
-      delay: defaults.queue.ragBackoffDelay,
+let ragQueue: Queue<RagIndexJobData> | null = null;
+
+export function getRagQueue(): Queue<RagIndexJobData> {
+  if (ragQueue) {
+    return ragQueue;
+  }
+
+  ragQueue = new Queue<RagIndexJobData>("rag-index", {
+    connection: getRedis() as never,
+    defaultJobOptions: {
+      attempts: defaults.queue.ragMaxRetries,
+      backoff: {
+        type: "exponential",
+        delay: defaults.queue.ragBackoffDelay,
+      },
+      removeOnComplete: { count: 1000 },
+      removeOnFail: { count: 5000 },
     },
-    removeOnComplete: { count: 1000 },
-    removeOnFail: { count: 5000 },
-  },
-});
+  });
+
+  return ragQueue;
+}
