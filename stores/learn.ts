@@ -5,18 +5,10 @@
  */
 
 import { create } from "zustand";
+import type { LearnChapterProjection, LearnSectionProjection } from "@/lib/learning/projection";
 
-export interface SectionOutline {
-  title: string;
-  description: string;
-  nodeId: string; // e.g., "section-1-1"
-}
-
-export interface ChapterOutline {
-  title: string;
-  description: string;
-  sections: SectionOutline[];
-}
+export type SectionOutline = LearnSectionProjection;
+export type ChapterOutline = LearnChapterProjection;
 
 interface LearnState {
   // Course session ID (for persisting progress)

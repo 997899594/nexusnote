@@ -1,30 +1,18 @@
 import { ArrowRight, Compass, GraduationCap, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { KnowledgeInsightStrip } from "@/components/knowledge/KnowledgeInsightStrip";
-import { getGrowthSnapshotCached } from "@/lib/growth/snapshot";
-import {
-  countVisibleTreeMetrics,
-  findDefaultFocusNode,
-  getCurrentGrowthTree,
-  resolveProjectedFocusNode,
-} from "@/lib/growth/view-model";
-import {
-  getLatestFocusSnapshotCached,
-  getLatestProfileSnapshotCached,
-} from "@/lib/server/growth-projections-data";
-import { getTopKnowledgeInsightsCached } from "@/lib/server/knowledge-insights-data";
+import { getCurrentGrowthTree, resolveGrowthDisplayState } from "@/lib/growth/view-model";
+import { getGrowthWorkspaceDataCached } from "@/lib/server/growth-workspace-data";
 
 interface ProfileCareerTreeSummaryProps {
   userId: string;
 }
 
 export async function ProfileCareerTreeSummary({ userId }: ProfileCareerTreeSummaryProps) {
-  const [snapshot, profileSnapshot, focusSnapshot, insights] = await Promise.all([
-    getGrowthSnapshotCached(userId),
-    getLatestProfileSnapshotCached(userId),
-    getLatestFocusSnapshotCached(userId),
-    getTopKnowledgeInsightsCached(userId, 3),
-  ]);
+  const { snapshot, profileSnapshot, focusSnapshot, insights } = await getGrowthWorkspaceDataCached(
+    userId,
+    3,
+  );
 
   if (snapshot.status === "empty") {
     return (
@@ -87,34 +75,18 @@ export async function ProfileCareerTreeSummary({ userId }: ProfileCareerTreeSumm
     return null;
   }
 
-  const alignedProfileDirection =
-    profileSnapshot?.currentDirection?.directionKey === currentTree.directionKey
-      ? profileSnapshot.currentDirection
-      : null;
-  const alignedProfileFocus = alignedProfileDirection ? (profileSnapshot?.focus ?? null) : null;
-  const alignedFocusSnapshot =
-    focusSnapshot?.directionKey === currentTree.directionKey ? focusSnapshot : null;
-  const fallbackMetrics = countVisibleTreeMetrics(currentTree.tree);
-  const metrics =
-    alignedProfileDirection && profileSnapshot?.metrics ? profileSnapshot.metrics : fallbackMetrics;
-  const focus =
-    resolveProjectedFocusNode(
-      currentTree.tree,
-      alignedProfileFocus ??
-        (alignedFocusSnapshot
-          ? (alignedFocusSnapshot.node ?? {
-              id: alignedFocusSnapshot.nodeId,
-              anchorRef: alignedFocusSnapshot.anchorRef,
-            })
-          : null),
-    ) ?? findDefaultFocusNode(currentTree.tree);
-  const displayTree = alignedProfileDirection ?? currentTree;
-  const directionConfidence = alignedProfileDirection
-    ? alignedProfileDirection.confidence
-    : currentTree.confidence;
-  const supportingCoursesCount = alignedProfileDirection
-    ? alignedProfileDirection.supportingCoursesCount
-    : currentTree.supportingCourses.length;
+  const displayState = resolveGrowthDisplayState({
+    snapshot,
+    directionKey: currentTree.directionKey,
+    focusSnapshot,
+    profileSnapshot,
+  });
+
+  if (!displayState) {
+    return null;
+  }
+
+  const { displayDirection, metrics, preferredFocusNode: focus } = displayState;
   return (
     <section className="ui-surface-card-lg rounded-3xl p-5 md:p-7">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
@@ -124,10 +96,10 @@ export async function ProfileCareerTreeSummary({ userId }: ProfileCareerTreeSumm
             成长主线
           </div>
           <h2 className="mt-3 text-xl font-semibold text-[var(--color-text)] md:text-2xl">
-            {displayTree.title}
+            {displayDirection.title}
           </h2>
           <p className="mt-2 text-sm leading-7 text-[var(--color-text-tertiary)]">
-            {displayTree.summary}
+            {displayDirection.summary}
           </p>
         </div>
 
@@ -152,7 +124,7 @@ export async function ProfileCareerTreeSummary({ userId }: ProfileCareerTreeSumm
               </div>
             </div>
             <div className="rounded-2xl bg-[var(--color-panel-soft)] px-4 py-3 text-sm text-[var(--color-text-secondary)]">
-              {supportingCoursesCount} 门支持课程
+              {displayDirection.supportingCoursesCount} 门支持课程
             </div>
           </div>
 
@@ -171,7 +143,7 @@ export async function ProfileCareerTreeSummary({ userId }: ProfileCareerTreeSumm
               已掌握 {metrics.mastered}
             </span>
             <span className="rounded-full bg-[var(--color-panel-soft)] px-3 py-1.5">
-              置信度 {Math.round(directionConfidence * 100)}%
+              置信度 {Math.round(displayDirection.confidence * 100)}%
             </span>
           </div>
         </div>

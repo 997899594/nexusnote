@@ -6,12 +6,10 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, List, MessageSquare } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo } from "react";
-import type { Annotation } from "@/hooks/useAnnotations";
 import { useChapterSections } from "@/hooks/useChapterSections";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import type { GrowthFocusSummary, GrowthInsightSummary } from "@/lib/growth/projection-types";
+import type { LearnPageProjection, LearnResumeState } from "@/lib/learning/projection";
 import { cn } from "@/lib/utils";
-import type { ChapterOutline } from "@/stores/learn";
 import { useLearnStore } from "@/stores/learn";
 
 import { LearnChat } from "./components/LearnChat";
@@ -19,25 +17,16 @@ import { LearnSidebar } from "./components/LearnSidebar";
 import { SectionReader } from "./components/SectionReader";
 import { ZenModeToggle } from "./components/ZenModeToggle";
 
-// Props types matching page.tsx data
-export interface SectionDoc {
-  id: string;
-  title: string | null;
-  content: string | null;
-  outlineNodeKey: string | null;
-  annotations: Annotation[];
-}
-
-export interface LearnClientProps {
+export interface LearnClientProps
+  extends Pick<
+      LearnPageProjection,
+      "courseTitle" | "chapters" | "sectionDocs" | "growthFocus" | "insights"
+    >,
+    Pick<
+      LearnResumeState,
+      "initialChapterIndex" | "initialCompletedSections" | "scrollToSectionId"
+    > {
   sessionId: string;
-  courseTitle: string;
-  chapters: ChapterOutline[];
-  sectionDocs: SectionDoc[];
-  growthFocus: GrowthFocusSummary | null;
-  insights: GrowthInsightSummary[];
-  initialChapterIndex: number;
-  initialCompletedSections: string[];
-  scrollToSectionId: string | null;
 }
 
 // Sidebar width constant

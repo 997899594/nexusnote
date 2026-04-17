@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { tagGenerationService } from "@/lib/ai/services/tag-generation-service";
 import { auth } from "@/lib/auth";
-import { resolveOwnedLearnContext } from "@/lib/learning/resolve-learn-context";
+import { getLearningGuidance } from "@/lib/learning/guidance";
 import {
   buildLearnChatCapturedHtml,
   buildLearnChatCapturedNoteTitle,
@@ -57,39 +57,39 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No valid messages to capture" }, { status: 400 });
     }
 
-    const learnContext = await resolveOwnedLearnContext({
+    const learningGuidance = await getLearningGuidance({
       userId,
       courseId,
       chapterIndex,
     });
 
-    if (!learnContext) {
+    if (!learningGuidance) {
       return NextResponse.json({ error: "Course not found" }, { status: 404 });
     }
 
     const plainText = buildLearnChatCapturedPlainText({
-      courseTitle: learnContext.courseTitle,
-      chapterTitle: learnContext.chapterTitle,
+      courseTitle: learningGuidance.course.title,
+      chapterTitle: learningGuidance.chapter.title,
       messages: normalizedMessages,
     });
     const contentHtml = buildLearnChatCapturedHtml({
-      courseTitle: learnContext.courseTitle,
-      chapterTitle: learnContext.chapterTitle,
+      courseTitle: learningGuidance.course.title,
+      chapterTitle: learningGuidance.chapter.title,
       messages: normalizedMessages,
     });
 
     const note = await createOwnedNote({
       userId,
       title: buildLearnChatCapturedNoteTitle({
-        chapterTitle: learnContext.chapterTitle,
+        chapterTitle: learningGuidance.chapter.title,
         messages: normalizedMessages,
       }),
       sourceType: "course_capture",
       sourceContext: {
         courseId,
-        courseTitle: learnContext.courseTitle,
-        sectionTitle: learnContext.chapterTitle,
-        chapterIndex: learnContext.chapterIndex,
+        courseTitle: learningGuidance.course.title,
+        sectionTitle: learningGuidance.chapter.title,
+        chapterIndex: learningGuidance.chapter.index,
         chatCapture: true,
         messageCount: normalizedMessages.length,
         latestExcerpt: normalizedMessages[normalizedMessages.length - 1]?.text,

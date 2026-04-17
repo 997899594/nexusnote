@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { createLoginPath } from "@/lib/auth-redirect";
+import { resolveLearnResumeState } from "@/lib/learning/projection";
 import { getLearnPageSnapshotCached } from "@/lib/server/learn-data";
 import { getDynamicPageSession } from "@/lib/server/page-auth";
 import { LearnClient } from "./LearnClient";
@@ -26,46 +27,9 @@ async function LearnPageContent({ params, searchParams }: PageProps) {
     notFound();
   }
 
-  // Use persisted learning progress, not content existence
-  const initialCompletedSections = snapshot.progressRecord?.completedSections ?? [];
-  const completedSet = new Set(initialCompletedSections);
-  const maxChapterIndex = Math.max(snapshot.chapters.length - 1, 0);
+  const resumeState = resolveLearnResumeState(snapshot, chapter);
 
-  // Calculate initial chapter index: explicit ?chapter= param > persisted progress > first incomplete
-  let initialChapterIndex: number;
-  if (chapter) {
-    const chapterNum = parseInt(chapter, 10);
-    initialChapterIndex = Number.isNaN(chapterNum)
-      ? 0
-      : Math.min(Math.max(0, chapterNum - 1), maxChapterIndex);
-  } else {
-    // Resume: find first chapter with incomplete sections
-    const resumeChapter = snapshot.chapters.findIndex((ch) =>
-      ch.sections.some((sec) => !completedSet.has(sec.nodeId)),
-    );
-    initialChapterIndex =
-      resumeChapter >= 0 ? resumeChapter : (snapshot.progressRecord?.currentChapter ?? 0);
-  }
-  initialChapterIndex = Math.min(Math.max(initialChapterIndex, 0), maxChapterIndex);
-
-  // Find first unread section in the resume chapter for auto-scroll
-  const resumeChapter = snapshot.chapters[initialChapterIndex];
-  const firstUnreadSection = resumeChapter?.sections.find((sec) => !completedSet.has(sec.nodeId));
-  const scrollToSectionId = firstUnreadSection?.nodeId ?? null;
-
-  return (
-    <LearnClient
-      sessionId={sessionId}
-      courseTitle={snapshot.courseTitle}
-      chapters={snapshot.chapters}
-      sectionDocs={snapshot.sectionDocs}
-      growthFocus={snapshot.growthFocus}
-      insights={snapshot.insights}
-      initialChapterIndex={initialChapterIndex}
-      initialCompletedSections={initialCompletedSections}
-      scrollToSectionId={scrollToSectionId}
-    />
-  );
+  return <LearnClient sessionId={sessionId} {...snapshot} {...resumeState} />;
 }
 
 export default function LearnPage({ params, searchParams }: PageProps) {

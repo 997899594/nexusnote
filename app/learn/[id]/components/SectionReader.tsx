@@ -11,24 +11,17 @@ import { useToast } from "@/components/ui/Toast";
 import type { Annotation } from "@/hooks/useAnnotations";
 import { useAnnotations } from "@/hooks/useAnnotations";
 import type { SectionState } from "@/hooks/useChapterSections";
+import type { LearnSectionDocProjection } from "@/lib/learning/projection";
 import { cn } from "@/lib/utils";
 import { useLearnStore } from "@/stores/learn";
 import { AnnotationLayer } from "./AnnotationLayer";
 import { TextSelectionToolbar } from "./TextSelectionToolbar";
 
-interface SectionDoc {
-  id: string;
-  title: string | null;
-  content: string | null;
-  outlineNodeKey: string | null;
-  annotations: Annotation[];
-}
-
 interface SectionReaderProps {
   courseId: string;
   sections: Map<number, SectionState>;
   generateSection: (index: number) => void;
-  sectionDocs: SectionDoc[];
+  sectionDocs: LearnSectionDocProjection[];
   scrollToSectionId?: string | null;
 }
 
@@ -143,7 +136,7 @@ function SectionBlock({
   sectionIndex: number;
   sectionTitle: string;
   state: SectionState;
-  sectionDoc: SectionDoc | undefined;
+  sectionDoc: LearnSectionDocProjection | undefined;
   courseId: string;
   generateSection: (index: number) => void;
   isCurrentSection: boolean;

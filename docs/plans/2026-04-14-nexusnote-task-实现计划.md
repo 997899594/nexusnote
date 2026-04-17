@@ -35,11 +35,14 @@
 - Editor workbench 已开始按 focus / insight 重排知识流，不再只是最近笔记列表
 - 旧 hardcoded 职业树 runtime 已经基本退出代码主链路
 
-还没有闭环的部分有：
+已经闭环的部分有：
 
-- 数据库迁移
+- 目标库 schema apply
 - backfill
-- 真实 extract -> merge -> compose 在生产库上的落库验证
+- 真实 extract -> merge -> compose 在目标库上的落库验证
+
+仍可继续增强的部分有：
+
 - 更完整的 fixture / eval 稳定性覆盖
 
 所以执行顺序必须现实一点：
@@ -110,8 +113,9 @@
 - [lib/growth/retrieve-merge-candidates.ts](/Users/findbiao/projects/nexusnote/lib/growth/retrieve-merge-candidates.ts)
 - [lib/growth/merge.ts](/Users/findbiao/projects/nexusnote/lib/growth/merge.ts)
 - [lib/growth/compose.ts](/Users/findbiao/projects/nexusnote/lib/growth/compose.ts)
-- [lib/growth/jobs.ts](/Users/findbiao/projects/nexusnote/lib/growth/jobs.ts)
-- [lib/growth/snapshot.ts](/Users/findbiao/projects/nexusnote/lib/growth/snapshot.ts)
+- [lib/growth/jobs](/Users/findbiao/projects/nexusnote/lib/growth/jobs)
+- [lib/growth/snapshot-data.ts](/Users/findbiao/projects/nexusnote/lib/growth/snapshot-data.ts)
+- [lib/growth/projection-data.ts](/Users/findbiao/projects/nexusnote/lib/growth/projection-data.ts)
 - [lib/growth/preferences.ts](/Users/findbiao/projects/nexusnote/lib/growth/preferences.ts)
 - [lib/growth/preference-write.ts](/Users/findbiao/projects/nexusnote/lib/growth/preference-write.ts)
 - [app/api/user/career-trees/route.ts](/Users/findbiao/projects/nexusnote/app/api/user/career-trees/route.ts)

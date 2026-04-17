@@ -1,6 +1,8 @@
 export interface ParsedSectionOutlineNodeKey {
   chapterIndex: number;
   chapterKey: string;
+  sectionIndex: number;
+  sectionKey: string;
 }
 
 export function buildChapterOutlineNodeKey(chapterIndex: number): string {
@@ -14,18 +16,25 @@ export function buildSectionOutlineNodeKey(chapterIndex: number, sectionIndex: n
 export function parseSectionOutlineNodeKey(
   outlineNodeKey: string,
 ): ParsedSectionOutlineNodeKey | null {
-  const match = /^section-(\d+)-\d+$/.exec(outlineNodeKey);
+  const match = /^section-(\d+)-(\d+)$/.exec(outlineNodeKey);
   if (!match) {
     return null;
   }
 
   const chapterNumber = Number(match[1]);
+  const sectionNumber = Number(match[2]);
   if (!Number.isInteger(chapterNumber) || chapterNumber < 1) {
+    return null;
+  }
+
+  if (!Number.isInteger(sectionNumber) || sectionNumber < 1) {
     return null;
   }
 
   return {
     chapterIndex: chapterNumber - 1,
     chapterKey: buildChapterOutlineNodeKey(chapterNumber - 1),
+    sectionIndex: sectionNumber - 1,
+    sectionKey: buildSectionOutlineNodeKey(chapterNumber - 1, sectionNumber - 1),
   };
 }

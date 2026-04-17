@@ -1,13 +1,8 @@
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import { CareerTreesPage } from "@/components/career-trees/CareerTreesPage";
+import { CareerTreesExplorer } from "@/components/career-trees/CareerTreesExplorer";
 import { FloatingHeader, WorkspacePageShell } from "@/components/shared/layout";
-import { getGrowthSnapshotCached } from "@/lib/growth/snapshot";
-import {
-  getLatestFocusSnapshotCached,
-  getLatestProfileSnapshotCached,
-} from "@/lib/server/growth-projections-data";
-import { getTopKnowledgeInsightsCached } from "@/lib/server/knowledge-insights-data";
+import { getGrowthWorkspaceDataCached } from "@/lib/server/growth-workspace-data";
 import { getDynamicPageSession } from "@/lib/server/page-auth";
 
 async function CareerTreesPageContent() {
@@ -17,12 +12,7 @@ async function CareerTreesPageContent() {
     redirect("/login?callbackUrl=%2Fcareer-trees");
   }
 
-  const [snapshot, profileSnapshot, focusSnapshot, insights] = await Promise.all([
-    getGrowthSnapshotCached(session.user.id),
-    getLatestProfileSnapshotCached(session.user.id),
-    getLatestFocusSnapshotCached(session.user.id),
-    getTopKnowledgeInsightsCached(session.user.id, 3),
-  ]);
+  const growth = await getGrowthWorkspaceDataCached(session.user.id, 3);
 
   return (
     <WorkspacePageShell
@@ -36,11 +26,11 @@ async function CareerTreesPageContent() {
         />
       }
     >
-      <CareerTreesPage
-        snapshot={snapshot}
-        insights={insights}
-        focusSnapshot={focusSnapshot}
-        profileSnapshot={profileSnapshot}
+      <CareerTreesExplorer
+        snapshot={growth.snapshot}
+        insights={growth.insights}
+        focusSnapshot={growth.focusSnapshot}
+        profileSnapshot={growth.profileSnapshot}
       />
     </WorkspacePageShell>
   );

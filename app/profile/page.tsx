@@ -14,25 +14,11 @@ import { ProfileCareerTreeSummary } from "@/components/profile/ProfileCareerTree
 import { ProfileCareerTreeSummarySkeleton } from "@/components/profile/ProfileCareerTreeSummarySkeleton";
 import { FloatingHeader, WorkspacePageShell } from "@/components/shared/layout";
 import { getProfileAvatarLabel } from "@/lib/profile/avatar";
+import { formatProfileActivityTime } from "@/lib/profile/presentation";
 import { redirectIfUnauthenticated } from "@/lib/server/page-auth";
-import {
-  getUserProfileOverviewCached,
-  type ProfileRecentActivityItem,
-} from "@/lib/server/profile-data";
+import type { ProfileRecentActivityItem } from "@/lib/server/profile-data";
+import { getProfileHomeDataCached } from "@/lib/server/profile-home-data";
 import { ProfileSignOut } from "./profile-client";
-
-function formatActivityTime(updatedAt: Date | null): string {
-  if (!updatedAt) {
-    return "最近使用";
-  }
-
-  return new Date(updatedAt).toLocaleDateString("zh-CN", {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 function OverviewPill({
   icon: Icon,
@@ -97,7 +83,7 @@ function RecentActivityRow({ activity }: { activity: ProfileRecentActivityItem }
           {activity.title}
         </div>
         <div className="mt-1 text-xs text-[var(--color-text-tertiary)]">
-          {formatActivityTime(activity.updatedAt)}
+          {formatProfileActivityTime(activity.updatedAt)}
         </div>
       </div>
       <ArrowRight className="h-4 w-4 text-[var(--color-text-muted)]" />
@@ -107,22 +93,9 @@ function RecentActivityRow({ activity }: { activity: ProfileRecentActivityItem }
 
 async function ProfilePageContent() {
   const session = await redirectIfUnauthenticated("/profile");
-  const overview = await getUserProfileOverviewCached(session.user.id);
-  const primaryActivity = overview.recentActivity[0] ?? null;
-  const secondaryActivities = overview.recentActivity.slice(1, 4);
-  const primaryLearningEntry = primaryActivity
-    ? {
-        title: primaryActivity.title,
-        description: `上次更新于 ${formatActivityTime(primaryActivity.updatedAt)}。从这里继续，不需要先翻整页记录。`,
-        href: `/chat/${primaryActivity.id}`,
-        cta: "继续这次对话",
-      }
-    : {
-        title: "还没有可继续的学习记录",
-        description: "从一次课程访谈开始，生成第一门课后，这里就会成为你的学习起点。",
-        href: "/interview",
-        cta: "开始课程访谈",
-      };
+  const { overview, primaryLearningEntry, secondaryActivities } = await getProfileHomeDataCached(
+    session.user.id,
+  );
 
   return (
     <WorkspacePageShell

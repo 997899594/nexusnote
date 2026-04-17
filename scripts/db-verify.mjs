@@ -111,6 +111,38 @@ function getConnectionString(connectionString = process.env.DATABASE_URL) {
   return connectionString;
 }
 
+function getDatabaseName(connectionString = process.env.DATABASE_URL) {
+  const url = new URL(getConnectionString(connectionString));
+  const databaseName = url.pathname.replace(/^\/+/, "");
+
+  if (!databaseName) {
+    throw new Error("DATABASE_URL must include a database name");
+  }
+
+  return databaseName;
+}
+
+function sanitizeIdentifier(identifier) {
+  if (!/^[A-Za-z0-9_]+$/.test(identifier)) {
+    throw new Error(`Unsupported database identifier: ${identifier}`);
+  }
+
+  return identifier;
+}
+
+function buildAdminConnectionString(connectionString = process.env.DATABASE_URL) {
+  const url = new URL(getConnectionString(connectionString));
+  url.pathname = "/postgres";
+  return url.toString();
+}
+
+export function buildAtlasDevConnectionString(connectionString = process.env.DATABASE_URL) {
+  const url = new URL(getConnectionString(connectionString));
+  const databaseName = sanitizeIdentifier(getDatabaseName(connectionString));
+  url.pathname = `/${databaseName}_atlas_dev`;
+  return url.toString();
+}
+
 function toColumnKey(tableName, columnName) {
   return `${tableName}.${columnName}`;
 }
@@ -126,6 +158,29 @@ export async function ensurePgvector(connectionString = process.env.DATABASE_URL
   } finally {
     await sql.end({ timeout: 5 });
   }
+}
+
+export async function ensureAtlasDevDatabase(connectionString = process.env.DATABASE_URL) {
+  const devConnectionString = buildAtlasDevConnectionString(connectionString);
+  const devDatabaseName = sanitizeIdentifier(getDatabaseName(devConnectionString));
+  const adminSql = postgres(buildAdminConnectionString(connectionString), {
+    max: 1,
+    prepare: false,
+  });
+
+  try {
+    const rows =
+      await adminSql`SELECT 1 FROM pg_database WHERE datname = ${devDatabaseName} LIMIT 1;`;
+
+    if (rows.length === 0) {
+      await adminSql.unsafe(`CREATE DATABASE "${devDatabaseName}"`);
+    }
+  } finally {
+    await adminSql.end({ timeout: 5 });
+  }
+
+  await ensurePgvector(devConnectionString);
+  return devConnectionString;
 }
 
 export async function verifyCurrentSchema(connectionString = process.env.DATABASE_URL) {

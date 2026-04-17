@@ -85,7 +85,12 @@ export async function POST(request: NextRequest) {
       courseId,
       metadata,
     });
-    const { profileId, courseId: resolvedCourseId, metadata: resolvedMetadata } = resolvedContext;
+    const {
+      profileId,
+      courseId: resolvedCourseId,
+      metadata: resolvedMetadata,
+      learningGuidance,
+    } = resolvedContext;
     const profile = getCapabilityProfile(profileId);
     telemetry = createTelemetryContext({
       requestId,
@@ -168,7 +173,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Get agent with personalization
-    const generationContext = await getUserGrowthContext(userId);
+    const generationContext =
+      profileId === "LEARN_ASSIST" ? undefined : await getUserGrowthContext(userId);
 
     const agent = await getAgent(profileId, {
       userId,
@@ -176,6 +182,7 @@ export async function POST(request: NextRequest) {
       skinPrompt,
       userContext,
       generationContext,
+      learningGuidance,
       courseId: resolvedCourseId,
       metadata: resolvedMetadata,
       telemetry,

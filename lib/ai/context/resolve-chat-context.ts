@@ -1,11 +1,13 @@
 import { APIError } from "@/lib/api";
-import { resolveOwnedLearnContext } from "@/lib/learning/resolve-learn-context";
-import type { ChatMetadata, ResolvedChatMetadata } from "@/types/metadata";
+import type { LearningGuidance } from "@/lib/learning/guidance";
+import { getLearningGuidance } from "@/lib/learning/guidance";
+import type { ChatMetadata } from "@/types/metadata";
 
 export interface ResolvedChatContext {
   profileId: "CHAT_BASIC" | "LEARN_ASSIST";
   courseId?: string;
-  metadata?: ResolvedChatMetadata;
+  metadata?: ChatMetadata;
+  learningGuidance?: LearningGuidance;
 }
 
 function buildRequestedLearnContext(params: {
@@ -29,7 +31,7 @@ function buildRequestedLearnContext(params: {
   };
 }
 
-function getBasicChatMetadata(metadata?: ChatMetadata): ResolvedChatMetadata | undefined {
+function getBasicChatMetadata(metadata?: ChatMetadata): ChatMetadata | undefined {
   if (metadata?.context === "editor" || metadata?.context === "default") {
     return metadata;
   }
@@ -59,29 +61,24 @@ export async function resolveChatContext({
     };
   }
 
-  const learnContext = await resolveOwnedLearnContext({
+  const learningGuidance = await getLearningGuidance({
     userId,
     courseId: requestedLearnContext.courseId,
     chapterIndex: requestedLearnContext.chapterIndex,
   });
 
-  if (!learnContext) {
+  if (!learningGuidance) {
     throw new APIError("课程不存在或无权限访问", 404, "COURSE_NOT_FOUND");
   }
 
   return {
     profileId: "LEARN_ASSIST",
-    courseId: learnContext.courseId,
+    courseId: learningGuidance.course.id,
     metadata: {
       context: "learn",
-      courseId: learnContext.courseId,
-      courseTitle: learnContext.courseTitle,
-      chapterIndex: learnContext.chapterIndex,
-      chapterTitle: learnContext.chapterTitle,
-      chapterDescription: learnContext.chapterDescription,
-      sectionTitles: learnContext.sectionTitles,
-      courseSkillIds: learnContext.courseSkillIds,
-      chapterSkillIds: learnContext.chapterSkillIds,
+      courseId: learningGuidance.course.id,
+      chapterIndex: learningGuidance.chapter.index,
     },
+    learningGuidance,
   };
 }

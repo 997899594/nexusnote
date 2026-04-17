@@ -48,10 +48,6 @@ export interface ProfileAIUsageStats {
   byProvider: ProfileAIUsageBreakdownItem[];
 }
 
-export interface ProfileStats extends ProfileOverview {
-  aiUsage: ProfileAIUsageStats;
-}
-
 type CountRow = { count: number };
 
 type UsageBreakdownRow = {
@@ -289,20 +285,5 @@ export async function getUserProfileInsightsCached(
     byPolicy: normalizeUsageBreakdown(usageByPolicy),
     byWorkflow: normalizeUsageBreakdown(usageByWorkflow),
     byProvider: normalizeUsageBreakdown(usageByProvider),
-  };
-}
-
-export async function getUserStatsCached(
-  userId: string,
-  windowStartIso: string,
-): Promise<ProfileStats> {
-  const [overview, aiUsage] = await Promise.all([
-    getUserProfileOverviewCached(userId),
-    getUserProfileInsightsCached(userId, windowStartIso),
-  ]);
-
-  return {
-    ...overview,
-    aiUsage,
   };
 }

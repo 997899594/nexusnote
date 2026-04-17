@@ -1,20 +1,13 @@
-import { asc, eq } from "drizzle-orm";
-import { courses, db } from "@/db";
-import { enqueueGrowthExtract } from "@/lib/growth/queue";
-import { runGrowthCoursePipeline, runGrowthProjectionPipeline } from "@/lib/growth/runtime";
+import { closeDbConnection } from "@/db";
+import {
+  type GrowthRuntimeFilters,
+  loadRuntimeBundlesForFilters,
+  runRuntimeBundlesBackfill,
+} from "@/lib/growth/runtime-maintenance";
 
-interface BackfillArgs {
-  courseId?: string;
-  userId?: string;
-  limit?: number;
+interface BackfillArgs extends GrowthRuntimeFilters {
   sync: boolean;
   dryRun: boolean;
-}
-
-interface BackfillCourse {
-  id: string;
-  userId: string;
-  title: string;
 }
 
 function parseArgs(argv: string[]): BackfillArgs {
@@ -52,96 +45,58 @@ function parseArgs(argv: string[]): BackfillArgs {
   return args;
 }
 
-async function loadTargetCourses(args: BackfillArgs): Promise<BackfillCourse[]> {
-  const query = db
-    .select({
-      id: courses.id,
-      userId: courses.userId,
-      title: courses.title,
-    })
-    .from(courses)
-    .where(
-      args.courseId
-        ? eq(courses.id, args.courseId)
-        : args.userId
-          ? eq(courses.userId, args.userId)
-          : undefined,
-    )
-    .orderBy(asc(courses.userId), asc(courses.title));
-
-  return typeof args.limit === "number" ? query.limit(args.limit) : query;
-}
-
-function groupCoursesByUser(allCourses: BackfillCourse[]): Map<string, BackfillCourse[]> {
-  const grouped = new Map<string, BackfillCourse[]>();
-
-  for (const course of allCourses) {
-    const existing = grouped.get(course.userId) ?? [];
-    existing.push(course);
-    grouped.set(course.userId, existing);
-  }
-
-  return grouped;
-}
-
-async function enqueueBackfill(allCourses: BackfillCourse[]): Promise<void> {
-  for (const course of allCourses) {
-    await enqueueGrowthExtract(course.userId, course.id);
-    console.log(`[GrowthBackfill] Enqueued ${course.title} (${course.id})`);
-  }
-}
-
-async function runSyncBackfill(allCourses: BackfillCourse[]): Promise<void> {
-  const groupedCourses = groupCoursesByUser(allCourses);
-
-  for (const [userId, userCourses] of groupedCourses) {
-    console.log(
-      `[GrowthBackfill] Sync processing user ${userId} with ${userCourses.length} course(s)`,
-    );
-
-    for (const course of userCourses) {
-      console.log(`[GrowthBackfill] Sync course ${course.title} (${course.id})`);
-      await runGrowthCoursePipeline({
-        userId,
-        courseId: course.id,
-      });
-    }
-
-    await runGrowthProjectionPipeline(userId);
-    console.log(`[GrowthBackfill] Projection refresh completed for user ${userId}`);
-  }
-}
-
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const allCourses = await loadTargetCourses(args);
+  const { targetCourses, bundles } = await loadRuntimeBundlesForFilters(args);
 
   console.log(
-    `[GrowthBackfill] Found ${allCourses.length} course(s) mode=${args.sync ? "sync" : "queue"} dryRun=${args.dryRun}`,
+    `[GrowthBackfill] Found ${targetCourses.length} course(s) mode=${args.sync ? "sync" : "queue"} dryRun=${args.dryRun}`,
   );
 
-  if (allCourses.length === 0) {
+  if (targetCourses.length === 0) {
     return;
-  }
-
-  for (const course of allCourses) {
-    console.log(`[GrowthBackfill] Target ${course.title} (${course.id}) user=${course.userId}`);
   }
 
   if (args.dryRun) {
+    for (const bundle of bundles) {
+      console.log(
+        `[GrowthBackfill] user=${bundle.userId} courses=${bundle.courses.length} sections=${bundle.sectionDocuments.length} annotations=${bundle.annotationSources.length} notes=${bundle.notes.length} conversations=${bundle.conversations.length}`,
+      );
+
+      for (const course of bundle.courses) {
+        console.log(`[GrowthBackfill] Target ${course.title} (${course.id}) user=${course.userId}`);
+      }
+    }
+
+    console.log("[GrowthBackfill] Done");
     return;
   }
 
-  if (args.sync) {
-    await runSyncBackfill(allCourses);
-  } else {
-    await enqueueBackfill(allCourses);
-  }
+  await runRuntimeBundlesBackfill({
+    bundles,
+    sync: args.sync,
+    onUserStart: async ({ bundle, summary }) => {
+      console.log(
+        `[GrowthBackfill] user=${bundle.userId} courses=${summary.courses} sections=${summary.sectionDocuments} annotations=${summary.annotationSources} notes=${summary.notes} conversations=${summary.conversations}`,
+      );
+
+      for (const course of bundle.courses) {
+        console.log(`[GrowthBackfill] Target ${course.title} (${course.id}) user=${course.userId}`);
+      }
+    },
+    onUserComplete: async ({ bundle }) => {
+      console.log(`[GrowthBackfill] Completed user ${bundle.userId}`);
+    },
+  });
 
   console.log("[GrowthBackfill] Done");
 }
 
-main().catch((error) => {
-  console.error("[GrowthBackfill] Failed:", error);
-  process.exitCode = 1;
-});
+main()
+  .catch((error) => {
+    console.error("[GrowthBackfill] Failed:", error);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    await closeDbConnection();
+  });

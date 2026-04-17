@@ -8,8 +8,8 @@ import { APIError } from "@/lib/api";
 import { invalidateChapterCache } from "@/lib/cache/course-context";
 import { revalidateLearnPage } from "@/lib/cache/tags";
 import { getUserGrowthContext } from "@/lib/growth/generation-context";
-import { buildLearningAlignmentBrief } from "@/lib/learning/alignment";
 import { getOwnedCourseWithOutline } from "@/lib/learning/course-repository";
+import { buildLearningGuidance } from "@/lib/learning/guidance";
 import { createLearnTrace } from "@/lib/learning/observability";
 import { buildSectionOutlineNodeKey } from "@/lib/learning/outline-node-key";
 import { getRagQueue } from "@/lib/queue/rag-queue";
@@ -67,8 +67,13 @@ export async function runGenerateCourseSectionWorkflow({
 
   const outline = course.outline;
   const generationContext = await getUserGrowthContext(userId);
+  const guidance = buildLearningGuidance({
+    course,
+    chapterIndex,
+    growth: generationContext,
+  });
   const chapter = outline.chapters[chapterIndex];
-  if (!chapter) {
+  if (!chapter || !guidance) {
     trace.finish({
       found: false,
       reason: "chapter-not-found",
@@ -113,40 +118,25 @@ export async function runGenerateCourseSectionWorkflow({
     });
   }
 
-  const siblingTitles = (chapter.sections ?? []).map((item) => item.title);
-  const alignmentBrief = buildLearningAlignmentBrief({
-    chapterTitle: chapter.title,
-    chapterDescription: chapter.description ?? "",
-    chapterSkillIds: chapter.skillIds,
-    courseSkillIds: outline.courseSkillIds,
-    sectionTitle: section.title,
-    sectionDescription: section.description,
-    generationContext,
-  });
+  const sectionGuidance = guidance.chapter.sections[sectionIndex];
+  if (!sectionGuidance) {
+    trace.finish({
+      found: false,
+      reason: "section-guidance-not-found",
+    });
+    throw new APIError("小节不存在", 404, "SECTION_NOT_FOUND");
+  }
+
   const systemPrompt = buildSectionPrompt({
-    courseTitle: course.title ?? "",
-    courseDescription: outline.description ?? "",
-    targetAudience: outline.targetAudience ?? "",
-    difficulty: course.difficulty ?? "beginner",
-    learningOutcome: outline.learningOutcome,
-    courseSkillIds: outline.courseSkillIds,
-    chapterIndex,
-    chapterTitle: chapter.title,
-    chapterDescription: chapter.description ?? "",
-    chapterSkillIds: chapter.skillIds,
+    guidance,
     sectionIndex,
-    sectionTitle: section.title,
-    sectionDescription: section.description,
-    siblingTitles,
-    totalChapters: outline.chapters.length,
-    alignmentBrief,
   });
   trace.step("generation-start", {
     outlineNodeId,
-    siblingCount: siblingTitles.length,
-    chapterSkillCount: chapter.skillIds?.length ?? 0,
-    alignmentRelation: alignmentBrief.relation,
-    focusTitle: alignmentBrief.focusTitle,
+    siblingCount: guidance.chapter.sections.length,
+    chapterSkillCount: guidance.chapter.skillIds.length,
+    alignmentRelation: sectionGuidance.alignment.relation,
+    focusTitle: sectionGuidance.alignment.focusTitle,
   });
 
   const result = streamText({

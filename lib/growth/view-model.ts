@@ -1,4 +1,9 @@
-import type { VisibleTreeMetrics } from "@/lib/growth/projection-types";
+import type {
+  CurrentDirectionProjection,
+  FocusSnapshotProjection,
+  ProfileSnapshotProjection,
+  VisibleTreeMetrics,
+} from "@/lib/growth/projection-types";
 import type {
   CandidateCareerTree,
   CareerTreeSnapshot,
@@ -9,6 +14,13 @@ import { selectFocusNodeFromNodes } from "@/lib/knowledge/focus";
 export interface FocusNodeReference {
   id?: string | null;
   anchorRef?: string | null;
+}
+
+export interface ResolvedGrowthDisplayState {
+  currentTree: CandidateCareerTree;
+  displayDirection: CurrentDirectionProjection;
+  metrics: VisibleTreeMetrics;
+  preferredFocusNode: VisibleSkillTreeNode | null;
 }
 
 function findNode(
@@ -138,4 +150,70 @@ export function resolveProjectedFocusNode(
 
 export function findDefaultFocusNode(nodes: VisibleSkillTreeNode[]): VisibleSkillTreeNode | null {
   return selectFocusNodeFromNodes(nodes).node;
+}
+
+function buildFallbackCurrentDirection(tree: CandidateCareerTree): CurrentDirectionProjection {
+  return {
+    directionKey: tree.directionKey,
+    title: tree.title,
+    summary: tree.summary,
+    confidence: tree.confidence,
+    whyThisDirection: tree.whyThisDirection,
+    supportingCoursesCount: tree.supportingCourses.length,
+    supportingChaptersCount: tree.supportingChapters.length,
+  };
+}
+
+function resolveProjectedFocusReference(
+  focusSnapshot: FocusSnapshotProjection | null,
+): FocusNodeReference | null {
+  if (!focusSnapshot) {
+    return null;
+  }
+
+  return (
+    focusSnapshot.node ?? {
+      id: focusSnapshot.nodeId,
+      anchorRef: focusSnapshot.anchorRef,
+    }
+  );
+}
+
+export function resolveGrowthDisplayState(params: {
+  snapshot: CareerTreeSnapshot;
+  directionKey?: string | null;
+  focusSnapshot: FocusSnapshotProjection | null;
+  profileSnapshot: ProfileSnapshotProjection | null;
+}): ResolvedGrowthDisplayState | null {
+  const currentTree =
+    getTreeByDirectionKey(params.snapshot, params.directionKey) ??
+    getCurrentGrowthTree(params.snapshot);
+
+  if (!currentTree) {
+    return null;
+  }
+
+  const alignedProfileDirection =
+    params.profileSnapshot?.currentDirection?.directionKey === currentTree.directionKey
+      ? params.profileSnapshot.currentDirection
+      : null;
+  const alignedProfileFocus = alignedProfileDirection
+    ? (params.profileSnapshot?.focus ?? null)
+    : null;
+  const alignedFocusSnapshot =
+    params.focusSnapshot?.directionKey === currentTree.directionKey ? params.focusSnapshot : null;
+
+  return {
+    currentTree,
+    displayDirection: alignedProfileDirection ?? buildFallbackCurrentDirection(currentTree),
+    metrics:
+      alignedProfileDirection && params.profileSnapshot?.metrics
+        ? params.profileSnapshot.metrics
+        : countVisibleTreeMetrics(currentTree.tree),
+    preferredFocusNode:
+      resolveProjectedFocusNode(
+        currentTree.tree,
+        alignedProfileFocus ?? resolveProjectedFocusReference(alignedFocusSnapshot),
+      ) ?? findDefaultFocusNode(currentTree.tree),
+  };
 }

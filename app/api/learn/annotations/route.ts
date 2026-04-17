@@ -7,8 +7,7 @@ import { courseSectionAnnotations, courseSections, courses, db } from "@/db";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
 import { revalidateLearnPage } from "@/lib/cache/tags";
-import { ingestEvidenceEvent } from "@/lib/knowledge/events";
-import { syncKnowledgeSource } from "@/lib/knowledge/source-sync";
+import { syncSectionAnnotationsKnowledge } from "@/lib/learning/annotation-knowledge";
 import { parseSectionOutlineNodeKey } from "@/lib/learning/outline-node-key";
 
 const AnnotationSchema = z.object({
@@ -31,61 +30,6 @@ const RequestSchema = z.object({
 
 type AnnotationInput = z.infer<typeof AnnotationSchema>;
 
-function buildAnnotationEvidenceRefs(params: {
-  annotationId: string;
-  sectionId: string;
-  sectionText: string;
-  courseId: string;
-  courseTitle: string;
-  chapterKey: string | null;
-}): Array<{
-  refType: string;
-  refId: string;
-  snippet: string | null;
-  weight: number;
-}> {
-  const refs: Array<{
-    refType: string;
-    refId: string;
-    snippet: string | null;
-    weight: number;
-  }> = [
-    {
-      refType: "annotation",
-      refId: params.annotationId,
-      snippet: params.sectionText,
-      weight: 1,
-    },
-    {
-      refType: "course_section",
-      refId: params.sectionId,
-      snippet: params.sectionText,
-      weight: 1,
-    },
-    {
-      refType: "course",
-      refId: params.courseId,
-      snippet: params.courseTitle,
-      weight: 1,
-    },
-  ];
-
-  if (params.chapterKey) {
-    refs.push({
-      refType: "chapter",
-      refId: params.chapterKey,
-      snippet: null,
-      weight: 1,
-    });
-  }
-
-  return refs;
-}
-
-function buildAnnotationEventTitle(type: z.infer<typeof AnnotationSchema>["type"]): string {
-  return type === "note" ? "课程标注笔记" : "课程高亮";
-}
-
 function buildAnnotationRows(params: {
   sectionId: string;
   userId: string;
@@ -101,49 +45,6 @@ function buildAnnotationRows(params: {
     createdAt: new Date(annotation.createdAt),
     updatedAt: new Date(),
   }));
-}
-
-async function ingestAnnotationEvents(params: {
-  inserted: Array<{ id: string }>;
-  annotations: AnnotationInput[];
-  userId: string;
-  sectionId: string;
-  courseId: string;
-  courseTitle: string;
-  chapterKey: string | null;
-}): Promise<void> {
-  for (let index = 0; index < params.inserted.length; index++) {
-    const saved = params.inserted[index];
-    const original = params.annotations[index];
-    const annotationType = original.type;
-
-    await ingestEvidenceEvent({
-      id: crypto.randomUUID(),
-      userId: params.userId,
-      kind: annotationType === "note" ? "note" : "highlight",
-      sourceType: "annotation",
-      sourceId: params.sectionId,
-      sourceVersionHash: null,
-      title: buildAnnotationEventTitle(annotationType),
-      summary: original.noteContent?.trim() || original.anchor.textContent,
-      confidence: 1,
-      happenedAt: new Date(original.createdAt).toISOString(),
-      metadata: {
-        annotationId: saved.id,
-        sectionId: params.sectionId,
-        annotationType,
-        color: original.color ?? null,
-      },
-      refs: buildAnnotationEvidenceRefs({
-        annotationId: saved.id,
-        sectionId: params.sectionId,
-        sectionText: original.anchor.textContent,
-        courseId: params.courseId,
-        courseTitle: params.courseTitle,
-        chapterKey: params.chapterKey,
-      }),
-    });
-  }
 }
 
 export async function PATCH(request: NextRequest) {
@@ -190,34 +91,30 @@ export async function PATCH(request: NextRequest) {
         ),
       );
 
-    await syncKnowledgeSource({
+    const inserted =
+      annotations.length > 0
+        ? await db
+            .insert(courseSectionAnnotations)
+            .values(buildAnnotationRows({ sectionId, userId, annotations }))
+            .returning({
+              id: courseSectionAnnotations.id,
+            })
+        : [];
+
+    await syncSectionAnnotationsKnowledge({
       userId,
-      sourceType: "annotation",
-      sourceId: sectionId,
-      hasContent: annotations.length > 0,
-      clearReason: `annotation-clear:${sectionId}`,
-      replaceEvents: async () => {
-        if (annotations.length === 0) {
-          return;
-        }
-
-        const inserted = await db
-          .insert(courseSectionAnnotations)
-          .values(buildAnnotationRows({ sectionId, userId, annotations }))
-          .returning({
-            id: courseSectionAnnotations.id,
-          });
-
-        await ingestAnnotationEvents({
-          inserted,
-          annotations,
-          userId,
-          sectionId,
-          courseId: section.courseId,
-          courseTitle: section.courseTitle,
-          chapterKey,
-        });
-      },
+      sectionId,
+      courseId: section.courseId,
+      courseTitle: section.courseTitle,
+      chapterKey,
+      annotations: inserted.map((saved, index) => ({
+        id: saved.id,
+        type: annotations[index].type,
+        anchor: annotations[index].anchor,
+        color: annotations[index].color ?? null,
+        noteContent: annotations[index].noteContent ?? null,
+        createdAt: annotations[index].createdAt,
+      })),
     });
 
     revalidateLearnPage(userId, section.courseId);

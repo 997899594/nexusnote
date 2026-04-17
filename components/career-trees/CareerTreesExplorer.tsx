@@ -12,11 +12,9 @@ import type {
 } from "@/lib/growth/projection-types";
 import type { CareerTreeSnapshot, VisibleSkillTreeNode } from "@/lib/growth/types";
 import {
-  countVisibleTreeMetrics,
   findDefaultFocusNode,
   findNodeById,
-  getTreeByDirectionKey,
-  resolveProjectedFocusNode,
+  resolveGrowthDisplayState,
 } from "@/lib/growth/view-model";
 import type { KnowledgeInsight } from "@/lib/knowledge/insights";
 import { cn } from "@/lib/utils";
@@ -200,47 +198,28 @@ export function CareerTreesExplorer({
   const [isSaving, setIsSaving] = useState(false);
   const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
 
-  const currentTree = useMemo(
+  const displayState = useMemo(
     () =>
-      getTreeByDirectionKey(snapshot, currentDirectionKey) ??
-      getTreeByDirectionKey(snapshot, snapshot.recommendedDirectionKey) ??
-      snapshot.trees[0] ??
-      null,
-    [currentDirectionKey, snapshot],
+      resolveGrowthDisplayState({
+        snapshot,
+        directionKey: currentDirectionKey,
+        focusSnapshot,
+        profileSnapshot,
+      }),
+    [currentDirectionKey, focusSnapshot, profileSnapshot, snapshot],
   );
-
-  const currentMetrics = useMemo(
-    () => (currentTree ? countVisibleTreeMetrics(currentTree.tree) : null),
-    [currentTree],
-  );
+  const currentTree = displayState?.currentTree ?? null;
+  const currentMetrics = displayState?.metrics ?? null;
 
   const activeNode = useMemo(
     () => (currentTree ? findNodeById(currentTree.tree, activeNodeId) : null),
     [activeNodeId, currentTree],
   );
 
-  const preferredFocusNode = useMemo(() => {
-    if (!currentTree) {
-      return null;
-    }
-
-    const profileFocus =
-      profileSnapshot?.currentDirection?.directionKey === currentTree.directionKey
-        ? profileSnapshot.focus
-        : null;
-    const projectedFocus =
-      focusSnapshot?.directionKey === currentTree.directionKey
-        ? (focusSnapshot.node ?? {
-            id: focusSnapshot.nodeId,
-            anchorRef: focusSnapshot.anchorRef,
-          })
-        : null;
-
-    return (
-      resolveProjectedFocusNode(currentTree.tree, profileFocus ?? projectedFocus) ??
-      findDefaultFocusNode(currentTree.tree)
-    );
-  }, [currentTree, focusSnapshot, profileSnapshot]);
+  const preferredFocusNode = useMemo(
+    () => displayState?.preferredFocusNode ?? null,
+    [displayState],
+  );
 
   useEffect(() => {
     setActiveNodeId(preferredFocusNode?.id ?? null);

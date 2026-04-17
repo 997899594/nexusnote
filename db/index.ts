@@ -33,6 +33,23 @@ export const db =
     ? drizzle(client, { schema })
     : (null as unknown as ReturnType<typeof drizzle<typeof schema>>);
 
+export async function closeDbConnection(): Promise<void> {
+  if (!isServer || !connectionString) {
+    return;
+  }
+
+  const connection = client as postgres.Sql | null;
+  if (!connection) {
+    return;
+  }
+
+  if (env.NODE_ENV !== "production") {
+    globalForDb.conn = undefined;
+  }
+
+  await connection.end({ timeout: 5 });
+}
+
 // Re-export common drizzle-orm operators for consistency
 export {
   and,

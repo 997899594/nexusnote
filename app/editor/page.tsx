@@ -16,11 +16,8 @@ import { KnowledgeInsightStrip } from "@/components/knowledge/KnowledgeInsightSt
 import { FloatingHeader, LibraryAnalysisPageShell } from "@/components/shared/layout";
 import { getGrowthStateLabel } from "@/lib/growth/presentation";
 import { buildKnowledgeExcerpt, getKnowledgeInsightKindLabel } from "@/lib/knowledge/presentation";
-import {
-  getNotesWorkbenchCached,
-  type NoteWorkbenchItem,
-  type NoteWorkbenchKind,
-} from "@/lib/server/editor-data";
+import type { NoteWorkbenchItem, NoteWorkbenchKind } from "@/lib/knowledge/workbench-projection";
+import { getNotesWorkbenchCached } from "@/lib/server/editor-data";
 import { requireDynamicPageAuth } from "@/lib/server/page-auth";
 
 function formatDate(date: Date | null) {

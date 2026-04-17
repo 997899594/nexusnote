@@ -20,11 +20,6 @@ export async function requireDynamicPageAuth(
   return requireAuth(callbackUrl);
 }
 
-export async function requireDynamicPageUserId(callbackUrl?: string): Promise<string> {
-  const session = await requireDynamicPageAuth(callbackUrl);
-  return session.user.id;
-}
-
 export async function redirectIfUnauthenticated(
   callbackUrl: string,
 ): Promise<AuthenticatedPageSession> {

@@ -11,6 +11,7 @@
     "ai:eval": "bun scripts/run-ai-evals.ts",
     "growth:backfill": "bun scripts/backfill-user-growth.ts",
     "growth:check": "bun scripts/check-growth-stability.ts",
+    "growth:cutover": "bun scripts/cutover-growth-runtime.ts",
     "growth:verify": "bun scripts/verify-growth-runtime.ts",
     "db:migrate": "node scripts/db-migrate.mjs",
     "db:studio": "drizzle-kit studio --config drizzle.config.mjs",

@@ -19,6 +19,7 @@ interface SyncKnowledgeSourceParams {
   replaceEvents?: () => Promise<void>;
   syncChunks?: () => Promise<void>;
   enqueueInsightsOnEmpty?: boolean;
+  enqueueFollowups?: boolean;
 }
 
 async function enqueueSyncKnowledgeSourceFollowups(
@@ -63,7 +64,9 @@ export async function syncKnowledgeSource(params: SyncKnowledgeSourceParams): Pr
     sourceVersionHash,
   });
 
-  await params.replaceEvents?.();
+  if (params.hasContent) {
+    await params.replaceEvents?.();
+  }
 
   await aggregateSourceEventsToKnowledgeEvidence({
     userId: params.userId,
@@ -72,8 +75,12 @@ export async function syncKnowledgeSource(params: SyncKnowledgeSourceParams): Pr
     sourceVersionHash,
   });
 
-  await params.syncChunks?.();
+  if (params.hasContent) {
+    await params.syncChunks?.();
+  }
 
-  await enqueueSyncKnowledgeSourceFollowups(params, affectedNodeIds, sourceVersionHash);
+  if (params.enqueueFollowups ?? true) {
+    await enqueueSyncKnowledgeSourceFollowups(params, affectedNodeIds, sourceVersionHash);
+  }
   return affectedNodeIds;
 }

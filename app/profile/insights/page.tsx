@@ -15,40 +15,15 @@ import { ProfileAiUsagePanel } from "@/components/profile/ProfileAiUsagePanel";
 import { FloatingHeader, LibraryAnalysisPageShell } from "@/components/shared/layout";
 import { getGrowthStateLabel } from "@/lib/growth/presentation";
 import { buildKnowledgeExcerpt } from "@/lib/knowledge/presentation";
-import type { NoteWorkbenchItem } from "@/lib/server/editor-data";
-import { getNotesWorkbenchCached } from "@/lib/server/editor-data";
-import {
-  getLatestFocusSnapshotCached,
-  getLatestProfileSnapshotCached,
-} from "@/lib/server/growth-projections-data";
-import { getTopKnowledgeInsightsCached } from "@/lib/server/knowledge-insights-data";
 import { redirectIfUnauthenticated } from "@/lib/server/page-auth";
-import {
-  getProfileStatsWindowStart,
-  getUserProfileInsightsCached,
-} from "@/lib/server/profile-data";
-
-function isWorkbenchNote(note: NoteWorkbenchItem | undefined): note is NoteWorkbenchItem {
-  return Boolean(note);
-}
+import { getProfileStatsWindowStart } from "@/lib/server/profile-data";
+import { getProfileInsightsPageDataCached } from "@/lib/server/profile-insights-page-data";
 
 async function ProfileInsightsPageContent() {
   const session = await redirectIfUnauthenticated("/profile/insights");
   const windowStart = getProfileStatsWindowStart();
-  const [usage, focusSnapshot, profileSnapshot, workbenchSnapshot, topInsights] = await Promise.all(
-    [
-      getUserProfileInsightsCached(session.user.id, windowStart.toISOString()),
-      getLatestFocusSnapshotCached(session.user.id),
-      getLatestProfileSnapshotCached(session.user.id),
-      getNotesWorkbenchCached(session.user.id),
-      getTopKnowledgeInsightsCached(session.user.id, 4),
-    ],
-  );
-  const focusNotes =
-    workbenchSnapshot.focus?.relatedItemIds
-      .map((itemId) => workbenchSnapshot.items.find((item) => item.id === itemId))
-      .filter(isWorkbenchNote)
-      .slice(0, 3) ?? [];
+  const data = await getProfileInsightsPageDataCached(session.user.id, windowStart.toISOString());
+  const { usage, overview, focusNotes, insights: topInsights } = data;
 
   return (
     <LibraryAnalysisPageShell
@@ -106,7 +81,7 @@ async function ProfileInsightsPageContent() {
       </section>
 
       <div className="space-y-8">
-        {profileSnapshot?.currentDirection || focusSnapshot ? (
+        {overview ? (
           <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
             <article className="rounded-[30px] border border-black/6 bg-[linear-gradient(180deg,#ffffff_0%,#f7f8fa_100%)] p-5 md:p-6">
               <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
@@ -114,25 +89,21 @@ async function ProfileInsightsPageContent() {
                 当前方向
               </div>
               <h2 className="mt-3 text-2xl font-semibold tracking-[-0.04em] text-[var(--color-text)]">
-                {profileSnapshot?.currentDirection?.title ??
-                  focusSnapshot?.title ??
-                  "成长主线生成中"}
+                {overview.direction.title}
               </h2>
               <p className="mt-2 text-sm leading-7 text-[var(--color-text-secondary)]">
-                {profileSnapshot?.currentDirection?.summary ??
-                  focusSnapshot?.summary ??
-                  "系统正在整理你的成长方向。"}
+                {overview.direction.summary}
               </p>
-              {profileSnapshot?.currentDirection ? (
+              {overview.direction.confidence !== null ? (
                 <div className="mt-4 flex flex-wrap gap-2 text-xs text-[var(--color-text-secondary)]">
                   <span className="rounded-full bg-white px-3 py-1.5 shadow-sm">
-                    候选树 {profileSnapshot.treesCount} 条
+                    候选树 {overview.direction.treesCount ?? 0} 条
                   </span>
                   <span className="rounded-full bg-white px-3 py-1.5 shadow-sm">
-                    置信度 {Math.round(profileSnapshot.currentDirection.confidence * 100)}%
+                    置信度 {Math.round(overview.direction.confidence * 100)}%
                   </span>
                   <span className="rounded-full bg-white px-3 py-1.5 shadow-sm">
-                    支持课程 {profileSnapshot.currentDirection.supportingCoursesCount} 门
+                    支持课程 {overview.direction.supportingCoursesCount ?? 0} 门
                   </span>
                 </div>
               ) : null}
@@ -144,25 +115,30 @@ async function ProfileInsightsPageContent() {
                 当前焦点
               </div>
               <h2 className="mt-3 text-xl font-semibold text-[var(--color-text)]">
-                {focusSnapshot?.title ?? "当前没有明确焦点"}
+                {overview.focus.title}
               </h2>
               <p className="mt-2 text-sm leading-7 text-[var(--color-text-secondary)]">
-                {focusSnapshot?.summary ??
-                  "随着更多课程、笔记和对话进入系统，这里会稳定显示下一步。"}
+                {overview.focus.summary}
               </p>
-              {focusSnapshot ? (
+              {overview.focus.progress !== null ? (
                 <div className="mt-4 flex flex-wrap gap-2 text-xs text-[var(--color-text-secondary)]">
                   <span className="rounded-full bg-white px-3 py-1.5 shadow-sm">
-                    进度 {focusSnapshot.progress}%
+                    进度 {overview.focus.progress}%
                   </span>
                   <span className="rounded-full bg-white px-3 py-1.5 shadow-sm">
-                    {getGrowthStateLabel(focusSnapshot.state)}
+                    {getGrowthStateLabel(overview.focus.state)}
                   </span>
                   <span className="rounded-full bg-white px-3 py-1.5 shadow-sm">
-                    相关材料 {workbenchSnapshot.focus?.relatedItemIds.length ?? 0} 条
+                    相关材料 {overview.focus.relatedMaterialCount} 条
                   </span>
                 </div>
-              ) : null}
+              ) : (
+                <div className="mt-4">
+                  <span className="rounded-full bg-white px-3 py-1.5 text-xs text-[var(--color-text-secondary)] shadow-sm">
+                    相关材料 {overview.focus.relatedMaterialCount} 条
+                  </span>
+                </div>
+              )}
             </article>
           </section>
         ) : null}

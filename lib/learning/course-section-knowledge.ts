@@ -14,11 +14,12 @@ interface SyncCourseSectionKnowledgeParams {
   chapterIndex: number;
   sectionIndex: number;
   sectionTitle: string;
+  enqueueFollowups?: boolean;
 }
 
 export async function syncCourseSectionKnowledge(
   params: SyncCourseSectionKnowledgeParams,
-): Promise<void> {
+): Promise<string[]> {
   const metadata = {
     courseId: params.courseId,
     chapterIndex: params.chapterIndex,
@@ -26,12 +27,13 @@ export async function syncCourseSectionKnowledge(
     sectionTitle: params.sectionTitle,
   };
 
-  await syncKnowledgeSource({
+  return syncKnowledgeSource({
     userId: params.userId,
     sourceType: "course_section",
     sourceId: params.documentId,
     hasContent: params.plainText.trim().length > 0,
     clearReason: `course-section-clear:${params.documentId}`,
+    enqueueFollowups: params.enqueueFollowups,
     replaceEvents: async () => {
       await ingestEvidenceEvent({
         id: crypto.randomUUID(),

@@ -81,22 +81,24 @@ export async function syncConversationKnowledge(params: {
   conversationId: string;
   userId: string;
   messages: UIMessage[];
-}): Promise<void> {
+  enqueueFollowups?: boolean;
+}): Promise<string[]> {
   const conversation = await getOwnedConversation(params.conversationId, params.userId);
   if (!conversation) {
-    return;
+    return [];
   }
 
   const snippets = getConversationSnippets(params.messages);
   const summary = buildConversationSummary(snippets);
   const metadata = buildConversationMetadata(conversation);
 
-  await syncKnowledgeSource({
+  return syncKnowledgeSource({
     userId: params.userId,
     sourceType: "conversation",
     sourceId: params.conversationId,
     hasContent: summary.length > 0,
     clearReason: `conversation-clear:${params.conversationId}`,
+    enqueueFollowups: params.enqueueFollowups,
     replaceEvents: async () => {
       if (summary.length === 0) {
         return;

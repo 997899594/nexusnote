@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { withAuth } from "@/lib/api";
 import { ensureLearnConversation } from "@/lib/chat/learn-conversations";
+import { getLearningGuidance } from "@/lib/learning/guidance";
 import { createLearnTrace } from "@/lib/learning/observability";
-import { resolveOwnedLearnContext } from "@/lib/learning/resolve-learn-context";
 
 const LearnChatSessionQuerySchema = z.object({
   courseId: z.string().uuid(),
@@ -35,14 +35,14 @@ export const GET = withAuth(async (request, { userId }) => {
     chapterIndex: parsed.data.chapterIndex,
   });
 
-  const learnContext = await resolveOwnedLearnContext({
+  const learningGuidance = await getLearningGuidance({
     userId,
     courseId: parsed.data.courseId,
     chapterIndex: parsed.data.chapterIndex,
     traceId: trace.traceId,
   });
 
-  if (!learnContext) {
+  if (!learningGuidance) {
     trace.finish({
       found: false,
       courseId: parsed.data.courseId,
@@ -55,18 +55,18 @@ export const GET = withAuth(async (request, { userId }) => {
   }
 
   trace.step("learn-context-resolved", {
-    courseId: learnContext.courseId,
-    chapterTitle: learnContext.chapterTitle,
-    courseSkillCount: learnContext.courseSkillIds.length,
-    chapterSkillCount: learnContext.chapterSkillIds.length,
+    courseId: learningGuidance.course.id,
+    chapterTitle: learningGuidance.chapter.title,
+    courseSkillCount: learningGuidance.course.skillIds.length,
+    chapterSkillCount: learningGuidance.chapter.skillIds.length,
   });
 
   const session = await ensureLearnConversation({
     userId,
-    courseId: learnContext.courseId,
-    courseTitle: learnContext.courseTitle,
-    chapterIndex: learnContext.chapterIndex,
-    chapterTitle: learnContext.chapterTitle,
+    courseId: learningGuidance.course.id,
+    courseTitle: learningGuidance.course.title,
+    chapterIndex: learningGuidance.chapter.index,
+    chapterTitle: learningGuidance.chapter.title,
   });
 
   trace.finish({

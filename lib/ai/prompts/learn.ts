@@ -3,53 +3,32 @@
  *
  * 根据课程大纲和小节信息，生成聚焦单个知识点的教学内容。
  */
-import {
-  formatLearningAlignmentBrief,
-  type LearningAlignmentBrief,
-} from "@/lib/learning/alignment";
+import { formatLearningAlignmentBrief } from "@/lib/learning/alignment";
+import type { LearningGuidance } from "@/lib/learning/guidance";
 
 export function buildSectionPrompt(params: {
-  courseTitle: string;
-  courseDescription: string;
-  targetAudience: string;
-  difficulty: string;
-  learningOutcome?: string;
-  courseSkillIds?: string[];
-  chapterIndex: number;
-  chapterTitle: string;
-  chapterDescription: string;
-  chapterSkillIds?: string[];
+  guidance: LearningGuidance;
   sectionIndex: number;
-  sectionTitle: string;
-  sectionDescription: string;
-  siblingTitles: string[]; // other section titles in the same chapter
-  totalChapters: number;
-  alignmentBrief: LearningAlignmentBrief;
 }): string {
-  const {
-    courseTitle,
-    courseDescription,
-    targetAudience,
-    difficulty,
-    learningOutcome,
-    courseSkillIds,
-    chapterIndex,
-    chapterTitle,
-    chapterDescription,
-    chapterSkillIds,
-    sectionIndex,
-    sectionTitle,
-    sectionDescription,
-    siblingTitles,
-    totalChapters,
-    alignmentBrief,
-  } = params;
+  const { guidance, sectionIndex } = params;
+  const section = guidance.chapter.sections[sectionIndex];
+
+  if (!section) {
+    throw new Error(`Missing learning guidance section at index ${sectionIndex}`);
+  }
 
   const difficultyLabel =
-    difficulty === "beginner" ? "入门" : difficulty === "intermediate" ? "中级" : "高级";
+    guidance.course.difficulty === "beginner"
+      ? "入门"
+      : guidance.course.difficulty === "intermediate"
+        ? "中级"
+        : "高级";
 
-  const siblingContext = siblingTitles
-    .map((t, i) => `  ${i === sectionIndex ? "→" : " "} ${chapterIndex + 1}.${i + 1} ${t}`)
+  const siblingContext = guidance.chapter.sections
+    .map(
+      (item, index) =>
+        `  ${index === sectionIndex ? "→" : " "} ${guidance.chapter.index + 1}.${index + 1} ${item.title}`,
+    )
     .join("\n");
 
   const formatSkillIds = (skillIds?: string[]) =>
@@ -58,27 +37,27 @@ export function buildSectionPrompt(params: {
   return `你是一位专业的课程内容创作者，正在为在线学习平台编写教学内容。
 
 ## 课程信息
-- 课程名称：${courseTitle}
-- 课程简介：${courseDescription}
-- 目标受众：${targetAudience}
+- 课程名称：${guidance.course.title}
+- 课程简介：${guidance.course.description}
+- 目标受众：${guidance.course.targetAudience}
 - 难度级别：${difficultyLabel}
-- 总章节数：${totalChapters}
-- 课程学习成果：${learningOutcome ?? "未提供"}
-- 课程核心能力：${formatSkillIds(courseSkillIds)}
+- 总章节数：${guidance.course.totalChapters}
+- 课程学习成果：${guidance.course.learningOutcome ?? "未提供"}
+- 课程核心能力：${formatSkillIds(guidance.course.skillIds)}
 
 ## 当前位置
-- 第 ${chapterIndex + 1} 章：${chapterTitle}
-- 章节描述：${chapterDescription}
-- 本章训练能力：${formatSkillIds(chapterSkillIds)}
+- 第 ${guidance.chapter.index + 1} 章：${guidance.chapter.title}
+- 章节描述：${guidance.chapter.description}
+- 本章训练能力：${formatSkillIds(guidance.chapter.skillIds)}
 - 本章小节：
 ${siblingContext}
 
 ## 当前小节
-- ${chapterIndex + 1}.${sectionIndex + 1} ${sectionTitle}
-- 描述：${sectionDescription}
+- ${guidance.chapter.index + 1}.${sectionIndex + 1} ${section.title}
+- 描述：${section.description}
 
 ## 当前学习对齐简报
-${formatLearningAlignmentBrief(alignmentBrief, "prompt")}
+${formatLearningAlignmentBrief(section.alignment, "prompt")}
 
 ## 内容生成要求
 
