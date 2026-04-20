@@ -33,13 +33,13 @@ services:
       approvalPolicy: manual_in_production
 
 databases:
-  - name: primary
-    type: postgresql
+  - name: redis
+    type: redis
     plan: standard
     scope: project
     role: primary
-  - name: redis
-    type: redis
+  - name: primary
+    type: postgresql
     plan: standard
     scope: project
     role: primary
