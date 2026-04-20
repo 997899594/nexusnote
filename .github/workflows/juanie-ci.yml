@@ -6,22 +6,19 @@ on:
   workflow_dispatch:
     inputs:
       juanie_source_sha:
-        description: Source commit SHA resolved by Juanie
+        description: Source commit SHA to build
         required: false
+        type: string
       juanie_release_ref:
-        description: Logical source ref recorded by Juanie
+        description: Logical release ref to send back to Juanie
         required: false
-      juanie_force_full_build:
-        description: Request a full rebuild for Juanie preview launch
-        required: false
-        default: 'false'
+        type: string
 
 env:
-  REGISTRY: ghcr.io
-  JUANIE_SOURCE_SHA: ${{ github.event.inputs.juanie_source_sha || github.sha }}
-  JUANIE_RELEASE_REF: ${{ github.event.inputs.juanie_release_ref || github.ref }}
-  JUANIE_FORCE_FULL_BUILD: ${{ github.event.inputs.juanie_force_full_build || 'false' }}
-  IMAGE_TAG: ghcr.io/${{ github.repository }}:sha-${{ github.event.inputs.juanie_source_sha || github.sha }}
+  IMAGE_REGISTRY: ghcr.io
+  JUANIE_SOURCE_SHA: ${{ inputs.juanie_source_sha || github.sha }}
+  JUANIE_RELEASE_REF: ${{ inputs.juanie_release_ref || github.ref }}
+  IMAGE_TAG: ${{ format('{0}/{1}:sha-{2}', 'ghcr.io', github.repository, inputs.juanie_source_sha || github.sha) }}
 
 jobs:
   quality-gate:
@@ -50,12 +47,6 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: ${{ env.JUANIE_SOURCE_SHA }}
-
-      - name: Print Juanie Build Context
-        run: |
-          echo "source_sha=${JUANIE_SOURCE_SHA}"
-          echo "release_ref=${JUANIE_RELEASE_REF}"
-          echo "force_full_build=${JUANIE_FORCE_FULL_BUILD}"
 
       - name: Resolve Juanie Build Plan
         id: plan
@@ -161,13 +152,15 @@ jobs:
 
       - uses: docker/login-action@v4
         with:
-          registry: ghcr.io
+          registry: ${{ env.IMAGE_REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and Push (Bake Target)
         if: ${{ steps.plan.outputs.build_kind == 'bake_target' }}
         uses: docker/bake-action@v7
+        env:
+          REGISTRY: ${{ env.IMAGE_REGISTRY }}
         with:
           source: .
           files: ${{ steps.plan.outputs.build_definition }}
@@ -182,6 +175,10 @@ jobs:
       - name: Build and Push (Bake Default)
         if: ${{ steps.plan.outputs.build_kind == 'bake_default' }}
         uses: docker/bake-action@v7
+        env:
+          DOCKER_BUILD_SUMMARY: false
+          DOCKER_BUILD_RECORD_UPLOAD: false
+          REGISTRY: ${{ env.IMAGE_REGISTRY }}
         with:
           source: .
           files: ${{ steps.plan.outputs.build_definition }}
@@ -189,14 +186,13 @@ jobs:
           set: |
             *.tags=${{ env.IMAGE_TAG }}
             *.args.GIT_SHA=${{ env.JUANIE_SOURCE_SHA }}
-            *.cache-from=type=gha
-            *.cache-to=type=gha,mode=max
 
       - name: Build and Push (Dockerfile)
         if: ${{ steps.plan.outputs.build_kind == 'dockerfile' }}
         uses: docker/build-push-action@v7
         env:
-          DOCKER_BUILD_SUMMARY: true
+          DOCKER_BUILD_SUMMARY: false
+          DOCKER_BUILD_RECORD_UPLOAD: false
         with:
           context: ${{ steps.plan.outputs.build_context }}
           file: ${{ steps.plan.outputs.build_dockerfile }}
