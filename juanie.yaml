@@ -1,5 +1,5 @@
 # juanie.yaml
-name: find-kaqmxe
+name: nexusnote-qilamy
 
 services:
   - name: web
@@ -23,18 +23,23 @@ services:
       cpuLimit: 500m
       memoryRequest: 256Mi
       memoryLimit: 512Mi
-    # Auto-generated from package.json migration script; review before allowing Juanie to run it
+    # Auto-generated from package.json script db:migrate
     migrate:
       tool: drizzle
       workingDirectory: .
-      command: npm run db:migrate
+      command: bun run db:migrate
       phase: preDeploy
-      executionMode: manual_platform
+      executionMode: automatic
       approvalPolicy: manual_in_production
 
 databases:
   - name: primary
     type: postgresql
+    plan: standard
+    scope: project
+    role: primary
+  - name: redis
+    type: redis
     plan: standard
     scope: project
     role: primary
