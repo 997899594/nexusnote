@@ -1,0 +1,1 @@
+- Explain concepts clearly before branching into alternatives.

@@ -165,25 +165,3 @@ export async function deleteStyleData(userId: string): Promise<void> {
 
   console.log(`[Privacy] Deleted style data for user ${userId}`);
 }
-
-/**
- * Check if style analysis is enabled for a user
- *
- * @param userId - User ID
- * @returns true if analysis is enabled
- */
-export async function isAnalysisEnabled(userId: string): Promise<boolean> {
-  const settings = await getPrivacySettings(userId);
-  return settings?.analysisEnabled ?? false;
-}
-
-/**
- * Check if Big Five analysis is enabled for a user
- *
- * @param userId - User ID
- * @returns true if Big Five analysis is enabled
- */
-export async function isBigFiveEnabled(userId: string): Promise<boolean> {
-  const settings = await getPrivacySettings(userId);
-  return settings?.bigFiveEnabled ?? false;
-}

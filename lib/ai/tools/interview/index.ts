@@ -1,7 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import type { ToolContext } from "@/lib/ai/core/tool-context";
-import { InterviewNextFocusSchema, InterviewOutlineSchema } from "@/lib/ai/interview";
+import { InterviewNextFocusSchema, InterviewOutlineSchema } from "@/lib/ai/interview/schemas";
 
 export const PresentOptionsInputSchema = z.object({
   question: z.string().min(1).max(120),

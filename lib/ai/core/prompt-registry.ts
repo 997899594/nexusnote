@@ -1,4 +1,3 @@
-import { buildInstructions, CHAT_PROMPT } from "@/lib/ai/prompts/chat";
 import { loadPromptResource } from "@/lib/ai/prompts/load-prompt";
 
 export type PromptKey = "chat-basic@v1" | "learn-assist@v1" | "note-assist@v1";
@@ -8,6 +7,7 @@ interface PromptDefinition {
   systemPrompt: string;
 }
 
+const CHAT_PROMPT = loadPromptResource("chat-basic.md");
 const LEARN_ASSIST_PROMPT = loadPromptResource("learn-assist.md");
 const NOTE_ASSIST_PROMPT = loadPromptResource("note-assist.md");
 
@@ -38,5 +38,12 @@ export function buildPromptInstructions(
     userContext?: string;
   },
 ): string {
-  return buildInstructions(getPromptDefinition(key).systemPrompt, personalization);
+  return [
+    getPromptDefinition(key).systemPrompt,
+    personalization?.behaviorPrompt,
+    personalization?.skinPrompt,
+    personalization?.userContext,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }

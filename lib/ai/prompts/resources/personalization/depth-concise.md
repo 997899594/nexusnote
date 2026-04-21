@@ -1,0 +1,1 @@
+- Keep replies concise unless the user explicitly asks for depth.

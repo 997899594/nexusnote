@@ -1,16 +1,12 @@
 import { validateUIMessages } from "ai";
 import { type NextRequest, NextResponse } from "next/server";
-import {
-  aiProvider,
-  classifyAIDegradation,
-  createTelemetryContext,
-  getErrorMessage,
-  InterviewApiRequestSchema,
-  type InterviewUIMessage,
-  recordAIUsage,
-} from "@/lib/ai";
 import { createInterviewSessionAgent } from "@/lib/ai/agents/interview-session";
+import { classifyAIDegradation } from "@/lib/ai/core/degradation";
+import { aiProvider } from "@/lib/ai/core/provider";
 import { createNexusNoteStreamResponse } from "@/lib/ai/core/streaming";
+import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
+import type { InterviewUIMessage } from "@/lib/ai/interview/ui";
+import { InterviewApiRequestSchema } from "@/lib/ai/validation";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
 import { getUserGrowthContext } from "@/lib/growth/generation-context";

@@ -1,5 +1,5 @@
 import { generateText, Output } from "ai";
-import { getJsonModelForPolicy } from "@/lib/ai/core";
+import { getJsonModelForPolicy } from "@/lib/ai/core/model-policy";
 import { extractLatestUserMessageFromApiMessages } from "./message-history";
 import {
   type InterviewApiMessage,

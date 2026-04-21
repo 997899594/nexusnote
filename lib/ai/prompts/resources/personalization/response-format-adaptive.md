@@ -1,0 +1,1 @@
+- Add structure only when it improves clarity.

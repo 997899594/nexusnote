@@ -3,13 +3,14 @@ import { and, eq } from "drizzle-orm";
 import { courseSections, db } from "@/db";
 import { getModelForPolicy } from "@/lib/ai/core/model-policy";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
-import { buildSectionPrompt } from "@/lib/ai/prompts/learn";
+import { renderPromptResource } from "@/lib/ai/prompts/load-prompt";
 import { APIError } from "@/lib/api";
 import { invalidateChapterCache } from "@/lib/cache/course-context";
 import { revalidateLearnPage } from "@/lib/cache/tags";
 import { getUserGrowthContext } from "@/lib/growth/generation-context";
+import { formatLearningAlignmentBrief } from "@/lib/learning/alignment";
 import { getOwnedCourseWithOutline } from "@/lib/learning/course-repository";
-import { buildLearningGuidance } from "@/lib/learning/guidance";
+import { buildLearningGuidance, type LearningGuidance } from "@/lib/learning/guidance";
 import { createLearnTrace } from "@/lib/learning/observability";
 import { buildSectionOutlineNodeKey } from "@/lib/learning/outline-node-key";
 import { getRagQueue } from "@/lib/queue/rag-queue";
@@ -20,6 +21,57 @@ interface GenerateCourseSectionWorkflowOptions {
   chapterIndex: number;
   sectionIndex: number;
   traceId?: string;
+}
+
+function buildCourseSectionUserPrompt(sectionTitle: string) {
+  return renderPromptResource("learn/course-section-user.md", {
+    section_title: sectionTitle,
+  });
+}
+
+function buildSectionPrompt(params: { guidance: LearningGuidance; sectionIndex: number }): string {
+  const { guidance, sectionIndex } = params;
+  const section = guidance.chapter.sections[sectionIndex];
+
+  if (!section) {
+    throw new Error(`Missing learning guidance section at index ${sectionIndex}`);
+  }
+
+  const difficultyLabel =
+    guidance.course.difficulty === "beginner"
+      ? "入门"
+      : guidance.course.difficulty === "intermediate"
+        ? "中级"
+        : "高级";
+
+  const siblingContext = guidance.chapter.sections
+    .map(
+      (item, index) =>
+        `  ${index === sectionIndex ? "→" : " "} ${guidance.chapter.index + 1}.${index + 1} ${item.title}`,
+    )
+    .join("\n");
+
+  const formatSkillIds = (skillIds?: string[]) =>
+    Array.isArray(skillIds) && skillIds.length > 0 ? skillIds.join("、") : "未指定";
+
+  return renderPromptResource("learn/course-section-system.md", {
+    course_title: guidance.course.title,
+    course_description: guidance.course.description,
+    target_audience: guidance.course.targetAudience,
+    difficulty_label: difficultyLabel,
+    total_chapters: guidance.course.totalChapters,
+    learning_outcome: guidance.course.learningOutcome ?? "未提供",
+    course_skill_ids: formatSkillIds(guidance.course.skillIds),
+    chapter_number: guidance.chapter.index + 1,
+    chapter_title: guidance.chapter.title,
+    chapter_description: guidance.chapter.description,
+    chapter_skill_ids: formatSkillIds(guidance.chapter.skillIds),
+    sibling_context: siblingContext,
+    section_number: `${guidance.chapter.index + 1}.${sectionIndex + 1}`,
+    section_title: section.title,
+    section_description: section.description,
+    alignment_brief: formatLearningAlignmentBrief(section.alignment, "prompt"),
+  });
 }
 
 export async function runGenerateCourseSectionWorkflow({
@@ -142,7 +194,7 @@ export async function runGenerateCourseSectionWorkflow({
   const result = streamText({
     model: getModelForPolicy("structured-high-quality"),
     system: systemPrompt,
-    prompt: `请为「${section.title}」生成教学内容。`,
+    prompt: buildCourseSectionUserPrompt(section.title),
     temperature: 0.5,
     experimental_transform: smoothStream({
       chunking: new Intl.Segmenter("zh-Hans", { granularity: "word" }),

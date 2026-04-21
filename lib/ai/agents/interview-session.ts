@@ -2,7 +2,7 @@ import {
   DEFAULT_INTERVIEW_SESSION_MODE,
   type InterviewSessionMode,
   normalizeInterviewSessionMode,
-} from "@/lib/ai/interview";
+} from "@/lib/ai/interview/session-mode";
 import type { InterviewAgentOptions } from "./interview";
 import { createInterviewAgent } from "./interview";
 import { createStructuredInterviewAgent } from "./interview-structured";

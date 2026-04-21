@@ -1,0 +1,1 @@
+- Prefer natural conversational prose over rigid formatting.

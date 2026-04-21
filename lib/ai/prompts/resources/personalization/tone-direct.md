@@ -1,0 +1,1 @@
+- Prefer direct wording and fast point-first answers.

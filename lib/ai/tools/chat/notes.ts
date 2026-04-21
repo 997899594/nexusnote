@@ -7,24 +7,22 @@ import { z } from "zod";
 import { getOwnedNote } from "@/lib/notes/repository";
 import { createOwnedNote, deleteOwnedNote, updateOwnedNote } from "@/lib/notes/write-service";
 
-export const CreateNoteSchema = z.object({
+const CreateNoteSchema = z.object({
   title: z.string().min(1).max(200),
   content: z.string().default(""),
 });
 
-export type CreateNoteInput = z.infer<typeof CreateNoteSchema>;
-
-export const GetNoteSchema = z.object({
+const GetNoteSchema = z.object({
   noteId: z.string().uuid(),
 });
 
-export const UpdateNoteSchema = z.object({
+const UpdateNoteSchema = z.object({
   noteId: z.string().uuid(),
   title: z.string().min(1).max(200).optional(),
   content: z.string().optional(),
 });
 
-export const DeleteNoteSchema = z.object({
+const DeleteNoteSchema = z.object({
   noteId: z.string().uuid(),
 });
 

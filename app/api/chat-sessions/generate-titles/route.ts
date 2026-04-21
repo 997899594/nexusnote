@@ -13,8 +13,9 @@ import { generateText, Output } from "ai";
 import { and } from "drizzle-orm";
 import { z } from "zod";
 import { conversations, db, eq } from "@/db";
-import { getJsonModelForPolicy } from "@/lib/ai/core";
+import { getJsonModelForPolicy } from "@/lib/ai/core/model-policy";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
+import { loadPromptResource, renderPromptResource } from "@/lib/ai/prompts/load-prompt";
 import { withAuth } from "@/lib/api";
 import { extractMessageText, loadConversationMessagesMap } from "@/lib/chat/conversation-messages";
 import { updateOwnedConversation } from "@/lib/chat/conversation-repository";
@@ -23,6 +24,12 @@ import { updateOwnedConversation } from "@/lib/chat/conversation-repository";
 const titleSchema = z.object({
   title: z.string().max(10),
 });
+
+const CONVERSATION_TITLE_SYSTEM_PROMPT = loadPromptResource("conversation-title-system.md");
+const buildConversationTitleUserPrompt = (firstUserMessage: string) =>
+  renderPromptResource("conversation-title-user.md", {
+    first_user_message: firstUserMessage,
+  });
 
 export const POST = withAuth(async (_request, { userId }) => {
   // 1. 查询 title = "新对话" 的会话（限制 5 条）
@@ -75,9 +82,8 @@ export const POST = withAuth(async (_request, { userId }) => {
       const result = await generateText({
         model: getJsonModelForPolicy("interactive-fast"),
         output: Output.object({ schema: titleSchema }),
-        system:
-          "你是一个专业的标题生成助手。根据用户的第一条消息，生成一个简洁、准确的标题，不超过10个字。",
-        prompt: `用户消息：${firstUserMessage}\n\n请生成一个简洁的标题：`,
+        system: CONVERSATION_TITLE_SYSTEM_PROMPT,
+        prompt: buildConversationTitleUserPrompt(firstUserMessage),
         temperature: 0.7,
       });
 

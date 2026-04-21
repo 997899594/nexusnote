@@ -3,7 +3,8 @@
  */
 
 import { z } from "zod";
-import { InterviewOutlineSchema, InterviewSessionModeSchema } from "@/lib/ai/interview";
+import { InterviewOutlineSchema } from "@/lib/ai/interview/schemas";
+import { InterviewSessionModeSchema } from "@/lib/ai/interview/session-mode";
 import { ChatMetadataSchema } from "@/types/metadata";
 
 const BaseConversationRequestSchema = z.object({

@@ -12,15 +12,14 @@ import {
   NOTE_KNOWLEDGE_SOURCE_TYPE,
 } from "@/lib/knowledge/source-types";
 import { listOwnedNotesByIds } from "@/lib/notes/repository";
-import { hybridSearch, type SourceType } from "@/lib/rag";
+import type { SourceType } from "@/lib/rag/chunker";
+import { hybridSearch } from "@/lib/rag/hybrid-search";
 
-export const SearchNotesSchema = z.object({
+const SearchNotesSchema = z.object({
   query: z.string().min(1).max(500),
   limit: z.number().int().min(1).max(20).default(10),
   sourceTypes: z.array(z.enum(["note", "conversation"])).optional(),
 });
-
-export type SearchNotesInput = z.infer<typeof SearchNotesSchema>;
 
 /**
  * 创建搜索工具（带 userId 权限验证）

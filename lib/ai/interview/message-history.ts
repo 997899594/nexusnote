@@ -10,7 +10,3 @@ export function extractLatestUserMessageFromUIMessages(messages?: UIMessage[]) {
 export function extractLatestUserMessageFromApiMessages(messages: InterviewApiMessage[]) {
   return [...messages].reverse().find((message) => message.role === "user")?.text;
 }
-
-export function countUserTurnsFromUIMessages(messages?: UIMessage[]) {
-  return (messages ?? []).filter((message) => message.role === "user").length;
-}

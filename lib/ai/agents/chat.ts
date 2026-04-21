@@ -13,15 +13,10 @@ import {
   type LearningGuidance,
 } from "@/lib/learning/guidance";
 import { type ChatMetadata, isLearnMetadata } from "@/types/metadata";
-import {
-  type AITelemetryContext,
-  buildPromptInstructions,
-  getCapabilityProfile,
-  getModelForPolicy,
-  getToolCallingModelForPolicy,
-  recordAIUsage,
-} from "../core";
-import type { AgentProfile } from "../core/capability-profiles";
+import { type AgentProfile, getCapabilityProfile } from "../core/capability-profiles";
+import { getModelForPolicy, getToolCallingModelForPolicy } from "../core/model-policy";
+import { buildPromptInstructions } from "../core/prompt-registry";
+import { type AITelemetryContext, recordAIUsage } from "../core/telemetry";
 import { buildToolsForProfile } from "../tools";
 
 export interface PersonalizationOptions {

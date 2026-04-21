@@ -18,7 +18,6 @@ import {
 import {
   findLatestOutline,
   findLatestStableOutline,
-  getInterviewMessageMode,
   getInterviewMessageOptions,
   getInterviewMessageText,
   type InterviewUIMessage,
@@ -61,13 +60,22 @@ function toInterviewDisplayMessages(messages: InterviewUIMessage[]): InterviewMe
         role: "user" | "assistant";
       } => message.role === "user" || message.role === "assistant",
     )
-    .map((message) => ({
-      id: message.id,
-      role: message.role,
-      text: getInterviewMessageText(message),
-      mode: message.role === "assistant" ? getInterviewMessageMode(message) : undefined,
-      options: message.role === "assistant" ? getInterviewMessageOptions(message) : undefined,
-    }))
+    .map((message) => {
+      const mode: InterviewMessage["mode"] =
+        message.role === "assistant"
+          ? findLatestOutline([message])
+            ? "outline"
+            : "question"
+          : undefined;
+
+      return {
+        id: message.id,
+        role: message.role,
+        text: getInterviewMessageText(message),
+        mode,
+        options: message.role === "assistant" ? getInterviewMessageOptions(message) : undefined,
+      };
+    })
     .filter((message) => message.text.length > 0 || (message.options?.length ?? 0) > 0);
 }
 

@@ -1,6 +1,6 @@
 import { UI_MESSAGE_STREAM_HEADERS } from "ai";
 import { after } from "next/server";
-import { getChatResumableStreamContext } from "@/lib/ai";
+import { getChatResumableStreamContext } from "@/lib/ai/core/resumable-streams";
 import { withDynamicAuth } from "@/lib/api";
 import { getConversationActiveStreamId } from "@/lib/chat/conversation-persistence";
 import { getOwnedConversation } from "@/lib/chat/conversation-repository";

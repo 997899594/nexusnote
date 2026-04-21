@@ -9,21 +9,18 @@
 
 import type { UIMessage } from "ai";
 import { after, type NextRequest, NextResponse } from "next/server";
-import {
-  aiProvider,
-  ChatApiRequestSchema,
-  classifyAIDegradation,
-  createTelemetryContext,
-  getAgent,
-  getCapabilityProfile,
-  getChatResumableStreamContext,
-  getErrorMessage,
-  recordAIUsage,
-} from "@/lib/ai";
+import { createChatAgent } from "@/lib/ai/agents/chat";
 import { resolveChatContext } from "@/lib/ai/context/resolve-chat-context";
+import { getCapabilityProfile } from "@/lib/ai/core/capability-profiles";
+import { classifyAIDegradation } from "@/lib/ai/core/degradation";
+import { aiProvider } from "@/lib/ai/core/provider";
+import { getChatResumableStreamContext } from "@/lib/ai/core/resumable-streams";
 import { createNexusNoteStreamResponse } from "@/lib/ai/core/streaming";
+import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { buildPersonalization } from "@/lib/ai/personalization";
+import { ChatApiRequestSchema } from "@/lib/ai/validation";
 import { APIError, handleError } from "@/lib/api";
+import { checkRateLimitOrThrow } from "@/lib/api/rate-limit";
 import { auth } from "@/lib/auth";
 import { syncConversationKnowledge } from "@/lib/chat/conversation-knowledge";
 import { buildConversationMemoryContext } from "@/lib/chat/conversation-memory";
@@ -39,7 +36,6 @@ import {
 } from "@/lib/chat/conversation-repository";
 import { isUuidString } from "@/lib/chat/session-id";
 import { getUserGrowthContext } from "@/lib/growth/generation-context";
-import { checkRateLimitOrThrow } from "@/lib/rate-limit";
 
 export const maxDuration = 300;
 
@@ -176,7 +172,8 @@ export async function POST(request: NextRequest) {
     const generationContext =
       profileId === "LEARN_ASSIST" ? undefined : await getUserGrowthContext(userId);
 
-    const agent = await getAgent(profileId, {
+    const agent = await createChatAgent({
+      profile: profileId,
       userId,
       behaviorPrompt,
       skinPrompt,

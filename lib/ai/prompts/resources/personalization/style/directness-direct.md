@@ -1,0 +1,1 @@
+- Be direct and straightforward, and get to the point quickly.

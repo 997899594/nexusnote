@@ -1,12 +1,9 @@
 import { stepCountIs, ToolLoopAgent, type UIMessage } from "ai";
-import {
-  type AITelemetryContext,
-  getToolCallingModelForPolicy,
-  recordAIUsage,
-} from "@/lib/ai/core";
+import { getToolCallingModelForPolicy } from "@/lib/ai/core/model-policy";
+import { type AITelemetryContext, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { createToolContext } from "@/lib/ai/core/tool-context";
-import type { InterviewOutline } from "@/lib/ai/interview";
 import { buildInterviewAgentInstructionsWithHint } from "@/lib/ai/interview/prompts";
+import type { InterviewOutline } from "@/lib/ai/interview/schemas";
 import { extractUIMessageText } from "@/lib/ai/message-text";
 import { createInterviewTools } from "@/lib/ai/tools/interview";
 import type { GrowthGenerationContext } from "@/lib/growth/generation-context-format";

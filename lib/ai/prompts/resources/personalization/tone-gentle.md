@@ -1,0 +1,1 @@
+- Prefer warm, supportive phrasing while staying concrete.

@@ -6,12 +6,9 @@
 
 import { generateText, Output, tool } from "ai";
 import { z } from "zod";
-import {
-  createTelemetryContext,
-  getErrorMessage,
-  getJsonModelForPolicy,
-  recordAIUsage,
-} from "@/lib/ai/core";
+import { getJsonModelForPolicy } from "@/lib/ai/core/model-policy";
+import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
+import { renderPromptResource } from "@/lib/ai/prompts/load-prompt";
 
 // ============================================
 // Schemas
@@ -99,6 +96,28 @@ async function generateStructuredLearningOutput<T>({
   }
 }
 
+function buildMindMapPrompt(params: { topic: string; maxDepth: number; content?: string }) {
+  if (params.content) {
+    return renderPromptResource("learn/mind-map-with-content-user.md", {
+      topic: params.topic,
+      max_depth: params.maxDepth,
+      content: params.content.slice(0, 2000),
+    });
+  }
+
+  return renderPromptResource("learn/mind-map-user.md", {
+    topic: params.topic,
+    max_depth: params.maxDepth,
+  });
+}
+
+function buildSummaryPrompt(content: string, lengthGuide: string) {
+  return renderPromptResource("learn/summarize-user.md", {
+    content: content.slice(0, 4000),
+    summary_length: lengthGuide,
+  });
+}
+
 // ============================================
 // Tool Factories
 // ============================================
@@ -122,21 +141,11 @@ export function createEnhanceTools(userId: string) {
     }),
 
     execute: async ({ topic, content, maxDepth }) => {
-      const prompt = content
-        ? `基于以下内容，为主题「${topic}」生成思维导图结构。
-
-内容：
-${content.slice(0, 2000)}
-
-要求：
-- 最大层级深度：${maxDepth}
-- 每个父节点最多 5 个子节点
-- 节点按逻辑分组`
-        : `为主题「${topic}」生成思维导图结构。
-
-要求：
-- 最大层级深度：${maxDepth}
-- 每个父节点最多 5 个子节点`;
+      const prompt = buildMindMapPrompt({
+        topic,
+        content,
+        maxDepth,
+      });
 
       try {
         const result = await generateStructuredLearningOutput({
@@ -193,14 +202,7 @@ ${content.slice(0, 2000)}
         detailed: "300-500 字",
       };
 
-      const prompt = `总结以下内容：
-
-${content.slice(0, 4000)}
-
-要求：
-- 摘要长度：${lengthGuide[length]}
-- 返回适合直接展示的摘要正文
-- style 只能是 bullet_points、paragraph、key_takeaways 之一`;
+      const prompt = buildSummaryPrompt(content, lengthGuide[length]);
 
       try {
         const result = await generateStructuredLearningOutput({

@@ -7,7 +7,7 @@ import type {
   PresentOutlinePreviewInputSchema,
   PresentOutlinePreviewOutput,
 } from "@/lib/ai/tools/interview";
-import { isInterviewVisibleTool } from "@/lib/ai/tools/shared";
+import { isInterviewVisibleTool } from "@/lib/ai/tools/shared/display-contract";
 import type { OutlineDisplay } from "./models";
 import { type InterviewOutline, InterviewOutlineSchema } from "./schemas";
 
@@ -115,15 +115,6 @@ export function getInterviewMessageOptions(message: InterviewUIMessage): string[
   }
 
   return [];
-}
-
-export function getInterviewMessageMode(message: InterviewUIMessage): "question" | "outline" {
-  const toolPart = getLatestInterviewToolPart(message);
-  if (!toolPart) {
-    return "question";
-  }
-
-  return getToolName(toolPart) === "presentOutlinePreview" ? "outline" : "question";
 }
 
 function normalizePracticeType(

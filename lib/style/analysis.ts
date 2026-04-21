@@ -8,13 +8,34 @@
 import { generateText, Output, type UIMessage } from "ai";
 import { z } from "zod";
 import { db, eq, userProfiles } from "@/db";
-import { getJsonModelForPolicy } from "@/lib/ai/core";
+import { getJsonModelForPolicy } from "@/lib/ai/core/model-policy";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { extractUIMessageText } from "@/lib/ai/message-text";
+import { renderPromptResource } from "@/lib/ai/prompts/load-prompt";
 import { loadConversationMessages } from "@/lib/chat/conversation-messages";
 import { getOwnedConversation } from "@/lib/chat/conversation-repository";
 import { getUserProfile } from "@/lib/profile";
-import { type EMAValue, updateEMA } from "./ema";
+import type { EMAValue } from "@/types/profile";
+
+const DEFAULT_EMA_ALPHA = 0.3;
+
+function updateEMA(
+  current: { value: number; confidence: number; samples: number; lastAnalyzedAt?: string },
+  newValue: number,
+  alpha: number = DEFAULT_EMA_ALPHA,
+): EMAValue {
+  const clampedValue = Math.max(0, Math.min(1, newValue));
+  const newSamples = current.samples + 1;
+  const newEMA = alpha * clampedValue + (1 - alpha) * current.value;
+  const newConfidence = Math.min(0.95, current.confidence + (1 - current.confidence) * 0.1);
+
+  return {
+    value: Math.max(0, Math.min(1, newEMA)),
+    confidence: newConfidence,
+    samples: newSamples,
+    lastAnalyzedAt: new Date().toISOString(),
+  };
+}
 
 // ============================================
 // Type Definitions
@@ -186,41 +207,23 @@ export async function analyzeConversationStyle(
     throw new Error("Insufficient text content for style analysis");
   }
 
-  // Build the analysis prompt
-  const systemPrompt = `You are an expert in linguistic style analysis and psycholinguistics.
-Your task is to analyze the user's writing style across multiple dimensions.
+  const systemPrompt = renderPromptResource("style-analysis-system.md", {
+    big_five_policy: includeBigFive
+      ? "Also analyze the Big Five personality traits based on language patterns. Note that this is for user personalization and the user has consented to this analysis."
+      : "Do NOT include Big Five analysis unless explicitly requested.",
+  });
 
-Rate each dimension on a scale from 0.0 to 1.0.
-Be objective and precise in your assessment.
-Consider patterns across all messages, not just individual messages.
-
-${includeBigFive ? `Also analyze the Big Five personality traits based on language patterns. Note that this is for user personalization and the user has consented to this analysis.` : `Do NOT include Big Five analysis unless explicitly requested.`}`;
-
-  const userPrompt = `Analyze the writing style in the following user messages:
-
---- CONVERSATION START ---
-${conversationText}
---- CONVERSATION END ---
-
-Provide a comprehensive analysis following the JSON schema. Consider:
-- Vocabulary complexity: word variety, technical terms, sophistication
-- Sentence complexity: clause structure, nesting, variety
-- Abstraction level: concrete examples vs abstract concepts
-- Directness: straightforward vs circumlocutory expression
-- Conciseness: brief vs verbose communication
-- Formality: casual/slang vs formal/academic register
-- Emotional intensity: neutral vs expressive language
-
-${
-  includeBigFive
-    ? `For Big Five traits, analyze language patterns that correlate with:
+  const userPrompt = renderPromptResource("style-analysis-user.md", {
+    conversation_text: conversationText,
+    big_five_guidance: includeBigFive
+      ? `For Big Five traits, analyze language patterns that correlate with:
 - Openness: metaphor use, creative expression, topic diversity
 - Conscientiousness: structure, planning language, detail orientation
 - Extraversion: assertiveness, social language, energy
 - Agreeableness: cooperative vs competitive language, empathy indicators
 - Neuroticism: anxiety words, emotional variability, certainty markers`
-    : `Exclude Big Five analysis.`
-}`;
+      : "Exclude Big Five analysis.",
+  });
 
   const startedAt = Date.now();
   const telemetry = createTelemetryContext({
@@ -397,48 +400,5 @@ export async function getUserStyleProfile(userId: string): Promise<UserStyleProf
     totalMessagesAnalyzed: profile.totalMessagesAnalyzed || 0,
     totalConversationsAnalyzed: profile.totalConversationsAnalyzed || 0,
     lastAnalyzedAt: profile.lastAnalyzedAt,
-  };
-}
-
-/**
- * Get user style metrics summary
- *
- * Returns a simplified summary of style metrics for display purposes.
- *
- * @param userId - User ID
- * @returns Simplified metrics object or null
- */
-export async function getUserStyleSummary(userId: string): Promise<{
-  vocabularyComplexity: number;
-  sentenceComplexity: number;
-  abstractionLevel: number;
-  directness: number;
-  conciseness: number;
-  formality: number;
-  emotionalIntensity: number;
-  confidence: number;
-  samples: number;
-} | null> {
-  const profile = await getUserStyleProfile(userId);
-
-  if (!profile) {
-    return null;
-  }
-
-  // Average confidence across all metrics
-  const confidences = Object.values(profile.metrics).map((m) => m.confidence);
-  const avgConfidence = confidences.reduce((sum, c) => sum + c, 0) / confidences.length;
-  const totalSamples = profile.metrics.vocabularyComplexity.samples;
-
-  return {
-    vocabularyComplexity: profile.metrics.vocabularyComplexity.value,
-    sentenceComplexity: profile.metrics.sentenceComplexity.value,
-    abstractionLevel: profile.metrics.abstractionLevel.value,
-    directness: profile.metrics.directness.value,
-    conciseness: profile.metrics.conciseness.value,
-    formality: profile.metrics.formality.value,
-    emotionalIntensity: profile.metrics.emotionalIntensity.value,
-    confidence: avgConfidence,
-    samples: totalSamples,
   };
 }

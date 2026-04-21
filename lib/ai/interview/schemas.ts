@@ -108,6 +108,7 @@ export const InterviewApiMessageSchema = z.object({
 });
 
 export type InterviewApiMessage = z.infer<typeof InterviewApiMessageSchema>;
+export type InterviewNextFocus = z.infer<typeof InterviewNextFocusSchema>;
 export type InterviewPhase = z.infer<typeof InterviewPhaseSchema>;
 export type InterviewOutline = z.infer<typeof InterviewOutlineSchema>;
 export type InterviewState = z.infer<typeof InterviewStateSchema>;

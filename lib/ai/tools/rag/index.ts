@@ -7,15 +7,14 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { expandNoteBackedKnowledgeSourceTypes } from "@/lib/knowledge/source-types";
-import { hybridSearch, type SourceType } from "@/lib/rag";
+import type { SourceType } from "@/lib/rag/chunker";
+import { hybridSearch } from "@/lib/rag/hybrid-search";
 
-export const HybridSearchSchema = z.object({
+const HybridSearchSchema = z.object({
   query: z.string().min(1).max(500),
   topK: z.number().int().min(1).max(20).default(5),
   sourceTypes: z.array(z.enum(["note", "conversation", "course_section"])).optional(),
 });
-
-export type HybridSearchInput = z.infer<typeof HybridSearchSchema>;
 
 /**
  * 创建 RAG 工具（带 userId 权限验证）

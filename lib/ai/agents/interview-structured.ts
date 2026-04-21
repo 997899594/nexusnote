@@ -1,20 +1,14 @@
 import { stepCountIs, ToolLoopAgent, type UIMessage } from "ai";
-import {
-  type AITelemetryContext,
-  getToolCallingModelForPolicy,
-  recordAIUsage,
-} from "@/lib/ai/core";
+import { getToolCallingModelForPolicy } from "@/lib/ai/core/model-policy";
+import { type AITelemetryContext, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { createToolContext } from "@/lib/ai/core/tool-context";
-import {
-  buildStructuredInterviewAgentInstructions,
-  evaluateInterviewSufficiency,
-  extractInterviewState,
-  extractLatestUserMessageFromUIMessages,
-  getInterviewMessageText,
-  type InterviewApiMessage,
-  type InterviewOutline,
-  validateOutlineForState,
-} from "@/lib/ai/interview";
+import { evaluateInterviewSufficiency } from "@/lib/ai/interview/evaluate-sufficiency";
+import { extractInterviewState } from "@/lib/ai/interview/extract-state";
+import { extractLatestUserMessageFromUIMessages } from "@/lib/ai/interview/message-history";
+import type { InterviewApiMessage, InterviewOutline } from "@/lib/ai/interview/schemas";
+import { buildStructuredInterviewAgentInstructions } from "@/lib/ai/interview/structured-prompts";
+import { getInterviewMessageText } from "@/lib/ai/interview/ui";
+import { validateOutlineForState } from "@/lib/ai/interview/validate-outline";
 import { createStructuredInterviewTools } from "@/lib/ai/tools/interview-structured";
 import type { GrowthGenerationContext } from "@/lib/growth/generation-context-format";
 

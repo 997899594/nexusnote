@@ -1,4 +1,4 @@
-import type { InterviewOutline } from "@/lib/ai/interview";
+import type { InterviewOutline } from "@/lib/ai/interview/schemas";
 import type { GrowthGenerationContext } from "@/lib/growth/generation-context-format";
 import { expandInterviewOutlineToCourseOutline } from "@/lib/learning/course-outline";
 import { saveCourseFromOutline } from "@/lib/learning/course-service";

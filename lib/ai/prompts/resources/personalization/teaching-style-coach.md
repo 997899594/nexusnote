@@ -1,0 +1,1 @@
+- Teach like a coach: emphasize drills, corrections, and next actions.

@@ -9,17 +9,14 @@
 
 import { embed, generateText, Output } from "ai";
 import { and, eq, sql } from "drizzle-orm";
+import { z } from "zod";
 import { db } from "@/db";
 import { notes, noteTags, tags } from "@/db/schema";
-import { aiProvider, getJsonModelForPolicy } from "@/lib/ai";
+import { getJsonModelForPolicy } from "@/lib/ai/core/model-policy";
+import { aiProvider } from "@/lib/ai/core/provider";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
+import { loadPromptResource, renderPromptResource } from "@/lib/ai/prompts/load-prompt";
 import { syncTagUsageCount } from "@/lib/tags/usage-count";
-import {
-  TAG_GENERATION_SYSTEM_PROMPT,
-  TAG_GENERATION_USER_PROMPT,
-  type TagGenerationResult,
-  TagGenerationResultSchema,
-} from "../prompts/tag-generation";
 
 // 配置参数
 const CONFIG = {
@@ -30,6 +27,24 @@ const CONFIG = {
   /** 单个标签最大长度 */
   MAX_TAG_LENGTH: 100,
 } as const;
+
+const TAG_GENERATION_SYSTEM_PROMPT = loadPromptResource("tag-generation-system.md");
+const TagGenerationResultSchema = z
+  .object({
+    tags: z.array(z.string()).min(1).max(5),
+    confidence: z.array(z.number().min(0).max(1)),
+  })
+  .refine((data) => data.tags.length === data.confidence.length, {
+    message: "tags 和 confidence 数组长度必须一致",
+  });
+
+type TagGenerationResult = z.infer<typeof TagGenerationResultSchema>;
+
+function buildTagGenerationUserPrompt(content: string): string {
+  return renderPromptResource("tag-generation-user.md", {
+    content: content.slice(0, 3000),
+  });
+}
 
 class TagGenerationService {
   /**
@@ -99,7 +114,7 @@ class TagGenerationService {
         model: getJsonModelForPolicy("interactive-fast"),
         output: Output.object({ schema: TagGenerationResultSchema }),
         system: TAG_GENERATION_SYSTEM_PROMPT,
-        prompt: TAG_GENERATION_USER_PROMPT(content),
+        prompt: buildTagGenerationUserPrompt(content),
         temperature: 0.3,
         maxRetries: 2,
       });

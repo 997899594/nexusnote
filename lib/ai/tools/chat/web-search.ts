@@ -7,12 +7,10 @@
 import { tool } from "ai";
 import { z } from "zod";
 
-export const WebSearchSchema = z.object({
+const WebSearchSchema = z.object({
   query: z.string().min(1).max(500),
   limit: z.number().int().min(1).max(10).default(5),
 });
-
-export type WebSearchInput = z.infer<typeof WebSearchSchema>;
 
 /**
  * 创建网页搜索工具（绑定 userId）

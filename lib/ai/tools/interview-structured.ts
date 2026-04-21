@@ -1,7 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import type { ToolContext } from "@/lib/ai/core/tool-context";
-import type { InterviewNextFocusSchema, InterviewOutlineSchema } from "@/lib/ai/interview";
+import type { InterviewNextFocus, InterviewOutline } from "@/lib/ai/interview/schemas";
 import {
   type PresentOptionsOutput,
   PresentOutlinePreviewInputSchema,
@@ -14,8 +14,8 @@ const StructuredPresentOptionsBaseInputSchema = z.object({
 });
 
 interface CreateStructuredInterviewToolsOptions {
-  forcedQuestionTargetField?: z.infer<typeof InterviewNextFocusSchema>;
-  validateOutline?: (outline: z.infer<typeof InterviewOutlineSchema>) =>
+  forcedQuestionTargetField?: InterviewNextFocus;
+  validateOutline?: (outline: InterviewOutline) =>
     | {
         valid: true;
       }

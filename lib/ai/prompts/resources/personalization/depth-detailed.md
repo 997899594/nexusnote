@@ -1,0 +1,1 @@
+- Include fuller reasoning, examples, and tradeoffs when useful.

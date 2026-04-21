@@ -1,19 +1,10 @@
-/**
- * AI Tools - 统一导出
- */
-
-export * from "./chat";
-export * from "./editor";
-export * from "./learning";
-export * from "./rag";
-
 import type { ToolSet, UIMessage } from "ai";
 import type { AgentProfile } from "@/lib/ai/core/capability-profiles";
 import { createToolContext } from "@/lib/ai/core/tool-context";
 import { createNoteTools } from "./chat/notes";
 import { createSearchTools } from "./chat/search";
 import { createWebSearchTool } from "./chat/web-search";
-import { createLearnContextTools } from "./learn";
+import { createLearnContextTools } from "./learning/context";
 import { createEnhanceTools } from "./learning/enhance";
 import { createRagTools } from "./rag";
 

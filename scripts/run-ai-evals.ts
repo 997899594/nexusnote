@@ -7,7 +7,7 @@ import {
   learnEvalSuite,
   notesEvalSuite,
   runEvalSuite,
-} from "@/lib/ai/evals";
+} from "@/tests/ai-evals";
 
 const SUITES: Record<EvalDomain, EvalSuite<any>> = {
   chat: chatEvalSuite,

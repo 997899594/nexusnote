@@ -2,11 +2,12 @@
 
 import type { NextRequest } from "next/server";
 import { z } from "zod";
-import { aiProvider, runGenerateCourseSectionWorkflow } from "@/lib/ai";
+import { aiProvider } from "@/lib/ai/core/provider";
+import { runGenerateCourseSectionWorkflow } from "@/lib/ai/workflows/generate-course-section";
 import { APIError, handleError } from "@/lib/api";
+import { checkRateLimitOrThrow } from "@/lib/api/rate-limit";
 import { auth } from "@/lib/auth";
 import { createLearnTrace } from "@/lib/learning/observability";
-import { checkRateLimitOrThrow } from "@/lib/rate-limit";
 
 export const maxDuration = 300;
 

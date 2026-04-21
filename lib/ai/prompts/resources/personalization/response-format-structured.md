@@ -1,0 +1,1 @@
+- Prefer sections, bullets, and explicit structure.

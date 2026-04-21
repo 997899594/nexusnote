@@ -1,0 +1,1 @@
+- Keep responses concise and prioritize key information.

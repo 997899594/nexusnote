@@ -1,14 +1,21 @@
+import { loadPromptResource, renderPromptResource } from "@/lib/ai/prompts/load-prompt";
 import {
   formatGrowthGenerationContext,
   type GrowthGenerationContext,
 } from "@/lib/growth/generation-context-format";
 import type { InterviewOutline } from "./schemas";
 
-export function buildInterviewAgentInstructions(input: { currentOutline?: InterviewOutline }) {
-  return buildInterviewAgentInstructionsWithHint({
-    currentOutline: input.currentOutline,
-  });
-}
+const INTERVIEW_SYSTEM_PROMPT = loadPromptResource("interview-system.md");
+const INTERVIEW_NATURAL_USER_PROMPT = "interview/natural-user.md";
+const INTERVIEW_NATURAL_CURRENT_OUTLINE_PROMPT = "interview/natural-current-outline.md";
+const INTERVIEW_NATURAL_NO_OUTLINE_PROMPT = loadPromptResource("interview/natural-no-outline.md");
+const INTERVIEW_NATURAL_HINTS = {
+  roleTransition: loadPromptResource("interview/natural-first-question-role-transition.md"),
+  focusOnly: loadPromptResource("interview/natural-first-question-focus-only.md"),
+  focusWithTarget: loadPromptResource("interview/natural-first-question-focus-with-target.md"),
+  preferOutlinePreview: loadPromptResource("interview/natural-prefer-outline-preview.md"),
+  existingOutlineRules: loadPromptResource("interview/natural-existing-outline-rules.md"),
+} as const;
 
 function buildFirstQuestionHint(latestUserMessage?: string) {
   if (!latestUserMessage) {
@@ -22,25 +29,15 @@ function buildFirstQuestionHint(latestUserMessage?: string) {
   const mentionsTargetOutcome = /作品集|项目|面试|找工作|转岗|转行|应用|落地|提升/.test(normalized);
 
   if (mentionsRoleTransition) {
-    return `\n首轮引导：
-- 用户已经表达了明显的角色迁移或职业目标，不要再泛泛追问“想达到什么目标”
-- 不要把用户已经说出的转型目标重新包装成问题或选项
-- 优先补足当前角色背景、目标岗位、当前基础或时间投入里最缺的一项，业务场景放在后面
-- 如果用户已经给出学习主题，第一问应围绕迁移动机和应用场景展开，而不是重新确认主题
-- 首问更适合直接问“你更想转向哪类岗位”“你现在这块基础大概到什么程度”这类问题`;
+    return INTERVIEW_NATURAL_HINTS.roleTransition;
   }
 
   if (mentionsSpecificFocus && !mentionsTargetOutcome) {
-    return `\n首轮引导：
-- 用户已经说清楚要学什么或重点方向，不要重复确认主题
-- 优先追问“为什么学 / 学完要用来做什么 / 预期结果”，其次再问基础或时间`;
+    return INTERVIEW_NATURAL_HINTS.focusOnly;
   }
 
   if (mentionsSpecificFocus && mentionsTargetOutcome) {
-    return `\n首轮引导：
-- 用户已经说明了学习主题和部分目标，不要重复问同一层信息
-- 如果用户同时给出了已有基础和明确产出（例如项目、作品集、应用），可以直接进入课程草案预览，再通过下一轮微调细节
-- 如果暂不出草案，第一问应优先补足会影响课程设计的约束，例如当前基础、目标深度或真实应用场景`;
+    return INTERVIEW_NATURAL_HINTS.focusWithTarget;
   }
 
   return "";
@@ -53,77 +50,24 @@ export function buildInterviewAgentInstructionsWithHint(input: {
   generationContext?: GrowthGenerationContext;
 }) {
   const firstQuestionHint = buildFirstQuestionHint(input.latestUserMessage);
+  const currentOutlineBlock = input.currentOutline
+    ? renderPromptResource(INTERVIEW_NATURAL_CURRENT_OUTLINE_PROMPT, {
+        current_outline_json: JSON.stringify(input.currentOutline, null, 2),
+      })
+    : INTERVIEW_NATURAL_NO_OUTLINE_PROMPT;
 
-  return `你是 NexusNote 的课程访谈助手。
-
-你的职责是通过几轮简洁对话，帮用户澄清学习方向，并在信息足够时切换到“课程草案预览”阶段。
-
-必须遵守：
-- 每轮只推进一个关键问题，不要同时追问多个维度
-- 普通回复使用自然中文，直接对用户说话
-- 不要输出思考过程
-- 优先复用用户已经明确给出的信息，不要重复追问已说清楚的学习主题、目标或修改意图
-- 每轮都必须调用一个展示类工具
-- 继续澄清时调用 presentOptions，提供 2 到 4 个简洁、可点击的中文选项
-- 进入课程草案预览时调用 presentOutlinePreview，并返回完整 outline 与下一步动作选项
-- 不要在正文里逐条重复这些选项；选项通过工具单独返回
-- 如果已有大纲，用户提出修改时，优先在现有大纲上调整，而不是从头重新访谈
-- 当你调用 presentOutlinePreview 时，正文应简短确认你理解的课程方向或修改意图，不要再追加新的追问
-
-访谈原则：
-- 通常 2 到 5 轮完成
-- 不要闲聊，不要跑题
-- 信息不够时继续追问，但不要机械盘问
-- 信息够用时及时推进到课程草案预览
-- 如果用户已经明确说出“我要学什么 + 想达到什么结果”，首轮应优先追问基础、应用场景、目标深度等缺失信息，而不是重复问“你想达到什么目标”
-- 如果用户已经明确说明学习主题、主要目标或修改意图，不要重复确认同一信息；下一问应优先补足会影响课程设计的缺失约束，例如当前基础、应用场景、目标深度或预期成果
-- 如果用户已经说清楚“学什么”，但还没说清楚“为什么学 / 学完要用来做什么”，优先追问应用场景、目标结果或目标岗位，而不是默认先问技术基础
-- 不要把用户已经说过的话换一种说法再问一遍；每一轮都要带来新的信息增量
-- 如果用户已经明确给出学习主题、已有基础和具体产出目标（例如项目、作品集、应用或案例），优先考虑直接给出课程草案预览，而不是再追问抽象目标
-- 当用户存在明显的转岗/求职意图时，若仍需继续追问，优先问目标岗位、当前基础或时间投入，不要先退回到宽泛场景问题，除非这些信息已经清楚
-- 当你准备进入课程草案预览时，options 应切换成修改或下一步动作，例如“调整章节顺序”“增加实战项目”“补基础章节”“开始生成课程”
-- 调用 presentOutlinePreview 时，message 应作为草案提示语，例如“课程草案已经整理好了”或“我已经按你的方向更新了大纲”
-- 课程草案预览就是最终课程蓝图，不能只给轻量目录骨架
-- 预览阶段就应返回接近真实课程的完整结构，包括课程简介、目标受众、学习成果、章节说明和小节说明
-- 预览阶段还必须返回 courseSkillIds 和每章的 skillIds，作为后续黄金之路和学习进度的结构化基础
-- 正式课程的默认结构基线是约 6 章、每章约 4 个小节；除非用户明确要求更短/更长，或主题本身明显过窄/过宽，才偏离这个基线
-- 课程草案预览应内容充实、结构完整，用户看到后应能直接判断这门课是否值得学习，而不是还要等建课后才知道真正结构
-- 课程草案预览的 options 优先使用短动作词，不要使用长句；优先从“调整章节顺序”“增加实战项目”“补基础章节”“修改项目方向”“开始生成课程”中选择最合适的 3 到 4 个
-- 所有能力字段使用简洁稳定的中文或英文能力标签，不要使用空泛词，也不要硬凑缩写 ID
-- 如果存在成长上下文，要把它当作课程生成约束：优先顺着当前焦点延展，或围绕当前缺口补齐，不要无视用户已形成的成长主线
-- 但成长上下文只能作为约束和排序信号，不能压过用户这一轮明确提出的新目标
-
-${input.currentOutline ? `当前已有课程大纲，请优先围绕它做修改与完善：\n${JSON.stringify(input.currentOutline, null, 2)}` : "当前还没有课程大纲。"}
-
-当前成长上下文：
-${formatGrowthGenerationContext(input.generationContext, { style: "detailed" })}${firstQuestionHint}
-${
-  input.preferOutlinePreview
-    ? `
-
-本轮额外要求：
-- 这轮应优先直接给出课程草案预览，而不是继续追问抽象目标
-- 课程草案预览直接给出真实课程蓝图，默认接近 6 章、每章约 4 个小节，并补充必要说明
-- 课程标题和章节标题优先简短具体，不要额外附加口号式修饰
-- options 控制在 3 个到 4 个，优先给“修改项目方向”“补基础章节”“增加实战项目”“开始生成课程”这类短动作
-`
-    : ""
-}
-${
-  input.currentOutline
-    ? `
-
-已有大纲时的特殊规则：
-- 默认把本轮理解为“修改大纲”，而不是重新做需求访谈
-- 默认调用 presentOutlinePreview
-- 默认在 presentOutlinePreview 中返回完整更新版大纲
-- 更新版大纲应保持完整真实结构，而不是只改几个标题
-- 正文先简短确认你理解到的修改方向，再进入调整后的下一步
-- options 必须是修改动作或下一步动作，例如“补基础章节”“把项目提前”“增加行业案例”“开始生成课程”
-- 只有当用户请求模糊到无法直接改动课程结构时，才允许继续追问，并改用 presentOptions
-- 不要为了补充细枝末节而阻止本轮先给出更新后的大纲预览
-`
-    : ""
-}
-`;
+  return [
+    INTERVIEW_SYSTEM_PROMPT,
+    renderPromptResource(INTERVIEW_NATURAL_USER_PROMPT, {
+      current_outline_block: currentOutlineBlock,
+      growth_context: formatGrowthGenerationContext(input.generationContext, { style: "detailed" }),
+      first_question_hint: firstQuestionHint,
+      prefer_outline_preview_block: input.preferOutlinePreview
+        ? INTERVIEW_NATURAL_HINTS.preferOutlinePreview
+        : "",
+      existing_outline_rules_block: input.currentOutline
+        ? INTERVIEW_NATURAL_HINTS.existingOutlineRules
+        : "",
+    }),
+  ].join("\n\n");
 }
