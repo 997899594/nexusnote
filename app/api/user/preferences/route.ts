@@ -6,12 +6,8 @@
 
 import { z } from "zod";
 import { AIPreferencesSchema, DEFAULT_AI_PREFERENCES } from "@/lib/ai/preferences";
-import {
-  type AISkin,
-  getAvailableSkins,
-  getUserSkinPreference,
-  type SkinPreference,
-} from "@/lib/ai/skins";
+import type { AISkin, SkinPreference } from "@/lib/ai/skin-contract";
+import { getAvailableSkins, getUserSkinPreference } from "@/lib/ai/skins";
 import { withAuth } from "@/lib/api";
 import { getOrCreate, update } from "@/lib/profile";
 import { getUserStyleProfile, type UserStyleProfile } from "@/lib/style/analysis";

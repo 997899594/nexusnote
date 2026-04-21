@@ -1,34 +1,74 @@
 import { eq } from "drizzle-orm";
 import { aiSkins, db, userSkinPreferences } from "@/db";
-import { BUILT_IN_SKINS, getBuiltInSkin } from "./skins-built-in";
+import { buildBuiltInSkinPreviews } from "./skin-catalog";
+import type { AISkin, SkinPreference } from "./skin-contract";
+import { getBuiltInSkin } from "./skins-built-in";
 
-export interface AISkin {
-  id: string;
-  slug: string;
-  name: string;
-  description: string | null;
-  avatar: string | null;
+export interface AISkinDefinition extends AISkin {
   systemPrompt: string;
-  style: string | null;
-  examples: string[];
-  isBuiltIn: boolean;
-  isEnabled: boolean;
-  usageCount: number;
-  rating: { total: number; count: number } | null;
 }
 
-export interface SkinPreference {
-  defaultSkinSlug: string;
-  lastSwitchedAt: Date | null;
+function toSkinRecord(
+  skin: Pick<
+    AISkin,
+    | "id"
+    | "slug"
+    | "name"
+    | "description"
+    | "avatar"
+    | "style"
+    | "examples"
+    | "isBuiltIn"
+    | "isEnabled"
+    | "usageCount"
+    | "rating"
+  >,
+): AISkin {
+  return {
+    id: skin.id,
+    slug: skin.slug,
+    name: skin.name,
+    description: skin.description,
+    avatar: skin.avatar,
+    style: skin.style,
+    examples: skin.examples,
+    isBuiltIn: skin.isBuiltIn,
+    isEnabled: skin.isEnabled,
+    usageCount: skin.usageCount,
+    rating: skin.rating,
+  };
 }
 
-function buildBuiltInSkinRecord(slug: string): AISkin | null {
+function toSkinDefinitionRecord(
+  skin: Pick<
+    AISkinDefinition,
+    | "id"
+    | "slug"
+    | "name"
+    | "description"
+    | "avatar"
+    | "style"
+    | "examples"
+    | "isBuiltIn"
+    | "isEnabled"
+    | "usageCount"
+    | "rating"
+    | "systemPrompt"
+  >,
+): AISkinDefinition {
+  return {
+    ...toSkinRecord(skin),
+    systemPrompt: skin.systemPrompt,
+  };
+}
+
+function buildBuiltInSkinRecord(slug: string): AISkinDefinition | null {
   const builtIn = getBuiltInSkin(slug);
   if (!builtIn) {
     return null;
   }
 
-  return toSkinRecord({
+  return toSkinDefinitionRecord({
     id: `builtin-${builtIn.slug}`,
     slug: builtIn.slug,
     name: builtIn.name,
@@ -50,40 +90,7 @@ async function getUserSkinPreferenceRow(userId: string) {
   });
 }
 
-function toSkinRecord(
-  skin: Pick<
-    AISkin,
-    | "id"
-    | "slug"
-    | "name"
-    | "description"
-    | "avatar"
-    | "systemPrompt"
-    | "style"
-    | "examples"
-    | "isBuiltIn"
-    | "isEnabled"
-    | "usageCount"
-    | "rating"
-  >,
-): AISkin {
-  return {
-    id: skin.id,
-    slug: skin.slug,
-    name: skin.name,
-    description: skin.description,
-    avatar: skin.avatar,
-    systemPrompt: skin.systemPrompt,
-    style: skin.style,
-    examples: skin.examples,
-    isBuiltIn: skin.isBuiltIn,
-    isEnabled: skin.isEnabled,
-    usageCount: skin.usageCount,
-    rating: skin.rating,
-  };
-}
-
-export async function getSkin(slug: string): Promise<AISkin | null> {
+export async function getSkin(slug: string): Promise<AISkinDefinition | null> {
   const builtIn = buildBuiltInSkinRecord(slug);
   if (builtIn) {
     return builtIn;
@@ -97,7 +104,7 @@ export async function getSkin(slug: string): Promise<AISkin | null> {
     return null;
   }
 
-  return toSkinRecord({
+  return toSkinDefinitionRecord({
     id: skin.id,
     slug: skin.slug,
     name: skin.name,
@@ -114,10 +121,7 @@ export async function getSkin(slug: string): Promise<AISkin | null> {
 }
 
 export async function getAvailableSkins(userId: string): Promise<AISkin[]> {
-  const skins: AISkin[] = BUILT_IN_SKINS.flatMap((skin) => {
-    const record = buildBuiltInSkinRecord(skin.slug);
-    return record ? [record] : [];
-  });
+  const skins: AISkin[] = buildBuiltInSkinPreviews();
 
   const customSkins = await db.query.aiSkins.findMany({
     where: eq(aiSkins.authorId, userId),
@@ -135,7 +139,6 @@ export async function getAvailableSkins(userId: string): Promise<AISkin[]> {
         name: skin.name,
         description: skin.description,
         avatar: skin.avatar,
-        systemPrompt: skin.systemPrompt,
         style: skin.style,
         examples: (skin.examples as string[]) || [],
         isBuiltIn: skin.isBuiltIn,

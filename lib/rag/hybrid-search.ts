@@ -6,11 +6,21 @@
  */
 
 import { embedMany } from "ai";
+import type { SQL } from "drizzle-orm";
 import { db, sql } from "@/db";
-import { aiProvider } from "@/lib/ai";
+import { aiProvider } from "@/lib/ai/core/provider";
 import type { SourceType } from "./chunker";
 import { createRagTrace } from "./observability";
 import { rewriteQuery } from "./query-rewriter";
+
+const KEYWORD_SEGMENTER = new Intl.Segmenter("zh-Hans", { granularity: "word" });
+const CJK_CHAR_PATTERN = /\p{Script=Han}/u;
+const LATIN_OR_NUMBER_PATTERN = /[\p{Script=Latin}\p{N}]/u;
+const PUNCTUATION_ONLY_PATTERN = /^[\p{P}\p{S}\s]+$/u;
+// Bounds SQL predicate fan-out for lexical fallback; this is a query-shape guardrail, not a domain rule.
+const MAX_LEXICAL_TERMS = 8;
+// Standard reciprocal rank fusion constant.
+const RRF_K = 60;
 
 export interface HybridSearchResult {
   id: string;
@@ -26,6 +36,81 @@ export interface HybridSearchOptions {
   sourceTypes?: SourceType[];
   userId?: string;
   conversationContext?: string;
+}
+
+interface KeywordSearchPlan {
+  normalizedQuery: string;
+  phraseTerms: string[];
+  lexicalTerms: string[];
+  fullTextQuery: string | null;
+}
+
+function uniqueValues(values: string[]): string[] {
+  return [...new Set(values)];
+}
+
+function normalizeLexicalToken(token: string): string {
+  return token.trim().toLowerCase();
+}
+
+function isUsefulLexicalTerm(term: string): boolean {
+  if (!term || PUNCTUATION_ONLY_PATTERN.test(term)) {
+    return false;
+  }
+
+  if (CJK_CHAR_PATTERN.test(term)) {
+    return term.length >= 2;
+  }
+
+  return term.length >= 2;
+}
+
+function buildKeywordSearchPlan(query: string): KeywordSearchPlan {
+  const normalizedQuery = query.trim().replace(/\s+/g, " ");
+  const compactQuery = normalizedQuery.replace(/\s+/g, "");
+  const hasCjk = CJK_CHAR_PATTERN.test(normalizedQuery);
+
+  const segmentedTerms = [...KEYWORD_SEGMENTER.segment(normalizedQuery)]
+    .map((segment) => normalizeLexicalToken(segment.segment))
+    .filter((term) => isUsefulLexicalTerm(term));
+
+  const splitTerms = normalizedQuery
+    .split(/\s+/)
+    .map((term) => normalizeLexicalToken(term))
+    .filter((term) => isUsefulLexicalTerm(term));
+
+  const lexicalTerms = uniqueValues([...segmentedTerms, ...splitTerms])
+    .filter((term) => term !== normalizedQuery && term !== compactQuery)
+    .slice(0, MAX_LEXICAL_TERMS);
+
+  const phraseTerms = uniqueValues(
+    [compactQuery, normalizedQuery]
+      .map((term) => normalizeLexicalToken(term))
+      .filter((term) => isUsefulLexicalTerm(term)),
+  );
+
+  const fullTextTerms = lexicalTerms.filter((term) => LATIN_OR_NUMBER_PATTERN.test(term));
+  const fullTextQuery =
+    fullTextTerms.length > 0
+      ? fullTextTerms.join(" ")
+      : !hasCjk && LATIN_OR_NUMBER_PATTERN.test(normalizedQuery) && normalizedQuery.length >= 2
+        ? normalizedQuery
+        : null;
+
+  return {
+    normalizedQuery,
+    phraseTerms,
+    lexicalTerms,
+    fullTextQuery,
+  };
+}
+
+function buildContentContainsPredicate(term: string) {
+  return sql`POSITION(LOWER(${term}) IN LOWER(kec.content)) > 0`;
+}
+
+function buildBooleanMatchExpression(predicate: SQL) {
+  return sql`CASE WHEN ${predicate} THEN 1 ELSE 0 END`;
 }
 
 async function vectorSearch(
@@ -110,6 +195,11 @@ async function keywordSearch(
   Array<{ id: string; sourceId: string; sourceType: SourceType; content: string; rank: number }>
 > {
   try {
+    const plan = buildKeywordSearchPlan(query);
+    if (!plan.normalizedQuery) {
+      return [];
+    }
+
     const sourceTypeFilter =
       sourceTypes && sourceTypes.length > 0
         ? sql`AND ke.source_type IN (${sql.join(
@@ -119,29 +209,58 @@ async function keywordSearch(
         : sql``;
 
     const userFilter = userId ? sql`AND ke.user_id = ${userId}` : sql``;
+    const matchPredicates: SQL[] = [];
+    const phrasePredicates = plan.phraseTerms.map((term) => buildContentContainsPredicate(term));
+    const lexicalPredicates = plan.lexicalTerms.map((term) => buildContentContainsPredicate(term));
+
+    matchPredicates.push(...phrasePredicates, ...lexicalPredicates);
+
+    const fullTextQuery = plan.fullTextQuery
+      ? sql`plainto_tsquery('simple', ${plan.fullTextQuery})`
+      : null;
+    const fullTextMatch = fullTextQuery
+      ? sql`to_tsvector('simple', kec.content) @@ ${fullTextQuery}`
+      : null;
+    const fullTextRankExpression = fullTextQuery
+      ? sql`CASE WHEN ${fullTextMatch} THEN ts_rank_cd(to_tsvector('simple', kec.content), ${fullTextQuery}) ELSE 0 END`
+      : sql`0`;
+
+    if (fullTextMatch) {
+      matchPredicates.push(fullTextMatch);
+    }
+
+    if (matchPredicates.length === 0) {
+      return [];
+    }
+
+    const whereClause = sql`(${sql.join(matchPredicates, sql` OR `)})`;
+    const coverageExpressions = [...phrasePredicates, ...lexicalPredicates].map((predicate) =>
+      buildBooleanMatchExpression(predicate),
+    );
+    const coverageExpression =
+      coverageExpressions.length > 0 ? sql`(${sql.join(coverageExpressions, sql` + `)})` : sql`0`;
 
     const results = await db.execute<{
       id: string;
       source_id: string;
       source_type: SourceType;
       content: string;
-      rank: number;
+      coverage_score: number;
+      full_text_rank: number;
     }>(sql`
       SELECT
         kec.id,
         ke.source_id,
         ke.source_type,
         kec.content,
-        ts_rank(
-          to_tsvector('simple', kec.content),
-          plainto_tsquery('simple', ${query})
-        ) as rank
+        ${coverageExpression} as coverage_score,
+        ${fullTextRankExpression} as full_text_rank
       FROM knowledge_evidence_chunks kec
       INNER JOIN knowledge_evidence ke ON ke.id = kec.knowledge_evidence_id
-      WHERE to_tsvector('simple', kec.content) @@ plainto_tsquery('simple', ${query})
+      WHERE ${whereClause}
       ${sourceTypeFilter}
       ${userFilter}
-      ORDER BY rank DESC
+      ORDER BY coverage_score DESC, full_text_rank DESC
       LIMIT ${topK}
     `);
 
@@ -150,7 +269,7 @@ async function keywordSearch(
       sourceId: r.source_id,
       sourceType: r.source_type,
       content: r.content,
-      rank: r.rank,
+      rank: r.coverage_score + r.full_text_rank,
     }));
   } catch (error) {
     console.error("[RAG] keywordSearch error:", error);
@@ -163,12 +282,11 @@ function reciprocalRankFusion(
   keywordResults: Array<{ id: string; sourceId: string; sourceType: SourceType; content: string }>,
   topK: number,
 ): HybridSearchResult[] {
-  const k = 60;
   const scores = new Map<string, { score: number; result: HybridSearchResult }>();
 
   vectorResults.forEach((result, rank) => {
     scores.set(result.id, {
-      score: 1 / (k + rank + 1),
+      score: 1 / (RRF_K + rank + 1),
       result: {
         id: result.id,
         sourceId: result.sourceId,
@@ -182,7 +300,7 @@ function reciprocalRankFusion(
 
   keywordResults.forEach((result, rank) => {
     const existing = scores.get(result.id);
-    const rrfScore = 1 / (k + rank + 1);
+    const rrfScore = 1 / (RRF_K + rank + 1);
 
     if (existing) {
       existing.score += rrfScore;

@@ -11,8 +11,8 @@
 import { create } from "zustand";
 import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
 import { type AIPreferences, DEFAULT_AI_PREFERENCES } from "@/lib/ai/preferences";
-import type { AISkin, SkinPreference } from "@/lib/ai/skins";
-import { BUILT_IN_SKINS } from "@/lib/ai/skins-built-in";
+import { buildBuiltInSkinPreviews } from "@/lib/ai/skin-catalog";
+import type { AISkin, SkinPreference } from "@/lib/ai/skin-contract";
 
 interface UserStyleProfile {
   userId: string;
@@ -80,20 +80,7 @@ const noopStorage: StateStorage = {
 };
 
 function getBuiltInSkins(): AISkin[] {
-  return BUILT_IN_SKINS.map((skin) => ({
-    id: `builtin-${skin.slug}`,
-    slug: skin.slug,
-    name: skin.name,
-    description: skin.description,
-    avatar: skin.avatar || null,
-    systemPrompt: skin.systemPrompt,
-    style: skin.style,
-    examples: skin.examples,
-    isBuiltIn: true,
-    isEnabled: true,
-    usageCount: 0,
-    rating: null,
-  }));
+  return buildBuiltInSkinPreviews();
 }
 
 export const useUserPreferencesStore = create<UserPreferencesState>()(

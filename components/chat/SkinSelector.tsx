@@ -6,7 +6,7 @@
  */
 
 import { useState } from "react";
-import type { AISkin } from "@/lib/ai/skins";
+import type { AISkin } from "@/lib/ai/skin-contract";
 
 interface SkinSelectorProps {
   skins: AISkin[];
@@ -15,28 +15,6 @@ interface SkinSelectorProps {
   disabled?: boolean;
   variant?: "dropdown" | "radio" | "cards";
 }
-
-const SKIN_ICONS: Record<string, string> = {
-  default: "🤖",
-  best_friend: "😏",
-  girlfriend: "💕",
-  gentle_teacher: "👩‍🏫",
-  socrates: "🏛️",
-  steve_jobs: "🎯",
-  gordon: "👨‍🍳",
-  clickbait: "📢",
-};
-
-const SKIN_COLORS: Record<string, string> = {
-  default: "bg-[var(--color-hover)] text-[var(--color-text-secondary)]",
-  best_friend: "bg-[#f3f5f8] text-[#111827]",
-  girlfriend: "bg-[#f3f5f8] text-[#111827]",
-  gentle_teacher: "bg-[#f3f5f8] text-[#111827]",
-  socrates: "bg-[#f3f5f8] text-[#111827]",
-  steve_jobs: "bg-[#111827] text-white",
-  gordon: "bg-[#f3f5f8] text-[#111827]",
-  clickbait: "bg-[#f3f5f8] text-[#111827]",
-};
 
 export function SkinSelector({
   skins,
@@ -75,7 +53,7 @@ export function SkinSelector({
             title={skin.description || undefined}
           >
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-xl">{skin.avatar || SKIN_ICONS[skin.slug] || "🤖"}</span>
+              <span className="text-xl">{skin.avatar || "🤖"}</span>
               <span className="font-medium text-sm truncate text-[var(--color-text)]">
                 {skin.name}
               </span>
@@ -112,7 +90,7 @@ export function SkinSelector({
               disabled={disabled}
               className="h-4 w-4 text-[#111827]"
             />
-            <span className="text-lg">{skin.avatar || SKIN_ICONS[skin.slug] || "🤖"}</span>
+            <span className="text-lg">{skin.avatar || "🤖"}</span>
             <div className="flex-1">
               <div className="font-medium text-sm text-[var(--color-text)]">{skin.name}</div>
               {skin.description && (
@@ -139,9 +117,7 @@ export function SkinSelector({
           transition-colors
         `}
       >
-        <span className="text-lg">
-          {currentSkin?.avatar || SKIN_ICONS[currentSkin?.slug || ""] || "🤖"}
-        </span>
+        <span className="text-lg">{currentSkin?.avatar || "🤖"}</span>
         <span className="font-medium text-sm text-[var(--color-text)]">{currentSkin?.name}</span>
         <svg
           className={`w-4 h-4 transition-transform text-[var(--color-text-muted)] ${isOpen ? "rotate-180" : ""}`}
@@ -180,7 +156,7 @@ export function SkinSelector({
                   ${disabled ? "opacity-50 cursor-not-allowed" : ""}
                 `}
               >
-                <span className="text-lg">{skin.avatar || SKIN_ICONS[skin.slug] || "🤖"}</span>
+                <span className="text-lg">{skin.avatar || "🤖"}</span>
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-sm truncate text-[var(--color-text)]">
                     {skin.name}
@@ -212,28 +188,5 @@ export function SkinSelector({
         </>
       )}
     </div>
-  );
-}
-
-/**
- * Compact skin badge for inline display
- */
-export function SkinBadge({ skin, onClick }: { skin: AISkin; onClick?: () => void }) {
-  const colorClass =
-    SKIN_COLORS[skin.slug] || "bg-[var(--color-hover)] text-[var(--color-text-secondary)]";
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`
-        inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium
-        ${colorClass}
-        ${onClick ? "cursor-pointer hover:opacity-80" : ""}
-      `}
-    >
-      <span>{skin.avatar || SKIN_ICONS[skin.slug] || "🤖"}</span>
-      <span>{skin.name}</span>
-    </button>
   );
 }
