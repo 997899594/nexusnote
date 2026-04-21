@@ -11,7 +11,7 @@ This repository no longer carries:
 ## Deployment model
 
 ```text
-Code merged to main -> CI build -> image registry -> Juanie preDeploy migration gate -> deployment platform rollout
+Code merged to main -> CI build -> image registry -> Juanie Drizzle schema gate -> deployment platform rollout
 ```
 
 ## Container build strategy
@@ -19,7 +19,7 @@ Code merged to main -> CI build -> image registry -> Juanie preDeploy migration 
 - `Dockerfile.web` is the deployment source of truth
 - the image is built with a multi-stage Docker build
 - Next.js production build happens inside Docker, not on the CI host
-- the runtime image keeps the files needed for the `db:migrate` script
+- the runtime image only needs application runtime files; schema delivery is handled by Juanie from the repo config
 
 ## What the platform must provide
 
@@ -53,25 +53,22 @@ Optional but recommended:
 
 1. Push code
 2. CI builds and publishes a new image from `Dockerfile.web`
-3. Juanie creates a preDeploy migration gate for `npm run db:migrate`
-4. Operator runs the migration through Juanie and completes the gate
+3. Juanie reads `juanie.yaml -> schema.source: drizzle -> drizzle.config.mjs`
+4. Juanie applies the Drizzle schema gate before rollout
 5. Only after the gate is satisfied does the deployment platform roll out the new image
 6. Verify `/api/health`, login, interview, and learn flow
 
 ## Schema sync policy
 
-This repository treats tracked Drizzle migration files as the deployment source of truth, and migration
-execution must happen inside the Juanie preDeploy gate, not after rollout.
+This repository treats tracked Drizzle migration files as the deployment source of truth for Juanie,
+and schema application must happen inside the Juanie preDeploy gate, not after rollout.
 
-The required migration command is:
-
-```bash
-npm run db:migrate
-```
-
-The migration command is non-interactive, runs tracked migration files, and fails fast if the runtime
-schema is still incomplete after execution. NexusNote marks `/api/health` as `503` when the runtime
-schema is missing required columns, so an incomplete migration cannot hide behind a green deploy.
+- `juanie.yaml` declares `schema.source: drizzle`
+- `drizzle.config.mjs` points Juanie at the tracked Drizzle schema authoring config
+- Juanie executes tracked files from `drizzle/`
+- `juanie.yaml` declares `capabilities: [vector]` so the managed Postgres runtime includes pgvector before rollout
+- NexusNote still keeps local `bun run db:migrate` for developer workflows, but deployment no longer depends on invoking that command inside the runtime image
+- The repo still keeps `atlas.hcl` / `db/atlas/schema.sql` for local growth cutover maintenance scripts; that is not the deployment path
 
 ## Local development
 

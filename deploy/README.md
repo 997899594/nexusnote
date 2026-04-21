@@ -11,7 +11,7 @@
 ## 推荐部署方式
 
 ```text
-代码合并到主分支 -> CI 构建镜像 -> 推送镜像仓库 -> Juanie 迁移审批闸门 -> 部署平台拉取新镜像
+代码合并到主分支 -> CI 构建镜像 -> 推送镜像仓库 -> Juanie Drizzle schema 闸门 -> 部署平台拉取新镜像
 ```
 
 适用前提：
@@ -32,7 +32,7 @@
 1. 构建并推送镜像
 2. 在部署平台更新镜像 tag
 3. 注入/校验环境变量
-4. 执行 `db:migrate` 脚本
+4. 让 Juanie 按 `juanie.yaml -> schema.source: drizzle -> drizzle.config.mjs` 完成 schema gate
 5. 检查健康接口和登录链路
 
 ## 必要环境变量
@@ -49,20 +49,16 @@
 
 ## Schema Sync
 
-发布新镜像后，执行：
-
-```bash
-npm run db:migrate
-```
-
-这条命令会执行版本库中的 Drizzle 迁移文件，并在结束后校验运行时必需的表、列和索引。
+发布新镜像前，Juanie 会根据仓库中的 `drizzle.config.mjs` 与 `drizzle/` 目录应用 schema 变更。
+对于 PostgreSQL，`juanie.yaml` 已声明 `capabilities: [vector]`，平台会先兑现 pgvector 运行时能力。
+仓库里保留的 `atlas.hcl` / `db/atlas/schema.sql` 仅供本地 growth cutover 维护脚本使用，不属于部署主链。
 
 ## 镜像构建说明
 
 - `Dockerfile.web` 是唯一的镜像构建入口
 - CI 不再预生成 `.docker-runtime`
 - Next.js 构建发生在 Docker multi-stage builder 内部
-- 运行镜像同时包含脚本级启动和 Schema Sync 所需文件
+- 运行镜像不再承载部署期 schema 命令职责
 
 ## 健康检查
 

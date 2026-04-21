@@ -59,12 +59,13 @@ bun run db:studio
 The repo ships a container-image workflow:
 
 ```text
-代码合并到主分支 -> CI build -> image registry -> Juanie preDeploy migration gate -> deployment platform rollout
+代码合并到主分支 -> CI build -> image registry -> Juanie Drizzle schema gate -> deployment platform rollout
 ```
 
 - image build source of truth: `Dockerfile.web`
 - CI builds the image directly; it does not pre-package a `.docker-runtime` bundle
-- deployment migration gate uses the `db:migrate` command
+- Juanie reads [`juanie.yaml`](./juanie.yaml) and applies `schema.source: drizzle` via [`drizzle.config.mjs`](./drizzle.config.mjs) and tracked files in [`drizzle/`](./drizzle/)
+- PostgreSQL runtime capability is declared in `juanie.yaml` with `capabilities: [vector]`
 - platform config: [juanie.yaml](./juanie.yaml)
 - deployment notes: [deploy/README.md](./deploy/README.md)
 - runtime env example: [deploy/deploy.env.example](./deploy/deploy.env.example)

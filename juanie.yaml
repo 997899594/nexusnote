@@ -23,11 +23,9 @@ services:
       cpuLimit: 500m
       memoryRequest: 256Mi
       memoryLimit: 512Mi
-    # Auto-generated from package.json script db:migrate
-    migrate:
-      tool: drizzle
-      workingDirectory: .
-      command: bun run db:migrate
+    schema:
+      source: drizzle
+      config: drizzle.config.mjs
       phase: preDeploy
       executionMode: automatic
       approvalPolicy: manual_in_production
@@ -38,6 +36,8 @@ databases:
     plan: starter
     scope: project
     role: primary
+    capabilities:
+      - vector
   - name: redis
     type: redis
     plan: starter
