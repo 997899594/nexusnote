@@ -1,9 +1,10 @@
 import { generateText, Output } from "ai";
 import { z } from "zod";
-import { aiProvider, type InterviewOutline, InterviewOutlineSchema } from "@/lib/ai";
 import { getJsonModelForPolicy } from "@/lib/ai/core/model-policy";
+import { aiProvider } from "@/lib/ai/core/provider";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
-import { loadPromptResource } from "@/lib/ai/prompts/load-prompt";
+import { type InterviewOutline, InterviewOutlineSchema } from "@/lib/ai/interview/schemas";
+import { loadPromptResource, renderPromptResource } from "@/lib/ai/prompts/load-prompt";
 import { APIError } from "@/lib/api";
 import {
   formatGrowthGenerationContext,
@@ -86,25 +87,11 @@ function buildRefinementPrompt(
   alignmentBrief: CourseBlueprintAlignmentBrief,
   generationContext?: GrowthGenerationContext,
 ) {
-  return [
-    "请基于下面的课程草案，输出最终课程蓝图。",
-    "",
-    "【基础课程草案】",
-    JSON.stringify(baseOutline, null, 2),
-    "",
-    "【当前成长上下文】",
-    formatGrowthGenerationContext(generationContext, { style: "detailed" }),
-    "",
-    "【课程与当前成长的对齐简报】",
-    formatCourseBlueprintAlignmentBrief(alignmentBrief),
-    "",
-    "额外要求：",
-    "- 默认保持当前章节数量和每章小节数量不变",
-    "- 允许优化标题、描述、技能标签、练习类型和先修要求",
-    "- 如果成长上下文显示明确焦点或缺口，要让课程前后结构更贴近当前成长需要",
-    "- 不能偏离用户当前课程主题",
-    "- 直接输出完整结构化课程蓝图",
-  ].join("\n");
+  return renderPromptResource("growth/course-blueprint-user.md", {
+    base_outline: JSON.stringify(baseOutline, null, 2),
+    growth_context: formatGrowthGenerationContext(generationContext, { style: "detailed" }),
+    alignment_brief: formatCourseBlueprintAlignmentBrief(alignmentBrief),
+  });
 }
 
 export async function expandInterviewOutlineToCourseOutline({

@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { requireDynamicPageAuth } from "@/lib/auth/page";
+import { getNoteDetailCached } from "@/lib/knowledge/workbench-data";
 import { plainTextToHtml } from "@/lib/notes/content";
-import { getNoteDetailCached } from "@/lib/server/editor-data";
-import { requireDynamicPageAuth } from "@/lib/server/page-auth";
 import EditorPageClient from "./EditorPageClient";
 
 interface EditorPageProps {

@@ -12,12 +12,6 @@ import {
 } from "@/db";
 import { revalidateCareerTrees } from "@/lib/cache/tags";
 import {
-  getGenerationRunById,
-  getOrCreateGenerationRun,
-  markGenerationRunFailed,
-  markGenerationRunSucceeded,
-} from "@/lib/generation-runs";
-import {
   composeGrowthTrees,
   resolveDirectionKeys,
   sortResolvedTreesByPreference,
@@ -29,6 +23,12 @@ import { getGrowthPreference } from "@/lib/growth/preferences";
 import { buildComposeGraph, buildGrowthSnapshotArtifacts } from "@/lib/growth/projections";
 import { enqueueGrowthProjection } from "@/lib/growth/queue";
 import { getLatestCareerTreeSnapshotRow } from "@/lib/growth/snapshot-data";
+import {
+  getGenerationRunById,
+  getOrCreateGenerationRun,
+  markGenerationRunFailed,
+  markGenerationRunSucceeded,
+} from "@/lib/runtime/generation-runs";
 import type { GrowthJobExecutionOptions, JobPayload } from "./shared";
 
 const supportingRefCourses = alias(courses, "supporting_ref_courses");

@@ -2,8 +2,8 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { CareerTreesExplorer } from "@/components/career-trees/CareerTreesExplorer";
 import { FloatingHeader, WorkspacePageShell } from "@/components/shared/layout";
-import { getGrowthWorkspaceDataCached } from "@/lib/server/growth-workspace-data";
-import { getDynamicPageSession } from "@/lib/server/page-auth";
+import { getDynamicPageSession } from "@/lib/auth/page";
+import { getGrowthWorkspaceDataCached } from "@/lib/growth/workspace-data";
 
 async function CareerTreesPageContent() {
   const session = await getDynamicPageSession();

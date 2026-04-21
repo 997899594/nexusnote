@@ -1,12 +1,12 @@
 import { and, eq } from "drizzle-orm";
 import { db, knowledgeEvidence, userSkillNodeEvidence } from "@/db";
+import { recomputeNodeAggregates } from "@/lib/growth/aggregation";
+import { bumpGrowthGraphState } from "@/lib/growth/graph-state";
 import {
   getOrCreateGenerationRun,
   markGenerationRunFailed,
   markGenerationRunSucceeded,
-} from "@/lib/generation-runs";
-import { recomputeNodeAggregates } from "@/lib/growth/aggregation";
-import { bumpGrowthGraphState } from "@/lib/growth/graph-state";
+} from "@/lib/runtime/generation-runs";
 import {
   computeGrowthRefreshInputHash,
   dedupeNodeIds,

@@ -2,7 +2,7 @@ import { ArrowRight, Compass, GraduationCap, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { KnowledgeInsightStrip } from "@/components/knowledge/KnowledgeInsightStrip";
 import { getCurrentGrowthTree, resolveGrowthDisplayState } from "@/lib/growth/view-model";
-import { getGrowthWorkspaceDataCached } from "@/lib/server/growth-workspace-data";
+import { getGrowthWorkspaceDataCached } from "@/lib/growth/workspace-data";
 
 interface ProfileCareerTreeSummaryProps {
   userId: string;

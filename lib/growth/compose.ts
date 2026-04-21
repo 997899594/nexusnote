@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core";
+import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { buildDeterministicGrowthTree } from "@/lib/growth/compose-layout";
 import {
   composeGrowthDirectionMetadata,

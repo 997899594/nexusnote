@@ -10,7 +10,7 @@
 
 import { embedMany } from "ai";
 import { and, db, eq, inArray, knowledgeEvidence, knowledgeEvidenceChunks } from "@/db";
-import { aiProvider } from "@/lib/ai";
+import { aiProvider } from "@/lib/ai/core/provider";
 import { buildSourceVersionCondition } from "@/lib/growth/source-version";
 import {
   groupEvidenceSourceLinksByEvidenceId,
@@ -103,7 +103,7 @@ function buildEvidenceChunkContent(
   ]).join("\n\n");
 }
 
-export function chunkText(
+function chunkText(
   text: string,
   chunkSize: number = DEFAULT_CHUNK_SIZE,
   overlap: number = DEFAULT_OVERLAP,

@@ -11,7 +11,7 @@ import type {
   VisibleSkillTreeNode,
 } from "@/lib/growth/types";
 import { countVisibleTreeMetrics, getCurrentGrowthTree } from "@/lib/growth/view-model";
-import { selectFocusTargetFromSnapshot } from "@/lib/knowledge/focus";
+import { selectFocusTargetFromSnapshot } from "@/lib/knowledge/focus/selector";
 
 export interface ProjectionHiddenNode {
   id: string;

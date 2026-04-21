@@ -1,11 +1,7 @@
 import { generateText, Output } from "ai";
 import { z } from "zod";
-import {
-  createTelemetryContext,
-  getErrorMessage,
-  getJsonModelForPolicy,
-  recordAIUsage,
-} from "@/lib/ai/core";
+import { getJsonModelForPolicy } from "@/lib/ai/core/model-policy";
+import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import {
   type ComposeGraph,
   type ComposerVisibleNode,

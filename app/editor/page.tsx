@@ -14,11 +14,11 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { KnowledgeInsightStrip } from "@/components/knowledge/KnowledgeInsightStrip";
 import { FloatingHeader, LibraryAnalysisPageShell } from "@/components/shared/layout";
+import { requireDynamicPageAuth } from "@/lib/auth/page";
 import { getGrowthStateLabel } from "@/lib/growth/presentation";
 import { buildKnowledgeExcerpt, getKnowledgeInsightKindLabel } from "@/lib/knowledge/presentation";
+import { getNotesWorkbenchCached } from "@/lib/knowledge/workbench-data";
 import type { NoteWorkbenchItem, NoteWorkbenchKind } from "@/lib/knowledge/workbench-projection";
-import { getNotesWorkbenchCached } from "@/lib/server/editor-data";
-import { requireDynamicPageAuth } from "@/lib/server/page-auth";
 
 function formatDate(date: Date | null) {
   if (!date) return "刚刚更新";

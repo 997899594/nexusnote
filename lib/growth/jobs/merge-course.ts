@@ -1,11 +1,4 @@
 import { db } from "@/db";
-import {
-  getGenerationRunById,
-  getLatestSucceededGenerationRun,
-  getOrCreateGenerationRun,
-  markGenerationRunFailed,
-  markGenerationRunSucceeded,
-} from "@/lib/generation-runs";
 import { GROWTH_AI_MODEL_LABEL } from "@/lib/growth/constants";
 import { loadSourceEvidenceRows } from "@/lib/growth/data-access";
 import {
@@ -15,6 +8,13 @@ import {
 } from "@/lib/growth/merge-execution";
 import { listLinkedNodeEvidenceRows } from "@/lib/knowledge/evidence/selectors";
 import { listEvidenceSourceLinks } from "@/lib/knowledge/evidence/source-links";
+import {
+  getGenerationRunById,
+  getLatestSucceededGenerationRun,
+  getOrCreateGenerationRun,
+  markGenerationRunFailed,
+  markGenerationRunSucceeded,
+} from "@/lib/runtime/generation-runs";
 import {
   enqueueGrowthProjectionRefreshIfEnabled,
   type GrowthJobExecutionOptions,

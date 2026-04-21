@@ -9,7 +9,7 @@ import type {
   CareerTreeSnapshot,
   VisibleSkillTreeNode,
 } from "@/lib/growth/types";
-import { selectFocusNodeFromNodes } from "@/lib/knowledge/focus";
+import { selectFocusNodeFromNodes } from "@/lib/knowledge/focus/selector";
 
 export interface FocusNodeReference {
   id?: string | null;

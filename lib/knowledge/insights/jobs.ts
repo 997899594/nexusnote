@@ -14,11 +14,6 @@ import {
   revalidateNotesIndex,
   revalidateProfileStats,
 } from "@/lib/cache/tags";
-import {
-  getOrCreateGenerationRun,
-  markGenerationRunFailed,
-  markGenerationRunSucceeded,
-} from "@/lib/generation-runs";
 import { getLatestFocusSnapshotRow } from "@/lib/growth/projection-data";
 import { focusSnapshotPayloadSchema } from "@/lib/growth/projection-types";
 import {
@@ -26,6 +21,11 @@ import {
   hashKnowledgeInsightInputs,
 } from "@/lib/knowledge/insights/derive";
 import type { GrowthJobData } from "@/lib/queue/growth-queue";
+import {
+  getOrCreateGenerationRun,
+  markGenerationRunFailed,
+  markGenerationRunSucceeded,
+} from "@/lib/runtime/generation-runs";
 
 type JobPayload<T extends GrowthJobData["type"]> = Extract<GrowthJobData, { type: T }>;
 

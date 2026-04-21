@@ -146,7 +146,7 @@ function getNoteKindWeight(kind: NoteWorkbenchItem["kind"]): number {
   }
 }
 
-export function compareUpdatedAtDesc(left: Date | null, right: Date | null): number {
+function compareUpdatedAtDesc(left: Date | null, right: Date | null): number {
   const leftTime = left?.getTime() ?? 0;
   const rightTime = right?.getTime() ?? 0;
   return rightTime - leftTime;

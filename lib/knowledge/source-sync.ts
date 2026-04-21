@@ -4,10 +4,8 @@ import {
   enqueueKnowledgeSourceMerge,
 } from "@/lib/growth/queue";
 import { deleteEvidenceEventsBySource } from "@/lib/knowledge/events";
-import {
-  aggregateSourceEventsToKnowledgeEvidence,
-  listLinkedNodeIdsForEvidenceSource,
-} from "@/lib/knowledge/evidence";
+import { aggregateSourceEventsToKnowledgeEvidence } from "@/lib/knowledge/evidence/aggregate";
+import { listLinkedNodeIdsForEvidenceSource } from "@/lib/knowledge/evidence/selectors";
 
 interface SyncKnowledgeSourceParams {
   userId: string;

@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { InterviewOutlineSchema } from "@/lib/ai/interview";
-import { runCreateCourseWorkflow } from "@/lib/ai/workflows";
+import { InterviewOutlineSchema } from "@/lib/ai/interview/schemas";
+import { runCreateCourseWorkflow } from "@/lib/ai/workflows/create-course";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
 import {
@@ -10,11 +10,8 @@ import {
   revalidateProfileStats,
   revalidateRecentCourses,
 } from "@/lib/cache/tags";
-import {
-  computeGrowthOutlineHash,
-  getUserGrowthContext,
-  normalizeGrowthOutline,
-} from "@/lib/growth";
+import { getUserGrowthContext } from "@/lib/growth/generation-context";
+import { computeGrowthOutlineHash, normalizeGrowthOutline } from "@/lib/growth/normalize-outline";
 import { enqueueGrowthExtract, enqueueKnowledgeInsights } from "@/lib/growth/queue";
 import { ingestEvidenceEvent } from "@/lib/knowledge/events";
 import { buildCourseBlueprintAlignmentBrief } from "@/lib/learning/alignment";

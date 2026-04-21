@@ -1,12 +1,10 @@
 import { Worker } from "bullmq";
-import {
-  processGrowthComposeJob,
-  processGrowthExtractJob,
-  processGrowthMergeJob,
-  processGrowthProjectionJob,
-  processGrowthRefreshJob,
-  processKnowledgeSourceMergeJob,
-} from "@/lib/growth/jobs";
+import { processGrowthComposeJob } from "@/lib/growth/jobs/compose";
+import { processGrowthExtractJob } from "@/lib/growth/jobs/extract";
+import { processGrowthMergeJob } from "@/lib/growth/jobs/merge-course";
+import { processKnowledgeSourceMergeJob } from "@/lib/growth/jobs/merge-source";
+import { processGrowthProjectionJob } from "@/lib/growth/jobs/project";
+import { processGrowthRefreshJob } from "@/lib/growth/jobs/refresh";
 import { processKnowledgeInsightsJob } from "@/lib/knowledge/insights/jobs";
 import { getRedis } from "@/lib/redis";
 import type { GrowthJobData } from "./growth-queue";

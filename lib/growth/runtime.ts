@@ -1,12 +1,10 @@
 import { processKnowledgeInsightsJob } from "@/lib/knowledge/insights/jobs";
-import {
-  processGrowthComposeJob,
-  processGrowthExtractJob,
-  processGrowthMergeJob,
-  processGrowthProjectionJob,
-  processGrowthRefreshJob,
-  processKnowledgeSourceMergeJob,
-} from "./jobs";
+import { processGrowthComposeJob } from "./jobs/compose";
+import { processGrowthExtractJob } from "./jobs/extract";
+import { processGrowthMergeJob } from "./jobs/merge-course";
+import { processKnowledgeSourceMergeJob } from "./jobs/merge-source";
+import { processGrowthProjectionJob } from "./jobs/project";
+import { processGrowthRefreshJob } from "./jobs/refresh";
 
 const NO_FOLLOWUPS = { enqueueFollowups: false } as const;
 

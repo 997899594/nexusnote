@@ -1,9 +1,4 @@
 import { db } from "@/db";
-import {
-  getOrCreateGenerationRun,
-  markGenerationRunFailed,
-  markGenerationRunSucceeded,
-} from "@/lib/generation-runs";
 import { GROWTH_AI_MODEL_LABEL } from "@/lib/growth/constants";
 import { loadSourceEvidenceRows } from "@/lib/growth/data-access";
 import {
@@ -14,6 +9,11 @@ import {
 import { enqueueGrowthRefresh } from "@/lib/growth/queue";
 import { listLinkedNodeEvidenceRows } from "@/lib/knowledge/evidence/selectors";
 import { listEvidenceSourceLinks } from "@/lib/knowledge/evidence/source-links";
+import {
+  getOrCreateGenerationRun,
+  markGenerationRunFailed,
+  markGenerationRunSucceeded,
+} from "@/lib/runtime/generation-runs";
 import {
   computeEvidenceBatchHash,
   enqueueGrowthProjectionRefreshIfEnabled,

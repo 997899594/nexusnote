@@ -1,11 +1,7 @@
 import { generateText, Output } from "ai";
 import { z } from "zod";
-import {
-  createTelemetryContext,
-  getErrorMessage,
-  getJsonModelForPolicy,
-  recordAIUsage,
-} from "@/lib/ai/core";
+import { getJsonModelForPolicy } from "@/lib/ai/core/model-policy";
+import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { GROWTH_EXTRACT_AI_TIMEOUT_MS } from "@/lib/growth/constants";
 import type { NormalizedGrowthOutline } from "@/lib/growth/normalize-outline";
 import { buildGrowthExtractPrompt, GROWTH_EXTRACT_SYSTEM_PROMPT } from "@/lib/growth/prompts";

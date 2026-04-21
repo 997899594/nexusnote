@@ -1,9 +1,4 @@
 import { db } from "@/db";
-import {
-  getOrCreateGenerationRun,
-  markGenerationRunFailed,
-  markGenerationRunSucceeded,
-} from "@/lib/generation-runs";
 import { GROWTH_AI_MODEL_LABEL } from "@/lib/growth/constants";
 import { getCourseForGrowth } from "@/lib/growth/data-access";
 import {
@@ -14,10 +9,13 @@ import {
 import { computeGrowthOutlineHash, normalizeGrowthOutline } from "@/lib/growth/normalize-outline";
 import { enqueueGrowthMerge } from "@/lib/growth/queue";
 import { ingestEvidenceEvent } from "@/lib/knowledge/events";
+import { aggregateCourseEventsToKnowledgeEvidence } from "@/lib/knowledge/evidence/aggregate";
+import { listLinkedNodeIdsForEvidenceSource } from "@/lib/knowledge/evidence/selectors";
 import {
-  aggregateCourseEventsToKnowledgeEvidence,
-  listLinkedNodeIdsForEvidenceSource,
-} from "@/lib/knowledge/evidence";
+  getOrCreateGenerationRun,
+  markGenerationRunFailed,
+  markGenerationRunSucceeded,
+} from "@/lib/runtime/generation-runs";
 import type { GrowthJobExecutionOptions, JobPayload } from "./shared";
 
 async function enqueueMergeIfNeeded(

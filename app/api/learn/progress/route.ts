@@ -14,7 +14,7 @@ import {
 import { computeGrowthOutlineHash, normalizeGrowthOutline } from "@/lib/growth/normalize-outline";
 import { enqueueGrowthRefresh } from "@/lib/growth/queue";
 import { ingestEvidenceEvent } from "@/lib/knowledge/events";
-import { aggregateCourseEventsToKnowledgeEvidence } from "@/lib/knowledge/evidence";
+import { aggregateCourseEventsToKnowledgeEvidence } from "@/lib/knowledge/evidence/aggregate";
 import { getOwnedCourseWithOutline } from "@/lib/learning/course-repository";
 import { buildSectionOutlineNodeKey } from "@/lib/learning/outline-node-key";
 

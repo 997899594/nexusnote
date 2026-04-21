@@ -1,11 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { db, userFocusSnapshots, userProfileSnapshots } from "@/db";
 import { revalidateCareerTrees, revalidateProfileStats } from "@/lib/cache/tags";
-import {
-  getOrCreateGenerationRun,
-  markGenerationRunFailed,
-  markGenerationRunSucceeded,
-} from "@/lib/generation-runs";
 import { GROWTH_PROJECTION_RUNTIME_LABEL } from "@/lib/growth/constants";
 import {
   getLatestFocusSnapshotRow,
@@ -16,6 +11,11 @@ import {
   getLatestCareerTreeSnapshotRow,
   parseCareerTreeSnapshotPayload,
 } from "@/lib/growth/snapshot-data";
+import {
+  getOrCreateGenerationRun,
+  markGenerationRunFailed,
+  markGenerationRunSucceeded,
+} from "@/lib/runtime/generation-runs";
 import {
   enqueueKnowledgeInsightsIfEnabled,
   type GrowthJobExecutionOptions,

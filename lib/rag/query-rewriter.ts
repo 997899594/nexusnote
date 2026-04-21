@@ -10,11 +10,23 @@
  */
 
 import { generateText } from "ai";
-import { getPlainModelForPolicy } from "@/lib/ai";
+import { getPlainModelForPolicy } from "@/lib/ai/core/model-policy";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
-import { loadPromptResource } from "@/lib/ai/prompts/load-prompt";
+import { loadPromptResource, renderPromptResource } from "@/lib/ai/prompts/load-prompt";
 
 const QUERY_REWRITER_SYSTEM_PROMPT = loadPromptResource("query-rewriter-system.md");
+const buildQueryRewriterContextBlock = (conversationContext?: string) =>
+  conversationContext
+    ? renderPromptResource("query-rewriter-context-block.md", {
+        conversation_context: conversationContext,
+      })
+    : "";
+
+const buildQueryRewriterUserPrompt = (query: string, conversationContext?: string) =>
+  renderPromptResource("query-rewriter-user.md", {
+    conversation_context_block: buildQueryRewriterContextBlock(conversationContext),
+    query,
+  });
 
 export async function rewriteQuery(query: string, conversationContext?: string): Promise<string> {
   // Short queries (< 10 chars) with no context, return as-is
@@ -40,9 +52,7 @@ export async function rewriteQuery(query: string, conversationContext?: string):
       temperature: 0,
       maxOutputTokens: 100,
       system: QUERY_REWRITER_SYSTEM_PROMPT,
-      prompt: conversationContext
-        ? `对话上下文：${conversationContext}\n用户查询：${query}`
-        : `用户查询：${query}`,
+      prompt: buildQueryRewriterUserPrompt(query, conversationContext),
     });
 
     await recordAIUsage({

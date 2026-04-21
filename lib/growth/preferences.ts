@@ -20,6 +20,34 @@ export async function getGrowthPreferenceRow(userId: string) {
   });
 }
 
+export async function setSelectedGrowthDirection(
+  userId: string,
+  selectedDirectionKey: string,
+): Promise<void> {
+  const existing = await getGrowthPreferenceRow(userId);
+
+  if (existing) {
+    await db
+      .update(userCareerTreePreferences)
+      .set({
+        selectedDirectionKey,
+        selectionCount: existing.selectionCount + 1,
+        preferenceVersion: existing.preferenceVersion + 1,
+        updatedAt: new Date(),
+      })
+      .where(eq(userCareerTreePreferences.userId, userId));
+    return;
+  }
+
+  await db.insert(userCareerTreePreferences).values({
+    userId,
+    selectedDirectionKey,
+    selectionCount: 1,
+    preferenceVersion: 1,
+    updatedAt: new Date(),
+  });
+}
+
 export async function getGrowthPreference(userId: string): Promise<GrowthPreference> {
   const [preference, directionSignalRows] = await Promise.all([
     getGrowthPreferenceRow(userId),

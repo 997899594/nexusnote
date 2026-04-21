@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { withAuth } from "@/lib/api";
 import { revalidateCareerTrees } from "@/lib/cache/tags";
-import { setSelectedGrowthDirection } from "@/lib/growth/preference-write";
+import { setSelectedGrowthDirection } from "@/lib/growth/preferences";
 import { enqueueGrowthCompose } from "@/lib/growth/queue";
 import { getGrowthSnapshot } from "@/lib/growth/snapshot-data";
 import { ingestEvidenceEvent } from "@/lib/knowledge/events";

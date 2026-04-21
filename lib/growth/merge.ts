@@ -1,11 +1,7 @@
 import { generateText, Output } from "ai";
 import { z } from "zod";
-import {
-  createTelemetryContext,
-  getErrorMessage,
-  getJsonModelForPolicy,
-  recordAIUsage,
-} from "@/lib/ai/core";
+import { getJsonModelForPolicy } from "@/lib/ai/core/model-policy";
+import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import {
   GROWTH_MERGE_AI_TIMEOUT_MS,
   IN_PROGRESS_THRESHOLD,
