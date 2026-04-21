@@ -12,7 +12,6 @@ import {
   Zap,
 } from "lucide-react";
 import { type ComponentType, useState } from "react";
-import { getAIUsageLabel } from "@/lib/ai/core/usage-labels";
 
 interface UsageBreakdownItem {
   key: string;
@@ -48,6 +47,26 @@ interface ProfileAiUsagePanelProps {
 
 type TrendMode = "requests" | "tokens" | "cost";
 type UsageKind = "policy" | "workflow" | "provider";
+
+const POLICY_LABELS: Record<string, string> = {
+  "interactive-fast": "交互快速",
+  "structured-high-quality": "结构高质量",
+  "search-enabled": "联网检索",
+};
+
+const WORKFLOW_LABELS: Record<string, string> = {
+  "notes:tag-generation": "标签生成",
+  "ai-eval-judge": "AI 评测",
+  "conversation-title-generation": "标题生成",
+  "query-rewrite": "检索改写",
+  "style-analysis": "风格分析",
+  "interview-agent": "课程访谈",
+  "generate-course-section": "课程章节生成",
+};
+
+const PROVIDER_LABELS: Record<string, string> = {
+  "302.ai": "302.ai",
+};
 
 function formatCompactTokens(totalTokens: number): string {
   return totalTokens >= 1000
@@ -109,6 +128,39 @@ function getTrendLabel(mode: TrendMode): string {
     default:
       return "请求量";
   }
+}
+
+function humanizeUsageIdentifier(value: string): string {
+  return value
+    .replace(/[:/_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getAIUsageLabel(value: string, kind: UsageKind | "generic" = "generic"): string {
+  const normalized = value.trim();
+  if (!normalized) {
+    return "未知";
+  }
+
+  if (kind === "policy") {
+    return POLICY_LABELS[normalized] ?? humanizeUsageIdentifier(normalized);
+  }
+
+  if (kind === "workflow") {
+    return WORKFLOW_LABELS[normalized] ?? humanizeUsageIdentifier(normalized);
+  }
+
+  if (kind === "provider") {
+    return PROVIDER_LABELS[normalized] ?? normalized;
+  }
+
+  return (
+    POLICY_LABELS[normalized] ??
+    WORKFLOW_LABELS[normalized] ??
+    PROVIDER_LABELS[normalized] ??
+    humanizeUsageIdentifier(normalized)
+  );
 }
 
 function TrendToggle({ mode, onChange }: { mode: TrendMode; onChange: (mode: TrendMode) => void }) {

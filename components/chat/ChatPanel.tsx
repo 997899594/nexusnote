@@ -2,14 +2,23 @@
 
 import type { UIMessage } from "ai";
 import { AnimatePresence, motion } from "framer-motion";
-import { Loader2, Send, Sparkles, X } from "lucide-react";
+import {
+  Globe,
+  GraduationCap,
+  Loader2,
+  MessageCircle,
+  Plus,
+  Search,
+  Send,
+  Sparkles,
+  X,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { AIDegradationBanner, WorkspaceEmptyState } from "@/components/common";
 import { useInputProtection } from "@/components/common/useInputProtection";
-import { CHAT_COMMANDS, extractCommandContent } from "@/lib/chat/commands";
 import { cn } from "@/lib/utils";
-import { useChatStore } from "@/stores";
+import { useChatStore } from "@/stores/chat";
 import type { Command } from "@/types/chat";
 import { ChatMessage, LoadingDots } from "./ChatMessage";
 import { CommandMenu } from "./CommandMenu";
@@ -17,6 +26,59 @@ import { useChatSession } from "./useChatSession";
 
 interface ChatPanelProps {
   sessionId: string | null;
+}
+
+const CHAT_COMMANDS: Command[] = [
+  {
+    id: "search",
+    label: "Search Notes",
+    icon: Search,
+    modeLabel: "搜索笔记",
+    modeIcon: Search,
+    targetPath: "/search",
+    getQueryParams: (input: string) => ({ q: input.trim() }),
+  },
+  {
+    id: "create-note",
+    label: "Create Note",
+    icon: Plus,
+    modeLabel: "查看笔记",
+    modeIcon: Plus,
+    targetPath: "/editor",
+    getQueryParams: () => ({}),
+  },
+  {
+    id: "interview",
+    label: "Interview Mode",
+    icon: MessageCircle,
+    modeLabel: "课程访谈",
+    modeIcon: MessageCircle,
+    targetPath: "/interview",
+    getQueryParams: (input: string) => ({ msg: input.trim() }),
+  },
+  {
+    id: "generate-course",
+    label: "Generate Course",
+    icon: GraduationCap,
+    modeLabel: "生成课程",
+    modeIcon: GraduationCap,
+    targetPath: "/interview",
+    getQueryParams: (input: string) => ({ msg: input.trim() }),
+  },
+  {
+    id: "web-search",
+    label: "Web Search",
+    icon: Globe,
+    modeLabel: "联网搜索",
+    modeIcon: Globe,
+    targetPath: "/search",
+    getQueryParams: (input: string) => ({ web: input.trim() }),
+  },
+];
+
+function extractCommandContent(input: string): string {
+  const match = input.match(/^\/\S+\s*(.*)$/);
+  return match ? match[1] : "";
 }
 
 export function ChatPanel({ sessionId }: ChatPanelProps) {

@@ -13,8 +13,11 @@
 import type { UIMessage } from "ai";
 import { create } from "zustand";
 import { redirectToLogin } from "@/lib/api/client";
-import * as chatApi from "@/lib/chat/api";
-import type { ConversationSummary } from "@/types/chat";
+import type {
+  ConversationSummary,
+  ConversationsResponse,
+  UpdateSessionRequest,
+} from "@/types/chat";
 
 interface ChatStore {
   sessions: ConversationSummary[];
@@ -27,12 +30,77 @@ interface ChatStore {
   setCurrentSessionMessages: (messages: UIMessage[] | null) => void;
 }
 
+function isUnauthorizedResponse(response: Response): boolean {
+  return response.status === 401;
+}
+
+async function loadChatSessions(): Promise<ConversationSummary[]> {
+  try {
+    const response = await fetch("/api/chat-sessions");
+    if (isUnauthorizedResponse(response)) {
+      redirectToLogin();
+      return [];
+    }
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = (await response.json()) as ConversationsResponse;
+    return data.sessions || [];
+  } catch (error) {
+    console.error("[ChatStore] Failed to load sessions:", error);
+    return [];
+  }
+}
+
+async function updateChatSession(id: string, updates: UpdateSessionRequest): Promise<void> {
+  try {
+    const response = await fetch(`/api/chat-sessions/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+    });
+
+    if (isUnauthorizedResponse(response)) {
+      redirectToLogin();
+      return;
+    }
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+  } catch (error) {
+    console.error("[ChatStore] Failed to update session:", error);
+    throw error;
+  }
+}
+
+async function deleteChatSession(id: string): Promise<void> {
+  try {
+    const response = await fetch(`/api/chat-sessions/${id}`, {
+      method: "DELETE",
+    });
+
+    if (isUnauthorizedResponse(response)) {
+      redirectToLogin();
+      return;
+    }
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+  } catch (error) {
+    console.error("[ChatStore] Failed to delete session:", error);
+    throw error;
+  }
+}
+
 export const useChatStore = create<ChatStore>((set) => ({
   sessions: [],
   currentSessionMessages: null,
 
   loadSessions: async () => {
-    const sessions = await chatApi.loadSessions();
+    const sessions = await loadChatSessions();
     set({ sessions });
 
     // Trigger batch title generation if sessions have default titles
@@ -72,7 +140,7 @@ export const useChatStore = create<ChatStore>((set) => ({
   },
 
   updateSession: async (id: string, updates: Partial<ConversationSummary>) => {
-    await chatApi.updateSession(id, updates as Parameters<typeof chatApi.updateSession>[1]);
+    await updateChatSession(id, updates as UpdateSessionRequest);
     // Optimistically update local state
     set((state) => ({
       sessions: state.sessions.map((s) => (s.id === id ? { ...s, ...updates } : s)),
@@ -80,7 +148,7 @@ export const useChatStore = create<ChatStore>((set) => ({
   },
 
   deleteSession: async (id: string) => {
-    await chatApi.deleteSession(id);
+    await deleteChatSession(id);
     set((state) => ({
       sessions: state.sessions.filter((s) => s.id !== id),
     }));

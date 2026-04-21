@@ -5,7 +5,7 @@
  */
 
 import type { ToolUIPart } from "ai";
-import { isChatVisibleTool } from "@/lib/ai/tools/shared";
+import { isChatVisibleTool } from "@/lib/ai/tools/shared/display-contract";
 import { EditorConfirmDialog } from "./EditorConfirmDialog";
 import { GenericToolResult } from "./GenericToolResult";
 import { MindMapResult } from "./MindMapResult";

@@ -14,12 +14,28 @@
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { FloatingHeader } from "@/components/shared/layout";
-import { useChatStore } from "@/stores";
+import { redirectToLogin } from "@/lib/api/client";
+import { useChatStore } from "@/stores/chat";
 import { ChatHistory } from "./ChatHistory";
-import { triggerIndex } from "./index-service";
 
 interface ChatLayoutProps {
   children: React.ReactNode;
+}
+
+function triggerIndex(sessionId: string, messages: unknown): void {
+  void fetch("/api/chat-sessions/index", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionId, messages }),
+  })
+    .then((response) => {
+      if (response.status === 401) {
+        redirectToLogin();
+      }
+    })
+    .catch((error) => {
+      console.warn("[Index] Background indexing failed:", error);
+    });
 }
 
 export function ChatLayout({ children }: ChatLayoutProps) {
@@ -37,7 +53,7 @@ export function ChatLayout({ children }: ChatLayoutProps) {
     const prevId = prevSessionRef.current;
     if (prevId && prevId !== currentSessionId && currentSessionMessages) {
       console.log("[Index] Session switched, indexing:", prevId);
-      triggerIndex({ sessionId: prevId, messages: currentSessionMessages });
+      triggerIndex(prevId, currentSessionMessages);
     }
     prevSessionRef.current = currentSessionId;
   }, [currentSessionId, currentSessionMessages]);

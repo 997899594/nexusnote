@@ -5,7 +5,7 @@ import { ArrowLeft, Menu, Zap } from "lucide-react";
 import { useState } from "react";
 import { SkinSelector } from "@/components/chat/SkinSelector";
 import { cn } from "@/lib/utils";
-import { useUserPreferencesStore } from "@/stores";
+import { useUserPreferencesStore } from "@/stores/user-preferences";
 import { DrawerMenu } from "./DrawerMenu";
 import { UserAvatar } from "./UserAvatar";
 

@@ -6,7 +6,7 @@ import { useEffect, useState, useTransition } from "react";
 import { SkinSelector } from "@/components/chat/SkinSelector";
 import { useToast } from "@/components/ui/Toast";
 import { type AIPreferences, DEFAULT_AI_PREFERENCES } from "@/lib/ai/preferences";
-import { useUserPreferencesStore } from "@/stores";
+import { useUserPreferencesStore } from "@/stores/user-preferences";
 
 type LearningFormat = "text" | "video" | "mixed" | "audio" | "interactive";
 type LearningPace = "slow" | "moderate" | "fast" | "adaptive";

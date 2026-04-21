@@ -6,10 +6,18 @@ import {
   loadConversationMessages,
 } from "@/lib/chat/conversation-messages";
 import { getOwnedConversation, matchOwnedConversation } from "@/lib/chat/conversation-repository";
-import { buildPersistedMessageSnapshot } from "@/lib/chat/session-messages";
 
 type ConversationMetadata = Record<string, unknown>;
 type OwnedConversationRecord = NonNullable<Awaited<ReturnType<typeof getOwnedConversation>>>;
+interface PersistedMessageSnapshot {
+  messages: UIMessage[];
+  droppedMessages: UIMessage[];
+  droppedCount: number;
+  trimmed: boolean;
+}
+
+const MAX_PERSISTED_MESSAGES = 80;
+const MAX_PERSISTED_MESSAGE_BYTES = 120_000;
 
 function normalizeMetadata(metadata: unknown): ConversationMetadata {
   if (metadata && typeof metadata === "object" && !Array.isArray(metadata)) {
@@ -17,6 +25,39 @@ function normalizeMetadata(metadata: unknown): ConversationMetadata {
   }
 
   return {};
+}
+
+function getSerializedMessageBytes(messages: UIMessage[]): number {
+  return new TextEncoder().encode(JSON.stringify(messages)).length;
+}
+
+function buildPersistedMessageSnapshot(messages: UIMessage[]): PersistedMessageSnapshot {
+  if (messages.length === 0) {
+    return {
+      messages,
+      droppedMessages: [],
+      droppedCount: 0,
+      trimmed: false,
+    };
+  }
+
+  let persisted = messages.slice(-MAX_PERSISTED_MESSAGES);
+  let droppedCount = Math.max(0, messages.length - persisted.length);
+
+  while (
+    persisted.length > 1 &&
+    getSerializedMessageBytes(persisted) > MAX_PERSISTED_MESSAGE_BYTES
+  ) {
+    persisted = persisted.slice(1);
+    droppedCount += 1;
+  }
+
+  return {
+    messages: persisted,
+    droppedMessages: messages.slice(0, Math.max(0, messages.length - persisted.length)),
+    droppedCount,
+    trimmed: droppedCount > 0,
+  };
 }
 
 async function replaceConversationMessages(

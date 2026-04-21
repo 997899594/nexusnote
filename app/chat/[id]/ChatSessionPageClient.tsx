@@ -1,6 +1,6 @@
 "use client";
 
-import { ChatPanel } from "@/components/chat";
+import { ChatPanel } from "@/components/chat/ChatPanel";
 
 interface ChatSessionPageClientProps {
   sessionId: string;

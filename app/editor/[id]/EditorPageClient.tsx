@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { AlertCircle, ArrowUpRight, BookOpen, CheckCircle2, LoaderCircle } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Editor } from "@/components/editor";
+import { Editor } from "@/components/editor/Editor";
 import { MobileEditorMoreMenu, MobileEditorToolbar } from "@/components/editor/MobileEditorToolbar";
 import { MobileHeader } from "@/components/shared/layout";
 import { TagBar, TagGenerationTrigger } from "@/components/tags";

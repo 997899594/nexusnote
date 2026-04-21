@@ -13,7 +13,7 @@ import { isUnauthorizedError, parseApiError, redirectToLogin } from "@/lib/api/c
 import type { GrowthFocusSummary, GrowthInsightSummary } from "@/lib/growth/projection-types";
 import { buildLearnQuickPrompts } from "@/lib/learning/alignment";
 import { cn } from "@/lib/utils";
-import { useChatSessionStateStore } from "@/stores";
+import { useChatSessionStateStore } from "@/stores/chat-session-state";
 import { useLearnStore } from "@/stores/learn";
 
 interface LearnChatProps {

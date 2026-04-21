@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
-import { PendingTagsPopover, TagBadge } from "./index";
+import { PendingTagsPopover } from "./PendingTagsPopover";
+import { TagBadge } from "./TagBadge";
 
 interface NoteTag {
   id: string;

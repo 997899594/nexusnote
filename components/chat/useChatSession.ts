@@ -13,7 +13,8 @@ import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { type AIDegradationKind, createAIDegradationAwareFetch } from "@/lib/ai/core/degradation";
 import { isUnauthorizedError, parseApiError, redirectToLogin } from "@/lib/api/client";
-import { useChatSessionStateStore, useUserPreferencesStore } from "@/stores";
+import { useChatSessionStateStore } from "@/stores/chat-session-state";
+import { useUserPreferencesStore } from "@/stores/user-preferences";
 
 interface UseChatSessionOptions {
   sessionId: string | null;

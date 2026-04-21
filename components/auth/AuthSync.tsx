@@ -9,7 +9,7 @@
 
 import { useSession } from "next-auth/react";
 import { useEffect } from "react";
-import { useUserPreferencesStore } from "@/stores";
+import { useUserPreferencesStore } from "@/stores/user-preferences";
 
 export function AuthSync() {
   const { data: session, status } = useSession();
