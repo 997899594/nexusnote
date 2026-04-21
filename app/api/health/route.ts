@@ -1,6 +1,5 @@
 import { db, sql } from "@/db";
 import { getRedis } from "@/lib/redis";
-import { assertSchemaCompatibility } from "@/lib/server/schema-compatibility";
 import packageJson from "@/package.json";
 
 type CheckStatus = "pass" | "fail";
@@ -12,6 +11,10 @@ interface DependencyCheckResult {
 }
 
 const CHECK_TIMEOUT_MS = 1500;
+const REQUIRED_SCHEMA_COLUMNS = [
+  ["conversations", "learn_course_id"],
+  ["conversations", "learn_chapter_index"],
+] as const;
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
@@ -19,6 +22,35 @@ function getErrorMessage(error: unknown): string {
   }
 
   return "Unknown error";
+}
+
+function toColumnKey(tableName: string, columnName: string): string {
+  return `${tableName}.${columnName}`;
+}
+
+async function assertSchemaCompatibility(): Promise<void> {
+  const rows = await db.execute<{
+    table_name: string;
+    column_name: string;
+  }>(sql`
+    SELECT table_name, column_name
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND (
+        (table_name = 'conversations' AND column_name = 'learn_course_id')
+        OR
+        (table_name = 'conversations' AND column_name = 'learn_chapter_index')
+      )
+  `);
+
+  const existingColumns = new Set(rows.map((row) => toColumnKey(row.table_name, row.column_name)));
+  const missingColumns = REQUIRED_SCHEMA_COLUMNS.filter(
+    ([tableName, columnName]) => !existingColumns.has(toColumnKey(tableName, columnName)),
+  ).map(([tableName, columnName]) => toColumnKey(tableName, columnName));
+
+  if (missingColumns.length > 0) {
+    throw new Error(`Missing required schema columns: ${missingColumns.join(", ")}`);
+  }
 }
 
 async function runCheck(task: () => Promise<unknown>): Promise<DependencyCheckResult> {

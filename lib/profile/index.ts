@@ -36,7 +36,7 @@ export interface UpdateProfileInput {
   aiPreferences?: AIPreferences;
 }
 
-export function createDefaultEMAValue(): EMAValue {
+function createDefaultEMAValue(): EMAValue {
   return {
     value: 0.5,
     confidence: 0,
@@ -119,12 +119,4 @@ export async function update(userId: string, input: UpdateProfileInput) {
   }
 
   return updated;
-}
-
-/**
- * Delete a user's profile
- * @param userId - The user's ID
- */
-export async function deleteProfile(userId: string): Promise<void> {
-  await db.delete(userProfiles).where(eq(userProfiles.userId, userId));
 }

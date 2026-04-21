@@ -13,11 +13,11 @@ import { Suspense } from "react";
 import { ProfileCareerTreeSummary } from "@/components/profile/ProfileCareerTreeSummary";
 import { ProfileCareerTreeSummarySkeleton } from "@/components/profile/ProfileCareerTreeSummarySkeleton";
 import { FloatingHeader, WorkspacePageShell } from "@/components/shared/layout";
+import { redirectIfUnauthenticated } from "@/lib/auth/page";
 import { getProfileAvatarLabel } from "@/lib/profile/avatar";
+import { getProfileHomeDataCached } from "@/lib/profile/home-data";
 import { formatProfileActivityTime } from "@/lib/profile/presentation";
-import { redirectIfUnauthenticated } from "@/lib/server/page-auth";
-import type { ProfileRecentActivityItem } from "@/lib/server/profile-data";
-import { getProfileHomeDataCached } from "@/lib/server/profile-home-data";
+import type { ProfileRecentActivityItem } from "@/lib/profile/stats-data";
 import { ProfileSignOut } from "./profile-client";
 
 function OverviewPill({

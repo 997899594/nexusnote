@@ -3,8 +3,8 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { AIPreferencesPanel } from "@/components/profile/AIPreferencesPanel";
 import { FloatingHeader, LibraryAnalysisPageShell } from "@/components/shared/layout";
+import { redirectIfUnauthenticated } from "@/lib/auth/page";
 import { getProfileAvatarLabel } from "@/lib/profile/avatar";
-import { redirectIfUnauthenticated } from "@/lib/server/page-auth";
 import { ProfileSignOut } from "../profile-client";
 
 async function ProfileSettingsPageContent() {

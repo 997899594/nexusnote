@@ -1,9 +1,9 @@
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
-import { createLoginPath } from "@/lib/auth-redirect";
+import { getDynamicPageSession } from "@/lib/auth/page";
+import { createLoginPath } from "@/lib/auth/redirect";
+import { getLearnPageSnapshotCached } from "@/lib/learning/page-data";
 import { resolveLearnResumeState } from "@/lib/learning/projection";
-import { getLearnPageSnapshotCached } from "@/lib/server/learn-data";
-import { getDynamicPageSession } from "@/lib/server/page-auth";
 import { LearnClient } from "./LearnClient";
 
 interface PageProps {

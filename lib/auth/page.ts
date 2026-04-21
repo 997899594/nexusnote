@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { auth, requireAuth } from "@/lib/auth";
-import { createLoginPath } from "@/lib/auth-redirect";
+import { createLoginPath } from "@/lib/auth/redirect";
 
 export type PageSession = Awaited<ReturnType<typeof auth>>;
 export type AuthenticatedPageSession = NonNullable<PageSession>;

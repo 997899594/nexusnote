@@ -8,7 +8,7 @@
 import { redirect } from "next/navigation";
 import { AuthError } from "next-auth";
 import { auth as nextAuth } from "@/app/api/auth/[...nextauth]/auth";
-import { createLoginPath } from "@/lib/auth-redirect";
+import { createLoginPath } from "@/lib/auth/redirect";
 
 /**
  * 获取当前用户会话（服务端组件专用）
@@ -43,12 +43,4 @@ export async function requireAuth(callbackUrl?: string) {
   }
 
   return session;
-}
-
-/**
- * 获取用户 ID，未登录时返回 null
- */
-export async function getUserId() {
-  const session = await auth();
-  return session?.user?.id || null;
 }

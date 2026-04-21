@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { createLoginPath, getCurrentCallbackUrl } from "@/lib/auth-redirect";
+import { createLoginPath, getCurrentCallbackUrl } from "@/lib/auth/redirect";
 import { getProfileAvatarLabel } from "@/lib/profile/avatar";
 import type { User } from "@/types";
 

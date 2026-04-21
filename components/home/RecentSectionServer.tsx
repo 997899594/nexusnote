@@ -1,6 +1,6 @@
 import { WorkspaceEmptyState } from "@/components/common";
-import { getRecentItemsCached } from "@/lib/server/home-data";
-import { getDynamicPageSession } from "@/lib/server/page-auth";
+import { getDynamicPageSession } from "@/lib/auth/page";
+import { getRecentItemsCached } from "@/lib/learning/recent-courses-data";
 import { RecentCard } from "./RecentCard";
 
 function SectionHeader() {

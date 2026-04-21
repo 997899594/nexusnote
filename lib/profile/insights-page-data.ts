@@ -3,17 +3,17 @@ import "server-only";
 import { cacheLife, cacheTag } from "next/cache";
 import { getCareerTreesTag, getNotesIndexTag, getProfileStatsTag } from "@/lib/cache/tags";
 import type { FocusSnapshotProjection } from "@/lib/growth/projection-types";
+import {
+  type GrowthWorkspaceData,
+  getGrowthWorkspaceDataCached,
+} from "@/lib/growth/workspace-data";
 import type { KnowledgeInsight } from "@/lib/knowledge/insights";
+import { getNotesWorkbenchCached } from "@/lib/knowledge/workbench-data";
 import type {
   NotesWorkbenchSnapshot,
   NoteWorkbenchItem,
 } from "@/lib/knowledge/workbench-projection";
-import { getNotesWorkbenchCached } from "@/lib/server/editor-data";
-import {
-  type GrowthWorkspaceData,
-  getGrowthWorkspaceDataCached,
-} from "@/lib/server/growth-workspace-data";
-import { getUserProfileInsightsCached, type ProfileAIUsageStats } from "@/lib/server/profile-data";
+import { getUserProfileInsightsCached, type ProfileAIUsageStats } from "@/lib/profile/stats-data";
 
 export interface ProfileInsightsOverviewDirection {
   title: string;

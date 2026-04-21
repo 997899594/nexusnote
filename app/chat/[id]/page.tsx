@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { requireDynamicPageAuth } from "@/lib/server/page-auth";
+import { requireDynamicPageAuth } from "@/lib/auth/page";
 import ChatSessionPageClient from "./ChatSessionPageClient";
 
 interface ChatSessionPageProps {

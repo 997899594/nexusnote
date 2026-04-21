@@ -7,7 +7,7 @@ import {
   getUserProfileOverviewCached,
   type ProfileOverview,
   type ProfileRecentActivityItem,
-} from "@/lib/server/profile-data";
+} from "@/lib/profile/stats-data";
 
 export interface ProfileHomePrimaryLearningEntry {
   title: string;

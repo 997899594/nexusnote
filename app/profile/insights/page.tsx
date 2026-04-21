@@ -13,11 +13,11 @@ import { Suspense } from "react";
 import { KnowledgeInsightStrip } from "@/components/knowledge/KnowledgeInsightStrip";
 import { ProfileAiUsagePanel } from "@/components/profile/ProfileAiUsagePanel";
 import { FloatingHeader, LibraryAnalysisPageShell } from "@/components/shared/layout";
+import { redirectIfUnauthenticated } from "@/lib/auth/page";
 import { getGrowthStateLabel } from "@/lib/growth/presentation";
 import { buildKnowledgeExcerpt } from "@/lib/knowledge/presentation";
-import { redirectIfUnauthenticated } from "@/lib/server/page-auth";
-import { getProfileStatsWindowStart } from "@/lib/server/profile-data";
-import { getProfileInsightsPageDataCached } from "@/lib/server/profile-insights-page-data";
+import { getProfileInsightsPageDataCached } from "@/lib/profile/insights-page-data";
+import { getProfileStatsWindowStart } from "@/lib/profile/stats-data";
 
 async function ProfileInsightsPageContent() {
   const session = await redirectIfUnauthenticated("/profile/insights");
