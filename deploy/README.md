@@ -51,7 +51,6 @@
 
 发布新镜像前，Juanie 会根据仓库中的 `drizzle.config.mjs` 与 `drizzle/` 目录应用 schema 变更。
 对于 PostgreSQL，`juanie.yaml` 已声明 `capabilities: [vector]`，平台会先兑现 pgvector 运行时能力。
-仓库里保留的 `atlas.hcl` / `db/atlas/schema.sql` 仅供本地 growth cutover 维护脚本使用，不属于部署主链。
 
 ## 镜像构建说明
 

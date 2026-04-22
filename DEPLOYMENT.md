@@ -68,7 +68,6 @@ and schema application must happen inside the Juanie preDeploy gate, not after r
 - Juanie executes tracked files from `drizzle/`
 - `juanie.yaml` declares `capabilities: [vector]` so the managed Postgres runtime includes pgvector before rollout
 - NexusNote still keeps local `bun run db:migrate` for developer workflows, but deployment no longer depends on invoking that command inside the runtime image
-- The repo still keeps `atlas.hcl` / `db/atlas/schema.sql` for local growth cutover maintenance scripts; that is not the deployment path
 
 ## Local development
 

@@ -1,16 +1,10 @@
-import { spawnSync } from "node:child_process";
 import { closeDbConnection } from "@/db";
 import {
   loadRuntimeBundlesForFilters,
   runRuntimeBundlesBackfill,
   verifyRuntimeBundles,
 } from "@/lib/growth/runtime-maintenance";
-import {
-  buildAtlasDevConnectionString,
-  ensureAtlasDevDatabase,
-  ensurePgvector,
-  verifyCurrentSchema,
-} from "./db-verify.mjs";
+import { applyTrackedMigrations, describeTrackedMigrationCommand } from "./db-maintenance.mjs";
 
 interface CutoverArgs {
   courseId?: string;
@@ -65,42 +59,6 @@ function parseArgs(argv: string[]): CutoverArgs {
   return args;
 }
 
-function runAtlasApply(params: {
-  connectionString: string;
-  devConnectionString: string;
-  dryRun: boolean;
-}): void {
-  const command = [
-    "schema",
-    "apply",
-    "--env",
-    "local",
-    "--url",
-    params.connectionString,
-    "--dev-url",
-    params.devConnectionString,
-    "--auto-approve",
-  ];
-  console.log(`[GrowthCutover] atlas-apply: atlas ${command.join(" ")}`);
-
-  if (params.dryRun) {
-    return;
-  }
-
-  const result = spawnSync("atlas", command, {
-    stdio: "inherit",
-    env: process.env,
-  });
-
-  if (result.error) {
-    throw result.error;
-  }
-
-  if (result.status !== 0) {
-    throw new Error(`atlas-apply failed with exit code ${result.status ?? 1}`);
-  }
-}
-
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const connectionString = process.env.DATABASE_URL;
@@ -110,22 +68,11 @@ async function main() {
   }
 
   if (!args.skipApply) {
-    console.log("[GrowthCutover] Ensuring pgvector");
-    if (!args.dryRun) {
-      await ensurePgvector(connectionString);
-      console.log("[GrowthCutover] Ensuring atlas dev database");
-      await ensureAtlasDevDatabase(connectionString);
-    }
-
-    runAtlasApply({
-      connectionString,
-      devConnectionString: buildAtlasDevConnectionString(connectionString),
-      dryRun: args.dryRun,
-    });
-
-    console.log("[GrowthCutover] Verifying schema");
-    if (!args.dryRun) {
-      await verifyCurrentSchema(connectionString);
+    console.log("[GrowthCutover] Applying tracked Drizzle migrations");
+    if (args.dryRun) {
+      console.log(`[GrowthCutover] db:migrate: would run ${describeTrackedMigrationCommand()}`);
+    } else {
+      await applyTrackedMigrations(connectionString);
     }
   }
 

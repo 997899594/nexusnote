@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import postgres from "postgres";
 
 const REQUIRED_EXTENSIONS = ["vector"];
@@ -103,6 +104,11 @@ const FORBIDDEN_COLUMNS = [
   ["knowledge_evidence_chunks", "user_id"],
 ];
 
+const DRIZZLE_MIGRATE_COMMAND = {
+  command: "node",
+  args: ["./node_modules/drizzle-kit/bin.cjs", "migrate", "--config", "drizzle.config.mjs"],
+};
+
 function getConnectionString(connectionString = process.env.DATABASE_URL) {
   if (!connectionString) {
     throw new Error("DATABASE_URL is not set");
@@ -111,40 +117,30 @@ function getConnectionString(connectionString = process.env.DATABASE_URL) {
   return connectionString;
 }
 
-function getDatabaseName(connectionString = process.env.DATABASE_URL) {
-  const url = new URL(getConnectionString(connectionString));
-  const databaseName = url.pathname.replace(/^\/+/, "");
+function runCommand(command, args, envOverrides = {}) {
+  const result = spawnSync(command, args, {
+    stdio: "inherit",
+    env: {
+      ...process.env,
+      ...envOverrides,
+    },
+  });
 
-  if (!databaseName) {
-    throw new Error("DATABASE_URL must include a database name");
+  if (result.error) {
+    throw result.error;
   }
 
-  return databaseName;
-}
-
-function sanitizeIdentifier(identifier) {
-  if (!/^[A-Za-z0-9_]+$/.test(identifier)) {
-    throw new Error(`Unsupported database identifier: ${identifier}`);
+  if (result.status !== 0) {
+    throw new Error(`${command} ${args.join(" ")} failed with exit code ${result.status ?? 1}`);
   }
-
-  return identifier;
-}
-
-function buildAdminConnectionString(connectionString = process.env.DATABASE_URL) {
-  const url = new URL(getConnectionString(connectionString));
-  url.pathname = "/postgres";
-  return url.toString();
-}
-
-export function buildAtlasDevConnectionString(connectionString = process.env.DATABASE_URL) {
-  const url = new URL(getConnectionString(connectionString));
-  const databaseName = sanitizeIdentifier(getDatabaseName(connectionString));
-  url.pathname = `/${databaseName}_atlas_dev`;
-  return url.toString();
 }
 
 function toColumnKey(tableName, columnName) {
   return `${tableName}.${columnName}`;
+}
+
+export function describeTrackedMigrationCommand() {
+  return `${DRIZZLE_MIGRATE_COMMAND.command} ${DRIZZLE_MIGRATE_COMMAND.args.join(" ")}`;
 }
 
 export async function ensurePgvector(connectionString = process.env.DATABASE_URL) {
@@ -160,27 +156,10 @@ export async function ensurePgvector(connectionString = process.env.DATABASE_URL
   }
 }
 
-export async function ensureAtlasDevDatabase(connectionString = process.env.DATABASE_URL) {
-  const devConnectionString = buildAtlasDevConnectionString(connectionString);
-  const devDatabaseName = sanitizeIdentifier(getDatabaseName(devConnectionString));
-  const adminSql = postgres(buildAdminConnectionString(connectionString), {
-    max: 1,
-    prepare: false,
+function runTrackedMigrationCommand(connectionString) {
+  runCommand(DRIZZLE_MIGRATE_COMMAND.command, DRIZZLE_MIGRATE_COMMAND.args, {
+    DATABASE_URL: connectionString,
   });
-
-  try {
-    const rows =
-      await adminSql`SELECT 1 FROM pg_database WHERE datname = ${devDatabaseName} LIMIT 1;`;
-
-    if (rows.length === 0) {
-      await adminSql.unsafe(`CREATE DATABASE "${devDatabaseName}"`);
-    }
-  } finally {
-    await adminSql.end({ timeout: 5 });
-  }
-
-  await ensurePgvector(devConnectionString);
-  return devConnectionString;
 }
 
 export async function verifyCurrentSchema(connectionString = process.env.DATABASE_URL) {
@@ -243,9 +222,16 @@ export async function verifyCurrentSchema(connectionString = process.env.DATABAS
     }
 
     if (failures.length > 0) {
-      throw new Error(`Schema verification failed:\n- ${failures.join("\n- ")}`);
+      throw new Error(`schema verification failed:\n- ${failures.join("\n- ")}`);
     }
   } finally {
     await sql.end({ timeout: 5 });
   }
+}
+
+export async function applyTrackedMigrations(connectionString = process.env.DATABASE_URL) {
+  const resolvedConnectionString = getConnectionString(connectionString);
+  await ensurePgvector(resolvedConnectionString);
+  runTrackedMigrationCommand(resolvedConnectionString);
+  await verifyCurrentSchema(resolvedConnectionString);
 }
