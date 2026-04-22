@@ -13,11 +13,16 @@ on:
         description: Logical release ref to send back to Juanie
         required: false
         type: string
+      juanie_force_full_build:
+        description: Reserved for preview bootstrap compatibility
+        required: false
+        type: string
 
 env:
   IMAGE_REGISTRY: ghcr.io
   JUANIE_SOURCE_SHA: ${{ inputs.juanie_source_sha || github.sha }}
   JUANIE_RELEASE_REF: ${{ inputs.juanie_release_ref || github.ref }}
+  JUANIE_FORCE_FULL_BUILD: ${{ inputs.juanie_force_full_build || 'false' }}
   IMAGE_TAG: ${{ format('{0}/{1}:sha-{2}', 'ghcr.io', github.repository, inputs.juanie_source_sha || github.sha) }}
 
 jobs:
