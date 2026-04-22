@@ -11,7 +11,7 @@
 ## 推荐部署方式
 
 ```text
-代码合并到主分支 -> CI 构建镜像 -> 推送镜像仓库 -> Juanie schema 闸门 -> 部署平台拉取新镜像
+代码合并到主分支 -> CI 构建镜像 -> 推送镜像仓库 -> 部署平台拉取新镜像
 ```
 
 适用前提：
@@ -31,8 +31,8 @@
 
 1. 构建并推送镜像
 2. 在部署平台更新镜像 tag
-3. 注入/校验环境变量
-4. 让 Juanie 按 `juanie.yaml + drizzle.config.mjs` 导出 desired schema 并完成 schema gate
+3. 导入仓库或同步平台配置，让平台注入自己的部署契约
+4. 注入/校验环境变量，并按需基于 `drizzle.config.mjs` 完成 schema 检查或发布前闸门
 5. 检查健康接口和登录链路
 
 ## 必要环境变量
@@ -49,8 +49,8 @@
 
 ## Schema Sync
 
-发布新镜像前，Juanie 会根据仓库中的 `drizzle.config.mjs` 在目标提交上导出 desired schema 处理 schema 变更。
-对于 PostgreSQL，`juanie.yaml` 已声明 `capabilities: [vector]`，平台会先兑现 pgvector 运行时能力。
+发布新镜像前，目标部署平台可以根据仓库中的 `drizzle.config.mjs` 在目标提交上检查 schema 变更。
+像 pgvector 这样的运行时能力，应由部署平台在导入时注入自己的能力声明，而不是由应用仓库长期保存平台专属配置。
 
 ## 镜像构建说明
 

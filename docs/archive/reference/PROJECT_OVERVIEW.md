@@ -236,7 +236,7 @@ K3s Cluster
 ```
 
 ### 域名和 TLS
-- https://juanie.art
+- https://app.example.com
 - Let's Encrypt TLS
 - Cilium Gateway API
 

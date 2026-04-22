@@ -61,14 +61,14 @@ bun run db:studio
 The repo ships a container-image workflow:
 
 ```text
-代码合并到主分支 -> CI build -> image registry -> Juanie schema gate -> deployment platform rollout
+代码合并到主分支 -> CI build -> image registry -> deployment platform rollout
 ```
 
 - image build source of truth: `Dockerfile.web`
 - CI builds the image directly; it does not pre-package a `.docker-runtime` bundle
-- Juanie reads [`juanie.yaml`](./juanie.yaml) and exports the desired schema from [`drizzle.config.mjs`](./drizzle.config.mjs) at the exact repo revision
-- PostgreSQL runtime capability is declared in `juanie.yaml` with `capabilities: [vector]`
-- platform config: [juanie.yaml](./juanie.yaml)
+- platform-specific deployment config is intentionally not committed in this repository
+- managed platforms should inject their own deployment contract during import or onboarding
+- [`drizzle.config.mjs`](./drizzle.config.mjs) remains the schema authoring entry for local development and any platform-side schema inspection
 - deployment notes: [deploy/README.md](./deploy/README.md)
 - runtime env example: [deploy/deploy.env.example](./deploy/deploy.env.example)
 - the runtime image does not ship repository schema files or migration scripts

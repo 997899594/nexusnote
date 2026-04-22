@@ -2,7 +2,7 @@
 # NexusNote CI Pipeline - Quality Gate
 # ===========================================
 # Runs on: PR → main only
-# Build & Deploy is handled by juanie-ci.yml on push to main
+# Build & deploy are handled by your release platform after merge to main
 
 name: CI
 

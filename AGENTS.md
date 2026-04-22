@@ -108,7 +108,7 @@ bun run db:push      # Local developer schema sync from Drizzle schema authoring
 - Use `drizzle-orm` for all database operations
 - Schema in `db/schema/`
 - Keep Drizzle schema authoring clean; the repo contract is `db/schema/*` + `drizzle.config.mjs`
-- Treat `juanie.yaml` as the deploy-time declaration; runtime images must not become fallback migration executors
+- Treat platform-specific deployment contracts as injected-at-import concerns; runtime images must not become fallback migration executors
 - Use `zod` schemas alongside Drizzle for validation
 - Vector search schema currently uses `vector(4000)`; keep schema definitions and indexes aligned with the real database type
 

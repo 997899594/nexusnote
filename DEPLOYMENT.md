@@ -11,7 +11,7 @@ This repository no longer carries:
 ## Deployment model
 
 ```text
-Code merged to main -> CI build -> image registry -> Juanie schema gate -> deployment platform rollout
+Code merged to main -> CI build -> image registry -> deployment platform rollout
 ```
 
 ## Container build strategy
@@ -19,7 +19,7 @@ Code merged to main -> CI build -> image registry -> Juanie schema gate -> deplo
 - `Dockerfile.web` is the deployment source of truth
 - the image is built with a multi-stage Docker build
 - Next.js production build happens inside Docker, not on the CI host
-- the runtime image only contains application runtime files; schema delivery is handled by Juanie from the repo config
+- the runtime image only contains application runtime files; deployment-time schema application should be handled by the target platform, not by in-image fallback commands
 
 ## What the platform must provide
 
@@ -53,20 +53,19 @@ Optional but recommended:
 
 1. Push code
 2. CI builds and publishes a new image from `Dockerfile.web`
-3. Juanie reads `juanie.yaml` and exports the desired schema from `drizzle.config.mjs` at the target revision
-4. Juanie applies the schema gate before rollout
-5. Only after the gate is satisfied does the deployment platform roll out the new image
+3. Import or sync the repo into your deployment platform so it can inject its own deployment contract
+4. Let the platform validate or apply schema changes using `drizzle.config.mjs` if it supports repo-side schema inspection
+5. Roll out the new image
 6. Verify `/api/health`, login, interview, and learn flow
 
 ## Schema sync policy
 
-This repository treats Drizzle schema authoring as the repo-level schema contract for Juanie.
-Schema application happens inside the Juanie preDeploy gate, not inside the runtime image.
+This repository treats Drizzle schema authoring as the repo-level schema contract.
+Schema application should happen in the deployment platform's release gate, not inside the runtime image.
 
-- `juanie.yaml` declares `schema.source: drizzle`
-- `drizzle.config.mjs` points Juanie at the Drizzle authoring config
-- Juanie exports the desired schema directly from the repo at the release commit
-- `juanie.yaml` declares `capabilities: [vector]` so the managed Postgres runtime includes pgvector before rollout
+- `drizzle.config.mjs` is the canonical authoring config for schema inspection
+- managed platforms can inspect the repo at the target revision instead of relying on runtime migration commands
+- platform-specific capabilities such as pgvector should be declared in the platform contract injected during import
 - `bun run db:push` remains the single local developer schema sync workflow
 
 ## Local development
