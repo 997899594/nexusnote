@@ -75,7 +75,7 @@ NexusNote 当前是一个以 Next.js 16 为核心的 AI-native 学习应用：
 
 - `db/schema/`: 按领域拆分的 Drizzle schema
 - `db/schema.ts`: 聚合导出和 relations
-- `drizzle/`: 版本化迁移
+- `drizzle.config.mjs`: Drizzle authoring config，供本地 `db:push` 和 Juanie desired schema 导出使用
 
 当前 schema 已按以下领域拆分：
 

@@ -7,7 +7,7 @@ Date: 2026-04-08
 - keep one deployment image as the source of truth
 - remove CI host-side runtime repackaging
 - keep Next.js `standalone` output for the web server
-- keep schema delivery repo-driven through `juanie.yaml` + tracked Drizzle migrations, not runtime shell commands
+- keep schema delivery repo-driven through `juanie.yaml` + Drizzle schema authoring, not runtime shell commands
 
 ## Options Considered
 
@@ -21,9 +21,10 @@ Choose option 2.
 
 The builder stage installs dependencies with Bun and runs `bun run build` inside Docker.
 The runner stage copies the built `standalone` output, static assets, and only the runtime files
-the web app needs. Juanie applies schema changes from the repository via `schema.source: drizzle`
-and tracked files in `drizzle/`, so the deployed image no longer needs to carry deployment-time
-migration command behavior. A small start wrapper keeps `npm start` valid in both the repo root
+the web app needs. Juanie applies schema changes from the repository contract declared by
+`schema.source: drizzle` and `drizzle.config.mjs` by exporting the desired schema from the target repo revision, so the deployed
+image no longer needs to carry deployment-time schema files or migration command behavior.
+A small start wrapper keeps `npm start` valid in both the repo root
 and the standalone image root. This removes host-specific packaging logic and keeps deployment
 behavior aligned with what actually runs in production.
 
@@ -35,5 +36,5 @@ behavior aligned with what actually runs in production.
 
 ## Follow-up
 
-- if image size becomes a real issue, trim runtime-only copies further
+- if image size becomes a real issue, keep trimming runtime-only copies further
 - until then, prefer simpler and more predictable deployment behavior over smaller images

@@ -32,7 +32,7 @@ NexusNote 的主链不是“通用笔记”，而是：
 bun install
 docker compose up -d
 cp .env.example .env
-bun run db:migrate
+bun run db:push
 bun dev
 ```
 
@@ -42,6 +42,8 @@ Local services:
 - PostgreSQL: `localhost:5433`
 - Redis: `localhost:6380`
 
+`bun run db:push` 只用于本地开发数据库同步。生产发布不依赖在应用镜像内执行迁移命令。
+
 ## Common Commands
 
 ```bash
@@ -50,7 +52,7 @@ bun run build
 bun run start
 bun run lint
 bun run typecheck
-bun run db:migrate
+bun run db:push
 bun run db:studio
 ```
 
@@ -59,18 +61,19 @@ bun run db:studio
 The repo ships a container-image workflow:
 
 ```text
-代码合并到主分支 -> CI build -> image registry -> Juanie Drizzle schema gate -> deployment platform rollout
+代码合并到主分支 -> CI build -> image registry -> Juanie schema gate -> deployment platform rollout
 ```
 
 - image build source of truth: `Dockerfile.web`
 - CI builds the image directly; it does not pre-package a `.docker-runtime` bundle
-- Juanie reads [`juanie.yaml`](./juanie.yaml) and applies `schema.source: drizzle` via [`drizzle.config.mjs`](./drizzle.config.mjs) and tracked files in [`drizzle/`](./drizzle/)
+- Juanie reads [`juanie.yaml`](./juanie.yaml) and exports the desired schema from [`drizzle.config.mjs`](./drizzle.config.mjs) at the exact repo revision
 - PostgreSQL runtime capability is declared in `juanie.yaml` with `capabilities: [vector]`
 - platform config: [juanie.yaml](./juanie.yaml)
 - deployment notes: [deploy/README.md](./deploy/README.md)
 - runtime env example: [deploy/deploy.env.example](./deploy/deploy.env.example)
+- the runtime image does not ship repository schema files or migration scripts
 
-`docker-compose.yml` is only for local dependencies.
+`docker-compose.yml` is only for local dependencies and bootstraps pgvector on first local Postgres init.
 
 ## Docs
 

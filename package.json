@@ -13,9 +13,8 @@
     "growth:check": "bun scripts/check-growth-stability.ts",
     "growth:cutover": "bun scripts/cutover-growth-runtime.ts",
     "growth:verify": "bun scripts/verify-growth-runtime.ts",
-    "db:migrate": "node scripts/db-migrate.mjs",
-    "db:studio": "drizzle-kit studio --config drizzle.config.mjs",
-    "db:generate": "drizzle-kit generate --config drizzle.config.mjs"
+    "db:push": "drizzle-kit push --config drizzle.config.mjs",
+    "db:studio": "drizzle-kit studio --config drizzle.config.mjs"
   },
   "engines": {
     "node": ">=18"
@@ -93,6 +92,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "autoprefixer": "^10.4.24",
+    "dotenv": "^17.2.3",
     "drizzle-kit": "^0.31.10",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.2.0",

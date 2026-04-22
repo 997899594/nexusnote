@@ -1,10 +1,10 @@
+import { spawnSync } from "node:child_process";
 import { closeDbConnection } from "@/db";
 import {
   loadRuntimeBundlesForFilters,
   runRuntimeBundlesBackfill,
   verifyRuntimeBundles,
 } from "@/lib/growth/runtime-maintenance";
-import { applyTrackedMigrations, describeTrackedMigrationCommand } from "./db-maintenance.mjs";
 
 interface CutoverArgs {
   courseId?: string;
@@ -15,6 +15,11 @@ interface CutoverArgs {
   skipBackfill: boolean;
   skipVerify: boolean;
 }
+
+const LOCAL_SCHEMA_SYNC_COMMAND = {
+  command: "bun",
+  args: ["run", "db:push"],
+};
 
 function parseArgs(argv: string[]): CutoverArgs {
   const args: CutoverArgs = {
@@ -59,6 +64,30 @@ function parseArgs(argv: string[]): CutoverArgs {
   return args;
 }
 
+function describeLocalSchemaSyncCommand(): string {
+  return `${LOCAL_SCHEMA_SYNC_COMMAND.command} ${LOCAL_SCHEMA_SYNC_COMMAND.args.join(" ")}`;
+}
+
+function runLocalSchemaSync(connectionString: string): void {
+  const result = spawnSync(LOCAL_SCHEMA_SYNC_COMMAND.command, LOCAL_SCHEMA_SYNC_COMMAND.args, {
+    stdio: "inherit",
+    env: {
+      ...process.env,
+      DATABASE_URL: connectionString,
+    },
+  });
+
+  if (result.error) {
+    throw result.error;
+  }
+
+  if (result.status !== 0) {
+    throw new Error(
+      `${describeLocalSchemaSyncCommand()} failed with exit code ${result.status ?? 1}`,
+    );
+  }
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const connectionString = process.env.DATABASE_URL;
@@ -68,11 +97,11 @@ async function main() {
   }
 
   if (!args.skipApply) {
-    console.log("[GrowthCutover] Applying tracked Drizzle migrations");
+    console.log("[GrowthCutover] Applying local schema with drizzle-kit push");
     if (args.dryRun) {
-      console.log(`[GrowthCutover] db:migrate: would run ${describeTrackedMigrationCommand()}`);
+      console.log(`[GrowthCutover] db:push: would run ${describeLocalSchemaSyncCommand()}`);
     } else {
-      await applyTrackedMigrations(connectionString);
+      runLocalSchemaSync(connectionString);
     }
   }
 

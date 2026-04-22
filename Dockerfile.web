@@ -24,7 +24,7 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV APP_BUILD_SHA=${GIT_SHA}
 
-# 保持运行时简单：镜像内部完成构建，同时保留 schema sync 所需文件。
+# 运行镜像只保留 Web runtime 所需文件；schema 交付由平台读取仓库配置完成。
 RUN apk add --no-cache dumb-init \
     && addgroup --system --gid 1001 nodejs \
     && adduser --system --uid 1001 nextjs \
@@ -34,10 +34,6 @@ RUN apk add --no-cache dumb-init \
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/db ./db
-COPY --from=builder --chown=nextjs:nodejs /app/drizzle.config.mjs ./drizzle.config.mjs
-COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 
 USER nextjs
 

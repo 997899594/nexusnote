@@ -1,6 +1,3 @@
-# juanie.yaml
-name: nexusnote-ad1_c3
-
 services:
   - name: web
     type: web

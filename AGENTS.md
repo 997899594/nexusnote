@@ -31,8 +31,7 @@ bun run typecheck    # TypeScript check without emitting
 
 ### Database
 ```bash
-bun run db:migrate   # Local developer schema sync via tracked Drizzle migrations
-bun run db:generate  # Generate a fresh baseline only after re-baselining drizzle/
+bun run db:push      # Local developer schema sync from Drizzle schema authoring
 ```
 
 **Note**: No test framework exists yet. Testing infrastructure is planned.
@@ -108,10 +107,10 @@ bun run db:generate  # Generate a fresh baseline only after re-baselining drizzl
 
 - Use `drizzle-orm` for all database operations
 - Schema in `db/schema/`
-- Keep Drizzle schema authoring and tracked migrations aligned for local development
-- Treat `juanie.yaml -> schema.source: drizzle -> drizzle.config.mjs` as the deploy-time schema authority in Juanie
+- Keep Drizzle schema authoring clean; the repo contract is `db/schema/*` + `drizzle.config.mjs`
+- Treat `juanie.yaml` as the deploy-time declaration; runtime images must not become fallback migration executors
 - Use `zod` schemas alongside Drizzle for validation
-- Vector search schema currently uses `vector(4000)`; keep migrations and indexes aligned with the real database type
+- Vector search schema currently uses `vector(4000)`; keep schema definitions and indexes aligned with the real database type
 
 ### AI System
 

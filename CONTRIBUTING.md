@@ -33,6 +33,7 @@ Examples that should stay out of git:
 - `docker-compose.yml` is only for local dependencies
 - deployment runtime config lives in `deploy/` and platform config files
 - keep CI aligned with `docker-bake.hcl`, `Dockerfile.web`, and `juanie.yaml`
+- do not commit instance-specific Juanie exports or generated platform env snapshots
 
 ## AI Rules
 

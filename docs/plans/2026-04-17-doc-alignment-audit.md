@@ -40,7 +40,7 @@
 
 - `typecheck` 与 `build` 并行跑时会争用 `.next/types/cache-life.d.ts`，串行执行正常。这是执行顺序注意事项，不是当前文档主链路设计偏差。
 - `growth:verify` 与 `growth:cutover -- --skip-apply` 已在真实本地数据上跑通，证明 runtime maintenance 已经不是纸面重构，而是可执行闭环。
-- `growth:cutover` 已对当前目标库真实执行 tracked Drizzle migrations + full backfill + full verify，并且跑通。
+- `growth:cutover` 已对当前目标库真实执行 Drizzle schema push + full backfill + full verify，并且跑通。
 
 ## 对照结果
 
@@ -118,11 +118,10 @@
   - [scripts/verify-growth-runtime.ts](/Users/findbiao/projects/nexusnote/scripts/verify-growth-runtime.ts)
   - [scripts/cutover-growth-runtime.ts](/Users/findbiao/projects/nexusnote/scripts/cutover-growth-runtime.ts)
   都只做 CLI 参数解析和日志，不再各自维护运行时逻辑，也不再脚本套脚本。
-- 把数据库维护链路收成单一 Drizzle 路径：
-  - [scripts/db-maintenance.mjs](/Users/findbiao/projects/nexusnote/scripts/db-maintenance.mjs)
-  - [scripts/db-migrate.mjs](/Users/findbiao/projects/nexusnote/scripts/db-migrate.mjs)
+- 把数据库维护链路收成单一本地 schema push 路径：
   - [scripts/cutover-growth-runtime.ts](/Users/findbiao/projects/nexusnote/scripts/cutover-growth-runtime.ts)
-  现在 cutover 与本地 `db:migrate` 共用同一套 Drizzle 迁移入口，不再维护 sidecar schema 或第二套 schema apply 路径。
+  - [package.json](/Users/findbiao/projects/nexusnote/package.json)
+  现在 cutover 与本地 `db:push` 共用同一条 Drizzle schema authoring 路径，不再维护旧账本、额外 wrapper，或第二套 schema apply 路径。
 
 这一步不是新功能，但它让“页面只是视图”这条蓝图原则更干净。
 
