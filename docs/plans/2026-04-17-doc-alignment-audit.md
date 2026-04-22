@@ -51,7 +51,7 @@
 - `GET /api/user/career-trees` 只读 snapshot，`pending` 时只做幂等 enqueue，不同步生成，见 [app/api/user/career-trees/route.ts:13](/Users/findbiao/projects/nexusnote/app/api/user/career-trees/route.ts#L13)。
 - `PUT /api/user/career-trees` 返回 `202`，只写偏好、写 preference event、触发 compose，见 [app/api/user/career-trees/route.ts:21](/Users/findbiao/projects/nexusnote/app/api/user/career-trees/route.ts#L21)。
 - growth compose 仍然是 `snapshot -> projection`，并且已经按 modernization 文档拆成 planner/layout/metadata 三段式，验证命令 `growth:check` 与 `ai:eval growth` 已通过。
-- `user_career_tree_snapshots`、`user_focus_snapshots`、`user_profile_snapshots`、`user_growth_state` 等终态表已经进入 schema，见 [db/schema/growth.ts](/Users/findbiao/projects/nexusnote/db/schema/growth.ts) 与 [drizzle/0002_juanie_schema_repair_9948d4ae.sql](/Users/findbiao/projects/nexusnote/drizzle/0002_juanie_schema_repair_9948d4ae.sql)。
+- `user_career_tree_snapshots`、`user_focus_snapshots`、`user_profile_snapshots`、`user_growth_state` 等终态表已经进入 schema authoring，见 [db/schema/growth.ts](/Users/findbiao/projects/nexusnote/db/schema/growth.ts)。
 
 ### 已满足：Phase 2 统一 Evidence 层
 
