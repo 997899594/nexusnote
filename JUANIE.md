@@ -30,4 +30,4 @@ These files are injected and updated by Juanie during project import or project 
 - preview and release orchestration
 
 Project: `nexusnote`
-Slug: `nexusnote-erhx8m`
+Slug: `nexusnote-caocbn`
