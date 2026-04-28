@@ -73,7 +73,7 @@ function RecentActivityRow({ activity }: { activity: ProfileRecentActivityItem }
   return (
     <Link
       href={`/chat/${activity.id}`}
-      className="flex items-center gap-4 rounded-2xl px-3 py-3 transition-colors hover:bg-white/70"
+      className="flex items-center gap-4 rounded-2xl px-3 py-3 transition-colors hover:bg-[var(--color-panel-soft)]"
     >
       <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-white text-[var(--color-text-secondary)]">
         <MessageSquare className="h-4 w-4" />
@@ -111,14 +111,14 @@ async function ProfilePageContent() {
       frameClassName="max-w-4xl"
     >
       <section className="mb-8">
-        <div className="ui-badge-pill inline-flex items-center gap-2 px-3 py-1.5 text-[11px] uppercase tracking-[0.22em] text-black/45">
+        <div className="ui-badge-pill ui-page-eyebrow inline-flex items-center gap-2 px-3 py-1.5 text-[11px] uppercase tracking-[0.22em]">
           <span className="ui-strong-chip h-1.5 w-1.5 rounded-full" />
           个人中心
         </div>
-        <h1 className="mt-5 text-3xl font-semibold tracking-[-0.05em] text-black/90 md:text-5xl">
+        <h1 className="ui-page-title mt-5 text-3xl font-semibold tracking-[-0.05em] md:text-5xl">
           把下一步留在眼前
         </h1>
-        <p className="mt-3 max-w-2xl text-base leading-8 text-black/55">
+        <p className="ui-page-description mt-3 max-w-2xl text-base leading-8">
           这里只保留最重要的入口：继续学习、查看主线、管理偏好。
         </p>
       </section>
@@ -172,7 +172,7 @@ async function ProfilePageContent() {
               <div className="mt-4">
                 <Link
                   href={primaryLearningEntry.href}
-                  className="inline-flex items-center gap-2 rounded-full bg-[#111827] px-4 py-2 text-sm font-medium text-white transition-transform hover:-translate-y-0.5"
+                  className="ui-primary-button inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-transform hover:-translate-y-0.5"
                 >
                   {primaryLearningEntry.cta}
                   <ArrowRight className="h-4 w-4" />

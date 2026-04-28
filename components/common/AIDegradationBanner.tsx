@@ -37,19 +37,17 @@ export function AIDegradationBanner({ kind, className }: AIDegradationBannerProp
     <output
       aria-live="polite"
       className={cn(
-        "rounded-2xl border border-amber-200/70 bg-amber-50/95 px-4 py-3 text-amber-950 shadow-[0_16px_36px_-30px_rgba(217,119,6,0.35)]",
+        "ui-message-card rounded-2xl border border-rose-200/70 bg-rose-50/80 px-4 py-3 text-rose-950",
         className,
       )}
     >
       <div className="flex items-start gap-3">
-        <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-amber-100">
+        <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-rose-100">
           <Icon className="h-4 w-4" />
         </div>
         <div className="min-w-0">
           <p className="text-sm font-semibold">{getAIDegradationTitle(kind)}</p>
-          <p className="mt-1 text-xs leading-5 text-amber-900/80">
-            {getAIDegradationMessage(kind)}
-          </p>
+          <p className="mt-1 text-xs leading-5 text-rose-900/80">{getAIDegradationMessage(kind)}</p>
         </div>
       </div>
     </output>

@@ -19,7 +19,7 @@ export function PromptChip({ label, onClick, icon: Icon, className }: PromptChip
       whileHover={{ y: -1 }}
       whileTap={{ scale: 0.98 }}
       className={cn(
-        "inline-flex items-center gap-2 rounded-full border border-black/6 bg-white/90 px-3.5 py-2 text-sm text-[var(--color-text-secondary)] shadow-[0_16px_32px_-28px_rgba(15,23,42,0.16)] transition-colors hover:bg-[#f3f5f8] hover:text-[var(--color-text)]",
+        "ui-control-surface inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)]",
         className,
       )}
     >

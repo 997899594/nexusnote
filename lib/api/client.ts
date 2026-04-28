@@ -16,6 +16,36 @@ export interface ApiError extends Error {
   code?: string;
 }
 
+function parseErrorMessagePayload(message: string): ApiErrorResponse | null {
+  const trimmed = message.trim();
+  if (!trimmed.startsWith("{")) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(trimmed) as ApiErrorResponse;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeApiErrorMessage(message: string, code?: string): string {
+  const lowerMessage = message.toLowerCase();
+
+  if (
+    code === "INTERNAL_ERROR" &&
+    (lowerMessage.includes("timed out") || lowerMessage.includes("timeout"))
+  ) {
+    return "AI 响应超时了，请稍后重试，或先把目标说得更短一点。";
+  }
+
+  if (message.trim().startsWith("{")) {
+    return "操作失败，请稍后重试";
+  }
+
+  return message;
+}
+
 export async function parseApiError(error: unknown): Promise<{
   message: string;
   status?: number;
@@ -39,8 +69,16 @@ export async function parseApiError(error: unknown): Promise<{
       errorMessage = defaultMessage;
     }
   } else if (error instanceof Error) {
-    errorMessage = error.message;
+    const payload = parseErrorMessagePayload(error.message);
+    if (payload) {
+      errorMessage = payload.error?.message || payload.message || defaultMessage;
+      code = payload.error?.code;
+    } else {
+      errorMessage = error.message;
+    }
   }
+
+  errorMessage = normalizeApiErrorMessage(errorMessage, code);
 
   return { message: errorMessage, status, code };
 }

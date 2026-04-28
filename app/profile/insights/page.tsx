@@ -38,41 +38,41 @@ async function ProfileInsightsPageContent() {
       }
     >
       <section className="mb-8">
-        <div className="ui-badge-pill inline-flex items-center gap-2 px-3 py-1.5 text-[11px] uppercase tracking-[0.22em] text-black/45">
+        <div className="ui-badge-pill ui-page-eyebrow inline-flex items-center gap-2 px-3 py-1.5 text-[11px] uppercase tracking-[0.22em]">
           <span className="ui-strong-chip h-1.5 w-1.5 rounded-full" />
           学习洞察
         </div>
-        <h1 className="mt-5 text-3xl font-semibold tracking-[-0.05em] text-black/90 md:text-5xl">
+        <h1 className="ui-page-title mt-5 text-3xl font-semibold tracking-[-0.05em] md:text-5xl">
           当前知识流与成长状态
         </h1>
-        <p className="mt-3 max-w-2xl text-base leading-8 text-black/55">
+        <p className="ui-page-description mt-3 max-w-2xl text-base leading-8">
           这里集中展示当前方向、焦点、知识信号和 AI 使用趋势，不再把洞察拆散到多个孤立页面。
         </p>
         <div className="mt-5 flex flex-wrap gap-3">
           <Link
             href="/profile"
-            className="ui-surface-soft inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[#eceff3] hover:text-[var(--color-text)]"
+            className="ui-surface-soft inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-active)] hover:text-[var(--color-text)]"
           >
             <ArrowLeft className="h-4 w-4" />
             返回个人中心
           </Link>
           <Link
             href="/profile/settings"
-            className="ui-surface-soft inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[#eceff3] hover:text-[var(--color-text)]"
+            className="ui-surface-soft inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-active)] hover:text-[var(--color-text)]"
           >
             <Settings2 className="h-4 w-4" />
             打开偏好设置
           </Link>
           <Link
             href="/career-trees"
-            className="ui-surface-soft inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[#eceff3] hover:text-[var(--color-text)]"
+            className="ui-surface-soft inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-active)] hover:text-[var(--color-text)]"
           >
             <Compass className="h-4 w-4" />
             查看职业树
           </Link>
           <Link
             href="/editor"
-            className="ui-surface-soft inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[#eceff3] hover:text-[var(--color-text)]"
+            className="ui-surface-soft inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-active)] hover:text-[var(--color-text)]"
           >
             <FileText className="h-4 w-4" />
             打开知识工作台
@@ -83,7 +83,7 @@ async function ProfileInsightsPageContent() {
       <div className="space-y-8">
         {overview ? (
           <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-            <article className="rounded-[30px] border border-black/6 bg-[linear-gradient(180deg,#ffffff_0%,#f7f8fa_100%)] p-5 md:p-6">
+            <article className="ui-message-card rounded-[30px] p-5 md:p-6">
               <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
                 <Compass className="h-4 w-4" />
                 当前方向
@@ -96,20 +96,20 @@ async function ProfileInsightsPageContent() {
               </p>
               {overview.direction.confidence !== null ? (
                 <div className="mt-4 flex flex-wrap gap-2 text-xs text-[var(--color-text-secondary)]">
-                  <span className="rounded-full bg-white px-3 py-1.5 shadow-sm">
+                  <span className="ui-badge-pill rounded-full px-3 py-1.5">
                     候选树 {overview.direction.treesCount ?? 0} 条
                   </span>
-                  <span className="rounded-full bg-white px-3 py-1.5 shadow-sm">
+                  <span className="ui-badge-pill rounded-full px-3 py-1.5">
                     置信度 {Math.round(overview.direction.confidence * 100)}%
                   </span>
-                  <span className="rounded-full bg-white px-3 py-1.5 shadow-sm">
+                  <span className="ui-badge-pill rounded-full px-3 py-1.5">
                     支持课程 {overview.direction.supportingCoursesCount ?? 0} 门
                   </span>
                 </div>
               ) : null}
             </article>
 
-            <article className="rounded-[30px] border border-black/6 bg-[var(--color-panel-soft)] p-5 md:p-6">
+            <article className="ui-message-card rounded-[30px] bg-[var(--color-panel-soft)] p-5 md:p-6">
               <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
                 <GraduationCap className="h-4 w-4" />
                 当前焦点
@@ -122,19 +122,19 @@ async function ProfileInsightsPageContent() {
               </p>
               {overview.focus.progress !== null ? (
                 <div className="mt-4 flex flex-wrap gap-2 text-xs text-[var(--color-text-secondary)]">
-                  <span className="rounded-full bg-white px-3 py-1.5 shadow-sm">
+                  <span className="ui-badge-pill rounded-full px-3 py-1.5">
                     进度 {overview.focus.progress}%
                   </span>
-                  <span className="rounded-full bg-white px-3 py-1.5 shadow-sm">
+                  <span className="ui-badge-pill rounded-full px-3 py-1.5">
                     {getGrowthStateLabel(overview.focus.state)}
                   </span>
-                  <span className="rounded-full bg-white px-3 py-1.5 shadow-sm">
+                  <span className="ui-badge-pill rounded-full px-3 py-1.5">
                     相关材料 {overview.focus.relatedMaterialCount} 条
                   </span>
                 </div>
               ) : (
                 <div className="mt-4">
-                  <span className="rounded-full bg-white px-3 py-1.5 text-xs text-[var(--color-text-secondary)] shadow-sm">
+                  <span className="ui-badge-pill rounded-full px-3 py-1.5 text-xs text-[var(--color-text-secondary)]">
                     相关材料 {overview.focus.relatedMaterialCount} 条
                   </span>
                 </div>
@@ -177,7 +177,7 @@ async function ProfileInsightsPageContent() {
                 <Link
                   key={note.id}
                   href={`/editor/${note.id}`}
-                  className="rounded-[24px] border border-black/6 bg-white px-4 py-4 shadow-[0_18px_48px_-42px_rgba(15,23,42,0.2)] transition-[transform,box-shadow] hover:-translate-y-0.5 hover:[box-shadow:var(--shadow-soft-panel-hover)]"
+                  className="ui-message-card rounded-[24px] px-4 py-4 transition-[transform,box-shadow] hover:-translate-y-0.5 hover:[box-shadow:var(--shadow-soft-panel-hover)]"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>

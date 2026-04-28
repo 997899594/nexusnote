@@ -73,6 +73,7 @@ function InterviewContent() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [input, setInput] = useState("");
   const [started, setStarted] = useState(false);
+  const [mobilePane, setMobilePane] = useState<"chat" | "outline">("chat");
 
   const interview = useInterview({
     initialMessage: initialMessage || undefined,
@@ -129,9 +130,10 @@ function InterviewContent() {
     (status === "submitted" || status === "streaming") && (!lastMsg || lastMsg.role === "user");
   const shouldShowOutlinePanel =
     Boolean(displayOutline) || Boolean(stableOutline) || isOutlineLoading || interviewCompleted;
+  const mobileShowsOutline = isMobile && shouldShowOutlinePanel && mobilePane === "outline";
 
   const chatViewport = (
-    <div className="mobile-scroll flex-1 overflow-y-auto px-4 py-5 md:px-6 md:py-6">
+    <div className="mobile-scroll min-h-0 flex-1 overflow-y-auto px-4 py-5 md:px-6 md:py-6">
       <div className="mx-auto max-w-[calc(100vw-32px)] space-y-4 md:max-w-[var(--message-max-width)]">
         <AIDegradationBanner kind={aiDegradedKind} />
 
@@ -193,10 +195,10 @@ function InterviewContent() {
   );
 
   const composer = (
-    <div className="safe-bottom bg-white px-4 pb-5 pt-4 md:px-6 md:pb-6 md:pt-4">
+    <div className="safe-bottom shrink-0 bg-white px-4 pb-5 pt-4 md:px-6 md:pb-6 md:pt-4">
       <div className="mx-auto max-w-[calc(100vw-32px)] md:max-w-[var(--message-max-width)]">
-        <div className="flex items-end gap-2 rounded-2xl border border-[#d8bc7b]/24 bg-[linear-gradient(180deg,#fffdf9_0%,#fff9f2_100%)] p-2 shadow-[0_18px_40px_-34px_rgba(197,143,42,0.18)] focus-within:border-[#c58f2a]/40 md:gap-3 md:p-3">
-          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-[linear-gradient(180deg,#9a6e24_0%,#c58f2a_58%,#e8c66d_100%)]">
+        <div className="ui-input-shell flex items-end gap-2 rounded-2xl p-2 md:gap-3 md:p-3">
+          <div className="ui-primary-button flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg">
             <GraduationCap className="w-4 h-4 text-white" />
           </div>
           <textarea
@@ -205,7 +207,7 @@ function InterviewContent() {
             onKeyDown={handleKeyDown}
             placeholder={shouldShowOutlinePanel ? "继续调整大纲..." : "继续对话..."}
             rows={1}
-            className="flex-1 min-h-[24px] max-h-[120px] resize-none border-none bg-transparent text-sm text-[var(--color-text)] outline-none placeholder:text-[#b39b69]"
+            className="flex-1 min-h-[24px] max-h-[120px] resize-none border-none bg-transparent text-sm text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-muted)]"
           />
           <motion.button
             whileHover={{ scale: 1.05 }}
@@ -215,8 +217,8 @@ function InterviewContent() {
             className={cn(
               "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full transition-colors",
               input.trim() && !isLoading
-                ? "bg-[linear-gradient(180deg,#9a6e24_0%,#c58f2a_58%,#e8c66d_100%)] text-white shadow-[0_14px_26px_-18px_rgba(197,143,42,0.42)]"
-                : "cursor-not-allowed bg-zinc-200 text-[var(--color-text-muted)]",
+                ? "ui-primary-button"
+                : "cursor-not-allowed bg-[var(--color-active)] text-[var(--color-text-muted)]",
             )}
           >
             {isLoading ? (
@@ -231,7 +233,7 @@ function InterviewContent() {
   );
 
   return (
-    <div className="flex min-h-dvh overflow-hidden bg-[#f6f7f9]">
+    <div className="ui-page-shell flex h-dvh min-h-0 overflow-hidden">
       {!isMobile ? (
         <AnimatePresence mode="wait">
           {shouldShowOutlinePanel && (
@@ -263,18 +265,18 @@ function InterviewContent() {
         variants={mainContentVariants}
         initial="full"
         animate={!isMobile && shouldShowOutlinePanel ? "withPanel" : "full"}
-        className="flex min-w-0 flex-1 flex-col bg-white"
+        className="flex min-h-0 min-w-0 flex-1 flex-col bg-white"
       >
-        <header className="ui-page-frame safe-top flex items-center gap-4 pb-4 pt-5 md:pb-5 md:pt-6">
+        <header className="ui-page-frame safe-top flex shrink-0 items-center gap-4 pb-4 pt-5 md:pb-5 md:pt-6">
           <Link
             href="/"
-            className="rounded-xl border border-[#d8bc7b]/28 bg-[radial-gradient(circle_at_top_left,rgba(232,205,141,0.16),transparent_55%),linear-gradient(180deg,#fffdf8_0%,#fff8ef_100%)] p-2 text-[#745b25] transition-colors hover:text-[#5f4716]"
+            className="ui-control-surface rounded-xl p-2 text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)]"
             aria-label="返回首页"
           >
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[linear-gradient(180deg,#9a6e24_0%,#c58f2a_58%,#e8c66d_100%)] shadow-[0_14px_28px_-18px_rgba(197,143,42,0.42)]">
+            <div className="ui-primary-button flex h-10 w-10 items-center justify-center rounded-xl">
               <GraduationCap className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -303,7 +305,7 @@ function InterviewContent() {
                             key={dotId}
                             initial={{ scale: 0, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
-                            className="h-1.5 w-1.5 rounded-full bg-[#111827]"
+                            className="h-1.5 w-1.5 rounded-full bg-[var(--color-panel-strong)]"
                           />
                         ))}
                       </div>
@@ -318,22 +320,50 @@ function InterviewContent() {
         </header>
 
         {isMobile && shouldShowOutlinePanel ? (
-          <div className="min-h-0 flex-1">
-            <OutlinePanel
-              outline={displayOutline ?? stableOutline}
-              stableOutline={stableOutline ?? null}
-              actionOptions={outlineActions}
-              isLoading={isOutlineLoading}
-              courseId={courseId ?? undefined}
-              onCourseCreated={setCourseId}
-              onSelectAction={(text) => sendMessage({ text })}
-            />
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="shrink-0 border-b border-black/5 bg-white px-4 pb-3">
+              <div className="ui-control-surface grid grid-cols-2 rounded-2xl p-1">
+                {[
+                  ["chat", "对话"],
+                  ["outline", "大纲"],
+                ].map(([pane, label]) => (
+                  <button
+                    key={pane}
+                    type="button"
+                    onClick={() => setMobilePane(pane as "chat" | "outline")}
+                    className={cn(
+                      "rounded-xl px-3 py-2 text-sm font-medium transition-colors",
+                      mobilePane === pane
+                        ? "ui-primary-button"
+                        : "text-[var(--color-text-secondary)] hover:text-[var(--color-text)]",
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {mobileShowsOutline ? (
+              <div className="min-h-0 flex-1">
+                <OutlinePanel
+                  outline={displayOutline ?? stableOutline}
+                  stableOutline={stableOutline ?? null}
+                  actionOptions={outlineActions}
+                  isLoading={isOutlineLoading}
+                  courseId={courseId ?? undefined}
+                  onCourseCreated={setCourseId}
+                  onSelectAction={(text) => sendMessage({ text })}
+                />
+              </div>
+            ) : (
+              chatViewport
+            )}
           </div>
         ) : (
           chatViewport
         )}
 
-        {composer}
+        {!mobileShowsOutline ? composer : null}
       </motion.div>
     </div>
   );

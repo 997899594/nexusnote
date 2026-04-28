@@ -11,8 +11,8 @@ function SectionHeader() {
           最近课程
         </p>
       </div>
-      <div className="ui-badge-pill hidden items-center gap-2 px-3 py-1.5 text-[11px] uppercase tracking-[0.16em] text-black/40 md:inline-flex">
-        <span className="h-1.5 w-1.5 rounded-full bg-[#111827]" />
+      <div className="ui-badge-pill hidden items-center gap-2 px-3 py-1.5 text-[11px] uppercase tracking-[0.16em] text-[var(--color-text-tertiary)] md:inline-flex">
+        <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-panel-strong)]" />
         学习记录
       </div>
     </div>
@@ -24,18 +24,18 @@ export function RecentSectionSkeleton() {
     <section className="mb-14">
       <div className="mb-5 flex items-end justify-between gap-4">
         <div>
-          <div className="h-3 w-20 animate-pulse rounded-full bg-black/8" />
-          <div className="mt-3 h-7 w-28 animate-pulse rounded-full bg-black/10" />
-          <div className="mt-2 h-4 w-56 animate-pulse rounded-full bg-black/8" />
+          <div className="h-3 w-20 animate-pulse rounded-full bg-[var(--color-active)]" />
+          <div className="mt-3 h-7 w-28 animate-pulse rounded-full bg-[var(--color-active)]" />
+          <div className="mt-2 h-4 w-56 animate-pulse rounded-full bg-[var(--color-active)]" />
         </div>
-        <div className="hidden h-8 w-20 animate-pulse rounded-full bg-black/8 md:block" />
+        <div className="hidden h-8 w-20 animate-pulse rounded-full bg-[var(--color-active)] md:block" />
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {[1, 2, 3].map((item) => (
           <div
             key={item}
-            className="ui-surface-card h-36 animate-pulse rounded-[28px] bg-black/[0.035]"
+            className="ui-surface-card h-36 animate-pulse rounded-[28px] bg-[var(--color-panel-soft)]"
           />
         ))}
       </div>

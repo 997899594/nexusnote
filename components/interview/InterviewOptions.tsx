@@ -68,7 +68,7 @@ export function InterviewOptions({ options, onSelect, isStreaming }: InterviewOp
             <PromptChip
               label={normalized.label}
               onClick={() => onSelect(normalized.action || normalized.label)}
-              className="bg-[#f8fafc] text-xs"
+              className="bg-[var(--color-panel-soft)] text-xs"
             />
           </motion.div>
         );

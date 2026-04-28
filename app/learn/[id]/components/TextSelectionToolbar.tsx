@@ -138,8 +138,8 @@ export function TextSelectionToolbar({
           transition={{ duration: 0.15 }}
           className={cn(
             isMobile
-              ? "fixed inset-x-3 bottom-3 z-50 rounded-[24px] border border-black/5 bg-white/95 p-3 shadow-[0_24px_56px_-36px_rgba(15,23,42,0.22)] backdrop-blur-xl safe-bottom"
-              : "absolute z-50 flex items-center gap-1 rounded-xl bg-white px-2 py-1.5 shadow-[0_24px_56px_-36px_rgba(15,23,42,0.18)]",
+              ? "ui-message-card fixed inset-x-3 bottom-3 z-50 rounded-[24px] p-3 backdrop-blur-xl safe-bottom"
+              : "ui-message-card absolute z-50 flex items-center gap-1 rounded-xl px-2 py-1.5",
           )}
           style={
             isMobile
@@ -170,7 +170,7 @@ export function TextSelectionToolbar({
                 <button
                   type="button"
                   onClick={() => setShowColors(false)}
-                  className="ml-auto rounded-full bg-[#f3f5f8] px-3 py-1.5 text-xs text-[var(--color-text-secondary)]"
+                  className="ml-auto rounded-full bg-[var(--color-panel-soft)] px-3 py-1.5 text-xs text-[var(--color-text-secondary)]"
                 >
                   返回
                 </button>
@@ -195,22 +195,22 @@ export function TextSelectionToolbar({
                   className={cn(
                     "flex items-center gap-1.5 rounded-md transition-colors",
                     isMobile
-                      ? "flex-1 rounded-2xl bg-[#f3f5f8] px-3 py-2.5 text-sm text-[var(--color-text)]"
-                      : "px-2.5 py-1 text-xs text-[var(--color-text-secondary)] hover:bg-[#f3f5f8]",
+                      ? "flex-1 rounded-2xl bg-[var(--color-panel-soft)] px-3 py-2.5 text-sm text-[var(--color-text)]"
+                      : "px-2.5 py-1 text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-panel-soft)]",
                   )}
                 >
                   <Highlighter className="h-3.5 w-3.5" />
                   <span>高亮</span>
                 </button>
-                {!isMobile && <div className="h-4 w-px bg-black/8" />}
+                {!isMobile && <div className="h-4 w-px bg-[var(--color-border)]" />}
                 <button
                   type="button"
                   onClick={handleCapture}
                   className={cn(
                     "flex items-center gap-1.5 rounded-md transition-colors",
                     isMobile
-                      ? "flex-1 rounded-2xl bg-[#111827] px-3 py-2.5 text-sm text-white"
-                      : "px-2.5 py-1 text-xs text-[var(--color-text-secondary)] hover:bg-[#f3f5f8]",
+                      ? "ui-primary-button flex-1 rounded-2xl px-3 py-2.5 text-sm"
+                      : "px-2.5 py-1 text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-panel-soft)]",
                   )}
                 >
                   <BookPlus className="h-3.5 w-3.5" />

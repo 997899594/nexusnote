@@ -32,7 +32,7 @@ async function EditorPageContent({ params }: EditorPageProps) {
 
 export default function EditorPage({ params }: EditorPageProps) {
   return (
-    <Suspense fallback={<div className="min-h-dvh bg-[#f3f4f6]" />}>
+    <Suspense fallback={<div className="ui-page-shell min-h-dvh" />}>
       <EditorPageContent params={params} />
     </Suspense>
   );

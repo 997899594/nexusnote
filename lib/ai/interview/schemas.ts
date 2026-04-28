@@ -53,7 +53,7 @@ export const InterviewOutlineSchema = z.object({
   difficulty: z.enum(["beginner", "intermediate", "advanced"]),
   learningOutcome: z.string().min(1).max(240),
   courseSkillIds: z.array(InterviewOutlineSkillIdSchema).min(1).max(6).optional(),
-  chapters: z.array(InterviewOutlineChapterSchema).min(5).max(7),
+  chapters: z.array(InterviewOutlineChapterSchema).min(6).max(7),
 });
 
 export const InterviewPhaseSchema = z.enum(["discover", "revise"]);

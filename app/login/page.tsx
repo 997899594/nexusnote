@@ -111,7 +111,7 @@ function LoginForm() {
               >
                 <div className="flex justify-center mb-4">
                   <div className="ui-surface-soft flex h-16 w-16 items-center justify-center rounded-full">
-                    <CheckCircle2 className="w-8 h-8 text-[#111827]" />
+                    <CheckCircle2 className="w-8 h-8 text-[var(--color-text)]" />
                   </div>
                 </div>
                 <h2 className="text-xl font-bold text-[var(--color-text)] mb-2">查收邮件</h2>
@@ -143,7 +143,7 @@ function LoginForm() {
                 exit={{ opacity: 0, y: -10 }}
               >
                 <div className="mb-8 text-center">
-                  <div className="ui-surface-soft inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] uppercase tracking-[0.22em] text-black/45">
+                  <div className="ui-surface-soft ui-page-eyebrow inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] uppercase tracking-[0.22em]">
                     <span className="ui-strong-chip h-1.5 w-1.5 rounded-full" />
                     学习账户
                   </div>
@@ -168,7 +168,7 @@ function LoginForm() {
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="demo@example.com"
                         className={cn(
-                          "w-full rounded-xl bg-[#f7f8fa] py-3 pl-10 pr-4",
+                          "w-full rounded-xl bg-[var(--color-panel-soft)] py-3 pl-10 pr-4",
                           "text-[var(--color-text)] placeholder:text-[var(--color-text-muted)]",
                           "outline-none transition-all focus:ring-2 focus:ring-[var(--color-accent)]/15",
                         )}
@@ -181,7 +181,7 @@ function LoginForm() {
                       onChange={(e) => setDevName(e.target.value)}
                       placeholder="名字（可选）"
                       className={cn(
-                        "w-full rounded-xl bg-[#f7f8fa] px-4 py-3",
+                        "w-full rounded-xl bg-[var(--color-panel-soft)] px-4 py-3",
                         "text-[var(--color-text)] placeholder:text-[var(--color-text-muted)]",
                         "outline-none transition-all focus:ring-2 focus:ring-[var(--color-accent)]/15",
                       )}
@@ -216,7 +216,7 @@ function LoginForm() {
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="输入邮箱"
                         className={cn(
-                          "w-full rounded-xl bg-[#f7f8fa] py-3 pl-10 pr-4",
+                          "w-full rounded-xl bg-[var(--color-panel-soft)] py-3 pl-10 pr-4",
                           "text-[var(--color-text)] placeholder:text-[var(--color-text-muted)]",
                           "outline-none transition-all focus:ring-2 focus:ring-[var(--color-accent)]/15",
                         )}
@@ -261,7 +261,7 @@ function LoginForm() {
                       onClick={() => signIn("github", { callbackUrl })}
                       className={cn(
                         "w-full flex items-center justify-center gap-2.5 px-4 py-3",
-                        "rounded-xl bg-[#f7f8fa] hover:bg-[#eef1f5] transition-colors",
+                        "rounded-xl bg-[var(--color-panel-soft)] hover:bg-[var(--color-active)] transition-colors",
                         "text-sm font-medium text-[var(--color-text-secondary)]",
                       )}
                     >

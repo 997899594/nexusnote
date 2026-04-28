@@ -27,10 +27,7 @@ export function KnowledgeInsightStrip({ insights, className }: KnowledgeInsightS
         const Icon = KIND_ICONS[insight.kind];
 
         return (
-          <article
-            key={insight.id}
-            className="rounded-[24px] border border-black/6 bg-white/88 px-4 py-4 shadow-[0_18px_50px_-42px_rgba(15,23,42,0.28)]"
-          >
+          <article key={insight.id} className="ui-message-card rounded-[24px] px-4 py-4">
             <div className="flex items-center justify-between gap-3">
               <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
                 <Icon className="h-3.5 w-3.5" />

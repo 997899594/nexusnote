@@ -223,7 +223,7 @@ function PreferenceBlock({
   children: ReactNode;
 }) {
   return (
-    <div className="rounded-3xl border border-black/6 bg-white/70 p-4 md:p-5">
+    <div className="ui-message-card rounded-3xl p-4 md:p-5">
       <div className="mb-4 flex items-center gap-2 text-[var(--color-text)]">
         <div className="ui-icon-chip flex h-8 w-8 items-center justify-center">{icon}</div>
         <div>
@@ -254,8 +254,8 @@ function SegmentedSelect({
           onClick={() => onChange(option.value)}
           className={`rounded-2xl px-3 py-3 text-sm transition-colors ${
             value === option.value
-              ? "bg-[#111827] text-white"
-              : "bg-[#f4f6f8] text-[var(--color-text-secondary)] hover:bg-[#eceff3]"
+              ? "ui-primary-button"
+              : "bg-[var(--color-panel-soft)] text-[var(--color-text-secondary)] hover:bg-[var(--color-active)]"
           }`}
         >
           {option.label}
@@ -284,7 +284,7 @@ function LabeledSelect({
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="w-full rounded-2xl border border-black/8 bg-white px-4 py-3 text-sm text-[var(--color-text)] outline-none transition-colors focus:border-[#111827]"
+        className="w-full rounded-2xl border border-black/8 bg-white px-4 py-3 text-sm text-[var(--color-text)] outline-none transition-colors focus:border-[var(--color-panel-strong)]"
       >
         {options.map((option) => (
           <option key={option.value} value={option.value}>

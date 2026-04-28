@@ -9,6 +9,7 @@
 
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import type { NextAuthConfig, User } from "next-auth";
+import type { JWT } from "next-auth/jwt";
 import Credentials from "next-auth/providers/credentials";
 import GitHub from "next-auth/providers/github";
 import Resend from "next-auth/providers/resend";
@@ -26,6 +27,15 @@ const runtimeEnvironment = process.env.APP_ENV ?? process.env.VERCEL_ENV ?? proc
 const isProductionEnvironment = runtimeEnvironment === "production";
 const isDevLoginEnabled = readBooleanEnv("AUTH_DEV_LOGIN_ENABLED") ?? !isProductionEnvironment;
 const isResendEnabled = readBooleanEnv("AUTH_RESEND_ENABLED") ?? !isDevLoginEnabled;
+const sessionStrategy = isDevLoginEnabled ? "jwt" : "database";
+
+function applyUserToToken(token: JWT, user: User): JWT {
+  token.sub = user.id;
+  token.email = user.email;
+  token.name = user.name;
+  token.picture = user.image;
+  return token;
+}
 
 export const authConfig = {
   trustHost: true,
@@ -44,7 +54,9 @@ export const authConfig = {
     : {}),
 
   session: {
-    strategy: "database" as const,
+    // Auth.js credentials provider is intentionally JWT-only. Production email/OAuth keeps
+    // database sessions; non-production direct login uses JWT to avoid Resend/domain setup.
+    strategy: sessionStrategy,
     maxAge: 30 * 24 * 60 * 60,
   },
 
@@ -82,6 +94,7 @@ export const authConfig = {
               name: { label: "Name", type: "text" },
             },
             async authorize(credentials) {
+              if (!db) return null;
               if (!credentials?.email) return null;
 
               const email = credentials.email as string;
@@ -115,8 +128,14 @@ export const authConfig = {
   ],
 
   callbacks: {
-    async session({ session, user }) {
-      session.user.id = user.id;
+    async jwt({ token, user }) {
+      return user ? applyUserToToken(token, user) : token;
+    },
+    async session({ session, token, user }) {
+      const sessionUserId = user?.id ?? token.sub;
+      if (sessionUserId) {
+        session.user.id = sessionUserId;
+      }
       return session;
     },
   },

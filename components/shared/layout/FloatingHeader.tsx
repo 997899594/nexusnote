@@ -50,15 +50,12 @@ export function FloatingHeader({
       onClick={handleMenuClick}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
-      className="flex h-11 w-11 items-center justify-center rounded-full bg-white/88 text-[var(--color-text-secondary)] shadow-[0_20px_44px_-32px_rgba(15,23,42,0.2)] backdrop-blur-xl transition-colors hover:bg-white"
+      className="ui-floating-surface flex h-11 w-11 items-center justify-center rounded-full text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)]"
     >
       <Menu className="h-5 w-5" />
     </motion.button>
   ) : showSkinSelector && availableSkins.length > 0 ? (
-    <div
-      key="skin-selector"
-      className="rounded-full bg-white/88 p-1.5 shadow-[0_20px_44px_-32px_rgba(15,23,42,0.2)] backdrop-blur-xl"
-    >
+    <div key="skin-selector" className="ui-floating-surface rounded-full p-1.5">
       <SkinSelector
         skins={availableSkins}
         currentSkinSlug={currentSkinSlug}
@@ -67,10 +64,7 @@ export function FloatingHeader({
       />
     </div>
   ) : (
-    <div
-      key="avatar"
-      className="rounded-full bg-white/88 p-1.5 shadow-[0_20px_44px_-32px_rgba(15,23,42,0.2)] backdrop-blur-xl"
-    >
+    <div key="avatar" className="ui-floating-surface rounded-full p-1.5">
       <UserAvatar />
     </div>
   );
@@ -80,19 +74,17 @@ export function FloatingHeader({
   const resolvedSubtitle = subtitle ?? (variant === "brand" ? "NexusNote" : null);
 
   const leftShellClassName = cn(
-    "group flex items-center rounded-full bg-white/88 backdrop-blur-xl",
-    variant === "brand" && "gap-3 px-2.5 py-2 pr-4 shadow-[0_20px_44px_-32px_rgba(15,23,42,0.2)]",
-    variant === "workspace" &&
-      "gap-3 px-3 py-2.5 pr-4 shadow-[0_20px_44px_-32px_rgba(15,23,42,0.16)]",
-    variant === "compact" &&
-      "gap-2.5 px-3 py-2.5 pr-4 shadow-[0_16px_36px_-32px_rgba(15,23,42,0.16)]",
+    "ui-floating-surface group flex items-center rounded-full",
+    variant === "brand" && "gap-3 px-2.5 py-2 pr-4",
+    variant === "workspace" && "gap-3 px-3 py-2.5 pr-4",
+    variant === "compact" && "gap-2.5 px-3 py-2.5 pr-4",
   );
 
   const badgeClassName = cn(
-    "flex items-center justify-center rounded-2xl bg-[#111827] text-white transition-transform group-hover:rotate-6",
-    variant === "brand" && "h-9 w-9 shadow-[0_18px_36px_-28px_rgba(15,23,42,0.36)] md:h-10 md:w-10",
-    variant === "workspace" && "h-10 w-10 shadow-[0_18px_36px_-28px_rgba(15,23,42,0.28)]",
-    variant === "compact" && "h-8 w-8 rounded-xl shadow-[0_14px_28px_-24px_rgba(15,23,42,0.24)]",
+    "ui-primary-button flex items-center justify-center rounded-2xl transition-transform group-hover:rotate-6",
+    variant === "brand" && "h-9 w-9 md:h-10 md:w-10",
+    variant === "workspace" && "h-10 w-10",
+    variant === "compact" && "h-8 w-8 rounded-xl",
   );
 
   return (
@@ -115,7 +107,7 @@ export function FloatingHeader({
             </div>
             <div className="flex min-w-0 flex-col items-start leading-none">
               {resolvedSubtitle ? (
-                <span className="text-[10px] font-medium uppercase tracking-[0.22em] text-black/35">
+                <span className="text-[10px] font-medium uppercase tracking-[0.22em] text-[var(--color-text-tertiary)]">
                   {resolvedSubtitle}
                 </span>
               ) : null}
@@ -134,7 +126,7 @@ export function FloatingHeader({
                 <motion.div
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
-                  className="flex items-center gap-1 rounded-full bg-[#f3f5f8] px-2.5 py-1 text-[11px] text-[var(--color-text-secondary)]"
+                  className="ui-soft-button flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px]"
                 >
                   <ArrowLeft className="w-3 h-3" />
                   <span>返回首页</span>

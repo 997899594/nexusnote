@@ -35,8 +35,8 @@ export function InterviewMessage({ message, onSendReply, isStreaming }: Intervie
         className={cn(
           "text-sm",
           isUser
-            ? "max-w-[min(78%,var(--message-max-width))] rounded-3xl rounded-br-md bg-[#111827] px-4 py-3 text-white shadow-[0_18px_36px_-28px_rgba(15,23,42,0.28)]"
-            : "max-w-[var(--message-max-width)] rounded-[26px] border border-black/5 bg-white px-4 py-3.5 text-[var(--color-text)] shadow-[0_18px_40px_-34px_rgba(15,23,42,0.16)]",
+            ? "ui-primary-button max-w-[min(78%,var(--message-max-width))] rounded-3xl rounded-br-md px-4 py-3"
+            : "ui-message-card max-w-[var(--message-max-width)] rounded-[26px] px-4 py-3.5 text-[var(--color-text)]",
         )}
       >
         {isUser ? (
@@ -44,7 +44,7 @@ export function InterviewMessage({ message, onSendReply, isStreaming }: Intervie
         ) : (
           <>
             <div className="mb-2 flex items-center gap-2">
-              <span className="rounded-full bg-[#eef1f5] px-2.5 py-1 text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-secondary)]">
+              <span className="rounded-full bg-[var(--color-active)] px-2.5 py-1 text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-secondary)]">
                 课程访谈
               </span>
             </div>

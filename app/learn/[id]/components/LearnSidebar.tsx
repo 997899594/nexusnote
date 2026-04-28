@@ -56,7 +56,7 @@ function ProgressRing({ progress, size = 52 }: { progress: number; size?: number
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="#111827"
+          stroke="var(--color-panel-strong)"
           strokeWidth={strokeWidth}
           strokeLinecap="round"
           strokeDasharray={circumference}
@@ -82,7 +82,7 @@ export function LearnSidebar({ courseTitle, width, growthFocus, insights }: Lear
 
   return (
     <div
-      className="flex h-full w-full flex-col bg-[#f6f7f9] safe-top safe-bottom"
+      className="ui-page-shell flex h-full w-full flex-col safe-top safe-bottom"
       style={{ maxWidth: width }}
     >
       <motion.div
@@ -100,7 +100,7 @@ export function LearnSidebar({ courseTitle, width, growthFocus, insights }: Lear
             type="button"
             onClick={() => router.push("/")}
             className={cn(
-              "flex h-9 w-9 items-center justify-center rounded-lg border border-black/8 bg-white",
+              "ui-control-surface flex h-9 w-9 items-center justify-center rounded-lg",
               "text-[var(--color-text-secondary)]",
               "hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]",
               "transition-all duration-200",
@@ -121,7 +121,7 @@ export function LearnSidebar({ courseTitle, width, growthFocus, insights }: Lear
         {/* Progress card */}
         <motion.div
           variants={itemVariants}
-          className="mx-4 mb-4 mt-4 rounded-[28px] border border-black/6 bg-white p-4 shadow-[0_24px_56px_-40px_rgba(15,23,42,0.14)]"
+          className="ui-message-card mx-4 mb-4 mt-4 rounded-[28px] p-4"
         >
           <div className="flex items-center gap-4">
             <ProgressRing progress={progress} />
@@ -153,7 +153,7 @@ export function LearnSidebar({ courseTitle, width, growthFocus, insights }: Lear
         {growthFocus ? (
           <motion.div
             variants={itemVariants}
-            className="mx-4 mb-4 rounded-[28px] border border-black/6 bg-white p-4 shadow-[0_24px_56px_-40px_rgba(15,23,42,0.14)]"
+            className="ui-message-card mx-4 mb-4 rounded-[28px] p-4"
           >
             <div className="flex items-center gap-2 text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
               <Compass className="h-3.5 w-3.5" />
@@ -179,7 +179,7 @@ export function LearnSidebar({ courseTitle, width, growthFocus, insights }: Lear
         {insights.length > 0 ? (
           <motion.div
             variants={itemVariants}
-            className="mx-4 mb-4 rounded-[28px] border border-black/6 bg-white p-4 shadow-[0_24px_56px_-40px_rgba(15,23,42,0.14)]"
+            className="ui-message-card mx-4 mb-4 rounded-[28px] p-4"
           >
             <div className="flex items-center gap-2 text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
               <Brain className="h-3.5 w-3.5" />

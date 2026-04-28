@@ -15,10 +15,10 @@ export function validateOutlineForState(
     };
   }
 
-  if (outline.chapters.length < 5) {
+  if (outline.chapters.length < 6) {
     return {
       valid: false,
-      reason: "当前大纲章节过少，先补成完整课程结构。",
+      reason: "当前大纲少于 6 章，先补成完整课程结构。",
     };
   }
 

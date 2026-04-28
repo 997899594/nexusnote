@@ -7,7 +7,7 @@ interface ChatLayoutWrapperProps {
 
 export default function ChatLayoutWrapper({ children }: ChatLayoutWrapperProps) {
   return (
-    <Suspense fallback={<div className="min-h-dvh bg-[#f6f7f9]" />}>
+    <Suspense fallback={<div className="ui-page-shell min-h-dvh" />}>
       <ChatLayout>{children}</ChatLayout>
     </Suspense>
   );

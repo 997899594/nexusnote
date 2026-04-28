@@ -256,6 +256,33 @@
     background-color: var(--color-panel-soft);
   }
 
+  .ui-floating-surface {
+    background-color: oklch(100% 0 0 / 88%);
+    box-shadow: var(--shadow-soft-panel);
+    backdrop-filter: blur(18px);
+  }
+
+  .ui-control-surface {
+    background-color: var(--color-panel-soft);
+    border: 1px solid oklch(0% 0 0 / 8%);
+  }
+
+  .ui-control-surface:hover {
+    background-color: var(--color-surface);
+  }
+
+  .ui-input-shell {
+    background-color: var(--color-panel-soft);
+    border: 1px solid oklch(0% 0 0 / 8%);
+    box-shadow: 0 16px 34px -28px rgba(15, 23, 42, 0.12);
+  }
+
+  .ui-input-shell:focus-within {
+    background-color: var(--color-surface);
+    border-color: oklch(0% 0 0 / 15%);
+    box-shadow: 0 18px 36px -28px rgba(15, 23, 42, 0.16);
+  }
+
   .ui-strong-chip {
     background-color: var(--color-panel-strong);
     color: var(--color-panel-strong-fg);
@@ -273,9 +300,49 @@
     box-shadow: var(--shadow-strong-button);
   }
 
+  .ui-soft-button {
+    background-color: var(--color-panel-soft);
+    color: var(--color-text-secondary);
+  }
+
+  .ui-soft-button:hover {
+    background-color: var(--color-active);
+    color: var(--color-text);
+  }
+
   .ui-icon-chip {
     background-color: var(--color-panel-soft);
     border-radius: var(--radius-xl);
+  }
+
+  .ui-message-card {
+    background-color: var(--color-surface);
+    border: 1px solid oklch(0% 0 0 / 5%);
+    box-shadow: 0 18px 40px -34px rgba(15, 23, 42, 0.16);
+  }
+
+  .ui-page-eyebrow {
+    color: var(--color-text-tertiary);
+  }
+
+  .ui-page-title {
+    color: var(--color-text);
+  }
+
+  .ui-page-description {
+    color: var(--color-text-secondary);
+  }
+
+  .ui-scrim {
+    background-color: oklch(0% 0 0 / 20%);
+  }
+
+  .ui-scrim-soft {
+    background-color: oklch(0% 0 0 / 10%);
+  }
+
+  .ui-scrim-strong {
+    background-color: oklch(0% 0 0 / 36%);
   }
 }
 
@@ -421,14 +488,7 @@
   a,
   [role="button"],
   .clickable {
-    -webkit-tap-highlight-color: rgba(99, 102, 241, 0.2);
-  }
-
-  /* 移除移动端 hover 效果 */
-  @supports not (background-color: oklch(0.95 0 0)) {
-    .hover\:bg-zinc-50:hover {
-      background-color: transparent;
-    }
+    -webkit-tap-highlight-color: color-mix(in oklch, var(--color-accent) 18%, transparent);
   }
 
   /* 添加 active 状态 */

@@ -34,7 +34,7 @@ async function LearnPageContent({ params, searchParams }: PageProps) {
 
 export default function LearnPage({ params, searchParams }: PageProps) {
   return (
-    <Suspense fallback={<div className="min-h-dvh bg-[#f6f7f9]" />}>
+    <Suspense fallback={<div className="ui-page-shell min-h-dvh" />}>
       <LearnPageContent params={params} searchParams={searchParams} />
     </Suspense>
   );

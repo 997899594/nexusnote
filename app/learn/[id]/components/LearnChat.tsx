@@ -257,15 +257,15 @@ export function LearnChat({
 
     if (sessionError) {
       return (
-        <div className="mt-3 flex flex-col items-center justify-center gap-3 rounded-[28px] border border-dashed border-black/10 bg-[#fafafa] px-5 py-10 text-center">
+        <div className="mt-3 flex flex-col items-center justify-center gap-3 rounded-[28px] border border-dashed border-black/10 bg-[var(--color-panel-soft)] px-5 py-10 text-center">
           <div className="space-y-1">
-            <p className="text-sm font-semibold text-zinc-900">学习对话暂时不可用</p>
-            <p className="text-xs leading-5 text-zinc-500">{sessionError}</p>
+            <p className="text-sm font-semibold text-[var(--color-text)]">学习对话暂时不可用</p>
+            <p className="text-xs leading-5 text-[var(--color-text-secondary)]">{sessionError}</p>
           </div>
           <button
             type="button"
             onClick={() => void resolveLearnSession()}
-            className="rounded-xl bg-[#111827] px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-zinc-800"
+            className="ui-primary-button rounded-xl px-3 py-2 text-xs font-medium transition-colors"
           >
             重试
           </button>
@@ -294,7 +294,7 @@ export function LearnChat({
         className={cn(
           "fixed bottom-6 right-6 z-50 safe-bottom",
           "w-12 h-12 rounded-full shadow-lg",
-          "border border-black/8 bg-[#111827] text-white shadow-[0_18px_36px_-20px_rgba(15,23,42,0.38)]",
+          "ui-primary-button border border-black/8",
           "flex items-center justify-center",
           "transition-transform hover:scale-[1.02]",
         )}
@@ -306,16 +306,18 @@ export function LearnChat({
 
   if (variant === "overlay") {
     return (
-      <div className="flex h-full w-full flex-col overflow-hidden bg-[#f6f7f9]">
+      <div className="ui-page-shell flex h-full w-full flex-col overflow-hidden">
         {/* Header */}
-        <div className="safe-top flex items-center justify-between bg-white/92 px-4 pb-3 pt-3 backdrop-blur-xl shadow-[0_16px_38px_-34px_rgba(15,23,42,0.12)]">
+        <div className="safe-top flex items-center justify-between bg-white/92 px-4 pb-3 pt-3 backdrop-blur-xl shadow-[var(--shadow-soft-panel)]">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-black/8 bg-[#f6f8fb]">
+            <div className="ui-control-surface flex h-8 w-8 items-center justify-center rounded-lg">
               <BookOpen className="w-4 h-4 text-[var(--color-text-secondary)]" />
             </div>
             <div className="min-w-0">
-              <h3 className="text-sm font-semibold text-zinc-900 truncate">AI 学习助手</h3>
-              <p className="text-xs text-zinc-500 truncate">
+              <h3 className="truncate text-sm font-semibold text-[var(--color-text)]">
+                AI 学习助手
+              </h3>
+              <p className="truncate text-xs text-[var(--color-text-secondary)]">
                 {currentChapter?.title ?? courseTitle}
               </p>
             </div>
@@ -328,7 +330,7 @@ export function LearnChat({
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs transition-colors",
                 captureDisabled
-                  ? "cursor-not-allowed bg-zinc-100 text-zinc-400"
+                  ? "cursor-not-allowed bg-[var(--color-active)] text-[var(--color-text-muted)]"
                   : "border border-black/8 bg-white text-[var(--color-text-secondary)] hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]",
               )}
             >
@@ -372,14 +374,14 @@ export function LearnChat({
 
         {/* Input */}
         <div className="safe-bottom border-t border-black/5 bg-white px-4 pb-4 pt-3">
-          <div className="flex items-end gap-2 rounded-[20px] border border-black/8 bg-[#f7f8fa] p-2 shadow-[0_16px_34px_-28px_rgba(15,23,42,0.12)] focus-within:border-black/15 focus-within:bg-white focus-within:shadow-[0_18px_36px_-28px_rgba(15,23,42,0.16)]">
+          <div className="ui-input-shell flex items-end gap-2 rounded-[20px] p-2">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={sessionError ? "当前章节对话暂不可用" : "针对本章节提问..."}
               rows={1}
-              className="flex-1 min-h-[24px] max-h-[80px] resize-none border-none bg-transparent text-sm text-zinc-900 outline-none placeholder:text-zinc-400"
+              className="flex-1 min-h-[24px] max-h-[80px] resize-none border-none bg-transparent text-sm text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-muted)]"
               disabled={!resolvedSessionId || isResolvingSession || !!sessionError}
             />
             <motion.button
@@ -390,8 +392,8 @@ export function LearnChat({
               className={cn(
                 "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-colors",
                 input.trim() && !isLoading && resolvedSessionId && !sessionError
-                  ? "bg-[#111827] text-white shadow-[0_14px_26px_-18px_rgba(15,23,42,0.3)]"
-                  : "bg-zinc-200 text-zinc-400 cursor-not-allowed",
+                  ? "ui-primary-button"
+                  : "cursor-not-allowed bg-[var(--color-active)] text-[var(--color-text-muted)]",
               )}
             >
               {isLoading ? (
@@ -412,21 +414,23 @@ export function LearnChat({
       animate={{ width: 432, opacity: 1 }}
       exit={{ width: 0, opacity: 0 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="flex h-full flex-shrink-0 flex-col overflow-hidden rounded-[32px] border border-black/5 bg-[#f6f7f9] shadow-[0_24px_56px_-42px_rgba(15,23,42,0.18)]"
+      className="ui-page-shell flex h-full flex-shrink-0 flex-col overflow-hidden rounded-[32px] border border-black/5 shadow-[var(--shadow-floating-panel)]"
     >
       {/* Header */}
       <div className="border-b border-black/5 bg-white/92 px-5 py-4 backdrop-blur-xl">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-black/8 bg-[#f6f8fb]">
+            <div className="ui-control-surface flex h-9 w-9 items-center justify-center rounded-xl">
               <BookOpen className="h-4 w-4 text-[var(--color-text-secondary)]" />
             </div>
             <div className="min-w-0">
               <div className="text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
                 Chapter Assistant
               </div>
-              <h3 className="truncate text-sm font-semibold text-zinc-900">AI 学习助手</h3>
-              <p className="truncate text-xs text-zinc-500">
+              <h3 className="truncate text-sm font-semibold text-[var(--color-text)]">
+                AI 学习助手
+              </h3>
+              <p className="truncate text-xs text-[var(--color-text-secondary)]">
                 {currentChapter?.title ?? courseTitle}
               </p>
             </div>
@@ -439,7 +443,7 @@ export function LearnChat({
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs transition-colors",
                 captureDisabled
-                  ? "cursor-not-allowed bg-zinc-100 text-zinc-400"
+                  ? "cursor-not-allowed bg-[var(--color-active)] text-[var(--color-text-muted)]"
                   : "border border-black/8 bg-white text-[var(--color-text-secondary)] hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]",
               )}
             >
@@ -486,14 +490,14 @@ export function LearnChat({
 
       {/* Input */}
       <div className="border-t border-black/5 bg-white px-5 pb-5 pt-4">
-        <div className="flex items-end gap-2 rounded-[20px] border border-black/8 bg-[#f7f8fa] p-2 shadow-[0_16px_34px_-28px_rgba(15,23,42,0.12)] focus-within:border-black/15 focus-within:bg-white focus-within:shadow-[0_18px_36px_-28px_rgba(15,23,42,0.16)]">
+        <div className="ui-input-shell flex items-end gap-2 rounded-[20px] p-2">
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={sessionError ? "当前章节对话暂不可用" : "针对本章节提问..."}
             rows={1}
-            className="flex-1 min-h-[24px] max-h-[80px] resize-none border-none bg-transparent text-sm text-zinc-900 outline-none placeholder:text-zinc-400"
+            className="flex-1 min-h-[24px] max-h-[80px] resize-none border-none bg-transparent text-sm text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-muted)]"
             disabled={!resolvedSessionId || isResolvingSession || !!sessionError}
           />
           <motion.button
@@ -504,8 +508,8 @@ export function LearnChat({
             className={cn(
               "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-colors",
               input.trim() && !isLoading && resolvedSessionId && !sessionError
-                ? "bg-[#111827] text-white shadow-[0_14px_26px_-18px_rgba(15,23,42,0.3)]"
-                : "bg-zinc-200 text-zinc-400 cursor-not-allowed",
+                ? "ui-primary-button"
+                : "cursor-not-allowed bg-[var(--color-active)] text-[var(--color-text-muted)]",
             )}
           >
             {isLoading ? (

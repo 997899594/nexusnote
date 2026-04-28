@@ -8,9 +8,9 @@ interface ChatSessionPageClientProps {
 
 export default function ChatSessionPageClient({ sessionId }: ChatSessionPageClientProps) {
   return (
-    <div className="ui-page-shell min-h-dvh">
-      <div className="ui-page-frame-wide ui-bottom-breathing-room flex min-h-dvh pt-3 md:pt-4">
-        <div className="min-h-0 flex-1 overflow-hidden rounded-[30px] border border-black/5 bg-white shadow-[0_24px_56px_-42px_rgba(15,23,42,0.18)]">
+    <div className="ui-page-shell h-full min-h-0">
+      <div className="ui-page-frame-wide flex h-full min-h-0 pt-3 pb-4 md:pt-4 md:pb-6">
+        <div className="ui-message-card min-h-0 flex-1 overflow-hidden rounded-[30px]">
           <ChatPanel sessionId={sessionId} />
         </div>
       </div>

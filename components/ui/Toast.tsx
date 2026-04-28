@@ -40,10 +40,13 @@ const icons = {
 };
 
 const styles = {
-  success: "bg-emerald-500 text-white border-emerald-600",
-  error: "bg-rose-500 text-white border-rose-600",
-  warning: "bg-amber-500 text-white border-amber-600",
-  info: "bg-sky-500 text-white border-sky-600",
+  success:
+    "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] [&_svg]:text-emerald-600",
+  error:
+    "border-[color-mix(in_oklch,var(--color-panel-strong)_18%,var(--color-border))] bg-[var(--color-surface)] text-[var(--color-text)] [&_svg]:text-[var(--color-panel-strong)]",
+  warning:
+    "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] [&_svg]:text-[var(--color-text-secondary)]",
+  info: "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] [&_svg]:text-[var(--color-text-secondary)]",
 };
 
 const toastVariants = {
@@ -84,7 +87,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={{ toasts, addToast, removeToast }}>
       {children}
       {mounted && (
-        <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
+        <div className="safe-bottom fixed inset-x-4 bottom-4 z-50 flex flex-col gap-2 md:inset-x-auto md:right-6 md:bottom-6">
           <AnimatePresence mode="popLayout">
             {toasts.map((toast) => {
               const Icon = icons[toast.type];
@@ -96,7 +99,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                   animate="visible"
                   exit="exit"
                   layout
-                  className={`flex items-center gap-3 px-4 py-3 rounded-2xl shadow-xl border min-w-[300px] max-w-md ${styles[toast.type]}`}
+                  className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3 shadow-xl md:min-w-[300px] md:max-w-md ${styles[toast.type]}`}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
@@ -106,7 +109,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                     whileHover={{ scale: 1.2 }}
                     whileTap={{ scale: 0.9 }}
                     onClick={() => removeToast(toast.id)}
-                    className="flex-shrink-0 opacity-60 hover:opacity-100"
+                    className="flex-shrink-0 text-[var(--color-text-muted)] opacity-70 hover:text-[var(--color-text)] hover:opacity-100"
                   >
                     <X className="w-4 h-4" />
                   </motion.button>

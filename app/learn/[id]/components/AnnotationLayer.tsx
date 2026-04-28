@@ -163,7 +163,7 @@ export function AnnotationLayer({
                 {isMobile && (
                   <button
                     type="button"
-                    className="fixed inset-0 z-40 bg-black/10 pointer-events-auto"
+                    className="ui-scrim-soft pointer-events-auto fixed inset-0 z-40"
                     onClick={() => setActiveNoteId(null)}
                     aria-label="关闭笔记"
                   />
@@ -174,8 +174,8 @@ export function AnnotationLayer({
                   exit={{ opacity: 0, y: isMobile ? 12 : -5 }}
                   className={
                     isMobile
-                      ? "fixed inset-x-3 bottom-3 z-50 pointer-events-auto rounded-[24px] border border-black/5 bg-white/95 p-4 shadow-[0_24px_56px_-36px_rgba(15,23,42,0.22)] backdrop-blur-xl safe-bottom"
-                      : "absolute z-40 max-w-[280px] rounded-2xl bg-white p-3 shadow-[0_24px_56px_-36px_rgba(15,23,42,0.18)] pointer-events-auto"
+                      ? "ui-message-card fixed inset-x-3 bottom-3 z-50 pointer-events-auto rounded-[24px] p-4 backdrop-blur-xl safe-bottom"
+                      : "ui-message-card absolute z-40 max-w-[280px] rounded-2xl p-3 pointer-events-auto"
                   }
                   style={
                     isMobile
@@ -187,16 +187,20 @@ export function AnnotationLayer({
                   }
                 >
                   <div className="mb-2 flex items-center justify-between">
-                    <span className="text-xs font-medium text-zinc-500">笔记</span>
+                    <span className="text-xs font-medium text-[var(--color-text-tertiary)]">
+                      笔记
+                    </span>
                     <button
                       type="button"
                       onClick={() => onRemove(h.id)}
-                      className="text-zinc-400 transition-colors hover:text-zinc-700"
+                      className="text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)]"
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
                   </div>
-                  <p className="text-sm leading-relaxed text-zinc-700">{h.noteContent}</p>
+                  <p className="text-sm leading-relaxed text-[var(--color-text-secondary)]">
+                    {h.noteContent}
+                  </p>
                 </motion.div>
               </>
             )}

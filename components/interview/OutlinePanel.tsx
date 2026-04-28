@@ -43,8 +43,46 @@ const itemVariants = {
   },
 };
 
+const DIFFICULTY_LABELS: Record<string, string> = {
+  beginner: "入门",
+  intermediate: "进阶",
+  advanced: "高级",
+};
+
+const SKILL_LABELS: Record<string, string> = {
+  "api-integration": "API 接口集成",
+  "asynchronous-programming": "异步数据流",
+  "ci-cd-basics": "自动化部署基础",
+  "css-in-react": "组件样式工程",
+  deployment: "部署上线",
+  jsx: "JSX 与组件表达",
+  "performance-optimization": "性能优化",
+  "project-architecture": "项目架构",
+  "react-fundamentals": "React 核心基础",
+  "react-hooks": "React Hooks",
+  "react-performance": "React 性能优化",
+  "react-router": "React Router",
+  "spa-architecture": "单页应用架构",
+  "ui-design-patterns": "UI 设计模式",
+};
+
+function getDifficultyLabel(difficulty?: string | null) {
+  if (!difficulty) {
+    return "整理中";
+  }
+
+  return DIFFICULTY_LABELS[difficulty] ?? difficulty;
+}
+
 function getSkillLabel(skillId: string) {
-  return skillId;
+  return (
+    SKILL_LABELS[skillId] ??
+    skillId
+      .split(/[-_]/)
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ")
+  );
 }
 
 export function OutlinePanel({
@@ -98,13 +136,13 @@ export function OutlinePanel({
   };
 
   return (
-    <div className="flex h-full flex-col bg-[#f6f7f9]">
+    <div className="ui-page-shell flex h-full flex-col">
       {/* Header */}
       <div className="flex items-center gap-2 px-5 pb-4 pt-5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-900">
+        <div className="ui-primary-button flex h-9 w-9 items-center justify-center rounded-xl">
           <BookOpen className="h-4 w-4 text-white" />
         </div>
-        <h2 className="text-base font-semibold text-zinc-900">学习大纲</h2>
+        <h2 className="text-base font-semibold text-[var(--color-text)]">学习大纲</h2>
       </div>
 
       {/* Content */}
@@ -136,30 +174,34 @@ export function OutlinePanel({
             >
               {/* Course Title & Description */}
               <motion.div variants={itemVariants} className="space-y-2">
-                <h3 className="text-lg font-bold text-zinc-900">{outline.title}</h3>
+                <h3 className="text-lg font-bold text-[var(--color-text)]">{outline.title}</h3>
                 {outline.description ? (
-                  <p className="text-sm leading-6 text-zinc-600">{outline.description}</p>
+                  <p className="text-sm leading-6 text-[var(--color-text-secondary)]">
+                    {outline.description}
+                  </p>
                 ) : (
-                  <div className="h-5 w-full animate-pulse rounded bg-zinc-200/70" />
+                  <div className="h-5 w-full animate-pulse rounded bg-[var(--color-active)]" />
                 )}
-                <p className="text-xs text-zinc-500">难度: {outline.difficulty ?? "整理中"}</p>
-                <div className="rounded-2xl border border-zinc-200 bg-white/70 p-3 text-xs text-zinc-600">
+                <p className="text-xs text-[var(--color-text-tertiary)]">
+                  难度：{getDifficultyLabel(outline.difficulty)}
+                </p>
+                <div className="ui-message-card rounded-2xl p-3 text-xs text-[var(--color-text-secondary)]">
                   <p>
-                    <span className="font-semibold text-zinc-800">适合人群：</span>
+                    <span className="font-semibold text-[var(--color-text)]">适合人群：</span>
                     {outline.targetAudience ?? "正在补充适合人群..."}
                   </p>
                   <p className="mt-2">
-                    <span className="font-semibold text-zinc-800">完成后你将获得：</span>
+                    <span className="font-semibold text-[var(--color-text)]">完成后你将获得：</span>
                     {outline.learningOutcome ?? "正在补充学习成果..."}
                   </p>
                   {outline.courseSkillIds && outline.courseSkillIds.length > 0 ? (
                     <div className="mt-3">
-                      <p className="font-semibold text-zinc-800">核心能力：</p>
+                      <p className="font-semibold text-[var(--color-text)]">核心能力：</p>
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {outline.courseSkillIds.map((skillId) => (
                           <span
                             key={skillId}
-                            className="rounded-full bg-zinc-900 px-2.5 py-1 text-[11px] text-white"
+                            className="ui-primary-button rounded-full px-2.5 py-1 text-[11px]"
                           >
                             {getSkillLabel(skillId)}
                           </span>
@@ -169,15 +211,15 @@ export function OutlinePanel({
                   ) : null}
                 </div>
                 {isLoading && (
-                  <div className="flex items-center gap-2 text-xs text-zinc-500">
+                  <div className="flex items-center gap-2 text-xs text-[var(--color-text-tertiary)]">
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     <span>正在补全章节说明与细节...</span>
                   </div>
                 )}
                 {actionOptions.length > 0 ? (
-                  <div className="rounded-2xl border border-[#d8bc7b]/18 bg-[linear-gradient(180deg,#fffdf9_0%,#fff8ef_100%)] p-3">
-                    <p className="text-xs font-medium text-zinc-700">快速调整</p>
-                    <p className="mt-1 text-[11px] leading-5 text-zinc-500">
+                  <div className="ui-control-surface rounded-2xl p-3">
+                    <p className="text-xs font-medium text-[var(--color-text)]">快速调整</p>
+                    <p className="mt-1 text-[11px] leading-5 text-[var(--color-text-tertiary)]">
                       直接点一个方向，我会继续改这版大纲。
                     </p>
                     <InterviewOptions
@@ -195,14 +237,14 @@ export function OutlinePanel({
                   <motion.div
                     key={`${chapter.title}-${index}`}
                     variants={itemVariants}
-                    className="rounded-xl bg-[var(--color-surface)] shadow-[var(--shadow-card)] p-3 transition-all hover:shadow-[var(--shadow-card-hover)]"
+                    className="ui-message-card rounded-xl p-3 transition-all hover:shadow-[var(--shadow-card-hover)]"
                   >
                     <div className="flex items-start gap-3">
                       {/* Chapter Number */}
                       <div
                         className={cn(
                           "flex h-7 w-7 shrink-0 items-center justify-center rounded-full",
-                          "bg-zinc-900 text-white",
+                          "ui-primary-button",
                           "text-xs font-bold",
                         )}
                       >
@@ -211,35 +253,37 @@ export function OutlinePanel({
 
                       {/* Chapter Content */}
                       <div className="flex-1 min-w-0">
-                        <h4 className="text-sm font-semibold text-zinc-900">{chapter.title}</h4>
+                        <h4 className="text-sm font-semibold text-[var(--color-text)]">
+                          {chapter.title}
+                        </h4>
                         {chapter.description ? (
-                          <p className="mt-1 text-xs leading-5 text-zinc-600">
+                          <p className="mt-1 text-xs leading-5 text-[var(--color-text-secondary)]">
                             {chapter.description}
                           </p>
                         ) : (
-                          <div className="mt-2 h-4 w-5/6 animate-pulse rounded bg-zinc-200/70" />
+                          <div className="mt-2 h-4 w-5/6 animate-pulse rounded bg-[var(--color-active)]" />
                         )}
                         {chapter.sections && chapter.sections.length > 0 && (
                           <div className="mt-2 space-y-1.5">
                             {chapter.sections.map((section, secIndex) => (
                               <div
                                 key={`${section.title}-${secIndex}`}
-                                className="rounded-xl bg-zinc-50 px-3 py-2"
+                                className="rounded-xl bg-[var(--color-panel-soft)] px-3 py-2"
                               >
                                 <div className="flex items-start gap-2">
-                                  <span className="text-xs text-zinc-400 mt-0.5 shrink-0">
+                                  <span className="mt-0.5 shrink-0 text-xs text-[var(--color-text-tertiary)]">
                                     {index + 1}.{secIndex + 1}
                                   </span>
                                   <div className="min-w-0">
-                                    <p className="text-xs font-medium text-zinc-700">
+                                    <p className="text-xs font-medium text-[var(--color-text)]">
                                       {section.title}
                                     </p>
                                     {section.description ? (
-                                      <p className="mt-1 text-[11px] leading-5 text-zinc-500">
+                                      <p className="mt-1 text-[11px] leading-5 text-[var(--color-text-tertiary)]">
                                         {section.description}
                                       </p>
                                     ) : (
-                                      <div className="mt-2 h-3.5 w-4/5 animate-pulse rounded bg-zinc-200/70" />
+                                      <div className="mt-2 h-3.5 w-4/5 animate-pulse rounded bg-[var(--color-active)]" />
                                     )}
                                   </div>
                                 </div>
@@ -248,8 +292,8 @@ export function OutlinePanel({
                           </div>
                         )}
                         {chapter.practiceType && chapter.practiceType !== "none" && (
-                          <div className="mt-2 flex items-center gap-2 text-xs text-zinc-400">
-                            <span className="rounded-full bg-[#eef1f5] px-2 py-0.5 text-zinc-600">
+                          <div className="mt-2 flex items-center gap-2 text-xs text-[var(--color-text-tertiary)]">
+                            <span className="rounded-full bg-[var(--color-active)] px-2 py-0.5 text-[var(--color-text-secondary)]">
                               {chapter.practiceType === "exercise"
                                 ? "练习"
                                 : chapter.practiceType === "project"
@@ -263,7 +307,7 @@ export function OutlinePanel({
                             {chapter.skillIds.map((skillId) => (
                               <span
                                 key={skillId}
-                                className="rounded-full bg-zinc-100 px-2 py-1 text-[11px] text-zinc-600"
+                                className="rounded-full bg-[var(--color-panel-soft)] px-2 py-1 text-[11px] text-[var(--color-text-secondary)]"
                               >
                                 {getSkillLabel(skillId)}
                               </span>
@@ -284,9 +328,8 @@ export function OutlinePanel({
                   disabled={isStarting || !canStartLearning}
                   className={cn(
                     "w-full flex items-center justify-center gap-2 rounded-xl px-4 py-3",
-                    "bg-zinc-900 text-white",
+                    "ui-primary-button",
                     "font-medium text-sm",
-                    "hover:bg-zinc-800",
                     "transition-colors duration-200",
                     "disabled:opacity-50 disabled:cursor-not-allowed",
                   )}
@@ -307,7 +350,7 @@ export function OutlinePanel({
                   </span>
                 </button>
                 {isLoading && canStartLearning ? (
-                  <p className="mt-2 text-xs text-zinc-500">
+                  <p className="mt-2 text-xs text-[var(--color-text-tertiary)]">
                     当前正在更新预览，点击会基于上一版完整大纲生成课程。
                   </p>
                 ) : null}

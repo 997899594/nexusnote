@@ -171,7 +171,7 @@ function TrendToggle({ mode, onChange }: { mode: TrendMode; onChange: (mode: Tre
   ];
 
   return (
-    <div className="inline-flex rounded-full border border-black/5 bg-white/80 p-1 shadow-[0_12px_28px_-24px_rgba(15,23,42,0.22)]">
+    <div className="ui-badge-pill inline-flex border border-black/5 p-1">
       {items.map((item) => (
         <button
           key={item.key}
@@ -179,7 +179,7 @@ function TrendToggle({ mode, onChange }: { mode: TrendMode; onChange: (mode: Tre
           onClick={() => onChange(item.key)}
           className={
             item.key === mode
-              ? "rounded-full bg-[#111827] px-3 py-1 text-[11px] font-medium text-white transition-colors"
+              ? "ui-primary-button rounded-full px-3 py-1 text-[11px] font-medium transition-colors"
               : "rounded-full px-3 py-1 text-[11px] font-medium text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)]"
           }
         >
@@ -204,7 +204,7 @@ function UsageMetricCard({
   return (
     <div className="rounded-2xl border border-black/5 bg-[var(--color-panel-soft)] p-4 md:p-5">
       <div className="flex items-center gap-3 md:gap-4">
-        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#f3f5f8] md:h-12 md:w-12">
+        <div className="ui-icon-chip flex h-10 w-10 flex-shrink-0 items-center justify-center md:h-12 md:w-12">
           <Icon className="h-5 w-5 text-[var(--color-text-secondary)] md:h-6 md:w-6" />
         </div>
         <div className="min-w-0 flex-1">
@@ -261,9 +261,9 @@ function UsageBreakdownPanel({
                     </div>
                   </div>
                 </div>
-                <div className="h-2 overflow-hidden rounded-full bg-white/80">
+                <div className="h-2 overflow-hidden rounded-full bg-[var(--color-surface)]">
                   <div
-                    className="h-full rounded-full bg-[linear-gradient(90deg,#111827_0%,#6b7280_100%)]"
+                    className="h-full rounded-full bg-[linear-gradient(90deg,var(--color-panel-strong)_0%,var(--color-text-secondary)_100%)]"
                     style={{ width: `${Math.max(8, share * 100)}%` }}
                   />
                 </div>
@@ -339,7 +339,7 @@ export function ProfileAiUsagePanel({ usage, windowStartLabel }: ProfileAiUsageP
         />
       </div>
 
-      <div className="mt-6 rounded-[28px] border border-black/5 bg-[linear-gradient(180deg,rgba(255,255,255,0.72),rgba(247,248,250,0.96))] p-4 md:mt-8 md:p-5">
+      <div className="ui-message-card mt-6 rounded-[28px] p-4 md:mt-8 md:p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
@@ -352,7 +352,7 @@ export function ProfileAiUsagePanel({ usage, windowStartLabel }: ProfileAiUsageP
           <TrendToggle mode={mode} onChange={setMode} />
         </div>
 
-        <div className="mb-4 rounded-full bg-white/80 px-3 py-1 text-[11px] text-[var(--color-text-secondary)] shadow-[0_12px_28px_-24px_rgba(15,23,42,0.22)]">
+        <div className="ui-badge-pill mb-4 rounded-full px-3 py-1 text-[11px] text-[var(--color-text-secondary)]">
           当前视图：{getTrendLabel(mode)}
         </div>
 
@@ -362,7 +362,7 @@ export function ProfileAiUsagePanel({ usage, windowStartLabel }: ProfileAiUsageP
 
             return (
               <div key={item.dayKey} className="flex min-w-0 flex-col items-center gap-2">
-                <div className="w-full rounded-2xl border border-black/5 bg-white/90 px-2 py-2 text-center shadow-[0_18px_34px_-28px_rgba(15,23,42,0.16)]">
+                <div className="ui-message-card w-full rounded-2xl px-2 py-2 text-center">
                   <div className="truncate text-[11px] font-medium text-[var(--color-text)]">
                     {formatDailyPrimary(item, mode)}
                   </div>
@@ -370,9 +370,9 @@ export function ProfileAiUsagePanel({ usage, windowStartLabel }: ProfileAiUsageP
                     {formatDailySecondary(item, mode)}
                   </div>
                 </div>
-                <div className="flex h-32 w-full items-end rounded-[22px] bg-[linear-gradient(180deg,#f6f7f9_0%,#eef1f5_100%)] px-2 py-2 md:h-40 md:px-3">
+                <div className="flex h-32 w-full items-end rounded-[22px] bg-[var(--color-panel-soft)] px-2 py-2 md:h-40 md:px-3">
                   <div
-                    className="w-full rounded-[16px] bg-[linear-gradient(180deg,#111827_0%,#4b5563_100%)] shadow-[0_22px_38px_-24px_rgba(17,24,39,0.55)] transition-all duration-300"
+                    className="w-full rounded-[16px] bg-[linear-gradient(180deg,var(--color-panel-strong)_0%,var(--color-text-secondary)_100%)] shadow-[var(--shadow-strong-button)] transition-all duration-300"
                     style={{ height: barHeight }}
                   />
                 </div>
@@ -390,9 +390,9 @@ export function ProfileAiUsagePanel({ usage, windowStartLabel }: ProfileAiUsageP
         </div>
       </div>
 
-      <div className="mt-6 rounded-2xl border border-black/5 bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(247,248,250,0.98))] p-4 md:mt-8 md:p-5">
+      <div className="ui-message-card mt-6 rounded-2xl p-4 md:mt-8 md:p-5">
         <div className="grid gap-3 md:grid-cols-3">
-          <div className="rounded-2xl bg-white/80 p-4 shadow-[0_18px_34px_-28px_rgba(15,23,42,0.16)]">
+          <div className="ui-message-card rounded-2xl p-4">
             <div className="text-[11px] uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
               主策略
             </div>
@@ -405,7 +405,7 @@ export function ProfileAiUsagePanel({ usage, windowStartLabel }: ProfileAiUsageP
                 : "等待更多策略使用记录"}
             </div>
           </div>
-          <div className="rounded-2xl bg-white/80 p-4 shadow-[0_18px_34px_-28px_rgba(15,23,42,0.16)]">
+          <div className="ui-message-card rounded-2xl p-4">
             <div className="text-[11px] uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
               主工作流
             </div>
@@ -418,7 +418,7 @@ export function ProfileAiUsagePanel({ usage, windowStartLabel }: ProfileAiUsageP
                 : "等待更多工作流使用记录"}
             </div>
           </div>
-          <div className="rounded-2xl bg-white/80 p-4 shadow-[0_18px_34px_-28px_rgba(15,23,42,0.16)]">
+          <div className="ui-message-card rounded-2xl p-4">
             <div className="text-[11px] uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
               主要 Provider
             </div>

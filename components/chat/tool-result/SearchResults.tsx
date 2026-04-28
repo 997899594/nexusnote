@@ -24,7 +24,7 @@ function isWebSearchResult(result: SearchResultItem | WebSearchResult): result i
 export function SearchResults({ output, type }: SearchResultsProps) {
   if (!output.success || output.results.length === 0) {
     return (
-      <div className="mt-2 rounded-2xl bg-[#f6f7f9] p-3">
+      <div className="mt-2 rounded-2xl bg-[var(--color-panel-soft)] p-3">
         <p className="text-sm text-[var(--color-text-tertiary)]">
           未找到相关{type === "webSearch" ? "网页" : "笔记"}
         </p>
@@ -52,7 +52,7 @@ export function SearchResults({ output, type }: SearchResultsProps) {
               href={isWeb ? result.url : `/editor/${result.sourceId}`}
               target={isWeb ? "_blank" : undefined}
               rel={isWeb ? "noopener noreferrer" : undefined}
-              className="block rounded-2xl bg-white p-3 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.16)] transition-all hover:shadow-[0_22px_46px_-34px_rgba(15,23,42,0.2)]"
+              className="ui-message-card block rounded-2xl p-3 transition-all hover:shadow-[var(--shadow-soft-panel-hover)]"
             >
               <div className="flex items-start gap-2">
                 {isWeb ? (
@@ -72,7 +72,7 @@ export function SearchResults({ output, type }: SearchResultsProps) {
                   </p>
                   {!isWeb && "relevance" in result && (
                     <div className="mt-2">
-                      <span className="rounded-md bg-[#f3f5f8] px-2 py-0.5 text-xs text-[#111827]">
+                      <span className="rounded-md bg-[var(--color-active)] px-2 py-0.5 text-xs text-[var(--color-text)]">
                         相关度: {result.relevance}%
                       </span>
                     </div>

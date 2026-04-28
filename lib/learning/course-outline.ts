@@ -35,7 +35,7 @@ export const CourseOutlineChapterSchema = z.object({
 
 export const CourseOutlineSchema = InterviewOutlineSchema.extend({
   prerequisites: z.array(CoursePrerequisiteSchema).max(8).optional(),
-  chapters: z.array(CourseOutlineChapterSchema).min(5).max(7),
+  chapters: z.array(CourseOutlineChapterSchema).min(6).max(7),
 });
 
 export type CourseOutlineSection = z.infer<typeof CourseOutlineSectionSchema>;

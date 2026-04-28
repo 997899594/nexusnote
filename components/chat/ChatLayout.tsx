@@ -43,7 +43,9 @@ export function ChatLayout({ children }: ChatLayoutProps) {
   const params = useParams();
   const currentSessionId = (params?.id as string | undefined) || null;
 
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() =>
+    typeof window === "undefined" ? false : window.matchMedia("(min-width: 1024px)").matches,
+  );
   const { sessions, deleteSession, loadSessions, currentSessionMessages } = useChatStore();
 
   const prevSessionRef = useRef<string | null>(null);
@@ -62,6 +64,17 @@ export function ChatLayout({ children }: ChatLayoutProps) {
     loadSessions();
   }, [loadSessions]);
 
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(min-width: 1024px)");
+    const syncSidebar = (event: MediaQueryList | MediaQueryListEvent) => {
+      setSidebarOpen(event.matches);
+    };
+
+    syncSidebar(mediaQuery);
+    mediaQuery.addEventListener("change", syncSidebar);
+    return () => mediaQuery.removeEventListener("change", syncSidebar);
+  }, []);
+
   const handleSelectSession = (id: string) => {
     setSidebarOpen(false);
     router.push(`/chat/${id}`);
@@ -73,7 +86,7 @@ export function ChatLayout({ children }: ChatLayoutProps) {
   };
 
   return (
-    <div className="flex min-h-dvh flex-col bg-[#f6f7f9]">
+    <div className="ui-page-shell flex min-h-dvh flex-col">
       <FloatingHeader
         showMenuButton
         showSkinSelector

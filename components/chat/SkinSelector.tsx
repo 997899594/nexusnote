@@ -45,8 +45,8 @@ export function SkinSelector({
               p-3 rounded-lg border-2 transition-all text-left
               ${
                 currentSkinSlug === skin.slug
-                  ? "border-[#111827] bg-[#f6f7f9]"
-                  : "border-[var(--color-border)] hover:border-[#d1d7e0]"
+                  ? "border-[var(--color-panel-strong)] bg-[var(--color-panel-soft)]"
+                  : "border-[var(--color-border)] hover:border-[var(--color-text-muted)]"
               }
               ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
             `}
@@ -77,7 +77,11 @@ export function SkinSelector({
             key={skin.id}
             className={`
               flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-all
-              ${currentSkinSlug === skin.slug ? "bg-[#f6f7f9]" : "hover:bg-[#f6f7f9]"}
+              ${
+                currentSkinSlug === skin.slug
+                  ? "bg-[var(--color-panel-soft)]"
+                  : "hover:bg-[var(--color-panel-soft)]"
+              }
               ${disabled ? "opacity-50 pointer-events-none" : ""}
             `}
           >
@@ -88,7 +92,7 @@ export function SkinSelector({
               checked={currentSkinSlug === skin.slug}
               onChange={() => handleSelect(skin.slug)}
               disabled={disabled}
-              className="h-4 w-4 text-[#111827]"
+              className="h-4 w-4 text-[var(--color-panel-strong)]"
             />
             <span className="text-lg">{skin.avatar || "🤖"}</span>
             <div className="flex-1">
@@ -111,9 +115,13 @@ export function SkinSelector({
         onClick={() => setIsOpen(!isOpen)}
         disabled={disabled}
         className={`
-          flex items-center gap-2 rounded-2xl border bg-white px-3 py-2 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.16)]
+          ui-message-card flex items-center gap-2 rounded-2xl px-3 py-2
           ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
-          ${isOpen ? "border-[#111827] bg-[#f6f7f9]" : "border-[var(--color-border)] hover:border-[#d1d7e0]"}
+          ${
+            isOpen
+              ? "border-[var(--color-panel-strong)] bg-[var(--color-panel-soft)]"
+              : "border-[var(--color-border)] hover:border-[var(--color-text-muted)]"
+          }
           transition-colors
         `}
       >
@@ -139,7 +147,7 @@ export function SkinSelector({
             onClick={() => setIsOpen(false)}
             aria-label="Close dropdown"
           />
-          <div className="absolute z-20 mt-2 max-h-80 w-56 overflow-y-auto rounded-2xl bg-white py-1 shadow-[0_24px_56px_-36px_rgba(15,23,42,0.18)]">
+          <div className="ui-message-card absolute z-20 mt-2 max-h-80 w-56 overflow-y-auto rounded-2xl py-1">
             {skins.map((skin) => (
               <button
                 type="button"
@@ -150,8 +158,8 @@ export function SkinSelector({
                   w-full flex items-center gap-3 px-3 py-2 text-left transition-colors
                   ${
                     currentSkinSlug === skin.slug
-                      ? "bg-[#f6f7f9] text-[#111827]"
-                      : "hover:bg-[#f6f7f9]"
+                      ? "bg-[var(--color-panel-soft)] text-[var(--color-text)]"
+                      : "hover:bg-[var(--color-panel-soft)]"
                   }
                   ${disabled ? "opacity-50 cursor-not-allowed" : ""}
                 `}
@@ -169,7 +177,7 @@ export function SkinSelector({
                 </div>
                 {currentSkinSlug === skin.slug && (
                   <svg
-                    className="h-4 w-4 text-[#111827]"
+                    className="h-4 w-4 text-[var(--color-panel-strong)]"
                     fill="currentColor"
                     viewBox="0 0 20 20"
                     role="img"

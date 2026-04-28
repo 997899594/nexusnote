@@ -35,7 +35,8 @@ export function useChatSession({ sessionId, body }: UseChatSessionOptions) {
   const [aiDegradedKind, setAIDegradedKind] = useState<AIDegradationKind | null>(null);
 
   // Zustand-based session state
-  const { isLoaded, markLoaded, markFailed } = useChatSessionStateStore();
+  const { getSessionMessages, markLoaded, markFailed, setSessionMessages } =
+    useChatSessionStateStore();
 
   // 用 ref 存储最新的 skinSlug，函数 body 通过 ref.current 获取最新值
   const skinSlugRef = useRef(currentSkinSlug);
@@ -72,12 +73,17 @@ export function useChatSession({ sessionId, body }: UseChatSessionOptions) {
 
   const { setMessages } = chat;
 
-  // 历史恢复：每个 sessionId 只加载一次（Zustand Store 防重）
+  // 历史恢复：loaded 必须和 message cache 绑定，否则跨页面 useChat 实例会误判已恢复。
   useEffect(() => {
-    if (!sessionId || isLoaded(sessionId)) return;
+    if (!sessionId) return;
+
+    const cachedMessages = getSessionMessages(sessionId);
+    if (cachedMessages) {
+      setMessages(cachedMessages);
+      return;
+    }
 
     let isCancelled = false;
-    markLoaded(sessionId);
 
     fetch(`/api/chat-sessions/${sessionId}`)
       .then((res) => {
@@ -93,7 +99,9 @@ export function useChatSession({ sessionId, body }: UseChatSessionOptions) {
       })
       .then((data) => {
         if (!isCancelled && data?.session?.messages) {
-          setMessages(data.session.messages as UIMessage[]);
+          const messages = data.session.messages as UIMessage[];
+          markLoaded(sessionId, messages);
+          setMessages(messages);
         }
       })
       .catch((error) => {
@@ -104,7 +112,15 @@ export function useChatSession({ sessionId, body }: UseChatSessionOptions) {
     return () => {
       isCancelled = true;
     };
-  }, [sessionId, setMessages, isLoaded, markLoaded, markFailed]);
+  }, [sessionId, setMessages, getSessionMessages, markLoaded, markFailed]);
+
+  useEffect(() => {
+    if (!sessionId || chat.messages.length === 0) {
+      return;
+    }
+
+    setSessionMessages(sessionId, chat.messages);
+  }, [sessionId, chat.messages, setSessionMessages]);
 
   return {
     ...chat,

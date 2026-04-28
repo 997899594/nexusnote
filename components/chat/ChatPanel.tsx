@@ -258,7 +258,7 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
         </div>
       </div>
 
-      <div className="bg-[#f6f7f9] px-4 pb-5 pt-4 safe-bottom md:px-6 md:pb-6 md:pt-4">
+      <div className="bg-[var(--color-panel-soft)] px-4 pb-5 pt-4 safe-bottom md:px-6 md:pb-6 md:pt-4">
         <div className="relative mx-auto max-w-[calc(100vw-32px)] md:max-w-[var(--message-max-width)]">
           <AnimatePresence>
             {showCommands && !selectedCommand && filteredCommands.length > 0 && (
@@ -278,7 +278,7 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
                 exit={{ opacity: 0, scale: 0.9 }}
                 className="mb-3 flex items-center gap-2"
               >
-                <div className="flex items-center gap-1.5 rounded-xl bg-white px-3 py-1.5 text-xs shadow-[0_16px_34px_-28px_rgba(15,23,42,0.18)]">
+                <div className="ui-badge-pill flex items-center gap-1.5 px-3 py-1.5 text-xs">
                   <selectedCommand.modeIcon className="w-3 h-3 text-[var(--color-text-tertiary)]" />
                   <span className="text-[var(--color-text-secondary)] font-medium">
                     {selectedCommand.modeLabel}
@@ -295,9 +295,9 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
             )}
           </AnimatePresence>
 
-          <div className="flex items-end gap-2 rounded-[28px] bg-white p-2 shadow-[0_24px_56px_-36px_rgba(15,23,42,0.16)] md:gap-3 md:p-3">
-            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-[#f3f5f8]">
-              <Sparkles className="h-4 w-4 text-[#111827]" />
+          <div className="ui-input-shell flex items-end gap-2 rounded-[28px] p-2 md:gap-3 md:p-3">
+            <div className="ui-icon-chip flex h-8 w-8 flex-shrink-0 items-center justify-center">
+              <Sparkles className="h-4 w-4 text-[var(--color-text)]" />
             </div>
             <textarea
               value={input}
@@ -316,8 +316,8 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
               className={cn(
                 "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-colors",
                 input.trim() && !isLoading
-                  ? "bg-[#111827] text-white"
-                  : "cursor-not-allowed bg-[#eceff3] text-[var(--color-text-muted)]",
+                  ? "ui-primary-button"
+                  : "cursor-not-allowed bg-[var(--color-active)] text-[var(--color-text-muted)]",
               )}
             >
               {isLoading ? (

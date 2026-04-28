@@ -6,10 +6,13 @@ export const bytea = customType<{ data: Buffer }>({
   },
 });
 
-export const EMBEDDING_DIMENSIONS = 4000;
+export const EMBEDDING_DIMENSIONS = 4096;
 
-export const embeddingVector = customType<{ data: number[] }>({
+export const embeddingVector = customType<{ data: number[]; driverData: string }>({
   dataType() {
     return `vector(${EMBEDDING_DIMENSIONS})`;
+  },
+  toDriver(value) {
+    return `[${value.join(",")}]`;
   },
 });

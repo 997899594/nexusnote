@@ -47,7 +47,7 @@ export function HeroInput() {
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-[linear-gradient(180deg,rgba(248,249,251,0.92),transparent)] md:h-24" />
 
-      <div className="relative p-4 md:p-8 lg:p-10">
+      <div className="relative p-4 md:p-6 lg:p-7">
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -55,10 +55,10 @@ export function HeroInput() {
           onPaste={handlePaste}
           placeholder="例如：我想系统学 SQL 和数据分析，三个月内能独立完成日常报表分析。"
           rows={3}
-          className="w-full resize-none border-none bg-transparent py-4 text-base leading-7 text-black/85 outline-none placeholder:text-black/28 md:min-h-[132px] md:py-5 md:text-lg md:leading-8 lg:min-h-[156px] lg:text-[1.15rem]"
+          className="h-28 w-full resize-none border-none bg-transparent py-4 text-base leading-7 text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-muted)] md:h-auto md:min-h-[104px] md:py-4 md:text-lg md:leading-8 lg:min-h-[118px] lg:text-[1.12rem]"
         />
 
-        <div className="mt-2 flex flex-wrap gap-2 md:mt-3">
+        <div className="mt-2 hidden flex-wrap gap-2 md:mt-3 md:flex">
           {EXAMPLE_PROMPTS.map((prompt, index) => (
             <motion.div
               key={prompt}
@@ -78,12 +78,12 @@ export function HeroInput() {
           ))}
         </div>
 
-        <div className="mt-4 border-t border-black/6 pt-4">
+        <div className="mt-4 border-t border-[var(--color-border)] pt-4">
           <InterviewModePicker value={mode} onChange={setMode} compact />
         </div>
 
         <div className="mt-3 flex flex-col gap-3 md:mt-4 md:flex-row md:items-center md:justify-between">
-          <div className="hidden text-sm text-black/40 md:block">
+          <div className="hidden text-sm text-[var(--color-text-tertiary)] md:block">
             输入越具体，访谈越快进入课程生成。
           </div>
           <button

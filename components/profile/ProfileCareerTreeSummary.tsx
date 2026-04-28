@@ -32,7 +32,7 @@ export async function ProfileCareerTreeSummary({ userId }: ProfileCareerTreeSumm
           </div>
           <Link
             href="/interview"
-            className="inline-flex items-center gap-2 rounded-full bg-[#111827] px-4 py-2 text-sm font-medium text-white transition-transform hover:-translate-y-0.5"
+            className="ui-primary-button inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-transform hover:-translate-y-0.5"
           >
             开始课程访谈
             <ArrowRight className="h-4 w-4" />
@@ -113,7 +113,7 @@ export async function ProfileCareerTreeSummary({ userId }: ProfileCareerTreeSumm
       </div>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="rounded-3xl border border-black/6 bg-[linear-gradient(180deg,#ffffff_0%,#f7f8fa_100%)] p-4 md:p-5">
+        <div className="ui-message-card rounded-3xl p-4 md:p-5">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
@@ -130,7 +130,7 @@ export async function ProfileCareerTreeSummary({ userId }: ProfileCareerTreeSumm
 
           <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-[var(--color-hover)]">
             <div
-              className="h-full rounded-full bg-[linear-gradient(90deg,#111827_0%,#6b7280_100%)]"
+              className="h-full rounded-full bg-[linear-gradient(90deg,var(--color-panel-strong)_0%,var(--color-text-secondary)_100%)]"
               style={{ width: `${Math.max(8, metrics.averageProgress)}%` }}
             />
           </div>

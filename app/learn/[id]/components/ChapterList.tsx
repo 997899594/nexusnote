@@ -57,11 +57,11 @@ export function ChapterList() {
               className={cn(
                 "absolute left-[8px] top-6 h-3.5 w-3.5 rounded-full border shadow-[0_10px_24px_-18px_rgba(15,23,42,0.35)] transition-all",
                 isCurrent
-                  ? "border-[#111827]/50 bg-[#111827] ring-4 ring-black/[0.08]"
+                  ? "border-[var(--color-panel-strong)] bg-[var(--color-panel-strong)] ring-4 ring-black/[0.08]"
                   : isChapterComplete
-                    ? "border-[#111827] bg-[#111827]"
+                    ? "border-[var(--color-panel-strong)] bg-[var(--color-panel-strong)]"
                     : isPassed
-                      ? "border-[#4b5563]/30 bg-[#4b5563]"
+                      ? "border-[var(--color-text-secondary)]/30 bg-[var(--color-text-secondary)]"
                       : "border-black/10 bg-white",
               )}
             />
@@ -77,14 +77,14 @@ export function ChapterList() {
               className={cn(
                 "group relative w-full rounded-[24px] border px-3 py-3 text-left transition-all duration-200",
                 isCurrent
-                  ? "border-black/8 bg-white text-[#111827] shadow-[0_20px_44px_-30px_rgba(15,23,42,0.18)]"
-                  : "border-transparent bg-[#f1f3f6] text-[var(--color-text)] hover:border-black/5 hover:bg-[var(--color-hover)]",
+                  ? "ui-message-card border-black/8 text-[var(--color-text)]"
+                  : "border-transparent bg-[var(--color-panel-soft)] text-[var(--color-text)] hover:border-black/5 hover:bg-[var(--color-hover)]",
               )}
             >
               {isCurrent ? (
                 <div
                   aria-hidden="true"
-                  className="pointer-events-none absolute inset-y-3 left-0 w-[3px] rounded-full bg-[linear-gradient(180deg,#111827_0%,rgba(17,24,39,0.55)_100%)]"
+                  className="pointer-events-none absolute inset-y-3 left-0 w-[3px] rounded-full bg-[linear-gradient(180deg,var(--color-panel-strong)_0%,rgba(17,24,39,0.55)_100%)]"
                 />
               ) : null}
               <div className="flex items-start gap-2.5">
@@ -92,9 +92,9 @@ export function ChapterList() {
                   className={cn(
                     "flex h-9 w-9 shrink-0 items-center justify-center rounded-[14px] text-xs font-bold transition-colors",
                     isChapterComplete
-                      ? "bg-[#111827] text-white"
+                      ? "ui-primary-button"
                       : isCurrent
-                        ? "bg-[#111827] text-white shadow-[0_14px_28px_-18px_rgba(15,23,42,0.35)]"
+                        ? "ui-primary-button"
                         : "bg-[var(--color-surface)] text-[var(--color-text-secondary)]",
                   )}
                 >
@@ -118,7 +118,9 @@ export function ChapterList() {
                       <span
                         className={cn(
                           "mt-1 block text-[0.6875rem]",
-                          isCurrent ? "text-[#111827]" : "text-[var(--color-text-tertiary)]",
+                          isCurrent
+                            ? "text-[var(--color-text)]"
+                            : "text-[var(--color-text-tertiary)]",
                         )}
                       >
                         {isCurrent
@@ -142,15 +144,15 @@ export function ChapterList() {
                   </div>
 
                   <div className="mt-3 flex items-center gap-2">
-                    <div className="h-1.5 flex-1 rounded-full bg-black/[0.05]">
+                    <div className="h-1.5 flex-1 rounded-full bg-[var(--color-active)]">
                       <div
                         className={cn(
                           "h-full rounded-full transition-all",
                           isCurrent
-                            ? "bg-[linear-gradient(90deg,#111827_0%,rgba(17,24,39,0.72)_100%)]"
+                            ? "bg-[linear-gradient(90deg,var(--color-panel-strong)_0%,rgba(17,24,39,0.72)_100%)]"
                             : isChapterComplete
-                              ? "bg-[#111827]"
-                              : "bg-black/20",
+                              ? "bg-[var(--color-panel-strong)]"
+                              : "bg-[var(--color-text-muted)]",
                         )}
                         style={{
                           width: `${chapterProgress}%`,
@@ -217,9 +219,9 @@ export function ChapterList() {
                               className={cn(
                                 "absolute left-[2px] top-4 h-3 w-3 rounded-full border",
                                 isCompleted
-                                  ? "border-[#111827] bg-[#111827]"
+                                  ? "border-[var(--color-panel-strong)] bg-[var(--color-panel-strong)]"
                                   : isCurrentSection || isRequestedSection
-                                    ? "border-[#111827]/50 bg-[#111827] ring-4 ring-black/[0.08]"
+                                    ? "border-[var(--color-panel-strong)] bg-[var(--color-panel-strong)] ring-4 ring-black/[0.08]"
                                     : "border-black/10 bg-white",
                               )}
                             />
@@ -235,8 +237,8 @@ export function ChapterList() {
                               className={cn(
                                 "w-full rounded-[18px] border px-3 py-2.5 text-left text-[0.8125rem] transition-all duration-150",
                                 isCurrentSection || isRequestedSection
-                                  ? "border-black/8 bg-white text-[#111827] shadow-[0_12px_28px_-24px_rgba(15,23,42,0.16)]"
-                                  : "border-transparent bg-transparent text-[var(--color-text-secondary)] hover:border-black/5 hover:bg-white/70 hover:text-[var(--color-text)]",
+                                  ? "ui-message-card border-black/8 text-[var(--color-text)]"
+                                  : "border-transparent bg-transparent text-[var(--color-text-secondary)] hover:border-black/5 hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)]",
                               )}
                             >
                               <div className="flex items-center gap-2.5">
@@ -244,9 +246,9 @@ export function ChapterList() {
                                   className={cn(
                                     "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[0.6rem]",
                                     isCompleted
-                                      ? "border-[#111827] bg-[#111827] text-white"
+                                      ? "border-[var(--color-panel-strong)] bg-[var(--color-panel-strong)] text-white"
                                       : isCurrentSection || isRequestedSection
-                                        ? "border-black/12 bg-white text-[#111827]"
+                                        ? "border-black/12 bg-white text-[var(--color-text)]"
                                         : "border-black/10 bg-white text-[var(--color-text-tertiary)]",
                                   )}
                                 >

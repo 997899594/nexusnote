@@ -20,7 +20,7 @@ export function CommandMenu({ commands, selectedIndex, onSelect }: CommandMenuPr
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.15 }}
-      className="absolute bottom-full left-0 right-0 z-50 mb-3 overflow-hidden rounded-2xl bg-white shadow-[0_24px_56px_-36px_rgba(15,23,42,0.18)]"
+      className="ui-message-card absolute bottom-full left-0 right-0 z-50 mb-3 overflow-hidden rounded-2xl"
     >
       <div className="p-2">
         <div className="px-3 py-2 text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
@@ -34,8 +34,8 @@ export function CommandMenu({ commands, selectedIndex, onSelect }: CommandMenuPr
             className={cn(
               "w-full flex items-center px-3 py-3 rounded-xl text-left transition-colors",
               idx === selectedIndex
-                ? "bg-[#f3f5f8] text-[var(--color-text)]"
-                : "text-[var(--color-text-secondary)] hover:bg-[#f6f7f9]",
+                ? "bg-[var(--color-active)] text-[var(--color-text)]"
+                : "text-[var(--color-text-secondary)] hover:bg-[var(--color-panel-soft)]",
             )}
           >
             <cmd.icon className="w-4 h-4 mr-3 flex-shrink-0 text-[var(--color-text-muted)]" />

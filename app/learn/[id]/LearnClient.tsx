@@ -150,15 +150,15 @@ export function LearnClient({
   // ─── Mobile layout ───
   if (isMobile) {
     return (
-      <div className="ui-page-shell flex min-h-dvh flex-col bg-[#f3f4f6] safe-bottom">
+      <div className="ui-page-shell flex min-h-dvh flex-col safe-bottom">
         {/* Mobile header */}
-        <header className="safe-top sticky top-0 z-30 shrink-0 border-b border-black/5 bg-white/95 px-4 pb-3 pt-3 backdrop-blur-xl shadow-[0_18px_42px_-34px_rgba(15,23,42,0.14)]">
+        <header className="safe-top sticky top-0 z-30 shrink-0 border-b border-black/5 bg-white/95 px-4 pb-3 pt-3 backdrop-blur-xl shadow-[var(--shadow-soft-panel)]">
           <div className="flex items-start justify-between gap-3">
             <div className="flex min-w-0 items-start gap-2.5">
               <button
                 type="button"
                 onClick={() => router.back()}
-                className="mt-0.5 shrink-0 rounded-xl border border-black/8 bg-[#f6f8fb] p-2 text-[var(--color-text-secondary)] shadow-[0_14px_28px_-22px_rgba(15,23,42,0.16)] transition-colors hover:bg-white hover:text-[var(--color-text)]"
+                className="ui-control-surface mt-0.5 shrink-0 rounded-xl p-2 text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)]"
               >
                 <ArrowLeft className="h-5 w-5" />
               </button>
@@ -171,14 +171,14 @@ export function LearnClient({
                 </p>
               </div>
             </div>
-            <div className="flex shrink-0 items-center gap-1 rounded-2xl border border-black/8 bg-[#f6f8fb] p-1 shadow-[0_14px_30px_-24px_rgba(15,23,42,0.14)]">
+            <div className="ui-control-surface flex shrink-0 items-center gap-1 rounded-2xl p-1">
               <button
                 type="button"
                 onClick={() => setSidebarOpen(true)}
                 className={cn(
                   "rounded-xl p-2 transition-colors",
                   isSidebarOpen
-                    ? "bg-[#111827] text-white shadow-[0_12px_22px_-16px_rgba(15,23,42,0.35)]"
+                    ? "ui-primary-button"
                     : "text-[var(--color-text-secondary)] hover:bg-white",
                 )}
               >
@@ -190,7 +190,7 @@ export function LearnClient({
                 className={cn(
                   "rounded-xl p-2 transition-colors",
                   isChatOpen
-                    ? "bg-[#111827] text-white shadow-[0_12px_22px_-16px_rgba(15,23,42,0.35)]"
+                    ? "ui-primary-button"
                     : "text-[var(--color-text-secondary)] hover:bg-white",
                 )}
               >
@@ -222,7 +222,7 @@ export function LearnClient({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm"
+                className="ui-scrim-strong fixed inset-0 z-40 backdrop-blur-sm"
                 onClick={() => setSidebarOpen(false)}
               />
               <motion.div
@@ -230,7 +230,7 @@ export function LearnClient({
                 animate={{ x: 0 }}
                 exit={{ x: -SIDEBAR_WIDTH }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className="fixed inset-y-0 left-0 z-50 w-[min(88vw,336px)] overflow-hidden rounded-r-[28px] bg-[#f6f7f9] shadow-xl"
+                className="ui-page-shell fixed inset-y-0 left-0 z-50 w-[min(88vw,336px)] overflow-hidden rounded-r-[28px] shadow-xl"
               >
                 <LearnSidebar
                   courseTitle={courseTitle}
@@ -251,7 +251,7 @@ export function LearnClient({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm"
+                className="ui-scrim-strong fixed inset-0 z-40 backdrop-blur-sm"
                 onClick={() => setChatOpen(false)}
               />
               <motion.div
@@ -259,7 +259,7 @@ export function LearnClient({
                 animate={{ x: 0 }}
                 exit={{ x: "100%" }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className="fixed inset-y-0 right-0 z-50 w-full overflow-hidden bg-[#f6f7f9] shadow-xl"
+                className="ui-page-shell fixed inset-y-0 right-0 z-50 w-full overflow-hidden shadow-xl"
               >
                 <LearnChat
                   courseId={sessionId}
@@ -287,7 +287,7 @@ export function LearnClient({
             initial="hidden"
             animate="visible"
             exit="exit"
-            className="flex-shrink-0 overflow-hidden rounded-[30px] border border-black/5 bg-[#f6f7f9] shadow-[0_22px_54px_-40px_rgba(15,23,42,0.22)]"
+            className="ui-page-shell flex-shrink-0 overflow-hidden rounded-[30px] border border-black/5 shadow-[var(--shadow-floating-panel)]"
           >
             <LearnSidebar
               courseTitle={courseTitle}
@@ -304,7 +304,7 @@ export function LearnClient({
         variants={mainVariants}
         initial="full"
         animate={isZenMode ? "full" : "withSidebar"}
-        className="relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-[32px] border border-black/5 bg-white shadow-[0_24px_56px_-42px_rgba(15,23,42,0.18)]"
+        className="ui-message-card relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-[32px]"
       >
         {/* Header - hidden in zen mode */}
         <AnimatePresence>

@@ -99,7 +99,7 @@ export function DrawerMenu({ isOpen, onClose, userName, userEmail }: DrawerMenuP
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             onClick={onClose}
-            className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm md:hidden"
+            className="ui-scrim-strong fixed inset-0 z-50 backdrop-blur-sm md:hidden"
             aria-hidden="true"
           />
 

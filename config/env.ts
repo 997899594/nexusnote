@@ -28,8 +28,8 @@ export const defaults = {
 
   // Embedding
   embedding: {
-    model: "Qwen/Qwen3-Embedding-4B",
-    dimensions: 4000,
+    model: "Qwen/Qwen3-Embedding-8B",
+    dimensions: 4096,
   },
 
   // Reranker

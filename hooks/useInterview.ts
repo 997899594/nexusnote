@@ -235,9 +235,7 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
     const msg = initialMessageRef.current;
     if (msg && !sentInitialRef.current) {
       sentInitialRef.current = true;
-      requestAnimationFrame(() => {
-        void sendMessage({ text: msg });
-      });
+      void sendMessage({ text: msg });
     }
   }, [sendMessage]);
 

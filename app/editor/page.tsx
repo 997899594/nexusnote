@@ -98,7 +98,7 @@ function NoteCard({ note, emphasize = false }: { note: NoteWorkbenchItem; emphas
       href={`/editor/${note.id}`}
       className={`group rounded-[28px] p-5 transition-[transform,box-shadow] hover:-translate-y-0.5 ${
         emphasize
-          ? "border border-black/8 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] shadow-[0_24px_56px_-40px_rgba(15,23,42,0.18)]"
+          ? "ui-message-card border border-black/8"
           : "ui-surface-card hover:[box-shadow:var(--shadow-soft-panel-hover)]"
       }`}
     >
@@ -110,7 +110,7 @@ function NoteCard({ note, emphasize = false }: { note: NoteWorkbenchItem; emphas
               <span>{getNoteSourceLabel(note)}</span>
             </div>
             {note.isFocusRelated ? (
-              <div className="inline-flex items-center gap-1 rounded-full bg-[#111827] px-2.5 py-1 text-[11px] text-white">
+              <div className="ui-primary-button inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px]">
                 <Compass className="h-3 w-3" />
                 当前焦点
               </div>
@@ -133,7 +133,7 @@ function NoteCard({ note, emphasize = false }: { note: NoteWorkbenchItem; emphas
       </div>
 
       {sourceTitle && (
-        <div className="mb-3 rounded-2xl bg-[#f4f6f8] px-3 py-2 text-xs leading-6 text-[var(--color-text-secondary)]">
+        <div className="mb-3 rounded-2xl bg-[var(--color-panel-soft)] px-3 py-2 text-xs leading-6 text-[var(--color-text-secondary)]">
           {sourceTitle}
         </div>
       )}
@@ -204,14 +204,14 @@ async function NotesIndexPageContent({
       frameClassName="max-w-5xl"
     >
       <header className="mb-8 max-w-3xl md:mb-10">
-        <div className="ui-badge-pill inline-flex items-center gap-2 px-3 py-1.5 text-[11px] uppercase tracking-[0.22em] text-black/45">
+        <div className="ui-badge-pill ui-page-eyebrow inline-flex items-center gap-2 px-3 py-1.5 text-[11px] uppercase tracking-[0.22em]">
           <span className="ui-strong-chip h-1.5 w-1.5 rounded-full" />
           学习笔记
         </div>
-        <h1 className="mt-4 text-3xl font-semibold tracking-[-0.05em] text-black/90 md:text-5xl">
+        <h1 className="ui-page-title mt-4 text-3xl font-semibold tracking-[-0.05em] md:text-5xl">
           跨课程知识工作台
         </h1>
-        <p className="mt-3 max-w-2xl text-base leading-8 text-black/55">
+        <p className="ui-page-description mt-3 max-w-2xl text-base leading-8">
           把高亮、课程笔记和学习沉淀统一收口，不再困在单门课程里。
         </p>
       </header>
@@ -254,7 +254,7 @@ async function NotesIndexPageContent({
       ) : (
         <div className="space-y-8">
           {snapshot.focus ? (
-            <section className="overflow-hidden rounded-[32px] border border-black/6 bg-[linear-gradient(180deg,#ffffff_0%,#f6f7fb_100%)] p-5 md:p-6">
+            <section className="ui-message-card overflow-hidden rounded-[32px] p-5 md:p-6">
               <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                 <div className="max-w-2xl">
                   <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-[var(--color-text-muted)]">
@@ -268,18 +268,18 @@ async function NotesIndexPageContent({
                     {snapshot.focus.summary}
                   </p>
                   <div className="mt-4 flex flex-wrap gap-2 text-xs text-[var(--color-text-secondary)]">
-                    <span className="rounded-full bg-white px-3 py-1.5 shadow-sm">
+                    <span className="ui-badge-pill rounded-full px-3 py-1.5">
                       进度 {snapshot.focus.progress}%
                     </span>
-                    <span className="rounded-full bg-white px-3 py-1.5 shadow-sm">
+                    <span className="ui-badge-pill rounded-full px-3 py-1.5">
                       {getGrowthStateLabel(snapshot.focus.state)}
                     </span>
-                    <span className="rounded-full bg-white px-3 py-1.5 shadow-sm">
+                    <span className="ui-badge-pill rounded-full px-3 py-1.5">
                       相关材料 {snapshot.focus.relatedItemIds.length} 条
                     </span>
                   </div>
                 </div>
-                <div className="rounded-[24px] bg-white/80 px-4 py-4 text-sm leading-7 text-[var(--color-text-secondary)] shadow-[0_18px_46px_-42px_rgba(15,23,42,0.25)] lg:max-w-sm">
+                <div className="ui-message-card rounded-[24px] px-4 py-4 text-sm leading-7 text-[var(--color-text-secondary)] lg:max-w-sm">
                   这一区不再按最近更新时间排，而是优先展示和你当前学习焦点真正有关的沉淀。
                 </div>
               </div>
@@ -291,7 +291,7 @@ async function NotesIndexPageContent({
                   ))}
                 </div>
               ) : (
-                <div className="mt-6 rounded-[24px] border border-dashed border-black/10 bg-white/70 px-5 py-6 text-sm text-[var(--color-text-secondary)]">
+                <div className="mt-6 rounded-[24px] border border-dashed border-black/10 bg-[var(--color-panel-soft)] px-5 py-6 text-sm text-[var(--color-text-secondary)]">
                   当前筛选下还没有和这个焦点直接关联的材料。
                 </div>
               )}
@@ -311,10 +311,7 @@ async function NotesIndexPageContent({
 
               <div className="grid gap-4 xl:grid-cols-3">
                 {insightCollections.map((group) => (
-                  <div
-                    key={group.insight.id}
-                    className="rounded-[28px] border border-black/6 bg-white px-5 py-5 shadow-[0_18px_48px_-42px_rgba(15,23,42,0.18)]"
-                  >
+                  <div key={group.insight.id} className="ui-message-card rounded-[28px] px-5 py-5">
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
@@ -337,7 +334,7 @@ async function NotesIndexPageContent({
                         <Link
                           key={note.id}
                           href={`/editor/${note.id}`}
-                          className="block rounded-[20px] bg-[var(--color-panel-soft)] px-4 py-3 transition-colors hover:bg-[#eef1f5]"
+                          className="block rounded-[20px] bg-[var(--color-panel-soft)] px-4 py-3 transition-colors hover:bg-[var(--color-active)]"
                         >
                           <div className="text-sm font-medium text-[var(--color-text)]">
                             {note.title}
@@ -371,8 +368,8 @@ async function NotesIndexPageContent({
                   href={getEditorKindHref(kind)}
                   className={`rounded-[26px] border px-4 py-4 transition-[transform,box-shadow] hover:-translate-y-0.5 ${
                     isActive
-                      ? "border-black/10 bg-white shadow-[0_24px_56px_-40px_rgba(15,23,42,0.16)]"
-                      : "border-transparent bg-[#f5f6f8]"
+                      ? "ui-message-card border-black/10"
+                      : "border-transparent bg-[var(--color-panel-soft)]"
                   }`}
                 >
                   <div className="flex items-center justify-between gap-3">
@@ -411,7 +408,7 @@ async function NotesIndexPageContent({
                   <Link
                     key={course.courseId}
                     href={`/editor?courseId=${course.courseId}`}
-                    className="rounded-[26px] bg-white px-5 py-4 shadow-[0_24px_56px_-40px_rgba(15,23,42,0.14)] transition-[transform,box-shadow] hover:-translate-y-0.5 hover:[box-shadow:var(--shadow-soft-panel-hover)]"
+                    className="ui-message-card rounded-[26px] px-5 py-4 transition-[transform,box-shadow] hover:-translate-y-0.5 hover:[box-shadow:var(--shadow-soft-panel-hover)]"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -454,7 +451,7 @@ async function NotesIndexPageContent({
             </div>
 
             {filteredNotes.length === 0 ? (
-              <div className="rounded-[28px] border border-dashed border-black/10 bg-[#fafafa] px-6 py-10 text-center text-sm text-[var(--color-text-secondary)]">
+              <div className="rounded-[28px] border border-dashed border-black/10 bg-[var(--color-panel-soft)] px-6 py-10 text-center text-sm text-[var(--color-text-secondary)]">
                 当前筛选下还没有内容。
               </div>
             ) : (

@@ -50,7 +50,7 @@ export function ChatHistory({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
-          className="fixed inset-0 bg-black/20 z-40 lg:hidden"
+          className="ui-scrim fixed inset-0 z-40 lg:hidden"
         />
       )}
 
@@ -61,7 +61,7 @@ export function ChatHistory({
         transition={{ type: "spring", damping: 25, stiffness: 200 }}
         className={cn(
           "fixed z-50 h-full w-[280px] bg-white lg:relative lg:z-0",
-          "flex flex-col shadow-[0_28px_56px_-38px_rgba(15,23,42,0.22)] lg:shadow-[0_24px_48px_-40px_rgba(15,23,42,0.14)]",
+          "flex flex-col shadow-[var(--shadow-floating-panel)]",
           "lg:translate-x-0",
         )}
       >
@@ -71,7 +71,7 @@ export function ChatHistory({
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={onNewSession}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#111827] px-4 py-3 text-sm font-medium text-white shadow-[0_18px_36px_-28px_rgba(15,23,42,0.32)] transition-transform"
+            className="ui-primary-button flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium transition-transform"
           >
             <Plus className="w-4 h-4" />
             <span>新对话</span>
@@ -93,7 +93,9 @@ export function ChatHistory({
                   animate={{ opacity: 1, y: 0 }}
                   className={cn(
                     "group relative flex cursor-pointer items-start gap-3 rounded-2xl p-3 transition-colors",
-                    session.id === currentSessionId ? "bg-[#f3f5f8]" : "hover:bg-[#f6f7f9]",
+                    session.id === currentSessionId
+                      ? "bg-[var(--color-active)]"
+                      : "hover:bg-[var(--color-panel-soft)]",
                   )}
                   onClick={() => onSelectSession(session.id)}
                 >
@@ -118,7 +120,7 @@ export function ChatHistory({
                         {session.title}
                       </span>
                       {session.id === currentSessionId && (
-                        <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#111827]" />
+                        <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[var(--color-panel-strong)]" />
                       )}
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">

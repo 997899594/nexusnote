@@ -23,14 +23,14 @@ async function ProfileSettingsPageContent() {
       }
     >
       <section className="mb-8">
-        <div className="ui-badge-pill inline-flex items-center gap-2 px-3 py-1.5 text-[11px] uppercase tracking-[0.22em] text-black/45">
+        <div className="ui-badge-pill ui-page-eyebrow inline-flex items-center gap-2 px-3 py-1.5 text-[11px] uppercase tracking-[0.22em]">
           <span className="ui-strong-chip h-1.5 w-1.5 rounded-full" />
           偏好设置
         </div>
-        <h1 className="mt-5 text-3xl font-semibold tracking-[-0.05em] text-black/90 md:text-5xl">
+        <h1 className="ui-page-title mt-5 text-3xl font-semibold tracking-[-0.05em] md:text-5xl">
           管理默认行为
         </h1>
-        <p className="mt-3 max-w-2xl text-base leading-8 text-black/55">
+        <p className="ui-page-description mt-3 max-w-2xl text-base leading-8">
           这里处理长期默认值，不把这些表单再塞回个人首页。
         </p>
       </section>
@@ -55,14 +55,14 @@ async function ProfileSettingsPageContent() {
             <div className="flex flex-wrap items-center gap-3">
               <Link
                 href="/profile"
-                className="ui-surface-soft inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[#eceff3] hover:text-[var(--color-text)]"
+                className="ui-surface-soft inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-active)] hover:text-[var(--color-text)]"
               >
                 <ArrowLeft className="h-4 w-4" />
                 返回个人中心
               </Link>
               <Link
                 href="/profile/insights"
-                className="ui-surface-soft inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[#eceff3] hover:text-[var(--color-text)]"
+                className="ui-surface-soft inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-active)] hover:text-[var(--color-text)]"
               >
                 <BarChart3 className="h-4 w-4" />
                 查看学习洞察

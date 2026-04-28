@@ -14,7 +14,7 @@ async function ChatSessionPageContent({ params }: ChatSessionPageProps) {
 
 export default function ChatSessionPage({ params }: ChatSessionPageProps) {
   return (
-    <Suspense fallback={<div className="min-h-dvh bg-[#f6f7f9]" />}>
+    <Suspense fallback={<div className="ui-page-shell min-h-dvh" />}>
       <ChatSessionPageContent params={params} />
     </Suspense>
   );

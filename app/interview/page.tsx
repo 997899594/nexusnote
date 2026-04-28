@@ -22,7 +22,7 @@ async function InterviewPageContent({ searchParams }: InterviewPageProps) {
 
 export default function InterviewPage({ searchParams }: InterviewPageProps) {
   return (
-    <Suspense fallback={<div className="min-h-dvh bg-[#f6f7f9]" />}>
+    <Suspense fallback={<div className="ui-page-shell min-h-dvh" />}>
       <InterviewPageContent searchParams={searchParams} />
     </Suspense>
   );

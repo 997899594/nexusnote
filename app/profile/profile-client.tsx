@@ -8,7 +8,7 @@ export function ProfileSignOut() {
     <button
       type="button"
       onClick={() => signOut({ callbackUrl: "/" })}
-      className="flex items-center gap-2 px-4 py-2 text-sm text-zinc-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+      className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-rose-50 hover:text-rose-600"
     >
       <LogOut className="w-4 h-4" />
       退出登录

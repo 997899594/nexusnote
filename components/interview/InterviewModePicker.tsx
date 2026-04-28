@@ -44,8 +44,8 @@ export function InterviewModePicker({
               "rounded-2xl border text-left transition-all",
               compact ? "px-3 py-2.5" : "px-4 py-3.5",
               isActive
-                ? "border-[#111827]/16 bg-[#111827] text-white shadow-[0_18px_34px_-26px_rgba(15,23,42,0.42)]"
-                : "border-black/8 bg-white text-[var(--color-text)] hover:border-black/14 hover:bg-black/[0.02]",
+                ? "ui-primary-button border-black/10"
+                : "ui-control-surface text-[var(--color-text)] hover:border-black/14",
               disabled && "cursor-not-allowed opacity-60",
             )}
           >
@@ -62,20 +62,24 @@ export function InterviewModePicker({
               <span
                 className={cn(
                   "rounded-full px-2 py-1 text-[10px] font-semibold tracking-[0.08em]",
-                  isActive ? "bg-white/14 text-white/80" : "bg-black/5 text-black/42",
+                  isActive
+                    ? "bg-white/14 text-white/80"
+                    : "bg-[var(--color-active)] text-[var(--color-text-tertiary)]",
                 )}
               >
                 {option.value === "structured" ? "代码主导" : "自由对话"}
               </span>
             </div>
-            <p
-              className={cn(
-                "mt-1.5 text-xs leading-5",
-                isActive ? "text-white/72" : "text-[var(--color-text-muted)]",
-              )}
-            >
-              {getInterviewSessionModeDescription(option.value)}
-            </p>
+            {!compact && (
+              <p
+                className={cn(
+                  "mt-1.5 text-xs leading-5",
+                  isActive ? "text-white/72" : "text-[var(--color-text-muted)]",
+                )}
+              >
+                {getInterviewSessionModeDescription(option.value)}
+              </p>
+            )}
           </button>
         );
       })}

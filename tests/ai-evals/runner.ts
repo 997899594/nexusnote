@@ -244,8 +244,8 @@ function runInterviewRuleChecks(output: string): EvalRuleCheck[] {
     },
     {
       name: "chapter-count",
-      passed: chapters.length >= 5 && chapters.length <= 7,
-      details: `Outline chapter count is ${chapters.length}. Expected 5-7.`,
+      passed: chapters.length >= 6 && chapters.length <= 7,
+      details: `Outline chapter count is ${chapters.length}. Expected 6-7.`,
     },
     {
       name: "course-skill-ids",

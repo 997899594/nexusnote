@@ -24,15 +24,12 @@ export function PendingTagsPopover({ pending, onConfirm, onReject }: PendingTags
       <PopoverTrigger asChild>
         <Badge
           variant="outline"
-          className="cursor-pointer border-none bg-white shadow-[0_12px_28px_-24px_rgba(15,23,42,0.14)] transition-colors hover:bg-[#f6f7f9]"
+          className="ui-message-card cursor-pointer border-none transition-colors hover:bg-[var(--color-panel-soft)]"
         >
           + {pending.length} 建议待确认
         </Badge>
       </PopoverTrigger>
-      <PopoverContent
-        className="w-64 rounded-2xl border-none bg-white shadow-[0_24px_56px_-36px_rgba(15,23,42,0.18)]"
-        align="start"
-      >
+      <PopoverContent className="ui-message-card w-64 rounded-2xl border-none" align="start">
         <div className="space-y-2">
           <p className="text-sm font-medium text-muted-foreground mb-3">AI 建议的标签</p>
           {pending.map((dt) => (
@@ -47,7 +44,7 @@ export function PendingTagsPopover({ pending, onConfirm, onReject }: PendingTags
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-6 w-6 p-0 text-[#111827] hover:bg-[#f3f5f8] hover:text-[#111827]"
+                  className="h-6 w-6 p-0 text-[var(--color-text)] hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)]"
                   onClick={() => {
                     setLoadingId(dt.id);
                     onConfirm(dt.id).finally(() => setLoadingId(null));
@@ -59,7 +56,7 @@ export function PendingTagsPopover({ pending, onConfirm, onReject }: PendingTags
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-6 w-6 p-0 text-zinc-500 hover:bg-[#f3f5f8] hover:text-zinc-700"
+                  className="h-6 w-6 p-0 text-[var(--color-text-secondary)] hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)]"
                   onClick={() => {
                     setLoadingId(dt.id);
                     onReject(dt.id).finally(() => setLoadingId(null));

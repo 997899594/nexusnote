@@ -75,8 +75,8 @@ export function MobileHeader({
     variant === "transparent"
       ? "bg-transparent"
       : variant === "glass"
-        ? "bg-white/90 backdrop-blur-xl shadow-[0_18px_42px_-34px_rgba(15,23,42,0.18)]"
-        : "bg-white shadow-[0_18px_42px_-34px_rgba(15,23,42,0.18)]";
+        ? "bg-white/90 backdrop-blur-xl shadow-[var(--shadow-soft-panel)]"
+        : "bg-white shadow-[var(--shadow-soft-panel)]";
 
   return (
     <motion.header
@@ -94,7 +94,7 @@ export function MobileHeader({
             <motion.button
               whileTap={{ scale: 0.9 }}
               onClick={handleBack}
-              className="touch-target mobile-no-tap-highlight -ml-1 flex h-10 w-10 items-center justify-center rounded-xl text-[var(--color-text-secondary)] transition-colors active:bg-[#eef1f5]"
+              className="touch-target mobile-no-tap-highlight -ml-1 flex h-10 w-10 items-center justify-center rounded-xl text-[var(--color-text-secondary)] transition-colors active:bg-[var(--color-active)]"
               aria-label="返回"
             >
               <ArrowLeft className="h-5 w-5" />
@@ -117,7 +117,7 @@ export function MobileHeader({
             <motion.button
               whileTap={{ scale: 0.9 }}
               onClick={handleRightAction}
-              className="touch-target mobile-no-tap-highlight -mr-1 flex h-10 w-10 items-center justify-center rounded-xl text-[var(--color-text-secondary)] transition-colors active:bg-[#eef1f5]"
+              className="touch-target mobile-no-tap-highlight -mr-1 flex h-10 w-10 items-center justify-center rounded-xl text-[var(--color-text-secondary)] transition-colors active:bg-[var(--color-active)]"
               aria-label="菜单"
             >
               <Menu className="h-5 w-5" />
@@ -127,7 +127,7 @@ export function MobileHeader({
             <motion.button
               whileTap={{ scale: 0.9 }}
               onClick={handleRightAction}
-              className="touch-target mobile-no-tap-highlight -mr-1 flex h-10 w-10 items-center justify-center rounded-xl text-[var(--color-text-secondary)] transition-colors active:bg-[#eef1f5]"
+              className="touch-target mobile-no-tap-highlight -mr-1 flex h-10 w-10 items-center justify-center rounded-xl text-[var(--color-text-secondary)] transition-colors active:bg-[var(--color-active)]"
               aria-label="关闭"
             >
               <X className="h-5 w-5" />
@@ -138,7 +138,7 @@ export function MobileHeader({
               whileTap={{ scale: 0.9 }}
               onClick={handleRightAction}
               className={cn(
-                "touch-target mobile-no-tap-highlight -mr-1 flex h-10 min-w-10 items-center justify-center rounded-xl px-3 text-sm font-medium text-[#111827] transition-colors active:bg-[#eef1f5]",
+                "touch-target mobile-no-tap-highlight -mr-1 flex h-10 min-w-10 items-center justify-center rounded-xl px-3 text-sm font-medium text-[var(--color-text)] transition-colors active:bg-[var(--color-active)]",
                 !rightLabel && "w-10 px-0",
               )}
               aria-label="操作"
