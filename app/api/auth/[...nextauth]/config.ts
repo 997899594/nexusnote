@@ -2,9 +2,9 @@
  * Auth.js v5 Configuration
  *
  * Providers:
- * - Resend (Magic Link) — primary
- * - GitHub OAuth — secondary
- * - Credentials (dev only, NODE_ENV=development)
+ * - Resend (Magic Link) - production by default
+ * - GitHub OAuth - optional
+ * - Credentials - non-production by default
  */
 
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
@@ -14,6 +14,18 @@ import GitHub from "next-auth/providers/github";
 import Resend from "next-auth/providers/resend";
 import { db, eq, users } from "@/db";
 import { accounts, sessions, verificationTokens } from "@/db/schema";
+
+function readBooleanEnv(name: string): boolean | null {
+  const value = process.env[name];
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return null;
+}
+
+const runtimeEnvironment = process.env.APP_ENV ?? process.env.VERCEL_ENV ?? process.env.NODE_ENV;
+const isProductionEnvironment = runtimeEnvironment === "production";
+const isDevLoginEnabled = readBooleanEnv("AUTH_DEV_LOGIN_ENABLED") ?? !isProductionEnvironment;
+const isResendEnabled = readBooleanEnv("AUTH_RESEND_ENABLED") ?? !isDevLoginEnabled;
 
 export const authConfig = {
   trustHost: true,
@@ -42,10 +54,14 @@ export const authConfig = {
   },
 
   providers: [
-    Resend({
-      apiKey: process.env.RESEND_API_KEY,
-      from: process.env.EMAIL_FROM ?? "NexusNote <noreply@nexusnote.app>",
-    }),
+    ...(isResendEnabled
+      ? [
+          Resend({
+            apiKey: process.env.RESEND_API_KEY,
+            from: process.env.EMAIL_FROM ?? "NexusNote <noreply@nexusnote.app>",
+          }),
+        ]
+      : []),
 
     ...(process.env.AUTH_GITHUB_ID
       ? [
@@ -56,8 +72,8 @@ export const authConfig = {
         ]
       : []),
 
-    // Dev-only: bypass email flow
-    ...(process.env.NODE_ENV === "development"
+    // Non-production: bypass email/domain setup.
+    ...(isDevLoginEnabled
       ? [
           Credentials({
             name: "Development",

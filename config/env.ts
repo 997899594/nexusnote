@@ -106,6 +106,14 @@ export const serverEnvSchema = z.object({
   // Magic Link (Resend)
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().optional(),
+  AUTH_RESEND_ENABLED: z
+    .string()
+    .optional()
+    .transform((v) => v === "true"),
+  AUTH_DEV_LOGIN_ENABLED: z
+    .string()
+    .optional()
+    .transform((v) => v === "true"),
 
   // AI Provider Keys (至少配置一个)
   AI_302_API_KEY: z.string().min(1),
@@ -241,6 +249,15 @@ export const clientEnvSchema = z.object({
   NEXT_PUBLIC_AI_ENABLE_WEB_SEARCH: z
     .string()
     .default("false")
+    .transform((v) => v === "true"),
+
+  NEXT_PUBLIC_AUTH_RESEND_ENABLED: z
+    .string()
+    .optional()
+    .transform((v) => v === "true"),
+  NEXT_PUBLIC_AUTH_DEV_LOGIN_ENABLED: z
+    .string()
+    .optional()
     .transform((v) => v === "true"),
 
   // Environment

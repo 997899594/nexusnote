@@ -7,6 +7,15 @@ import { signIn, useSession } from "next-auth/react";
 import { Suspense, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
+const isDevLoginEnabled =
+  process.env.NEXT_PUBLIC_AUTH_DEV_LOGIN_ENABLED === "true" ||
+  (process.env.NODE_ENV !== "production" &&
+    process.env.NEXT_PUBLIC_AUTH_DEV_LOGIN_ENABLED !== "false");
+
+const isResendLoginEnabled =
+  process.env.NEXT_PUBLIC_AUTH_RESEND_ENABLED === "true" ||
+  (!isDevLoginEnabled && process.env.NEXT_PUBLIC_AUTH_RESEND_ENABLED !== "false");
+
 function getSafeCallbackUrl(callbackUrl: string | null): string {
   if (!callbackUrl) return "/";
   return callbackUrl.startsWith("/") && !callbackUrl.startsWith("//") ? callbackUrl : "/";
@@ -19,13 +28,12 @@ function LoginForm() {
   const isVerifyPage = searchParams.get("verify") === "1";
   const callbackUrl = getSafeCallbackUrl(searchParams.get("callbackUrl"));
 
-  const [email, setEmail] = useState("");
-  const [devName, setDevName] = useState("");
-  const [sent, setSent] = useState(isVerifyPage);
+  const [email, setEmail] = useState(isDevLoginEnabled ? "demo@example.com" : "");
+  const [devName, setDevName] = useState(isDevLoginEnabled ? "学习者" : "");
+  const [sent, setSent] = useState(isVerifyPage && isResendLoginEnabled);
   const [sentEmail, setSentEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [showDev, setShowDev] = useState(false);
 
   useEffect(() => {
     if (status === "authenticated") {
@@ -35,7 +43,7 @@ function LoginForm() {
 
   const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
+    if (!email || !isResendLoginEnabled) return;
     setLoading(true);
     setError("");
     try {
@@ -59,7 +67,9 @@ function LoginForm() {
 
   const handleDevLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email || !isDevLoginEnabled) return;
     setLoading(true);
+    setError("");
     try {
       await signIn("credentials", { email, name: devName, callbackUrl });
     } catch {
@@ -141,44 +151,95 @@ function LoginForm() {
                     登录后继续学习
                   </h1>
                   <p className="mt-2 text-sm leading-7 text-[var(--color-text-tertiary)]">
-                    登录你的 NexusNote 账户，继续课程、笔记和学习进度。
+                    {isDevLoginEnabled
+                      ? "使用测试账户进入 NexusNote，继续课程、笔记和学习进度。"
+                      : "登录你的 NexusNote 账户，继续课程、笔记和学习进度。"}
                   </p>
                 </div>
 
-                <form onSubmit={handleMagicLink} className="space-y-3">
-                  <div className="relative">
-                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)]" />
+                {isDevLoginEnabled ? (
+                  <form onSubmit={handleDevLogin} className="space-y-3">
+                    <div className="relative">
+                      <Mail className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
+                      <input
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="demo@example.com"
+                        className={cn(
+                          "w-full rounded-xl bg-[#f7f8fa] py-3 pl-10 pr-4",
+                          "text-[var(--color-text)] placeholder:text-[var(--color-text-muted)]",
+                          "outline-none transition-all focus:ring-2 focus:ring-[var(--color-accent)]/15",
+                        )}
+                      />
+                    </div>
+
                     <input
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="输入邮箱"
+                      type="text"
+                      value={devName}
+                      onChange={(e) => setDevName(e.target.value)}
+                      placeholder="名字（可选）"
                       className={cn(
-                        "w-full rounded-xl bg-[#f7f8fa] pl-10 pr-4 py-3",
+                        "w-full rounded-xl bg-[#f7f8fa] px-4 py-3",
                         "text-[var(--color-text)] placeholder:text-[var(--color-text-muted)]",
-                        "focus:ring-2 focus:ring-[var(--color-accent)]/15 outline-none transition-all",
+                        "outline-none transition-all focus:ring-2 focus:ring-[var(--color-accent)]/15",
                       )}
                     />
-                  </div>
 
-                  {error && <p className="text-xs text-red-500 px-1">{error}</p>}
+                    {error && <p className="px-1 text-xs text-red-500">{error}</p>}
 
-                  <motion.button
-                    whileHover={email ? { scale: 1.01 } : {}}
-                    whileTap={email ? { scale: 0.99 } : {}}
-                    type="submit"
-                    disabled={loading || !email}
-                    className={cn(
-                      "w-full py-3 px-4 rounded-xl font-medium text-sm transition-all",
-                      "ui-primary-button",
-                      "disabled:opacity-50 disabled:cursor-not-allowed",
-                      "flex items-center justify-center gap-2",
-                    )}
-                  >
-                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "发送登录链接"}
-                  </motion.button>
-                </form>
+                    <motion.button
+                      whileHover={email ? { scale: 1.01 } : {}}
+                      whileTap={email ? { scale: 0.99 } : {}}
+                      type="submit"
+                      disabled={loading || !email}
+                      className={cn(
+                        "flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 font-medium text-sm transition-all",
+                        "ui-primary-button",
+                        "disabled:cursor-not-allowed disabled:opacity-50",
+                      )}
+                    >
+                      {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "直接登录"}
+                    </motion.button>
+                  </form>
+                ) : null}
+
+                {isResendLoginEnabled ? (
+                  <form onSubmit={handleMagicLink} className="space-y-3">
+                    <div className="relative">
+                      <Mail className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
+                      <input
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="输入邮箱"
+                        className={cn(
+                          "w-full rounded-xl bg-[#f7f8fa] py-3 pl-10 pr-4",
+                          "text-[var(--color-text)] placeholder:text-[var(--color-text-muted)]",
+                          "outline-none transition-all focus:ring-2 focus:ring-[var(--color-accent)]/15",
+                        )}
+                      />
+                    </div>
+
+                    {error && <p className="px-1 text-xs text-red-500">{error}</p>}
+
+                    <motion.button
+                      whileHover={email ? { scale: 1.01 } : {}}
+                      whileTap={email ? { scale: 0.99 } : {}}
+                      type="submit"
+                      disabled={loading || !email}
+                      className={cn(
+                        "flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 font-medium text-sm transition-all",
+                        "ui-primary-button",
+                        "disabled:cursor-not-allowed disabled:opacity-50",
+                      )}
+                    >
+                      {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "发送登录链接"}
+                    </motion.button>
+                  </form>
+                ) : null}
 
                 {process.env.NEXT_PUBLIC_GITHUB_ENABLED === "true" && (
                   <>
@@ -208,65 +269,6 @@ function LoginForm() {
                       Continue with GitHub
                     </motion.button>
                   </>
-                )}
-
-                {process.env.NODE_ENV === "development" && (
-                  <div className="mt-8">
-                    <button
-                      type="button"
-                      onClick={() => setShowDev((v) => !v)}
-                      className="w-full text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors py-1"
-                    >
-                      {showDev ? "收起" : "开发模式登录"}
-                    </button>
-
-                    <AnimatePresence>
-                      {showDev && (
-                        <motion.form
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: "auto" }}
-                          exit={{ opacity: 0, height: 0 }}
-                          onSubmit={handleDevLogin}
-                          className="mt-3 space-y-2 overflow-hidden"
-                        >
-                          <input
-                            type="email"
-                            required
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            placeholder="demo@example.com"
-                            className={cn(
-                              "w-full rounded-lg bg-[#f7f8fa] px-3 py-2 text-sm",
-                              "text-[var(--color-text)] placeholder:text-[var(--color-text-muted)]",
-                              "focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]",
-                            )}
-                          />
-                          <input
-                            type="text"
-                            value={devName}
-                            onChange={(e) => setDevName(e.target.value)}
-                            placeholder="名字（可选）"
-                            className={cn(
-                              "w-full rounded-lg bg-[#f7f8fa] px-3 py-2 text-sm",
-                              "text-[var(--color-text)] placeholder:text-[var(--color-text-muted)]",
-                              "focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]",
-                            )}
-                          />
-                          <button
-                            type="submit"
-                            disabled={loading || !email}
-                            className={cn(
-                              "w-full py-2 rounded-lg text-sm font-medium transition-colors",
-                              "bg-[#f3f5f8] text-[var(--color-text-secondary)]",
-                              "hover:bg-[#eceff3] disabled:opacity-50",
-                            )}
-                          >
-                            直接登录（Dev）
-                          </button>
-                        </motion.form>
-                      )}
-                    </AnimatePresence>
-                  </div>
                 )}
               </motion.div>
             )}
