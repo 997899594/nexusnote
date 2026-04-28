@@ -60,7 +60,6 @@ export async function POST(request: NextRequest) {
       userId,
       courseId,
       outline,
-      generationContext,
     });
 
     revalidateRecentCourses(userId);
