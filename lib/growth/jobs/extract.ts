@@ -59,6 +59,46 @@ function buildEvidenceRefs(params: {
   ];
 }
 
+function validateExtractedCourseEvidence(
+  extracted: Awaited<ReturnType<typeof extractGrowthCourseEvidence>>,
+  outline: ReturnType<typeof normalizeGrowthOutline>,
+): void {
+  if (extracted.items.length === 0) {
+    throw new Error("Growth course extraction returned no evidence items");
+  }
+
+  const validChapterKeys = new Set(outline.chapters.map((chapter) => chapter.chapterKey));
+  const invalidRefs = extracted.items.flatMap((item) =>
+    item.chapterKeys
+      .filter((chapterKey) => !validChapterKeys.has(chapterKey))
+      .map((chapterKey) => `${item.title}:${chapterKey}`),
+  );
+  if (invalidRefs.length > 0) {
+    throw new Error(
+      `Growth course extraction returned invalid chapter refs: ${invalidRefs.join(", ")}`,
+    );
+  }
+
+  const duplicateChapterRefs = extracted.items.flatMap((item) => {
+    const seen = new Set<string>();
+    return item.chapterKeys
+      .filter((chapterKey) => {
+        if (seen.has(chapterKey)) {
+          return true;
+        }
+
+        seen.add(chapterKey);
+        return false;
+      })
+      .map((chapterKey) => `${item.title}:${chapterKey}`);
+  });
+  if (duplicateChapterRefs.length > 0) {
+    throw new Error(
+      `Growth course extraction returned duplicate chapter refs: ${duplicateChapterRefs.join(", ")}`,
+    );
+  }
+}
+
 export async function processGrowthExtractJob(
   job: JobPayload<"extract_course_evidence">,
   options: GrowthJobExecutionOptions = {},
@@ -98,6 +138,7 @@ export async function processGrowthExtractJob(
         outline,
       }),
     );
+    validateExtractedCourseEvidence(extracted, outline);
 
     for (const item of extracted.items) {
       await ingestEvidenceEvent({

@@ -10,11 +10,7 @@ import {
   revalidateProfileStats,
   revalidateRecentCourses,
 } from "@/lib/cache/tags";
-import { getUserGrowthContext } from "@/lib/growth/generation-context";
-import { computeGrowthOutlineHash, normalizeGrowthOutline } from "@/lib/growth/normalize-outline";
-import { enqueueGrowthExtract, enqueueKnowledgeInsights } from "@/lib/growth/queue";
-import { ingestEvidenceEvent } from "@/lib/knowledge/events";
-import { buildCourseBlueprintAlignmentBrief } from "@/lib/learning/alignment";
+import { syncCourseOutlineKnowledgePipeline } from "@/lib/learning/course-knowledge-pipeline";
 import { getOwnedCourse } from "@/lib/learning/course-repository";
 
 const RequestSchema = z.object({
@@ -47,7 +43,6 @@ export async function POST(request: NextRequest) {
     }
 
     const { outline, courseId } = parsed.data;
-    const generationContext = await getUserGrowthContext(userId);
 
     if (courseId) {
       const existingCourse = await getOwnedCourse(courseId, userId);
@@ -67,53 +62,17 @@ export async function POST(request: NextRequest) {
     revalidateLearnPage(userId, result.courseId);
     revalidateCareerTrees(userId);
 
-    const normalizedOutline = normalizeGrowthOutline(result.outline);
-    const outlineHash = computeGrowthOutlineHash(normalizedOutline);
-    const courseAlignment = buildCourseBlueprintAlignmentBrief({
-      courseTitle: result.outline.title,
-      courseDescription: result.outline.description,
-      courseSkillIds: result.outline.courseSkillIds,
-      chapterTitles: result.outline.chapters.map((chapter) => chapter.title),
-      chapterSkillIds: result.outline.chapters.flatMap((chapter) => chapter.skillIds ?? []),
-      generationContext,
-    });
-
-    await ingestEvidenceEvent({
-      id: crypto.randomUUID(),
+    const knowledgePipeline = await syncCourseOutlineKnowledgePipeline({
       userId,
-      kind: "course_outline",
-      sourceType: "course",
-      sourceId: result.courseId,
-      sourceVersionHash: outlineHash,
-      title: result.outline.title,
-      summary: result.outline.description,
-      confidence: 1,
-      happenedAt: new Date().toISOString(),
-      metadata: {
-        chapterCount: normalizedOutline.chapters.length,
-        courseSkillIds: normalizedOutline.courseSkillIds,
-        generationContext,
-        courseAlignment,
-        chapterSkillIds: normalizedOutline.chapters.map((chapter) => ({
-          chapterKey: chapter.chapterKey,
-          skillIds: chapter.explicitSkillIds,
-        })),
-      },
-      refs: normalizedOutline.chapters.map((chapter) => ({
-        refType: "chapter",
-        refId: chapter.chapterKey,
-        snippet: chapter.title,
-        weight: 1,
-      })),
+      courseId: result.courseId,
+      outline: result.outline,
     });
-
-    await enqueueGrowthExtract(userId, result.courseId);
-    await enqueueKnowledgeInsights(userId);
 
     return NextResponse.json({
       success: true,
       courseId: result.courseId,
       outline: result.outline,
+      knowledgePipeline,
     });
   } catch (error) {
     return handleError(error);

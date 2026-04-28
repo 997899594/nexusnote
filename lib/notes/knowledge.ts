@@ -95,7 +95,7 @@ export async function syncNoteKnowledge(
     sourceContext: note.sourceContext ?? null,
   };
 
-  return syncKnowledgeSource({
+  const result = await syncKnowledgeSource({
     userId: note.userId,
     sourceType: knowledgeSourceType,
     sourceId: note.id,
@@ -119,7 +119,7 @@ export async function syncNoteKnowledge(
       });
     },
     syncChunks: async () => {
-      await syncSourceKnowledgeEvidenceChunks({
+      return syncSourceKnowledgeEvidenceChunks({
         userId: note.userId,
         sourceType: knowledgeSourceType,
         sourceId: note.id,
@@ -128,6 +128,8 @@ export async function syncNoteKnowledge(
       });
     },
   });
+
+  return result.affectedNodeIds;
 }
 
 export async function clearNoteKnowledge(
@@ -137,7 +139,7 @@ export async function clearNoteKnowledge(
   options?: { enqueueFollowups?: boolean },
 ): Promise<string[]> {
   const knowledgeSourceType = resolveNoteBackedKnowledgeSourceType(noteSourceType);
-  return syncKnowledgeSource({
+  const result = await syncKnowledgeSource({
     userId,
     sourceType: knowledgeSourceType,
     sourceId: noteId,
@@ -146,4 +148,6 @@ export async function clearNoteKnowledge(
     enqueueInsightsOnEmpty: false,
     enqueueFollowups: options?.enqueueFollowups,
   });
+
+  return result.affectedNodeIds;
 }

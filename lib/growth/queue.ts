@@ -1,12 +1,27 @@
 import type { GrowthJobData } from "@/lib/queue/growth-queue";
 import { getGrowthQueue } from "@/lib/queue/growth-queue";
 
-async function enqueueGrowthJob(job: GrowthJobData): Promise<void> {
-  await getGrowthQueue().add(job.type, job);
+export interface QueuedGrowthJob {
+  id: string | null;
+  name: string;
+  type: GrowthJobData["type"];
 }
 
-export async function enqueueGrowthExtract(userId: string, courseId: string): Promise<void> {
-  await enqueueGrowthJob({
+async function enqueueGrowthJob(job: GrowthJobData): Promise<QueuedGrowthJob> {
+  const queued = await getGrowthQueue().add(job.type, job);
+
+  return {
+    id: queued.id ?? null,
+    name: queued.name,
+    type: job.type,
+  };
+}
+
+export async function enqueueGrowthExtract(
+  userId: string,
+  courseId: string,
+): Promise<QueuedGrowthJob> {
+  return enqueueGrowthJob({
     type: "extract_course_evidence",
     userId,
     courseId,
@@ -18,8 +33,8 @@ export async function enqueueGrowthMerge(
   courseId: string,
   extractRunId?: string,
   affectedNodeIds?: string[],
-): Promise<void> {
-  await enqueueGrowthJob({
+): Promise<QueuedGrowthJob> {
+  return enqueueGrowthJob({
     type: "merge_user_skill_graph",
     userId,
     courseId,
@@ -34,8 +49,8 @@ export async function enqueueKnowledgeSourceMerge(params: {
   sourceId: string;
   sourceVersionHash?: string | null;
   affectedNodeIds?: string[];
-}): Promise<void> {
-  await enqueueGrowthJob({
+}): Promise<QueuedGrowthJob> {
+  return enqueueGrowthJob({
     type: "merge_knowledge_source_evidence",
     userId: params.userId,
     sourceType: params.sourceType,
@@ -45,15 +60,15 @@ export async function enqueueKnowledgeSourceMerge(params: {
   });
 }
 
-export async function enqueueGrowthCompose(userId: string): Promise<void> {
-  await enqueueGrowthJob({
+export async function enqueueGrowthCompose(userId: string): Promise<QueuedGrowthJob> {
+  return enqueueGrowthJob({
     type: "compose_user_growth_snapshot",
     userId,
   });
 }
 
-export async function enqueueGrowthProjection(userId: string): Promise<void> {
-  await enqueueGrowthJob({
+export async function enqueueGrowthProjection(userId: string): Promise<QueuedGrowthJob> {
+  return enqueueGrowthJob({
     type: "project_user_growth_views",
     userId,
   });
@@ -64,8 +79,8 @@ export async function enqueueGrowthRefresh(
   courseId?: string,
   nodeIds?: string[],
   reasonKey?: string,
-): Promise<void> {
-  await enqueueGrowthJob({
+): Promise<QueuedGrowthJob> {
+  return enqueueGrowthJob({
     type: "refresh_user_skill_graph",
     userId,
     courseId,
@@ -74,8 +89,8 @@ export async function enqueueGrowthRefresh(
   });
 }
 
-export async function enqueueKnowledgeInsights(userId: string): Promise<void> {
-  await enqueueGrowthJob({
+export async function enqueueKnowledgeInsights(userId: string): Promise<QueuedGrowthJob> {
+  return enqueueGrowthJob({
     type: "derive_user_insights",
     userId,
   });

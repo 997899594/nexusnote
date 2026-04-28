@@ -7,7 +7,7 @@
 
 import { Worker } from "bullmq";
 import { defaults } from "@/config/env";
-import { syncCourseSectionKnowledge } from "@/lib/learning/course-section-knowledge";
+import { syncCourseSectionKnowledgeByDocumentId } from "@/lib/learning/course-section-knowledge";
 import { getRedis } from "@/lib/redis";
 import type { RagIndexJobData } from "./rag-queue";
 
@@ -19,24 +19,29 @@ export function startRagWorker(): Worker<RagIndexJobData> {
   worker = new Worker<RagIndexJobData>(
     "rag-index",
     async (job) => {
-      const { type, documentId, plainText, userId, courseId, metadata } = job.data;
+      const { type, documentId, userId, courseId, contentHash } = job.data;
 
       console.log(
-        `[RagWorker] Processing ${type}: ${documentId} (attempt ${job.attemptsMade + 1})`,
+        `[RagWorker] Processing ${type}: ${documentId} (${contentHash.slice(0, 12)}, attempt ${
+          job.attemptsMade + 1
+        })`,
       );
 
       switch (type) {
-        case "course_section":
-          await syncCourseSectionKnowledge({
+        case "course_section": {
+          const result = await syncCourseSectionKnowledgeByDocumentId({
             documentId,
-            plainText,
             userId,
             courseId,
-            chapterIndex: metadata?.chapterIndex ?? 0,
-            sectionIndex: metadata?.sectionIndex ?? 0,
-            sectionTitle: metadata?.sectionTitle ?? "课程内容",
+          });
+          await job.updateProgress({
+            indexedContentHash: result.indexedContentHash,
+            requestedContentHash: contentHash,
+            chunks: result.chunks,
+            affectedNodeCount: result.affectedNodeIds.length,
           });
           break;
+        }
         default:
           console.warn(`[RagWorker] Unknown job type: ${type}`);
       }
@@ -48,7 +53,7 @@ export function startRagWorker(): Worker<RagIndexJobData> {
   );
 
   worker.on("completed", (job) => {
-    console.log(`[RagWorker] Completed: ${job.id}`);
+    console.log(`[RagWorker] Completed: ${job.id}`, job.progress);
   });
 
   worker.on("failed", (job, err) => {

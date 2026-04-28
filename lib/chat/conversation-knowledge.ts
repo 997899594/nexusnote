@@ -92,7 +92,7 @@ export async function syncConversationKnowledge(params: {
   const summary = buildConversationSummary(snippets);
   const metadata = buildConversationMetadata(conversation);
 
-  return syncKnowledgeSource({
+  const result = await syncKnowledgeSource({
     userId: params.userId,
     sourceType: "conversation",
     sourceId: params.conversationId,
@@ -125,7 +125,7 @@ export async function syncConversationKnowledge(params: {
       });
     },
     syncChunks: async () => {
-      await syncSourceKnowledgeEvidenceChunks({
+      return syncSourceKnowledgeEvidenceChunks({
         userId: params.userId,
         sourceType: "conversation",
         sourceId: params.conversationId,
@@ -134,4 +134,6 @@ export async function syncConversationKnowledge(params: {
       });
     },
   });
+
+  return result.affectedNodeIds;
 }

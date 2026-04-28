@@ -367,7 +367,7 @@ export async function runRuntimeUserBackfill(params: {
   }
 
   for (const sectionDocument of bundle.sectionDocuments) {
-    const affectedNodeIds = await syncCourseSectionKnowledge({
+    const syncResult = await syncCourseSectionKnowledge({
       ...sectionDocument,
       enqueueFollowups: !sync,
     });
@@ -377,7 +377,7 @@ export async function runRuntimeUserBackfill(params: {
         userId: bundle.userId,
         sourceType: "course_section",
         sourceId: sectionDocument.documentId,
-        affectedNodeIds,
+        affectedNodeIds: syncResult.affectedNodeIds,
         hasContent: sectionDocument.plainText.trim().length > 0,
         reasonKey: `backfill:course-section:${sectionDocument.documentId}`,
       });

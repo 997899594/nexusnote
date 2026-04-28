@@ -13,7 +13,7 @@ import { getOwnedCourseWithOutline } from "@/lib/learning/course-repository";
 import { buildLearningGuidance, type LearningGuidance } from "@/lib/learning/guidance";
 import { createLearnTrace } from "@/lib/learning/observability";
 import { buildSectionOutlineNodeKey } from "@/lib/learning/outline-node-key";
-import { getRagQueue } from "@/lib/queue/rag-queue";
+import { enqueueCourseSectionRagIndex } from "@/lib/queue/rag-queue";
 
 interface GenerateCourseSectionWorkflowOptions {
   userId: string;
@@ -202,6 +202,7 @@ export async function runGenerateCourseSectionWorkflow({
     onFinish: async ({ text, totalUsage, finishReason, steps }) => {
       try {
         let sectionDocumentId = existingSection?.id ?? "";
+        let indexJobId: string | null = null;
 
         if (existingSection) {
           await db
@@ -228,22 +229,17 @@ export async function runGenerateCourseSectionWorkflow({
         }
 
         if (sectionDocumentId && text.length > 0) {
-          getRagQueue()
-            .add("course-section", {
-              type: "course_section",
-              documentId: sectionDocumentId,
-              plainText: text,
-              userId,
-              courseId,
-              metadata: { chapterIndex, sectionIndex, sectionTitle: section.title },
-            })
-            .catch((err) => {
-              console.error("[GenerateCourseSectionWorkflow] Failed to enqueue index job:", err);
-              trace.step("enqueue-index-error", {
-                outlineNodeId,
-                error: err instanceof Error ? err.message : String(err),
-              });
-            });
+          const indexJob = await enqueueCourseSectionRagIndex({
+            documentId: sectionDocumentId,
+            plainText: text,
+            userId,
+            courseId,
+          });
+          indexJobId = indexJob?.id ?? null;
+          trace.step("enqueue-index", {
+            outlineNodeId,
+            jobId: indexJobId,
+          });
 
           invalidateChapterCache(courseId, chapterIndex).catch(() => {});
           revalidateLearnPage(userId, courseId);
@@ -258,6 +254,7 @@ export async function runGenerateCourseSectionWorkflow({
           sectionDocumentId: sectionDocumentId || null,
           existedBefore: Boolean(existingSection?.id),
           queuedForIndex: Boolean(sectionDocumentId && text.length > 0),
+          indexJobId,
         });
 
         await recordAIUsage({
@@ -272,14 +269,22 @@ export async function runGenerateCourseSectionWorkflow({
             outlineNodeId,
             sectionDocumentId: sectionDocumentId || null,
             existedBefore: Boolean(existingSection?.id),
+            indexJobId,
           },
         });
       } catch (error) {
         console.error("[GenerateCourseSectionWorkflow] Failed to persist section:", error);
-        trace.step("persist-error", {
+        trace.fail(error, {
+          stage: "persist",
           outlineNodeId,
-          error: error instanceof Error ? error.message : String(error),
         });
+        await recordAIUsage({
+          ...telemetry,
+          durationMs: Date.now() - startedAt,
+          success: false,
+          errorMessage: getErrorMessage(error),
+        });
+        throw error;
       }
     },
   });

@@ -15,9 +15,23 @@ interface SyncKnowledgeSourceParams {
   hasContent: boolean;
   clearReason: string;
   replaceEvents?: () => Promise<void>;
-  syncChunks?: () => Promise<void>;
+  syncChunks?: () => Promise<SyncKnowledgeSourceChunkResult>;
   enqueueInsightsOnEmpty?: boolean;
   enqueueFollowups?: boolean;
+}
+
+export interface SyncKnowledgeSourceChunkResult {
+  success: boolean;
+  chunksCount: number;
+  evidenceCount: number;
+}
+
+export interface SyncKnowledgeSourceResult {
+  affectedNodeIds: string[];
+  sourceVersionHash: string | null;
+  hasContent: boolean;
+  enqueuedFollowups: boolean;
+  chunks: SyncKnowledgeSourceChunkResult | null;
 }
 
 async function enqueueSyncKnowledgeSourceFollowups(
@@ -46,7 +60,9 @@ async function enqueueSyncKnowledgeSourceFollowups(
   }
 }
 
-export async function syncKnowledgeSource(params: SyncKnowledgeSourceParams): Promise<string[]> {
+export async function syncKnowledgeSource(
+  params: SyncKnowledgeSourceParams,
+): Promise<SyncKnowledgeSourceResult> {
   const sourceVersionHash = params.sourceVersionHash ?? null;
   const affectedNodeIds = await listLinkedNodeIdsForEvidenceSource({
     userId: params.userId,
@@ -73,12 +89,21 @@ export async function syncKnowledgeSource(params: SyncKnowledgeSourceParams): Pr
     sourceVersionHash,
   });
 
+  let chunks: SyncKnowledgeSourceChunkResult | null = null;
   if (params.hasContent) {
-    await params.syncChunks?.();
+    chunks = (await params.syncChunks?.()) ?? null;
   }
 
-  if (params.enqueueFollowups ?? true) {
+  const enqueuedFollowups = params.enqueueFollowups ?? true;
+  if (enqueuedFollowups) {
     await enqueueSyncKnowledgeSourceFollowups(params, affectedNodeIds, sourceVersionHash);
   }
-  return affectedNodeIds;
+
+  return {
+    affectedNodeIds,
+    sourceVersionHash,
+    hasContent: params.hasContent,
+    enqueuedFollowups,
+    chunks,
+  };
 }
