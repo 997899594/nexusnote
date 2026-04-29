@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { StreamdownMessage } from "@/components/chat/StreamdownMessage";
-import { InterviewOptions } from "@/components/interview/InterviewOptions";
+import { InterviewOptions, type Option } from "@/components/interview/InterviewOptions";
 import { cn } from "@/lib/utils";
 
 export interface InterviewMessageData {
@@ -10,7 +10,7 @@ export interface InterviewMessageData {
   role: "user" | "assistant";
   text: string;
   mode?: "question" | "outline";
-  options?: string[];
+  options?: Option[];
 }
 
 interface InterviewMessageProps {
@@ -52,7 +52,7 @@ export function InterviewMessage({ message, onSendReply, isStreaming }: Intervie
             {shouldShowOptions ? (
               <InterviewOptions
                 options={message.options ?? []}
-                onSelect={(option) => onSendReply?.(option)}
+                onSelect={(option) => onSendReply?.(option.action || option.label)}
                 isStreaming={isStreaming}
               />
             ) : null}

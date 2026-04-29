@@ -243,7 +243,7 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
               icon={Sparkles}
               eyebrow="New Session"
               title="开始一段新对话"
-              description="继续提问、沉淀想法，或用命令进入课程、访谈与笔记工作流。"
+              description="继续提问、保存想法，或进入课程、访谈与笔记工作流。"
               className="py-10"
             />
           )}

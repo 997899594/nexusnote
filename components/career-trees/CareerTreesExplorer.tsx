@@ -179,7 +179,7 @@ function PendingState() {
       </div>
       <h1 className="mt-4 text-3xl font-semibold tracking-[-0.05em]">职业树正在整理</h1>
       <p className="mt-3 max-w-2xl text-sm leading-7 text-white/68">
-        已经检测到课程证据，系统正在合并隐藏能力分支并组织候选职业方向。
+        已保存的课程正在整理成候选职业方向，完成后会出现在这里。
       </p>
     </section>
   );

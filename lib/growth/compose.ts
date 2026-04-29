@@ -348,7 +348,7 @@ export async function composeGrowthTrees(params: {
     endpoint: "growth:compose",
     intent: "growth-compose",
     workflow: "growth",
-    modelPolicy: "interactive-fast",
+    modelPolicy: "outline-architect",
     promptVersion: "growth-compose@v4",
     userId: params.userId,
     metadata: {

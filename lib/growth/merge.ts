@@ -1,6 +1,7 @@
 import { generateText, Output } from "ai";
 import { z } from "zod";
-import { getJsonModelForPolicy } from "@/lib/ai/core/model-policy";
+import { buildGenerationSettingsForPolicy } from "@/lib/ai/core/generation-settings";
+import { getPlainModelForPolicy } from "@/lib/ai/core/model-policy";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import {
   GROWTH_MERGE_AI_TIMEOUT_MS,
@@ -133,7 +134,7 @@ export async function planGrowthGraphMerge(params: {
     endpoint: "growth:merge",
     intent: "growth-merge",
     workflow: "growth",
-    modelPolicy: "interactive-fast",
+    modelPolicy: "extract-fast",
     promptVersion: "growth-merge@v2",
     userId: params.userId,
     metadata: {
@@ -145,11 +146,13 @@ export async function planGrowthGraphMerge(params: {
 
   try {
     const result = await generateText({
-      model: getJsonModelForPolicy("interactive-fast"),
+      model: getPlainModelForPolicy("extract-fast"),
       output: Output.object({ schema: mergePlannerOutputSchema }),
       system: GROWTH_MERGE_SYSTEM_PROMPT,
       prompt: buildGrowthMergePrompt(params.input),
-      temperature: 0.1,
+      ...buildGenerationSettingsForPolicy("extract-fast", {
+        temperature: 0.1,
+      }),
       timeout: GROWTH_MERGE_AI_TIMEOUT_MS,
     });
 

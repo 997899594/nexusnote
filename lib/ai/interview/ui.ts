@@ -8,16 +8,27 @@ import type {
   PresentOutlinePreviewOutput,
 } from "@/lib/ai/tools/interview";
 import { isInterviewVisibleTool } from "@/lib/ai/tools/shared/display-contract";
-import type { OutlineDisplay } from "./models";
+import type { InterviewOptionAction, OutlineDisplay } from "./models";
 import { type InterviewOutline, InterviewOutlineSchema } from "./schemas";
 
 export interface InterviewOutlinePreviewData {
-  outline: OutlineDisplay;
+  outline: OutlineDisplay | null;
   isComplete: boolean;
+  isStarted: boolean;
+  message?: string;
+  options?: InterviewOptionAction[];
 }
 
 export interface InterviewStableOutlineData {
   outline: InterviewOutline;
+}
+
+export interface InterviewDisplayMessage {
+  id: string;
+  role: "user" | "assistant";
+  text: string;
+  mode?: "question" | "outline";
+  options?: InterviewOptionAction[];
 }
 
 export type InterviewUIMessage = UIMessage<
@@ -100,18 +111,19 @@ export function getInterviewMessageText(message: UIMessage): string {
   return "";
 }
 
-export function getInterviewMessageOptions(message: InterviewUIMessage): string[] {
+export function getInterviewMessageOptions(message: InterviewUIMessage): InterviewOptionAction[] {
   const toolPart = getLatestInterviewToolPart(message);
   if (!toolPart) {
     return [];
   }
 
-  if (
-    getToolName(toolPart) === "presentOutlinePreview" ||
-    getToolName(toolPart) === "presentOptions"
-  ) {
-    const input = toolPart.input as { options?: string[] } | undefined;
-    return Array.isArray(input?.options) ? input.options : [];
+  const input = toolPart.input as { options?: unknown } | undefined;
+  if (getToolName(toolPart) === "presentOutlinePreview") {
+    return normalizeInterviewOptions(input?.options, "revise");
+  }
+
+  if (getToolName(toolPart) === "presentOptions") {
+    return normalizeInterviewOptions(input?.options, "reply");
   }
 
   return [];
@@ -123,6 +135,59 @@ function normalizePracticeType(
   return value === "exercise" || value === "project" || value === "quiz" || value === "none"
     ? value
     : undefined;
+}
+
+function normalizeStringArray(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const strings = value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  return strings.length > 0 ? strings : undefined;
+}
+
+function normalizeInterviewOptions(
+  value: unknown,
+  defaultIntent: InterviewOptionAction["intent"],
+): InterviewOptionAction[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((item): InterviewOptionAction | null => {
+      if (typeof item === "string") {
+        const label = item.trim();
+        return label ? { label, intent: defaultIntent } : null;
+      }
+
+      if (!item || typeof item !== "object") {
+        return null;
+      }
+
+      const record = item as Record<string, unknown>;
+      const label = typeof record.label === "string" ? record.label.trim() : "";
+      if (!label) {
+        return null;
+      }
+
+      const intent =
+        record.intent === "reply" || record.intent === "revise" || record.intent === "start_course"
+          ? record.intent
+          : defaultIntent;
+      const action = typeof record.action === "string" ? record.action.trim() : undefined;
+
+      return {
+        label,
+        intent,
+        ...(action ? { action } : {}),
+      };
+    })
+    .filter((option): option is InterviewOptionAction => option != null);
 }
 
 function normalizePartialOutline(raw: unknown): OutlineDisplay | null {
@@ -149,9 +214,7 @@ function normalizePartialOutline(raw: unknown): OutlineDisplay | null {
           title: typeof chapter.title === "string" ? chapter.title : "",
           description: typeof chapter.description === "string" ? chapter.description : undefined,
           practiceType: normalizePracticeType(chapter.practiceType),
-          skillIds: Array.isArray(chapter.skillIds)
-            ? chapter.skillIds.filter((skillId): skillId is string => typeof skillId === "string")
-            : undefined,
+          skillIds: normalizeStringArray(chapter.skillIds),
           sections: Array.isArray(chapter.sections)
             ? chapter.sections
                 .filter(
@@ -188,9 +251,7 @@ function normalizePartialOutline(raw: unknown): OutlineDisplay | null {
         : undefined,
     learningOutcome:
       typeof outline.learningOutcome === "string" ? outline.learningOutcome : undefined,
-    courseSkillIds: Array.isArray(outline.courseSkillIds)
-      ? outline.courseSkillIds.filter((skillId): skillId is string => typeof skillId === "string")
-      : undefined,
+    courseSkillIds: normalizeStringArray(outline.courseSkillIds),
     chapters,
   };
 }
@@ -208,22 +269,29 @@ export function findLatestOutline(
     return null;
   }
 
-  const input = part.input as { outline?: unknown } | undefined;
+  const input = part.input as
+    | { message?: unknown; options?: unknown; outline?: unknown }
+    | undefined;
   const outline = normalizePartialOutline(input?.outline);
-  if (outline) {
-    return {
-      outline,
-      isComplete: part.state === "input-available" || part.state === "output-available",
-    };
-  }
+  const stableOutline = normalizeStableOutline(input?.outline);
+  const options = normalizeInterviewOptions(input?.options, "revise");
 
-  return null;
+  return {
+    outline,
+    isComplete:
+      stableOutline != null ||
+      part.state === "input-available" ||
+      part.state === "output-available",
+    isStarted: true,
+    ...(typeof input?.message === "string" ? { message: input.message } : {}),
+    ...(options.length > 0 ? { options } : {}),
+  };
 }
 
 export function findLatestStableOutline(
   messages: InterviewUIMessage[],
 ): InterviewStableOutlineData | null {
-  const part = findLatestOutlinePreviewPart(messages, true);
+  const part = findLatestOutlinePreviewPart(messages, false);
   if (!part) {
     return null;
   }
@@ -237,4 +305,44 @@ export function findLatestStableOutline(
   }
 
   return null;
+}
+
+export function toInterviewDisplayMessages(
+  messages: InterviewUIMessage[],
+): InterviewDisplayMessage[] {
+  return messages
+    .filter(
+      (
+        message,
+      ): message is InterviewUIMessage & {
+        role: "user" | "assistant";
+      } => message.role === "user" || message.role === "assistant",
+    )
+    .map((message) => {
+      const mode: InterviewDisplayMessage["mode"] =
+        message.role === "assistant"
+          ? findLatestOutline([message])
+            ? "outline"
+            : "question"
+          : undefined;
+
+      return {
+        id: message.id,
+        role: message.role,
+        text: getInterviewMessageText(message),
+        mode,
+        options: message.role === "assistant" ? getInterviewMessageOptions(message) : undefined,
+      };
+    })
+    .filter((message) => message.text.length > 0 || (message.options?.length ?? 0) > 0);
+}
+
+export function getLatestVisibleInterviewAssistantMessage(
+  messages: InterviewUIMessage[],
+): InterviewDisplayMessage | null {
+  return (
+    [...toInterviewDisplayMessages(messages)]
+      .reverse()
+      .find((message) => message.role === "assistant") ?? null
+  );
 }

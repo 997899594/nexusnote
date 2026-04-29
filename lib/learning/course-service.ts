@@ -53,7 +53,7 @@ export async function saveCourseFromOutline({
     const courseValues = {
       userId,
       title: outline.title,
-      description: outline.description,
+      description: outline.description ?? null,
       difficulty: outline.difficulty,
       estimatedMinutes: estimateCourseMinutes(outline),
       updatedAt: new Date(),

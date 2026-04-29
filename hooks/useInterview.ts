@@ -18,19 +18,13 @@ import {
 import {
   findLatestOutline,
   findLatestStableOutline,
-  getInterviewMessageOptions,
-  getInterviewMessageText,
+  type InterviewDisplayMessage,
   type InterviewUIMessage,
+  toInterviewDisplayMessages,
 } from "@/lib/ai/interview/ui";
 import { isUnauthorizedError, parseApiError, redirectToLogin } from "@/lib/api/client";
 
-export interface InterviewMessage {
-  id: string;
-  role: "user" | "assistant";
-  text: string;
-  mode?: "question" | "outline";
-  options?: string[];
-}
+export type InterviewMessage = InterviewDisplayMessage;
 
 interface UseInterviewOptions {
   initialMessage?: string;
@@ -49,34 +43,6 @@ interface UseInterviewReturn {
   sessionMode: InterviewSessionMode;
   setSessionMode: (mode: InterviewSessionMode) => void;
   canChangeMode: boolean;
-}
-
-function toInterviewDisplayMessages(messages: InterviewUIMessage[]): InterviewMessage[] {
-  return messages
-    .filter(
-      (
-        message,
-      ): message is InterviewUIMessage & {
-        role: "user" | "assistant";
-      } => message.role === "user" || message.role === "assistant",
-    )
-    .map((message) => {
-      const mode: InterviewMessage["mode"] =
-        message.role === "assistant"
-          ? findLatestOutline([message])
-            ? "outline"
-            : "question"
-          : undefined;
-
-      return {
-        id: message.id,
-        role: message.role,
-        text: getInterviewMessageText(message),
-        mode,
-        options: message.role === "assistant" ? getInterviewMessageOptions(message) : undefined,
-      };
-    })
-    .filter((message) => message.text.length > 0 || (message.options?.length ?? 0) > 0);
 }
 
 export function useInterview(options?: UseInterviewOptions): UseInterviewReturn {
@@ -167,13 +133,13 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
   const latestAssistantMessage = [...displayMessages]
     .reverse()
     .find((message) => message.role === "assistant");
-  const displayOutline: OutlineDisplay | null =
-    isLoading && liveOutlineResult?.outline ? liveOutlineResult.outline : stableOutline;
+  const displayOutline: OutlineDisplay | null = liveOutlineResult?.outline ?? stableOutline;
   const outline: InterviewOutlineState = {
     display: displayOutline,
     stable: stableOutline,
     actions:
-      latestAssistantMessage?.mode === "outline" ? (latestAssistantMessage.options ?? []) : [],
+      liveOutlineResult?.options ??
+      (latestAssistantMessage?.mode === "outline" ? (latestAssistantMessage.options ?? []) : []),
     isLoading: isOutlineLoading,
     isReady: stableOutline != null,
   };
@@ -189,7 +155,7 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
   }, [isModeLocked, messages.length]);
 
   useEffect(() => {
-    if (liveOutlineResult?.outline) {
+    if (liveOutlineResult?.isStarted) {
       setIsOutlineLoading(!liveOutlineResult.isComplete);
       return;
     }

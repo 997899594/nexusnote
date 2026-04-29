@@ -32,7 +32,7 @@ export async function ProfileCareerTreeSummary({ userId }: ProfileCareerTreeSumm
           </div>
           <Link
             href="/interview"
-            className="ui-primary-button inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-transform hover:-translate-y-0.5"
+            className="ui-primary-button inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors"
           >
             开始课程访谈
             <ArrowRight className="h-4 w-4" />
@@ -52,10 +52,10 @@ export async function ProfileCareerTreeSummary({ userId }: ProfileCareerTreeSumm
               生成中
             </div>
             <h2 className="mt-3 text-xl font-semibold text-[var(--color-text)] md:text-2xl">
-              AI 正在整理职业方向
+              正在整理职业方向
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-7 text-[var(--color-text-tertiary)]">
-              课程证据已经入场，系统正在合并隐藏能力分支并组织候选职业树。
+              已保存的课程会被整理成候选职业树，完成后可以直接查看。
             </p>
           </div>
           <Link

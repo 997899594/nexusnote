@@ -15,7 +15,7 @@ export const interviewEvalSuite = createEvalSuite({
       },
       expectations: [
         "可以直接给出课程草案，或只补一个真正影响课程设计的关键约束；不要重复确认已知主题、基础或作品集目标",
-        "最终 outline 应覆盖 React 基础、状态管理、路由、实战项目",
+        "最终 outline 骨架应覆盖 React 基础、状态管理、路由、实战项目",
         "不应直接跳到泛泛而谈的职业建议",
       ],
       tags: ["outline-quality", "goal-clarity", "natural"],
@@ -32,7 +32,7 @@ export const interviewEvalSuite = createEvalSuite({
       expectations: [
         "在信息还不够时，可以继续澄清；澄清应优先围绕当前最缺的一维，不要一次追问多个维度",
         "不应先退回到技术关键词驱动的默认追问，而要围绕主题、目标结果、当前基础、关键约束来收敛",
-        "如果直接给出 outline，应能区分 SQL、Python、分析方法、可视化四层",
+        "如果直接给出 outline 骨架，应能区分 SQL、Python、分析方法、可视化四层",
       ],
       tags: ["discovery", "curriculum-structure", "structured"],
     },
@@ -106,7 +106,7 @@ export const interviewEvalSuite = createEvalSuite({
       },
       expectations: [
         "应优先理解修改意图，而不是重新从头询问目标和基础",
-        "返回的 outline 需要保留原方向，同时增强实战项目部分",
+        "返回的 outline 骨架需要保留原方向，同时增强实战项目部分",
         "options 应更像修改动作，而不是回到初始访谈选项",
       ],
       tags: ["revise", "outline-adjustment", "structured"],
@@ -123,7 +123,7 @@ export const interviewEvalSuite = createEvalSuite({
       expectations: [
         "不应把用户拉回技术课程语境",
         "可以直接给出课程草案，或者只补一个真正关键的使用约束",
-        "如果给出 outline，应围绕汇报目标、结构表达、视觉呈现、实战演练展开",
+        "如果给出 outline 骨架，应围绕汇报目标、结构表达、视觉呈现、实战演练展开",
       ],
       tags: ["all-domain", "non-technical", "structured"],
     },

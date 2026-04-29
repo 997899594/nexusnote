@@ -8,7 +8,8 @@
 import { generateText, Output, type UIMessage } from "ai";
 import { z } from "zod";
 import { db, eq, userProfiles } from "@/db";
-import { getJsonModelForPolicy } from "@/lib/ai/core/model-policy";
+import { buildGenerationSettingsForPolicy } from "@/lib/ai/core/generation-settings";
+import { getPlainModelForPolicy } from "@/lib/ai/core/model-policy";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { extractUIMessageText } from "@/lib/ai/message-text";
 import { renderPromptResource } from "@/lib/ai/prompts/load-prompt";
@@ -229,7 +230,7 @@ export async function analyzeConversationStyle(
   const telemetry = createTelemetryContext({
     endpoint: "style:analysis",
     intent: "style-analysis",
-    modelPolicy: "structured-high-quality",
+    modelPolicy: "quality-review",
     promptVersion: "style-analysis@v1",
     metadata: {
       messageCount: messages.length,
@@ -239,10 +240,13 @@ export async function analyzeConversationStyle(
 
   try {
     const result = await generateText({
-      model: getJsonModelForPolicy("structured-high-quality"),
+      model: getPlainModelForPolicy("quality-review"),
       output: Output.object({ schema: StyleAnalysisSchema }),
       prompt: userPrompt,
       system: systemPrompt,
+      ...buildGenerationSettingsForPolicy("quality-review", {
+        temperature: 0,
+      }),
     });
 
     await recordAIUsage({

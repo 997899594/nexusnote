@@ -11,6 +11,19 @@ import type { GrowthGenerationContext } from "./generation-context-format";
 
 export interface UserGrowthContext extends GrowthGenerationContext {}
 
+export const EMPTY_USER_GROWTH_CONTEXT: UserGrowthContext = {
+  currentDirection: null,
+  currentFocus: null,
+  insights: [],
+};
+
+const INTERACTIVE_GROWTH_CONTEXT_BUDGET_MS = 180;
+
+export interface UserGrowthContextBudgetOptions {
+  timeoutMs?: number;
+  onTimeout?: () => void;
+}
+
 function resolveLatestFocusReference(params: {
   activeTree: ReturnType<typeof getCurrentGrowthTree>;
   latestFocusSnapshot: Awaited<ReturnType<typeof getLatestFocusSnapshot>>;
@@ -114,4 +127,28 @@ export async function getUserGrowthContext(userId: string): Promise<UserGrowthCo
       confidence: Number(insight.confidence),
     })),
   };
+}
+
+export async function getUserGrowthContextWithinBudget(
+  userId: string,
+  options: UserGrowthContextBudgetOptions = {},
+): Promise<UserGrowthContext | undefined> {
+  const timeoutMs = options.timeoutMs ?? INTERACTIVE_GROWTH_CONTEXT_BUDGET_MS;
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+
+  try {
+    return await Promise.race([
+      getUserGrowthContext(userId),
+      new Promise<undefined>((resolve) => {
+        timeout = setTimeout(() => {
+          options.onTimeout?.();
+          resolve(undefined);
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+  }
 }

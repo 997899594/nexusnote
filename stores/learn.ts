@@ -1,7 +1,7 @@
 /**
  * Learn Store - 课程学习状态管理
  *
- * 管理学习页面的章节/小节导航、禅模式和学习进度
+ * 管理学习页面的章节/小节导航、学习进度和辅助面板
  */
 
 import { create } from "zustand";
@@ -34,16 +34,12 @@ interface LearnState {
 
   // Expanded chapters in sidebar
   expandedChapters: Set<number>;
+  expandChapter: (index: number) => void;
   toggleChapterExpanded: (index: number) => void;
 
   // Completed sections (Set of nodeId strings like "section-1-1")
   completedSections: Set<string>;
   markSectionComplete: (nodeId: string) => void;
-
-  // Zen mode (immersive learning)
-  isZenMode: boolean;
-  toggleZenMode: () => void;
-  setZenMode: (isZen: boolean) => void;
 
   // Sidebar (mobile overlay)
   isSidebarOpen: boolean;
@@ -67,7 +63,6 @@ const initialState = {
   chapters: [] as ChapterOutline[],
   expandedChapters: new Set<number>(),
   completedSections: new Set<string>(),
-  isZenMode: false,
   isSidebarOpen: false,
   isChatOpen: false,
 };
@@ -98,6 +93,13 @@ export const useLearnStore = create<LearnState>((set) => ({
 
   setChapters: (chapters) => set({ chapters }),
 
+  expandChapter: (index) =>
+    set((state) => {
+      const expanded = new Set(state.expandedChapters);
+      expanded.add(index);
+      return { expandedChapters: expanded };
+    }),
+
   toggleChapterExpanded: (index) =>
     set((state) => {
       const expanded = new Set(state.expandedChapters);
@@ -115,10 +117,6 @@ export const useLearnStore = create<LearnState>((set) => ({
       completed.add(nodeId);
       return { completedSections: completed };
     }),
-
-  toggleZenMode: () => set((state) => ({ isZenMode: !state.isZenMode })),
-
-  setZenMode: (isZenMode) => set({ isZenMode }),
 
   toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
 

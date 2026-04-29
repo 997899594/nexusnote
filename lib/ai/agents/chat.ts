@@ -104,7 +104,7 @@ export async function createChatAgent(options: PersonalizationOptions = {}) {
     instructions,
     tools,
     stopWhen: stepCountIs(profile.maxSteps),
-    onFinish: async ({ totalUsage, steps, finishReason }) => {
+    onFinish: ({ totalUsage, steps, finishReason }) => {
       if (!options.telemetry) {
         return;
       }
@@ -117,7 +117,7 @@ export async function createChatAgent(options: PersonalizationOptions = {}) {
         ),
       );
 
-      await recordAIUsage({
+      void recordAIUsage({
         ...options.telemetry,
         usage: totalUsage,
         durationMs: Date.now() - startedAt,

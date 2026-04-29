@@ -10,8 +10,10 @@ export async function register() {
     process.env.NEXT_RUNTIME === "nodejs" &&
     process.env.NEXT_PHASE !== "phase-production-build"
   ) {
+    const { startCourseProductionWorker } = await import("@/lib/queue/course-production-worker");
     const { startGrowthWorker } = await import("@/lib/queue/growth-worker");
     const { startRagWorker } = await import("@/lib/queue/rag-worker");
+    startCourseProductionWorker();
     startGrowthWorker();
     startRagWorker();
   }

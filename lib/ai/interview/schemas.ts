@@ -33,27 +33,50 @@ export const InterviewOutlineSkillIdSchema = z
   .max(80)
   .transform((value) => value.trim());
 
+function normalizedSkillIdArray(maxItems: number) {
+  return z.preprocess((value) => {
+    if (!Array.isArray(value)) {
+      return value;
+    }
+
+    const seen = new Set<string>();
+    const normalized = value
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0)
+      .filter((item) => {
+        if (seen.has(item)) {
+          return false;
+        }
+
+        seen.add(item);
+        return true;
+      })
+      .slice(0, maxItems);
+
+    return normalized.length > 0 ? normalized : undefined;
+  }, z.array(InterviewOutlineSkillIdSchema).min(1).max(maxItems).optional());
+}
+
 export const InterviewOutlineSectionSchema = z.object({
   title: z.string().min(1).max(80),
-  description: z.string().min(1).max(180),
 });
 
 export const InterviewOutlineChapterSchema = z.object({
   title: z.string().min(1).max(120),
-  description: z.string().min(1).max(220),
-  sections: z.array(InterviewOutlineSectionSchema).min(4).max(6),
+  sections: z.array(InterviewOutlineSectionSchema).min(2).max(4),
   practiceType: z.enum(["exercise", "project", "quiz", "none"]).optional(),
-  skillIds: z.array(InterviewOutlineSkillIdSchema).min(1).max(4).optional(),
+  skillIds: normalizedSkillIdArray(4),
 });
 
 export const InterviewOutlineSchema = z.object({
   title: z.string().min(1).max(120),
-  description: z.string().min(1).max(300),
-  targetAudience: z.string().min(1).max(200),
   difficulty: z.enum(["beginner", "intermediate", "advanced"]),
-  learningOutcome: z.string().min(1).max(240),
-  courseSkillIds: z.array(InterviewOutlineSkillIdSchema).min(1).max(6).optional(),
-  chapters: z.array(InterviewOutlineChapterSchema).min(6).max(7),
+  chapters: z.array(InterviewOutlineChapterSchema).min(5).max(7),
+  courseSkillIds: normalizedSkillIdArray(6),
+  description: z.string().min(1).max(300).optional(),
+  targetAudience: z.string().min(1).max(200).optional(),
+  learningOutcome: z.string().min(1).max(240).optional(),
 });
 
 export const InterviewPhaseSchema = z.enum(["discover", "revise"]);

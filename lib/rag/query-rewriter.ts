@@ -10,6 +10,7 @@
  */
 
 import { generateText } from "ai";
+import { buildGenerationSettingsForPolicy } from "@/lib/ai/core/generation-settings";
 import { getPlainModelForPolicy } from "@/lib/ai/core/model-policy";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { loadPromptResource, renderPromptResource } from "@/lib/ai/prompts/load-prompt";
@@ -38,7 +39,7 @@ export async function rewriteQuery(query: string, conversationContext?: string):
   const telemetry = createTelemetryContext({
     endpoint: "rag:query-rewriter",
     intent: "query-rewrite",
-    modelPolicy: "interactive-fast",
+    modelPolicy: "extract-fast",
     promptVersion: "query-rewriter@v1",
     metadata: {
       hasConversationContext: Boolean(conversationContext),
@@ -48,9 +49,11 @@ export async function rewriteQuery(query: string, conversationContext?: string):
 
   try {
     const { text, usage } = await generateText({
-      model: getPlainModelForPolicy("interactive-fast"),
-      temperature: 0,
-      maxOutputTokens: 100,
+      model: getPlainModelForPolicy("extract-fast"),
+      ...buildGenerationSettingsForPolicy("extract-fast", {
+        temperature: 0,
+        maxOutputTokens: 100,
+      }),
       system: QUERY_REWRITER_SYSTEM_PROMPT,
       prompt: buildQueryRewriterUserPrompt(query, conversationContext),
     });

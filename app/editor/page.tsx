@@ -35,14 +35,14 @@ const KIND_LABELS: Record<NoteWorkbenchKind, string> = {
   all: "全部",
   highlight: "高亮",
   note: "笔记",
-  capture: "沉淀",
+  capture: "对话",
   manual: "手动",
 };
 
 const KIND_META = {
   highlight: { icon: Highlighter, description: "从课程里直接划线留下的重点" },
   note: { icon: NotebookPen, description: "带有自己理解和补充说明的课程笔记" },
-  capture: { icon: Sparkles, description: "从学习对话沉淀出来的结构化结论" },
+  capture: { icon: Sparkles, description: "从学习对话保存下来的结构化笔记" },
   manual: { icon: FileText, description: "手动创建或通过编辑动作生成的笔记" },
 } as const;
 
@@ -53,7 +53,7 @@ function getNoteSourceLabel(note: NoteWorkbenchItem): string {
     case "note":
       return "课程笔记";
     case "capture":
-      return "对话沉淀";
+      return "对话笔记";
     case "manual":
       return "手动笔记";
   }
@@ -96,7 +96,7 @@ function NoteCard({ note, emphasize = false }: { note: NoteWorkbenchItem; emphas
   return (
     <Link
       href={`/editor/${note.id}`}
-      className={`group rounded-[28px] p-5 transition-[transform,box-shadow] hover:-translate-y-0.5 ${
+      className={`group rounded-[28px] p-5 transition-shadow ${
         emphasize
           ? "ui-message-card border border-black/8"
           : "ui-surface-card hover:[box-shadow:var(--shadow-soft-panel-hover)]"
@@ -129,7 +129,7 @@ function NoteCard({ note, emphasize = false }: { note: NoteWorkbenchItem; emphas
             {note.title}
           </h2>
         </div>
-        <ArrowUpRight className="h-4 w-4 text-[var(--color-text-muted)] transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+        <ArrowUpRight className="h-4 w-4 text-[var(--color-text-muted)]" />
       </div>
 
       {sourceTitle && (
@@ -142,7 +142,7 @@ function NoteCard({ note, emphasize = false }: { note: NoteWorkbenchItem; emphas
         {buildKnowledgeExcerpt(
           note.plainText,
           note.sourceContext?.selectionText ?? note.sourceContext?.latestExcerpt ?? null,
-          { emptyText: "从课程内容中沉淀的重点会出现在这里。" },
+          { emptyText: "课程里的重点会出现在这里。" },
         )}
       </p>
 
@@ -212,7 +212,7 @@ async function NotesIndexPageContent({
           跨课程知识工作台
         </h1>
         <p className="ui-page-description mt-3 max-w-2xl text-base leading-8">
-          把高亮、课程笔记和学习沉淀统一收口，不再困在单门课程里。
+          把高亮、课程笔记和对话笔记放在一起，不再困在单门课程里。
         </p>
       </header>
 
@@ -223,7 +223,7 @@ async function NotesIndexPageContent({
               AI 洞察
             </p>
             <h2 className="mt-2 text-xl font-medium text-[var(--color-text)]">
-              系统当前看到的知识信号
+              最近整理出的知识线索
             </h2>
           </div>
           <KnowledgeInsightStrip insights={insights} />
@@ -237,9 +237,9 @@ async function NotesIndexPageContent({
               <BookOpen className="h-5 w-5 text-[var(--color-text-secondary)]" />
             </div>
             <div>
-              <h2 className="text-xl font-medium text-[var(--color-text)]">还没有沉淀笔记</h2>
+              <h2 className="text-xl font-medium text-[var(--color-text)]">还没有学习笔记</h2>
               <p className="mt-2 text-sm leading-7 text-[var(--color-text-secondary)]">
-                在课程里选中重点内容，点击“沉淀”，就会自动生成带来源的学习笔记。
+                在课程里选中重点内容，点击“记一笔”，就会保存成带来源的学习笔记。
               </p>
             </div>
             <Link
@@ -280,7 +280,7 @@ async function NotesIndexPageContent({
                   </div>
                 </div>
                 <div className="ui-message-card rounded-[24px] px-4 py-4 text-sm leading-7 text-[var(--color-text-secondary)] lg:max-w-sm">
-                  这一区不再按最近更新时间排，而是优先展示和你当前学习焦点真正有关的沉淀。
+                  这里优先展示和你当前学习焦点真正有关的笔记。
                 </div>
               </div>
 
@@ -302,10 +302,10 @@ async function NotesIndexPageContent({
             <section>
               <div className="mb-4">
                 <p className="text-[11px] uppercase tracking-[0.22em] text-[var(--color-text-muted)]">
-                  洞察簇
+                  关联主题
                 </p>
                 <h2 className="mt-2 text-xl font-medium text-[var(--color-text)]">
-                  系统按洞察把材料重新编排
+                  按主题把相关材料放在一起
                 </h2>
               </div>
 
@@ -345,7 +345,7 @@ async function NotesIndexPageContent({
                               note.sourceContext?.selectionText ??
                                 note.sourceContext?.latestExcerpt ??
                                 null,
-                              { emptyText: "从课程内容中沉淀的重点会出现在这里。" },
+                              { emptyText: "课程里的重点会出现在这里。" },
                             )}
                           </div>
                         </Link>
@@ -366,7 +366,7 @@ async function NotesIndexPageContent({
                 <Link
                   key={kind}
                   href={getEditorKindHref(kind)}
-                  className={`rounded-[26px] border px-4 py-4 transition-[transform,box-shadow] hover:-translate-y-0.5 ${
+                  className={`rounded-[26px] border px-4 py-4 transition-shadow ${
                     isActive
                       ? "ui-message-card border-black/10"
                       : "border-transparent bg-[var(--color-panel-soft)]"
@@ -385,7 +385,7 @@ async function NotesIndexPageContent({
                       {KIND_LABELS[kind]}
                     </div>
                     <p className="mt-1 text-xs leading-6 text-[var(--color-text-secondary)]">
-                      {kind === "all" ? "跨课程查看全部知识沉淀" : KIND_META[kind].description}
+                      {kind === "all" ? "跨课程查看全部学习笔记" : KIND_META[kind].description}
                     </p>
                   </div>
                 </Link>
@@ -400,7 +400,7 @@ async function NotesIndexPageContent({
                   课程维度
                 </p>
                 <h2 className="mt-2 text-xl font-medium text-[var(--color-text)]">
-                  按课程回看沉淀
+                  按课程回看笔记
                 </h2>
               </div>
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -408,7 +408,7 @@ async function NotesIndexPageContent({
                   <Link
                     key={course.courseId}
                     href={`/editor?courseId=${course.courseId}`}
-                    className="ui-message-card rounded-[26px] px-5 py-4 transition-[transform,box-shadow] hover:-translate-y-0.5 hover:[box-shadow:var(--shadow-soft-panel-hover)]"
+                    className="ui-message-card rounded-[26px] px-5 py-4 transition-shadow hover:[box-shadow:var(--shadow-soft-panel-hover)]"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -416,7 +416,7 @@ async function NotesIndexPageContent({
                           {course.courseTitle}
                         </div>
                         <div className="mt-1 text-xs leading-6 text-[var(--color-text-secondary)]">
-                          {course.noteCount} 条沉淀
+                          {course.noteCount} 条笔记
                         </div>
                       </div>
                       <ArrowUpRight className="h-4 w-4 text-[var(--color-text-muted)]" />
@@ -437,7 +437,7 @@ async function NotesIndexPageContent({
                   知识流
                 </p>
                 <h2 className="mt-2 text-xl font-medium text-[var(--color-text)]">
-                  {courseId ? "当前课程的沉淀" : `${KIND_LABELS[activeKind]}视图`}
+                  {courseId ? "当前课程的笔记" : `${KIND_LABELS[activeKind]}视图`}
                 </h2>
               </div>
               {courseId && (

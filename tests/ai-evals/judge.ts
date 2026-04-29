@@ -1,6 +1,7 @@
 import { generateText, Output } from "ai";
 import { z } from "zod";
-import { getJsonModelForPolicy } from "@/lib/ai/core/model-policy";
+import { buildGenerationSettingsForPolicy } from "@/lib/ai/core/generation-settings";
+import { getPlainModelForPolicy } from "@/lib/ai/core/model-policy";
 import { createTelemetryContext, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { loadPromptResource, renderPromptResource } from "@/lib/ai/prompts/load-prompt";
 import type { EvalCase } from "./types";
@@ -29,7 +30,7 @@ export async function judgeEvalOutput(testCase: EvalCase, output: string): Promi
     endpoint: "eval:judge",
     workflow: "ai-eval-judge",
     promptVersion: "eval-judge@v1",
-    modelPolicy: "structured-high-quality",
+    modelPolicy: "quality-review",
     metadata: {
       caseId: testCase.id,
       domain: testCase.domain,
@@ -37,12 +38,14 @@ export async function judgeEvalOutput(testCase: EvalCase, output: string): Promi
   });
 
   const result = await generateText({
-    model: getJsonModelForPolicy("structured-high-quality"),
+    model: getPlainModelForPolicy("quality-review"),
     output: Output.object({ schema: EvalJudgementSchema }),
     timeout: 30_000,
     system: EVAL_JUDGE_SYSTEM_PROMPT,
     prompt: buildEvalJudgeUserPrompt(testCase, output),
-    temperature: 0,
+    ...buildGenerationSettingsForPolicy("quality-review", {
+      temperature: 0,
+    }),
   });
 
   if (EVAL_RECORD_USAGE) {

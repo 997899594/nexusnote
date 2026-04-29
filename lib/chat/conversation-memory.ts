@@ -1,5 +1,6 @@
 import { generateText, type UIMessage } from "ai";
 import { classifyAIDegradation } from "@/lib/ai/core/degradation";
+import { buildGenerationSettingsForPolicy } from "@/lib/ai/core/generation-settings";
 import { getPlainModelForPolicy } from "@/lib/ai/core/model-policy";
 import { loadPromptResource, renderPromptResource } from "@/lib/ai/prompts/load-prompt";
 import { extractMessageText } from "@/lib/chat/conversation-messages";
@@ -64,7 +65,9 @@ export async function summarizeDroppedConversationMessages({
   try {
     const result = await generateText({
       model: getPlainModelForPolicy("interactive-fast"),
-      temperature: 0.2,
+      ...buildGenerationSettingsForPolicy("interactive-fast", {
+        temperature: 0.2,
+      }),
       system: CONVERSATION_MEMORY_SYSTEM_PROMPT,
       prompt: buildConversationMemoryUserPrompt(existingSummary, transcript),
     });

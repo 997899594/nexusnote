@@ -1,6 +1,7 @@
 import { generateText, Output } from "ai";
 import { z } from "zod";
-import { getJsonModelForPolicy } from "@/lib/ai/core/model-policy";
+import { buildGenerationSettingsForPolicy } from "@/lib/ai/core/generation-settings";
+import { getPlainModelForPolicy } from "@/lib/ai/core/model-policy";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import {
   type ComposeGraph,
@@ -167,7 +168,7 @@ export async function planGrowthDirections(params: {
     endpoint: "growth:compose:plan",
     intent: "growth-compose-plan",
     workflow: "growth",
-    modelPolicy: "interactive-fast",
+    modelPolicy: "outline-architect",
     promptVersion: "growth-compose-plan@v1",
     userId: params.userId,
     metadata: {
@@ -180,7 +181,7 @@ export async function planGrowthDirections(params: {
 
   try {
     const result = await generateText({
-      model: getJsonModelForPolicy("interactive-fast"),
+      model: getPlainModelForPolicy("outline-architect"),
       output: Output.object({ schema: directionPlannerOutputSchema }),
       system: GROWTH_COMPOSE_SYSTEM_PROMPT,
       prompt: buildGrowthComposePrompt({
@@ -189,7 +190,9 @@ export async function planGrowthDirections(params: {
         previousSummary: params.previousSummary,
         directionCountGuidance: guidance,
       }),
-      temperature: 0.1,
+      ...buildGenerationSettingsForPolicy("outline-architect", {
+        temperature: 0.1,
+      }),
       timeout: GROWTH_DIRECTION_PLANNER_AI_TIMEOUT_MS,
     });
 

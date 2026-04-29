@@ -39,21 +39,27 @@ export const defaults = {
     enabled: false,
   },
 
-  // AI Models (2026 Modern Stack - Gemini 3)
+  // AI Models (task-routed stack)
   ai: {
-    // 通用模型 - Gemini 3.1 Flash Lite
-    model: "gemini-3.1-flash-lite-preview",
-    // Pro 模型 - Gemini 3.1 Pro
-    modelPro: "gemini-3.1-pro-preview",
-    // 联网搜索模型
-    modelWebSearch: "gemini-3.1-flash-lite-preview",
-    // 定价（USD / 1M tokens）
-    priceInputPer1M: 0.1,
-    priceOutputPer1M: 0.4,
-    priceProInputPer1M: 3.5,
-    priceProOutputPer1M: 10.5,
-    priceWebSearchInputPer1M: 0.1,
-    priceWebSearchOutputPer1M: 0.4,
+    modelInteractive: "qwen-plus-latest",
+    modelOutline: "gpt-5.4-mini",
+    modelSectionDraft: "qwen-plus-latest",
+    modelExtract: "qwen-plus-latest",
+    modelReview: "gpt-5.5",
+    modelWebSearch: "gpt-5.4-mini",
+    // 定价（USD / 1M tokens）。未知供应商通道默认 0，避免伪精确成本。
+    priceInteractiveInputPer1M: 0,
+    priceInteractiveOutputPer1M: 0,
+    priceOutlineInputPer1M: 0.75,
+    priceOutlineOutputPer1M: 4.5,
+    priceSectionDraftInputPer1M: 0,
+    priceSectionDraftOutputPer1M: 0,
+    priceExtractInputPer1M: 0,
+    priceExtractOutputPer1M: 0,
+    priceReviewInputPer1M: 5,
+    priceReviewOutputPer1M: 30,
+    priceWebSearchInputPer1M: 0.75,
+    priceWebSearchOutputPer1M: 4.5,
     // 默认关闭 provider 初始化噪音
     debugLogs: false,
     // 302.ai 为首选 Provider
@@ -124,23 +130,53 @@ export const serverEnvSchema = z.object({
   LANGFUSE_PUBLIC_KEY: z.string().optional(),
   LANGFUSE_SECRET_KEY: z.string().optional(),
 
-  // AI Models (有默认值)
-  AI_MODEL: z.string().default(defaults.ai.model),
-  AI_MODEL_PRO: z.string().default(defaults.ai.modelPro),
+  // AI Models (task-routed defaults)
+  AI_MODEL_INTERACTIVE: z.string().default(defaults.ai.modelInteractive),
+  AI_MODEL_OUTLINE: z.string().default(defaults.ai.modelOutline),
+  AI_MODEL_SECTION_DRAFT: z.string().default(defaults.ai.modelSectionDraft),
+  AI_MODEL_EXTRACT: z.string().default(defaults.ai.modelExtract),
+  AI_MODEL_REVIEW: z.string().default(defaults.ai.modelReview),
   AI_MODEL_WEB_SEARCH: z.string().default(defaults.ai.modelWebSearch),
-  AI_MODEL_PRICE_INPUT_PER_1M: z.coerce.number().nonnegative().default(defaults.ai.priceInputPer1M),
-  AI_MODEL_PRICE_OUTPUT_PER_1M: z.coerce
+  AI_MODEL_INTERACTIVE_PRICE_INPUT_PER_1M: z.coerce
     .number()
     .nonnegative()
-    .default(defaults.ai.priceOutputPer1M),
-  AI_MODEL_PRO_PRICE_INPUT_PER_1M: z.coerce
+    .default(defaults.ai.priceInteractiveInputPer1M),
+  AI_MODEL_INTERACTIVE_PRICE_OUTPUT_PER_1M: z.coerce
     .number()
     .nonnegative()
-    .default(defaults.ai.priceProInputPer1M),
-  AI_MODEL_PRO_PRICE_OUTPUT_PER_1M: z.coerce
+    .default(defaults.ai.priceInteractiveOutputPer1M),
+  AI_MODEL_OUTLINE_PRICE_INPUT_PER_1M: z.coerce
     .number()
     .nonnegative()
-    .default(defaults.ai.priceProOutputPer1M),
+    .default(defaults.ai.priceOutlineInputPer1M),
+  AI_MODEL_OUTLINE_PRICE_OUTPUT_PER_1M: z.coerce
+    .number()
+    .nonnegative()
+    .default(defaults.ai.priceOutlineOutputPer1M),
+  AI_MODEL_SECTION_DRAFT_PRICE_INPUT_PER_1M: z.coerce
+    .number()
+    .nonnegative()
+    .default(defaults.ai.priceSectionDraftInputPer1M),
+  AI_MODEL_SECTION_DRAFT_PRICE_OUTPUT_PER_1M: z.coerce
+    .number()
+    .nonnegative()
+    .default(defaults.ai.priceSectionDraftOutputPer1M),
+  AI_MODEL_EXTRACT_PRICE_INPUT_PER_1M: z.coerce
+    .number()
+    .nonnegative()
+    .default(defaults.ai.priceExtractInputPer1M),
+  AI_MODEL_EXTRACT_PRICE_OUTPUT_PER_1M: z.coerce
+    .number()
+    .nonnegative()
+    .default(defaults.ai.priceExtractOutputPer1M),
+  AI_MODEL_REVIEW_PRICE_INPUT_PER_1M: z.coerce
+    .number()
+    .nonnegative()
+    .default(defaults.ai.priceReviewInputPer1M),
+  AI_MODEL_REVIEW_PRICE_OUTPUT_PER_1M: z.coerce
+    .number()
+    .nonnegative()
+    .default(defaults.ai.priceReviewOutputPer1M),
   AI_MODEL_WEB_SEARCH_PRICE_INPUT_PER_1M: z.coerce
     .number()
     .nonnegative()
@@ -379,8 +415,11 @@ export function logServerConfig(env: ServerEnv): void {
   console.log(`  DATABASE_URL: ${env.DATABASE_URL.replace(/\/\/[^@]+@/, "//***@")}`);
   console.log(`  REDIS_URL: ${env.REDIS_URL}`);
   console.log(`  AI_302_API_KEY: ${maskSecret(env.AI_302_API_KEY)}`);
-  console.log(`  AI_MODEL: ${env.AI_MODEL}`);
-  console.log(`  AI_MODEL_PRO: ${env.AI_MODEL_PRO}`);
+  console.log(`  AI_MODEL_INTERACTIVE: ${env.AI_MODEL_INTERACTIVE}`);
+  console.log(`  AI_MODEL_OUTLINE: ${env.AI_MODEL_OUTLINE}`);
+  console.log(`  AI_MODEL_SECTION_DRAFT: ${env.AI_MODEL_SECTION_DRAFT}`);
+  console.log(`  AI_MODEL_EXTRACT: ${env.AI_MODEL_EXTRACT}`);
+  console.log(`  AI_MODEL_REVIEW: ${env.AI_MODEL_REVIEW}`);
   console.log(`  AI_MODEL_WEB_SEARCH: ${env.AI_MODEL_WEB_SEARCH}`);
   console.log(`  AI_ENABLE_WEB_SEARCH: ${env.AI_ENABLE_WEB_SEARCH}`);
   console.log(`  EMBEDDING_MODEL: ${env.EMBEDDING_MODEL}`);

@@ -9,7 +9,7 @@ import type { InterviewUIMessage } from "@/lib/ai/interview/ui";
 import { InterviewApiRequestSchema } from "@/lib/ai/validation";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
-import { getUserGrowthContext } from "@/lib/growth/generation-context";
+import { getUserGrowthContextWithinBudget } from "@/lib/growth/generation-context";
 import { getOwnedCourse } from "@/lib/learning/course-repository";
 
 export const maxDuration = 300;
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { messages, sessionId, courseId: inputCourseId, outline, mode } = validation.data;
-    const modelPolicy = mode === "structured" ? "structured-high-quality" : "interactive-fast";
+    const modelPolicy = outline ? "outline-architect" : "interactive-fast";
     const promptVersion = mode === "structured" ? "interview@structured-v2" : "interview@agent-v1";
     const workflow = mode === "structured" ? "interview-agent-structured" : "interview-agent";
     telemetry = createTelemetryContext({
@@ -80,7 +80,14 @@ export async function POST(request: NextRequest) {
       courseId = existingCourse.id;
     }
 
-    const generationContext = await getUserGrowthContext(userId);
+    const generationContext = await getUserGrowthContextWithinBudget(userId, {
+      onTimeout: () => {
+        console.warn("[Interview] Growth context missed interactive budget", {
+          requestId,
+          userId,
+        });
+      },
+    });
 
     const validatedMessages = await validateUIMessages<InterviewUIMessage>({ messages });
 
@@ -103,7 +110,7 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error) {
     const degradation = classifyAIDegradation(error);
-    await recordAIUsage({
+    void recordAIUsage({
       ...telemetry,
       durationMs: Date.now() - startedAt,
       success: false,

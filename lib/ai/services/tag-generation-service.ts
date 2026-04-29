@@ -12,7 +12,8 @@ import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { notes, noteTags, tags } from "@/db/schema";
-import { getJsonModelForPolicy } from "@/lib/ai/core/model-policy";
+import { buildGenerationSettingsForPolicy } from "@/lib/ai/core/generation-settings";
+import { getPlainModelForPolicy } from "@/lib/ai/core/model-policy";
 import { aiProvider } from "@/lib/ai/core/provider";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { loadPromptResource, renderPromptResource } from "@/lib/ai/prompts/load-prompt";
@@ -102,7 +103,7 @@ class TagGenerationService {
     const telemetry = createTelemetryContext({
       endpoint: "notes:tag-generation",
       intent: "note-tag-generation",
-      modelPolicy: "interactive-fast",
+      modelPolicy: "extract-fast",
       promptVersion: "note-tag-generation@v1",
       metadata: {
         contentLength: content.length,
@@ -111,11 +112,13 @@ class TagGenerationService {
 
     try {
       const result = await generateText({
-        model: getJsonModelForPolicy("interactive-fast"),
+        model: getPlainModelForPolicy("extract-fast"),
         output: Output.object({ schema: TagGenerationResultSchema }),
         system: TAG_GENERATION_SYSTEM_PROMPT,
         prompt: buildTagGenerationUserPrompt(content),
-        temperature: 0.3,
+        ...buildGenerationSettingsForPolicy("extract-fast", {
+          temperature: 0.3,
+        }),
         maxRetries: 2,
       });
 

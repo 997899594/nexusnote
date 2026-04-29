@@ -14,6 +14,7 @@ const STRUCTURED_STATE_SYSTEM_PROMPT = loadPromptResource("interview-state-syste
 const STRUCTURED_INTERVIEW_SYSTEM_PROMPT = loadPromptResource("interview-structured-system.md");
 const STRUCTURED_STATE_USER_PROMPT = "interview-state-user.md";
 const STRUCTURED_INTERVIEW_USER_PROMPT = "interview-structured-user.md";
+const STRUCTURED_INTERVIEW_QUESTION_USER_PROMPT = "interview-structured-question-user.md";
 const STRUCTURED_FOCUS_GUIDANCE_PROMPTS = {
   topic: loadPromptResource("interview/focus-topic.md"),
   targetOutcome: loadPromptResource("interview/focus-target-outcome.md"),
@@ -76,27 +77,29 @@ export function buildStructuredInterviewAgentInstructions(input: {
   const action = input.sufficiency.allowOutline ? "outline" : "question";
   const focusGuidance =
     action === "question" ? buildFocusGuidance(input.sufficiency.nextFocus, input.state) : null;
-  return [
-    STRUCTURED_INTERVIEW_SYSTEM_PROMPT,
-    renderPromptResource(STRUCTURED_INTERVIEW_USER_PROMPT, {
-      conversation_history: formatConversation(input.messages),
-      current_outline: formatOutline(input.currentOutline),
-      interview_state: JSON.stringify(input.state, null, 2),
-      interview_sufficiency: JSON.stringify(input.sufficiency, null, 2),
-      action,
-      focus:
-        action === "question" ? (input.sufficiency.nextFocus ?? "未明确") : "直接生成完整课程草案",
-      focus_guidance: focusGuidance ?? "",
-      known_topic: input.state.topic ?? "未明确",
-      known_target_outcome: input.state.targetOutcome ?? "未明确",
-      known_current_baseline: input.state.currentBaseline ?? "未明确",
-      known_constraints:
-        input.state.constraints.length > 0 ? input.state.constraints.join("、") : "未明确",
-      revision_intent: input.state.revisionIntent ?? "无",
-      growth_context: formatGrowthGenerationContext(input.generationContext, { style: "detailed" }),
-      latest_user_message: input.latestUserMessage?.trim() || "无",
-    }),
-  ].join("\n\n");
+  const commonVariables = {
+    conversation_history: formatConversation(input.messages),
+    current_outline: formatOutline(input.currentOutline),
+    interview_state: JSON.stringify(input.state, null, 2),
+    interview_sufficiency: JSON.stringify(input.sufficiency, null, 2),
+    action,
+    focus: action === "question" ? (input.sufficiency.nextFocus ?? "未明确") : "直接生成课程骨架",
+    focus_guidance: focusGuidance ?? "",
+    known_topic: input.state.topic ?? "未明确",
+    known_target_outcome: input.state.targetOutcome ?? "未明确",
+    known_current_baseline: input.state.currentBaseline ?? "未明确",
+    known_constraints:
+      input.state.constraints.length > 0 ? input.state.constraints.join("、") : "未明确",
+    revision_intent: input.state.revisionIntent ?? "无",
+    growth_context: formatGrowthGenerationContext(input.generationContext, { style: "detailed" }),
+    latest_user_message: input.latestUserMessage?.trim() || "无",
+  };
+  const userPrompt =
+    action === "question"
+      ? renderPromptResource(STRUCTURED_INTERVIEW_QUESTION_USER_PROMPT, commonVariables)
+      : renderPromptResource(STRUCTURED_INTERVIEW_USER_PROMPT, commonVariables);
+
+  return [STRUCTURED_INTERVIEW_SYSTEM_PROMPT, userPrompt].join("\n\n");
 }
 
 export { STRUCTURED_INTERVIEW_SYSTEM_PROMPT, STRUCTURED_STATE_SYSTEM_PROMPT };

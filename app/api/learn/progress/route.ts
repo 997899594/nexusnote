@@ -1,7 +1,7 @@
 // app/api/learn/progress/route.ts
 
 import { eq } from "drizzle-orm";
-import { type NextRequest, NextResponse } from "next/server";
+import { after, type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { courseProgress, db } from "@/db";
 import { APIError, handleError } from "@/lib/api";
@@ -16,7 +16,14 @@ import { enqueueGrowthRefresh } from "@/lib/growth/queue";
 import { ingestEvidenceEvent } from "@/lib/knowledge/events";
 import { aggregateCourseEventsToKnowledgeEvidence } from "@/lib/knowledge/evidence/aggregate";
 import { getOwnedCourseWithOutline } from "@/lib/learning/course-repository";
-import { buildSectionOutlineNodeKey } from "@/lib/learning/outline-node-key";
+import {
+  buildSectionOutlineNodeKey,
+  parseSectionOutlineNodeKey,
+} from "@/lib/learning/outline-node-key";
+import {
+  enqueueCourseSectionMaterialization,
+  resolveNextCourseSectionTarget,
+} from "@/lib/queue/course-production-queue";
 
 const RequestSchema = z.object({
   courseId: z.string().uuid(),
@@ -169,58 +176,83 @@ export async function POST(request: NextRequest) {
       )
       .find((item) => item.section.sectionKey === sectionNodeId);
 
-    await ingestEvidenceEvent({
-      id: crypto.randomUUID(),
-      userId,
-      kind: "course_progress",
-      sourceType: "course",
-      sourceId: courseId,
-      sourceVersionHash: outlineHash,
-      title: course.title,
-      summary: completedSection
-        ? `完成了《${completedSection.section.title}》`
-        : `完成了 ${sectionNodeId}`,
-      confidence: 1,
-      happenedAt: new Date().toISOString(),
-      metadata: {
-        sectionNodeId,
-        completedSectionCount: completedSections.length,
-        completedChapterCount: completedChapters.length,
-      },
-      refs: [
-        {
-          refType: "section",
-          refId: sectionNodeId,
-          snippet: completedSection?.section.title ?? null,
-          weight: 1,
-        },
-        ...(completedSection
-          ? [
-              {
-                refType: "chapter",
-                refId: completedSection.chapter.chapterKey,
-                snippet: completedSection.chapter.title,
-                weight: 1,
-              },
-            ]
-          : []),
-      ],
+    after(async () => {
+      try {
+        await ingestEvidenceEvent({
+          id: crypto.randomUUID(),
+          userId,
+          kind: "course_progress",
+          sourceType: "course",
+          sourceId: courseId,
+          sourceVersionHash: outlineHash,
+          title: course.title,
+          summary: completedSection
+            ? `完成了《${completedSection.section.title}》`
+            : `完成了 ${sectionNodeId}`,
+          confidence: 1,
+          happenedAt: new Date().toISOString(),
+          metadata: {
+            sectionNodeId,
+            completedSectionCount: completedSections.length,
+            completedChapterCount: completedChapters.length,
+          },
+          refs: [
+            {
+              refType: "section",
+              refId: sectionNodeId,
+              snippet: completedSection?.section.title ?? null,
+              weight: 1,
+            },
+            ...(completedSection
+              ? [
+                  {
+                    refType: "chapter",
+                    refId: completedSection.chapter.chapterKey,
+                    snippet: completedSection.chapter.title,
+                    weight: 1,
+                  },
+                ]
+              : []),
+          ],
+        });
+
+        await aggregateCourseEventsToKnowledgeEvidence({
+          userId,
+          courseId,
+          sourceVersionHash: outlineHash,
+        });
+
+        await enqueueGrowthRefresh(
+          userId,
+          courseId,
+          undefined,
+          `course-progress:${courseId}:${completedSections.length}:${completedChapters.length}:${sectionNodeId}`,
+        );
+
+        const completedSectionKey = parseSectionOutlineNodeKey(sectionNodeId);
+        const nextSection = completedSectionKey
+          ? resolveNextCourseSectionTarget({
+              outline: course.outline,
+              chapterIndex: completedSectionKey.chapterIndex,
+              sectionIndex: completedSectionKey.sectionIndex,
+            })
+          : null;
+
+        if (nextSection) {
+          await enqueueCourseSectionMaterialization({
+            userId,
+            courseId,
+            ...nextSection,
+            reasonKey: `progress:${sectionNodeId}`,
+            priority: 4,
+          });
+        }
+
+        revalidateCourseProgressViews(userId, courseId);
+      } catch (error) {
+        console.error("[LearnProgress] Failed to sync progress knowledge pipeline:", error);
+      }
     });
-
-    await aggregateCourseEventsToKnowledgeEvidence({
-      userId,
-      courseId,
-      sourceVersionHash: outlineHash,
-    });
-
-    await enqueueGrowthRefresh(
-      userId,
-      courseId,
-      undefined,
-      `course-progress:${courseId}:${completedSections.length}:${completedChapters.length}:${sectionNodeId}`,
-    );
-
-    revalidateCourseProgressViews(userId, courseId);
 
     return NextResponse.json({
       ok: true,

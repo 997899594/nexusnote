@@ -1,6 +1,7 @@
 import { generateText, Output } from "ai";
 import { z } from "zod";
-import { getJsonModelForPolicy } from "@/lib/ai/core/model-policy";
+import { buildGenerationSettingsForPolicy } from "@/lib/ai/core/generation-settings";
+import { getPlainModelForPolicy } from "@/lib/ai/core/model-policy";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { GROWTH_EXTRACT_AI_TIMEOUT_MS } from "@/lib/growth/constants";
 import type { NormalizedGrowthOutline } from "@/lib/growth/normalize-outline";
@@ -66,7 +67,7 @@ export async function extractGrowthCourseEvidence(
     endpoint: "growth:extract",
     intent: "growth-extract",
     workflow: "growth",
-    modelPolicy: "structured-high-quality",
+    modelPolicy: "extract-fast",
     promptVersion: "growth-extract@v1",
     userId: input.userId,
     metadata: {
@@ -77,7 +78,7 @@ export async function extractGrowthCourseEvidence(
 
   try {
     const result = await generateText({
-      model: getJsonModelForPolicy("structured-high-quality"),
+      model: getPlainModelForPolicy("extract-fast"),
       output: Output.object({ schema: growthCourseExtractorOutputSchema }),
       system: GROWTH_EXTRACT_SYSTEM_PROMPT,
       prompt: buildGrowthExtractPrompt({
@@ -85,7 +86,9 @@ export async function extractGrowthCourseEvidence(
         description: input.description,
         outline: input.outline,
       }),
-      temperature: 0.1,
+      ...buildGenerationSettingsForPolicy("extract-fast", {
+        temperature: 0.1,
+      }),
       timeout: GROWTH_EXTRACT_AI_TIMEOUT_MS,
     });
 

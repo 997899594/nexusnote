@@ -1,12 +1,4 @@
 import type { Annotation } from "@/hooks/useAnnotations";
-import type { UserGrowthContext } from "@/lib/growth/generation-context";
-import {
-  type GrowthFocusSummary,
-  type GrowthInsightSummary,
-  normalizeProjectionState,
-} from "@/lib/growth/projection-types";
-import type { KnowledgeInsight } from "@/lib/knowledge/insights";
-import { buildLearningGuidance, type LearningGuidance } from "@/lib/learning/guidance";
 import { buildSectionOutlineNodeKey } from "@/lib/learning/outline-node-key";
 import type { getOwnedCourseWithOutline } from "./course-repository";
 
@@ -43,8 +35,6 @@ export interface LearnPageProjection {
   chapters: LearnChapterProjection[];
   sectionDocs: LearnSectionDocProjection[];
   progressRecord: LearnProgressProjection | null;
-  growthFocus: GrowthFocusSummary | null;
-  insights: GrowthInsightSummary[];
 }
 
 export interface LearnResumeState {
@@ -120,59 +110,21 @@ function buildSectionDocs(
   }));
 }
 
-function buildGrowthFocusSummary(guidance: LearningGuidance | null): GrowthFocusSummary | null {
-  const focus = guidance?.growth.currentFocus;
-
-  if (!focus?.title) {
-    return null;
-  }
-
-  return {
-    directionKey: guidance?.growth.currentDirection?.directionKey ?? null,
-    title: focus.title,
-    summary: focus.summary ?? "",
-    progress: focus.progress ?? 0,
-    state: normalizeProjectionState(focus.state ?? "ready"),
-  };
-}
-
-function buildGrowthInsightSummaries(guidance: LearningGuidance | null): GrowthInsightSummary[] {
-  return (guidance?.growth.insights ?? []).slice(0, 3).map((insight) => ({
-    id: `${insight.kind}:${insight.title}`,
-    kind: insight.kind as KnowledgeInsight["kind"],
-    title: insight.title,
-    summary: insight.summary,
-    confidence: insight.confidence,
-  }));
-}
-
 export function buildLearnPageProjection(input: {
   courseSession: OwnedCourseWithOutline;
   progressRecord: LearnProgressProjection | null;
-  growthContext: UserGrowthContext;
   sectionDocRows: LearnProjectionSectionDocRow[];
   annotationRows: LearnProjectionAnnotationRow[];
 }): LearnPageProjection {
   const chapters = buildLearnChapters(input.courseSession);
   const annotationsBySectionId = buildAnnotationsBySectionId(input.annotationRows);
   const sectionDocs = buildSectionDocs(input.sectionDocRows, annotationsBySectionId);
-  const currentChapterIndex = input.progressRecord?.currentChapter ?? 0;
-  const guidance =
-    currentChapterIndex < input.courseSession.outline.chapters.length
-      ? buildLearningGuidance({
-          course: input.courseSession,
-          chapterIndex: currentChapterIndex,
-          growth: input.growthContext,
-        })
-      : null;
 
   return {
     courseTitle: input.courseSession.title ?? "Untitled Course",
     chapters,
     sectionDocs,
     progressRecord: input.progressRecord,
-    growthFocus: buildGrowthFocusSummary(guidance),
-    insights: buildGrowthInsightSummaries(guidance),
   };
 }
 

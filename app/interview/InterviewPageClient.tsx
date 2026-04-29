@@ -34,7 +34,6 @@ const panelVariants = {
       stiffness: 300,
       damping: 30,
       mass: 1,
-      staggerChildren: 0.1,
     },
   },
 };
@@ -132,6 +131,12 @@ function InterviewContent() {
     Boolean(displayOutline) || Boolean(stableOutline) || isOutlineLoading || interviewCompleted;
   const mobileShowsOutline = isMobile && shouldShowOutlinePanel && mobilePane === "outline";
 
+  useEffect(() => {
+    if (isMobile && shouldShowOutlinePanel) {
+      setMobilePane("outline");
+    }
+  }, [isMobile, shouldShowOutlinePanel]);
+
   const chatViewport = (
     <div className="mobile-scroll min-h-0 flex-1 overflow-y-auto px-4 py-5 md:px-6 md:py-6">
       <div className="mx-auto max-w-[calc(100vw-32px)] space-y-4 md:max-w-[var(--message-max-width)]">
@@ -141,7 +146,6 @@ function InterviewContent() {
           <div className="py-14 text-center md:py-16">
             <WorkspaceEmptyState
               icon={GraduationCap}
-              eyebrow="Course Interview"
               title="你想学什么？"
               description="先选一种访谈方式，再告诉我你想学什么，我会访谈澄清方向并生成可预览的大纲。"
               footer={
@@ -153,21 +157,15 @@ function InterviewContent() {
                   />
                   <div className="flex flex-wrap justify-center gap-2">
                     {["我想学 Python", "我想学做 PPT", "考研数学怎么准备", "教我做川菜"].map(
-                      (example, index) => (
-                        <motion.div
+                      (example) => (
+                        <PromptChip
                           key={example}
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ delay: 0.1 + index * 0.05 }}
-                        >
-                          <PromptChip
-                            label={example}
-                            onClick={() => {
-                              setStarted(true);
-                              void sendMessage({ text: example });
-                            }}
-                          />
-                        </motion.div>
+                          label={example}
+                          onClick={() => {
+                            setStarted(true);
+                            void sendMessage({ text: example });
+                          }}
+                        />
                       ),
                     )}
                   </div>
@@ -198,9 +196,6 @@ function InterviewContent() {
     <div className="safe-bottom shrink-0 bg-white px-4 pb-5 pt-4 md:px-6 md:pb-6 md:pt-4">
       <div className="mx-auto max-w-[calc(100vw-32px)] md:max-w-[var(--message-max-width)]">
         <div className="ui-input-shell flex items-end gap-2 rounded-2xl p-2 md:gap-3 md:p-3">
-          <div className="ui-primary-button flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg">
-            <GraduationCap className="w-4 h-4 text-white" />
-          </div>
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -253,7 +248,7 @@ function InterviewContent() {
                   isLoading={isOutlineLoading}
                   courseId={courseId ?? undefined}
                   onCourseCreated={setCourseId}
-                  onSelectAction={(text) => sendMessage({ text })}
+                  onSelectAction={(option) => sendMessage({ text: option.action || option.label })}
                 />
               </motion.div>
             </motion.div>
@@ -289,32 +284,6 @@ function InterviewContent() {
                     ? "正在整理课程蓝图"
                     : getInterviewSessionModeDescription(sessionMode)}
               </p>
-              {!interviewCompleted &&
-                chatMessages.length > 0 &&
-                (() => {
-                  const userMessageCount = chatMessages.filter((m) => m.role === "user").length;
-
-                  return (
-                    <div className="flex items-center gap-2 mt-1">
-                      <div className="flex gap-1">
-                        {Array.from(
-                          { length: Math.min(userMessageCount, 6) },
-                          (_, i) => `dot-${i}`,
-                        ).map((dotId) => (
-                          <motion.div
-                            key={dotId}
-                            initial={{ scale: 0, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            className="h-1.5 w-1.5 rounded-full bg-[var(--color-panel-strong)]"
-                          />
-                        ))}
-                      </div>
-                      <span className="text-xs text-[var(--color-text-muted)]">
-                        第 {userMessageCount} 轮
-                      </span>
-                    </div>
-                  );
-                })()}
             </div>
           </div>
         </header>
@@ -352,7 +321,7 @@ function InterviewContent() {
                   isLoading={isOutlineLoading}
                   courseId={courseId ?? undefined}
                   onCourseCreated={setCourseId}
-                  onSelectAction={(text) => sendMessage({ text })}
+                  onSelectAction={(option) => sendMessage({ text: option.action || option.label })}
                 />
               </div>
             ) : (
@@ -363,7 +332,7 @@ function InterviewContent() {
           chatViewport
         )}
 
-        {!mobileShowsOutline ? composer : null}
+        {composer}
       </motion.div>
     </div>
   );

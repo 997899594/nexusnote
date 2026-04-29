@@ -3,8 +3,7 @@ import "server-only";
 import { and, eq } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 import { courseProgress, courseSectionAnnotations, courseSections, db } from "@/db";
-import { getCareerTreesTag, getLearnPageTag, getProfileStatsTag } from "@/lib/cache/tags";
-import { getUserGrowthContext } from "@/lib/growth/generation-context";
+import { getLearnPageTag } from "@/lib/cache/tags";
 import { getOwnedCourseWithOutline } from "@/lib/learning/course-repository";
 import { createLearnTrace } from "@/lib/learning/observability";
 import {
@@ -67,8 +66,6 @@ export async function getLearnPageSnapshotCached(
 
   cacheLife("minutes");
   cacheTag(getLearnPageTag(userId, courseId));
-  cacheTag(getCareerTreesTag(userId));
-  cacheTag(getProfileStatsTag(userId));
 
   const trace = createLearnTrace("page-snapshot", {
     userId,
@@ -87,9 +84,8 @@ export async function getLearnPageSnapshotCached(
     chapterCount: courseSession.outline.chapters.length,
   });
 
-  const [progressRecord, growthContext, rawSections, annotations] = await Promise.all([
+  const [progressRecord, rawSections, annotations] = await Promise.all([
     loadProgressRecord(userId, courseId),
-    getUserGrowthContext(userId),
     loadSectionDocRows(courseId),
     loadSectionAnnotationRows(userId, courseId),
   ]);
@@ -102,7 +98,6 @@ export async function getLearnPageSnapshotCached(
   const snapshot = buildLearnPageProjection({
     courseSession,
     progressRecord,
-    growthContext,
     sectionDocRows: rawSections,
     annotationRows: annotations,
   });

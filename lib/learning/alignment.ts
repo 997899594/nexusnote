@@ -1,5 +1,4 @@
 import type { GrowthGenerationContext } from "@/lib/growth/generation-context-format";
-import type { GrowthFocusSummary, GrowthInsightSummary } from "@/lib/growth/projection-types";
 
 const TOKEN_SEGMENTER = new Intl.Segmenter("zh-Hans", { granularity: "word" });
 const STOP_TOKENS = new Set([
@@ -458,21 +457,11 @@ export function formatCourseBlueprintAlignmentBrief(brief: CourseBlueprintAlignm
     .join("\n");
 }
 
-export function buildLearnQuickPrompts(params: {
-  chapterTitle?: string | null;
-  growthFocus?: GrowthFocusSummary | null;
-  insights?: GrowthInsightSummary[];
-}): string[] {
-  const topInsight = params.insights?.[0];
+export function buildLearnQuickPrompts(params: { chapterTitle?: string | null }): string[] {
   const prompts = [
     params.chapterTitle ? `这一章「${params.chapterTitle}」最重要的三个要点是什么？` : null,
-    params.growthFocus?.title
-      ? `这一章和我当前焦点「${params.growthFocus.title}」到底是什么关系？`
-      : null,
-    params.growthFocus?.title
-      ? `学完这一章后，我该怎么把它用来推进「${params.growthFocus.title}」？`
-      : null,
-    topInsight?.title ? `结合我最近的「${topInsight.title}」，这一章我最该盯住什么？` : null,
+    params.chapterTitle ? `这一章适合怎么学，先看哪里再练哪里？` : null,
+    params.chapterTitle ? `帮我用一个例子讲透这一章。` : null,
     params.chapterTitle ? `这一章里最容易混淆或踩坑的地方是什么？` : null,
   ];
 

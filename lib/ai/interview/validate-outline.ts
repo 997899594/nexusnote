@@ -15,17 +15,17 @@ export function validateOutlineForState(
     };
   }
 
-  if (outline.chapters.length < 6) {
+  if (outline.chapters.length < 5) {
     return {
       valid: false,
-      reason: "当前大纲少于 6 章，先补成完整课程结构。",
+      reason: "当前大纲少于 5 章，先补成可确认的课程骨架。",
     };
   }
 
-  if (outline.chapters.some((chapter) => chapter.sections.length < 4)) {
+  if (outline.chapters.some((chapter) => chapter.sections.length < 2)) {
     return {
       valid: false,
-      reason: "有章节小节不足，先补齐完整结构再展示。",
+      reason: "有章节小节不足，先补齐课程骨架再展示。",
     };
   }
 

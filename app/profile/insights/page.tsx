@@ -162,7 +162,7 @@ async function ProfileInsightsPageContent() {
                   焦点材料
                 </div>
                 <h2 className="mt-2 text-xl font-medium text-[var(--color-text)]">
-                  和当前焦点最相关的知识沉淀
+                  和当前焦点最相关的学习笔记
                 </h2>
               </div>
               <Link
@@ -177,7 +177,7 @@ async function ProfileInsightsPageContent() {
                 <Link
                   key={note.id}
                   href={`/editor/${note.id}`}
-                  className="ui-message-card rounded-[24px] px-4 py-4 transition-[transform,box-shadow] hover:-translate-y-0.5 hover:[box-shadow:var(--shadow-soft-panel-hover)]"
+                  className="ui-message-card rounded-[24px] px-4 py-4 transition-shadow hover:[box-shadow:var(--shadow-soft-panel-hover)]"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>

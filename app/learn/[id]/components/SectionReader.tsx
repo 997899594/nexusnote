@@ -3,8 +3,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { AlertCircle, BookOpen, Loader2, RefreshCw, Sparkles } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { ArrowLeft, ArrowRight, Loader2, MessageSquare, RefreshCw } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { StreamdownMessage } from "@/components/chat/StreamdownMessage";
 import { useToast } from "@/components/ui/Toast";
@@ -43,7 +42,7 @@ function CaptureNoteDialog({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         className="ui-message-card safe-bottom w-full max-w-[32rem] rounded-[28px] p-4 md:w-[28rem] md:max-w-[calc(100vw-2rem)]"
       >
-        <h3 className="mb-2 text-sm font-semibold text-[var(--color-text)]">沉淀到笔记</h3>
+        <h3 className="mb-2 text-sm font-semibold text-[var(--color-text)]">保存到笔记</h3>
         <div className="rounded-xl bg-[var(--color-panel-soft)] px-3 py-2 text-sm leading-6 text-[var(--color-text-secondary)]">
           {selectedText}
         </div>
@@ -67,7 +66,7 @@ function CaptureNoteDialog({
             onClick={() => onSubmit(text.trim())}
             className="ui-primary-button rounded-lg px-3 py-1.5 text-xs"
           >
-            创建并打开
+            保存
           </button>
         </div>
       </motion.div>
@@ -75,16 +74,12 @@ function CaptureNoteDialog({
   );
 }
 
-function SectionStateCard({
-  icon,
-  eyebrow,
+function SectionStateBlock({
   title,
   description,
   action,
   tone = "default",
 }: {
-  icon: ReactNode;
-  eyebrow: string;
   title: string;
   description: string;
   action?: ReactNode;
@@ -95,29 +90,23 @@ function SectionStateCard({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        "ui-message-card rounded-[28px] px-5 py-6 md:px-6 md:py-7",
-        tone === "error" && "border-rose-200/70 bg-rose-50/70",
+        "border-b border-black/5 px-1 py-8 md:px-2 md:py-10",
+        tone === "error" && "border-rose-200/70",
       )}
     >
-      <div className="flex items-start gap-4">
-        <div
-          className={cn(
-            "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl",
-            tone === "error"
-              ? "bg-white text-rose-600"
-              : "bg-[var(--color-active)] text-[var(--color-text)]",
-          )}
-        >
-          {icon}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
-            {eyebrow}
-          </div>
-          <h3 className="mt-1 text-base font-semibold text-[var(--color-text)]">{title}</h3>
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="max-w-xl">
+          <h3
+            className={cn(
+              "text-base font-semibold text-[var(--color-text)]",
+              tone === "error" && "text-rose-700",
+            )}
+          >
+            {title}
+          </h3>
           <p className="mt-2 text-sm leading-7 text-[var(--color-text-secondary)]">{description}</p>
-          {action ? <div className="mt-4">{action}</div> : null}
         </div>
+        {action ? <div className="mt-4 md:mt-0">{action}</div> : null}
       </div>
     </motion.div>
   );
@@ -131,7 +120,6 @@ function SectionBlock({
   sectionDoc,
   courseId,
   generateSection,
-  isCurrentSection,
   isHighlighted,
 }: {
   nodeId: string;
@@ -141,7 +129,6 @@ function SectionBlock({
   sectionDoc: LearnSectionDocProjection | undefined;
   courseId: string;
   generateSection: (index: number) => void;
-  isCurrentSection: boolean;
   isHighlighted: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -153,7 +140,6 @@ function SectionBlock({
   const markSectionComplete = useLearnStore((s) => s.markSectionComplete);
   const completedSections = useLearnStore((s) => s.completedSections);
   const { addToast } = useToast();
-  const router = useRouter();
 
   const { annotations, addHighlight, removeAnnotation, updateNote } = useAnnotations({
     sectionId: sectionDoc?.id,
@@ -223,28 +209,21 @@ function SectionBlock({
           throw new Error("创建笔记失败");
         }
 
-        const result = (await response.json()) as {
-          note?: { id: string; title: string };
-        };
-
-        addToast(`已打开笔记：${result.note?.title ?? "新笔记"}`, "success");
+        await response.json();
+        addToast("已保存到笔记", "success");
         setPendingCapture(null);
-        if (result.note?.id) {
-          router.push(`/editor/${result.note.id}`);
-        }
       } catch {
-        addToast("沉淀笔记失败，请稍后重试", "error");
+        addToast("保存笔记失败，请稍后重试", "error");
       }
     },
-    [addToast, pendingCapture, router, sectionDoc?.id],
+    [addToast, pendingCapture, sectionDoc?.id],
   );
 
   return (
     <div
       id={anchorId}
       className={cn(
-        "relative scroll-mt-4 rounded-[32px] transition-all duration-300 md:scroll-mt-6",
-        isCurrentSection && "bg-white/55",
+        "relative scroll-mt-4 rounded-[28px] transition-colors duration-300 md:scroll-mt-6",
         isHighlighted && "bg-[var(--color-panel-soft)] ring-1 ring-black/8",
       )}
     >
@@ -253,81 +232,58 @@ function SectionBlock({
 
       {/* Section content */}
       <div ref={containerRef} className="relative">
-        {(isCurrentSection || isHighlighted) && (
+        {isHighlighted && (
           <div className="mb-3 flex items-center gap-2 px-1">
             <span
               className={cn(
                 "inline-flex items-center rounded-full px-2.5 py-1 text-[0.625rem] font-semibold tracking-[0.14em]",
-                isHighlighted
-                  ? "ui-primary-button"
-                  : "bg-[var(--color-active)] text-[var(--color-text)]",
+                "ui-primary-button",
               )}
             >
-              {isHighlighted ? "定位到这里" : "当前阅读"}
+              定位到这里
             </span>
           </div>
         )}
 
         {state.status === "idle" && (
-          <SectionStateCard
-            icon={<BookOpen className="h-5 w-5" />}
-            eyebrow="Section Ready"
+          <SectionStateBlock
             title={sectionTitle}
-            description="这一节还没有展开内容。点击生成后，会按当前课程上下文即时创建可阅读内容。"
+            description="这一节还没有内容。"
             action={
               <button
                 type="button"
                 onClick={() => generateSection(sectionIndex)}
                 className={cn(
-                  "ui-primary-button inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium transition-all duration-200",
-                  "hover:shadow-md",
+                  "inline-flex items-center rounded-full border border-black/8 bg-white px-4 py-2 text-sm font-medium text-[var(--color-text)] transition-all duration-200",
+                  "hover:bg-[var(--color-panel-soft)]",
                   "active:scale-[0.98]",
                 )}
               >
-                <Sparkles className="w-4 h-4" />
-                生成内容
+                开始阅读
               </button>
             }
           />
         )}
 
         {state.status === "generating" && state.content.length === 0 && (
-          <SectionStateCard
-            icon={<Loader2 className="h-5 w-5 animate-spin" />}
-            eyebrow="Generating"
-            title={`正在生成「${sectionTitle}」`}
-            description="系统正在基于课程上下文编写这一节内容。生成完成后会自动进入可阅读状态。"
+          <SectionStateBlock
+            title={sectionTitle}
+            description="内容准备好后会自动出现。"
             action={
-              <div className="flex gap-1">
-                {[0, 1, 2].map((i) => (
-                  <motion.div
-                    key={i}
-                    className="h-1.5 w-1.5 rounded-full bg-[var(--color-panel-strong)]"
-                    animate={{ opacity: [0.3, 1, 0.3] }}
-                    transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
-                  />
-                ))}
+              <div className="inline-flex items-center gap-2 text-xs text-[var(--color-text-secondary)]">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                准备中
               </div>
             }
           />
         )}
 
         {(state.status === "generating" || state.status === "complete") && state.content && (
-          <article className="ui-message-card rounded-[28px] px-5 py-5 md:px-8 md:py-8">
-            <div className="mb-5 flex items-center justify-between gap-3 border-b border-black/5 pb-4">
-              <div>
-                <div className="text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
-                  Section
-                </div>
-                <div className="mt-1 text-sm font-medium text-[var(--color-text)]">
-                  {sectionTitle}
-                </div>
-              </div>
-              <span className="rounded-full bg-[var(--color-active)] px-3 py-1 text-[0.6875rem] font-medium text-[var(--color-text-secondary)]">
-                {state.status === "generating" ? "生成中" : "已生成"}
-              </span>
-            </div>
-            <div className="learn-prose">
+          <article className="px-1 py-1 md:px-2">
+            <h3 className="mb-5 text-xl font-semibold leading-tight tracking-[-0.03em] text-[var(--color-text)] md:text-2xl">
+              {sectionTitle}
+            </h3>
+            <div className="learn-prose border-b border-black/5 pb-10 md:pb-12">
               <StreamdownMessage
                 content={state.content}
                 isStreaming={state.status === "generating"}
@@ -337,18 +293,16 @@ function SectionBlock({
         )}
 
         {state.status === "error" && (
-          <SectionStateCard
-            icon={<AlertCircle className="h-5 w-5" />}
-            eyebrow="Generation Error"
-            title="这一节生成失败"
-            description={state.error ?? "请稍后重试。"}
+          <SectionStateBlock
+            title="这一节暂时没有准备好"
+            description={state.error ?? "可以稍后再试。"}
             tone="error"
             action={
               <button
                 type="button"
                 onClick={() => generateSection(sectionIndex)}
                 className={cn(
-                  "ui-message-card inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-medium text-[var(--color-text-secondary)] transition-all",
+                  "inline-flex items-center gap-1.5 rounded-full border border-black/8 bg-white px-4 py-2 text-xs font-medium text-[var(--color-text-secondary)] transition-all",
                   "hover:bg-[var(--color-panel-soft)]",
                 )}
               >
@@ -396,6 +350,100 @@ function SectionBlock({
   );
 }
 
+function ChapterBoundary({
+  chapterIndex,
+  chapterCount,
+  previousTitle,
+  nextTitle,
+  onPrevious,
+  onOpenChat,
+  onNext,
+}: {
+  chapterIndex: number;
+  chapterCount: number;
+  previousTitle?: string;
+  nextTitle?: string;
+  onPrevious: () => void;
+  onOpenChat: () => void;
+  onNext: () => void;
+}) {
+  const isFirstChapter = chapterIndex === 0;
+  const isLastChapter = chapterIndex === chapterCount - 1;
+
+  return (
+    <section className="mt-14 border-t border-black/6 pt-6 md:mt-16 md:pt-8">
+      <div className="grid gap-2 md:grid-cols-[1fr_auto_1fr]">
+        <button
+          type="button"
+          onClick={onPrevious}
+          disabled={isFirstChapter}
+          className={cn(
+            "group flex min-h-14 items-center gap-2 rounded-full px-2.5 py-2 text-left transition-all",
+            isFirstChapter
+              ? "cursor-not-allowed text-[var(--color-text-muted)]"
+              : "text-[var(--color-text)] hover:bg-[var(--color-panel-soft)]",
+          )}
+        >
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--color-panel-soft)]">
+            <ArrowLeft className="h-4 w-4" />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-[0.6875rem] font-semibold tracking-[0.14em] text-[var(--color-text-tertiary)]">
+              上一章
+            </span>
+            <span className="mt-1 line-clamp-2 text-sm font-medium">
+              {previousTitle ?? "已经是第一章"}
+            </span>
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={onOpenChat}
+          className="group flex min-h-14 items-center justify-center gap-2 rounded-full px-5 py-2 text-sm font-medium text-[var(--color-text)] transition-all hover:bg-[var(--color-panel-soft)]"
+        >
+          <MessageSquare className="h-4 w-4 text-[var(--color-text-secondary)]" />
+          问这一章
+        </button>
+
+        <button
+          type="button"
+          onClick={onNext}
+          disabled={isLastChapter}
+          className={cn(
+            "group flex min-h-14 items-center justify-between gap-2 rounded-full px-2.5 py-2 text-left transition-all",
+            isLastChapter
+              ? "cursor-not-allowed text-[var(--color-text-muted)]"
+              : "bg-[var(--color-panel-strong)] text-white hover:bg-[var(--color-panel-strong)]/90",
+          )}
+        >
+          <span className="min-w-0">
+            <span
+              className={cn(
+                "block text-[0.6875rem] font-semibold tracking-[0.14em]",
+                isLastChapter ? "text-[var(--color-text-tertiary)]" : "text-white/62",
+              )}
+            >
+              下一章
+            </span>
+            <span className="mt-1 line-clamp-2 text-sm font-medium">
+              {nextTitle ?? "课程已经读完"}
+            </span>
+          </span>
+          <span
+            className={cn(
+              "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
+              isLastChapter ? "bg-[var(--color-panel-soft)]" : "bg-white/14",
+            )}
+          >
+            <ArrowRight className="h-4 w-4" />
+          </span>
+        </button>
+      </div>
+    </section>
+  );
+}
+
 export function SectionReader({
   courseId,
   sections,
@@ -405,15 +453,19 @@ export function SectionReader({
 }: SectionReaderProps) {
   const {
     currentChapterIndex,
-    currentSectionIndex,
     chapters,
-    isZenMode,
     requestedSectionId,
+    expandChapter,
+    setChatOpen,
     setCurrentSectionIndex,
+    setCurrentChapterIndex,
     clearRequestedSectionFocus,
   } = useLearnStore();
   const currentChapter = chapters[currentChapterIndex];
+  const previousChapter = chapters[currentChapterIndex - 1];
+  const nextChapter = chapters[currentChapterIndex + 1];
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const previousChapterIndexRef = useRef(currentChapterIndex);
   const hasScrolledToResume = useRef(false);
   const [highlightedSectionId, setHighlightedSectionId] = useState<string | null>(null);
 
@@ -423,6 +475,29 @@ export function SectionReader({
       setHighlightedSectionId((current) => (current === sectionId ? null : current));
     }, 1800);
   }, []);
+
+  const navigateToChapter = useCallback(
+    (chapterIndex: number) => {
+      if (chapterIndex < 0 || chapterIndex >= chapters.length) {
+        return;
+      }
+
+      clearRequestedSectionFocus();
+      expandChapter(chapterIndex);
+      setCurrentChapterIndex(chapterIndex);
+    },
+    [chapters.length, clearRequestedSectionFocus, expandChapter, setCurrentChapterIndex],
+  );
+
+  useEffect(() => {
+    if (previousChapterIndexRef.current === currentChapterIndex) {
+      return;
+    }
+
+    previousChapterIndexRef.current = currentChapterIndex;
+    scrollContainerRef.current?.scrollTo({ top: 0, behavior: "auto" });
+    setHighlightedSectionId(null);
+  }, [currentChapterIndex]);
 
   // Auto-scroll to resume section on mount
   useEffect(() => {
@@ -502,35 +577,25 @@ export function SectionReader({
     <div ref={scrollContainerRef} className="mobile-scroll h-full overflow-y-auto">
       <div
         className={cn(
-          "mx-auto w-full max-w-4xl",
-          isZenMode
-            ? "px-4 py-8 md:px-8 md:py-12 lg:px-10"
-            : "px-4 py-6 md:px-8 md:py-8 lg:px-10 lg:py-10",
+          "mx-auto w-full max-w-[820px]",
+          "px-4 py-6 md:px-8 md:py-8 lg:px-10 lg:py-10",
         )}
       >
-        {/* Chapter header */}
-        {!isZenMode && (
-          <div className="sticky top-0 z-20 -mx-1 mb-6 bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(255,255,255,0.9)_72%,rgba(255,255,255,0)_100%)] px-1 pb-4 pt-1 md:mb-8">
-            <div className="ui-message-card rounded-[30px] px-5 py-4 backdrop-blur-xl md:px-7 md:py-5">
-              <div className="mb-3 flex flex-wrap items-center gap-2.5">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-active)] px-2.5 py-1 text-xs font-semibold text-[var(--color-text)]">
-                  <Sparkles className="w-3 h-3" />第 {currentChapterIndex + 1} 章
-                </span>
-                <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
-                  Learning Chapter
-                </span>
-              </div>
-              <h2 className="text-[1.3rem] font-semibold leading-tight tracking-[-0.04em] text-[var(--color-text)] md:text-[1.5rem]">
-                {currentChapter.title}
-              </h2>
-              {currentChapter.description && (
-                <p className="mt-2 max-w-3xl text-[0.92rem] leading-6 text-[var(--color-text-secondary)] md:text-[0.95rem]">
-                  {currentChapter.description}
-                </p>
-              )}
+        <div className="sticky top-0 z-20 -mx-1 mb-8 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(255,255,255,0.9)_72%,rgba(255,255,255,0)_100%)] px-1 pb-5 pt-1">
+          <div className="max-w-3xl">
+            <div className="mb-2 text-[0.6875rem] font-semibold tracking-[0.16em] text-[var(--color-text-muted)]">
+              第 {currentChapterIndex + 1} 章
             </div>
+            <h2 className="text-[1.55rem] font-semibold leading-tight tracking-[-0.045em] text-[var(--color-text)] md:text-[1.85rem]">
+              {currentChapter.title}
+            </h2>
+            {currentChapter.description ? (
+              <p className="mt-2 max-w-2xl text-[0.92rem] leading-7 text-[var(--color-text-secondary)]">
+                {currentChapter.description}
+              </p>
+            ) : null}
           </div>
-        )}
+        </div>
 
         {/* Sections */}
         {currentChapter.sections.map((sec, secIdx) => {
@@ -548,11 +613,20 @@ export function SectionReader({
               sectionDoc={sectionDoc}
               courseId={courseId}
               generateSection={generateSection}
-              isCurrentSection={secIdx === currentSectionIndex}
               isHighlighted={highlightedSectionId === nodeId}
             />
           );
         })}
+
+        <ChapterBoundary
+          chapterIndex={currentChapterIndex}
+          chapterCount={chapters.length}
+          previousTitle={previousChapter?.title}
+          nextTitle={nextChapter?.title}
+          onPrevious={() => navigateToChapter(currentChapterIndex - 1)}
+          onOpenChat={() => setChatOpen(true)}
+          onNext={() => navigateToChapter(currentChapterIndex + 1)}
+        />
 
         {/* Bottom spacing */}
         <div className="h-28 md:h-24" />

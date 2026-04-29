@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import {
   ArrowUpRight,
   BookOpen,
@@ -39,12 +38,10 @@ export function RecentCard({ title, desc, iconName, time, url }: RecentCardProps
   };
 
   return (
-    <motion.button
+    <button
       type="button"
-      whileHover={{ y: -2 }}
-      whileTap={{ scale: 0.98 }}
       onClick={handleClick}
-      className="touch-target ui-surface-card w-full rounded-[28px] p-4 text-left transition-all duration-200 hover:[box-shadow:var(--shadow-soft-panel-hover)] active:scale-[0.98] md:min-h-[220px] md:p-6"
+      className="touch-target ui-surface-card w-full rounded-[28px] p-4 text-left transition-colors duration-200 hover:[box-shadow:var(--shadow-soft-panel-hover)] md:min-h-[220px] md:p-6"
     >
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -76,6 +73,6 @@ export function RecentCard({ title, desc, iconName, time, url }: RecentCardProps
           <ArrowUpRight className="h-3.5 w-3.5" />
         </span>
       </div>
-    </motion.button>
+    </button>
   );
 }

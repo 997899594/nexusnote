@@ -5,17 +5,29 @@ import type { AgentProfile } from "./capability-profiles";
 import { getModelNameForPolicy, getProviderForPolicy, type ModelPolicy } from "./model-policy";
 
 const MODEL_PRICING_USD_PER_1M_TOKENS: Record<string, { input: number; output: number }> = {
-  [env.AI_MODEL]: {
-    input: env.AI_MODEL_PRICE_INPUT_PER_1M,
-    output: env.AI_MODEL_PRICE_OUTPUT_PER_1M,
-  },
-  [env.AI_MODEL_PRO]: {
-    input: env.AI_MODEL_PRO_PRICE_INPUT_PER_1M,
-    output: env.AI_MODEL_PRO_PRICE_OUTPUT_PER_1M,
-  },
   [env.AI_MODEL_WEB_SEARCH]: {
     input: env.AI_MODEL_WEB_SEARCH_PRICE_INPUT_PER_1M,
     output: env.AI_MODEL_WEB_SEARCH_PRICE_OUTPUT_PER_1M,
+  },
+  [env.AI_MODEL_INTERACTIVE]: {
+    input: env.AI_MODEL_INTERACTIVE_PRICE_INPUT_PER_1M,
+    output: env.AI_MODEL_INTERACTIVE_PRICE_OUTPUT_PER_1M,
+  },
+  [env.AI_MODEL_OUTLINE]: {
+    input: env.AI_MODEL_OUTLINE_PRICE_INPUT_PER_1M,
+    output: env.AI_MODEL_OUTLINE_PRICE_OUTPUT_PER_1M,
+  },
+  [env.AI_MODEL_SECTION_DRAFT]: {
+    input: env.AI_MODEL_SECTION_DRAFT_PRICE_INPUT_PER_1M,
+    output: env.AI_MODEL_SECTION_DRAFT_PRICE_OUTPUT_PER_1M,
+  },
+  [env.AI_MODEL_EXTRACT]: {
+    input: env.AI_MODEL_EXTRACT_PRICE_INPUT_PER_1M,
+    output: env.AI_MODEL_EXTRACT_PRICE_OUTPUT_PER_1M,
+  },
+  [env.AI_MODEL_REVIEW]: {
+    input: env.AI_MODEL_REVIEW_PRICE_INPUT_PER_1M,
+    output: env.AI_MODEL_REVIEW_PRICE_OUTPUT_PER_1M,
   },
 };
 

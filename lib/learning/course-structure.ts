@@ -25,10 +25,10 @@ export function buildCourseOutlineVersionValues(params: {
     courseId,
     versionHash: computeCourseOutlineVersionHash(outline),
     title: outline.title,
-    description: outline.description,
-    targetAudience: outline.targetAudience,
+    description: outline.description ?? null,
+    targetAudience: outline.targetAudience ?? null,
     difficulty: outline.difficulty,
-    learningOutcome: outline.learningOutcome,
+    learningOutcome: outline.learningOutcome ?? null,
     courseSkillIds: normalizeStringList(outline.courseSkillIds),
     prerequisites: normalizeStringList(outline.prerequisites),
     isLatest: true,
@@ -55,7 +55,7 @@ export function buildCourseOutlineNodeValues(params: {
       sectionIndex: null,
       position: chapterIndex,
       title: chapter.title,
-      description: chapter.description,
+      description: chapter.description ?? null,
       skillIds: normalizeStringList(chapter.skillIds),
       practiceType: chapter.practiceType ?? null,
       updatedAt: new Date(),
@@ -71,7 +71,7 @@ export function buildCourseOutlineNodeValues(params: {
       sectionIndex,
       position: sectionIndex,
       title: section.title,
-      description: section.description,
+      description: section.description ?? null,
       skillIds: [],
       practiceType: null,
       updatedAt: new Date(),
@@ -117,15 +117,15 @@ export function materializeCourseOutline(params: {
 
   return {
     title: version.title,
-    description: version.description ?? "",
-    targetAudience: version.targetAudience ?? "",
+    description: version.description ?? undefined,
+    targetAudience: version.targetAudience ?? undefined,
     prerequisites: normalizeStringList(version.prerequisites ?? []),
     difficulty: version.difficulty as CourseOutline["difficulty"],
     courseSkillIds: normalizeStringList(version.courseSkillIds ?? []),
-    learningOutcome: version.learningOutcome ?? "",
+    learningOutcome: version.learningOutcome ?? undefined,
     chapters: chapterNodes.map((chapterNode) => ({
       title: chapterNode.title,
-      description: chapterNode.description ?? "",
+      description: chapterNode.description ?? undefined,
       practiceType: (chapterNode.practiceType ?? undefined) as
         | CourseOutline["chapters"][number]["practiceType"]
         | undefined,
@@ -137,7 +137,7 @@ export function materializeCourseOutline(params: {
         )
         .map((sectionNode) => ({
           title: sectionNode.title,
-          description: sectionNode.description ?? "",
+          description: sectionNode.description ?? undefined,
         })),
     })),
   };

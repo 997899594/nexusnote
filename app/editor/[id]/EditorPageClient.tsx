@@ -197,7 +197,7 @@ export default function EditorPageClient({
         <div className="space-y-1.5">
           <div className="inline-flex items-center gap-2 text-xs font-medium text-[var(--color-text-secondary)]">
             <BookOpen className="h-3.5 w-3.5" />
-            <span>来自课程沉淀</span>
+            <span>来自课程笔记</span>
           </div>
           <div className="text-sm font-medium text-[var(--color-text)]">
             {sourceSummary.courseTitle} · {sourceSummary.sectionTitle}

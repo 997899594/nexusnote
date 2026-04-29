@@ -9,6 +9,7 @@
     "lint": "biome check .",
     "typecheck": "bun ./node_modules/.bin/next typegen && tsc --noEmit",
     "ai:eval": "bun scripts/run-ai-evals.ts",
+    "ai:eval:interview-speed": "bun scripts/run-interview-speed-eval.ts",
     "growth:backfill": "bun scripts/backfill-user-growth.ts",
     "growth:check": "bun scripts/check-growth-stability.ts",
     "growth:cutover": "bun scripts/cutover-growth-runtime.ts",

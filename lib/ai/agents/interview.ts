@@ -1,9 +1,10 @@
 import { stepCountIs, ToolLoopAgent, type UIMessage } from "ai";
-import { getToolCallingModelForPolicy } from "@/lib/ai/core/model-policy";
+import { getToolCallingModelForPolicy, type ModelPolicy } from "@/lib/ai/core/model-policy";
 import { type AITelemetryContext, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { createToolContext } from "@/lib/ai/core/tool-context";
 import { buildInterviewAgentInstructionsWithHint } from "@/lib/ai/interview/prompts";
 import type { InterviewOutline } from "@/lib/ai/interview/schemas";
+import type { InterviewTimingSink } from "@/lib/ai/interview/timing";
 import { extractUIMessageText } from "@/lib/ai/message-text";
 import { createInterviewTools } from "@/lib/ai/tools/interview";
 import type { GrowthGenerationContext } from "@/lib/growth/generation-context-format";
@@ -17,6 +18,7 @@ export interface InterviewAgentOptions {
   messages?: UIMessage[];
   generationContext?: GrowthGenerationContext;
   telemetry?: AITelemetryContext;
+  timing?: InterviewTimingSink;
 }
 
 function shouldPreferOutlinePreview(latestUserMessage?: string) {
@@ -42,6 +44,7 @@ function shouldPreferOutlinePreview(latestUserMessage?: string) {
 
 export function createInterviewAgent(options: InterviewAgentOptions) {
   const startedAt = Date.now();
+  options.timing?.mark("agent.create.start", { mode: "natural" });
   const latestUserTurn = [...(options.messages ?? [])]
     .reverse()
     .find((message) => message.role === "user");
@@ -50,6 +53,12 @@ export function createInterviewAgent(options: InterviewAgentOptions) {
     : undefined;
   const preferOutlinePreview =
     !options.currentOutline && shouldPreferOutlinePreview(latestUserMessage);
+  const modelPolicy: ModelPolicy =
+    preferOutlinePreview || options.currentOutline ? "outline-architect" : "interactive-fast";
+  options.timing?.mark("natural.intent-hint.resolved", {
+    hasCurrentOutline: Boolean(options.currentOutline),
+    preferOutlinePreview,
+  });
 
   const tools = createInterviewTools(
     createToolContext({
@@ -58,10 +67,11 @@ export function createInterviewAgent(options: InterviewAgentOptions) {
       messages: options.messages,
     }),
   );
+  options.timing?.mark("agent.tools.ready", { mode: "natural" });
 
-  return new ToolLoopAgent({
+  const agent = new ToolLoopAgent({
     id: "nexusnote-interview",
-    model: getToolCallingModelForPolicy("interactive-fast"),
+    model: getToolCallingModelForPolicy(modelPolicy),
     instructions: buildInterviewAgentInstructionsWithHint({
       currentOutline: options.currentOutline,
       latestUserMessage,
@@ -85,6 +95,11 @@ export function createInterviewAgent(options: InterviewAgentOptions) {
       toolChoice: "required",
     }),
     onFinish: async ({ totalUsage, steps, finishReason }) => {
+      options.timing?.mark("agent.finish", {
+        mode: "natural",
+        finishReason,
+        stepCount: steps.length,
+      });
       if (!options.telemetry) {
         return;
       }
@@ -97,8 +112,9 @@ export function createInterviewAgent(options: InterviewAgentOptions) {
         ),
       );
 
-      await recordAIUsage({
+      void recordAIUsage({
         ...options.telemetry,
+        modelPolicy,
         usage: totalUsage,
         durationMs: Date.now() - startedAt,
         success: true,
@@ -111,4 +127,7 @@ export function createInterviewAgent(options: InterviewAgentOptions) {
       });
     },
   });
+  options.timing?.mark("agent.create.end", { mode: "natural" });
+
+  return agent;
 }

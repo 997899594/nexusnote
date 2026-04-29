@@ -8,10 +8,19 @@
 
 import { createOpenAI } from "@ai-sdk/openai";
 import type { EmbeddingModelV3, LanguageModelV3 } from "@ai-sdk/provider";
-import { extractJsonMiddleware, extractReasoningMiddleware, wrapLanguageModel } from "ai";
+import { extractReasoningMiddleware, wrapLanguageModel } from "ai";
 import { env } from "@/config/env";
 
-export type ModelType = "chat" | "toolCalling" | "pro" | "webSearch" | "embedding";
+export type ModelType =
+  | "chat"
+  | "toolCalling"
+  | "pro"
+  | "outline"
+  | "sectionDraft"
+  | "extract"
+  | "review"
+  | "webSearch"
+  | "embedding";
 type LanguageModelType = Exclude<ModelType, "embedding">;
 
 function createReasoningModel(
@@ -37,16 +46,6 @@ function createPlainModel(
   return client.chat(modelId);
 }
 
-function createJsonModel(
-  client: ReturnType<typeof createOpenAI>,
-  modelId: string,
-): LanguageModelV3 {
-  return wrapLanguageModel({
-    model: client.chat(modelId),
-    middleware: [extractJsonMiddleware()],
-  });
-}
-
 class AIProvider {
   private static instance: AIProvider;
   private readonly label = "302.ai";
@@ -59,9 +58,13 @@ class AIProvider {
       apiKey: env.AI_302_API_KEY,
     });
     this.models = {
-      chat: env.AI_MODEL,
-      toolCalling: env.AI_MODEL,
-      pro: env.AI_MODEL_PRO,
+      chat: env.AI_MODEL_INTERACTIVE,
+      toolCalling: env.AI_MODEL_INTERACTIVE,
+      pro: env.AI_MODEL_REVIEW,
+      outline: env.AI_MODEL_OUTLINE,
+      sectionDraft: env.AI_MODEL_SECTION_DRAFT,
+      extract: env.AI_MODEL_EXTRACT,
+      review: env.AI_MODEL_REVIEW,
       webSearch: env.AI_MODEL_WEB_SEARCH,
       embedding: env.EMBEDDING_MODEL,
     };
@@ -104,10 +107,6 @@ class AIProvider {
     return createPlainModel(this.client, this.getModelId(modelType));
   }
 
-  getJsonModel(modelType: LanguageModelType = "chat") {
-    return createJsonModel(this.client, this.getModelId(modelType));
-  }
-
   getToolCallingModel(modelType: LanguageModelType = "chat") {
     const targetModelType = modelType === "chat" ? "toolCalling" : modelType;
     return createPlainModel(this.client, this.getModelId(targetModelType));
@@ -134,10 +133,6 @@ class AIProvider {
     return this.getPlainModel("chat");
   }
 
-  get jsonChatModel() {
-    return this.getJsonModel("chat");
-  }
-
   get proModel() {
     return this.getModel("pro");
   }
@@ -146,20 +141,12 @@ class AIProvider {
     return this.getPlainModel("pro");
   }
 
-  get jsonProModel() {
-    return this.getJsonModel("pro");
-  }
-
   get webSearchModel() {
     return this.getModel("webSearch");
   }
 
   get plainWebSearchModel() {
     return this.getPlainModel("webSearch");
-  }
-
-  get jsonWebSearchModel() {
-    return this.getJsonModel("webSearch");
   }
 }
 

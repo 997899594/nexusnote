@@ -35,7 +35,7 @@ export async function syncCourseOutlineKnowledgePipeline(params: {
     sourceId: params.courseId,
     sourceVersionHash: outlineHash,
     title: params.outline.title,
-    summary: params.outline.description,
+    summary: params.outline.description ?? params.outline.title,
     confidence: 1,
     happenedAt: new Date().toISOString(),
     metadata: {

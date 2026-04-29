@@ -1,5 +1,6 @@
 import { generateText, Output } from "ai";
-import { getJsonModelForPolicy } from "@/lib/ai/core/model-policy";
+import { buildGenerationSettingsForPolicy } from "@/lib/ai/core/generation-settings";
+import { getPlainModelForPolicy } from "@/lib/ai/core/model-policy";
 import { extractLatestUserMessageFromApiMessages } from "./message-history";
 import {
   type InterviewApiMessage,
@@ -11,10 +12,12 @@ import {
   buildStructuredInterviewStatePrompt,
   STRUCTURED_STATE_SYSTEM_PROMPT,
 } from "./structured-prompts";
+import type { InterviewTimingSink } from "./timing";
 
 interface ExtractInterviewStateOptions {
   messages: InterviewApiMessage[];
   currentOutline?: InterviewOutline;
+  timing?: InterviewTimingSink;
 }
 
 function buildDeterministicReviseState({
@@ -33,8 +36,8 @@ function buildDeterministicReviseState({
   return {
     phase: "revise",
     topic: currentOutline.title,
-    targetOutcome: currentOutline.learningOutcome,
-    currentBaseline: currentOutline.targetAudience,
+    targetOutcome: currentOutline.learningOutcome ?? null,
+    currentBaseline: currentOutline.targetAudience ?? null,
     constraints: [],
     revisionIntent: latestUserMessage.slice(0, 240),
     confidence: 0.9,
@@ -112,12 +115,14 @@ function buildDeterministicInitialState({
 export async function extractInterviewState({
   messages,
   currentOutline,
+  timing,
 }: ExtractInterviewStateOptions): Promise<InterviewState> {
   const deterministicInitialState = buildDeterministicInitialState({
     messages,
     currentOutline,
   });
   if (deterministicInitialState) {
+    timing?.mark("state.extract.strategy", { strategy: "deterministic-initial" });
     return deterministicInitialState;
   }
 
@@ -126,20 +131,25 @@ export async function extractInterviewState({
     currentOutline,
   });
   if (deterministicReviseState) {
+    timing?.mark("state.extract.strategy", { strategy: "deterministic-revise" });
     return deterministicReviseState;
   }
 
+  timing?.mark("state.extract.ai.start");
   const result = await generateText({
-    model: getJsonModelForPolicy("structured-high-quality"),
+    model: getPlainModelForPolicy("extract-fast"),
     output: Output.object({ schema: InterviewStateSchema }),
     system: STRUCTURED_STATE_SYSTEM_PROMPT,
     prompt: buildStructuredInterviewStatePrompt({
       messages,
       currentOutline,
     }),
-    temperature: 0,
+    ...buildGenerationSettingsForPolicy("extract-fast", {
+      temperature: 0,
+    }),
     timeout: 30_000,
   });
+  timing?.mark("state.extract.ai.end");
 
   return result.output;
 }

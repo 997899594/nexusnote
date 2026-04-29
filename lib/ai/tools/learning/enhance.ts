@@ -6,7 +6,8 @@
 
 import { generateText, Output, tool } from "ai";
 import { z } from "zod";
-import { getJsonModelForPolicy } from "@/lib/ai/core/model-policy";
+import { buildGenerationSettingsForPolicy } from "@/lib/ai/core/generation-settings";
+import { getPlainModelForPolicy } from "@/lib/ai/core/model-policy";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { renderPromptResource } from "@/lib/ai/prompts/load-prompt";
 
@@ -36,65 +37,6 @@ const SummaryDataSchema = z.object({
   style: z.enum(["bullet_points", "paragraph", "key_takeaways"]),
   content: z.string(),
 });
-
-interface StructuredLearningCallOptions<T> {
-  userId: string;
-  prompt: string;
-  schema: z.ZodSchema<T>;
-  timeout: number;
-  temperature?: number;
-  telemetry: {
-    intent: string;
-    promptVersion: string;
-    metadata?: Record<string, unknown>;
-  };
-}
-
-async function generateStructuredLearningOutput<T>({
-  userId,
-  prompt,
-  schema,
-  timeout,
-  temperature = 0.3,
-  telemetry,
-}: StructuredLearningCallOptions<T>): Promise<T> {
-  const startedAt = Date.now();
-  const telemetryContext = createTelemetryContext({
-    endpoint: "tools:learning-enhance",
-    userId,
-    intent: telemetry.intent,
-    promptVersion: telemetry.promptVersion,
-    modelPolicy: "interactive-fast",
-    metadata: telemetry.metadata,
-  });
-
-  try {
-    const result = await generateText({
-      model: getJsonModelForPolicy("interactive-fast"),
-      prompt,
-      temperature,
-      timeout,
-      output: Output.object({ schema }),
-    });
-
-    await recordAIUsage({
-      ...telemetryContext,
-      usage: result.usage,
-      durationMs: Date.now() - startedAt,
-      success: true,
-    });
-
-    return result.output;
-  } catch (error) {
-    await recordAIUsage({
-      ...telemetryContext,
-      durationMs: Date.now() - startedAt,
-      success: false,
-      errorMessage: getErrorMessage(error),
-    });
-    throw new Error(getErrorMessage(error));
-  }
-}
 
 function buildMindMapPrompt(params: { topic: string; maxDepth: number; content?: string }) {
   if (params.content) {
@@ -146,23 +88,37 @@ export function createEnhanceTools(userId: string) {
         content,
         maxDepth,
       });
+      const startedAt = Date.now();
+      const telemetryContext = createTelemetryContext({
+        endpoint: "tools:learning-enhance",
+        userId,
+        intent: "learning-mind-map",
+        promptVersion: "learning-enhance:mind-map@v1",
+        modelPolicy: "section-draft",
+        metadata: {
+          topic,
+          maxDepth,
+          hasContent: Boolean(content),
+          contentLength: content?.length ?? 0,
+        },
+      });
 
       try {
-        const result = await generateStructuredLearningOutput({
-          userId,
+        const result = await generateText({
+          model: getPlainModelForPolicy("section-draft"),
           prompt,
-          schema: MindMapDataSchema,
+          ...buildGenerationSettingsForPolicy("section-draft", {
+            temperature: 0.3,
+          }),
           timeout: 45_000,
-          telemetry: {
-            intent: "learning-mind-map",
-            promptVersion: "learning-enhance:mind-map@v1",
-            metadata: {
-              topic,
-              maxDepth,
-              hasContent: Boolean(content),
-              contentLength: content?.length ?? 0,
-            },
-          },
+          output: Output.object({ schema: MindMapDataSchema }),
+        });
+
+        await recordAIUsage({
+          ...telemetryContext,
+          usage: result.usage,
+          durationMs: Date.now() - startedAt,
+          success: true,
         });
 
         return {
@@ -172,11 +128,17 @@ export function createEnhanceTools(userId: string) {
             maxDepth,
             layout: "mindmap" as const,
             hasContent: Boolean(content),
-            nodes: result.nodes,
+            nodes: result.output.nodes,
           },
         };
       } catch (error) {
         const errorMessage = getErrorMessage(error);
+        await recordAIUsage({
+          ...telemetryContext,
+          durationMs: Date.now() - startedAt,
+          success: false,
+          errorMessage,
+        });
         console.error("[Tool] mindMap error:", errorMessage, { userId });
         return { success: false, error: errorMessage, mindMap: null };
       }
@@ -203,21 +165,35 @@ export function createEnhanceTools(userId: string) {
       };
 
       const prompt = buildSummaryPrompt(content, lengthGuide[length]);
+      const startedAt = Date.now();
+      const telemetryContext = createTelemetryContext({
+        endpoint: "tools:learning-enhance",
+        userId,
+        intent: "learning-summarize",
+        promptVersion: "learning-enhance:summarize@v1",
+        modelPolicy: "section-draft",
+        metadata: {
+          length,
+          contentLength: content.length,
+        },
+      });
 
       try {
-        const result = await generateStructuredLearningOutput({
-          userId,
+        const result = await generateText({
+          model: getPlainModelForPolicy("section-draft"),
           prompt,
-          schema: SummaryDataSchema,
+          ...buildGenerationSettingsForPolicy("section-draft", {
+            temperature: 0.3,
+          }),
           timeout: 20_000,
-          telemetry: {
-            intent: "learning-summarize",
-            promptVersion: "learning-enhance:summarize@v1",
-            metadata: {
-              length,
-              contentLength: content.length,
-            },
-          },
+          output: Output.object({ schema: SummaryDataSchema }),
+        });
+
+        await recordAIUsage({
+          ...telemetryContext,
+          usage: result.usage,
+          durationMs: Date.now() - startedAt,
+          success: true,
         });
 
         return {
@@ -225,12 +201,18 @@ export function createEnhanceTools(userId: string) {
           summary: {
             sourceLength: content.length,
             length,
-            style: result.style,
-            content: result.content,
+            style: result.output.style,
+            content: result.output.content,
           },
         };
       } catch (error) {
         const errorMessage = getErrorMessage(error);
+        await recordAIUsage({
+          ...telemetryContext,
+          durationMs: Date.now() - startedAt,
+          success: false,
+          errorMessage,
+        });
         console.error("[Tool] summarize error:", errorMessage, { userId });
         return { success: false, error: errorMessage, summary: null };
       }

@@ -50,7 +50,8 @@ export function handleError(error: unknown): NextResponse {
   }
 
   if (error instanceof Error) {
-    return errorResponse(error.message, 500, "INTERNAL_ERROR");
+    console.error("[API Error]", error);
+    return errorResponse("服务暂时不可用，请稍后重试。", 500, "INTERNAL_ERROR");
   }
 
   return errorResponse("未知错误", 500, "UNKNOWN_ERROR");

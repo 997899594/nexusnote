@@ -13,7 +13,8 @@ import { generateText, Output } from "ai";
 import { and } from "drizzle-orm";
 import { z } from "zod";
 import { conversations, db, eq } from "@/db";
-import { getJsonModelForPolicy } from "@/lib/ai/core/model-policy";
+import { buildGenerationSettingsForPolicy } from "@/lib/ai/core/generation-settings";
+import { getPlainModelForPolicy } from "@/lib/ai/core/model-policy";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { loadPromptResource, renderPromptResource } from "@/lib/ai/prompts/load-prompt";
 import { withAuth } from "@/lib/api";
@@ -80,11 +81,13 @@ export const POST = withAuth(async (_request, { userId }) => {
 
       // 3. 使用 AI 生成标题（10字以内）
       const result = await generateText({
-        model: getJsonModelForPolicy("interactive-fast"),
+        model: getPlainModelForPolicy("interactive-fast"),
         output: Output.object({ schema: titleSchema }),
         system: CONVERSATION_TITLE_SYSTEM_PROMPT,
         prompt: buildConversationTitleUserPrompt(firstUserMessage),
-        temperature: 0.7,
+        ...buildGenerationSettingsForPolicy("interactive-fast", {
+          temperature: 0.7,
+        }),
       });
 
       await recordAIUsage({

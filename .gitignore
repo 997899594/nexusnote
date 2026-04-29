@@ -44,6 +44,7 @@ envoy-config.json
 
 # Testing
 coverage
+artifacts
 
 # Database
 *.db

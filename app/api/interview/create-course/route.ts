@@ -1,4 +1,4 @@
-import { type NextRequest, NextResponse } from "next/server";
+import { after, type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { InterviewOutlineSchema } from "@/lib/ai/interview/schemas";
 import { runCreateCourseWorkflow } from "@/lib/ai/workflows/create-course";
@@ -12,6 +12,7 @@ import {
 } from "@/lib/cache/tags";
 import { syncCourseOutlineKnowledgePipeline } from "@/lib/learning/course-knowledge-pipeline";
 import { getOwnedCourse } from "@/lib/learning/course-repository";
+import { enqueueInitialCourseMaterialization } from "@/lib/queue/course-production-queue";
 
 const RequestSchema = z.object({
   outline: InterviewOutlineSchema,
@@ -60,19 +61,41 @@ export async function POST(request: NextRequest) {
     revalidateRecentCourses(userId);
     revalidateProfileStats(userId);
     revalidateLearnPage(userId, result.courseId);
-    revalidateCareerTrees(userId);
+    after(async () => {
+      const [productionResult, knowledgeResult] = await Promise.allSettled([
+        enqueueInitialCourseMaterialization({
+          userId,
+          courseId: result.courseId,
+          outline: result.outline,
+        }),
+        syncCourseOutlineKnowledgePipeline({
+          userId,
+          courseId: result.courseId,
+          outline: result.outline,
+        }),
+      ]);
 
-    const knowledgePipeline = await syncCourseOutlineKnowledgePipeline({
-      userId,
-      courseId: result.courseId,
-      outline: result.outline,
+      if (productionResult.status === "rejected") {
+        console.error(
+          "[CreateCourse] Failed to enqueue course production:",
+          productionResult.reason,
+        );
+      }
+
+      if (knowledgeResult.status === "rejected") {
+        console.error(
+          "[CreateCourse] Failed to sync course knowledge pipeline:",
+          knowledgeResult.reason,
+        );
+      } else {
+        revalidateCareerTrees(userId);
+      }
     });
 
     return NextResponse.json({
       success: true,
       courseId: result.courseId,
       outline: result.outline,
-      knowledgePipeline,
     });
   } catch (error) {
     return handleError(error);

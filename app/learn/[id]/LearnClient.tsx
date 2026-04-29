@@ -15,13 +15,9 @@ import { useLearnStore } from "@/stores/learn";
 import { LearnChat } from "./components/LearnChat";
 import { LearnSidebar } from "./components/LearnSidebar";
 import { SectionReader } from "./components/SectionReader";
-import { ZenModeToggle } from "./components/ZenModeToggle";
 
 export interface LearnClientProps
-  extends Pick<
-      LearnPageProjection,
-      "courseTitle" | "chapters" | "sectionDocs" | "growthFocus" | "insights"
-    >,
+  extends Pick<LearnPageProjection, "courseTitle" | "chapters" | "sectionDocs">,
     Pick<
       LearnResumeState,
       "initialChapterIndex" | "initialCompletedSections" | "scrollToSectionId"
@@ -30,29 +26,19 @@ export interface LearnClientProps
 }
 
 // Sidebar width constant
-const SIDEBAR_WIDTH = 336;
+const SIDEBAR_WIDTH = 312;
 
 // Animation variants
 const sidebarVariants = {
-  hidden: { width: 0, opacity: 0, x: -SIDEBAR_WIDTH },
+  hidden: { opacity: 0, x: -16 },
   visible: {
-    width: SIDEBAR_WIDTH,
     opacity: 1,
     x: 0,
     transition: { type: "spring" as const, stiffness: 300, damping: 30 },
   },
   exit: {
-    width: 0,
     opacity: 0,
-    x: -SIDEBAR_WIDTH,
-    transition: { type: "spring" as const, stiffness: 300, damping: 30 },
-  },
-};
-
-const mainVariants = {
-  full: { marginLeft: 0 },
-  withSidebar: {
-    marginLeft: 0,
+    x: -16,
     transition: { type: "spring" as const, stiffness: 300, damping: 30 },
   },
 };
@@ -62,8 +48,6 @@ export function LearnClient({
   courseTitle,
   chapters,
   sectionDocs,
-  growthFocus,
-  insights,
   initialChapterIndex,
   initialCompletedSections,
   scrollToSectionId,
@@ -72,8 +56,7 @@ export function LearnClient({
   const setChapters = useLearnStore((s) => s.setChapters);
   const setCurrentChapterIndex = useLearnStore((s) => s.setCurrentChapterIndex);
   const markSectionComplete = useLearnStore((s) => s.markSectionComplete);
-  const toggleChapterExpanded = useLearnStore((s) => s.toggleChapterExpanded);
-  const isZenMode = useLearnStore((s) => s.isZenMode);
+  const expandChapter = useLearnStore((s) => s.expandChapter);
   const currentChapterIndex = useLearnStore((s) => s.currentChapterIndex);
   const isSidebarOpen = useLearnStore((s) => s.isSidebarOpen);
   const setSidebarOpen = useLearnStore((s) => s.setSidebarOpen);
@@ -98,8 +81,8 @@ export function LearnClient({
       markSectionComplete(nodeId);
     }
 
-    // Expand initial chapter in sidebar
-    toggleChapterExpanded(initialChapterIndex);
+    // Keep the active chapter visible in the table of contents.
+    expandChapter(initialChapterIndex);
   }, []); // Run once on mount
 
   const currentChapter = chapters[currentChapterIndex];
@@ -114,7 +97,6 @@ export function LearnClient({
     }
     return map;
   }, [sectionDocs]);
-
   // Section generation hook
   const { sections, generateSection } = useChapterSections({
     courseId: sessionId,
@@ -123,9 +105,8 @@ export function LearnClient({
     initialContent,
   });
 
-  // Close overlays on ESC (mobile)
+  // Close transient panels on ESC without changing the reading layout.
   useEffect(() => {
-    if (!isMobile) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setSidebarOpen(false);
@@ -134,7 +115,7 @@ export function LearnClient({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isMobile, setChatOpen, setSidebarOpen]);
+  }, [setChatOpen, setSidebarOpen]);
 
   // Lock body scroll when overlay is open (mobile)
   useEffect(() => {
@@ -167,7 +148,7 @@ export function LearnClient({
                   {courseTitle}
                 </h1>
                 <p className="truncate text-[0.6875rem] text-[var(--color-text-tertiary)]">
-                  {currentChapter ? `当前阅读 · 第 ${currentChapterIndex + 1} 章` : "课程工作台"}
+                  {currentChapter ? `第 ${currentChapterIndex + 1} 章` : "课程"}
                 </p>
               </div>
             </div>
@@ -211,9 +192,6 @@ export function LearnClient({
           />
         </div>
 
-        {/* Zen toggle */}
-        <ZenModeToggle />
-
         {/* Sidebar overlay - slide from left */}
         <AnimatePresence>
           {isSidebarOpen && (
@@ -230,14 +208,9 @@ export function LearnClient({
                 animate={{ x: 0 }}
                 exit={{ x: -SIDEBAR_WIDTH }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className="ui-page-shell fixed inset-y-0 left-0 z-50 w-[min(88vw,336px)] overflow-hidden rounded-r-[28px] shadow-xl"
+                className="ui-page-shell fixed inset-y-0 left-0 z-50 w-[min(88vw,312px)] overflow-hidden rounded-r-[28px] shadow-xl"
               >
-                <LearnSidebar
-                  courseTitle={courseTitle}
-                  width={SIDEBAR_WIDTH}
-                  growthFocus={growthFocus}
-                  insights={insights}
-                />
+                <LearnSidebar courseTitle={courseTitle} width={SIDEBAR_WIDTH} />
               </motion.div>
             </>
           )}
@@ -261,13 +234,7 @@ export function LearnClient({
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 className="ui-page-shell fixed inset-y-0 right-0 z-50 w-full overflow-hidden shadow-xl"
               >
-                <LearnChat
-                  courseId={sessionId}
-                  courseTitle={courseTitle}
-                  growthFocus={growthFocus}
-                  insights={insights}
-                  variant="overlay"
-                />
+                <LearnChat courseId={sessionId} courseTitle={courseTitle} />
               </motion.div>
             </>
           )}
@@ -276,62 +243,20 @@ export function LearnClient({
     );
   }
 
-  // ─── Desktop layout (unchanged) ───
   return (
     <div className="ui-page-shell flex min-h-dvh gap-3 p-3 md:gap-4 md:p-4 lg:gap-5 lg:p-5">
-      {/* Sidebar - hidden in zen mode */}
-      <AnimatePresence mode="wait">
-        {!isZenMode && (
-          <motion.div
-            variants={sidebarVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            className="ui-page-shell flex-shrink-0 overflow-hidden rounded-[30px] border border-black/5 shadow-[var(--shadow-floating-panel)]"
-          >
-            <LearnSidebar
-              courseTitle={courseTitle}
-              width={SIDEBAR_WIDTH}
-              growthFocus={growthFocus}
-              insights={insights}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <motion.div
+        variants={sidebarVariants}
+        initial="hidden"
+        animate="visible"
+        style={{ width: SIDEBAR_WIDTH }}
+        className="ui-page-shell flex-shrink-0 overflow-hidden rounded-[30px] border border-black/5 shadow-[var(--shadow-floating-panel)]"
+      >
+        <LearnSidebar courseTitle={courseTitle} width={SIDEBAR_WIDTH} />
+      </motion.div>
 
       {/* Main content */}
-      <motion.div
-        variants={mainVariants}
-        initial="full"
-        animate={isZenMode ? "full" : "withSidebar"}
-        className="ui-message-card relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-[32px]"
-      >
-        {/* Header - hidden in zen mode */}
-        <AnimatePresence>
-          {!isZenMode && currentChapter && (
-            <motion.header
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="sticky top-0 z-20 border-b border-black/5 bg-white/95 px-8 py-5 backdrop-blur-xl"
-            >
-              <div className="min-w-0 space-y-1">
-                <div className="text-[0.6875rem] uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
-                  Learning Workspace
-                </div>
-                <h1 className="max-w-3xl truncate text-lg font-semibold text-[var(--color-text)]">
-                  {courseTitle}
-                </h1>
-              </div>
-              <div className="hidden md:flex items-center gap-2 text-xs text-[var(--color-text-tertiary)]">
-                <span className="rounded-full bg-[var(--color-panel-soft)] px-3 py-1.5 text-[0.72rem] text-[var(--color-text-secondary)]">
-                  当前阅读 · 第 {currentChapterIndex + 1} 章
-                </span>
-              </div>
-            </motion.header>
-          )}
-        </AnimatePresence>
-
+      <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-[32px] bg-white shadow-[0_24px_80px_-56px_rgba(15,23,42,0.35)]">
         {/* Section content (streaming generation + read-only) */}
         <div className="flex-1 overflow-hidden bg-white">
           <SectionReader
@@ -342,20 +267,30 @@ export function LearnClient({
             scrollToSectionId={scrollToSectionId}
           />
         </div>
+      </div>
 
-        {/* Zen toggle */}
-        <ZenModeToggle />
-      </motion.div>
-
-      {/* AI Chat panel - hidden in zen mode */}
       <AnimatePresence>
-        {!isZenMode && (
-          <LearnChat
-            courseId={sessionId}
-            courseTitle={courseTitle}
-            growthFocus={growthFocus}
-            insights={insights}
-          />
+        {isChatOpen && (
+          <>
+            <motion.button
+              type="button"
+              aria-label="关闭学习助手"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-40 bg-slate-950/[0.04]"
+              onClick={() => setChatOpen(false)}
+            />
+            <motion.div
+              initial={{ x: 28, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: 28, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 320, damping: 34 }}
+              className="ui-page-shell fixed bottom-5 right-5 top-5 z-50 w-[min(26rem,calc(100vw-2.5rem))] overflow-hidden rounded-[32px] border border-black/5 shadow-[var(--shadow-floating-panel)]"
+            >
+              <LearnChat courseId={sessionId} courseTitle={courseTitle} />
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
     </div>

@@ -154,7 +154,7 @@ export function useChapterSections({
         inflightRef.current = null;
         setCurrentGenerating(null);
 
-        // Prefetch: auto-trigger next section if still same chapter
+        // Keep foreground generation user-driven; background production prewarms the next section.
         if (chapterRef.current === chapterIndex) {
           const pending = pendingRef.current;
           pendingRef.current = null;
@@ -162,20 +162,11 @@ export function useChapterSections({
           if (pending !== null) {
             // A specific section was requested while generating — prioritize it
             doGenerate(pending);
-          } else {
-            // Auto-prefetch next incomplete section
-            for (let i = sectionIndex + 1; i < sectionCount; i++) {
-              const s = sections.get(i);
-              if (!s || s.status === "idle") {
-                doGenerate(i);
-                break;
-              }
-            }
           }
         }
       }
     },
-    [courseId, chapterIndex, sectionCount, sections, addToast],
+    [courseId, chapterIndex, sections, addToast],
   );
 
   // Public generate — handles concurrency (serial, one at a time)

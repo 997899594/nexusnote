@@ -35,7 +35,7 @@ import {
   touchOwnedConversation,
 } from "@/lib/chat/conversation-repository";
 import { isUuidString } from "@/lib/chat/session-id";
-import { getUserGrowthContext } from "@/lib/growth/generation-context";
+import { getUserGrowthContextWithinBudget } from "@/lib/growth/generation-context";
 
 export const maxDuration = 300;
 
@@ -170,7 +170,17 @@ export async function POST(request: NextRequest) {
 
     // Get agent with personalization
     const generationContext =
-      profileId === "LEARN_ASSIST" ? undefined : await getUserGrowthContext(userId);
+      profileId === "LEARN_ASSIST"
+        ? undefined
+        : await getUserGrowthContextWithinBudget(userId, {
+            onTimeout: () => {
+              console.warn("[Chat] Growth context missed interactive budget", {
+                requestId,
+                userId,
+                profileId,
+              });
+            },
+          });
 
     const agent = await createChatAgent({
       profile: profileId,
@@ -227,7 +237,7 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error) {
     const degradation = classifyAIDegradation(error);
-    await recordAIUsage({
+    void recordAIUsage({
       ...telemetry,
       durationMs: Date.now() - startTime,
       success: false,

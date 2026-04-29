@@ -1,5 +1,6 @@
 import { convertToModelMessages, generateText, readUIMessageStream, type UIMessage } from "ai";
 import { createInterviewSessionAgent } from "@/lib/ai/agents/interview-session";
+import { buildGenerationSettingsForPolicy } from "@/lib/ai/core/generation-settings";
 import { getModelForPolicy } from "@/lib/ai/core/model-policy";
 import { buildPromptInstructions } from "@/lib/ai/core/prompt-registry";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
@@ -8,6 +9,7 @@ import {
   findLatestStableOutline,
   getInterviewMessageOptions,
   getInterviewMessageText,
+  getLatestVisibleInterviewAssistantMessage,
   type InterviewUIMessage,
 } from "@/lib/ai/interview/ui";
 import { extractUIMessageText } from "@/lib/ai/message-text";
@@ -136,10 +138,7 @@ function getPolicyForCase(testCase: EvalCase) {
     case "notes":
       return "interactive-fast" as const;
     case "interview": {
-      const input = testCase.input as unknown as InterviewEvalInput;
-      return input.mode === "structured"
-        ? ("structured-high-quality" as const)
-        : ("interactive-fast" as const);
+      return "interactive-fast" as const;
     }
     case "growth":
       return "interactive-fast" as const;
@@ -182,9 +181,19 @@ function runInterviewRuleChecks(output: string): EvalRuleCheck[] {
 
   const outline = parsed.outline;
   const message = typeof parsed.message === "string" ? parsed.message.trim() : "";
-  const options = Array.isArray(parsed.options)
-    ? parsed.options.filter((item): item is string => typeof item === "string" && item.length > 0)
-    : [];
+  const rawOptions = Array.isArray(parsed.options) ? parsed.options : [];
+  const options = rawOptions.filter((item) => {
+    if (typeof item === "string") {
+      return item.trim().length > 0;
+    }
+
+    if (!item || typeof item !== "object") {
+      return false;
+    }
+
+    const option = item as Record<string, unknown>;
+    return typeof option.label === "string" && option.label.trim().length > 0;
+  });
   const courseId = parsed.courseId;
 
   const checks: EvalRuleCheck[] = [
@@ -221,6 +230,19 @@ function runInterviewRuleChecks(output: string): EvalRuleCheck[] {
   }
 
   const outlineRecord = outline as Record<string, unknown>;
+  const structuredOutlineOptions = rawOptions.filter(
+    (item): item is Record<string, unknown> => !!item && typeof item === "object",
+  );
+  const hasStartCourseOption = structuredOutlineOptions.some(
+    (option) => option.intent === "start_course",
+  );
+  const reviseOptions = structuredOutlineOptions.filter((option) => option.intent === "revise");
+  const hasConcreteReviseActions =
+    reviseOptions.length > 0 &&
+    reviseOptions.every((option) => {
+      const action = typeof option.action === "string" ? option.action.trim() : "";
+      return action.length >= 8;
+    });
   const chapters = Array.isArray(outlineRecord.chapters)
     ? outlineRecord.chapters.filter(
         (chapter): chapter is Record<string, unknown> => !!chapter && typeof chapter === "object",
@@ -229,18 +251,29 @@ function runInterviewRuleChecks(output: string): EvalRuleCheck[] {
 
   checks.push(
     {
+      name: "outline-actions-structured",
+      passed:
+        structuredOutlineOptions.length === rawOptions.length &&
+        structuredOutlineOptions.every(
+          (option) => option.intent === "revise" || option.intent === "start_course",
+        ) &&
+        hasStartCourseOption &&
+        hasConcreteReviseActions,
+      details:
+        structuredOutlineOptions.length === rawOptions.length &&
+        hasStartCourseOption &&
+        hasConcreteReviseActions
+          ? "Outline options are structured actions with concrete revise commands and start_course."
+          : "Outline options must be structured revise/start_course actions; revise options need concrete action text and one option must start course.",
+    },
+    {
       name: "outline-metadata",
       passed:
         typeof outlineRecord.title === "string" &&
         outlineRecord.title.trim().length > 0 &&
-        typeof outlineRecord.description === "string" &&
-        outlineRecord.description.trim().length > 0 &&
-        typeof outlineRecord.targetAudience === "string" &&
-        outlineRecord.targetAudience.trim().length > 0 &&
-        typeof outlineRecord.learningOutcome === "string" &&
-        outlineRecord.learningOutcome.trim().length > 0,
-      details:
-        "Outline preview must contain title, description, targetAudience, and learningOutcome.",
+        typeof outlineRecord.difficulty === "string" &&
+        outlineRecord.difficulty.trim().length > 0,
+      details: "Outline preview must contain title and difficulty.",
     },
     {
       name: "chapter-count",
@@ -269,7 +302,7 @@ function runInterviewRuleChecks(output: string): EvalRuleCheck[] {
           (section): section is Record<string, unknown> => !!section && typeof section === "object",
         )
       : [];
-    if (sections.length < 4 || sections.length > 6) {
+    if (sections.length < 2 || sections.length > 4) {
       invalidChapterIndexes.push(i + 1);
     }
 
@@ -289,8 +322,8 @@ function runInterviewRuleChecks(output: string): EvalRuleCheck[] {
     passed: invalidChapterIndexes.length === 0,
     details:
       invalidChapterIndexes.length === 0
-        ? "All chapters contain 4-6 sections."
-        : `Chapters with invalid section counts: ${invalidChapterIndexes.join(", ")}.`,
+        ? "All chapters contain 2-4 skeleton sections."
+        : `Chapters with invalid skeleton section counts: ${invalidChapterIndexes.join(", ")}.`,
   });
 
   checks.push({
@@ -759,7 +792,9 @@ async function runTextEval({
     model: getModelForPolicy(modelPolicy),
     system: instructions,
     prompt,
-    temperature: 0.2,
+    ...buildGenerationSettingsForPolicy(modelPolicy, {
+      temperature: 0.2,
+    }),
     timeout: EVAL_TEXT_TIMEOUT_MS,
   });
 
@@ -816,7 +851,7 @@ async function runChatEval({
       userId: "eval-user",
       profile,
       userContext,
-      telemetry,
+      telemetry: EVAL_RECORD_USAGE ? telemetry : undefined,
     });
 
     const modelMessages = await convertToModelMessages(messages, {
@@ -913,7 +948,7 @@ async function runInterviewEval({
       currentOutline,
       messages,
       mode,
-      telemetry,
+      telemetry: EVAL_RECORD_USAGE ? telemetry : undefined,
     });
 
     const modelMessages = await convertToModelMessages(messages, {
@@ -953,20 +988,18 @@ async function runInterviewEval({
 
       if (firstOutlineMs == null) {
         const outline = findLatestOutline([uiMessage]);
-        if (outline) {
+        if (outline?.outline && outline.outline.chapters.length > 0) {
           firstOutlineMs = Date.now() - startedAt;
         }
       }
     }
 
     const finalMessages = [...latestById.values()];
-    const lastAssistant = [...finalMessages]
-      .reverse()
-      .find((message) => message.role === "assistant");
+    const lastAssistant = getLatestVisibleInterviewAssistantMessage(finalMessages);
     const latestOutline = findLatestStableOutline(finalMessages);
 
-    const text = lastAssistant ? getInterviewMessageText(lastAssistant) : "";
-    const options = lastAssistant ? getInterviewMessageOptions(lastAssistant) : [];
+    const text = lastAssistant?.text ?? "";
+    const options = lastAssistant?.options ?? [];
     const totalMs = Date.now() - startedAt;
 
     if (EVAL_RECORD_USAGE) {

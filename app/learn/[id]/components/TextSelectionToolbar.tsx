@@ -214,7 +214,7 @@ export function TextSelectionToolbar({
                   )}
                 >
                   <BookPlus className="h-3.5 w-3.5" />
-                  <span>沉淀</span>
+                  <span>记一笔</span>
                 </button>
               </div>
             </div>

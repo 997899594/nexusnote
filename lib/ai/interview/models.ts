@@ -23,10 +23,16 @@ export interface OutlineDisplay {
   chapters: Chapter[];
 }
 
+export interface InterviewOptionAction {
+  label: string;
+  action?: string;
+  intent?: "reply" | "revise" | "start_course";
+}
+
 export interface InterviewOutlineState {
   display: OutlineDisplay | null;
   stable: InterviewOutline | null;
-  actions: string[];
+  actions: InterviewOptionAction[];
   isLoading: boolean;
   isReady: boolean;
 }

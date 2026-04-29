@@ -101,7 +101,7 @@ export function buildGrowthComposePrompt(input: {
 }
 
 export function buildGrowthComposeMetadataPrompt(input: {
-  directions: Array<{
+  direction: {
     keySeed: string;
     matchPreviousDirectionKey?: string;
     supportingNodeRefs: string[];
@@ -115,7 +115,7 @@ export function buildGrowthComposeMetadataPrompt(input: {
       state: string;
       evidenceScore: number;
     }>;
-  }>;
+  };
 }): string {
   return JSON.stringify(input, null, 2);
 }
