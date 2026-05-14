@@ -1,8 +1,6 @@
-import { getUserGrowthContext } from "@/lib/growth/generation-context";
-import { computeGrowthOutlineHash, normalizeGrowthOutline } from "@/lib/growth/normalize-outline";
-import { enqueueGrowthExtract } from "@/lib/growth/queue";
+import { enqueueCareerTreeExtract } from "@/lib/career-tree/queue";
+import { computeCareerOutlineHash, normalizeCareerOutline } from "@/lib/career-tree/source";
 import { ingestEvidenceEvent } from "@/lib/knowledge/events";
-import { buildCourseBlueprintAlignmentBrief } from "@/lib/learning/alignment";
 import type { CourseOutline } from "@/lib/learning/course-outline";
 
 export interface CourseKnowledgePipelineResult {
@@ -15,17 +13,8 @@ export async function syncCourseOutlineKnowledgePipeline(params: {
   courseId: string;
   outline: CourseOutline;
 }): Promise<CourseKnowledgePipelineResult> {
-  const generationContext = await getUserGrowthContext(params.userId);
-  const normalizedOutline = normalizeGrowthOutline(params.outline);
-  const outlineHash = computeGrowthOutlineHash(normalizedOutline);
-  const courseAlignment = buildCourseBlueprintAlignmentBrief({
-    courseTitle: params.outline.title,
-    courseDescription: params.outline.description,
-    courseSkillIds: params.outline.courseSkillIds,
-    chapterTitles: params.outline.chapters.map((chapter) => chapter.title),
-    chapterSkillIds: params.outline.chapters.flatMap((chapter) => chapter.skillIds ?? []),
-    generationContext,
-  });
+  const normalizedOutline = normalizeCareerOutline(params.outline);
+  const outlineHash = computeCareerOutlineHash(normalizedOutline);
 
   await ingestEvidenceEvent({
     id: crypto.randomUUID(),
@@ -41,8 +30,6 @@ export async function syncCourseOutlineKnowledgePipeline(params: {
     metadata: {
       chapterCount: normalizedOutline.chapters.length,
       courseSkillIds: normalizedOutline.courseSkillIds,
-      generationContext,
-      courseAlignment,
       chapterSkillIds: normalizedOutline.chapters.map((chapter) => ({
         chapterKey: chapter.chapterKey,
         skillIds: chapter.explicitSkillIds,
@@ -56,7 +43,7 @@ export async function syncCourseOutlineKnowledgePipeline(params: {
     })),
   });
 
-  const extractJob = await enqueueGrowthExtract(params.userId, params.courseId);
+  const extractJob = await enqueueCareerTreeExtract(params.userId, params.courseId);
 
   return {
     outlineHash,

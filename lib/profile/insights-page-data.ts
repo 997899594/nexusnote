@@ -2,11 +2,11 @@ import "server-only";
 
 import { cacheLife, cacheTag } from "next/cache";
 import { getCareerTreesTag, getNotesIndexTag, getProfileStatsTag } from "@/lib/cache/tags";
-import type { FocusSnapshotProjection } from "@/lib/growth/projection-types";
+import type { FocusSnapshotProjection } from "@/lib/career-tree/projection-types";
 import {
-  type GrowthWorkspaceData,
-  getGrowthWorkspaceDataCached,
-} from "@/lib/growth/workspace-data";
+  type CareerTreeWorkspaceData,
+  getCareerTreeWorkspaceDataCached,
+} from "@/lib/career-tree/workspace-data";
 import type { KnowledgeInsight } from "@/lib/knowledge/insights";
 import { getNotesWorkbenchCached } from "@/lib/knowledge/workbench-data";
 import type {
@@ -56,11 +56,11 @@ function selectFocusNotes(
 }
 
 function buildProfileInsightsOverview(
-  growth: GrowthWorkspaceData,
+  careerTree: CareerTreeWorkspaceData,
   relatedMaterialCount: number,
 ): ProfileInsightsOverview | null {
-  const currentDirection = growth.profileSnapshot?.currentDirection ?? null;
-  const focusSnapshot = growth.focusSnapshot;
+  const currentDirection = careerTree.profileSnapshot?.currentDirection ?? null;
+  const focusSnapshot = careerTree.focusSnapshot;
 
   if (!currentDirection && !focusSnapshot) {
     return null;
@@ -71,7 +71,7 @@ function buildProfileInsightsOverview(
       title: currentDirection?.title ?? focusSnapshot?.title ?? "成长主线生成中",
       summary: currentDirection?.summary ?? focusSnapshot?.summary ?? "系统正在整理你的成长方向。",
       treesCount: currentDirection
-        ? (growth.profileSnapshot?.treesCount ?? growth.snapshot.trees.length)
+        ? (careerTree.profileSnapshot?.treesCount ?? careerTree.snapshot.trees.length)
         : null,
       confidence: currentDirection?.confidence ?? null,
       supportingCoursesCount: currentDirection?.supportingCoursesCount ?? null,
@@ -97,9 +97,9 @@ export async function getProfileInsightsPageDataCached(
   cacheTag(getCareerTreesTag(userId));
   cacheTag(getNotesIndexTag(userId));
 
-  const [usage, growth, workbenchSnapshot] = await Promise.all([
+  const [usage, careerTree, workbenchSnapshot] = await Promise.all([
     getUserProfileInsightsCached(userId, windowStartIso),
-    getGrowthWorkspaceDataCached(userId, 4),
+    getCareerTreeWorkspaceDataCached(userId, 4),
     getNotesWorkbenchCached(userId),
   ]);
 
@@ -108,8 +108,8 @@ export async function getProfileInsightsPageDataCached(
 
   return {
     usage,
-    overview: buildProfileInsightsOverview(growth, relatedMaterialCount),
-    insights: growth.insights,
+    overview: buildProfileInsightsOverview(careerTree, relatedMaterialCount),
+    insights: careerTree.insights,
     focusNotes,
   };
 }

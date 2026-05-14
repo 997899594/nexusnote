@@ -41,7 +41,6 @@ export async function syncCourseSectionKnowledge(
     sourceType: "course_section",
     sourceId: params.documentId,
     hasContent: plainText.length > 0,
-    clearReason: `course-section-clear:${params.documentId}`,
     enqueueFollowups: params.enqueueFollowups,
     replaceEvents: async () => {
       await ingestEvidenceEvent({

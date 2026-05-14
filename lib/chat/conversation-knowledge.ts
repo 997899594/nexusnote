@@ -92,12 +92,11 @@ export async function syncConversationKnowledge(params: {
   const summary = buildConversationSummary(snippets);
   const metadata = buildConversationMetadata(conversation);
 
-  const result = await syncKnowledgeSource({
+  await syncKnowledgeSource({
     userId: params.userId,
     sourceType: "conversation",
     sourceId: params.conversationId,
     hasContent: summary.length > 0,
-    clearReason: `conversation-clear:${params.conversationId}`,
     enqueueFollowups: params.enqueueFollowups,
     replaceEvents: async () => {
       if (summary.length === 0) {
@@ -135,5 +134,5 @@ export async function syncConversationKnowledge(params: {
     },
   });
 
-  return result.affectedNodeIds;
+  return [];
 }

@@ -6,56 +6,25 @@ import {
   knowledgeEvidenceEvents,
   knowledgeInsightEvidence,
   knowledgeInsights,
-  userSkillNodeEvidence,
-  userSkillNodes,
 } from "@/db";
 import {
   revalidateCareerTrees,
   revalidateNotesIndex,
   revalidateProfileStats,
 } from "@/lib/cache/tags";
-import { getLatestFocusSnapshotRow } from "@/lib/growth/projection-data";
-import { focusSnapshotPayloadSchema } from "@/lib/growth/projection-types";
 import {
   deriveKnowledgeInsights,
   hashKnowledgeInsightInputs,
 } from "@/lib/knowledge/insights/derive";
-import type { GrowthJobData } from "@/lib/queue/growth-queue";
 import {
   getOrCreateGenerationRun,
   markGenerationRunFailed,
   markGenerationRunSucceeded,
 } from "@/lib/runtime/generation-runs";
 
-type JobPayload<T extends GrowthJobData["type"]> = Extract<GrowthJobData, { type: T }>;
-
-type NodeEvidenceRow = {
-  nodeId: string;
-  evidenceId: string;
-  sourceType: string;
-  kind: string;
-  title: string;
-  summary: string;
-  confidence: string;
-};
-
-type EnrichedSkillNode = {
-  id: string;
-  canonicalLabel: string;
-  progress: number;
-  state: string;
-  evidenceScore: number;
-  evidenceIds: string[];
-  sourceTypes: string[];
-  evidenceKinds: string[];
-};
-
-function compareInsightText(left: string, right: string): number {
-  return left.localeCompare(right, "zh-Hans-CN");
-}
-
-function uniqueStrings(values: string[]): string[] {
-  return [...new Set(values)];
+export interface KnowledgeInsightsJobData {
+  type: "derive_user_insights";
+  userId: string;
 }
 
 function sortObjectKeys(value: unknown): unknown {
@@ -170,178 +139,46 @@ function assignInsightIds(
   return { desiredInsights, obsoleteInsightIds };
 }
 
-function groupNodeEvidenceRows(rows: NodeEvidenceRow[]): Map<string, NodeEvidenceRow[]> {
-  const rowsByNodeId = new Map<string, NodeEvidenceRow[]>();
-
-  for (const row of rows) {
-    const existing = rowsByNodeId.get(row.nodeId) ?? [];
-    existing.push(row);
-    rowsByNodeId.set(row.nodeId, existing);
-  }
-
-  return rowsByNodeId;
-}
-
-function sortLinkedEvidenceRows(rows: NodeEvidenceRow[]): NodeEvidenceRow[] {
-  return [...rows].sort((left, right) => {
-    const confidenceDiff = Number(right.confidence) - Number(left.confidence);
-    if (confidenceDiff !== 0) {
-      return confidenceDiff;
-    }
-
-    const titleCompare = compareInsightText(left.title, right.title);
-    if (titleCompare !== 0) {
-      return titleCompare;
-    }
-
-    return compareInsightText(left.evidenceId, right.evidenceId);
-  });
-}
-
-function enrichSkillNodes(
-  skillNodes: Array<{
-    id: string;
-    canonicalLabel: string;
-    progress: number;
-    state: string;
-    evidenceScore: number;
-  }>,
-  nodeEvidenceRows: NodeEvidenceRow[],
-): EnrichedSkillNode[] {
-  const evidenceRowsByNodeId = groupNodeEvidenceRows(nodeEvidenceRows);
-
-  return skillNodes.map((node) => {
-    const linkedEvidenceRows = sortLinkedEvidenceRows(evidenceRowsByNodeId.get(node.id) ?? []);
-
-    return {
-      ...node,
-      evidenceIds: uniqueStrings(linkedEvidenceRows.map((row) => row.evidenceId)),
-      sourceTypes: uniqueStrings(linkedEvidenceRows.map((row) => row.sourceType)).sort(
-        compareInsightText,
-      ),
-      evidenceKinds: uniqueStrings(linkedEvidenceRows.map((row) => row.kind)).sort(
-        compareInsightText,
-      ),
-    };
-  });
-}
-
-function buildDerivedFocusSnapshot(params: {
-  focusSnapshotRow:
-    | {
-        directionKey: string | null;
-        nodeId: string | null;
-        title: string;
-        summary: string;
-        progress: number;
-        state: string;
-        payload: unknown;
-      }
-    | null
-    | undefined;
-  skillNodeById: Map<string, EnrichedSkillNode>;
-}) {
-  if (!params.focusSnapshotRow) {
-    return null;
-  }
-
-  const parsedFocusPayload = focusSnapshotPayloadSchema.safeParse(params.focusSnapshotRow.payload);
-  const focusAnchorRef = parsedFocusPayload.success
-    ? (parsedFocusPayload.data.node?.anchorRef ?? params.focusSnapshotRow.nodeId ?? null)
-    : (params.focusSnapshotRow.nodeId ?? null);
-
-  return {
-    directionKey: params.focusSnapshotRow.directionKey,
-    anchorRef: focusAnchorRef,
-    title: params.focusSnapshotRow.title,
-    summary: params.focusSnapshotRow.summary,
-    progress: params.focusSnapshotRow.progress,
-    state: params.focusSnapshotRow.state,
-    evidenceIds: uniqueStrings([
-      ...(parsedFocusPayload.success ? (parsedFocusPayload.data.node?.evidenceRefs ?? []) : []),
-      ...(focusAnchorRef ? (params.skillNodeById.get(focusAnchorRef)?.evidenceIds ?? []) : []),
-    ]),
-  };
-}
-
-export async function processKnowledgeInsightsJob(
-  job: JobPayload<"derive_user_insights">,
-): Promise<void> {
-  const [evidenceRows, skillNodes, nodeEvidenceRows, recentEvents, focusSnapshotRow] =
-    await Promise.all([
-      db
-        .select({
-          id: knowledgeEvidence.id,
-          title: knowledgeEvidence.title,
-          summary: knowledgeEvidence.summary,
-          confidence: knowledgeEvidence.confidence,
-          kind: knowledgeEvidence.kind,
-          sourceType: knowledgeEvidence.sourceType,
-        })
-        .from(knowledgeEvidence)
-        .where(eq(knowledgeEvidence.userId, job.userId)),
-      db
-        .select({
-          id: userSkillNodes.id,
-          canonicalLabel: userSkillNodes.canonicalLabel,
-          progress: userSkillNodes.progress,
-          state: userSkillNodes.state,
-          evidenceScore: userSkillNodes.evidenceScore,
-        })
-        .from(userSkillNodes)
-        .where(eq(userSkillNodes.userId, job.userId)),
-      db
-        .select({
-          nodeId: userSkillNodeEvidence.nodeId,
-          evidenceId: knowledgeEvidence.id,
-          sourceType: knowledgeEvidence.sourceType,
-          kind: knowledgeEvidence.kind,
-          title: knowledgeEvidence.title,
-          summary: knowledgeEvidence.summary,
-          confidence: knowledgeEvidence.confidence,
-        })
-        .from(userSkillNodeEvidence)
-        .innerJoin(
-          knowledgeEvidence,
-          eq(userSkillNodeEvidence.knowledgeEvidenceId, knowledgeEvidence.id),
-        )
-        .where(eq(userSkillNodeEvidence.userId, job.userId)),
-      db
-        .select({
-          id: knowledgeEvidenceEvents.id,
-          kind: knowledgeEvidenceEvents.kind,
-          sourceType: knowledgeEvidenceEvents.sourceType,
-        })
-        .from(knowledgeEvidenceEvents)
-        .where(eq(knowledgeEvidenceEvents.userId, job.userId))
-        .orderBy(desc(knowledgeEvidenceEvents.happenedAt), desc(knowledgeEvidenceEvents.createdAt))
-        .limit(12),
-      getLatestFocusSnapshotRow(job.userId),
-    ]);
-
-  const enrichedSkillNodes = enrichSkillNodes(skillNodes, nodeEvidenceRows);
-
-  const skillNodeById = new Map(enrichedSkillNodes.map((node) => [node.id, node]));
-  const focusSnapshot = buildDerivedFocusSnapshot({
-    focusSnapshotRow,
-    skillNodeById,
-  });
+export async function processKnowledgeInsightsJob(job: KnowledgeInsightsJobData): Promise<void> {
+  const [evidenceRows, recentEvents] = await Promise.all([
+    db
+      .select({
+        id: knowledgeEvidence.id,
+        title: knowledgeEvidence.title,
+        summary: knowledgeEvidence.summary,
+        confidence: knowledgeEvidence.confidence,
+        kind: knowledgeEvidence.kind,
+        sourceType: knowledgeEvidence.sourceType,
+      })
+      .from(knowledgeEvidence)
+      .where(eq(knowledgeEvidence.userId, job.userId)),
+    db
+      .select({
+        id: knowledgeEvidenceEvents.id,
+        kind: knowledgeEvidenceEvents.kind,
+        sourceType: knowledgeEvidenceEvents.sourceType,
+      })
+      .from(knowledgeEvidenceEvents)
+      .where(eq(knowledgeEvidenceEvents.userId, job.userId))
+      .orderBy(desc(knowledgeEvidenceEvents.happenedAt), desc(knowledgeEvidenceEvents.createdAt))
+      .limit(12),
+  ]);
 
   const derivationInput = {
     evidenceRows,
-    skillNodes: enrichedSkillNodes,
+    skillNodes: [],
     recentEvents,
-    focusSnapshot: focusSnapshot ?? null,
+    focusSnapshot: null,
   };
   const insights = deriveKnowledgeInsights(derivationInput);
   const inputHash = hashKnowledgeInsightInputs(derivationInput);
   const run = await getOrCreateGenerationRun({
     userId: job.userId,
     kind: "insight",
-    idempotencyKey: `insight:v4:user:${job.userId}:input:${inputHash}`,
+    idempotencyKey: `insight:v5:user:${job.userId}:input:${inputHash}`,
     inputHash,
     model: "heuristic",
-    promptVersion: "insight-derive@v4",
+    promptVersion: "insight-derive@v5",
     reuseCompleted: true,
   });
 

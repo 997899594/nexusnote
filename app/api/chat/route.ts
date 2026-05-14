@@ -13,15 +13,26 @@ import { classifyAIDegradation } from "@/lib/ai/core/degradation";
 import { aiProvider } from "@/lib/ai/core/provider";
 import { getChatResumableStreamContext } from "@/lib/ai/core/resumable-streams";
 import { getUserAIRouteProfile } from "@/lib/ai/core/route-profile-preferences";
-import { createNexusNoteStreamResponse } from "@/lib/ai/core/streaming";
+import {
+  createNexusNoteStreamResponse,
+  createStaticAssistantMessageResponse,
+} from "@/lib/ai/core/streaming";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
+import { extractUIMessageText } from "@/lib/ai/message-text";
 import { buildPersonalization } from "@/lib/ai/personalization";
-import type { ConversationCapabilityMode } from "@/lib/ai/runtime/contracts";
+import {
+  buildResearchRunMetadata,
+  createResearchRun,
+  failResearchRun,
+  markResearchRunQueued,
+} from "@/lib/ai/research/store";
 import { orchestrateRequest } from "@/lib/ai/runtime/orchestrate-request";
 import { resolveRequestContext } from "@/lib/ai/runtime/resolve-request-context";
 import {
   AI_EXECUTION_MODE_HEADER,
   AI_HANDOFF_TARGET_HEADER,
+  AI_WORKFLOW_JOB_ID_HEADER,
+  AI_WORKFLOW_JOB_TYPE_HEADER,
 } from "@/lib/ai/runtime/response-headers";
 import {
   createConversationSpecialistAgent,
@@ -45,8 +56,8 @@ import {
   touchOwnedConversation,
 } from "@/lib/chat/conversation-repository";
 import { isUuidString } from "@/lib/chat/session-id";
-import { getUserGrowthContextWithinBudget } from "@/lib/growth/generation-context";
-import { isCareerRequestMetadata, type RequestMetadata } from "@/types/request-metadata";
+import { enqueueBackgroundResearch, type QueuedResearchJob } from "@/lib/queue/research-queue";
+import type { RequestMetadata } from "@/types/request-metadata";
 
 export const maxDuration = 300;
 
@@ -54,11 +65,24 @@ function appendContextBlock(base: string, block: string | null | undefined): str
   return [base, block].filter(Boolean).join("\n\n");
 }
 
-function shouldLoadGrowthGenerationContext(
-  capabilityMode: ConversationCapabilityMode,
-  hasGrowthSnapshot: boolean,
-) {
-  return capabilityMode === "career_guide" && hasGrowthSnapshot;
+function shouldStartBackgroundResearchWorkflow(params: {
+  executionMode: string;
+  handoffTarget: string | null;
+}) {
+  return params.executionMode === "workflow" && params.handoffTarget === "research_assistant";
+}
+
+function getLatestUserMessageText(messages: UIMessage[]) {
+  const latestUserMessage = [...messages].reverse().find((message) => message.role === "user");
+  return latestUserMessage ? extractUIMessageText(latestUserMessage).trim() : "";
+}
+
+function buildAssistantTextMessage(text: string): UIMessage {
+  return {
+    id: crypto.randomUUID(),
+    role: "assistant",
+    parts: [{ type: "text", text }],
+  };
 }
 
 function getPersistableConversationMetadata(
@@ -126,9 +150,6 @@ export async function POST(request: NextRequest) {
     const specialist = getConversationSpecialistSpec(routeDecision.resolvedCapabilityMode);
     const resolvedCourseId = requestContext.resourceContext.courseId;
     const resolvedMetadata = requestContext.metadata;
-    const preferredCareerDirectionKey = isCareerRequestMetadata(resolvedMetadata)
-      ? (resolvedMetadata.selectedDirectionKey ?? null)
-      : null;
     const persistableConversationMetadata = getPersistableConversationMetadata(resolvedMetadata);
     const learningGuidance = requestContext.learningGuidance;
     telemetry = createTelemetryContext({
@@ -149,7 +170,7 @@ export async function POST(request: NextRequest) {
         surface: requestContext.surface,
         context: resolvedMetadata?.context ?? null,
         hasLearningGuidance: requestContext.hasLearningGuidance,
-        hasGrowthSnapshot: requestContext.hasGrowthSnapshot,
+        hasCareerTreeSnapshot: requestContext.hasCareerTreeSnapshot,
         recentMessageCount: requestContext.recentMessages.length,
         routeProfile,
         requestedCapabilityMode: routeDecision.capabilityMode,
@@ -242,22 +263,70 @@ export async function POST(request: NextRequest) {
       console.warn("[ChatSession] Skip upsert for non-UUID sessionId:", sessionId);
     }
 
-    // Get agent with personalization
-    const growthGenerationContext = shouldLoadGrowthGenerationContext(
-      routeDecision.resolvedCapabilityMode,
-      requestContext.hasGrowthSnapshot,
-    )
-      ? await getUserGrowthContextWithinBudget(userId, {
-          directionKey: preferredCareerDirectionKey,
-          onTimeout: () => {
-            console.warn("[Chat] Growth context missed interactive budget", {
-              requestId,
-              userId,
-              capabilityMode: routeDecision.resolvedCapabilityMode,
-            });
-          },
-        })
-      : undefined;
+    if (
+      shouldStartBackgroundResearchWorkflow({
+        executionMode: routeDecision.executionMode,
+        handoffTarget: routeDecision.handoffTarget,
+      })
+    ) {
+      const latestUserMessageText = getLatestUserMessageText(uiMessages);
+      const run = await createResearchRun({
+        userId,
+        userPrompt: latestUserMessageText || "请继续当前研究请求",
+        sessionId: hasPersistentSession ? sessionId : null,
+        routeProfile,
+      });
+      let queued: QueuedResearchJob;
+      try {
+        queued = await enqueueBackgroundResearch({
+          runId: run.id,
+          userId,
+          userPrompt: run.userPrompt,
+          sessionId: hasPersistentSession ? sessionId : null,
+          routeProfile,
+        });
+        await markResearchRunQueued(run.id);
+      } catch (error) {
+        await failResearchRun({
+          runId: run.id,
+          errorCode: "QUEUE_ENQUEUE_FAILED",
+          errorMessage: error instanceof Error ? error.message : "研究任务入队失败",
+        });
+        throw error;
+      }
+
+      const acknowledgement =
+        "这个请求会走后台深度研究：我会先拆成并行研究子任务，再做综合对比。你可以继续当前对话，研究完成后结果会回到这里。";
+
+      if (hasPersistentSession && sessionId) {
+        const metadata = await buildResearchRunMetadata(run.id, userId);
+        if (metadata) {
+          await mergeOwnedConversationMetadata({
+            conversationId: sessionId,
+            userId,
+            metadataPatch: {
+              backgroundResearch: metadata,
+            },
+          });
+        }
+
+        const queuedMessages = [...uiMessages, buildAssistantTextMessage(acknowledgement)];
+        await persistConversationMessages(sessionId, userId, queuedMessages);
+        if (await getConversationActiveStreamId(sessionId, userId)) {
+          await setConversationActiveStreamId(sessionId, userId, null);
+        }
+      }
+
+      const response = createStaticAssistantMessageResponse({
+        text: acknowledgement,
+      });
+      response.headers.set("X-Request-Id", requestId);
+      response.headers.set(AI_EXECUTION_MODE_HEADER, "workflow");
+      response.headers.set(AI_HANDOFF_TARGET_HEADER, routeDecision.handoffTarget ?? "");
+      response.headers.set(AI_WORKFLOW_JOB_ID_HEADER, run.id);
+      response.headers.set(AI_WORKFLOW_JOB_TYPE_HEADER, queued.type);
+      return response;
+    }
 
     const agent = await createConversationSpecialistAgent({
       mode: routeDecision.resolvedCapabilityMode,
@@ -266,7 +335,6 @@ export async function POST(request: NextRequest) {
         behaviorPrompt,
         skinPrompt,
         userContext,
-        generationContext: growthGenerationContext,
         learningGuidance,
         courseId: resolvedCourseId,
         metadata: resolvedMetadata,

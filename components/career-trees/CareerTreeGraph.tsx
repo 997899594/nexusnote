@@ -16,8 +16,11 @@ import "@xyflow/react/dist/style.css";
 import { hierarchy, tree } from "d3-hierarchy";
 import type { CSSProperties } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { CareerDevelopmentGraph, CareerRoleNode } from "@/lib/growth/career-development-graph";
-import type { GrowthNodeState, VisibleSkillTreeNode } from "@/lib/growth/types";
+import type {
+  CareerDevelopmentGraph,
+  CareerRoleNode,
+} from "@/lib/career-tree/career-development-graph";
+import type { CareerNodeState, VisibleSkillTreeNode } from "@/lib/career-tree/types";
 import { cn } from "@/lib/utils";
 
 export const CAREER_TREE_BLACK_GOLD_VARS = {
@@ -64,7 +67,7 @@ interface CareerRoleNodeData extends Record<string, unknown> {
 }
 
 interface CareerBranchEdgeData extends Record<string, unknown> {
-  state: GrowthNodeState | "role";
+  state: CareerNodeState | "role";
   active: boolean;
   kind: "skill" | "career";
 }
@@ -86,7 +89,7 @@ function clampProgress(progress: number): number {
   return Math.max(0, Math.min(100, progress));
 }
 
-function getStateLabel(state: GrowthNodeState): string {
+function getStateLabel(state: CareerNodeState): string {
   switch (state) {
     case "mastered":
       return "已掌握";
@@ -99,7 +102,7 @@ function getStateLabel(state: GrowthNodeState): string {
   }
 }
 
-function getStateTone(state: GrowthNodeState | "role") {
+function getStateTone(state: CareerNodeState | "role") {
   switch (state) {
     case "role":
       return {
@@ -538,9 +541,11 @@ function CareerRoleNodeView({ data }: NodeProps<CareerRoleFlowNode>) {
   const labelWidthClass = isCompact ? "w-32" : isFuture ? "w-52" : "w-44 sm:w-56 md:w-72";
   const statusLabel = data.role.isSelected ? "已选" : data.role.isRecommended ? "推荐" : "";
   const roleLabel = isFuture
-    ? data.role.horizon === "next"
-      ? "下一阶职业"
-      : "可发展职业"
+    ? data.role.source === "candidate_tree"
+      ? "备选方向"
+      : data.role.horizon === "next"
+        ? "下一阶职业"
+        : "可发展职业"
     : "当前职业";
   const signalLabel = formatRoleSignal(data.role);
   const labelPositionClass = isFuture

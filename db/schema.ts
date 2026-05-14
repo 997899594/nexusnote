@@ -8,6 +8,17 @@ import {
   users,
   verificationTokens,
 } from "./schema/auth";
+import {
+  careerCourseChapterEvidence,
+  careerCourseSkillEvidence,
+  careerGenerationRuns,
+  careerUserGraphState,
+  careerUserSkillEdges,
+  careerUserSkillNodeEvidence,
+  careerUserSkillNodes,
+  careerUserTreePreferences,
+  careerUserTreeSnapshots,
+} from "./schema/career-tree";
 import { conversationMessages, conversations } from "./schema/conversations";
 import {
   courseOutlineNodes,
@@ -18,17 +29,6 @@ import {
   courses,
 } from "./schema/courses";
 import {
-  knowledgeGenerationRuns,
-  userCareerTreePreferences,
-  userCareerTreeSnapshots,
-  userFocusSnapshots,
-  userGrowthState,
-  userProfileSnapshots,
-  userSkillEdges,
-  userSkillNodeEvidence,
-  userSkillNodes,
-} from "./schema/growth";
-import {
   knowledgeEvidence,
   knowledgeEvidenceChunks,
   knowledgeEvidenceEventRefs,
@@ -37,16 +37,20 @@ import {
   knowledgeInsightEvidence,
   knowledgeInsights,
 } from "./schema/knowledge";
+import { knowledgeGenerationRuns } from "./schema/knowledge-runs";
 import { noteSnapshots, notes, noteTags, tags } from "./schema/notes";
+import { researchRunSources, researchRuns, researchRunTasks } from "./schema/research";
 import { aiSkins, userSkinPreferences } from "./schema/skins";
 
 export * from "./schema/ai-usage";
 export * from "./schema/auth";
+export * from "./schema/career-tree";
 export * from "./schema/conversations";
 export * from "./schema/courses";
-export * from "./schema/growth";
 export * from "./schema/knowledge";
+export * from "./schema/knowledge-runs";
 export * from "./schema/notes";
+export * from "./schema/research";
 export * from "./schema/shared";
 export * from "./schema/skins";
 
@@ -67,14 +71,16 @@ export const usersRelations = relations(users, ({ many }) => ({
   courseSectionAnnotations: many(courseSectionAnnotations),
   noteTags: many(noteTags),
   knowledgeGenerationRuns: many(knowledgeGenerationRuns),
-  userSkillNodes: many(userSkillNodes),
-  userSkillEdges: many(userSkillEdges),
-  userSkillNodeEvidence: many(userSkillNodeEvidence),
-  userCareerTreePreferences: many(userCareerTreePreferences),
-  userCareerTreeSnapshots: many(userCareerTreeSnapshots),
-  userGrowthState: many(userGrowthState),
-  userFocusSnapshots: many(userFocusSnapshots),
-  userProfileSnapshots: many(userProfileSnapshots),
+  careerGenerationRuns: many(careerGenerationRuns),
+  careerCourseSkillEvidence: many(careerCourseSkillEvidence),
+  careerCourseChapterEvidence: many(careerCourseChapterEvidence),
+  careerUserSkillNodes: many(careerUserSkillNodes),
+  careerUserSkillEdges: many(careerUserSkillEdges),
+  careerUserSkillNodeEvidence: many(careerUserSkillNodeEvidence),
+  careerUserTreePreferences: many(careerUserTreePreferences),
+  careerUserTreeSnapshots: many(careerUserTreeSnapshots),
+  careerUserGraphState: many(careerUserGraphState),
+  researchRuns: many(researchRuns),
 }));
 
 export const notesRelations = relations(notes, ({ one, many }) => ({
@@ -118,6 +124,7 @@ export const conversationsRelations = relations(conversations, ({ one, many }) =
     references: [courses.id],
   }),
   messages: many(conversationMessages),
+  researchRuns: many(researchRuns),
 }));
 
 export const conversationMessagesRelations = relations(conversationMessages, ({ one }) => ({
@@ -287,107 +294,35 @@ export const knowledgeGenerationRunsRelations = relations(knowledgeGenerationRun
   }),
 }));
 
-export const userSkillNodesRelations = relations(userSkillNodes, ({ one, many }) => ({
+export const researchRunsRelations = relations(researchRuns, ({ one, many }) => ({
   user: one(users, {
-    fields: [userSkillNodes.userId],
+    fields: [researchRuns.userId],
     references: [users.id],
   }),
-  outgoingEdges: many(userSkillEdges, {
-    relationName: "userSkillEdgesFrom",
+  session: one(conversations, {
+    fields: [researchRuns.sessionId],
+    references: [conversations.id],
   }),
-  incomingEdges: many(userSkillEdges, {
-    relationName: "userSkillEdgesTo",
-  }),
-  evidenceLinks: many(userSkillNodeEvidence),
+  tasks: many(researchRunTasks),
+  sources: many(researchRunSources),
 }));
 
-export const userSkillEdgesRelations = relations(userSkillEdges, ({ one }) => ({
-  user: one(users, {
-    fields: [userSkillEdges.userId],
-    references: [users.id],
+export const researchRunTasksRelations = relations(researchRunTasks, ({ one, many }) => ({
+  run: one(researchRuns, {
+    fields: [researchRunTasks.runId],
+    references: [researchRuns.id],
   }),
-  fromNode: one(userSkillNodes, {
-    fields: [userSkillEdges.fromNodeId],
-    references: [userSkillNodes.id],
-    relationName: "userSkillEdgesFrom",
-  }),
-  toNode: one(userSkillNodes, {
-    fields: [userSkillEdges.toNodeId],
-    references: [userSkillNodes.id],
-    relationName: "userSkillEdgesTo",
-  }),
+  sources: many(researchRunSources),
 }));
 
-export const userSkillNodeEvidenceRelations = relations(userSkillNodeEvidence, ({ one }) => ({
-  user: one(users, {
-    fields: [userSkillNodeEvidence.userId],
-    references: [users.id],
+export const researchRunSourcesRelations = relations(researchRunSources, ({ one }) => ({
+  run: one(researchRuns, {
+    fields: [researchRunSources.runId],
+    references: [researchRuns.id],
   }),
-  node: one(userSkillNodes, {
-    fields: [userSkillNodeEvidence.nodeId],
-    references: [userSkillNodes.id],
-  }),
-  knowledgeEvidence: one(knowledgeEvidence, {
-    fields: [userSkillNodeEvidence.knowledgeEvidenceId],
-    references: [knowledgeEvidence.id],
-  }),
-}));
-
-export const userCareerTreePreferencesRelations = relations(
-  userCareerTreePreferences,
-  ({ one }) => ({
-    user: one(users, {
-      fields: [userCareerTreePreferences.userId],
-      references: [users.id],
-    }),
-  }),
-);
-
-export const userCareerTreeSnapshotsRelations = relations(userCareerTreeSnapshots, ({ one }) => ({
-  user: one(users, {
-    fields: [userCareerTreeSnapshots.userId],
-    references: [users.id],
-  }),
-  composeRun: one(knowledgeGenerationRuns, {
-    fields: [userCareerTreeSnapshots.composeRunId],
-    references: [knowledgeGenerationRuns.id],
-  }),
-}));
-
-export const userFocusSnapshotsRelations = relations(userFocusSnapshots, ({ one }) => ({
-  user: one(users, {
-    fields: [userFocusSnapshots.userId],
-    references: [users.id],
-  }),
-  treeSnapshot: one(userCareerTreeSnapshots, {
-    fields: [userFocusSnapshots.treeSnapshotId],
-    references: [userCareerTreeSnapshots.id],
-  }),
-}));
-
-export const userProfileSnapshotsRelations = relations(userProfileSnapshots, ({ one }) => ({
-  user: one(users, {
-    fields: [userProfileSnapshots.userId],
-    references: [users.id],
-  }),
-  treeSnapshot: one(userCareerTreeSnapshots, {
-    fields: [userProfileSnapshots.treeSnapshotId],
-    references: [userCareerTreeSnapshots.id],
-  }),
-  focusSnapshot: one(userFocusSnapshots, {
-    fields: [userProfileSnapshots.focusSnapshotId],
-    references: [userFocusSnapshots.id],
-  }),
-}));
-
-export const userGrowthStateRelations = relations(userGrowthState, ({ one }) => ({
-  user: one(users, {
-    fields: [userGrowthState.userId],
-    references: [users.id],
-  }),
-  lastMergeRun: one(knowledgeGenerationRuns, {
-    fields: [userGrowthState.lastMergeRunId],
-    references: [knowledgeGenerationRuns.id],
+  task: one(researchRunTasks, {
+    fields: [researchRunSources.taskId],
+    references: [researchRunTasks.id],
   }),
 }));
 

@@ -12,9 +12,27 @@ variable "REGISTRY" {
 target "web" {
   dockerfile = "Dockerfile.web"
   context = "."
+  target = "web"
   tags = [
     "${REGISTRY}/nexusnote:latest",
     "${REGISTRY}/nexusnote-web:latest"
+  ]
+  cache-from = [
+    "type=registry,ref=${REGISTRY}/nexusnote:buildcache",
+    "type=local,src=/tmp/.buildx-cache"
+  ]
+  cache-to = [
+    "type=registry,ref=${REGISTRY}/nexusnote:buildcache,mode=max",
+    "type=local,dest=/tmp/.buildx-cache-new,mode=max"
+  ]
+}
+
+target "worker" {
+  dockerfile = "Dockerfile.web"
+  context = "."
+  target = "worker"
+  tags = [
+    "${REGISTRY}/nexusnote-worker:latest"
   ]
   cache-from = [
     "type=registry,ref=${REGISTRY}/nexusnote:buildcache",

@@ -34,6 +34,7 @@ docker compose up -d
 cp .env.example .env
 bun run db:push
 bun dev
+bun run worker:all
 ```
 
 Local services:
@@ -43,6 +44,7 @@ Local services:
 - Redis: `localhost:6380`
 
 `bun run db:push` 只用于本地开发数据库同步。生产发布不依赖在应用镜像内执行迁移命令。
+需要后台任务时，请单独启动 `bun run worker:all`；web 进程不会再隐式托管 BullMQ workers。
 
 ## Common Commands
 
@@ -50,6 +52,8 @@ Local services:
 bun dev
 bun run build
 bun run start
+bun run worker:all
+bun run worker:research
 bun run lint
 bun run typecheck
 bun run db:push
@@ -65,6 +69,7 @@ The repo ships a container-image workflow:
 ```
 
 - image build source of truth: `Dockerfile.web`
+- web / worker runtime share one Docker build definition and split by target (`web`, `worker`)
 - CI builds the image directly; it does not pre-package a `.docker-runtime` bundle
 - platform-specific deployment config is intentionally not committed in this repository
 - managed platforms should inject their own deployment contract during import or onboarding

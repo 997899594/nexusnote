@@ -28,6 +28,22 @@ const RESEARCH_CUES = [
   "versus",
 ];
 
+const DEEP_RESEARCH_CUES = [
+  "深度",
+  "深入",
+  "系统",
+  "完整",
+  "全景",
+  "调研",
+  "研究",
+  "详细",
+  "最新进展",
+  "发展到哪个阶段",
+  "发展阶段",
+  "路线图",
+  "现状和趋势",
+];
+
 const CAREER_CUES = [
   "职业",
   "方向",
@@ -103,7 +119,7 @@ function getRequiredScopesForCapabilityMode(
     case "research_assistant":
       return ["web"];
     case "career_guide":
-      return ["growth"];
+      return ["career_tree"];
     default:
       return ["session"];
   }
@@ -113,15 +129,26 @@ function buildClassificationFromCapabilityMode(params: {
   capabilityMode: CapabilityMode;
   confidence: number;
   reasons: string[];
+  executionMode?: IntentClassification["executionMode"];
 }): IntentClassification {
   return {
     intent: mapCapabilityModeToIntent(params.capabilityMode),
     capabilityMode: params.capabilityMode,
-    executionMode: params.capabilityMode === "course_interviewer" ? "redirect" : "tool_loop",
+    executionMode:
+      params.executionMode ??
+      (params.capabilityMode === "course_interviewer" ? "redirect" : "tool_loop"),
     requiredScopes: getRequiredScopesForCapabilityMode(params.capabilityMode),
     confidence: params.confidence,
     reasons: params.reasons,
   };
+}
+
+export function isDeepResearchRequest(message: string): boolean {
+  const normalizedMessage = normalizeText(message);
+  const researchMatches = collectCueMatches(normalizedMessage, RESEARCH_CUES);
+  const deepMatches = collectCueMatches(normalizedMessage, DEEP_RESEARCH_CUES);
+
+  return researchMatches.length > 0 && (deepMatches.length > 0 || normalizedMessage.length >= 70);
 }
 
 function normalizeText(value: string): string {
@@ -137,7 +164,7 @@ function buildCueReason(label: string, matches: string[]): string {
 }
 
 function getSurfaceFallbackMode(requestContext: ResolvedRequestContext): CapabilityMode {
-  const { surface, hasLearningGuidance, hasGrowthSnapshot } = requestContext;
+  const { surface, hasLearningGuidance, hasCareerTreeSnapshot } = requestContext;
 
   switch (surface) {
     case "learn":
@@ -145,7 +172,7 @@ function getSurfaceFallbackMode(requestContext: ResolvedRequestContext): Capabil
     case "notes":
       return "note_assistant";
     case "career":
-      return hasGrowthSnapshot ? "career_guide" : "career_guide";
+      return hasCareerTreeSnapshot ? "career_guide" : "career_guide";
     case "interview":
       return "course_interviewer";
     default:
@@ -200,6 +227,7 @@ function getFallbackClassification(
 
   const normalizedMessage = normalizeText(latestUserMessage);
   const researchMatches = collectCueMatches(normalizedMessage, RESEARCH_CUES);
+  const deepResearchRequest = isDeepResearchRequest(latestUserMessage);
   const careerMatches = collectCueMatches(normalizedMessage, CAREER_CUES);
   const learnMatches = collectCueMatches(normalizedMessage, LEARN_CUES);
   const noteMatches = collectCueMatches(normalizedMessage, NOTE_CUES);
@@ -216,21 +244,27 @@ function getFallbackClassification(
   if (researchMatches.length > 0) {
     candidates.push({
       capabilityMode: "research_assistant",
-      score: researchMatches.length * 3,
-      reasons: [reason, buildCueReason("research", researchMatches)],
+      score: researchMatches.length * 3 + (deepResearchRequest ? 2 : 0),
+      reasons: [
+        reason,
+        buildCueReason("research", researchMatches),
+        ...(deepResearchRequest
+          ? ["request looks like a deep research task and may require background workflow"]
+          : []),
+      ],
     });
   }
 
   if (careerMatches.length > 0) {
     candidates.push({
       capabilityMode: "career_guide",
-      score: careerMatches.length * 3 + (requestContext.hasGrowthSnapshot ? 1 : 0),
+      score: careerMatches.length * 3 + (requestContext.hasCareerTreeSnapshot ? 1 : 0),
       reasons: [
         reason,
         buildCueReason("career", careerMatches),
-        requestContext.hasGrowthSnapshot
-          ? "growth snapshot exists, so career guidance is actionable"
-          : "career intent detected even though growth snapshot is still missing",
+        requestContext.hasCareerTreeSnapshot
+          ? "career tree snapshot exists, so career guidance is actionable"
+          : "career intent detected even though career tree snapshot is still missing",
       ],
     });
   }
@@ -279,6 +313,10 @@ function getFallbackClassification(
     capabilityMode: bestCandidate.capabilityMode,
     confidence,
     reasons: bestCandidate.reasons,
+    executionMode:
+      bestCandidate.capabilityMode === "research_assistant" && deepResearchRequest
+        ? "workflow"
+        : undefined,
   });
 }
 
@@ -304,7 +342,7 @@ function buildRequestContextSummary(requestContext: ResolvedRequestContext): str
   const parts = [
     `surface: ${requestContext.surface}`,
     `hasLearningGuidance: ${requestContext.hasLearningGuidance ? "yes" : "no"}`,
-    `hasGrowthSnapshot: ${requestContext.hasGrowthSnapshot ? "yes" : "no"}`,
+    `hasCareerTreeSnapshot: ${requestContext.hasCareerTreeSnapshot ? "yes" : "no"}`,
     `hasEditorContext: ${requestContext.hasEditorContext ? "yes" : "no"}`,
     `courseId: ${requestContext.resourceContext.courseId ?? "none"}`,
     `chapterIndex: ${requestContext.resourceContext.chapterIndex ?? "none"}`,
@@ -324,8 +362,8 @@ function buildCapabilityContractSummary(requestContext: ResolvedRequestContext):
     }`,
     "- note_assistant: 围绕用户自己的笔记整理、总结、提炼、改写、检索",
     "- research_assistant: 查最新、查官方、做对比、需要外部事实核验或最新信息",
-    `- career_guide: 结合职业树/成长快照判断方向、差距、下一步学习。当前可用性：${
-      requestContext.hasGrowthSnapshot ? "可用" : "快照缺失，若强行选择会被要求先澄清"
+    `- career_guide: 结合职业树快照判断方向、差距、下一步学习。当前可用性：${
+      requestContext.hasCareerTreeSnapshot ? "可用" : "职业树快照缺失，若强行选择会被要求先澄清"
     }`,
     "- course_interviewer: 明确要做课程访谈、职业目标访谈、课程规划引导时选择；在 /api/chat 中通常会被重定向到专门访谈流",
   ].join("\n");
@@ -350,7 +388,7 @@ export async function classifyIntent(params: {
       surface: params.requestContext.surface,
       sessionId: params.requestContext.sessionId,
       hasLearningGuidance: params.requestContext.hasLearningGuidance,
-      hasGrowthSnapshot: params.requestContext.hasGrowthSnapshot,
+      hasCareerTreeSnapshot: params.requestContext.hasCareerTreeSnapshot,
       hasEditorContext: params.requestContext.hasEditorContext,
     },
   });
@@ -401,6 +439,20 @@ export async function classifyIntent(params: {
           confidence: result.output.confidence,
         },
       });
+    }
+
+    if (
+      result.output.capabilityMode === "research_assistant" &&
+      isDeepResearchRequest(latestUserMessage)
+    ) {
+      return {
+        ...result.output,
+        executionMode: "workflow",
+        reasons: [
+          ...result.output.reasons,
+          "request is broad enough to benefit from background manager-worker research",
+        ].slice(0, 5),
+      };
     }
 
     return result.output;

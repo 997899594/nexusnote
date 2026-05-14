@@ -5,8 +5,9 @@ import type {
   ExecutionMode,
   Surface,
 } from "@/lib/ai/runtime/contracts";
+import type { CareerTreeSnapshot } from "@/lib/career-tree/types";
 
-export type EvalDomain = "chat" | "interview" | "learn" | "notes" | "growth" | "routing";
+export type EvalDomain = "chat" | "interview" | "learn" | "notes" | "routing" | "career-tree";
 
 export interface ChatEvalInput {
   message: string;
@@ -32,54 +33,12 @@ export interface NotesEvalInput {
   noteExcerpt: string;
 }
 
-export interface GrowthEvalNode {
-  id: string;
-  canonicalLabel: string;
-  summary: string | null;
-  progress: number;
-  state: string;
-  courseCount: number;
-  chapterCount: number;
-  evidenceScore: number;
-}
-
-export interface GrowthEvalEdge {
-  from: string;
-  to: string;
-  confidence: number;
-}
-
-export interface GrowthEvalInput {
-  graph: {
-    nodes: GrowthEvalNode[];
-    prerequisiteEdges: GrowthEvalEdge[];
-  };
-  preference: {
-    selectedDirectionKey: string | null;
-    preferenceVersion: number;
-    selectionCount?: number;
-    directionSignals?: Array<{
-      directionKey: string;
-      selectionCount: number;
-      latestSelectedAt: string;
-    }>;
-  };
-  previousSummary: {
-    trees: Array<{
-      directionKey: string;
-      supportingNodeRefs: string[];
-    }>;
-  } | null;
-  expectedMinTrees: number;
-  expectedMaxTrees: number;
-}
-
 export interface RoutingEvalInput {
   message: string;
   requestContext: {
     surface: Surface;
     hasLearningGuidance: boolean;
-    hasGrowthSnapshot: boolean;
+    hasCareerTreeSnapshot: boolean;
     hasEditorContext: boolean;
     courseId?: string;
     chapterIndex?: number;
@@ -93,6 +52,19 @@ export interface RoutingEvalInput {
     resolvedCapabilityMode: ConversationCapabilityMode;
     executionMode: ExecutionMode;
     handoffTarget?: CapabilityMode | null;
+  };
+}
+
+export interface CareerTreeEvalInput {
+  snapshot: CareerTreeSnapshot;
+  directionKey?: string | null;
+  expected: {
+    expectGraph?: boolean;
+    currentCareerKey?: string;
+    futureSources?: Array<"progression_role" | "candidate_tree">;
+    expectedFutureCount?: number;
+    requiredFutureTitles?: string[];
+    forbiddenFutureTitles?: string[];
   };
 }
 

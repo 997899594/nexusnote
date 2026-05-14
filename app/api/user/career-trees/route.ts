@@ -1,9 +1,9 @@
 import { z } from "zod";
 import { withAuth } from "@/lib/api";
 import { revalidateCareerTrees } from "@/lib/cache/tags";
-import { setSelectedGrowthDirection } from "@/lib/growth/preferences";
-import { enqueueGrowthCompose } from "@/lib/growth/queue";
-import { getGrowthSnapshot } from "@/lib/growth/snapshot-data";
+import { setSelectedCareerTreeDirection } from "@/lib/career-tree/preferences";
+import { enqueueCareerTreeCompose } from "@/lib/career-tree/queue";
+import { getCareerTreeSnapshot } from "@/lib/career-tree/snapshot";
 import { ingestEvidenceEvent } from "@/lib/knowledge/events";
 
 const selectCareerTreeDirectionSchema = z.object({
@@ -11,17 +11,13 @@ const selectCareerTreeDirectionSchema = z.object({
 });
 
 export const GET = withAuth(async (_request, { userId }) => {
-  const snapshot = await getGrowthSnapshot(userId);
-  if (snapshot.status === "pending") {
-    await enqueueGrowthCompose(userId);
-  }
-  return Response.json(snapshot);
+  return Response.json(await getCareerTreeSnapshot(userId));
 });
 
 export const PUT = withAuth(async (request, { userId }) => {
   const body = await request.json();
   const { selectedDirectionKey } = selectCareerTreeDirectionSchema.parse(body);
-  const snapshot = await getGrowthSnapshot(userId);
+  const snapshot = await getCareerTreeSnapshot(userId);
   const directionExists = snapshot.trees.some((tree) => tree.directionKey === selectedDirectionKey);
 
   if (snapshot.status !== "ready" || !directionExists) {
@@ -33,12 +29,12 @@ export const PUT = withAuth(async (request, { userId }) => {
     );
   }
 
-  await setSelectedGrowthDirection(userId, selectedDirectionKey);
+  await setSelectedCareerTreeDirection(userId, selectedDirectionKey);
   await ingestEvidenceEvent({
     id: crypto.randomUUID(),
     userId,
     kind: "user_preference",
-    sourceType: "growth_preference",
+    sourceType: "career_tree_preference",
     sourceId: selectedDirectionKey,
     sourceVersionHash: null,
     title: `职业树偏好 · ${selectedDirectionKey}`,
@@ -56,7 +52,7 @@ export const PUT = withAuth(async (request, { userId }) => {
       },
     ],
   });
-  await enqueueGrowthCompose(userId);
+  await enqueueCareerTreeCompose(userId);
   revalidateCareerTrees(userId);
 
   return Response.json(

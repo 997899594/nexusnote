@@ -1,4 +1,5 @@
 import { Worker } from "bullmq";
+import { defaults } from "@/config/env";
 import { materializeCourseSectionInBackground } from "@/lib/ai/workflows/course-section-production";
 import { getRedis } from "@/lib/redis";
 import type { CourseProductionJobData } from "./course-production-queue";
@@ -21,7 +22,7 @@ export function startCourseProductionWorker(): Worker<CourseProductionJobData> {
     },
     {
       connection: getRedis() as never,
-      concurrency: 1,
+      concurrency: defaults.queue.courseProductionConcurrency,
     },
   );
 
@@ -32,6 +33,11 @@ export function startCourseProductionWorker(): Worker<CourseProductionJobData> {
   worker.on("failed", (job, err) => {
     console.error(`[CourseProductionWorker] Failed: ${job?.id}`, err.message);
   });
+
+  console.log(
+    "[CourseProductionWorker] Started with concurrency:",
+    defaults.queue.courseProductionConcurrency,
+  );
 
   return worker;
 }

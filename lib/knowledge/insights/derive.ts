@@ -106,7 +106,7 @@ function describeSourceType(sourceType: string): string {
       return "高亮";
     case "capture":
       return "捕获";
-    case "growth_preference":
+    case "career_tree_preference":
       return "方向选择";
     default:
       return sourceType;

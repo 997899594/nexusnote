@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { db, knowledgeEvidenceEventRefs, knowledgeEvidenceEvents } from "@/db";
-import { buildSourceVersionCondition } from "@/lib/growth/source-version";
+import { buildSourceVersionCondition } from "@/lib/knowledge/source-version";
 import type { EvidenceEvent, EvidenceEventRef } from "./types";
 
 export * from "./types";

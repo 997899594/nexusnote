@@ -11,11 +11,11 @@
 import { embedMany } from "ai";
 import { and, db, eq, inArray, knowledgeEvidence, knowledgeEvidenceChunks } from "@/db";
 import { aiProvider } from "@/lib/ai/core/provider";
-import { buildSourceVersionCondition } from "@/lib/growth/source-version";
 import {
   groupEvidenceSourceLinksByEvidenceId,
   listEvidenceSourceLinks,
 } from "@/lib/knowledge/evidence/source-links";
+import { buildSourceVersionCondition } from "@/lib/knowledge/source-version";
 import { createRagTrace } from "./observability";
 import { normalizeRagSearchText } from "./search-text";
 

@@ -2,21 +2,14 @@ import "server-only";
 
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
-import {
-  db,
-  knowledgeEvidence,
-  knowledgeInsightEvidence,
-  knowledgeInsights,
-  userSkillNodeEvidence,
-} from "@/db";
+import { db, knowledgeEvidence, knowledgeInsightEvidence, knowledgeInsights } from "@/db";
 import {
   getCareerTreesTag,
   getNoteDetailTag,
   getNotesIndexTag,
   getProfileStatsTag,
 } from "@/lib/cache/tags";
-import { getLatestFocusSnapshot } from "@/lib/growth/projection-data";
-import type { FocusSnapshotProjection } from "@/lib/growth/projection-types";
+import { getCareerTreeWorkspaceDataCached } from "@/lib/career-tree/workspace-data";
 import type { KnowledgeInsight } from "@/lib/knowledge/insights";
 import { NOTE_BACKED_KNOWLEDGE_SOURCE_TYPES } from "@/lib/knowledge/source-types";
 import {
@@ -73,37 +66,6 @@ async function getTopInsights(userId: string, limit = 4): Promise<KnowledgeInsig
   return rows.map((row) => buildKnowledgeInsight(row, userId));
 }
 
-async function getFocusRelatedNoteIds(
-  userId: string,
-  focusSnapshot: FocusSnapshotProjection | null,
-): Promise<string[]> {
-  const focusNodeId = focusSnapshot?.anchorRef ?? null;
-  if (!focusNodeId) {
-    return [];
-  }
-
-  const rows = await db
-    .select({
-      noteId: knowledgeEvidence.sourceId,
-    })
-    .from(userSkillNodeEvidence)
-    .innerJoin(
-      knowledgeEvidence,
-      eq(userSkillNodeEvidence.knowledgeEvidenceId, knowledgeEvidence.id),
-    )
-    .where(
-      and(
-        eq(userSkillNodeEvidence.userId, userId),
-        eq(userSkillNodeEvidence.nodeId, focusNodeId),
-        inArray(knowledgeEvidence.sourceType, [...NOTE_BACKED_KNOWLEDGE_SOURCE_TYPES]),
-      ),
-    );
-
-  return [
-    ...new Set(rows.map((row) => row.noteId).filter((value): value is string => Boolean(value))),
-  ];
-}
-
 async function getInsightNoteIdMap(insightIds: string[]): Promise<Map<string, string[]>> {
   if (insightIds.length === 0) {
     return new Map();
@@ -141,22 +103,19 @@ export async function getNotesWorkbenchCached(userId: string): Promise<NotesWork
   cacheTag(getCareerTreesTag(userId));
   cacheTag(getProfileStatsTag(userId));
 
-  const [rows, focusSnapshot, insights] = await Promise.all([
+  const [rows, careerTreeWorkspaceData, insights] = await Promise.all([
     listOwnedRecentNotes(userId, 200),
-    getLatestFocusSnapshot(userId),
+    getCareerTreeWorkspaceDataCached(userId, 0),
     getTopInsights(userId, 4),
   ]);
 
-  const [focusRelatedNoteIds, insightNoteIdMap] = await Promise.all([
-    getFocusRelatedNoteIds(userId, focusSnapshot),
-    getInsightNoteIdMap(insights.map((insight) => insight.id)),
-  ]);
+  const insightNoteIdMap = await getInsightNoteIdMap(insights.map((insight) => insight.id));
 
   return buildNotesWorkbenchProjection({
     notes: rows,
-    focusSnapshot,
+    focusSnapshot: careerTreeWorkspaceData.focusSnapshot,
     insights,
-    focusRelatedNoteIds,
+    focusRelatedNoteIds: [],
     insightNoteIdMap,
   });
 }

@@ -7,10 +7,14 @@ import {
 
 export const AI_EXECUTION_MODE_HEADER = "X-AI-Execution-Mode";
 export const AI_HANDOFF_TARGET_HEADER = "X-AI-Handoff-Target";
+export const AI_WORKFLOW_JOB_ID_HEADER = "X-AI-Workflow-Job-Id";
+export const AI_WORKFLOW_JOB_TYPE_HEADER = "X-AI-Workflow-Job-Type";
 
 export interface AIRouteResponseHint {
   executionMode: ExecutionMode;
   handoffTarget: CapabilityMode | null;
+  workflowJobId: string | null;
+  workflowJobType: string | null;
 }
 
 function isExecutionMode(value: string | null): value is ExecutionMode {
@@ -31,9 +35,13 @@ export function parseAIRouteResponseHint(
   }
 
   const handoffTargetHeader = headers.get(AI_HANDOFF_TARGET_HEADER);
+  const workflowJobId = headers.get(AI_WORKFLOW_JOB_ID_HEADER);
+  const workflowJobType = headers.get(AI_WORKFLOW_JOB_TYPE_HEADER);
 
   return {
     executionMode,
     handoffTarget: isCapabilityMode(handoffTargetHeader) ? handoffTargetHeader : null,
+    workflowJobId: workflowJobId && workflowJobId.length > 0 ? workflowJobId : null,
+    workflowJobType: workflowJobType && workflowJobType.length > 0 ? workflowJobType : null,
   };
 }

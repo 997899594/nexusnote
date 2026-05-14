@@ -1,4 +1,5 @@
 import { Queue } from "bullmq";
+import { defaults } from "@/config/env";
 import { getRedis } from "@/lib/redis";
 
 export type CourseProductionJobData = {
@@ -31,10 +32,10 @@ export function getCourseProductionQueue(): Queue<CourseProductionJobData> {
   courseProductionQueue = new Queue<CourseProductionJobData>("course-production", {
     connection: getRedis() as never,
     defaultJobOptions: {
-      attempts: 2,
+      attempts: defaults.queue.courseProductionMaxRetries,
       backoff: {
         type: "exponential",
-        delay: 1500,
+        delay: defaults.queue.courseProductionBackoffDelay,
       },
       removeOnComplete: { count: 1000 },
       removeOnFail: { count: 5000 },

@@ -14,7 +14,7 @@ export const routingEvalSuite = createEvalSuite({
         requestContext: {
           surface: "learn",
           hasLearningGuidance: true,
-          hasGrowthSnapshot: true,
+          hasCareerTreeSnapshot: true,
           hasEditorContext: false,
           courseId: "00000000-0000-4000-8000-000000000001",
           chapterIndex: 2,
@@ -40,7 +40,7 @@ export const routingEvalSuite = createEvalSuite({
         requestContext: {
           surface: "chat",
           hasLearningGuidance: false,
-          hasGrowthSnapshot: true,
+          hasCareerTreeSnapshot: true,
           hasEditorContext: false,
           recentMessages: ["我们刚在聊 agent routing。"],
           metadataContext: "default",
@@ -54,6 +54,31 @@ export const routingEvalSuite = createEvalSuite({
       expectations: ["应识别为需要外部核验和最新信息的研究请求"],
     },
     {
+      id: "routing-research-deep-workflow",
+      title: "深度研究请求应转成后台 workflow",
+      domain: "routing",
+      promptVersion: "intent-classifier@v1",
+      input: {
+        message:
+          "帮我系统调研一下 2026 年 5 月 agent route、MCP、A2A 现在各自发展到哪个阶段，和传统 RAG 方案怎么分工，给我一版完整对比和落地建议。",
+        requestContext: {
+          surface: "chat",
+          hasLearningGuidance: false,
+          hasCareerTreeSnapshot: true,
+          hasEditorContext: false,
+          recentMessages: ["我们刚在讨论最前沿 AI 架构。"],
+          metadataContext: "default",
+        },
+        expectedRoute: {
+          capabilityMode: "research_assistant",
+          resolvedCapabilityMode: "general_chat",
+          executionMode: "workflow",
+          handoffTarget: "research_assistant",
+        },
+      },
+      expectations: ["深而广的研究型请求应进入后台 research workflow，而不是普通 tool loop"],
+    },
+    {
       id: "routing-notes-refine",
       title: "笔记整理请求应落到 note_assistant",
       domain: "routing",
@@ -63,7 +88,7 @@ export const routingEvalSuite = createEvalSuite({
         requestContext: {
           surface: "notes",
           hasLearningGuidance: false,
-          hasGrowthSnapshot: true,
+          hasCareerTreeSnapshot: true,
           hasEditorContext: true,
           documentId: "00000000-0000-4000-8000-000000000002",
           recentMessages: ["当前文档是关于 RAG 架构的草稿。"],
@@ -87,7 +112,7 @@ export const routingEvalSuite = createEvalSuite({
         requestContext: {
           surface: "chat",
           hasLearningGuidance: false,
-          hasGrowthSnapshot: true,
+          hasCareerTreeSnapshot: true,
           hasEditorContext: false,
           recentMessages: ["我最近保存了几门 AI 产品和 agent 工作流课程。"],
           metadataContext: "default",
@@ -110,7 +135,7 @@ export const routingEvalSuite = createEvalSuite({
         requestContext: {
           surface: "career",
           hasLearningGuidance: false,
-          hasGrowthSnapshot: true,
+          hasCareerTreeSnapshot: true,
           hasEditorContext: false,
           recentMessages: ["我们刚在看 AI 产品系统设计这条职业树。"],
           metadataContext: "career",
@@ -133,7 +158,7 @@ export const routingEvalSuite = createEvalSuite({
         requestContext: {
           surface: "chat",
           hasLearningGuidance: false,
-          hasGrowthSnapshot: false,
+          hasCareerTreeSnapshot: false,
           hasEditorContext: false,
           recentMessages: ["我们之前没有课程上下文。"],
           metadataContext: "default",
@@ -157,7 +182,7 @@ export const routingEvalSuite = createEvalSuite({
         requestContext: {
           surface: "chat",
           hasLearningGuidance: false,
-          hasGrowthSnapshot: true,
+          hasCareerTreeSnapshot: true,
           hasEditorContext: false,
           recentMessages: ["我们刚在聊怎么系统学习 agent。"],
           metadataContext: "default",
@@ -181,7 +206,7 @@ export const routingEvalSuite = createEvalSuite({
         requestContext: {
           surface: "interview",
           hasLearningGuidance: false,
-          hasGrowthSnapshot: false,
+          hasCareerTreeSnapshot: false,
           hasEditorContext: false,
           recentMessages: ["用户已经进入课程访谈入口。"],
           metadataContext: "default",

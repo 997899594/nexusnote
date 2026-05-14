@@ -13,7 +13,6 @@ export const learnCoachSpecialistSpec: ConversationSpecialistRuntimeSpec = {
   promptVersion: "learn-assist@v1",
   maxSteps: 10,
   preferToolCallingModel: true,
-  growthContextStyle: "none",
 };
 
 export async function createLearnCoachSpecialist(options: ConversationSpecialistAgentOptions = {}) {

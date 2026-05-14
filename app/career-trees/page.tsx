@@ -6,7 +6,7 @@ import { CareerTreesExplorer } from "@/components/career-trees/CareerTreesExplor
 import { WorkspacePageShell } from "@/components/shared/layout";
 import { UserAvatar } from "@/components/shared/layout/UserAvatar";
 import { getDynamicPageSession } from "@/lib/auth/page";
-import { getGrowthWorkspaceDataFresh } from "@/lib/growth/workspace-data";
+import { getCareerTreeWorkspaceDataFresh } from "@/lib/career-tree/workspace-data";
 
 function CareerTreesHeader() {
   return (
@@ -46,7 +46,7 @@ async function CareerTreesPageContent() {
     redirect("/login?callbackUrl=%2Fcareer-trees");
   }
 
-  const growth = await getGrowthWorkspaceDataFresh(session.user.id, 0);
+  const careerTrees = await getCareerTreeWorkspaceDataFresh(session.user.id, 0);
 
   return (
     <WorkspacePageShell
@@ -55,9 +55,9 @@ async function CareerTreesPageContent() {
       shellClassName="bg-[radial-gradient(circle_at_50%_0%,rgba(159,108,41,0.16),transparent_32%),linear-gradient(180deg,#090806_0%,#050505_100%)]"
     >
       <CareerTreesExplorer
-        snapshot={growth.snapshot}
-        focusSnapshot={growth.focusSnapshot}
-        profileSnapshot={growth.profileSnapshot}
+        snapshot={careerTrees.snapshot}
+        focusSnapshot={careerTrees.focusSnapshot}
+        profileSnapshot={careerTrees.profileSnapshot}
       />
     </WorkspacePageShell>
   );

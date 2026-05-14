@@ -1,9 +1,9 @@
 import type {
   CandidateCareerTree,
+  CareerNodeState,
   CareerTreeSnapshot,
-  GrowthNodeState,
   VisibleSkillTreeNode,
-} from "@/lib/growth/types";
+} from "@/lib/career-tree/types";
 
 interface FocusCandidate {
   node: VisibleSkillTreeNode;
@@ -23,7 +23,7 @@ export interface FocusSelection extends FocusNodeSelection {
   tree: CandidateCareerTree | null;
 }
 
-const FOCUS_STATE_PRIORITY: GrowthNodeState[] = ["in_progress", "ready", "locked", "mastered"];
+const FOCUS_STATE_PRIORITY: CareerNodeState[] = ["in_progress", "ready", "locked", "mastered"];
 
 function getCurrentTree(snapshot: CareerTreeSnapshot): CandidateCareerTree | null {
   return (
@@ -61,7 +61,7 @@ function clampScore(value: number): number {
   return Math.round(Math.max(0, value));
 }
 
-function getStateBaseScore(state: GrowthNodeState): number {
+function getStateBaseScore(state: CareerNodeState): number {
   switch (state) {
     case "in_progress":
       return 120;
@@ -74,7 +74,7 @@ function getStateBaseScore(state: GrowthNodeState): number {
   }
 }
 
-function getProgressFitScore(state: GrowthNodeState, progress: number): number {
+function getProgressFitScore(state: CareerNodeState, progress: number): number {
   switch (state) {
     case "in_progress":
       return Math.max(0, 34 - Math.abs(progress - 55) * 0.45);

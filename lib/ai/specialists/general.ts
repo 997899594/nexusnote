@@ -13,7 +13,6 @@ export const generalChatSpecialistSpec: ConversationSpecialistRuntimeSpec = {
   promptVersion: "chat-basic@v1",
   maxSteps: 12,
   preferToolCallingModel: false,
-  growthContextStyle: "none",
 };
 
 export async function createGeneralChatSpecialist(

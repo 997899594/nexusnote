@@ -13,7 +13,6 @@ export const researchAssistantSpecialistSpec: ConversationSpecialistRuntimeSpec 
   promptVersion: "research-assist@v1",
   maxSteps: 10,
   preferToolCallingModel: true,
-  growthContextStyle: "none",
 };
 
 export async function createResearchAssistantSpecialist(

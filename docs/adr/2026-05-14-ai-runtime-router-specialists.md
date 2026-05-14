@@ -10,7 +10,7 @@ NexusNote 当前 AI runtime 已经具备几条正确主线：
 - 运行时统一走单 provider + model policy + route profile，[docs/AI.md](/Users/findbiao/projects/nexusnote/docs/AI.md#L5)
 - 开放式对话使用 `ToolLoopAgent`，固定副作用使用 workflow，[docs/AI.md](/Users/findbiao/projects/nexusnote/docs/AI.md#L63) 与 [docs/AI_SDK_V6_PROJECT_GUIDELINES.md](/Users/findbiao/projects/nexusnote/docs/AI_SDK_V6_PROJECT_GUIDELINES.md#L17)
 - RAG 已经是 `rewrite -> vector -> keyword -> RRF` 的共享能力层，[docs/AI.md](/Users/findbiao/projects/nexusnote/docs/AI.md#L83)
-- growth / career trees 已经是 snapshot + projection + deterministic compose 的真相层，[docs/plans/2026-04-16-growth-compose-modernization.md](/Users/findbiao/projects/nexusnote/docs/plans/2026-04-16-growth-compose-modernization.md#L56)
+- career trees 已经是 user-scoped snapshot + deterministic compose 的真相层
 
 但当前对话运行时仍有明显结构缺口：
 
@@ -18,7 +18,7 @@ NexusNote 当前 AI runtime 已经具备几条正确主线：
 - capability profile 仍是窄的旧抽象，[lib/ai/core/capability-profiles.ts](/Users/findbiao/projects/nexusnote/lib/ai/core/capability-profiles.ts#L4)
 - `/api/chat` 仍然是“拿到 profile 就起 agent”，缺少正式的 intent routing 与 route arbitration，[app/api/chat/route.ts](/Users/findbiao/projects/nexusnote/app/api/chat/route.ts#L77)
 
-这导致系统虽然已经有 learn / notes / growth / interview 等能力边界，但运行时还没有把“任务契约”“执行模式”“数据范围”收成统一结构。
+这导致系统虽然已经有 learn / notes / career / interview 等能力边界，但运行时还没有把“任务契约”“执行模式”“数据范围”收成统一结构。
 
 ## 问题
 
@@ -63,12 +63,12 @@ flowchart TD
 
   G --> H1["RAG"]
   G --> H2["Notes Search / CRUD"]
-  G --> H3["Growth Snapshot / Focus / Insights"]
+  G --> H3["Career Tree Snapshot / Focus / Insights"]
   G --> H4["Web Search"]
 
   F1 --> I1["Create Course Workflow"]
   F1 --> I2["Course Section Workflow"]
-  F1 --> I3["Growth Extract / Merge / Compose"]
+  F1 --> I3["Career Tree Extract / Merge / Compose"]
 ```
 
 ### 1. 用四层抽象替代单一 `profileId`
@@ -100,7 +100,7 @@ type ExecutionMode =
   | "redirect"
   | "ask_clarification";
 
-type DataScope = "session" | "course" | "notes" | "growth" | "web";
+type DataScope = "session" | "course" | "notes" | "career_tree" | "web";
 ```
 
 ### 2. 在所有对话请求前增加 router 三段式
@@ -112,7 +112,7 @@ type DataScope = "session" | "course" | "notes" | "growth" | "web";
 - 当前 surface
 - metadata / course / editor / session 资源
 - learning guidance 是否存在
-- growth snapshot 是否存在
+- career tree snapshot 是否存在
 - route profile / skin / 用户策略
 
 #### Structured Intent Classifier
@@ -135,7 +135,7 @@ type DataScope = "session" | "course" | "notes" | "growth" | "web";
 硬约束示例：
 
 - 没有课程上下文，不允许落到 `learn_coach`
-- 没有 growth snapshot，`career_guide` 只能降级或先澄清
+- 没有 career tree snapshot，`career_guide` 只能降级或先澄清
 - 真实写入或长任务不能留在普通 specialist 中，必须进入 workflow 或 redirect
 - interview surface 默认优先 `course_interviewer`
 
@@ -156,7 +156,7 @@ type DataScope = "session" | "course" | "notes" | "growth" | "web";
 
 - retrieval policy
 - 当前课程/笔记上下文
-- growth snapshot
+- career tree snapshot
 - prompt context
 
 来表达，而不是通过无限增加 specialist 数量。
@@ -175,7 +175,7 @@ type DataScope = "session" | "course" | "notes" | "growth" | "web";
 
 - RAG
 - notes search / CRUD
-- growth snapshot / focus / insights
+- career tree snapshot / focus / insights
 - web search
 
 specialist 只是在同一 data plane 上采用不同 retrieval / tool policy。
@@ -186,14 +186,14 @@ specialist 只是在同一 data plane 上采用不同 retrieval / tool policy。
 
 - create course
 - generate course section
-- growth extract
-- growth merge
-- growth compose
+- career tree extract
+- career tree merge
+- career tree compose
 - snapshot projection
 - progress aggregation
 - conversation persistence
 
-其中 growth compose 已明确采用 deterministic core 方向，[docs/plans/2026-04-16-growth-compose-modernization.md](/Users/findbiao/projects/nexusnote/docs/plans/2026-04-16-growth-compose-modernization.md#L119)。
+其中 career tree compose 继续保持 deterministic truth core，specialist 只读取快照，不拥有真相。
 
 ### 7. 直接切换，不保留兼容层
 
@@ -213,7 +213,7 @@ specialist 只是在同一 data plane 上采用不同 retrieval / tool policy。
 - 不把所有任务都做成 agent
 - 不按学科拆大量 specialist
 - 不让 router 用正则硬匹配意图
-- 不让 specialist 直接掌管 growth truth / snapshot truth
+- 不让 specialist 直接掌管 career tree truth / snapshot truth
 - 不让 `AIRouteProfile` 承担任务语义路由
 
 ## 影响
@@ -223,7 +223,7 @@ specialist 只是在同一 data plane 上采用不同 retrieval / tool policy。
 - 运行时抽象更清楚，新增 specialist 不再继续污染热路径
 - route decision 变成可观测、可评测的正式产物
 - workflow 与 specialist 边界清楚，避免强状态任务退回 prompt 驱动
-- RAG、notes、growth 的复用边界更干净
+- RAG、notes、career tree 的复用边界更干净
 
 ### 成本
 
@@ -239,7 +239,7 @@ specialist 只是在同一 data plane 上采用不同 retrieval / tool policy。
 - 每次对话请求都能产出结构化 `RouteDecision`
 - telemetry 能记录 `surface / capabilityMode / executionMode / routeConfidence`
 - 至少存在 `general_chat / learn_coach / note_assistant / research_assistant / career_guide / course_interviewer` 6 个正式 specialist
-- growth / create-course / section generation 仍然留在 workflow plane
+- career-tree / create-course / section generation 仍然留在 workflow plane
 - `bun run ai:eval routing` 与现有 `chat / learn / notes` eval 共存
 
 ## 迁移提示

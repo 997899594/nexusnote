@@ -163,6 +163,24 @@ function createFallbackStream(
   return response;
 }
 
+export function createStaticAssistantMessageResponse(params: {
+  text: string;
+  headers?: HeadersInit;
+}) {
+  const textId = "static-text-0";
+
+  return createUIMessageStreamResponse({
+    stream: createUIMessageStream({
+      execute: ({ writer }) => {
+        writer.write({ type: "text-start", id: textId });
+        writer.write({ type: "text-delta", id: textId, delta: params.text });
+        writer.write({ type: "text-end", id: textId });
+      },
+    }),
+    headers: params.headers,
+  });
+}
+
 function createPresentationFilteredStreamResponse({
   stream,
   originalMessages,

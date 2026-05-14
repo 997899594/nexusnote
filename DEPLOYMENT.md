@@ -18,8 +18,11 @@ Code merged to main -> CI build -> image registry -> deployment platform rollout
 
 - `Dockerfile.web` is the deployment source of truth
 - the image is built with a multi-stage Docker build
+- web and worker runtimes are separate Docker targets from the same build definition
 - Next.js production build happens inside Docker, not on the CI host
-- the runtime image only contains application runtime files; deployment-time schema application should be handled by the target platform, not by in-image fallback commands
+- the web runtime image only contains standalone web files
+- the worker runtime image contains the queue/runtime source needed for `bun run worker:*`
+- deployment-time schema application should be handled by the target platform, not by in-image fallback commands
 
 ## What the platform must provide
 
@@ -29,6 +32,7 @@ Code merged to main -> CI build -> image registry -> deployment platform rollout
 - Health checks
 - Postgres with pgvector
 - Redis
+- One web service and one worker service
 
 ## Required environment variables
 
@@ -52,11 +56,11 @@ Optional but recommended:
 ## Release flow
 
 1. Push code
-2. CI builds and publishes a new image from `Dockerfile.web`
+2. CI builds and publishes web and worker images from `Dockerfile.web`
 3. Import or sync the repo into your deployment platform so it can inject its own deployment contract
 4. Let the platform validate or apply schema changes using `drizzle.config.mjs` if it supports repo-side schema inspection
-5. Roll out the new image
-6. Verify `/api/health`, login, interview, and learn flow
+5. Roll out both `web` and `worker`
+6. Verify `/api/health`, login, interview, learn flow, and background queue execution
 
 ## Schema sync policy
 

@@ -1,5 +1,5 @@
 import type { notes } from "@/db";
-import type { FocusSnapshotProjection } from "@/lib/growth/projection-types";
+import type { FocusSnapshotProjection } from "@/lib/career-tree/projection-types";
 import type { KnowledgeInsight } from "@/lib/knowledge/insights";
 
 export type NoteWorkbenchKind = "all" | "highlight" | "note" | "capture" | "manual";
@@ -276,8 +276,8 @@ export function buildNotesWorkbenchProjection(input: {
       const noteInsightKinds = [
         ...(itemInsightKinds.get(note.id) ?? new Set<KnowledgeInsight["kind"]>()),
       ];
-      const isFocusRelated = focusRelatedNoteIdSet.has(note.id);
       const focusLexicalScore = computeOverlapScore(focusTokens, candidateParts);
+      const isFocusRelated = focusRelatedNoteIdSet.has(note.id) || focusLexicalScore >= 0.12;
       const insightLexicalScore = computeOverlapScore(insightTokens, candidateParts);
       const relevanceScore =
         (isFocusRelated ? 100 : 0) +

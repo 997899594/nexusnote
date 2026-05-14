@@ -1,18 +1,22 @@
 import { ArrowRight, Compass, Sparkles } from "lucide-react";
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import type { VisibleTreeMetrics } from "@/lib/growth/projection-types";
+import {
+  buildCareerDevelopmentGraph,
+  type CareerRoleNode,
+} from "@/lib/career-tree/career-development-graph";
+import type { VisibleTreeMetrics } from "@/lib/career-tree/projection-types";
 import type {
   CandidateCareerTree,
-  GrowthNodeState,
+  CareerNodeState,
   VisibleSkillTreeNode,
-} from "@/lib/growth/types";
+} from "@/lib/career-tree/types";
 import {
   flattenVisibleNodes,
-  getCurrentGrowthTree,
-  resolveGrowthDisplayState,
-} from "@/lib/growth/view-model";
-import { getGrowthWorkspaceDataCached } from "@/lib/growth/workspace-data";
+  getCurrentCareerTree,
+  resolveCareerTreeDisplayState,
+} from "@/lib/career-tree/view-model";
+import { getCareerTreeWorkspaceDataCached } from "@/lib/career-tree/workspace-data";
 
 interface ProfileCareerTreeSummaryProps {
   userId: string;
@@ -27,9 +31,9 @@ const PROFILE_CAREER_TREE_STYLE = {
 } as CSSProperties;
 
 const MAX_PROFILE_SKILLS = 4;
-const MAX_FUTURE_DIRECTIONS = 2;
+const MAX_FUTURE_CAREERS = 2;
 
-function getStateLabel(state: GrowthNodeState): string {
+function getStateLabel(state: CareerNodeState): string {
   switch (state) {
     case "mastered":
       return "已掌握";
@@ -42,7 +46,7 @@ function getStateLabel(state: GrowthNodeState): string {
   }
 }
 
-function getStateRank(state: GrowthNodeState): number {
+function getStateRank(state: CareerNodeState): number {
   switch (state) {
     case "in_progress":
       return 0;
@@ -84,10 +88,12 @@ function getProfileSkillHighlights(
   return [...nodesById.values()];
 }
 
-function getFutureDirections(snapshotTrees: CandidateCareerTree[], currentDirectionKey: string) {
-  return snapshotTrees
-    .filter((tree) => tree.directionKey !== currentDirectionKey)
-    .slice(0, MAX_FUTURE_DIRECTIONS);
+function getFutureRoleLabel(role: CareerRoleNode): string {
+  if (role.source === "candidate_tree") {
+    return "备选方向";
+  }
+
+  return role.horizon === "next" ? "下一阶段" : "后续职业";
 }
 
 function MetricLine({ metrics, confidence }: { metrics: VisibleTreeMetrics; confidence: number }) {
@@ -109,10 +115,10 @@ function MetricLine({ metrics, confidence }: { metrics: VisibleTreeMetrics; conf
 
 function CareerRouteLine({
   currentTitle,
-  futureDirections,
+  futureCareers,
 }: {
   currentTitle: string;
-  futureDirections: CandidateCareerTree[];
+  futureCareers: CareerRoleNode[];
 }) {
   return (
     <div className="relative overflow-hidden rounded-[1.5rem] border border-[#2a2016] bg-[#0a0908]/78 px-4 py-4 md:px-5">
@@ -126,16 +132,18 @@ function CareerRouteLine({
           </h3>
         </div>
 
-        {futureDirections.length > 0 ? (
-          futureDirections.map((tree) => (
+        {futureCareers.length > 0 ? (
+          futureCareers.map((role) => (
             <div
-              key={tree.directionKey}
+              key={role.key}
               className="relative border-l border-[#3a2a18] pl-4 md:border-0 md:pl-0"
             >
               <div className="mb-3 h-2.5 w-2.5 rotate-45 border border-[#8c6632] bg-[#0d0b08]" />
-              <p className="text-[10px] uppercase tracking-[0.22em] text-[#8f6a38]">可发展</p>
-              <h3 className="mt-2 text-sm font-medium leading-6 text-[#d8c191]">{tree.title}</h3>
-              <p className="mt-1 line-clamp-2 text-xs leading-5 text-[#9a886d]">{tree.summary}</p>
+              <p className="text-[10px] uppercase tracking-[0.22em] text-[#8f6a38]">
+                {getFutureRoleLabel(role)}
+              </p>
+              <h3 className="mt-2 text-sm font-medium leading-6 text-[#d8c191]">{role.title}</h3>
+              <p className="mt-1 line-clamp-2 text-xs leading-5 text-[#9a886d]">{role.summary}</p>
             </div>
           ))
         ) : (
@@ -196,7 +204,7 @@ function SkillHighlightList({ skills }: { skills: VisibleSkillTreeNode[] }) {
 }
 
 export async function ProfileCareerTreeSummary({ userId }: ProfileCareerTreeSummaryProps) {
-  const { snapshot, profileSnapshot, focusSnapshot } = await getGrowthWorkspaceDataCached(
+  const { snapshot, profileSnapshot, focusSnapshot } = await getCareerTreeWorkspaceDataCached(
     userId,
     0,
   );
@@ -257,12 +265,12 @@ export async function ProfileCareerTreeSummary({ userId }: ProfileCareerTreeSumm
     );
   }
 
-  const currentTree = getCurrentGrowthTree(snapshot);
+  const currentTree = getCurrentCareerTree(snapshot);
   if (!currentTree) {
     return null;
   }
 
-  const displayState = resolveGrowthDisplayState({
+  const displayState = resolveCareerTreeDisplayState({
     snapshot,
     directionKey: currentTree.directionKey,
     focusSnapshot,
@@ -274,7 +282,8 @@ export async function ProfileCareerTreeSummary({ userId }: ProfileCareerTreeSumm
   }
 
   const { displayDirection, metrics, preferredFocusNode: focus } = displayState;
-  const futureDirections = getFutureDirections(snapshot.trees, currentTree.directionKey);
+  const developmentGraph = buildCareerDevelopmentGraph(snapshot, currentTree.directionKey);
+  const futureCareers = (developmentGraph?.futureCareers ?? []).slice(0, MAX_FUTURE_CAREERS);
   const skillHighlights = getProfileSkillHighlights(currentTree, focus);
 
   return (
@@ -314,10 +323,7 @@ export async function ProfileCareerTreeSummary({ userId }: ProfileCareerTreeSumm
       </div>
 
       <div className="relative z-10 mt-5 grid gap-4">
-        <CareerRouteLine
-          currentTitle={displayDirection.title}
-          futureDirections={futureDirections}
-        />
+        <CareerRouteLine currentTitle={displayDirection.title} futureCareers={futureCareers} />
         <SkillHighlightList skills={skillHighlights} />
       </div>
 

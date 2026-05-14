@@ -97,9 +97,21 @@ export const defaults = {
 
   // Queue
   queue: {
+    courseProductionConcurrency: 1,
+    courseProductionMaxRetries: 2,
+    courseProductionBackoffDelay: 1500,
+    careerTreeConcurrency: 1,
+    careerTreeMaxRetries: 3,
+    careerTreeBackoffDelay: 1000,
+    knowledgeInsightsConcurrency: 1,
+    knowledgeInsightsMaxRetries: 3,
+    knowledgeInsightsBackoffDelay: 1000,
     ragConcurrency: 3,
     ragMaxRetries: 3,
     ragBackoffDelay: 1000,
+    researchConcurrency: 2,
+    researchMaxRetries: 2,
+    researchBackoffDelay: 1500,
   },
 } as const;
 
@@ -301,6 +313,51 @@ export const serverEnvSchema = z.object({
     .default(defaults.snapshot.maxPerDocument),
 
   // Queue
+  QUEUE_COURSE_PRODUCTION_CONCURRENCY: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(defaults.queue.courseProductionConcurrency),
+  QUEUE_COURSE_PRODUCTION_MAX_RETRIES: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .default(defaults.queue.courseProductionMaxRetries),
+  QUEUE_COURSE_PRODUCTION_BACKOFF_DELAY: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(defaults.queue.courseProductionBackoffDelay),
+  QUEUE_CAREER_TREE_CONCURRENCY: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(defaults.queue.careerTreeConcurrency),
+  QUEUE_CAREER_TREE_MAX_RETRIES: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .default(defaults.queue.careerTreeMaxRetries),
+  QUEUE_CAREER_TREE_BACKOFF_DELAY: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(defaults.queue.careerTreeBackoffDelay),
+  QUEUE_KNOWLEDGE_INSIGHTS_CONCURRENCY: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(defaults.queue.knowledgeInsightsConcurrency),
+  QUEUE_KNOWLEDGE_INSIGHTS_MAX_RETRIES: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .default(defaults.queue.knowledgeInsightsMaxRetries),
+  QUEUE_KNOWLEDGE_INSIGHTS_BACKOFF_DELAY: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(defaults.queue.knowledgeInsightsBackoffDelay),
   QUEUE_RAG_CONCURRENCY: z.coerce.number().int().positive().default(defaults.queue.ragConcurrency),
   QUEUE_RAG_MAX_RETRIES: z.coerce.number().int().min(0).default(defaults.queue.ragMaxRetries),
   QUEUE_RAG_BACKOFF_DELAY: z.coerce
@@ -308,6 +365,21 @@ export const serverEnvSchema = z.object({
     .int()
     .positive()
     .default(defaults.queue.ragBackoffDelay),
+  QUEUE_RESEARCH_CONCURRENCY: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(defaults.queue.researchConcurrency),
+  QUEUE_RESEARCH_MAX_RETRIES: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .default(defaults.queue.researchMaxRetries),
+  QUEUE_RESEARCH_BACKOFF_DELAY: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(defaults.queue.researchBackoffDelay),
 
   // Environment
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),

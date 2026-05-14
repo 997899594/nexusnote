@@ -30,10 +30,10 @@
 ## 最小发布流程
 
 1. 构建并推送镜像
-2. 在部署平台更新镜像 tag
+2. 在部署平台分别更新 `web` / `worker` 服务的镜像 target 或 tag
 3. 导入仓库或同步平台配置，让平台注入自己的部署契约
 4. 注入/校验环境变量，并按需基于 `drizzle.config.mjs` 完成 schema 检查或发布前闸门
-5. 检查健康接口和登录链路
+5. 检查健康接口、登录链路和后台任务处理
 
 ## 必要环境变量
 
@@ -54,10 +54,12 @@
 
 ## 镜像构建说明
 
-- `Dockerfile.web` 是唯一的镜像构建入口
+- `Dockerfile.web` 是统一的 Docker 构建入口
+- `web` / `worker` 通过不同 target 产出不同运行时
 - CI 不再预生成 `.docker-runtime`
 - Next.js 构建发生在 Docker multi-stage builder 内部
-- 运行镜像不再承载部署期 schema 文件或命令职责
+- `web` 运行镜像只承载 standalone web runtime
+- `worker` 运行镜像承载 `bun run worker:*` 所需源码与依赖
 
 ## 健康检查
 

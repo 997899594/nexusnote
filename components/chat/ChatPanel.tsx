@@ -17,15 +17,46 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AIDegradationBanner, WorkspaceEmptyState } from "@/components/common";
 import { useInputProtection } from "@/components/common/useInputProtection";
+import type { ResearchRunSnapshot, ResearchRunStatus } from "@/lib/ai/research/contracts";
+import { parseBackgroundResearchMetadata } from "@/lib/ai/research/contracts";
 import { cn } from "@/lib/utils";
 import { useChatStore } from "@/stores/chat";
 import type { Command } from "@/types/chat";
 import { ChatMessage, LoadingDots } from "./ChatMessage";
 import { CommandMenu } from "./CommandMenu";
+import { StreamdownMessage } from "./StreamdownMessage";
 import { useChatSession } from "./useChatSession";
 
 interface ChatPanelProps {
   sessionId: string | null;
+}
+
+interface BackgroundResearchState {
+  runId: string;
+  status: ResearchRunStatus;
+  progressMessage?: string;
+  completedTasks?: number;
+  totalTasks?: number;
+  reportMarkdown?: string;
+  failedReason?: string;
+  citationCount?: number;
+  canCancel?: boolean;
+  canRetry?: boolean;
+}
+
+function buildBackgroundResearchState(snapshot: ResearchRunSnapshot): BackgroundResearchState {
+  return {
+    runId: snapshot.id,
+    status: snapshot.status,
+    progressMessage: snapshot.progress?.message,
+    completedTasks: snapshot.progress?.completedTasks,
+    totalTasks: snapshot.progress?.totalTasks,
+    reportMarkdown: snapshot.report?.reportMarkdown,
+    failedReason: snapshot.errorMessage ?? undefined,
+    citationCount: snapshot.citations.length,
+    canCancel: snapshot.canCancel,
+    canRetry: snapshot.canRetry,
+  };
 }
 
 const CHAT_COMMANDS: Command[] = [
@@ -86,10 +117,14 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
   const searchParams = useSearchParams();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastSubmittedTextRef = useRef("");
+  const previousSessionIdRef = useRef<string | null | undefined>(undefined);
   const [input, setInput] = useState("");
   const [showCommands, setShowCommands] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [selectedCommand, setSelectedCommand] = useState<Command | null>(null);
+  const [backgroundResearch, setBackgroundResearch] = useState<BackgroundResearchState | null>(
+    null,
+  );
   const didSendLaunchMessageRef = useRef(false);
 
   const launchMessage = searchParams.get("msg")?.trim() ?? "";
@@ -117,7 +152,9 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
 
   const messages = chat.messages;
   const sendMessage = chat.sendMessage;
+  const setChatMessages = chat.setMessages;
   const routeHint = chat.routeHint;
+  const sessionMetadata = chat.sessionMetadata;
   const status = chat.status;
   const aiDegradedKind = chat.aiDegradedKind;
   // AI SDK v6: isLoading is derived from status
@@ -125,6 +162,15 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
   const { handlePaste } = useInputProtection();
 
   const chatMessages = messages.filter((m: UIMessage) => m.role !== "system");
+
+  useEffect(() => {
+    if (previousSessionIdRef.current === sessionId) {
+      return;
+    }
+
+    previousSessionIdRef.current = sessionId;
+    setBackgroundResearch(null);
+  }, [sessionId]);
 
   useEffect(() => {
     if (chatMessages.length === 0 && !isLoading) {
@@ -174,6 +220,123 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
 
     router.replace(query.size > 0 ? `/interview?${query.toString()}` : "/interview");
   }, [launchMessage, routeHint, router]);
+
+  useEffect(() => {
+    if (
+      routeHint?.executionMode !== "workflow" ||
+      routeHint.handoffTarget !== "research_assistant" ||
+      routeHint.workflowJobType !== "run_background_research" ||
+      !routeHint.workflowJobId
+    ) {
+      return;
+    }
+
+    setBackgroundResearch({
+      runId: routeHint.workflowJobId,
+      status: "queued",
+    });
+  }, [routeHint]);
+
+  useEffect(() => {
+    const resumedResearch = parseBackgroundResearchMetadata(sessionMetadata);
+    if (!resumedResearch) {
+      return;
+    }
+
+    setBackgroundResearch((current) => {
+      if (
+        current?.runId === resumedResearch.runId &&
+        current.status !== "queued" &&
+        current.status !== "cancel_requested"
+      ) {
+        return current;
+      }
+
+      return {
+        runId: resumedResearch.runId,
+        status: resumedResearch.state,
+        failedReason: resumedResearch.failedReason,
+      };
+    });
+  }, [sessionMetadata]);
+
+  useEffect(() => {
+    if (!backgroundResearch) {
+      return;
+    }
+
+    if (
+      backgroundResearch.status === "completed" ||
+      backgroundResearch.status === "failed" ||
+      backgroundResearch.status === "canceled"
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const poll = async () => {
+      const response = await fetch(`/api/research-jobs/${backgroundResearch.runId}`);
+      if (!response.ok || cancelled) {
+        return;
+      }
+
+      const snapshot = (await response.json()) as ResearchRunSnapshot;
+
+      if (cancelled) {
+        return;
+      }
+
+      setBackgroundResearch(buildBackgroundResearchState(snapshot));
+
+      if (snapshot.status === "completed" && sessionId) {
+        const sessionResponse = await fetch(`/api/chat-sessions/${sessionId}`);
+        if (!sessionResponse.ok || cancelled) {
+          return;
+        }
+
+        const data = (await sessionResponse.json()) as { session?: { messages?: UIMessage[] } };
+        if (data.session?.messages) {
+          setChatMessages(data.session.messages);
+        }
+        setBackgroundResearch(null);
+      }
+    };
+
+    void poll();
+    const intervalId = window.setInterval(() => {
+      void poll().catch((error) => {
+        console.error("[ChatPanel] background research poll failed", error);
+      });
+    }, 2000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [backgroundResearch, sessionId, setChatMessages]);
+
+  const handleResearchAction = async (action: "cancel" | "retry") => {
+    if (!backgroundResearch) {
+      return;
+    }
+
+    const response = await fetch(`/api/research-jobs/${backgroundResearch.runId}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ action }),
+    });
+
+    if (!response.ok) {
+      console.error("[ChatPanel] failed to update research run", action, response.status);
+      return;
+    }
+
+    const snapshot = (await response.json()) as ResearchRunSnapshot;
+    setBackgroundResearch(buildBackgroundResearchState(snapshot));
+  };
 
   const sendChatMessage = async (text: string) => {
     const trimmedText = text.trim();
@@ -319,6 +482,101 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
           {chatMessages.map((msg) => (
             <ChatMessage key={msg.id} message={msg} onSendReply={sendChatMessage} />
           ))}
+
+          {backgroundResearch && (
+            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-text)] shadow-sm">
+              <div className="mb-2 flex items-center gap-2 font-medium">
+                <Loader2
+                  className={cn(
+                    "h-4 w-4",
+                    backgroundResearch.status === "completed" ||
+                      backgroundResearch.status === "failed" ||
+                      backgroundResearch.status === "canceled"
+                      ? "animate-none"
+                      : "animate-spin",
+                  )}
+                />
+                {backgroundResearch.status === "completed"
+                  ? "后台研究已完成"
+                  : backgroundResearch.status === "failed"
+                    ? "后台研究失败"
+                    : backgroundResearch.status === "canceled"
+                      ? "后台研究已取消"
+                      : backgroundResearch.status === "cancel_requested"
+                        ? "后台研究取消中"
+                        : "后台研究进行中"}
+              </div>
+
+              {backgroundResearch.totalTasks != null && (
+                <p className="mb-2 text-xs text-[var(--color-text-muted)]">
+                  {backgroundResearch.completedTasks ?? 0}/{backgroundResearch.totalTasks}{" "}
+                  个子任务已完成
+                </p>
+              )}
+
+              {backgroundResearch.status !== "completed" &&
+                backgroundResearch.status !== "failed" &&
+                backgroundResearch.status !== "canceled" && (
+                  <p className="text-[var(--color-text-secondary)]">
+                    {backgroundResearch.progressMessage ??
+                      "正在拆分并行研究任务、检索来源并综合结果。你可以继续当前对话。"}
+                  </p>
+                )}
+
+              {backgroundResearch.status === "failed" && (
+                <p className="text-[var(--color-text-secondary)]">
+                  {backgroundResearch.failedReason ?? "研究任务执行失败，请稍后再试。"}
+                </p>
+              )}
+
+              {backgroundResearch.status === "canceled" && (
+                <p className="text-[var(--color-text-secondary)]">
+                  研究任务已停止，当前不会再继续生成结果。
+                </p>
+              )}
+
+              {backgroundResearch.status === "completed" && sessionId && (
+                <p className="text-[var(--color-text-secondary)]">研究结果已经写回当前对话。</p>
+              )}
+
+              {backgroundResearch.citationCount != null && backgroundResearch.citationCount > 0 && (
+                <p className="mt-2 text-xs text-[var(--color-text-muted)]">
+                  已归档 {backgroundResearch.citationCount} 个结构化来源引用。
+                </p>
+              )}
+
+              {(backgroundResearch.canCancel || backgroundResearch.canRetry) && (
+                <div className="mt-3 flex items-center gap-2">
+                  {backgroundResearch.canCancel && (
+                    <button
+                      type="button"
+                      onClick={() => void handleResearchAction("cancel")}
+                      className="rounded-full border border-[var(--color-border)] px-3 py-1 text-xs text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)]"
+                    >
+                      取消研究
+                    </button>
+                  )}
+                  {backgroundResearch.canRetry && (
+                    <button
+                      type="button"
+                      onClick={() => void handleResearchAction("retry")}
+                      className="rounded-full border border-[var(--color-border)] px-3 py-1 text-xs text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)]"
+                    >
+                      重试研究
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {backgroundResearch.status === "completed" &&
+                !sessionId &&
+                backgroundResearch.reportMarkdown && (
+                  <div className="mt-3 rounded-xl bg-[var(--color-panel-soft)] px-3 py-3">
+                    <StreamdownMessage content={backgroundResearch.reportMarkdown} />
+                  </div>
+                )}
+            </div>
+          )}
 
           {isAILoading && <LoadingDots />}
 

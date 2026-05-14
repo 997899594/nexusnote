@@ -2,9 +2,9 @@ import type { UIMessage } from "ai";
 import type { AIRouteProfile } from "@/lib/ai/core/route-profiles";
 import { extractUIMessageText } from "@/lib/ai/message-text";
 import { APIError } from "@/lib/api";
+import { getLatestCareerTreeSnapshotRow } from "@/lib/career-tree/snapshot";
 import { getOwnedConversation } from "@/lib/chat/conversation-repository";
 import { isUuidString } from "@/lib/chat/session-id";
-import { getLatestCareerTreeSnapshotRow } from "@/lib/growth/snapshot-data";
 import { getLearningGuidance, type LearningGuidance } from "@/lib/learning/guidance";
 import {
   isCareerRequestMetadata,
@@ -130,7 +130,7 @@ export async function resolveRequestContext(params: {
     metadata: effectiveMetadata,
   });
 
-  const [learningGuidance, latestGrowthSnapshot] = await Promise.all([
+  const [learningGuidance, latestCareerTreeSnapshot] = await Promise.all([
     requestedLearnContext
       ? getLearningGuidance({
           userId: params.userId,
@@ -171,7 +171,7 @@ export async function resolveRequestContext(params: {
           }
         : {},
     hasLearningGuidance: Boolean(learningGuidance),
-    hasGrowthSnapshot: Boolean(latestGrowthSnapshot),
+    hasCareerTreeSnapshot: Boolean(latestCareerTreeSnapshot),
     hasEditorContext: isEditorRequestMetadata(effectiveMetadata),
     userPolicy: {
       routeProfile: params.routeProfile,

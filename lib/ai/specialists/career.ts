@@ -13,7 +13,6 @@ export const careerGuideSpecialistSpec: ConversationSpecialistRuntimeSpec = {
   promptVersion: "career-guide@v1",
   maxSteps: 10,
   preferToolCallingModel: true,
-  growthContextStyle: "detailed",
 };
 
 export async function createCareerGuideSpecialist(

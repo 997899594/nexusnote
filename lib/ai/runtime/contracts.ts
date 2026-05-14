@@ -36,7 +36,7 @@ export const EXECUTION_MODE_VALUES = [
 
 export type ExecutionMode = (typeof EXECUTION_MODE_VALUES)[number];
 
-export const DATA_SCOPE_VALUES = ["session", "course", "notes", "growth", "web"] as const;
+export const DATA_SCOPE_VALUES = ["session", "course", "notes", "career_tree", "web"] as const;
 
 export type DataScope = (typeof DATA_SCOPE_VALUES)[number];
 
@@ -70,7 +70,7 @@ export interface RequestContext {
   metadata?: RequestMetadata;
   resourceContext: RequestResourceContext;
   hasLearningGuidance: boolean;
-  hasGrowthSnapshot: boolean;
+  hasCareerTreeSnapshot: boolean;
   hasEditorContext: boolean;
   userPolicy: RequestUserPolicy;
 }

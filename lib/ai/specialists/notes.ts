@@ -13,7 +13,6 @@ export const noteAssistantSpecialistSpec: ConversationSpecialistRuntimeSpec = {
   promptVersion: "note-assist@v1",
   maxSteps: 10,
   preferToolCallingModel: false,
-  growthContextStyle: "none",
 };
 
 export async function createNoteAssistantSpecialist(

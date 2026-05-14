@@ -14,7 +14,7 @@ import { KnowledgeInsightStrip } from "@/components/knowledge/KnowledgeInsightSt
 import { ProfileAiUsagePanel } from "@/components/profile/ProfileAiUsagePanel";
 import { FloatingHeader, LibraryAnalysisPageShell } from "@/components/shared/layout";
 import { redirectIfUnauthenticated } from "@/lib/auth/page";
-import { getGrowthStateLabel } from "@/lib/growth/presentation";
+import { getCareerNodeStateLabel } from "@/lib/career-tree/presentation";
 import { buildKnowledgeExcerpt } from "@/lib/knowledge/presentation";
 import { getProfileInsightsPageDataCached } from "@/lib/profile/insights-page-data";
 import { getProfileStatsWindowStart } from "@/lib/profile/stats-data";
@@ -120,7 +120,7 @@ async function ProfileInsightsPageContent() {
                     进度 {overview.focus.progress}%
                   </span>
                   <span className="ui-badge-pill rounded-full px-3 py-1.5">
-                    {getGrowthStateLabel(overview.focus.state)}
+                    {getCareerNodeStateLabel(overview.focus.state)}
                   </span>
                   <span className="ui-badge-pill rounded-full px-3 py-1.5">
                     相关材料 {overview.focus.relatedMaterialCount} 条

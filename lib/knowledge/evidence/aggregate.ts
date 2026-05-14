@@ -7,11 +7,11 @@ import {
   knowledgeEvidenceEvents,
   knowledgeEvidenceSourceLinks,
 } from "@/db";
-import { buildSourceVersionCondition } from "@/lib/growth/source-version";
 import {
   groupEvidenceSourceLinksByEvidenceId,
   listEvidenceSourceLinks,
 } from "@/lib/knowledge/evidence/source-links";
+import { buildSourceVersionCondition } from "@/lib/knowledge/source-version";
 
 interface SelectedEvidenceEventRow {
   id: string;

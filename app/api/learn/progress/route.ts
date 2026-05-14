@@ -11,8 +11,8 @@ import {
   revalidateLearnPage,
   revalidateRecentCourses,
 } from "@/lib/cache/tags";
-import { computeGrowthOutlineHash, normalizeGrowthOutline } from "@/lib/growth/normalize-outline";
-import { enqueueGrowthRefresh } from "@/lib/growth/queue";
+import { enqueueCareerTreeRefresh } from "@/lib/career-tree/queue";
+import { computeCareerOutlineHash, normalizeCareerOutline } from "@/lib/career-tree/source";
 import { ingestEvidenceEvent } from "@/lib/knowledge/events";
 import { aggregateCourseEventsToKnowledgeEvidence } from "@/lib/knowledge/evidence/aggregate";
 import { getOwnedCourseWithOutline } from "@/lib/learning/course-repository";
@@ -158,8 +158,8 @@ export async function POST(request: NextRequest) {
       existingRecordId: progressRecord?.id,
     });
 
-    const normalizedOutline = normalizeGrowthOutline(course.outline);
-    const outlineHash = computeGrowthOutlineHash(normalizedOutline);
+    const normalizedOutline = normalizeCareerOutline(course.outline);
+    const outlineHash = computeCareerOutlineHash(normalizedOutline);
     const completedSection = normalizedOutline.chapters
       .flatMap((chapter) =>
         chapter.sections.map((section) => ({
@@ -215,12 +215,11 @@ export async function POST(request: NextRequest) {
           sourceVersionHash: outlineHash,
         });
 
-        await enqueueGrowthRefresh(
+        await enqueueCareerTreeRefresh({
           userId,
           courseId,
-          undefined,
-          `course-progress:${courseId}:${completedSections.length}:${completedChapters.length}:${sectionNodeId}`,
-        );
+          reasonKey: `course-progress:${courseId}:${completedSections.length}:${completedChapters.length}:${sectionNodeId}`,
+        });
 
         revalidateCourseProgressViews(userId, courseId);
       } catch (error) {

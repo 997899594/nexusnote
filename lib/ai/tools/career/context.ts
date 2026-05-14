@@ -1,18 +1,18 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { getGrowthSnapshot } from "@/lib/growth/snapshot-data";
+import { getCareerTreeSnapshot } from "@/lib/career-tree/snapshot";
 import {
   flattenVisibleNodes,
-  getCurrentGrowthTree,
+  getCurrentCareerTree,
   getTreeByDirectionKey,
-} from "@/lib/growth/view-model";
+} from "@/lib/career-tree/view-model";
 
 const LoadCareerContextSchema = z.object({
   directionKey: z.string().min(1).optional(),
 });
 
 function summarizeDirectionTree(
-  tree: Awaited<ReturnType<typeof getGrowthSnapshot>>["trees"][number],
+  tree: Awaited<ReturnType<typeof getCareerTreeSnapshot>>["trees"][number],
 ) {
   const keyNodes = flattenVisibleNodes(tree.tree)
     .slice(0, 8)
@@ -46,7 +46,7 @@ export function createCareerContextTools(userId: string) {
       inputSchema: LoadCareerContextSchema,
       execute: async (args) => {
         try {
-          const snapshot = await getGrowthSnapshot(userId);
+          const snapshot = await getCareerTreeSnapshot(userId);
 
           if (snapshot.status !== "ready") {
             return {
@@ -65,7 +65,7 @@ export function createCareerContextTools(userId: string) {
 
           const currentTree =
             getTreeByDirectionKey(snapshot, args.directionKey ?? null) ??
-            getCurrentGrowthTree(snapshot);
+            getCurrentCareerTree(snapshot);
 
           return {
             success: true,

@@ -1,8 +1,8 @@
 import {
+  careerTreeEvalSuite,
   chatEvalSuite,
   type EvalDomain,
   type EvalSuite,
-  growthEvalSuite,
   interviewEvalSuite,
   learnEvalSuite,
   notesEvalSuite,
@@ -12,11 +12,11 @@ import {
 
 const SUITES: Record<EvalDomain, EvalSuite<any>> = {
   chat: chatEvalSuite,
-  growth: growthEvalSuite,
   interview: interviewEvalSuite,
   learn: learnEvalSuite,
   notes: notesEvalSuite,
   routing: routingEvalSuite,
+  "career-tree": careerTreeEvalSuite,
 };
 
 async function main() {

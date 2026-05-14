@@ -4,7 +4,8 @@ Date: 2026-04-08
 
 ## Requirements
 
-- keep one deployment image as the source of truth
+- keep one Docker build definition as the source of truth
+- split web and worker into explicit runtime targets
 - remove CI host-side runtime repackaging
 - keep Next.js `standalone` output for the web server
 - keep schema delivery repo-driven through Drizzle schema authoring plus a platform-injected deployment contract, not runtime shell commands
@@ -20,13 +21,18 @@ Date: 2026-04-08
 Choose option 2.
 
 The builder stage installs dependencies with Bun and runs `bun run build` inside Docker.
-The runner stage copies the built `standalone` output, static assets, and only the runtime files
-the web app needs. A managed deployment platform can inspect `drizzle.config.mjs` at the target repo revision and
-apply schema changes from its injected deployment contract, so the deployed
-image no longer needs to carry deployment-time schema files or migration command behavior.
+The same Dockerfile now emits two explicit runtime targets:
+
+- `web`: copies the built `standalone` output and static assets for the page/API server
+- `worker`: copies the queue/runtime source and Bun dependencies needed for `bun run worker:*`
+
+A managed deployment platform can inspect `drizzle.config.mjs` at the target repo revision and
+apply schema changes from its injected deployment contract, so neither runtime image needs to
+carry deployment-time schema execution behavior.
 A small start wrapper keeps `npm start` valid in both the repo root
-and the standalone image root. This removes host-specific packaging logic and keeps deployment
-behavior aligned with what actually runs in production.
+and the standalone image root. This removes host-specific packaging logic, stops background
+queues from hiding inside the web process, and keeps deployment behavior aligned with what actually
+runs in production.
 
 ## Tradeoffs
 

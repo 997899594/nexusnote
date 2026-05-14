@@ -38,6 +38,7 @@ export function useChatSession({ sessionId, body }: UseChatSessionOptions) {
   const { addToast } = useToast();
   const [aiDegradedKind, setAIDegradedKind] = useState<AIDegradationKind | null>(null);
   const [routeHint, setRouteHint] = useState<AIRouteResponseHint | null>(null);
+  const [sessionMetadata, setSessionMetadata] = useState<unknown>(null);
 
   // Zustand-based session state
   const { getSessionMessages, markLoaded, markFailed, setSessionMessages } =
@@ -87,12 +88,14 @@ export function useChatSession({ sessionId, body }: UseChatSessionOptions) {
 
   // 历史恢复：loaded 必须和 message cache 绑定，否则跨页面 useChat 实例会误判已恢复。
   useEffect(() => {
-    if (!sessionId) return;
+    if (!sessionId) {
+      setSessionMetadata(null);
+      return;
+    }
 
     const cachedMessages = getSessionMessages(sessionId);
     if (cachedMessages) {
       setMessages(cachedMessages);
-      return;
     }
 
     let isCancelled = false;
@@ -110,7 +113,13 @@ export function useChatSession({ sessionId, body }: UseChatSessionOptions) {
         return res.json();
       })
       .then((data) => {
-        if (!isCancelled && data?.session?.messages) {
+        if (isCancelled || !data?.session) {
+          return;
+        }
+
+        setSessionMetadata(data.session.metadata ?? null);
+
+        if (!cachedMessages && data.session.messages) {
           const messages = data.session.messages as UIMessage[];
           markLoaded(sessionId, messages);
           setMessages(messages);
@@ -139,5 +148,6 @@ export function useChatSession({ sessionId, body }: UseChatSessionOptions) {
     sendMessage,
     aiDegradedKind,
     routeHint,
+    sessionMetadata,
   };
 }

@@ -12,6 +12,63 @@ const WebSearchSchema = z.object({
   limit: z.number().int().min(1).max(10).default(5),
 });
 
+export interface WebSearchToolResultItem {
+  title: string;
+  url: string;
+  snippet: string;
+}
+
+export interface WebSearchToolOutput {
+  success: boolean;
+  query: string;
+  results: WebSearchToolResultItem[];
+  answer?: string | null;
+  error?: string;
+}
+
+export async function performWebSearch(
+  query: string,
+  limit: number,
+  options?: { userId?: string },
+): Promise<WebSearchToolOutput> {
+  const searchApiKey = process.env.TAVILY_API_KEY || process.env.SERPER_API_KEY;
+
+  if (!searchApiKey) {
+    console.warn("[Tool] webSearch: No search API key configured", {
+      userId: options?.userId ?? null,
+    });
+    return {
+      success: false,
+      error: "搜索服务未配置。请联系管理员配置 TAVILY_API_KEY 或 SERPER_API_KEY。",
+      query,
+      results: [],
+    };
+  }
+
+  try {
+    if (process.env.TAVILY_API_KEY) {
+      return await searchWithTavily(query, limit);
+    }
+
+    if (process.env.SERPER_API_KEY) {
+      return await searchWithSerper(query, limit);
+    }
+
+    return { success: false, error: "搜索服务配置错误", query, results: [] };
+  } catch (error) {
+    console.error("[Tool] webSearch error:", error, {
+      userId: options?.userId ?? null,
+      query,
+    });
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "搜索服务暂不可用",
+      query,
+      results: [],
+    };
+  }
+}
+
 /**
  * 创建网页搜索工具（绑定 userId）
  */
@@ -20,40 +77,7 @@ export function createWebSearchTool(userId?: string) {
     webSearch: tool({
       description: "搜索互联网获取最新信息",
       inputSchema: WebSearchSchema,
-      execute: async (args) => {
-        const searchApiKey = process.env.TAVILY_API_KEY || process.env.SERPER_API_KEY;
-
-        if (!searchApiKey) {
-          console.warn("[Tool] webSearch: No search API key configured", {
-            userId: userId ?? null,
-          });
-          return {
-            success: false,
-            error: "搜索服务未配置。请联系管理员配置 TAVILY_API_KEY 或 SERPER_API_KEY。",
-            query: args.query,
-            results: [],
-          };
-        }
-
-        try {
-          if (process.env.TAVILY_API_KEY) {
-            return await searchWithTavily(args.query, args.limit);
-          }
-
-          if (process.env.SERPER_API_KEY) {
-            return await searchWithSerper(args.query, args.limit);
-          }
-
-          return { success: false, error: "搜索服务配置错误", results: [] };
-        } catch (error) {
-          console.error("[Tool] webSearch error:", error, { userId: userId ?? null });
-          return {
-            success: false,
-            error: error instanceof Error ? error.message : "搜索服务暂不可用",
-            results: [],
-          };
-        }
-      },
+      execute: async (args) => performWebSearch(args.query, args.limit, { userId }),
     }),
   };
 }

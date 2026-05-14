@@ -9,18 +9,18 @@ import {
   CareerTreeGraph,
 } from "@/components/career-trees/CareerTreeGraph";
 import { useToast } from "@/components/ui/Toast";
-import { buildCareerDevelopmentGraph } from "@/lib/growth/career-development-graph";
+import { buildCareerDevelopmentGraph } from "@/lib/career-tree/career-development-graph";
 import type {
   FocusSnapshotProjection,
   ProfileSnapshotProjection,
-} from "@/lib/growth/projection-types";
-import type { CareerTreeSnapshot } from "@/lib/growth/types";
+} from "@/lib/career-tree/projection-types";
+import type { CareerTreeSnapshot } from "@/lib/career-tree/types";
 import {
   findDefaultFocusNode,
   findNodeById,
   flattenVisibleNodes,
-  resolveGrowthDisplayState,
-} from "@/lib/growth/view-model";
+  resolveCareerTreeDisplayState,
+} from "@/lib/career-tree/view-model";
 import { cn } from "@/lib/utils";
 
 interface CareerTreesExplorerProps {
@@ -194,7 +194,7 @@ export function CareerTreesExplorer({
 
   const displayState = useMemo(
     () =>
-      resolveGrowthDisplayState({
+      resolveCareerTreeDisplayState({
         snapshot,
         directionKey: currentDirectionKey,
         focusSnapshot,

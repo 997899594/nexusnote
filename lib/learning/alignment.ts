@@ -1,5 +1,3 @@
-import type { GrowthGenerationContext } from "@/lib/growth/generation-context-format";
-
 const TOKEN_SEGMENTER = new Intl.Segmenter("zh-Hans", { granularity: "word" });
 const STOP_TOKENS = new Set([
   "的",
@@ -42,6 +40,26 @@ export interface CourseBlueprintAlignmentBrief {
   emphasis: string[];
 }
 
+export interface LearningAlignmentContext {
+  currentDirection?: {
+    title: string;
+    summary: string;
+    whyThisDirection?: string | null;
+  } | null;
+  currentFocus?: {
+    title: string;
+    summary: string;
+    state?: string | null;
+    progress?: number | null;
+  } | null;
+  insights: Array<{
+    kind: string;
+    title: string;
+    summary: string;
+    confidence: number;
+  }>;
+}
+
 interface BuildLearningAlignmentInput {
   chapterTitle: string;
   chapterDescription?: string | null;
@@ -49,7 +67,7 @@ interface BuildLearningAlignmentInput {
   courseSkillIds?: string[] | null;
   sectionTitle?: string | null;
   sectionDescription?: string | null;
-  generationContext?: GrowthGenerationContext | null;
+  generationContext?: LearningAlignmentContext | null;
 }
 
 function tokenize(value: string): string[] {
@@ -93,7 +111,7 @@ function getRelationLabel(relation: LearningAlignmentRelation): string {
 
 function pickRelevantInsights(
   chapterTokens: Set<string>,
-  insights: GrowthGenerationContext["insights"],
+  insights: LearningAlignmentContext["insights"],
 ): string[] {
   if (insights.length === 0) {
     return [];
@@ -343,7 +361,7 @@ export function buildCourseBlueprintAlignmentBrief(input: {
   courseSkillIds?: string[] | null;
   chapterTitles?: string[] | null;
   chapterSkillIds?: string[] | null;
-  generationContext?: GrowthGenerationContext | null;
+  generationContext?: LearningAlignmentContext | null;
 }): CourseBlueprintAlignmentBrief {
   const courseTokens = buildTokenSet([
     input.courseTitle,

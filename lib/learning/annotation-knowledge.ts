@@ -73,12 +73,11 @@ export async function syncSectionAnnotationsKnowledge(params: {
   annotations: AnnotationKnowledgeRecord[];
   enqueueFollowups?: boolean;
 }): Promise<string[]> {
-  const result = await syncKnowledgeSource({
+  await syncKnowledgeSource({
     userId: params.userId,
     sourceType: "annotation",
     sourceId: params.sectionId,
     hasContent: params.annotations.length > 0,
-    clearReason: `annotation-clear:${params.sectionId}`,
     enqueueFollowups: params.enqueueFollowups,
     replaceEvents: async () => {
       for (const annotation of params.annotations) {
@@ -115,5 +114,5 @@ export async function syncSectionAnnotationsKnowledge(params: {
     },
   });
 
-  return result.affectedNodeIds;
+  return [];
 }

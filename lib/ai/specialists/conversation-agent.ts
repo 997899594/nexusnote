@@ -1,9 +1,5 @@
 import { stepCountIs, ToolLoopAgent } from "ai";
 import {
-  formatGrowthGenerationContext,
-  type GrowthGenerationContext,
-} from "@/lib/growth/generation-context-format";
-import {
   formatLearningGuidancePromptContext,
   getLearningGuidance,
   type LearningGuidance,
@@ -33,7 +29,6 @@ export interface ConversationSpecialistRuntimeSpec {
   promptVersion: string;
   maxSteps: number;
   preferToolCallingModel: boolean;
-  growthContextStyle: "none" | "compact" | "detailed";
 }
 
 export interface ConversationSpecialistAgentOptions {
@@ -42,7 +37,6 @@ export interface ConversationSpecialistAgentOptions {
   userContext?: string;
   userId?: string;
   courseId?: string;
-  generationContext?: GrowthGenerationContext;
   learningGuidance?: LearningGuidance | null;
   metadata?: RequestMetadata;
   routeProfile?: AIRouteProfile;
@@ -83,17 +77,6 @@ export async function createConversationToolLoopSpecialist(
       formatLearningGuidancePromptContext(learningGuidance, {
         sectionIndex: options.metadata.sectionIndex,
       }),
-    );
-  }
-
-  if (options.generationContext && spec.growthContextStyle !== "none") {
-    userContextParts.push(
-      [
-        "## 当前成长上下文",
-        formatGrowthGenerationContext(options.generationContext, {
-          style: spec.growthContextStyle,
-        }),
-      ].join("\n"),
     );
   }
 

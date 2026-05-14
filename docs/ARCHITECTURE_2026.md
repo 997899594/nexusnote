@@ -37,7 +37,7 @@ NexusNote 当前是一个以 Next.js 16 为核心的 AI-native 学习应用：
 ### 2. Server Domain Layer
 
 - `lib/server/`: 页面数据加载和 cache/tag 策略
-- `lib/chat/`, `lib/learning/`, `lib/notes/`, `lib/knowledge/`, `lib/growth/`
+- `lib/chat/`, `lib/learning/`, `lib/notes/`, `lib/knowledge/`, `lib/career-tree/`
 - `lib/api/`: API 错误和响应收口
 
 规则：
@@ -83,16 +83,24 @@ NexusNote 当前是一个以 Next.js 16 为核心的 AI-native 学习应用：
 - notes
 - conversations
 - knowledge
+- knowledge-runs
 - courses
-- growth
+- career-tree
 - ai-usage
 - skins
 
 ### 6. Async / Collaboration
 
 - `lib/queue/`: BullMQ queue 和 worker
+- `scripts/start-workers.ts` + `scripts/start-*-worker.ts`: 显式 worker runtime 入口
 - `party/`: PartyKit realtime server
 - 协作能力是可选运行时，不阻塞主应用主链
+
+规则：
+
+- Web runtime 不隐式启动 BullMQ worker
+- 后台任务由独立 worker 进程 / service 承载
+- worker 生命周期、并发和重试参数必须显式配置，而不是挂在页面服务器副作用里
 
 ## 当前仓库约束
 

@@ -43,10 +43,10 @@
 
 - embedding / reranker
 - RAG 索引
-- growth evidence / merge / compose
+- career-tree evidence / merge / compose
 - 标签、风格分析、质量评审等后台任务
 
-这条边界避免“用户想试 Gemini”时把索引、成长树和长期知识图一起改掉。
+这条边界避免“用户想试 Gemini”时把索引、职业树和长期知识图一起改掉。
 
 ### Prompt 层
 
@@ -72,6 +72,7 @@
 - 访谈：自然 agent + 展示类 tool + 课程蓝图数据
 - 学习助手：chat + learn context + RAG
 - 课程生成：workflow + 服务端流式生成
+- research / career-tree / knowledge-insights / RAG indexing / section materialization：显式 worker runtime 执行，不挂在 web 进程副作用里
 
 ### Streaming 层
 

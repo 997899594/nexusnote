@@ -11,7 +11,7 @@ import type { ResolvedRequestContext } from "@/lib/ai/runtime/resolve-request-co
 function getSurfaceFallbackMode(
   surface: Surface,
   hasLearningGuidance: boolean,
-  hasGrowthSnapshot: boolean,
+  hasCareerTreeSnapshot: boolean,
 ): ConversationCapabilityMode {
   switch (surface) {
     case "learn":
@@ -19,7 +19,7 @@ function getSurfaceFallbackMode(
     case "notes":
       return "note_assistant";
     case "career":
-      return hasGrowthSnapshot ? "career_guide" : "general_chat";
+      return hasCareerTreeSnapshot ? "career_guide" : "general_chat";
     default:
       return "general_chat";
   }
@@ -63,7 +63,7 @@ export function arbitrateRoute(params: {
     : getSurfaceFallbackMode(
         requestContext.surface,
         requestContext.hasLearningGuidance,
-        requestContext.hasGrowthSnapshot,
+        requestContext.hasCareerTreeSnapshot,
       );
   let executionMode = classification.executionMode;
   let handoffTarget: CapabilityMode | null = null;
@@ -96,23 +96,37 @@ export function arbitrateRoute(params: {
       "用户的问题更像学习答疑，但当前没有课程上下文。请先请用户打开对应课程/章节，或告诉你具体在学哪门课，再继续深入解释。";
   }
 
-  if (classification.capabilityMode === "career_guide" && !requestContext.hasGrowthSnapshot) {
+  if (classification.capabilityMode === "career_guide" && !requestContext.hasCareerTreeSnapshot) {
     resolvedCapabilityMode = "general_chat";
     executionMode = "ask_clarification";
     handoffTarget = "career_guide";
-    arbiterNotes.push("career_guide requires an existing growth snapshot");
+    arbiterNotes.push("career_guide requires an existing career tree snapshot");
     assistantInstruction =
-      "用户在问职业方向或下一步学习，但当前还没有可用的职业树快照。请明确告诉用户：先保存并学习几门课程，系统生成成长树后才能给出更具体的个性化方向建议。";
+      "用户在问职业方向或下一步学习，但当前还没有可用的职业树快照。请明确告诉用户：先保存并学习几门课程，系统生成职业树后才能给出更具体的个性化方向建议。";
+  }
+
+  if (
+    classification.executionMode === "workflow" &&
+    classification.capabilityMode === "research_assistant"
+  ) {
+    resolvedCapabilityMode = "general_chat";
+    executionMode = "workflow";
+    handoffTarget = "research_assistant";
+    arbiterNotes.push("deep research requests are executed as background workflows");
+    assistantInstruction =
+      "这个请求会通过后台研究工作流完成。先确认已入队，再在研究完成后把结果返回给用户。不要把它当成普通对话里一次性回答。";
   }
 
   if (classification.executionMode === "workflow") {
-    resolvedCapabilityMode = "general_chat";
-    executionMode = "redirect";
-    handoffTarget = handoffTarget ?? classification.capabilityMode;
-    arbiterNotes.push("workflow requests are not executed directly inside the chat specialist");
-    assistantInstruction =
-      assistantInstruction ??
-      "这个请求更适合进入专门的页面或后台工作流，而不是在普通聊天里直接执行。请说明边界，并把用户引导到更合适的入口。";
+    if (handoffTarget !== "research_assistant") {
+      resolvedCapabilityMode = "general_chat";
+      executionMode = "redirect";
+      handoffTarget = handoffTarget ?? classification.capabilityMode;
+      arbiterNotes.push("workflow requests are not executed directly inside the chat specialist");
+      assistantInstruction =
+        assistantInstruction ??
+        "这个请求更适合进入专门的页面或后台工作流，而不是在普通聊天里直接执行。请说明边界，并把用户引导到更合适的入口。";
+    }
   }
 
   if (resolvedCapabilityMode !== "general_chat" && executionMode === "direct_answer") {

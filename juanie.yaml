@@ -30,6 +30,23 @@ services:
       phase: preDeploy
       executionMode: automatic
       approvalPolicy: manual_in_production
+  - name: worker
+    type: worker
+    build:
+      command: npm run build
+      strategy: bake
+      definition: docker-bake.hcl
+      context: .
+      target: worker
+    run:
+      command: bun run worker:all
+    scaling:
+      min: 1
+    resources:
+      cpuRequest: 100m
+      cpuLimit: 500m
+      memoryRequest: 256Mi
+      memoryLimit: 512Mi
 
 databases:
   - name: primary

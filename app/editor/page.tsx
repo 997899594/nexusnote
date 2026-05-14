@@ -15,7 +15,7 @@ import { Suspense } from "react";
 import { KnowledgeInsightStrip } from "@/components/knowledge/KnowledgeInsightStrip";
 import { FloatingHeader, LibraryAnalysisPageShell } from "@/components/shared/layout";
 import { requireDynamicPageAuth } from "@/lib/auth/page";
-import { getGrowthStateLabel } from "@/lib/growth/presentation";
+import { getCareerNodeStateLabel } from "@/lib/career-tree/presentation";
 import { buildKnowledgeExcerpt, getKnowledgeInsightKindLabel } from "@/lib/knowledge/presentation";
 import { getNotesWorkbenchCached } from "@/lib/knowledge/workbench-data";
 import type { NoteWorkbenchItem, NoteWorkbenchKind } from "@/lib/knowledge/workbench-projection";
@@ -266,7 +266,7 @@ async function NotesIndexPageContent({
                       进度 {snapshot.focus.progress}%
                     </span>
                     <span className="ui-badge-pill rounded-full px-3 py-1.5">
-                      {getGrowthStateLabel(snapshot.focus.state)}
+                      {getCareerNodeStateLabel(snapshot.focus.state)}
                     </span>
                     <span className="ui-badge-pill rounded-full px-3 py-1.5">
                       相关材料 {snapshot.focus.relatedItemIds.length} 条

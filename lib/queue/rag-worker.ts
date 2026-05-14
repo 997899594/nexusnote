@@ -1,8 +1,7 @@
 /**
  * RAG Index Worker - BullMQ
  *
- * Processes indexing jobs with configurable concurrency.
- * Lazy-started via instrumentation.ts to avoid duplicate workers.
+ * Processes indexing jobs inside an explicit worker runtime.
  */
 
 import { Worker } from "bullmq";
@@ -38,7 +37,6 @@ export function startRagWorker(): Worker<RagIndexJobData> {
             indexedContentHash: result.indexedContentHash,
             requestedContentHash: contentHash,
             chunks: result.chunks,
-            affectedNodeCount: result.affectedNodeIds.length,
           });
           break;
         }

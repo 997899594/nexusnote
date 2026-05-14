@@ -95,12 +95,11 @@ export async function syncNoteKnowledge(
     sourceContext: note.sourceContext ?? null,
   };
 
-  const result = await syncKnowledgeSource({
+  await syncKnowledgeSource({
     userId: note.userId,
     sourceType: knowledgeSourceType,
     sourceId: note.id,
     hasContent: Boolean(note.plainText?.trim() || note.contentHtml?.trim()),
-    clearReason: `note-clear:${note.id}`,
     enqueueFollowups: options?.enqueueFollowups,
     replaceEvents: async () => {
       await ingestEvidenceEvent({
@@ -129,7 +128,7 @@ export async function syncNoteKnowledge(
     },
   });
 
-  return result.affectedNodeIds;
+  return [];
 }
 
 export async function clearNoteKnowledge(
@@ -139,15 +138,13 @@ export async function clearNoteKnowledge(
   options?: { enqueueFollowups?: boolean },
 ): Promise<string[]> {
   const knowledgeSourceType = resolveNoteBackedKnowledgeSourceType(noteSourceType);
-  const result = await syncKnowledgeSource({
+  await syncKnowledgeSource({
     userId,
     sourceType: knowledgeSourceType,
     sourceId: noteId,
     hasContent: false,
-    clearReason: `note-clear:${noteId}`,
-    enqueueInsightsOnEmpty: false,
     enqueueFollowups: options?.enqueueFollowups,
   });
 
-  return result.affectedNodeIds;
+  return [];
 }
