@@ -44,7 +44,7 @@ function ChatEmptyState({
 
 export function LearnChat({ courseId, courseTitle }: LearnChatProps) {
   const { addToast } = useToast();
-  const { currentChapterIndex, chapters, setChatOpen } = useLearnStore();
+  const { currentChapterIndex, currentSectionIndex, chapters, setChatOpen } = useLearnStore();
   const [input, setInput] = useState("");
   const [isCapturingChat, setIsCapturingChat] = useState(false);
   const [resolvedSessionId, setResolvedSessionId] = useState<string | null>(null);
@@ -53,12 +53,14 @@ export function LearnChat({ courseId, courseTitle }: LearnChatProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const currentChapter = chapters[currentChapterIndex];
+  const currentSection = currentChapter?.sections[currentSectionIndex];
   const quickPrompts = useMemo(
     () =>
       buildLearnQuickPrompts({
         chapterTitle: currentChapter?.title,
+        sectionTitle: currentSection?.title,
       }),
-    [currentChapter?.title],
+    [currentChapter?.title, currentSection?.title],
   );
 
   const resetTrackedSession = useChatSessionStateStore((state) => state.resetSession);
@@ -68,6 +70,7 @@ export function LearnChat({ courseId, courseTitle }: LearnChatProps) {
       metadata: {
         courseId,
         chapterIndex: currentChapterIndex,
+        sectionIndex: currentSectionIndex,
         context: "learn",
       },
     },
@@ -190,6 +193,7 @@ export function LearnChat({ courseId, courseTitle }: LearnChatProps) {
         body: JSON.stringify({
           courseId,
           chapterIndex: currentChapterIndex,
+          sectionIndex: currentSectionIndex,
           messages: captureMessages,
         }),
       });
@@ -210,7 +214,15 @@ export function LearnChat({ courseId, courseTitle }: LearnChatProps) {
     } finally {
       setIsCapturingChat(false);
     }
-  }, [addToast, chatMessages, courseId, currentChapterIndex, getMessageText, isCapturingChat]);
+  }, [
+    addToast,
+    chatMessages,
+    courseId,
+    currentChapterIndex,
+    currentSectionIndex,
+    getMessageText,
+    isCapturingChat,
+  ]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -255,8 +267,8 @@ export function LearnChat({ courseId, courseTitle }: LearnChatProps) {
       return (
         <ChatEmptyState
           icon={<Loader2 className="h-4 w-4 animate-spin" />}
-          title="正在恢复本章对话"
-          description="正在定位本章节的历史线程并恢复消息。"
+          title="正在恢复学习对话"
+          description="正在定位这门课的历史线程并恢复消息。"
         />
       );
     }
@@ -282,7 +294,7 @@ export function LearnChat({ courseId, courseTitle }: LearnChatProps) {
     return (
       <ChatEmptyState
         icon={<MessageSquare className="h-4 w-4" />}
-        title="围绕当前章节继续追问"
+        title="围绕当前小节继续追问"
         description="可以让我解释概念、举例、对比知识点，或者把当前理解保存到笔记。"
       />
     );
@@ -296,7 +308,7 @@ export function LearnChat({ courseId, courseTitle }: LearnChatProps) {
           <div className="min-w-0">
             <h3 className="truncate text-sm font-semibold text-[var(--color-text)]">学习助手</h3>
             <p className="truncate text-xs text-[var(--color-text-secondary)]">
-              {currentChapter?.title ?? courseTitle}
+              {currentSection?.title ?? currentChapter?.title ?? courseTitle}
             </p>
           </div>
           <div className="flex items-center gap-1.5">
@@ -359,7 +371,7 @@ export function LearnChat({ courseId, courseTitle }: LearnChatProps) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={sessionError ? "当前章节对话暂不可用" : "针对本章节提问..."}
+            placeholder={sessionError ? "学习对话暂不可用" : "针对这一节提问..."}
             rows={1}
             className="flex-1 min-h-[24px] max-h-[80px] resize-none border-none bg-transparent text-sm text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-muted)]"
             disabled={!resolvedSessionId || isResolvingSession || !!sessionError}

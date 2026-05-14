@@ -2,22 +2,31 @@
  * AI Chat API - 2026 Modern Architecture
  *
  * 2026 架构：
- * - Chat 专注通用对话
- * - INTERVIEW 意图由客户端跳转到 /interview 页面
+ * - Context Resolver -> Intent Router -> Route Arbiter -> Specialist
+ * - Interview / workflow 请求不在普通 chat specialist 内直接执行
  * - 无人设式混杂语义
  */
 
 import type { UIMessage } from "ai";
 import { after, type NextRequest, NextResponse } from "next/server";
-import { createChatAgent } from "@/lib/ai/agents/chat";
-import { resolveChatContext } from "@/lib/ai/context/resolve-chat-context";
-import { getCapabilityProfile } from "@/lib/ai/core/capability-profiles";
 import { classifyAIDegradation } from "@/lib/ai/core/degradation";
 import { aiProvider } from "@/lib/ai/core/provider";
 import { getChatResumableStreamContext } from "@/lib/ai/core/resumable-streams";
+import { getUserAIRouteProfile } from "@/lib/ai/core/route-profile-preferences";
 import { createNexusNoteStreamResponse } from "@/lib/ai/core/streaming";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { buildPersonalization } from "@/lib/ai/personalization";
+import type { ConversationCapabilityMode } from "@/lib/ai/runtime/contracts";
+import { orchestrateRequest } from "@/lib/ai/runtime/orchestrate-request";
+import { resolveRequestContext } from "@/lib/ai/runtime/resolve-request-context";
+import {
+  AI_EXECUTION_MODE_HEADER,
+  AI_HANDOFF_TARGET_HEADER,
+} from "@/lib/ai/runtime/response-headers";
+import {
+  createConversationSpecialistAgent,
+  getConversationSpecialistSpec,
+} from "@/lib/ai/specialists/registry";
 import { ChatApiRequestSchema } from "@/lib/ai/validation";
 import { APIError, handleError } from "@/lib/api";
 import { checkRateLimitOrThrow } from "@/lib/api/rate-limit";
@@ -32,12 +41,35 @@ import {
 import {
   ConversationUnavailableError,
   getOwnedConversationSummary,
+  mergeOwnedConversationMetadata,
   touchOwnedConversation,
 } from "@/lib/chat/conversation-repository";
 import { isUuidString } from "@/lib/chat/session-id";
 import { getUserGrowthContextWithinBudget } from "@/lib/growth/generation-context";
+import { isCareerRequestMetadata, type RequestMetadata } from "@/types/request-metadata";
 
 export const maxDuration = 300;
+
+function appendContextBlock(base: string, block: string | null | undefined): string {
+  return [base, block].filter(Boolean).join("\n\n");
+}
+
+function shouldLoadGrowthGenerationContext(
+  capabilityMode: ConversationCapabilityMode,
+  hasGrowthSnapshot: boolean,
+) {
+  return capabilityMode === "career_guide" && hasGrowthSnapshot;
+}
+
+function getPersistableConversationMetadata(
+  metadata: RequestMetadata | undefined,
+): Record<string, unknown> | undefined {
+  if (!metadata?.context || metadata.context === "default") {
+    return undefined;
+  }
+
+  return metadata;
+}
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
@@ -76,29 +108,57 @@ export async function POST(request: NextRequest) {
     const { messages, sessionId, skinSlug, courseId, metadata } = validation.data;
 
     const uiMessages = messages as UIMessage[];
-    const resolvedContext = await resolveChatContext({
+    const routeProfile = await getUserAIRouteProfile(userId);
+    const requestContext = await resolveRequestContext({
       userId,
+      messages: uiMessages,
+      sessionId: sessionId ?? null,
       courseId,
       metadata,
+      routeProfile,
+      skinSlug,
     });
-    const {
-      profileId,
-      courseId: resolvedCourseId,
-      metadata: resolvedMetadata,
-      learningGuidance,
-    } = resolvedContext;
-    const profile = getCapabilityProfile(profileId);
+    const routeDecision = await orchestrateRequest({
+      userId,
+      messages: uiMessages,
+      requestContext,
+    });
+    const specialist = getConversationSpecialistSpec(routeDecision.resolvedCapabilityMode);
+    const resolvedCourseId = requestContext.resourceContext.courseId;
+    const resolvedMetadata = requestContext.metadata;
+    const preferredCareerDirectionKey = isCareerRequestMetadata(resolvedMetadata)
+      ? (resolvedMetadata.selectedDirectionKey ?? null)
+      : null;
+    const persistableConversationMetadata = getPersistableConversationMetadata(resolvedMetadata);
+    const learningGuidance = requestContext.learningGuidance;
     telemetry = createTelemetryContext({
       requestId,
       endpoint: "/api/chat",
       userId,
-      profile: profileId,
-      promptVersion: profile.promptKey,
-      modelPolicy: profile.modelPolicy,
+      intent: routeDecision.intent,
+      capabilityMode: routeDecision.resolvedCapabilityMode,
+      promptVersion: specialist.promptKey,
+      modelPolicy: specialist.modelPolicy,
+      routeProfile,
       metadata: {
         sessionId: sessionId ?? null,
         courseId: resolvedCourseId ?? null,
+        documentId: requestContext.resourceContext.documentId ?? null,
+        chapterIndex: requestContext.resourceContext.chapterIndex ?? null,
+        sectionIndex: requestContext.resourceContext.sectionIndex ?? null,
+        surface: requestContext.surface,
         context: resolvedMetadata?.context ?? null,
+        hasLearningGuidance: requestContext.hasLearningGuidance,
+        hasGrowthSnapshot: requestContext.hasGrowthSnapshot,
+        recentMessageCount: requestContext.recentMessages.length,
+        routeProfile,
+        requestedCapabilityMode: routeDecision.capabilityMode,
+        resolvedCapabilityMode: routeDecision.resolvedCapabilityMode,
+        executionMode: routeDecision.executionMode,
+        handoffTarget: routeDecision.handoffTarget,
+        routeConfidence: routeDecision.confidence,
+        routeReasons: routeDecision.reasons,
+        arbiterNotes: routeDecision.arbiterNotes,
       },
     });
 
@@ -137,6 +197,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    userContext = appendContextBlock(
+      userContext,
+      routeDecision.assistantInstruction
+        ? `## 本轮路由约束\n${routeDecision.assistantInstruction}`
+        : null,
+    );
+
     // upsert conversation
     if (sessionId && userId && isUuidString(sessionId)) {
       const firstUserMessage = uiMessages.find((m) => m.role === "user");
@@ -157,6 +224,13 @@ export async function POST(request: NextRequest) {
           messageCount: uiMessages.length,
           intent: "CHAT",
         });
+        if (persistableConversationMetadata) {
+          await mergeOwnedConversationMetadata({
+            conversationId: sessionId,
+            userId,
+            metadataPatch: persistableConversationMetadata,
+          });
+        }
       } catch (error) {
         if (error instanceof ConversationUnavailableError) {
           throw new APIError("会话不存在或无权访问", 404, "NOT_FOUND");
@@ -169,30 +243,36 @@ export async function POST(request: NextRequest) {
     }
 
     // Get agent with personalization
-    const generationContext =
-      profileId === "LEARN_ASSIST"
-        ? undefined
-        : await getUserGrowthContextWithinBudget(userId, {
-            onTimeout: () => {
-              console.warn("[Chat] Growth context missed interactive budget", {
-                requestId,
-                userId,
-                profileId,
-              });
-            },
-          });
+    const growthGenerationContext = shouldLoadGrowthGenerationContext(
+      routeDecision.resolvedCapabilityMode,
+      requestContext.hasGrowthSnapshot,
+    )
+      ? await getUserGrowthContextWithinBudget(userId, {
+          directionKey: preferredCareerDirectionKey,
+          onTimeout: () => {
+            console.warn("[Chat] Growth context missed interactive budget", {
+              requestId,
+              userId,
+              capabilityMode: routeDecision.resolvedCapabilityMode,
+            });
+          },
+        })
+      : undefined;
 
-    const agent = await createChatAgent({
-      profile: profileId,
-      userId,
-      behaviorPrompt,
-      skinPrompt,
-      userContext,
-      generationContext,
-      learningGuidance,
-      courseId: resolvedCourseId,
-      metadata: resolvedMetadata,
-      telemetry,
+    const agent = await createConversationSpecialistAgent({
+      mode: routeDecision.resolvedCapabilityMode,
+      options: {
+        userId,
+        behaviorPrompt,
+        skinPrompt,
+        userContext,
+        generationContext: growthGenerationContext,
+        learningGuidance,
+        courseId: resolvedCourseId,
+        metadata: resolvedMetadata,
+        routeProfile,
+        telemetry,
+      },
     });
 
     if (hasPersistentSession && sessionId) {
@@ -233,6 +313,8 @@ export async function POST(request: NextRequest) {
       },
     });
     response.headers.set("X-Request-Id", requestId);
+    response.headers.set(AI_EXECUTION_MODE_HEADER, routeDecision.executionMode);
+    response.headers.set(AI_HANDOFF_TARGET_HEADER, routeDecision.handoffTarget ?? "");
 
     return response;
   } catch (error) {

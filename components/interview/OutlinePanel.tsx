@@ -46,7 +46,7 @@ export function OutlinePanel({
   const router = useRouter();
   const [isStarting, setIsStarting] = useState(false);
   const { addToast } = useToast();
-  const canStartLearning = Boolean(stableOutline);
+  const canStartLearning = Boolean(stableOutline) && !isLoading;
 
   const handleStartLearning = async () => {
     setIsStarting(true);
@@ -100,23 +100,23 @@ export function OutlinePanel({
         <div className="ui-primary-button flex h-9 w-9 items-center justify-center rounded-xl">
           <BookOpen className="h-4 w-4 text-white" />
         </div>
-        <h2 className="text-base font-semibold text-[var(--color-text)]">学习大纲</h2>
+        <h2 className="text-base font-semibold text-[var(--color-text)]">课程蓝图</h2>
       </div>
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-5">
         {!outline && isLoading ? (
           <WorkspaceEmptyState
-            title="正在生成课程大纲"
-            description="我在整理课程目标、章节结构和学习成果，马上给你一版可预览的大纲。"
+            title="正在生成课程蓝图"
+            description="我在整理课程目标、章节结构和学习成果，马上给你一版可确认的蓝图。"
             loading
             className="mt-10"
           />
         ) : !outline ? (
           <WorkspaceEmptyState
             icon={BookOpen}
-            title="暂无学习大纲"
-            description="开始对话后，我会根据你的目标生成一版个性化课程大纲。"
+            title="暂无课程蓝图"
+            description="开始对话后，我会根据你的目标生成一版个性化课程蓝图。"
             className="mt-10"
           />
         ) : (
@@ -147,7 +147,7 @@ export function OutlinePanel({
               {isLoading && (
                 <div className="flex items-center gap-2 text-xs text-[var(--color-text-tertiary)]">
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  <span>正在更新大纲...</span>
+                  <span>正在更新蓝图...</span>
                 </div>
               )}
               {actionOptions.length > 0 ? (
@@ -259,13 +259,13 @@ export function OutlinePanel({
                     : canStartLearning
                       ? "生成课程并开始学习"
                       : isLoading
-                        ? "正在生成大纲..."
-                        : "等待大纲"}
+                        ? "正在生成蓝图..."
+                        : "等待蓝图"}
                 </span>
               </button>
-              {isLoading && canStartLearning ? (
+              {isLoading && stableOutline ? (
                 <p className="mt-2 text-xs text-[var(--color-text-tertiary)]">
-                  当前预览还在更新，开始后会使用已稳定的大纲。
+                  蓝图正在更新，完成后再开始学习，避免进入旧版本课程。
                 </p>
               ) : null}
             </div>

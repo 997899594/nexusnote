@@ -12,7 +12,6 @@ import {
 } from "@/lib/cache/tags";
 import { syncCourseOutlineKnowledgePipeline } from "@/lib/learning/course-knowledge-pipeline";
 import { getOwnedCourse } from "@/lib/learning/course-repository";
-import { enqueueInitialCourseMaterialization } from "@/lib/queue/course-production-queue";
 
 const RequestSchema = z.object({
   outline: InterviewOutlineSchema,
@@ -62,33 +61,15 @@ export async function POST(request: NextRequest) {
     revalidateProfileStats(userId);
     revalidateLearnPage(userId, result.courseId);
     after(async () => {
-      const [productionResult, knowledgeResult] = await Promise.allSettled([
-        enqueueInitialCourseMaterialization({
+      try {
+        await syncCourseOutlineKnowledgePipeline({
           userId,
           courseId: result.courseId,
           outline: result.outline,
-        }),
-        syncCourseOutlineKnowledgePipeline({
-          userId,
-          courseId: result.courseId,
-          outline: result.outline,
-        }),
-      ]);
-
-      if (productionResult.status === "rejected") {
-        console.error(
-          "[CreateCourse] Failed to enqueue course production:",
-          productionResult.reason,
-        );
-      }
-
-      if (knowledgeResult.status === "rejected") {
-        console.error(
-          "[CreateCourse] Failed to sync course knowledge pipeline:",
-          knowledgeResult.reason,
-        );
-      } else {
+        });
         revalidateCareerTrees(userId);
+      } catch (error) {
+        console.error("[CreateCourse] Failed to sync course knowledge pipeline:", error);
       }
     });
 

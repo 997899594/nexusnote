@@ -17,6 +17,7 @@ import {
   listEvidenceSourceLinks,
 } from "@/lib/knowledge/evidence/source-links";
 import { createRagTrace } from "./observability";
+import { normalizeRagSearchText } from "./search-text";
 
 export interface ChunkOptions {
   chunkSize?: number;
@@ -215,6 +216,7 @@ export async function syncSourceKnowledgeEvidenceChunks(
       const newChunks = chunks.map((content, index) => ({
         knowledgeEvidenceId: evidence.id,
         content,
+        contentSearchText: normalizeRagSearchText(content),
         embedding: embeddings[index],
         chunkIndex: index,
         metadata: {

@@ -1,5 +1,15 @@
 import { z } from "zod";
 
+export const INTERVIEW_OUTLINE_CHAPTER_LIMITS = {
+  min: 3,
+  max: 12,
+} as const;
+
+export const INTERVIEW_OUTLINE_SECTION_LIMITS = {
+  min: 2,
+  max: 5,
+} as const;
+
 function nullableNormalizedString(max: number) {
   return z.preprocess((value) => {
     if (typeof value !== "string") {
@@ -59,24 +69,50 @@ function normalizedSkillIdArray(maxItems: number) {
 }
 
 export const InterviewOutlineSectionSchema = z.object({
-  title: z.string().min(1).max(80),
+  title: z.string().min(1).max(80).describe("小节标题。只写学习动作或产出，不写正文。"),
 });
 
 export const InterviewOutlineChapterSchema = z.object({
-  title: z.string().min(1).max(120),
-  sections: z.array(InterviewOutlineSectionSchema).min(2).max(4),
+  title: z.string().min(1).max(120).describe("章节标题。体现能力推进，不要只罗列知识点名词。"),
+  sections: z
+    .array(InterviewOutlineSectionSchema)
+    .min(INTERVIEW_OUTLINE_SECTION_LIMITS.min)
+    .max(INTERVIEW_OUTLINE_SECTION_LIMITS.max),
   practiceType: z.enum(["exercise", "project", "quiz", "none"]).optional(),
   skillIds: normalizedSkillIdArray(4),
 });
 
 export const InterviewOutlineSchema = z.object({
-  title: z.string().min(1).max(120),
+  title: z
+    .string()
+    .min(1)
+    .max(120)
+    .describe(
+      "最终会保存的课程标题。必须具体、有路径或成果感，不要使用“概念课、基础课、入门课、系统课”这类泛标题。",
+    ),
   difficulty: z.enum(["beginner", "intermediate", "advanced"]),
-  chapters: z.array(InterviewOutlineChapterSchema).min(5).max(7),
+  chapters: z
+    .array(InterviewOutlineChapterSchema)
+    .min(INTERVIEW_OUTLINE_CHAPTER_LIMITS.min)
+    .max(INTERVIEW_OUTLINE_CHAPTER_LIMITS.max),
   courseSkillIds: normalizedSkillIdArray(6),
-  description: z.string().min(1).max(300).optional(),
-  targetAudience: z.string().min(1).max(200).optional(),
-  learningOutcome: z.string().min(1).max(240).optional(),
+  description: z
+    .string()
+    .min(30)
+    .max(300)
+    .describe(
+      "最终会保存的课程简介。用一到两句话说明从什么基础出发、学什么路径、最后能完成什么具体结果。",
+    ),
+  targetAudience: z
+    .string()
+    .min(10)
+    .max(200)
+    .describe("最终会保存的适合人群。必须贴合用户已说出的基础、目标或约束。"),
+  learningOutcome: z
+    .string()
+    .min(20)
+    .max(240)
+    .describe("最终会保存的学习成果。必须是可判断的能力或产出，不写空泛愿景。"),
 });
 
 export const InterviewPhaseSchema = z.enum(["discover", "revise"]);

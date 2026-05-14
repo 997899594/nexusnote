@@ -1,4 +1,6 @@
-import { aiProvider, type ModelType } from "./provider";
+import type { ModelType } from "./model-bundles";
+import { aiProvider } from "./provider";
+import type { AIRouteProfile } from "./route-profiles";
 
 export type ModelPolicy =
   | "interactive-fast"
@@ -20,22 +22,38 @@ const POLICY_TO_MODEL_TYPE: Record<
   "search-enabled": "webSearch",
 };
 
-export function getModelForPolicy(policy: ModelPolicy) {
-  return aiProvider.getModel(POLICY_TO_MODEL_TYPE[policy]);
+export interface ModelPolicyResolutionOptions {
+  routeProfile?: AIRouteProfile;
 }
 
-export function getPlainModelForPolicy(policy: ModelPolicy) {
-  return aiProvider.getPlainModel(POLICY_TO_MODEL_TYPE[policy]);
+export function getModelForPolicy(policy: ModelPolicy, options?: ModelPolicyResolutionOptions) {
+  return aiProvider.getModel(POLICY_TO_MODEL_TYPE[policy], options?.routeProfile);
 }
 
-export function getToolCallingModelForPolicy(policy: ModelPolicy) {
-  return aiProvider.getToolCallingModel(POLICY_TO_MODEL_TYPE[policy]);
+export function getPlainModelForPolicy(
+  policy: ModelPolicy,
+  options?: ModelPolicyResolutionOptions,
+) {
+  return aiProvider.getPlainModel(POLICY_TO_MODEL_TYPE[policy], options?.routeProfile);
 }
 
-export function getModelNameForPolicy(policy: ModelPolicy): string {
-  return aiProvider.getModelName(POLICY_TO_MODEL_TYPE[policy]);
+export function getToolCallingModelForPolicy(
+  policy: ModelPolicy,
+  options?: ModelPolicyResolutionOptions,
+) {
+  return aiProvider.getToolCallingModel(POLICY_TO_MODEL_TYPE[policy], options?.routeProfile);
 }
 
-export function getProviderForPolicy(policy: ModelPolicy): string | null {
-  return aiProvider.getProviderLabel(POLICY_TO_MODEL_TYPE[policy]);
+export function getModelNameForPolicy(
+  policy: ModelPolicy,
+  options?: ModelPolicyResolutionOptions,
+): string {
+  return aiProvider.getModelName(POLICY_TO_MODEL_TYPE[policy], options?.routeProfile);
+}
+
+export function getProviderForPolicy(
+  policy: ModelPolicy,
+  options?: ModelPolicyResolutionOptions,
+): string | null {
+  return aiProvider.getProviderLabel(POLICY_TO_MODEL_TYPE[policy], options?.routeProfile);
 }

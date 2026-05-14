@@ -2,7 +2,7 @@
  * Global Types - 跨模块共享类型
  */
 
-export * from "./metadata";
+export * from "./request-metadata";
 
 export interface User {
   id: string;

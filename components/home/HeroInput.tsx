@@ -6,11 +6,6 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { PromptChip } from "@/components/common";
 import { useInputProtection } from "@/components/common/useInputProtection";
-import { InterviewModePicker } from "@/components/interview/InterviewModePicker";
-import {
-  DEFAULT_INTERVIEW_SESSION_MODE,
-  type InterviewSessionMode,
-} from "@/lib/ai/interview/session-mode";
 
 const EXAMPLE_PROMPTS = [
   "我想系统学 React，并做一个作品集项目",
@@ -21,14 +16,13 @@ const EXAMPLE_PROMPTS = [
 export function HeroInput() {
   const router = useRouter();
   const [input, setInput] = useState("");
-  const [mode, setMode] = useState<InterviewSessionMode>(DEFAULT_INTERVIEW_SESSION_MODE);
   const { handlePaste } = useInputProtection();
 
   const handleSubmit = () => {
     const message = input.trim();
     if (!message) return;
 
-    router.push(`/interview?msg=${encodeURIComponent(message)}&mode=${mode}`);
+    router.push(`/interview?msg=${encodeURIComponent(message)}`);
     setInput("");
   };
 
@@ -76,10 +70,6 @@ export function HeroInput() {
               />
             </motion.div>
           ))}
-        </div>
-
-        <div className="mt-4 border-t border-[var(--color-border)] pt-4">
-          <InterviewModePicker value={mode} onChange={setMode} compact />
         </div>
 
         <div className="mt-3 flex flex-col gap-3 md:mt-4 md:flex-row md:items-center md:justify-between">

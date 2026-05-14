@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { resolveDirectionKeys, sortResolvedTreesByPreference } from "@/lib/growth/compose";
+import { planGrowthDirections } from "@/lib/growth/compose-planner";
 import { validateMergePlannerOutput } from "@/lib/growth/merge";
 import { buildGrowthProjectionArtifacts } from "@/lib/growth/projections";
 import { retrieveMergeCandidateSet } from "@/lib/growth/retrieve-merge-candidates";
@@ -100,6 +101,116 @@ function checkMergeValidation() {
   assert(
     validated.prerequisiteEdges.length === fixture.expectedEdgeCount,
     "expected merge validation fixture to drop cycles and self edges",
+  );
+}
+
+async function checkDirectionPlannerSemanticDiversity() {
+  const planned = await planGrowthDirections({
+    userId: "fixture-user",
+    graph: {
+      nodes: [
+        {
+          id: "node-react",
+          canonicalLabel: "React Fundamentals",
+          summary: "React component state and hooks",
+          semanticRefs: [],
+          progress: 12,
+          state: "ready",
+          courseCount: 1,
+          chapterCount: 3,
+          evidenceScore: 100,
+        },
+        {
+          id: "node-performance",
+          canonicalLabel: "Performance & Deployment",
+          summary: "frontend performance and deployment",
+          semanticRefs: [],
+          progress: 5,
+          state: "ready",
+          courseCount: 1,
+          chapterCount: 2,
+          evidenceScore: 100,
+        },
+        {
+          id: "node-api",
+          canonicalLabel: "Project Architecture & API Integration",
+          summary: "project architecture and API integration",
+          semanticRefs: [],
+          progress: 0,
+          state: "ready",
+          courseCount: 1,
+          chapterCount: 1,
+          evidenceScore: 57,
+        },
+        {
+          id: "node-responsive",
+          canonicalLabel: "Responsive UI with Tailwind CSS",
+          summary: "responsive user interface implementation",
+          semanticRefs: [],
+          progress: 0,
+          state: "ready",
+          courseCount: 1,
+          chapterCount: 1,
+          evidenceScore: 40,
+        },
+        {
+          id: "node-product-map",
+          canonicalLabel: "AI product capability mapping",
+          summary: "maps product value to AI capability boundaries",
+          semanticRefs: ["snippet:ai 产品与 ai 能力层的区别"],
+          progress: 0,
+          state: "ready",
+          courseCount: 1,
+          chapterCount: 1,
+          evidenceScore: 19,
+        },
+        {
+          id: "node-product-boundary",
+          canonicalLabel: "product-layer boundary design",
+          summary: "separates product concerns from technical capabilities",
+          semanticRefs: ["snippet:ai 产品与 ai 能力层的区别"],
+          progress: 0,
+          state: "ready",
+          courseCount: 1,
+          chapterCount: 1,
+          evidenceScore: 18,
+        },
+      ],
+      prerequisiteEdges: [],
+    },
+    preference: { directionSignals: [] },
+    previousSummary: { trees: [] },
+    recordUsage: false,
+    embeddingProvider: async (texts) =>
+      texts.map((text) => {
+        if (text.includes("AI product capability mapping")) {
+          return [0, 1, 0];
+        }
+        if (text.includes("product-layer boundary design")) {
+          return [0, 0.96, 0.1];
+        }
+        if (text.includes("React Fundamentals")) {
+          return [1, 0, 0];
+        }
+        if (text.includes("Performance & Deployment")) {
+          return [0.92, 0.08, 0];
+        }
+        if (text.includes("Responsive UI with Tailwind CSS")) {
+          return [0.82, 0.18, 0];
+        }
+        return [0.55, 0.45, 0];
+      }),
+  });
+
+  const productDirection = planned.directions.find((direction) =>
+    direction.keySeed.includes("product"),
+  );
+
+  assert(productDirection, "expected product evidence to remain a visible direction candidate");
+  assert(
+    JSON.stringify(productDirection.supportingNodeRefs) ===
+      JSON.stringify(["node-product-map", "node-product-boundary"]),
+    "expected product direction to preserve its product support nodes",
   );
 }
 
@@ -336,11 +447,12 @@ function checkProjectionDerivation() {
   }
 }
 
-function main() {
+async function main() {
   checkDirectionKeyStability();
   checkPreferenceOrdering();
   checkCandidateRetrieval();
   checkMergeValidation();
+  await checkDirectionPlannerSemanticDiversity();
   checkLearnAlignment();
   checkCourseBlueprintAlignment();
   checkLearnQuickPrompts();
@@ -349,4 +461,4 @@ function main() {
   console.log("[GrowthCheck] stable");
 }
 
-main();
+await main();

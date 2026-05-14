@@ -3,18 +3,9 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, Brain, CheckCircle2, Github, Loader2, Mail } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { signIn, useSession } from "next-auth/react";
+import { getProviders, signIn, useSession } from "next-auth/react";
 import { Suspense, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-
-const isDevLoginEnabled =
-  process.env.NEXT_PUBLIC_AUTH_DEV_LOGIN_ENABLED === "true" ||
-  (process.env.NODE_ENV !== "production" &&
-    process.env.NEXT_PUBLIC_AUTH_DEV_LOGIN_ENABLED !== "false");
-
-const isResendLoginEnabled =
-  process.env.NEXT_PUBLIC_AUTH_RESEND_ENABLED === "true" ||
-  (!isDevLoginEnabled && process.env.NEXT_PUBLIC_AUTH_RESEND_ENABLED !== "false");
 
 function getSafeCallbackUrl(callbackUrl: string | null): string {
   if (!callbackUrl) return "/";
@@ -28,12 +19,42 @@ function LoginForm() {
   const isVerifyPage = searchParams.get("verify") === "1";
   const callbackUrl = getSafeCallbackUrl(searchParams.get("callbackUrl"));
 
-  const [email, setEmail] = useState(isDevLoginEnabled ? "demo@example.com" : "");
-  const [devName, setDevName] = useState(isDevLoginEnabled ? "学习者" : "");
-  const [sent, setSent] = useState(isVerifyPage && isResendLoginEnabled);
+  const [providerIds, setProviderIds] = useState<Set<string> | null>(null);
+  const [email, setEmail] = useState("");
+  const [devName, setDevName] = useState("");
+  const [sent, setSent] = useState(false);
   const [sentEmail, setSentEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const isDevLoginEnabled = providerIds?.has("credentials") ?? false;
+  const isResendLoginEnabled = providerIds?.has("resend") ?? false;
+  const isGithubLoginEnabled = providerIds?.has("github") ?? false;
+
+  useEffect(() => {
+    let active = true;
+    getProviders().then((providers) => {
+      if (!active) {
+        return;
+      }
+      setProviderIds(new Set(Object.keys(providers ?? {})));
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isDevLoginEnabled) {
+      return;
+    }
+    setEmail((current) => current || "demo@example.com");
+    setDevName((current) => current || "学习者");
+  }, [isDevLoginEnabled]);
+
+  useEffect(() => {
+    setSent(isVerifyPage && isResendLoginEnabled);
+  }, [isResendLoginEnabled, isVerifyPage]);
 
   useEffect(() => {
     if (status === "authenticated") {
@@ -157,6 +178,13 @@ function LoginForm() {
                   </p>
                 </div>
 
+                {providerIds === null ? (
+                  <div className="flex items-center justify-center gap-2 rounded-xl bg-[var(--color-panel-soft)] px-4 py-3 text-sm text-[var(--color-text-secondary)]">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    正在读取登录方式
+                  </div>
+                ) : null}
+
                 {isDevLoginEnabled ? (
                   <form onSubmit={handleDevLogin} className="space-y-3">
                     <div className="relative">
@@ -241,7 +269,7 @@ function LoginForm() {
                   </form>
                 ) : null}
 
-                {process.env.NEXT_PUBLIC_GITHUB_ENABLED === "true" && (
+                {isGithubLoginEnabled && (
                   <>
                     <div className="relative my-6">
                       <div className="absolute inset-0 flex items-center">

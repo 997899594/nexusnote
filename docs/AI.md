@@ -1,10 +1,11 @@
 # NexusNote AI System
 
-更新时间：2026-04-01
+更新时间：2026-04-30
 
 ## 核心原则
 
 - 单一运行时 provider：当前运行时统一走 302.ai，不做隐式多 provider fallback
+- 用户可选 AI 链路：前台聊天、访谈、课程蓝图、章节生成按用户偏好选择平台推荐 / 国产 / Gemini / OpenAI 链路
 - AI SDK v6 原生：以 `useChat`、route handlers、`UIMessage.parts`、agents、workflows 为主
 - code-driven：流程由代码控制，prompt 负责表达，不负责弥补架构缺陷
 - degradation-first：模型、结构化输出、embedding 出问题时显式降级，不静默伪装成功
@@ -17,14 +18,35 @@
 - 文件：
   - [provider.ts](/Users/findbiao/projects/nexusnote/lib/ai/core/provider.ts)
   - [model-policy.ts](/Users/findbiao/projects/nexusnote/lib/ai/core/model-policy.ts)
+  - [route-profiles.ts](/Users/findbiao/projects/nexusnote/lib/ai/core/route-profiles.ts)
+  - [model-bundles.ts](/Users/findbiao/projects/nexusnote/lib/ai/core/model-bundles.ts)
   - [degradation.ts](/Users/findbiao/projects/nexusnote/lib/ai/core/degradation.ts)
 
 职责：
 
 - 统一 302.ai client 初始化
-- 提供 chat / pro / webSearch / embedding 模型入口
+- 提供 chat / outline / sectionDraft / extract / review / webSearch / embedding 模型入口
 - 通过 model policy 隔离业务意图和具体模型 ID
+- 通过 route profile 隔离用户偏好和具体模型组合
 - 把不可用状态分类为可处理的降级结果
+
+### Route Profile 层
+
+用户设置里的 AI 链路只影响前台学习体验：
+
+- `/api/chat`
+- `/api/interview`
+- 课程蓝图生成所在的自然访谈 agent
+- 章节内容生成 worker
+
+不受用户链路影响的后台基础设施：
+
+- embedding / reranker
+- RAG 索引
+- growth evidence / merge / compose
+- 标签、风格分析、质量评审等后台任务
+
+这条边界避免“用户想试 Gemini”时把索引、成长树和长期知识图一起改掉。
 
 ### Prompt 层
 
@@ -47,7 +69,7 @@
 
 当前典型场景：
 
-- 访谈：agent + 展示类 tool + 结构化 outline 数据
+- 访谈：自然 agent + 展示类 tool + 课程蓝图数据
 - 学习助手：chat + learn context + RAG
 - 课程生成：workflow + 服务端流式生成
 

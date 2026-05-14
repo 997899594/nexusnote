@@ -98,7 +98,7 @@ export function LearnClient({
     return map;
   }, [sectionDocs]);
   // Section generation hook
-  const { sections, generateSection } = useChapterSections({
+  const { sections, currentGenerating, generateSection } = useChapterSections({
     courseId: sessionId,
     chapterIndex: currentChapterIndex,
     sectionCount: currentChapter?.sections.length ?? 0,
@@ -186,6 +186,7 @@ export function LearnClient({
           <SectionReader
             courseId={sessionId}
             sections={sections}
+            currentGenerating={currentGenerating}
             generateSection={generateSection}
             sectionDocs={sectionDocs}
             scrollToSectionId={scrollToSectionId}
@@ -262,6 +263,7 @@ export function LearnClient({
           <SectionReader
             courseId={sessionId}
             sections={sections}
+            currentGenerating={currentGenerating}
             generateSection={generateSection}
             sectionDocs={sectionDocs}
             scrollToSectionId={scrollToSectionId}

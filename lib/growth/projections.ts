@@ -39,6 +39,7 @@ export interface ResolvedComposerTree {
   summary: string;
   confidence: number;
   whyThisDirection: string;
+  progressionRoles: CandidateCareerTree["progressionRoles"];
   supportingNodeRefs: string[];
   tree: ComposerVisibleNode[];
 }
@@ -70,12 +71,16 @@ export function buildComposeGraph(
     toNodeId: string;
     confidence: string;
   }>,
+  supportingRows: ProjectionEvidenceRow[] = [],
 ) {
+  const semanticRefsByNodeId = buildNodeSemanticRefs(supportingRows);
+
   return {
     nodes: nodes.map((node) => ({
       id: node.id,
       canonicalLabel: node.canonicalLabel,
       summary: node.summary,
+      semanticRefs: semanticRefsByNodeId.get(node.id) ?? [],
       progress: node.progress,
       state: node.state,
       courseCount: node.courseCount,
@@ -88,6 +93,31 @@ export function buildComposeGraph(
       confidence: Number(edge.confidence),
     })),
   };
+}
+
+function buildNodeSemanticRefs(rows: ProjectionEvidenceRow[]): Map<string, string[]> {
+  const refsByNodeId = new Map<string, Set<string>>();
+
+  for (const row of rows) {
+    const refs = refsByNodeId.get(row.nodeId) ?? new Set<string>();
+    if (row.refType === "chapter" && row.refId) {
+      refs.add(`chapter:${row.sourceId ?? "unknown"}:${row.refId}`);
+    }
+
+    const normalizedSnippet = row.refSnippet?.replace(/\s+/g, " ").trim().toLowerCase();
+    if (row.refType === "snippet" && normalizedSnippet && normalizedSnippet.length >= 4) {
+      refs.add(`snippet:${normalizedSnippet}`);
+    }
+
+    refsByNodeId.set(row.nodeId, refs);
+  }
+
+  return new Map(
+    [...refsByNodeId.entries()].map(([nodeId, refs]) => [
+      nodeId,
+      [...refs].sort((left, right) => left.localeCompare(right, "zh-Hans-CN")),
+    ]),
+  );
 }
 
 export function materializeTreeNodes(
@@ -272,6 +302,7 @@ export function buildGrowthSnapshotArtifacts(params: {
       whyThisDirection: tree.whyThisDirection,
       supportingCourses,
       supportingChapters,
+      progressionRoles: tree.progressionRoles,
       tree: materializeTreeNodes(tree.directionKey, tree.tree, nodeMap, nodeEvidenceMap),
     };
   });

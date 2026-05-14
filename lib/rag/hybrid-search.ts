@@ -12,6 +12,7 @@ import { aiProvider } from "@/lib/ai/core/provider";
 import type { SourceType } from "./chunker";
 import { createRagTrace } from "./observability";
 import { rewriteQuery } from "./query-rewriter";
+import { normalizeRagSearchText } from "./search-text";
 
 const KEYWORD_SEGMENTER = new Intl.Segmenter("zh-Hans", { granularity: "word" });
 const CJK_CHAR_PATTERN = /\p{Script=Han}/u;
@@ -50,7 +51,7 @@ function uniqueValues(values: string[]): string[] {
 }
 
 function normalizeLexicalToken(token: string): string {
-  return token.trim().toLowerCase();
+  return normalizeRagSearchText(token);
 }
 
 function isUsefulLexicalTerm(term: string): boolean {
@@ -66,7 +67,7 @@ function isUsefulLexicalTerm(term: string): boolean {
 }
 
 function buildKeywordSearchPlan(query: string): KeywordSearchPlan {
-  const normalizedQuery = query.trim().replace(/\s+/g, " ");
+  const normalizedQuery = normalizeRagSearchText(query);
   const compactQuery = normalizedQuery.replace(/\s+/g, "");
   const hasCjk = CJK_CHAR_PATTERN.test(normalizedQuery);
 
@@ -106,7 +107,7 @@ function buildKeywordSearchPlan(query: string): KeywordSearchPlan {
 }
 
 function buildContentContainsPredicate(term: string) {
-  return sql`POSITION(LOWER(${term}) IN LOWER(kec.content)) > 0`;
+  return sql`kec.content_search_text LIKE ${`%${term}%`}`;
 }
 
 function buildBooleanMatchExpression(predicate: SQL) {
@@ -215,14 +216,14 @@ async function keywordSearch(
 
     matchPredicates.push(...phrasePredicates, ...lexicalPredicates);
 
-    const fullTextQuery = plan.fullTextQuery
+    const fullTextTsQuery = plan.fullTextQuery
       ? sql`plainto_tsquery('simple', ${plan.fullTextQuery})`
       : null;
-    const fullTextMatch = fullTextQuery
-      ? sql`to_tsvector('simple', kec.content) @@ ${fullTextQuery}`
+    const fullTextMatch = fullTextTsQuery
+      ? sql`to_tsvector('simple', kec.content_search_text) @@ ${fullTextTsQuery}`
       : null;
-    const fullTextRankExpression = fullTextQuery
-      ? sql`CASE WHEN ${fullTextMatch} THEN ts_rank_cd(to_tsvector('simple', kec.content), ${fullTextQuery}) ELSE 0 END`
+    const fullTextRankExpression = fullTextTsQuery
+      ? sql`CASE WHEN ${fullTextMatch} THEN ts_rank_cd(to_tsvector('simple', kec.content_search_text), ${fullTextTsQuery}) ELSE 0 END`
       : sql`0`;
 
     if (fullTextMatch) {

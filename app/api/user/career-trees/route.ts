@@ -21,6 +21,17 @@ export const GET = withAuth(async (_request, { userId }) => {
 export const PUT = withAuth(async (request, { userId }) => {
   const body = await request.json();
   const { selectedDirectionKey } = selectCareerTreeDirectionSchema.parse(body);
+  const snapshot = await getGrowthSnapshot(userId);
+  const directionExists = snapshot.trees.some((tree) => tree.directionKey === selectedDirectionKey);
+
+  if (snapshot.status !== "ready" || !directionExists) {
+    return Response.json(
+      {
+        error: "selected_direction_not_available",
+      },
+      { status: 409 },
+    );
+  }
 
   await setSelectedGrowthDirection(userId, selectedDirectionKey);
   await ingestEvidenceEvent({

@@ -1,9 +1,12 @@
 import { convertToModelMessages, generateText, readUIMessageStream, type UIMessage } from "ai";
-import { createInterviewSessionAgent } from "@/lib/ai/agents/interview-session";
 import { buildGenerationSettingsForPolicy } from "@/lib/ai/core/generation-settings";
 import { getModelForPolicy } from "@/lib/ai/core/model-policy";
 import { buildPromptInstructions } from "@/lib/ai/core/prompt-registry";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
+import {
+  INTERVIEW_OUTLINE_CHAPTER_LIMITS,
+  INTERVIEW_OUTLINE_SECTION_LIMITS,
+} from "@/lib/ai/interview/schemas";
 import {
   findLatestOutline,
   findLatestStableOutline,
@@ -13,6 +16,11 @@ import {
   type InterviewUIMessage,
 } from "@/lib/ai/interview/ui";
 import { extractUIMessageText } from "@/lib/ai/message-text";
+import { routeDecisionSchema } from "@/lib/ai/routing/schemas";
+import {
+  createConversationSpecialistAgent,
+  createCourseInterviewerSpecialistAgent,
+} from "@/lib/ai/specialists/registry";
 import { composeGrowthTrees, treeComposerOutputSchema } from "@/lib/growth/compose";
 import { judgeEvalOutput } from "./judge";
 import type {
@@ -30,6 +38,7 @@ import type {
   InterviewEvalInput,
   LearnEvalInput,
   NotesEvalInput,
+  RoutingEvalInput,
 } from "./types";
 
 export function createEvalSuite<TInput>(suite: EvalSuite<TInput>): EvalSuite<TInput> {
@@ -67,8 +76,8 @@ async function buildEvalGenerationInput(testCase: EvalCase): Promise<
   | {
       mode: "agent-interview";
       prompt: string;
+      messages?: InterviewEvalInput["messages"];
       currentOutline?: InterviewEvalInput["currentOutline"];
-      sessionMode?: InterviewEvalInput["mode"];
     }
   | {
       mode: "text";
@@ -80,6 +89,11 @@ async function buildEvalGenerationInput(testCase: EvalCase): Promise<
       graph: GrowthEvalInput["graph"];
       preference: GrowthEvalInput["preference"];
       previousSummary: GrowthEvalInput["previousSummary"];
+    }
+  | {
+      mode: "routing";
+      prompt: string;
+      requestContext: RoutingEvalInput["requestContext"];
     }
 > {
   switch (testCase.domain) {
@@ -95,8 +109,8 @@ async function buildEvalGenerationInput(testCase: EvalCase): Promise<
       return {
         mode: "agent-interview",
         prompt: input.userGoal,
+        messages: input.messages,
         currentOutline: input.currentOutline,
-        sessionMode: input.mode,
       };
     }
     case "learn": {
@@ -126,6 +140,14 @@ async function buildEvalGenerationInput(testCase: EvalCase): Promise<
         previousSummary: input.previousSummary,
       };
     }
+    case "routing": {
+      const input = testCase.input as unknown as RoutingEvalInput;
+      return {
+        mode: "routing",
+        prompt: input.message,
+        requestContext: input.requestContext,
+      };
+    }
     default:
       throw new Error(`Unsupported eval domain: ${testCase.domain satisfies never}`);
   }
@@ -141,6 +163,7 @@ function getPolicyForCase(testCase: EvalCase) {
       return "interactive-fast" as const;
     }
     case "growth":
+    case "routing":
       return "interactive-fast" as const;
     default:
       throw new Error(`Unsupported eval domain: ${testCase.domain satisfies never}`);
@@ -166,7 +189,35 @@ function parseJsonOutput(output: string) {
   }
 }
 
-function runInterviewRuleChecks(output: string): EvalRuleCheck[] {
+function isGenericCourseTitle(title: string) {
+  const normalized = title.trim();
+  if (normalized.length < 6) {
+    return true;
+  }
+
+  const hasPathOrOutcomeSignal = /[：:：]|从.+到|实战|项目|作品|转型|交付|应用|冲刺|备考|进阶/.test(
+    normalized,
+  );
+  const endsWithGenericCourseType = /(概念课|基础课|入门课|系统课|系统学习|系统讲解)$/.test(
+    normalized,
+  );
+
+  return endsWithGenericCourseType && !hasPathOrOutcomeSignal;
+}
+
+function hasConcreteOutcomeText(value: unknown, minLength: number) {
+  if (typeof value !== "string") {
+    return false;
+  }
+
+  const text = value.trim();
+  return (
+    text.length >= minLength &&
+    /能|能够|完成|独立|掌握|做出|产出|应用|解决|通过|交付|上线|写出|建立|形成/.test(text)
+  );
+}
+
+function runInterviewRuleChecks(testCase: EvalCase, output: string): EvalRuleCheck[] {
   const parsed = parseJsonOutput(output);
 
   if (!parsed) {
@@ -195,6 +246,8 @@ function runInterviewRuleChecks(output: string): EvalRuleCheck[] {
     return typeof option.label === "string" && option.label.trim().length > 0;
   });
   const courseId = parsed.courseId;
+  const input = testCase.input as unknown as InterviewEvalInput;
+  const expectedInteraction = input.expectedInteraction ?? "guided";
 
   const checks: EvalRuleCheck[] = [
     {
@@ -206,11 +259,6 @@ function runInterviewRuleChecks(output: string): EvalRuleCheck[] {
           : "Assistant message is empty.",
     },
     {
-      name: "options-count",
-      passed: options.length >= 2 && options.length <= 4,
-      details: `Options count is ${options.length}. Expected 2-4.`,
-    },
-    {
       name: "preview-course-id-empty",
       passed: courseId == null,
       details:
@@ -219,6 +267,29 @@ function runInterviewRuleChecks(output: string): EvalRuleCheck[] {
           : `Preview unexpectedly returned courseId=${String(courseId)}.`,
     },
   ];
+
+  if (expectedInteraction === "text") {
+    checks.push(
+      {
+        name: "text-only-no-options",
+        passed: options.length === 0,
+        details: `Options count is ${options.length}. Expected no options for text-only turns.`,
+      },
+      {
+        name: "text-only-no-outline",
+        passed: outline == null,
+        details: outline == null ? "No outline returned." : "Unexpected outline returned.",
+      },
+    );
+
+    return checks;
+  }
+
+  checks.push({
+    name: "options-count",
+    passed: options.length >= 2 && options.length <= 4,
+    details: `Options count is ${options.length}. Expected 2-4.`,
+  });
 
   if (!outline || typeof outline !== "object") {
     checks.push({
@@ -271,14 +342,29 @@ function runInterviewRuleChecks(output: string): EvalRuleCheck[] {
       passed:
         typeof outlineRecord.title === "string" &&
         outlineRecord.title.trim().length > 0 &&
+        hasConcreteOutcomeText(outlineRecord.description, 30) &&
+        typeof outlineRecord.targetAudience === "string" &&
+        outlineRecord.targetAudience.trim().length >= 10 &&
+        hasConcreteOutcomeText(outlineRecord.learningOutcome, 20) &&
         typeof outlineRecord.difficulty === "string" &&
         outlineRecord.difficulty.trim().length > 0,
-      details: "Outline preview must contain title and difficulty.",
+      details:
+        "Outline preview must contain product-quality title, description, targetAudience, learningOutcome, and difficulty.",
+    },
+    {
+      name: "course-title-product-quality",
+      passed: typeof outlineRecord.title === "string" && !isGenericCourseTitle(outlineRecord.title),
+      details:
+        typeof outlineRecord.title === "string"
+          ? `Course title is "${outlineRecord.title}".`
+          : "Course title is missing.",
     },
     {
       name: "chapter-count",
-      passed: chapters.length >= 6 && chapters.length <= 7,
-      details: `Outline chapter count is ${chapters.length}. Expected 6-7.`,
+      passed:
+        chapters.length >= INTERVIEW_OUTLINE_CHAPTER_LIMITS.min &&
+        chapters.length <= INTERVIEW_OUTLINE_CHAPTER_LIMITS.max,
+      details: `Outline chapter count is ${chapters.length}. Expected ${INTERVIEW_OUTLINE_CHAPTER_LIMITS.min}-${INTERVIEW_OUTLINE_CHAPTER_LIMITS.max}.`,
     },
     {
       name: "course-skill-ids",
@@ -302,7 +388,10 @@ function runInterviewRuleChecks(output: string): EvalRuleCheck[] {
           (section): section is Record<string, unknown> => !!section && typeof section === "object",
         )
       : [];
-    if (sections.length < 2 || sections.length > 4) {
+    if (
+      sections.length < INTERVIEW_OUTLINE_SECTION_LIMITS.min ||
+      sections.length > INTERVIEW_OUTLINE_SECTION_LIMITS.max
+    ) {
       invalidChapterIndexes.push(i + 1);
     }
 
@@ -322,7 +411,7 @@ function runInterviewRuleChecks(output: string): EvalRuleCheck[] {
     passed: invalidChapterIndexes.length === 0,
     details:
       invalidChapterIndexes.length === 0
-        ? "All chapters contain 2-4 skeleton sections."
+        ? `All chapters contain ${INTERVIEW_OUTLINE_SECTION_LIMITS.min}-${INTERVIEW_OUTLINE_SECTION_LIMITS.max} skeleton sections.`
         : `Chapters with invalid skeleton section counts: ${invalidChapterIndexes.join(", ")}.`,
   });
 
@@ -574,6 +663,23 @@ function buildGrowthDeterministicJudgement(
   };
 }
 
+function buildRoutingDeterministicJudgement(ruleChecks: EvalRuleCheck[]): {
+  score: number;
+  notes: string[];
+} {
+  const passedRuleCount = ruleChecks.filter((check) => check.passed).length;
+  const failedRuleNames = ruleChecks.filter((check) => !check.passed).map((check) => check.name);
+  const score = ruleChecks.length > 0 ? passedRuleCount / ruleChecks.length : 1;
+
+  return {
+    score: clampScore(score),
+    notes:
+      failedRuleNames.length === 0
+        ? [`Routing contract passed ${passedRuleCount}/${ruleChecks.length} deterministic checks.`]
+        : [`Routing failed checks: ${failedRuleNames.join(", ")}.`],
+  };
+}
+
 function includesText(haystack: string, needle: string): boolean {
   return haystack.toLocaleLowerCase("zh-CN").includes(needle.toLocaleLowerCase("zh-CN"));
 }
@@ -634,9 +740,11 @@ function runRegressionSpecChecks(
 function runDomainRuleChecks(testCase: EvalCase, output: string): EvalRuleCheck[] {
   switch (testCase.domain) {
     case "interview":
-      return runInterviewRuleChecks(output);
+      return runInterviewRuleChecks(testCase, output);
     case "growth":
       return runGrowthComposeRuleChecks(testCase, output);
+    case "routing":
+      return runRoutingRuleChecks(testCase, output);
     default:
       return [];
   }
@@ -681,14 +789,14 @@ export async function runEvalCase(testCase: EvalCase): Promise<EvalExecutionResu
     if (generationInput.mode === "agent-chat") {
       generationResult = await runChatEval({
         prompt: generationInput.prompt,
-        profile: "CHAT_BASIC",
+        capabilityMode: "general_chat",
         telemetry,
         startedAt,
       });
     } else if (generationInput.mode === "agent-notes") {
       generationResult = await runChatEval({
         prompt: generationInput.prompt,
-        profile: "NOTE_ASSIST",
+        capabilityMode: "note_assistant",
         userContext: `## 当前笔记内容\n${generationInput.noteExcerpt}`,
         telemetry,
         startedAt,
@@ -696,8 +804,8 @@ export async function runEvalCase(testCase: EvalCase): Promise<EvalExecutionResu
     } else if (generationInput.mode === "agent-interview") {
       generationResult = await runInterviewEval({
         prompt: generationInput.prompt,
+        messages: generationInput.messages,
         currentOutline: generationInput.currentOutline,
-        mode: generationInput.sessionMode,
         telemetry,
         startedAt,
       });
@@ -706,6 +814,12 @@ export async function runEvalCase(testCase: EvalCase): Promise<EvalExecutionResu
         graph: generationInput.graph,
         preference: generationInput.preference,
         previousSummary: generationInput.previousSummary,
+        startedAt,
+      });
+    } else if (generationInput.mode === "routing") {
+      generationResult = await runRoutingEval({
+        prompt: generationInput.prompt,
+        requestContext: generationInput.requestContext,
         startedAt,
       });
     } else {
@@ -723,9 +837,11 @@ export async function runEvalCase(testCase: EvalCase): Promise<EvalExecutionResu
     const judgement =
       testCase.domain === "growth"
         ? buildGrowthDeterministicJudgement(testCase, generationResult.output, ruleChecks)
-        : await judgeEvalOutput(testCase, generationResult.output);
+        : testCase.domain === "routing"
+          ? buildRoutingDeterministicJudgement(ruleChecks)
+          : await judgeEvalOutput(testCase, generationResult.output);
     const quality: EvalQualityAssessment =
-      testCase.domain === "growth"
+      testCase.domain === "growth" || testCase.domain === "routing"
         ? {
             source: "deterministic",
             score: judgement.score,
@@ -823,18 +939,17 @@ async function runTextEval({
 
 async function runChatEval({
   prompt,
-  profile,
+  capabilityMode,
   userContext,
   telemetry,
   startedAt,
 }: {
   prompt: string;
-  profile: "CHAT_BASIC" | "NOTE_ASSIST";
+  capabilityMode: "general_chat" | "note_assistant";
   userContext?: string;
   telemetry: ReturnType<typeof createTelemetryContext>;
   startedAt: number;
 }): Promise<EvalGenerationResult> {
-  const { createChatAgent } = await import("@/lib/ai/agents/chat");
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort("eval-timeout"), EVAL_AGENT_TIMEOUT_MS);
 
@@ -847,11 +962,13 @@ async function runChatEval({
       },
     ];
 
-    const agent = await createChatAgent({
-      userId: "eval-user",
-      profile,
-      userContext,
-      telemetry: EVAL_RECORD_USAGE ? telemetry : undefined,
+    const agent = await createConversationSpecialistAgent({
+      mode: capabilityMode,
+      options: {
+        userId: "eval-user",
+        userContext,
+        telemetry: EVAL_RECORD_USAGE ? telemetry : undefined,
+      },
     });
 
     const modelMessages = await convertToModelMessages(messages, {
@@ -898,7 +1015,7 @@ async function runChatEval({
         success: true,
         metadata: {
           ...telemetry.metadata,
-          mode: profile === "NOTE_ASSIST" ? "agent-notes" : "agent-chat",
+          mode: capabilityMode === "note_assistant" ? "agent-notes" : "agent-chat",
         },
       });
     }
@@ -920,14 +1037,14 @@ async function runChatEval({
 
 async function runInterviewEval({
   prompt,
+  messages: inputMessages,
   currentOutline,
-  mode,
   telemetry,
   startedAt,
 }: {
   prompt: string;
+  messages?: InterviewEvalInput["messages"];
   currentOutline?: InterviewEvalInput["currentOutline"];
-  mode?: InterviewEvalInput["mode"];
   telemetry: ReturnType<typeof createTelemetryContext>;
   startedAt: number;
 }): Promise<EvalGenerationResult> {
@@ -935,19 +1052,25 @@ async function runInterviewEval({
   const timeoutId = setTimeout(() => controller.abort("eval-timeout"), EVAL_AGENT_TIMEOUT_MS);
 
   try {
-    const messages: InterviewUIMessage[] = [
-      {
-        id: `eval-user-${crypto.randomUUID()}`,
-        role: "user",
-        parts: [{ type: "text", text: prompt }],
-      },
-    ];
+    const messages: InterviewUIMessage[] =
+      inputMessages && inputMessages.length > 0
+        ? inputMessages.map((message) => ({
+            id: `eval-${message.role}-${crypto.randomUUID()}`,
+            role: message.role,
+            parts: [{ type: "text" as const, text: message.text }],
+          }))
+        : [
+            {
+              id: `eval-user-${crypto.randomUUID()}`,
+              role: "user",
+              parts: [{ type: "text", text: prompt }],
+            },
+          ];
 
-    const agent = await createInterviewSessionAgent({
+    const agent = createCourseInterviewerSpecialistAgent({
       userId: "eval-user",
       currentOutline,
       messages,
-      mode,
       telemetry: EVAL_RECORD_USAGE ? telemetry : undefined,
     });
 
@@ -961,6 +1084,10 @@ async function runInterviewEval({
     });
 
     const latestById = new Map<string, InterviewUIMessage>();
+    let latestVisibleAssistantSnapshot: ReturnType<
+      typeof getLatestVisibleInterviewAssistantMessage
+    > = null;
+    let latestStableOutlineSnapshot: ReturnType<typeof findLatestStableOutline> = null;
     let firstTextMs: number | null = null;
     let firstOptionsMs: number | null = null;
     let firstOutlineMs: number | null = null;
@@ -976,6 +1103,16 @@ async function runInterviewEval({
 
       if (uiMessage.role !== "assistant") {
         continue;
+      }
+
+      const visibleMessage = getLatestVisibleInterviewAssistantMessage([uiMessage]);
+      if (visibleMessage && (visibleMessage.text.length > 0 || visibleMessage.options?.length)) {
+        latestVisibleAssistantSnapshot = visibleMessage;
+      }
+
+      const stableOutline = findLatestStableOutline([uiMessage]);
+      if (stableOutline) {
+        latestStableOutlineSnapshot = stableOutline;
       }
 
       if (firstTextMs == null && getInterviewMessageText(uiMessage).length > 0) {
@@ -995,8 +1132,13 @@ async function runInterviewEval({
     }
 
     const finalMessages = [...latestById.values()];
-    const lastAssistant = getLatestVisibleInterviewAssistantMessage(finalMessages);
-    const latestOutline = findLatestStableOutline(finalMessages);
+    const finalAssistant = getLatestVisibleInterviewAssistantMessage(finalMessages);
+    const lastAssistant =
+      finalAssistant &&
+      (finalAssistant.text.length > 0 || (finalAssistant.options?.length ?? 0) > 0)
+        ? finalAssistant
+        : latestVisibleAssistantSnapshot;
+    const latestOutline = findLatestStableOutline(finalMessages) ?? latestStableOutlineSnapshot;
 
     const text = lastAssistant?.text ?? "";
     const options = lastAssistant?.options ?? [];
@@ -1060,6 +1202,122 @@ async function runGrowthComposeEval({
 
   return {
     output: JSON.stringify(composed, null, 2),
+    runtimeMetrics: {
+      totalMs,
+      firstTextMs: totalMs,
+      firstOptionsMs: null,
+      firstOutlineMs: null,
+      timedOut: false,
+    },
+  };
+}
+
+function runRoutingRuleChecks(testCase: EvalCase, output: string): EvalRuleCheck[] {
+  const parsed = routeDecisionSchema.safeParse(parseJsonOutput(output));
+
+  if (!parsed.success) {
+    return [
+      {
+        name: "valid-route-decision",
+        passed: false,
+        details: "Routing eval output is not a valid RouteDecision JSON payload.",
+      },
+    ];
+  }
+
+  const input = testCase.input as unknown as RoutingEvalInput;
+  const expected = input.expectedRoute;
+  const decision = parsed.data;
+
+  return [
+    {
+      name: "requested-capability-mode",
+      passed: decision.capabilityMode === expected.capabilityMode,
+      details: `Expected capabilityMode=${expected.capabilityMode}, got ${decision.capabilityMode}.`,
+    },
+    {
+      name: "resolved-capability-mode",
+      passed: decision.resolvedCapabilityMode === expected.resolvedCapabilityMode,
+      details: `Expected resolvedCapabilityMode=${expected.resolvedCapabilityMode}, got ${decision.resolvedCapabilityMode}.`,
+    },
+    {
+      name: "execution-mode",
+      passed: decision.executionMode === expected.executionMode,
+      details: `Expected executionMode=${expected.executionMode}, got ${decision.executionMode}.`,
+    },
+    {
+      name: "handoff-target",
+      passed: (decision.handoffTarget ?? null) === (expected.handoffTarget ?? null),
+      details: `Expected handoffTarget=${String(expected.handoffTarget ?? null)}, got ${String(decision.handoffTarget ?? null)}.`,
+    },
+    {
+      name: "has-route-reasons",
+      passed: decision.reasons.length > 0 && decision.arbiterNotes.length > 0,
+      details: "RouteDecision should include both classifier reasons and arbiter notes.",
+    },
+  ];
+}
+
+async function runRoutingEval({
+  prompt,
+  requestContext: inputContext,
+  startedAt,
+}: {
+  prompt: string;
+  requestContext: RoutingEvalInput["requestContext"];
+  startedAt: number;
+}): Promise<EvalGenerationResult> {
+  const { orchestrateRequest } = await import("@/lib/ai/runtime/orchestrate-request");
+
+  const metadata =
+    inputContext.metadataContext === "learn" && inputContext.courseId
+      ? {
+          context: "learn" as const,
+          courseId: inputContext.courseId,
+          chapterIndex: inputContext.chapterIndex ?? 0,
+          sectionIndex: inputContext.sectionIndex,
+        }
+      : inputContext.metadataContext === "editor" && inputContext.documentId
+        ? {
+            context: "editor" as const,
+            documentId: inputContext.documentId,
+          }
+        : undefined;
+
+  const routeDecision = await orchestrateRequest({
+    userId: "eval-user",
+    messages: [
+      {
+        id: `eval-user-${crypto.randomUUID()}`,
+        role: "user",
+        parts: [{ type: "text", text: prompt }],
+      },
+    ],
+    requestContext: {
+      surface: inputContext.surface,
+      sessionId: null,
+      recentMessages: inputContext.recentMessages ?? [prompt],
+      metadata,
+      resourceContext: {
+        courseId: inputContext.courseId,
+        chapterIndex: inputContext.chapterIndex,
+        sectionIndex: inputContext.sectionIndex,
+        documentId: inputContext.documentId,
+      },
+      hasLearningGuidance: inputContext.hasLearningGuidance,
+      hasGrowthSnapshot: inputContext.hasGrowthSnapshot,
+      hasEditorContext: inputContext.hasEditorContext,
+      userPolicy: {
+        routeProfile: "platform",
+        skinSlug: null,
+      },
+      learningGuidance: undefined,
+    },
+  });
+  const totalMs = Date.now() - startedAt;
+
+  return {
+    output: JSON.stringify(routeDecision, null, 2),
     runtimeMetrics: {
       totalMs,
       firstTextMs: totalMs,

@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { GROWTH_AI_MODEL_LABEL } from "@/lib/growth/constants";
+import { GROWTH_MERGE_PROMPT_VERSION, GROWTH_MERGE_RUNTIME_LABEL } from "@/lib/growth/constants";
 import { loadSourceEvidenceRows } from "@/lib/growth/data-access";
 import {
   applyValidatedGrowthMerge,
@@ -48,10 +48,10 @@ export async function processGrowthMergeJob(
     userId: job.userId,
     courseId: job.courseId,
     kind: "merge",
-    idempotencyKey: `merge:user:${job.userId}:course:${job.courseId}:extract_run:${extractRun.id}`,
+    idempotencyKey: `merge:user:${job.userId}:course:${job.courseId}:extract_run:${extractRun.id}:prompt:${GROWTH_MERGE_PROMPT_VERSION}`,
     inputHash: extractRun.inputHash,
-    model: GROWTH_AI_MODEL_LABEL,
-    promptVersion: "growth-merge@v2",
+    model: GROWTH_MERGE_RUNTIME_LABEL,
+    promptVersion: GROWTH_MERGE_PROMPT_VERSION,
     reuseCompleted: true,
   });
 
@@ -71,22 +71,11 @@ export async function processGrowthMergeJob(
     evidenceIds: evidenceRows.map((row) => row.id),
   });
 
-  const priorCourseLinks = await listLinkedNodeEvidenceRows({
-    userId: job.userId,
-    sourceType: "course",
-    sourceId: job.courseId,
-  });
-
   try {
     const validated = await planValidatedGrowthMerge({
       userId: job.userId,
-      plannerResourceId: job.courseId,
       evidenceRows,
       evidenceRefs,
-      priorSummary: {
-        kind: "course",
-        links: priorCourseLinks,
-      },
     });
 
     await db.transaction(async (tx) => {

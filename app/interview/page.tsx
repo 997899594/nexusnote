@@ -3,17 +3,14 @@ import { requireDynamicPageAuth } from "@/lib/auth/page";
 import InterviewPageClient from "./InterviewPageClient";
 
 interface InterviewPageProps {
-  searchParams: Promise<{ msg?: string; mode?: string }>;
+  searchParams: Promise<{ msg?: string }>;
 }
 
 async function InterviewPageContent({ searchParams }: InterviewPageProps) {
-  const { msg, mode } = await searchParams;
+  const { msg } = await searchParams;
   const search = new URLSearchParams();
   if (msg) {
     search.set("msg", msg);
-  }
-  if (mode) {
-    search.set("mode", mode);
   }
   const callbackUrl = search.size > 0 ? `/interview?${search.toString()}` : "/interview";
   await requireDynamicPageAuth(callbackUrl);

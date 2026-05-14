@@ -46,6 +46,7 @@ export function UserAvatar({ className = "", size = "md" }: UserAvatarProps) {
       router.push(createLoginPath(getCurrentCallbackUrl()));
     }
   };
+  const actionLabel = status === "authenticated" ? "打开个人中心" : "登录";
 
   // Loading state - show pulse
   if (status === "loading") {
@@ -59,15 +60,21 @@ export function UserAvatar({ className = "", size = "md" }: UserAvatarProps) {
   // User has image - show image
   if (displayUser?.image) {
     return (
-      <Image
-        src={displayUser.image}
-        alt={displayUser.name || displayUser.email}
-        width={sizeMap[size]}
-        height={sizeMap[size]}
+      <button
+        type="button"
         onClick={handleClick}
-        className={`${sizeClasses[size]} rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity ${className}`}
-        unoptimized
-      />
+        aria-label={actionLabel}
+        className={`${sizeClasses[size]} overflow-hidden rounded-full border-0 p-0 transition-opacity hover:opacity-80 ${className}`}
+      >
+        <Image
+          src={displayUser.image}
+          alt={displayUser.name || displayUser.email}
+          width={sizeMap[size]}
+          height={sizeMap[size]}
+          className="h-full w-full object-cover"
+          unoptimized
+        />
+      </button>
     );
   }
 
@@ -76,6 +83,7 @@ export function UserAvatar({ className = "", size = "md" }: UserAvatarProps) {
     <button
       type="button"
       onClick={handleClick}
+      aria-label={actionLabel}
       className={`${sizeClasses[size]} rounded-full bg-[var(--color-accent)] text-[var(--color-accent-fg)] flex items-center justify-center font-medium border-0 p-0 hover:opacity-80 transition-opacity ${className}`}
     >
       {displayUser ? getProfileAvatarLabel(displayUser.name, displayUser.email) : "?"}

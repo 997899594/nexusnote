@@ -45,6 +45,17 @@ export interface VisibleSkillTreeNode {
   evidenceRefs?: string[];
 }
 
+export const careerProgressionRoleSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  summary: z.string(),
+  horizon: z.enum(["next", "later"]),
+  confidence: z.number().min(0).max(1),
+  supportingNodeRefs: z.array(z.string()).min(1),
+});
+
+export type CareerProgressionRole = z.infer<typeof careerProgressionRoleSchema>;
+
 export const candidateCareerTreeSchema = z.object({
   directionKey: z.string(),
   title: z.string(),
@@ -53,6 +64,7 @@ export const candidateCareerTreeSchema = z.object({
   whyThisDirection: z.string(),
   supportingCourses: z.array(supportingCourseRefSchema),
   supportingChapters: z.array(supportingChapterRefSchema),
+  progressionRoles: z.array(careerProgressionRoleSchema).min(1).max(3),
   tree: z.array(visibleSkillTreeNodeSchema),
 });
 

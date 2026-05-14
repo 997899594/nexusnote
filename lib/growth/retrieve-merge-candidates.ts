@@ -17,16 +17,55 @@ export interface MergeCandidatePrerequisiteEdge {
   toNodeId: string;
 }
 
+export interface MergeCandidateEvidenceOptions {
+  evidenceId: string;
+  candidateNodeIds: string[];
+}
+
 export interface MergeCandidateSet {
   nodes: MergeCandidateNode[];
   evidenceLinks: MergeCandidateEvidenceLink[];
   prerequisiteEdges: MergeCandidatePrerequisiteEdge[];
+  evidenceCandidates: MergeCandidateEvidenceOptions[];
+}
+
+interface MergeCandidateEvidenceItem extends ExtractedGrowthEvidenceItem {
+  id?: string;
 }
 
 const MAX_PER_EVIDENCE = 8;
 const MAX_NODES = 40;
 const MAX_EVIDENCE_LINKS = 60;
 const MAX_PREREQUISITE_EDGES = 40;
+const GENERIC_MATCH_TOKENS = new Set([
+  "ai",
+  "and",
+  "applied",
+  "architecture",
+  "across",
+  "among",
+  "capabilities",
+  "capability",
+  "concept",
+  "concepts",
+  "core",
+  "design",
+  "foundation",
+  "foundations",
+  "for",
+  "from",
+  "into",
+  "level",
+  "skill",
+  "skills",
+  "system",
+  "systems",
+  "the",
+  "thinking",
+  "under",
+  "via",
+  "with",
+]);
 
 function normalizeText(value: string | null | undefined): string {
   return (value ?? "")
@@ -40,6 +79,14 @@ function tokenize(value: string): string[] {
   return normalizeText(value)
     .split(" ")
     .filter((token) => token.length >= 2);
+}
+
+function selectDistinctiveTokens(tokens: string[]): string[] {
+  const distinctive = tokens.filter(
+    (token) => token.length >= 3 && !GENERIC_MATCH_TOKENS.has(token),
+  );
+
+  return distinctive.length > 0 ? distinctive : tokens;
 }
 
 function overlapScore(left: string[], right: string[]): number {
@@ -63,21 +110,31 @@ function scoreEvidenceToNode(
   evidence: ExtractedGrowthEvidenceItem,
   node: MergeCandidateNode,
 ): number {
-  const evidenceTokens = tokenize(
-    `${evidence.title} ${evidence.summary} ${evidence.evidenceSnippets.join(" ")}`,
+  const evidenceTitleTokens = tokenize(evidence.title);
+  const evidenceContextTokens = tokenize(
+    `${evidence.summary} ${evidence.evidenceSnippets.join(" ")}`,
   );
   const nodeTokens = tokenize(`${node.canonicalLabel} ${node.summary ?? ""}`);
+  const nodeSignalTokens = selectDistinctiveTokens(nodeTokens);
+  const titleScore = overlapScore(selectDistinctiveTokens(evidenceTitleTokens), nodeSignalTokens);
 
-  return overlapScore(evidenceTokens, nodeTokens);
+  if (titleScore === 0) {
+    return 0;
+  }
+
+  return (
+    titleScore * 4 + overlapScore(selectDistinctiveTokens(evidenceContextTokens), nodeSignalTokens)
+  );
 }
 
 export function retrieveMergeCandidateSet(params: {
-  evidenceItems: ExtractedGrowthEvidenceItem[];
+  evidenceItems: MergeCandidateEvidenceItem[];
   existingNodes: MergeCandidateNode[];
   existingEvidenceLinks: MergeCandidateEvidenceLink[];
   existingPrerequisiteEdges: MergeCandidatePrerequisiteEdge[];
 }): MergeCandidateSet {
   const selectedNodeIds = new Set<string>();
+  const evidenceCandidates: MergeCandidateEvidenceOptions[] = [];
 
   for (const evidenceItem of params.evidenceItems) {
     const topCandidates = params.existingNodes
@@ -85,6 +142,14 @@ export function retrieveMergeCandidateSet(params: {
       .filter((item) => item.score > 0)
       .sort((left, right) => right.score - left.score)
       .slice(0, MAX_PER_EVIDENCE);
+    const candidateNodeIds = topCandidates.map((candidate) => candidate.nodeId);
+
+    if (evidenceItem.id) {
+      evidenceCandidates.push({
+        evidenceId: evidenceItem.id,
+        candidateNodeIds,
+      });
+    }
 
     for (const candidate of topCandidates) {
       selectedNodeIds.add(candidate.nodeId);
@@ -115,5 +180,6 @@ export function retrieveMergeCandidateSet(params: {
     nodes,
     evidenceLinks,
     prerequisiteEdges,
+    evidenceCandidates,
   };
 }

@@ -31,6 +31,7 @@ export const composeGraphNodeSchema = z.object({
   id: z.string().trim().min(1),
   canonicalLabel: z.string().trim().min(1),
   summary: z.string().nullable(),
+  semanticRefs: z.array(z.string().trim().min(1)).default([]),
   progress: z.number().min(0).max(100),
   state: z.string().trim().min(1),
   courseCount: z.number().int().nonnegative(),

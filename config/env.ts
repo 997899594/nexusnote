@@ -47,6 +47,24 @@ export const defaults = {
     modelExtract: "qwen-plus-latest",
     modelReview: "gpt-5.5",
     modelWebSearch: "gpt-5.4-mini",
+    domesticModelInteractive: "qwen-plus-latest",
+    domesticModelOutline: "qwen-plus-latest",
+    domesticModelSectionDraft: "qwen-plus-latest",
+    domesticModelExtract: "qwen-plus-latest",
+    domesticModelReview: "qwen-max-latest",
+    domesticModelWebSearch: "qwen-plus-latest",
+    geminiModelInteractive: "gemini-3.1-flash-lite-preview",
+    geminiModelOutline: "gemini-3.1-pro-preview",
+    geminiModelSectionDraft: "gemini-3.1-flash-lite-preview",
+    geminiModelExtract: "gemini-3.1-flash-lite-preview",
+    geminiModelReview: "gemini-3.1-pro-preview",
+    geminiModelWebSearch: "gemini-3.1-flash-lite-preview",
+    openaiModelInteractive: "gpt-5.4-mini",
+    openaiModelOutline: "gpt-5.4-mini",
+    openaiModelSectionDraft: "gpt-5.4-mini",
+    openaiModelExtract: "gpt-5.4-mini",
+    openaiModelReview: "gpt-5.5",
+    openaiModelWebSearch: "gpt-5.4-mini",
     // 定价（USD / 1M tokens）。未知供应商通道默认 0，避免伪精确成本。
     priceInteractiveInputPer1M: 0,
     priceInteractiveOutputPer1M: 0,
@@ -137,6 +155,24 @@ export const serverEnvSchema = z.object({
   AI_MODEL_EXTRACT: z.string().default(defaults.ai.modelExtract),
   AI_MODEL_REVIEW: z.string().default(defaults.ai.modelReview),
   AI_MODEL_WEB_SEARCH: z.string().default(defaults.ai.modelWebSearch),
+  AI_DOMESTIC_MODEL_INTERACTIVE: z.string().default(defaults.ai.domesticModelInteractive),
+  AI_DOMESTIC_MODEL_OUTLINE: z.string().default(defaults.ai.domesticModelOutline),
+  AI_DOMESTIC_MODEL_SECTION_DRAFT: z.string().default(defaults.ai.domesticModelSectionDraft),
+  AI_DOMESTIC_MODEL_EXTRACT: z.string().default(defaults.ai.domesticModelExtract),
+  AI_DOMESTIC_MODEL_REVIEW: z.string().default(defaults.ai.domesticModelReview),
+  AI_DOMESTIC_MODEL_WEB_SEARCH: z.string().default(defaults.ai.domesticModelWebSearch),
+  AI_GEMINI_MODEL_INTERACTIVE: z.string().default(defaults.ai.geminiModelInteractive),
+  AI_GEMINI_MODEL_OUTLINE: z.string().default(defaults.ai.geminiModelOutline),
+  AI_GEMINI_MODEL_SECTION_DRAFT: z.string().default(defaults.ai.geminiModelSectionDraft),
+  AI_GEMINI_MODEL_EXTRACT: z.string().default(defaults.ai.geminiModelExtract),
+  AI_GEMINI_MODEL_REVIEW: z.string().default(defaults.ai.geminiModelReview),
+  AI_GEMINI_MODEL_WEB_SEARCH: z.string().default(defaults.ai.geminiModelWebSearch),
+  AI_OPENAI_MODEL_INTERACTIVE: z.string().default(defaults.ai.openaiModelInteractive),
+  AI_OPENAI_MODEL_OUTLINE: z.string().default(defaults.ai.openaiModelOutline),
+  AI_OPENAI_MODEL_SECTION_DRAFT: z.string().default(defaults.ai.openaiModelSectionDraft),
+  AI_OPENAI_MODEL_EXTRACT: z.string().default(defaults.ai.openaiModelExtract),
+  AI_OPENAI_MODEL_REVIEW: z.string().default(defaults.ai.openaiModelReview),
+  AI_OPENAI_MODEL_WEB_SEARCH: z.string().default(defaults.ai.openaiModelWebSearch),
   AI_MODEL_INTERACTIVE_PRICE_INPUT_PER_1M: z.coerce
     .number()
     .nonnegative()
@@ -209,12 +245,14 @@ export const serverEnvSchema = z.object({
 
   // Embedding
   EMBEDDING_MODEL: z.string().default(defaults.embedding.model),
+  // Database schema owns the vector width. Changing this requires an explicit schema migration.
   EMBEDDING_DIMENSIONS: z.coerce
     .number()
     .int()
-    .positive()
-    .max(8192)
-    .default(defaults.embedding.dimensions),
+    .default(defaults.embedding.dimensions)
+    .refine((value) => value === defaults.embedding.dimensions, {
+      message: `EMBEDDING_DIMENSIONS must match database vector(${defaults.embedding.dimensions})`,
+    }),
 
   // Reranker
   RERANKER_MODEL: z.string().default(defaults.reranker.model),
@@ -421,6 +459,9 @@ export function logServerConfig(env: ServerEnv): void {
   console.log(`  AI_MODEL_EXTRACT: ${env.AI_MODEL_EXTRACT}`);
   console.log(`  AI_MODEL_REVIEW: ${env.AI_MODEL_REVIEW}`);
   console.log(`  AI_MODEL_WEB_SEARCH: ${env.AI_MODEL_WEB_SEARCH}`);
+  console.log(`  AI_DOMESTIC_MODEL_INTERACTIVE: ${env.AI_DOMESTIC_MODEL_INTERACTIVE}`);
+  console.log(`  AI_GEMINI_MODEL_INTERACTIVE: ${env.AI_GEMINI_MODEL_INTERACTIVE}`);
+  console.log(`  AI_OPENAI_MODEL_INTERACTIVE: ${env.AI_OPENAI_MODEL_INTERACTIVE}`);
   console.log(`  AI_ENABLE_WEB_SEARCH: ${env.AI_ENABLE_WEB_SEARCH}`);
   console.log(`  EMBEDDING_MODEL: ${env.EMBEDDING_MODEL}`);
   console.log(`  EMBEDDING_DIMENSIONS: ${env.EMBEDDING_DIMENSIONS}`);

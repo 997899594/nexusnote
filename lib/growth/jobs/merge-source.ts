@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { GROWTH_AI_MODEL_LABEL } from "@/lib/growth/constants";
+import { GROWTH_MERGE_PROMPT_VERSION, GROWTH_MERGE_RUNTIME_LABEL } from "@/lib/growth/constants";
 import { loadSourceEvidenceRows } from "@/lib/growth/data-access";
 import {
   applyValidatedGrowthMerge,
@@ -62,10 +62,10 @@ export async function processKnowledgeSourceMergeJob(
   const mergeRun = await getOrCreateGenerationRun({
     userId: job.userId,
     kind: "merge",
-    idempotencyKey: `merge:user:${job.userId}:source:${job.sourceType}:${job.sourceId}:hash:${evidenceBatchHash}`,
+    idempotencyKey: `merge:user:${job.userId}:source:${job.sourceType}:${job.sourceId}:hash:${evidenceBatchHash}:prompt:${GROWTH_MERGE_PROMPT_VERSION}`,
     inputHash: evidenceBatchHash,
-    model: GROWTH_AI_MODEL_LABEL,
-    promptVersion: "growth-merge@v2",
+    model: GROWTH_MERGE_RUNTIME_LABEL,
+    promptVersion: GROWTH_MERGE_PROMPT_VERSION,
     reuseCompleted: true,
   });
 
@@ -81,14 +81,8 @@ export async function processKnowledgeSourceMergeJob(
   try {
     const validated = await planValidatedGrowthMerge({
       userId: job.userId,
-      plannerResourceId: `${job.sourceType}:${job.sourceId}`,
       evidenceRows,
       evidenceRefs,
-      priorSummary: {
-        kind: "source",
-        sourceType: job.sourceType,
-        sourceId: job.sourceId,
-      },
     });
 
     const priorSourceMergeRunIds = await listSourceMergeRunIds({

@@ -81,6 +81,15 @@ export function buildCourseOutlineNodeValues(params: {
   });
 }
 
+function requireCourseBlueprintText(value: string | null, field: string): string {
+  const text = value?.trim();
+  if (!text) {
+    throw new Error(`Course outline is missing required ${field}`);
+  }
+
+  return text;
+}
+
 export function materializeCourseOutline(params: {
   version: Pick<
     CourseOutlineVersion,
@@ -117,12 +126,12 @@ export function materializeCourseOutline(params: {
 
   return {
     title: version.title,
-    description: version.description ?? undefined,
-    targetAudience: version.targetAudience ?? undefined,
+    description: requireCourseBlueprintText(version.description, "description"),
+    targetAudience: requireCourseBlueprintText(version.targetAudience, "targetAudience"),
     prerequisites: normalizeStringList(version.prerequisites ?? []),
     difficulty: version.difficulty as CourseOutline["difficulty"],
     courseSkillIds: normalizeStringList(version.courseSkillIds ?? []),
-    learningOutcome: version.learningOutcome ?? undefined,
+    learningOutcome: requireCourseBlueprintText(version.learningOutcome, "learningOutcome"),
     chapters: chapterNodes.map((chapterNode) => ({
       title: chapterNode.title,
       description: chapterNode.description ?? undefined,

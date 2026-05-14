@@ -8,15 +8,9 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { LoadingDots } from "@/components/chat/ChatMessage";
 import { AIDegradationBanner, PromptChip, WorkspaceEmptyState } from "@/components/common";
 import { InterviewMessage } from "@/components/interview/InterviewMessage";
-import { InterviewModePicker } from "@/components/interview/InterviewModePicker";
 import { OutlinePanel } from "@/components/interview/OutlinePanel";
 import { useInterview } from "@/hooks/useInterview";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import {
-  getInterviewSessionModeDescription,
-  getInterviewSessionModeLabel,
-  normalizeInterviewSessionMode,
-} from "@/lib/ai/interview/session-mode";
 import { cn } from "@/lib/utils";
 
 const panelVariants = {
@@ -66,7 +60,6 @@ const mainContentVariants = {
 function InterviewContent() {
   const searchParams = useSearchParams();
   const initialMessage = searchParams.get("msg");
-  const initialMode = normalizeInterviewSessionMode(searchParams.get("mode"));
   const isMobile = useIsMobile();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -76,7 +69,6 @@ function InterviewContent() {
 
   const interview = useInterview({
     initialMessage: initialMessage || undefined,
-    initialMode,
   });
 
   useEffect(() => {
@@ -90,9 +82,6 @@ function InterviewContent() {
   const status = interview.status;
   const isLoading = interview.isLoading;
   const aiDegradedKind = interview.aiDegradedKind;
-  const sessionMode = interview.sessionMode;
-  const setSessionMode = interview.setSessionMode;
-  const canChangeMode = interview.canChangeMode;
   const displayOutline = interview.outline.display;
   const stableOutline = interview.outline.stable;
   const outlineActions = interview.outline.actions;
@@ -147,28 +136,21 @@ function InterviewContent() {
             <WorkspaceEmptyState
               icon={GraduationCap}
               title="你想学什么？"
-              description="先选一种访谈方式，再告诉我你想学什么，我会访谈澄清方向并生成可预览的大纲。"
+              description="告诉我你想学什么，我会先聊清楚目标、基础和约束，再生成可确认的课程蓝图。"
               footer={
-                <div className="space-y-4">
-                  <InterviewModePicker
-                    value={sessionMode}
-                    onChange={setSessionMode}
-                    disabled={!canChangeMode}
-                  />
-                  <div className="flex flex-wrap justify-center gap-2">
-                    {["我想学 Python", "我想学做 PPT", "考研数学怎么准备", "教我做川菜"].map(
-                      (example) => (
-                        <PromptChip
-                          key={example}
-                          label={example}
-                          onClick={() => {
-                            setStarted(true);
-                            void sendMessage({ text: example });
-                          }}
-                        />
-                      ),
-                    )}
-                  </div>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {["我想学 Python", "我想学做 PPT", "考研数学怎么准备", "教我做川菜"].map(
+                    (example) => (
+                      <PromptChip
+                        key={example}
+                        label={example}
+                        onClick={() => {
+                          setStarted(true);
+                          void sendMessage({ text: example });
+                        }}
+                      />
+                    ),
+                  )}
                 </div>
               }
               className="mx-auto max-w-2xl"
@@ -200,7 +182,7 @@ function InterviewContent() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={shouldShowOutlinePanel ? "继续调整大纲..." : "继续对话..."}
+            placeholder={shouldShowOutlinePanel ? "继续调整蓝图..." : "继续对话..."}
             rows={1}
             className="flex-1 min-h-[24px] max-h-[120px] resize-none border-none bg-transparent text-sm text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-muted)]"
           />
@@ -277,12 +259,11 @@ function InterviewContent() {
             <div>
               <h1 className="font-semibold text-[var(--color-text)]">课程访谈</h1>
               <p className="text-xs text-[var(--color-text-tertiary)]">
-                {getInterviewSessionModeLabel(sessionMode)} ·{" "}
                 {interviewCompleted
-                  ? "大纲已生成"
+                  ? "蓝图已生成"
                   : shouldShowOutlinePanel
                     ? "正在整理课程蓝图"
-                    : getInterviewSessionModeDescription(sessionMode)}
+                    : "边聊边收束课程方向"}
               </p>
             </div>
           </div>
@@ -294,7 +275,7 @@ function InterviewContent() {
               <div className="ui-control-surface grid grid-cols-2 rounded-2xl p-1">
                 {[
                   ["chat", "对话"],
-                  ["outline", "大纲"],
+                  ["outline", "蓝图"],
                 ].map(([pane, label]) => (
                   <button
                     key={pane}

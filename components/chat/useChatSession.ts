@@ -12,6 +12,10 @@ import { DefaultChatTransport, type UIMessage } from "ai";
 import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { type AIDegradationKind, createAIDegradationAwareFetch } from "@/lib/ai/core/degradation";
+import {
+  type AIRouteResponseHint,
+  parseAIRouteResponseHint,
+} from "@/lib/ai/runtime/response-headers";
 import { isUnauthorizedError, parseApiError, redirectToLogin } from "@/lib/api/client";
 import { useChatSessionStateStore } from "@/stores/chat-session-state";
 import { useUserPreferencesStore } from "@/stores/user-preferences";
@@ -33,6 +37,7 @@ export function useChatSession({ sessionId, body }: UseChatSessionOptions) {
   const currentSkinSlug = useUserPreferencesStore((state) => state.currentSkinSlug);
   const { addToast } = useToast();
   const [aiDegradedKind, setAIDegradedKind] = useState<AIDegradationKind | null>(null);
+  const [routeHint, setRouteHint] = useState<AIRouteResponseHint | null>(null);
 
   // Zustand-based session state
   const { getSessionMessages, markLoaded, markFailed, setSessionMessages } =
@@ -52,6 +57,9 @@ export function useChatSession({ sessionId, body }: UseChatSessionOptions) {
       fetch: createAIDegradationAwareFetch({
         onStateChange: setAIDegradedKind,
         onUnauthorized: redirectToLogin,
+        onResponse: (response) => {
+          setRouteHint(parseAIRouteResponseHint(response.headers));
+        },
       }),
       body: () => ({
         sessionId,
@@ -72,6 +80,10 @@ export function useChatSession({ sessionId, body }: UseChatSessionOptions) {
   });
 
   const { setMessages } = chat;
+  const sendMessage: typeof chat.sendMessage = async (...args) => {
+    setRouteHint(null);
+    return chat.sendMessage(...args);
+  };
 
   // 历史恢复：loaded 必须和 message cache 绑定，否则跨页面 useChat 实例会误判已恢复。
   useEffect(() => {
@@ -124,6 +136,8 @@ export function useChatSession({ sessionId, body }: UseChatSessionOptions) {
 
   return {
     ...chat,
+    sendMessage,
     aiDegradedKind,
+    routeHint,
   };
 }

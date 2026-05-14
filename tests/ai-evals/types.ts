@@ -1,7 +1,12 @@
 import type { InterviewOutline } from "@/lib/ai/interview/schemas";
-import type { InterviewSessionMode } from "@/lib/ai/interview/session-mode";
+import type {
+  CapabilityMode,
+  ConversationCapabilityMode,
+  ExecutionMode,
+  Surface,
+} from "@/lib/ai/runtime/contracts";
 
-export type EvalDomain = "chat" | "interview" | "learn" | "notes" | "growth";
+export type EvalDomain = "chat" | "interview" | "learn" | "notes" | "growth" | "routing";
 
 export interface ChatEvalInput {
   message: string;
@@ -9,8 +14,12 @@ export interface ChatEvalInput {
 
 export interface InterviewEvalInput {
   userGoal: string;
+  messages?: Array<{
+    role: "user" | "assistant";
+    text: string;
+  }>;
   currentOutline?: InterviewOutline;
-  mode?: InterviewSessionMode;
+  expectedInteraction?: "guided" | "text";
 }
 
 export interface LearnEvalInput {
@@ -63,6 +72,28 @@ export interface GrowthEvalInput {
   } | null;
   expectedMinTrees: number;
   expectedMaxTrees: number;
+}
+
+export interface RoutingEvalInput {
+  message: string;
+  requestContext: {
+    surface: Surface;
+    hasLearningGuidance: boolean;
+    hasGrowthSnapshot: boolean;
+    hasEditorContext: boolean;
+    courseId?: string;
+    chapterIndex?: number;
+    sectionIndex?: number;
+    documentId?: string;
+    recentMessages?: string[];
+    metadataContext?: "default" | "learn" | "editor";
+  };
+  expectedRoute: {
+    capabilityMode: CapabilityMode;
+    resolvedCapabilityMode: ConversationCapabilityMode;
+    executionMode: ExecutionMode;
+    handoffTarget?: CapabilityMode | null;
+  };
 }
 
 export interface EvalRegressionSpec {

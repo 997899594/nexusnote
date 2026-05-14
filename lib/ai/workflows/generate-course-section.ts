@@ -1,9 +1,8 @@
-import {
-  EMPTY_USER_GROWTH_CONTEXT,
-  getUserGrowthContextWithinBudget,
-} from "@/lib/growth/generation-context";
 import { createLearnTrace } from "@/lib/learning/observability";
-import { enqueueCourseSectionMaterialization } from "@/lib/queue/course-production-queue";
+import {
+  enqueueCourseSectionMaterialization,
+  getCourseProductionJobSnapshot,
+} from "@/lib/queue/course-production-queue";
 import {
   prepareCourseSectionLiveStream,
   readCourseSectionLiveStream,
@@ -12,6 +11,7 @@ import {
 
 const LIVE_STREAM_POLL_INTERVAL_MS = 180;
 const LIVE_STREAM_TIMEOUT_MS = 285_000;
+const WORKER_START_GRACE_MS = 45_000;
 
 interface GenerateCourseSectionWorkflowOptions {
   userId: string;
@@ -28,6 +28,7 @@ function delay(ms: number) {
 function createCourseSectionLiveResponse(params: {
   courseId: string;
   outlineNodeId: string;
+  jobId: string | null;
   trace: ReturnType<typeof createLearnTrace>;
 }) {
   const encoder = new TextEncoder();
@@ -66,6 +67,15 @@ function createCourseSectionLiveResponse(params: {
             throw new Error(snapshot.error ?? "章节内容生成失败");
           }
 
+          if (snapshot.status === "pending" && Date.now() - startedAt > WORKER_START_GRACE_MS) {
+            const jobSnapshot = await getCourseProductionJobSnapshot(params.jobId);
+            if (!jobSnapshot || jobSnapshot.state !== "active") {
+              throw new Error(
+                "章节生成任务已入队，但后台生成器暂未接管。生成会继续保留在队列中，可以稍后回来查看。",
+              );
+            }
+          }
+
           if (Date.now() - startedAt > LIVE_STREAM_TIMEOUT_MS) {
             throw new Error("章节内容生成超时");
           }
@@ -95,6 +105,7 @@ function createCourseSectionLiveResponse(params: {
       "X-Content-Type-Options": "nosniff",
       "X-Course-Id": params.courseId,
       "X-Section-Id": params.outlineNodeId,
+      "X-Course-Production-Job-Id": params.jobId ?? "",
     },
   });
 }
@@ -117,19 +128,11 @@ export async function runGenerateCourseSectionWorkflow({
     traceId,
   );
 
-  const generationContext =
-    (await getUserGrowthContextWithinBudget(userId, {
-      timeoutMs: 250,
-      onTimeout: () => {
-        trace.step("growth-context-budget-missed");
-      },
-    })) ?? EMPTY_USER_GROWTH_CONTEXT;
   const input = await resolveCourseSectionProductionInput({
     userId,
     courseId,
     chapterIndex,
     sectionIndex,
-    growthContext: generationContext,
   });
 
   trace.step("section-resolved", {
@@ -152,10 +155,6 @@ export async function runGenerateCourseSectionWorkflow({
     });
   }
 
-  await prepareCourseSectionLiveStream({
-    courseId,
-    outlineNodeId: input.outlineNodeId,
-  });
   const queued = await enqueueCourseSectionMaterialization({
     userId,
     courseId,
@@ -163,6 +162,10 @@ export async function runGenerateCourseSectionWorkflow({
     sectionIndex,
     reasonKey: `view:${input.outlineNodeId}`,
     priority: 1,
+  });
+  await prepareCourseSectionLiveStream({
+    courseId,
+    outlineNodeId: input.outlineNodeId,
   });
   trace.step("materialization-queued", {
     outlineNodeId: input.outlineNodeId,
@@ -172,6 +175,7 @@ export async function runGenerateCourseSectionWorkflow({
   return createCourseSectionLiveResponse({
     courseId,
     outlineNodeId: input.outlineNodeId,
+    jobId: queued.id,
     trace,
   });
 }

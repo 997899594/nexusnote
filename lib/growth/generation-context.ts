@@ -5,6 +5,7 @@ import { getGrowthSnapshot } from "@/lib/growth/snapshot-data";
 import {
   findDefaultFocusNode,
   getCurrentGrowthTree,
+  getTreeByDirectionKey,
   resolveProjectedFocusNode,
 } from "@/lib/growth/view-model";
 import type { GrowthGenerationContext } from "./generation-context-format";
@@ -20,6 +21,7 @@ export const EMPTY_USER_GROWTH_CONTEXT: UserGrowthContext = {
 const INTERACTIVE_GROWTH_CONTEXT_BUDGET_MS = 180;
 
 export interface UserGrowthContextBudgetOptions {
+  directionKey?: string | null;
   timeoutMs?: number;
   onTimeout?: () => void;
 }
@@ -60,6 +62,16 @@ function buildCurrentDirection(
   };
 }
 
+function resolveActiveGrowthTree(params: {
+  snapshot: Awaited<ReturnType<typeof getGrowthSnapshot>>;
+  directionKey?: string | null;
+}) {
+  return (
+    getTreeByDirectionKey(params.snapshot, params.directionKey ?? null) ??
+    getCurrentGrowthTree(params.snapshot)
+  );
+}
+
 function buildCurrentFocus(params: {
   activeFocusNode: ReturnType<typeof findDefaultFocusNode>;
   latestFocusSnapshot: Awaited<ReturnType<typeof getLatestFocusSnapshot>>;
@@ -87,7 +99,10 @@ function buildCurrentFocus(params: {
   };
 }
 
-export async function getUserGrowthContext(userId: string): Promise<UserGrowthContext> {
+export async function getUserGrowthContext(
+  userId: string,
+  options: { directionKey?: string | null } = {},
+): Promise<UserGrowthContext> {
   const [snapshot, latestFocusSnapshot, insightRows] = await Promise.all([
     getGrowthSnapshot(userId),
     getLatestFocusSnapshot(userId),
@@ -104,7 +119,10 @@ export async function getUserGrowthContext(userId: string): Promise<UserGrowthCo
       .limit(4),
   ]);
 
-  const activeTree = getCurrentGrowthTree(snapshot);
+  const activeTree = resolveActiveGrowthTree({
+    snapshot,
+    directionKey: options.directionKey,
+  });
   const latestFocusReference = resolveLatestFocusReference({
     activeTree,
     latestFocusSnapshot,
@@ -138,7 +156,9 @@ export async function getUserGrowthContextWithinBudget(
 
   try {
     return await Promise.race([
-      getUserGrowthContext(userId),
+      getUserGrowthContext(userId, {
+        directionKey: options.directionKey,
+      }),
       new Promise<undefined>((resolve) => {
         timeout = setTimeout(() => {
           options.onTimeout?.();

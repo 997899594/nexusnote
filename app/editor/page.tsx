@@ -193,13 +193,7 @@ async function NotesIndexPageContent({
   return (
     <LibraryAnalysisPageShell
       header={
-        <FloatingHeader
-          showBackHint
-          showMenuButton
-          title="知识工作台"
-          subtitle="Editor"
-          variant="workspace"
-        />
+        <FloatingHeader showBackHint title="知识工作台" subtitle="Editor" variant="workspace" />
       }
       frameClassName="max-w-5xl"
     >

@@ -15,18 +15,9 @@ import GitHub from "next-auth/providers/github";
 import Resend from "next-auth/providers/resend";
 import { db, eq, users } from "@/db";
 import { accounts, sessions, verificationTokens } from "@/db/schema";
+import { getAuthProviderFlags } from "@/lib/auth/provider-flags";
 
-function readBooleanEnv(name: string): boolean | null {
-  const value = process.env[name];
-  if (value === "true") return true;
-  if (value === "false") return false;
-  return null;
-}
-
-const runtimeEnvironment = process.env.APP_ENV ?? process.env.VERCEL_ENV ?? process.env.NODE_ENV;
-const isProductionEnvironment = runtimeEnvironment === "production";
-const isDevLoginEnabled = readBooleanEnv("AUTH_DEV_LOGIN_ENABLED") ?? !isProductionEnvironment;
-const isResendEnabled = readBooleanEnv("AUTH_RESEND_ENABLED") ?? !isDevLoginEnabled;
+const { isDevLoginEnabled, isResendLoginEnabled, isGithubLoginEnabled } = getAuthProviderFlags();
 const sessionStrategy = isDevLoginEnabled ? "jwt" : "database";
 
 function applyUserToToken(token: JWT, user: User): JWT {
@@ -66,7 +57,7 @@ export const authConfig = {
   },
 
   providers: [
-    ...(isResendEnabled
+    ...(isResendLoginEnabled
       ? [
           Resend({
             apiKey: process.env.RESEND_API_KEY,
@@ -75,7 +66,7 @@ export const authConfig = {
         ]
       : []),
 
-    ...(process.env.AUTH_GITHUB_ID
+    ...(isGithubLoginEnabled
       ? [
           GitHub({
             clientId: process.env.AUTH_GITHUB_ID,

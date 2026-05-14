@@ -6,7 +6,7 @@ import { FloatingHeader, LandingPageShell } from "@/components/shared/layout";
 export default function HomePage() {
   return (
     <LandingPageShell
-      header={<FloatingHeader showMenuButton title="NexusNote" variant="compact" />}
+      header={<FloatingHeader title="NexusNote" variant="compact" />}
       background={
         <div className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.85),transparent_70%)]" />
       }

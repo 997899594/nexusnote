@@ -5,6 +5,7 @@
  */
 
 import { z } from "zod";
+import type { AIRouteProfile } from "@/lib/ai/core/route-profiles";
 import { AIPreferencesSchema, DEFAULT_AI_PREFERENCES } from "@/lib/ai/preferences";
 import type { AISkin, SkinPreference } from "@/lib/ai/skin-contract";
 import { getAvailableSkins, getUserSkinPreference } from "@/lib/ai/skins";
@@ -19,6 +20,7 @@ interface PreferencesResponse {
       pace?: string;
     };
     aiPreferences: {
+      routeProfile: AIRouteProfile;
       tone: "direct" | "balanced" | "gentle";
       depth: "concise" | "balanced" | "detailed";
       teachingStyle: "explain" | "coach" | "socratic";

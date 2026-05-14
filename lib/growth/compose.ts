@@ -23,7 +23,7 @@ import {
   sortComposeGraph,
   sortPreviousSummary,
 } from "@/lib/growth/compose-shared";
-import { GROWTH_COMPOSE_MODEL_LABEL } from "@/lib/growth/constants";
+import { GROWTH_COMPOSE_MODEL_LABEL, GROWTH_COMPOSE_PROMPT_VERSION } from "@/lib/growth/constants";
 
 export { composerVisibleNodeSchema };
 export type { ComposerVisibleNode, PreviousDirectionIdentity };
@@ -35,6 +35,19 @@ export const composerTreeSchema = z.object({
   summary: z.string().trim().min(1),
   confidence: z.number().min(0).max(1),
   whyThisDirection: z.string().trim().min(1),
+  progressionRoles: z
+    .array(
+      z.object({
+        id: z.string().trim().min(1),
+        title: z.string().trim().min(1),
+        summary: z.string().trim().min(1),
+        horizon: z.enum(["next", "later"]),
+        confidence: z.number().min(0).max(1),
+        supportingNodeRefs: z.array(z.string().trim().min(1)).min(1),
+      }),
+    )
+    .min(1)
+    .max(3),
   supportingNodeRefs: z.array(z.string().trim().min(1)).min(1),
   tree: z.array(composerVisibleNodeSchema).min(1),
 });
@@ -45,6 +58,14 @@ export const treeComposerOutputSchema = z.object({
 });
 
 export type TreeComposerOutput = z.infer<typeof treeComposerOutputSchema>;
+
+interface DeterministicGrowthDirection {
+  matchPreviousDirectionKey?: string;
+  keySeed: string;
+  supportingNodeRefs: string[];
+  tree: ComposerVisibleNode[];
+  confidence: number;
+}
 
 function ensureUniqueNormalizedValues(values: string[], label: string) {
   const seen = new Set<string>();
@@ -105,6 +126,7 @@ function validateComposerTree(params: {
   }
 
   const supportingRefSet = new Set(params.tree.supportingNodeRefs);
+  const treeAnchorRefSet = new Set(anchorRefs);
   for (const anchorRef of anchorRefs) {
     if (!params.graphNodeIds.has(anchorRef)) {
       throw new Error(`Growth compose returned unknown anchor ref: ${anchorRef}`);
@@ -113,6 +135,16 @@ function validateComposerTree(params: {
       throw new Error(
         `Growth compose tree ${params.tree.keySeed} used anchorRef outside supportingNodeRefs: ${anchorRef}`,
       );
+    }
+  }
+
+  for (const role of params.tree.progressionRoles) {
+    for (const nodeRef of role.supportingNodeRefs) {
+      if (!treeAnchorRefSet.has(nodeRef)) {
+        throw new Error(
+          `Growth compose progression role ${role.id} references node outside visible tree: ${nodeRef}`,
+        );
+      }
     }
   }
 }
@@ -310,6 +342,96 @@ function computeDirectionConfidence(params: {
   return Math.round(Math.min(1, Math.max(0, confidence)) * 100) / 100;
 }
 
+function sortSupportingNodeRefsByGraphOrder(
+  graph: ComposeGraph,
+  supportingNodeRefs: string[],
+): string[] {
+  const supportingNodeRefSet = new Set(supportingNodeRefs);
+  return graph.nodes.map((node) => node.id).filter((nodeId) => supportingNodeRefSet.has(nodeId));
+}
+
+function mergeDuplicateCareerRoleDirections(params: {
+  graph: ComposeGraph;
+  directions: DeterministicGrowthDirection[];
+  metadata: GrowthDirectionMetadata[];
+  recommendedDirectionIndex: number;
+}): {
+  directions: DeterministicGrowthDirection[];
+  recommendedDirectionIndex: number;
+  changed: boolean;
+} {
+  const groupsByCareerRole = new Map<
+    string,
+    Array<{
+      direction: DeterministicGrowthDirection;
+      metadata: GrowthDirectionMetadata;
+      index: number;
+    }>
+  >();
+
+  params.directions.forEach((direction, index) => {
+    const metadata = params.metadata[index];
+    if (!metadata) {
+      throw new Error(`Missing metadata while consolidating growth direction ${direction.keySeed}`);
+    }
+
+    const groupKey = metadata.roleIdentityKey;
+    const group = groupsByCareerRole.get(groupKey) ?? [];
+    group.push({
+      direction,
+      metadata,
+      index,
+    });
+    groupsByCareerRole.set(groupKey, group);
+  });
+
+  const groups = [...groupsByCareerRole.values()].sort(
+    (left, right) => left[0].index - right[0].index,
+  );
+  const changed = groups.some((group) => group.length > 1);
+
+  if (!changed) {
+    return {
+      directions: params.directions,
+      recommendedDirectionIndex: params.recommendedDirectionIndex,
+      changed: false,
+    };
+  }
+
+  let recommendedDirectionIndex = 0;
+  const directions = groups.map((group, groupIndex) => {
+    const primary = group[0];
+    if (group.some((entry) => entry.index === params.recommendedDirectionIndex)) {
+      recommendedDirectionIndex = groupIndex;
+    }
+
+    const supportingNodeRefs = sortSupportingNodeRefsByGraphOrder(
+      params.graph,
+      group.flatMap((entry) => entry.direction.supportingNodeRefs),
+    );
+
+    return {
+      matchPreviousDirectionKey: primary.direction.matchPreviousDirectionKey,
+      keySeed: slugify(primary.metadata.title),
+      supportingNodeRefs,
+      tree: buildDeterministicGrowthTree({
+        graph: params.graph,
+        supportingNodeRefs,
+      }),
+      confidence: computeDirectionConfidence({
+        graph: params.graph,
+        supportingNodeRefs,
+      }),
+    };
+  });
+
+  return {
+    directions,
+    recommendedDirectionIndex,
+    changed: true,
+  };
+}
+
 function applyDirectionMetadata(params: {
   tree: ComposerVisibleNode[];
   metadata: GrowthDirectionMetadata;
@@ -349,7 +471,7 @@ export async function composeGrowthTrees(params: {
     intent: "growth-compose",
     workflow: "growth",
     modelPolicy: "outline-architect",
-    promptVersion: "growth-compose@v4",
+    promptVersion: GROWTH_COMPOSE_PROMPT_VERSION,
     userId: params.userId,
     metadata: {
       nodeCount: graph.nodes.length,
@@ -384,26 +506,50 @@ export async function composeGrowthTrees(params: {
       }),
     }));
 
-    const metadata = await composeGrowthDirectionMetadata({
+    const initialMetadata = await composeGrowthDirectionMetadata({
       userId: params.userId,
       graph,
       directions: deterministicDirections.map((direction) => ({
         keySeed: direction.keySeed,
         matchPreviousDirectionKey: direction.matchPreviousDirectionKey,
         supportingNodeRefs: direction.supportingNodeRefs,
+        confidence: direction.confidence,
         tree: direction.tree,
       })),
       recordUsage: params.recordUsage,
     });
+
+    const consolidated = mergeDuplicateCareerRoleDirections({
+      graph,
+      directions: deterministicDirections,
+      metadata: initialMetadata,
+      recommendedDirectionIndex: planned.recommendedDirectionIndex,
+    });
+
+    const finalDirections = consolidated.directions;
+    const metadata = consolidated.changed
+      ? await composeGrowthDirectionMetadata({
+          userId: params.userId,
+          graph,
+          directions: finalDirections.map((direction) => ({
+            keySeed: direction.keySeed,
+            matchPreviousDirectionKey: direction.matchPreviousDirectionKey,
+            supportingNodeRefs: direction.supportingNodeRefs,
+            confidence: direction.confidence,
+            tree: direction.tree,
+          })),
+          recordUsage: params.recordUsage,
+        })
+      : initialMetadata;
     const metadataByKeySeed = new Map(metadata.map((direction) => [direction.keySeed, direction]));
 
     const output = {
       recommendedDirectionHint:
-        deterministicDirections[planned.recommendedDirectionIndex]?.matchPreviousDirectionKey ??
-        deterministicDirections[planned.recommendedDirectionIndex]?.keySeed ??
-        deterministicDirections[0]?.keySeed ??
+        finalDirections[consolidated.recommendedDirectionIndex]?.matchPreviousDirectionKey ??
+        finalDirections[consolidated.recommendedDirectionIndex]?.keySeed ??
+        finalDirections[0]?.keySeed ??
         "direction",
-      trees: deterministicDirections.map((direction) => {
+      trees: finalDirections.map((direction) => {
         const directionMetadata = metadataByKeySeed.get(direction.keySeed);
         if (!directionMetadata) {
           throw new Error(`Missing metadata for growth direction ${direction.keySeed}`);
@@ -425,6 +571,7 @@ export async function composeGrowthTrees(params: {
           summary: directionMetadata.summary,
           confidence: direction.confidence,
           whyThisDirection: directionMetadata.whyThisDirection,
+          progressionRoles: directionMetadata.progressionRoles,
           supportingNodeRefs: direction.supportingNodeRefs,
           tree,
         };

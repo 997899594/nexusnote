@@ -28,13 +28,7 @@ async function ProfileInsightsPageContent() {
   return (
     <LibraryAnalysisPageShell
       header={
-        <FloatingHeader
-          showBackHint
-          showMenuButton
-          title="学习洞察"
-          subtitle="Insights"
-          variant="compact"
-        />
+        <FloatingHeader showBackHint title="学习洞察" subtitle="Insights" variant="compact" />
       }
     >
       <section className="mb-8">

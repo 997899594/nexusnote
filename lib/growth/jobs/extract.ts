@@ -1,5 +1,6 @@
-import { db } from "@/db";
-import { GROWTH_AI_MODEL_LABEL } from "@/lib/growth/constants";
+import { and, eq, sql } from "drizzle-orm";
+import { db, knowledgeEvidenceEventRefs, knowledgeEvidenceEvents } from "@/db";
+import { GROWTH_AI_MODEL_LABEL, GROWTH_EXTRACT_PROMPT_VERSION } from "@/lib/growth/constants";
 import { getCourseForGrowth } from "@/lib/growth/data-access";
 import {
   buildGrowthCourseExtractionInput,
@@ -8,7 +9,6 @@ import {
 } from "@/lib/growth/extract";
 import { computeGrowthOutlineHash, normalizeGrowthOutline } from "@/lib/growth/normalize-outline";
 import { enqueueGrowthMerge } from "@/lib/growth/queue";
-import { ingestEvidenceEvent } from "@/lib/knowledge/events";
 import { aggregateCourseEventsToKnowledgeEvidence } from "@/lib/knowledge/evidence/aggregate";
 import { listLinkedNodeIdsForEvidenceSource } from "@/lib/knowledge/evidence/selectors";
 import {
@@ -57,6 +57,75 @@ function buildEvidenceRefs(params: {
       weight: 1,
     })),
   ];
+}
+
+async function replaceExtractedCourseEvidenceEvents(params: {
+  userId: string;
+  courseId: string;
+  outlineHash: string;
+  extracted: Awaited<ReturnType<typeof extractGrowthCourseEvidence>>;
+  outline: ReturnType<typeof normalizeGrowthOutline>;
+}): Promise<void> {
+  const happenedAt = new Date();
+
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(knowledgeEvidenceEvents)
+      .where(
+        and(
+          eq(knowledgeEvidenceEvents.userId, params.userId),
+          eq(knowledgeEvidenceEvents.sourceType, "course"),
+          eq(knowledgeEvidenceEvents.sourceId, params.courseId),
+          eq(knowledgeEvidenceEvents.sourceVersionHash, params.outlineHash),
+          sql`${knowledgeEvidenceEvents.metadata} ? 'itemKind'`,
+        ),
+      );
+
+    const events = params.extracted.items.map((item) => ({
+      id: crypto.randomUUID(),
+      item,
+      refs: buildEvidenceRefs({ item, outline: params.outline }),
+    }));
+
+    if (events.length === 0) {
+      return;
+    }
+
+    await tx.insert(knowledgeEvidenceEvents).values(
+      events.map(({ id, item }) => ({
+        id,
+        userId: params.userId,
+        kind: "course_outline",
+        sourceType: "course",
+        sourceId: params.courseId,
+        sourceVersionHash: params.outlineHash,
+        title: item.title,
+        summary: item.summary,
+        confidence: item.confidence.toFixed(3),
+        happenedAt,
+        metadata: {
+          itemKind: item.kind,
+          prerequisiteHints: item.prerequisiteHints,
+          relatedHints: item.relatedHints,
+          promptVersion: GROWTH_EXTRACT_PROMPT_VERSION,
+        },
+      })),
+    );
+
+    const refs = events.flatMap(({ id, refs }) =>
+      refs.map((ref) => ({
+        eventId: id,
+        refType: ref.refType,
+        refId: ref.refId,
+        snippet: ref.snippet ?? null,
+        weight: ref.weight.toFixed(3),
+      })),
+    );
+
+    if (refs.length > 0) {
+      await tx.insert(knowledgeEvidenceEventRefs).values(refs);
+    }
+  });
 }
 
 function validateExtractedCourseEvidence(
@@ -119,7 +188,7 @@ export async function processGrowthExtractJob(
     idempotencyKey,
     inputHash: outlineHash,
     model: GROWTH_AI_MODEL_LABEL,
-    promptVersion: "growth-extract@v1",
+    promptVersion: GROWTH_EXTRACT_PROMPT_VERSION,
     reuseCompleted: true,
   });
 
@@ -139,27 +208,13 @@ export async function processGrowthExtractJob(
       }),
     );
     validateExtractedCourseEvidence(extracted, outline);
-
-    for (const item of extracted.items) {
-      await ingestEvidenceEvent({
-        id: crypto.randomUUID(),
-        userId: job.userId,
-        kind: "course_outline",
-        sourceType: "course",
-        sourceId: job.courseId,
-        sourceVersionHash: outlineHash,
-        title: item.title,
-        summary: item.summary,
-        confidence: item.confidence,
-        happenedAt: new Date().toISOString(),
-        metadata: {
-          itemKind: item.kind,
-          prerequisiteHints: item.prerequisiteHints,
-          relatedHints: item.relatedHints,
-        },
-        refs: buildEvidenceRefs({ item, outline }),
-      });
-    }
+    await replaceExtractedCourseEvidenceEvents({
+      userId: job.userId,
+      courseId: job.courseId,
+      outlineHash,
+      extracted,
+      outline,
+    });
 
     const affectedNodeIds = await listLinkedNodeIdsForEvidenceSource({
       userId: job.userId,

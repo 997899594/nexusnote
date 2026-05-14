@@ -4,8 +4,7 @@
 
 import { z } from "zod";
 import { InterviewOutlineSchema } from "@/lib/ai/interview/schemas";
-import { InterviewSessionModeSchema } from "@/lib/ai/interview/session-mode";
-import { ChatMetadataSchema } from "@/types/metadata";
+import { RequestMetadataSchema } from "@/types/request-metadata";
 
 const BaseConversationRequestSchema = z.object({
   messages: z.array(z.unknown()).min(1),
@@ -20,14 +19,13 @@ export const ChatApiRequestSchema = BaseConversationRequestSchema.extend({
     .min(1)
     .optional(),
   courseId: z.string().uuid().nullish(), // 允许 null 或 undefined
-  metadata: ChatMetadataSchema.optional(),
+  metadata: RequestMetadataSchema.optional(),
 });
 
 export const InterviewApiRequestSchema = BaseConversationRequestSchema.extend({
   messages: z.array(z.unknown()).min(1),
   courseId: z.string().uuid().nullish(),
   outline: InterviewOutlineSchema.nullish(),
-  mode: InterviewSessionModeSchema.default("natural"),
 });
 
 export type ChatApiRequest = z.infer<typeof ChatApiRequestSchema>;

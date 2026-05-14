@@ -4,7 +4,7 @@
 
 import { motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, Loader2, MessageSquare, RefreshCw } from "lucide-react";
-import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StreamdownMessage } from "@/components/chat/StreamdownMessage";
 import { useToast } from "@/components/ui/Toast";
 import type { Annotation } from "@/hooks/useAnnotations";
@@ -19,9 +19,17 @@ import { TextSelectionToolbar } from "./TextSelectionToolbar";
 interface SectionReaderProps {
   courseId: string;
   sections: Map<number, SectionState>;
+  currentGenerating: number | null;
   generateSection: (index: number) => void;
   sectionDocs: LearnSectionDocProjection[];
   scrollToSectionId?: string | null;
+}
+
+interface SectionTarget {
+  chapterIndex: number;
+  sectionIndex: number;
+  nodeId: string;
+  title: string;
 }
 
 function CaptureNoteDialog({
@@ -227,10 +235,6 @@ function SectionBlock({
         isHighlighted && "bg-[var(--color-panel-soft)] ring-1 ring-black/8",
       )}
     >
-      {/* Section spacing */}
-      {sectionIndex > 0 && <div className="pt-10 md:pt-14" />}
-
-      {/* Section content */}
       <div ref={containerRef} className="relative">
         {isHighlighted && (
           <div className="mb-3 flex items-center gap-2 px-1">
@@ -265,14 +269,27 @@ function SectionBlock({
           />
         )}
 
-        {state.status === "generating" && state.content.length === 0 && (
+        {state.status === "queued" && (
           <SectionStateBlock
             title={sectionTitle}
-            description="内容准备好后会自动出现。"
+            description="这一节已经加入生成队列。后台会继续生成，你可以离开本页，稍后回来直接阅读。"
             action={
               <div className="inline-flex items-center gap-2 text-xs text-[var(--color-text-secondary)]">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                准备中
+                等待生成
+              </div>
+            }
+          />
+        )}
+
+        {state.status === "generating" && state.content.length === 0 && (
+          <SectionStateBlock
+            title={sectionTitle}
+            description="后台生成器已经接管，内容准备好后会自动出现。"
+            action={
+              <div className="inline-flex items-center gap-2 text-xs text-[var(--color-text-secondary)]">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                生成中
               </div>
             }
           />
@@ -350,36 +367,33 @@ function SectionBlock({
   );
 }
 
-function ChapterBoundary({
-  chapterIndex,
-  chapterCount,
+function SectionBoundary({
   previousTitle,
   nextTitle,
+  hasPrevious,
+  hasNext,
   onPrevious,
   onOpenChat,
   onNext,
 }: {
-  chapterIndex: number;
-  chapterCount: number;
   previousTitle?: string;
   nextTitle?: string;
+  hasPrevious: boolean;
+  hasNext: boolean;
   onPrevious: () => void;
   onOpenChat: () => void;
   onNext: () => void;
 }) {
-  const isFirstChapter = chapterIndex === 0;
-  const isLastChapter = chapterIndex === chapterCount - 1;
-
   return (
     <section className="mt-14 border-t border-black/6 pt-6 md:mt-16 md:pt-8">
       <div className="grid gap-2 md:grid-cols-[1fr_auto_1fr]">
         <button
           type="button"
           onClick={onPrevious}
-          disabled={isFirstChapter}
+          disabled={!hasPrevious}
           className={cn(
             "group flex min-h-14 items-center gap-2 rounded-full px-2.5 py-2 text-left transition-all",
-            isFirstChapter
+            !hasPrevious
               ? "cursor-not-allowed text-[var(--color-text-muted)]"
               : "text-[var(--color-text)] hover:bg-[var(--color-panel-soft)]",
           )}
@@ -389,10 +403,10 @@ function ChapterBoundary({
           </span>
           <span className="min-w-0">
             <span className="block text-[0.6875rem] font-semibold tracking-[0.14em] text-[var(--color-text-tertiary)]">
-              上一章
+              上一节
             </span>
             <span className="mt-1 line-clamp-2 text-sm font-medium">
-              {previousTitle ?? "已经是第一章"}
+              {previousTitle ?? "已经是第一节"}
             </span>
           </span>
         </button>
@@ -403,16 +417,16 @@ function ChapterBoundary({
           className="group flex min-h-14 items-center justify-center gap-2 rounded-full px-5 py-2 text-sm font-medium text-[var(--color-text)] transition-all hover:bg-[var(--color-panel-soft)]"
         >
           <MessageSquare className="h-4 w-4 text-[var(--color-text-secondary)]" />
-          问这一章
+          问这一节
         </button>
 
         <button
           type="button"
           onClick={onNext}
-          disabled={isLastChapter}
+          disabled={!hasNext}
           className={cn(
             "group flex min-h-14 items-center justify-between gap-2 rounded-full px-2.5 py-2 text-left transition-all",
-            isLastChapter
+            !hasNext
               ? "cursor-not-allowed text-[var(--color-text-muted)]"
               : "bg-[var(--color-panel-strong)] text-white hover:bg-[var(--color-panel-strong)]/90",
           )}
@@ -421,10 +435,10 @@ function ChapterBoundary({
             <span
               className={cn(
                 "block text-[0.6875rem] font-semibold tracking-[0.14em]",
-                isLastChapter ? "text-[var(--color-text-tertiary)]" : "text-white/62",
+                !hasNext ? "text-[var(--color-text-tertiary)]" : "text-white/62",
               )}
             >
-              下一章
+              下一节
             </span>
             <span className="mt-1 line-clamp-2 text-sm font-medium">
               {nextTitle ?? "课程已经读完"}
@@ -433,7 +447,7 @@ function ChapterBoundary({
           <span
             className={cn(
               "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
-              isLastChapter ? "bg-[var(--color-panel-soft)]" : "bg-white/14",
+              !hasNext ? "bg-[var(--color-panel-soft)]" : "bg-white/14",
             )}
           >
             <ArrowRight className="h-4 w-4" />
@@ -447,6 +461,7 @@ function ChapterBoundary({
 export function SectionReader({
   courseId,
   sections,
+  currentGenerating,
   generateSection,
   sectionDocs,
   scrollToSectionId,
@@ -462,12 +477,34 @@ export function SectionReader({
     clearRequestedSectionFocus,
   } = useLearnStore();
   const currentChapter = chapters[currentChapterIndex];
-  const previousChapter = chapters[currentChapterIndex - 1];
-  const nextChapter = chapters[currentChapterIndex + 1];
+  const currentSectionIndex = useLearnStore((s) => s.currentSectionIndex);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const previousChapterIndexRef = useRef(currentChapterIndex);
+  const previousSectionIdRef = useRef<string | null>(null);
   const hasScrolledToResume = useRef(false);
   const [highlightedSectionId, setHighlightedSectionId] = useState<string | null>(null);
+
+  const sectionTargets = useMemo(
+    () =>
+      chapters.flatMap<SectionTarget>((chapter, chapterIndex) =>
+        chapter.sections.map((section, sectionIndex) => ({
+          chapterIndex,
+          sectionIndex,
+          nodeId: section.nodeId,
+          title: section.title,
+        })),
+      ),
+    [chapters],
+  );
+  const currentTargetIndex = sectionTargets.findIndex(
+    (target) =>
+      target.chapterIndex === currentChapterIndex && target.sectionIndex === currentSectionIndex,
+  );
+  const currentTarget = currentTargetIndex >= 0 ? sectionTargets[currentTargetIndex] : null;
+  const previousTarget = currentTargetIndex > 0 ? sectionTargets[currentTargetIndex - 1] : null;
+  const nextTarget =
+    currentTargetIndex >= 0 && currentTargetIndex + 1 < sectionTargets.length
+      ? sectionTargets[currentTargetIndex + 1]
+      : null;
 
   const highlightSection = useCallback((sectionId: string) => {
     setHighlightedSectionId(sectionId);
@@ -476,53 +513,71 @@ export function SectionReader({
     }, 1800);
   }, []);
 
-  const navigateToChapter = useCallback(
-    (chapterIndex: number) => {
-      if (chapterIndex < 0 || chapterIndex >= chapters.length) {
+  const navigateToSection = useCallback(
+    (target: SectionTarget | null) => {
+      if (!target) {
         return;
       }
 
       clearRequestedSectionFocus();
-      expandChapter(chapterIndex);
-      setCurrentChapterIndex(chapterIndex);
+      expandChapter(target.chapterIndex);
+      if (target.chapterIndex !== currentChapterIndex) {
+        setCurrentChapterIndex(target.chapterIndex);
+      }
+      setCurrentSectionIndex(target.sectionIndex);
     },
-    [chapters.length, clearRequestedSectionFocus, expandChapter, setCurrentChapterIndex],
+    [
+      clearRequestedSectionFocus,
+      currentChapterIndex,
+      expandChapter,
+      setCurrentChapterIndex,
+      setCurrentSectionIndex,
+    ],
   );
 
   useEffect(() => {
-    if (previousChapterIndexRef.current === currentChapterIndex) {
+    const activeSectionId = currentTarget?.nodeId ?? null;
+    if (!activeSectionId || previousSectionIdRef.current === activeSectionId) {
       return;
     }
 
-    previousChapterIndexRef.current = currentChapterIndex;
+    previousSectionIdRef.current = activeSectionId;
     scrollContainerRef.current?.scrollTo({ top: 0, behavior: "auto" });
     setHighlightedSectionId(null);
-  }, [currentChapterIndex]);
+  }, [currentTarget?.nodeId]);
 
-  // Auto-scroll to resume section on mount
   useEffect(() => {
     if (!scrollToSectionId || hasScrolledToResume.current) return;
-    // Delay to let the DOM render section anchors
+
+    const target = sectionTargets.find((section) => section.nodeId === scrollToSectionId);
+    if (!target) return;
+
+    navigateToSection(target);
     const timer = setTimeout(() => {
       const el = document.getElementById(scrollToSectionId);
       if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        scrollContainerRef.current?.scrollTo({ top: 0, behavior: "auto" });
         hasScrolledToResume.current = true;
         highlightSection(scrollToSectionId);
       }
     }, 300);
     return () => clearTimeout(timer);
-  }, [scrollToSectionId, highlightSection]);
+  }, [scrollToSectionId, sectionTargets, navigateToSection, highlightSection]);
 
   useEffect(() => {
     if (!requestedSectionId) {
       return;
     }
 
+    const target = sectionTargets.find((section) => section.nodeId === requestedSectionId);
+    if (target) {
+      navigateToSection(target);
+    }
+
     const timer = window.setTimeout(() => {
       const el = document.getElementById(requestedSectionId);
       if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        scrollContainerRef.current?.scrollTo({ top: 0, behavior: "auto" });
         highlightSection(requestedSectionId);
       }
 
@@ -530,40 +585,48 @@ export function SectionReader({
     }, 120);
 
     return () => window.clearTimeout(timer);
-  }, [requestedSectionId, clearRequestedSectionFocus, highlightSection]);
+  }, [
+    requestedSectionId,
+    sectionTargets,
+    navigateToSection,
+    clearRequestedSectionFocus,
+    highlightSection,
+  ]);
 
-  // Intersection Observer to track visible section
   useEffect(() => {
-    if (!scrollContainerRef.current || !currentChapter) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            const secIdx = currentChapter.sections.findIndex(
-              (section) => section.nodeId === entry.target.id,
-            );
-            if (secIdx >= 0) {
-              setCurrentSectionIndex(secIdx);
-            }
-          }
-        }
-      },
-      {
-        root: scrollContainerRef.current,
-        rootMargin: "-20% 0px -60% 0px",
-        threshold: 0,
-      },
-    );
-
-    // Observe all section anchors
-    for (const section of currentChapter.sections) {
-      const el = document.getElementById(section.nodeId);
-      if (el) observer.observe(el);
+    if (!currentChapter || currentSectionIndex < currentChapter.sections.length) {
+      return;
     }
 
-    return () => observer.disconnect();
-  }, [currentChapter, setCurrentSectionIndex]);
+    setCurrentSectionIndex(0);
+  }, [currentChapter, currentSectionIndex, setCurrentSectionIndex]);
+
+  const currentSection = currentChapter?.sections[currentSectionIndex] ?? null;
+  const hasCurrentSectionState = sections.has(currentSectionIndex);
+  const currentSectionState = sections.get(currentSectionIndex) ?? {
+    content: "",
+    status: "idle" as const,
+  };
+
+  useEffect(() => {
+    if (
+      !currentSection ||
+      !hasCurrentSectionState ||
+      currentSectionState.status !== "idle" ||
+      currentGenerating !== null
+    ) {
+      return;
+    }
+
+    generateSection(currentSectionIndex);
+  }, [
+    currentSection,
+    currentSectionIndex,
+    hasCurrentSectionState,
+    currentSectionState.status,
+    currentGenerating,
+    generateSection,
+  ]);
 
   if (!currentChapter) {
     return (
@@ -597,35 +660,30 @@ export function SectionReader({
           </div>
         </div>
 
-        {/* Sections */}
-        {currentChapter.sections.map((sec, secIdx) => {
-          const state = sections.get(secIdx) ?? { content: "", status: "idle" as const };
-          const nodeId = sec.nodeId;
-          const sectionDoc = sectionDocs.find((d) => d.outlineNodeKey === nodeId);
+        {currentSection ? (
+          <SectionBlock
+            key={currentSection.nodeId}
+            nodeId={currentSection.nodeId}
+            sectionIndex={currentSectionIndex}
+            sectionTitle={currentSection.title}
+            state={currentSectionState}
+            sectionDoc={sectionDocs.find((doc) => doc.outlineNodeKey === currentSection.nodeId)}
+            courseId={courseId}
+            generateSection={generateSection}
+            isHighlighted={highlightedSectionId === currentSection.nodeId}
+          />
+        ) : (
+          <SectionStateBlock title="暂无小节" description="这一章还没有可阅读的小节。" />
+        )}
 
-          return (
-            <SectionBlock
-              key={nodeId}
-              nodeId={nodeId}
-              sectionIndex={secIdx}
-              sectionTitle={sec.title}
-              state={state}
-              sectionDoc={sectionDoc}
-              courseId={courseId}
-              generateSection={generateSection}
-              isHighlighted={highlightedSectionId === nodeId}
-            />
-          );
-        })}
-
-        <ChapterBoundary
-          chapterIndex={currentChapterIndex}
-          chapterCount={chapters.length}
-          previousTitle={previousChapter?.title}
-          nextTitle={nextChapter?.title}
-          onPrevious={() => navigateToChapter(currentChapterIndex - 1)}
+        <SectionBoundary
+          previousTitle={previousTarget?.title}
+          nextTitle={nextTarget?.title}
+          hasPrevious={Boolean(previousTarget)}
+          hasNext={Boolean(nextTarget)}
+          onPrevious={() => navigateToSection(previousTarget)}
           onOpenChat={() => setChatOpen(true)}
-          onNext={() => navigateToChapter(currentChapterIndex + 1)}
+          onNext={() => navigateToSection(nextTarget)}
         />
 
         {/* Bottom spacing */}

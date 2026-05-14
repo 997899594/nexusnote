@@ -3,7 +3,10 @@ import { z } from "zod";
 import { buildGenerationSettingsForPolicy } from "@/lib/ai/core/generation-settings";
 import { getPlainModelForPolicy } from "@/lib/ai/core/model-policy";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
-import { GROWTH_EXTRACT_AI_TIMEOUT_MS } from "@/lib/growth/constants";
+import {
+  GROWTH_EXTRACT_AI_TIMEOUT_MS,
+  GROWTH_EXTRACT_PROMPT_VERSION,
+} from "@/lib/growth/constants";
 import type { NormalizedGrowthOutline } from "@/lib/growth/normalize-outline";
 import { buildGrowthExtractPrompt, GROWTH_EXTRACT_SYSTEM_PROMPT } from "@/lib/growth/prompts";
 
@@ -40,7 +43,7 @@ export function buildGrowthExtractionIdempotencyKey(
   courseId: string,
   outlineHash: string,
 ): string {
-  return `extract:user:${userId}:course:${courseId}:outline:${outlineHash}`;
+  return `extract:user:${userId}:course:${courseId}:outline:${outlineHash}:prompt:${GROWTH_EXTRACT_PROMPT_VERSION}`;
 }
 
 export function buildGrowthCourseExtractionInput(params: {
@@ -68,7 +71,7 @@ export async function extractGrowthCourseEvidence(
     intent: "growth-extract",
     workflow: "growth",
     modelPolicy: "extract-fast",
-    promptVersion: "growth-extract@v1",
+    promptVersion: GROWTH_EXTRACT_PROMPT_VERSION,
     userId: input.userId,
     metadata: {
       courseId: input.courseId,

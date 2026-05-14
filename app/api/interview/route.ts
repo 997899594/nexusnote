@@ -1,15 +1,15 @@
 import { validateUIMessages } from "ai";
 import { type NextRequest, NextResponse } from "next/server";
-import { createInterviewSessionAgent } from "@/lib/ai/agents/interview-session";
 import { classifyAIDegradation } from "@/lib/ai/core/degradation";
 import { aiProvider } from "@/lib/ai/core/provider";
+import { getUserAIRouteProfile } from "@/lib/ai/core/route-profile-preferences";
 import { createNexusNoteStreamResponse } from "@/lib/ai/core/streaming";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import type { InterviewUIMessage } from "@/lib/ai/interview/ui";
+import { createCourseInterviewerSpecialistAgent } from "@/lib/ai/specialists/registry";
 import { InterviewApiRequestSchema } from "@/lib/ai/validation";
 import { APIError, handleError } from "@/lib/api";
 import { auth } from "@/lib/auth";
-import { getUserGrowthContextWithinBudget } from "@/lib/growth/generation-context";
 import { getOwnedCourse } from "@/lib/learning/course-repository";
 
 export const maxDuration = 300;
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     requestId,
     endpoint: "/api/interview",
     promptVersion: "interview@agent-v1",
-    modelPolicy: "interactive-fast",
+    modelPolicy: "outline-architect",
     workflow: "interview-agent",
   });
 
@@ -48,21 +48,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { messages, sessionId, courseId: inputCourseId, outline, mode } = validation.data;
-    const modelPolicy = outline ? "outline-architect" : "interactive-fast";
-    const promptVersion = mode === "structured" ? "interview@structured-v2" : "interview@agent-v1";
-    const workflow = mode === "structured" ? "interview-agent-structured" : "interview-agent";
+    const { messages, sessionId, courseId: inputCourseId, outline } = validation.data;
+    const modelPolicy = "outline-architect";
+    const promptVersion = "interview@agent-v1";
+    const workflow = "interview-agent";
+    const routeProfile = await getUserAIRouteProfile(userId);
     telemetry = createTelemetryContext({
       requestId,
       endpoint: "/api/interview",
       userId,
       promptVersion,
       modelPolicy,
+      routeProfile,
       workflow,
       metadata: {
         sessionId: sessionId ?? null,
         courseId: inputCourseId ?? null,
-        ...(mode === "structured" ? { sessionMode: mode } : {}),
+        routeProfile,
       },
     });
 
@@ -80,24 +82,14 @@ export async function POST(request: NextRequest) {
       courseId = existingCourse.id;
     }
 
-    const generationContext = await getUserGrowthContextWithinBudget(userId, {
-      onTimeout: () => {
-        console.warn("[Interview] Growth context missed interactive budget", {
-          requestId,
-          userId,
-        });
-      },
-    });
-
     const validatedMessages = await validateUIMessages<InterviewUIMessage>({ messages });
 
-    const agent = await createInterviewSessionAgent({
+    const agent = createCourseInterviewerSpecialistAgent({
       userId,
       courseId,
       currentOutline: outline ?? undefined,
       messages: validatedMessages,
-      mode,
-      generationContext,
+      routeProfile,
       telemetry,
     });
 

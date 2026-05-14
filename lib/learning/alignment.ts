@@ -457,7 +457,19 @@ export function formatCourseBlueprintAlignmentBrief(brief: CourseBlueprintAlignm
     .join("\n");
 }
 
-export function buildLearnQuickPrompts(params: { chapterTitle?: string | null }): string[] {
+export function buildLearnQuickPrompts(params: {
+  chapterTitle?: string | null;
+  sectionTitle?: string | null;
+}): string[] {
+  if (params.sectionTitle) {
+    return [
+      `这一节「${params.sectionTitle}」最重要的三个要点是什么？`,
+      "帮我用一个例子讲透这一节。",
+      "这一节最容易混淆或踩坑的地方是什么？",
+      "我学完这一节应该能做出什么？",
+    ];
+  }
+
   const prompts = [
     params.chapterTitle ? `这一章「${params.chapterTitle}」最重要的三个要点是什么？` : null,
     params.chapterTitle ? `这一章适合怎么学，先看哪里再练哪里？` : null,

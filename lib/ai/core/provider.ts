@@ -10,18 +10,13 @@ import { createOpenAI } from "@ai-sdk/openai";
 import type { EmbeddingModelV3, LanguageModelV3 } from "@ai-sdk/provider";
 import { extractReasoningMiddleware, wrapLanguageModel } from "ai";
 import { env } from "@/config/env";
-
-export type ModelType =
-  | "chat"
-  | "toolCalling"
-  | "pro"
-  | "outline"
-  | "sectionDraft"
-  | "extract"
-  | "review"
-  | "webSearch"
-  | "embedding";
-type LanguageModelType = Exclude<ModelType, "embedding">;
+import {
+  getAIModelBundle,
+  getAIModelId,
+  type LanguageModelType,
+  type ModelType,
+} from "./model-bundles";
+import type { AIRouteProfile } from "./route-profiles";
 
 function createReasoningModel(
   client: ReturnType<typeof createOpenAI>,
@@ -50,24 +45,12 @@ class AIProvider {
   private static instance: AIProvider;
   private readonly label = "302.ai";
   private readonly client: ReturnType<typeof createOpenAI>;
-  private readonly models: Record<ModelType, string>;
 
   private constructor() {
     this.client = createOpenAI({
       baseURL: env.AI_302_BASE_URL,
       apiKey: env.AI_302_API_KEY,
     });
-    this.models = {
-      chat: env.AI_MODEL_INTERACTIVE,
-      toolCalling: env.AI_MODEL_INTERACTIVE,
-      pro: env.AI_MODEL_REVIEW,
-      outline: env.AI_MODEL_OUTLINE,
-      sectionDraft: env.AI_MODEL_SECTION_DRAFT,
-      extract: env.AI_MODEL_EXTRACT,
-      review: env.AI_MODEL_REVIEW,
-      webSearch: env.AI_MODEL_WEB_SEARCH,
-      embedding: env.EMBEDDING_MODEL,
-    };
     if (env.AI_DEBUG_LOGS) {
       console.log(`[AI] Provider initialized: ${this.label}`);
     }
@@ -91,34 +74,30 @@ class AIProvider {
     };
   }
 
-  private getModelId(modelType: ModelType): string {
-    const modelId = this.models[modelType];
-    if (!modelId) {
-      throw new Error(`No model configured for type: ${modelType}`);
-    }
-    return modelId;
+  private getModelId(modelType: ModelType, routeProfile?: AIRouteProfile): string {
+    return getAIModelId(modelType, routeProfile);
   }
 
-  getModel(modelType: LanguageModelType = "chat") {
-    return createReasoningModel(this.client, this.getModelId(modelType), modelType);
+  getModel(modelType: LanguageModelType = "chat", routeProfile?: AIRouteProfile) {
+    return createReasoningModel(this.client, this.getModelId(modelType, routeProfile), modelType);
   }
 
-  getPlainModel(modelType: LanguageModelType = "chat") {
-    return createPlainModel(this.client, this.getModelId(modelType));
+  getPlainModel(modelType: LanguageModelType = "chat", routeProfile?: AIRouteProfile) {
+    return createPlainModel(this.client, this.getModelId(modelType, routeProfile));
   }
 
-  getToolCallingModel(modelType: LanguageModelType = "chat") {
+  getToolCallingModel(modelType: LanguageModelType = "chat", routeProfile?: AIRouteProfile) {
     const targetModelType = modelType === "chat" ? "toolCalling" : modelType;
-    return createPlainModel(this.client, this.getModelId(targetModelType));
+    return createPlainModel(this.client, this.getModelId(targetModelType, routeProfile));
   }
 
-  getModelName(modelType: ModelType = "chat"): string {
-    return this.getModelId(modelType);
+  getModelName(modelType: ModelType = "chat", routeProfile?: AIRouteProfile): string {
+    return this.getModelId(modelType, routeProfile);
   }
 
-  getProviderLabel(modelType: ModelType = "chat"): string | null {
+  getProviderLabel(modelType: ModelType = "chat", routeProfile?: AIRouteProfile): string | null {
     void modelType;
-    return this.label;
+    return getAIModelBundle(routeProfile).providerLabel;
   }
 
   get embeddingModel(): EmbeddingModelV3 {

@@ -11,11 +11,6 @@ import type {
 } from "@/lib/ai/interview/models";
 import type { InterviewOutline } from "@/lib/ai/interview/schemas";
 import {
-  DEFAULT_INTERVIEW_SESSION_MODE,
-  type InterviewSessionMode,
-  normalizeInterviewSessionMode,
-} from "@/lib/ai/interview/session-mode";
-import {
   findLatestOutline,
   findLatestStableOutline,
   type InterviewDisplayMessage,
@@ -28,7 +23,6 @@ export type InterviewMessage = InterviewDisplayMessage;
 
 interface UseInterviewOptions {
   initialMessage?: string;
-  initialMode?: InterviewSessionMode;
 }
 
 interface UseInterviewReturn {
@@ -40,9 +34,6 @@ interface UseInterviewReturn {
   aiDegradedKind: AIDegradationKind | null;
   outline: InterviewOutlineState;
   course: InterviewCourseState;
-  sessionMode: InterviewSessionMode;
-  setSessionMode: (mode: InterviewSessionMode) => void;
-  canChangeMode: boolean;
 }
 
 export function useInterview(options?: UseInterviewOptions): UseInterviewReturn {
@@ -52,14 +43,9 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
   const [stableOutline, setStableOutlineState] = useState<InterviewOutline | null>(null);
   const [courseId, setCourseIdState] = useState<string | null>(null);
   const [isOutlineLoading, setIsOutlineLoading] = useState(false);
-  const [sessionMode, setSessionModeState] = useState<InterviewSessionMode>(() =>
-    normalizeInterviewSessionMode(options?.initialMode ?? DEFAULT_INTERVIEW_SESSION_MODE),
-  );
-  const [isModeLocked, setIsModeLocked] = useState(() => Boolean(options?.initialMessage));
 
   const stableOutlineRef = useRef<InterviewOutline | null>(null);
   const courseIdRef = useRef<string | null>(null);
-  const sessionModeRef = useRef<InterviewSessionMode>(sessionMode);
   const sentInitialRef = useRef(false);
   const initialMessageRef = useRef(options?.initialMessage);
 
@@ -77,19 +63,6 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
     initialMessageRef.current = options?.initialMessage;
   }, [options?.initialMessage]);
 
-  useEffect(() => {
-    const normalizedMode = normalizeInterviewSessionMode(
-      options?.initialMode ?? DEFAULT_INTERVIEW_SESSION_MODE,
-    );
-
-    if (isModeLocked) {
-      return;
-    }
-
-    sessionModeRef.current = normalizedMode;
-    setSessionModeState(normalizedMode);
-  }, [isModeLocked, options?.initialMode]);
-
   const chat = useChat<InterviewUIMessage>({
     id: sessionId,
     transport: new DefaultChatTransport({
@@ -102,7 +75,6 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
         sessionId,
         courseId: courseIdRef.current ?? undefined,
         outline: stableOutlineRef.current ?? undefined,
-        mode: sessionModeRef.current,
       }),
     }),
     onFinish: ({ messages: finishedMessages }) => {
@@ -126,7 +98,6 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
   });
 
   const { messages, status } = chat;
-  const canChangeMode = !isModeLocked && messages.length === 0;
   const displayMessages = toInterviewDisplayMessages(messages);
   const isLoading = status === "submitted" || status === "streaming";
   const liveOutlineResult = findLatestOutline(messages);
@@ -149,12 +120,6 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
   };
 
   useEffect(() => {
-    if (messages.length > 0 && !isModeLocked) {
-      setIsModeLocked(true);
-    }
-  }, [isModeLocked, messages.length]);
-
-  useEffect(() => {
     if (liveOutlineResult?.isStarted) {
       setIsOutlineLoading(!liveOutlineResult.isComplete);
       return;
@@ -165,27 +130,11 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
     }
   }, [isLoading, liveOutlineResult]);
 
-  const setSessionMode = useCallback(
-    (nextMode: InterviewSessionMode) => {
-      if (isModeLocked) {
-        return;
-      }
-
-      sessionModeRef.current = nextMode;
-      setSessionModeState(nextMode);
-    },
-    [isModeLocked],
-  );
-
   const sendMessage = useCallback(
     async ({ text }: { text: string }) => {
       const nextText = text.trim();
       if (!nextText) {
         return;
-      }
-
-      if (!isModeLocked) {
-        setIsModeLocked(true);
       }
 
       if (stableOutlineRef.current) {
@@ -194,7 +143,7 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
 
       await chat.sendMessage({ text: nextText });
     },
-    [chat, isModeLocked],
+    [chat],
   );
 
   useEffect(() => {
@@ -214,8 +163,5 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
     aiDegradedKind,
     outline,
     course,
-    sessionMode,
-    setSessionMode,
-    canChangeMode,
   };
 }

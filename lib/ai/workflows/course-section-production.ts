@@ -2,18 +2,16 @@ import { smoothStream, streamText } from "ai";
 import { and, courseSections, db, eq } from "@/db";
 import { buildGenerationSettingsForPolicy } from "@/lib/ai/core/generation-settings";
 import { getModelForPolicy } from "@/lib/ai/core/model-policy";
+import { getUserAIRouteProfile } from "@/lib/ai/core/route-profile-preferences";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { renderPromptResource } from "@/lib/ai/prompts/load-prompt";
 import { APIError } from "@/lib/api";
 import { invalidateChapterCache } from "@/lib/cache/course-context";
 import { revalidateLearnPage } from "@/lib/cache/tags";
-import { getUserGrowthContext, type UserGrowthContext } from "@/lib/growth/generation-context";
-import { formatLearningAlignmentBrief } from "@/lib/learning/alignment";
 import { getOwnedCourseWithOutline } from "@/lib/learning/course-repository";
 import { buildLearningGuidance, type LearningGuidance } from "@/lib/learning/guidance";
 import { createLearnTrace } from "@/lib/learning/observability";
 import { buildSectionOutlineNodeKey } from "@/lib/learning/outline-node-key";
-import { enqueueCourseSectionMaterialization } from "@/lib/queue/course-production-queue";
 import { enqueueCourseSectionRagIndex } from "@/lib/queue/rag-queue";
 import { getRedis } from "@/lib/redis";
 
@@ -113,7 +111,6 @@ export function buildCourseSectionSystemPrompt(params: {
     section_number: `${guidance.chapter.index + 1}.${sectionIndex + 1}`,
     section_title: section.title,
     section_description: section.description,
-    alignment_brief: formatLearningAlignmentBrief(section.alignment, "prompt"),
   });
 }
 
@@ -133,9 +130,7 @@ async function loadExistingSectionDocument(
 }
 
 export async function resolveCourseSectionProductionInput(
-  params: CourseSectionProductionTarget & {
-    growthContext: UserGrowthContext;
-  },
+  params: CourseSectionProductionTarget,
 ): Promise<ResolvedCourseSectionProductionInput> {
   const course = await getOwnedCourseWithOutline(params.courseId, params.userId);
   if (!course) {
@@ -145,7 +140,6 @@ export async function resolveCourseSectionProductionInput(
   const guidance = buildLearningGuidance({
     course,
     chapterIndex: params.chapterIndex,
-    growth: params.growthContext,
   });
   if (!guidance) {
     throw new APIError("章节不存在", 404, "CHAPTER_NOT_FOUND");
@@ -258,7 +252,7 @@ export async function prepareCourseSectionLiveStream(params: {
   const keys = buildSectionLiveStreamKeys(params.courseId, params.outlineNodeId);
   const status = await redis.hget(keys.state, "status");
 
-  if (status === "generating") {
+  if (status === "generating" || status === "complete") {
     return;
   }
 
@@ -394,23 +388,24 @@ export async function materializeCourseSectionInBackground(
     chapterIndex: target.chapterIndex,
     sectionIndex: target.sectionIndex,
   });
+  const routeProfile = await getUserAIRouteProfile(target.userId);
   const telemetry = createTelemetryContext({
     endpoint: "course-production-worker",
     userId: target.userId,
     workflow: "materialize-course-section",
     promptVersion: "course-section@v3",
     modelPolicy: "section-draft",
+    routeProfile,
     metadata: {
       courseId: target.courseId,
       chapterIndex: target.chapterIndex,
       sectionIndex: target.sectionIndex,
+      routeProfile,
     },
   });
 
-  const growthContext = await getUserGrowthContext(target.userId);
   const input = await resolveCourseSectionProductionInput({
     ...target,
-    growthContext,
   });
   const lock = await acquireSectionLock(target.courseId, input.outlineNodeId);
   if (!lock) {
@@ -461,15 +456,21 @@ export async function materializeCourseSectionInBackground(
     let stepCount = 0;
 
     const result = streamText({
-      model: getModelForPolicy("section-draft"),
+      model: getModelForPolicy("section-draft", { routeProfile }),
       system: buildCourseSectionSystemPrompt({
         guidance: input.guidance,
         sectionIndex: target.sectionIndex,
       }),
       prompt: buildCourseSectionUserPrompt(input.section.title),
-      ...buildGenerationSettingsForPolicy("section-draft", {
-        temperature: 0.5,
-      }),
+      ...buildGenerationSettingsForPolicy(
+        "section-draft",
+        {
+          temperature: 0.5,
+        },
+        {
+          routeProfile,
+        },
+      ),
       timeout: 180_000,
       experimental_transform: smoothStream({
         chunking: new Intl.Segmenter("zh-Hans", { granularity: "word" }),
@@ -500,16 +501,6 @@ export async function materializeCourseSectionInBackground(
       existingSection: input.existingSection,
       trace,
     });
-    if (target.sectionIndex + 1 < input.chapter.sections.length) {
-      await enqueueCourseSectionMaterialization({
-        userId: target.userId,
-        courseId: target.courseId,
-        chapterIndex: target.chapterIndex,
-        sectionIndex: target.sectionIndex + 1,
-        reasonKey: `after-materialize:${input.outlineNodeId}`,
-        priority: 3,
-      });
-    }
     await completeCourseSectionLiveStream({
       courseId: target.courseId,
       outlineNodeId: input.outlineNodeId,

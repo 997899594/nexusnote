@@ -16,14 +16,7 @@ import { enqueueGrowthRefresh } from "@/lib/growth/queue";
 import { ingestEvidenceEvent } from "@/lib/knowledge/events";
 import { aggregateCourseEventsToKnowledgeEvidence } from "@/lib/knowledge/evidence/aggregate";
 import { getOwnedCourseWithOutline } from "@/lib/learning/course-repository";
-import {
-  buildSectionOutlineNodeKey,
-  parseSectionOutlineNodeKey,
-} from "@/lib/learning/outline-node-key";
-import {
-  enqueueCourseSectionMaterialization,
-  resolveNextCourseSectionTarget,
-} from "@/lib/queue/course-production-queue";
+import { buildSectionOutlineNodeKey } from "@/lib/learning/outline-node-key";
 
 const RequestSchema = z.object({
   courseId: z.string().uuid(),
@@ -228,25 +221,6 @@ export async function POST(request: NextRequest) {
           undefined,
           `course-progress:${courseId}:${completedSections.length}:${completedChapters.length}:${sectionNodeId}`,
         );
-
-        const completedSectionKey = parseSectionOutlineNodeKey(sectionNodeId);
-        const nextSection = completedSectionKey
-          ? resolveNextCourseSectionTarget({
-              outline: course.outline,
-              chapterIndex: completedSectionKey.chapterIndex,
-              sectionIndex: completedSectionKey.sectionIndex,
-            })
-          : null;
-
-        if (nextSection) {
-          await enqueueCourseSectionMaterialization({
-            userId,
-            courseId,
-            ...nextSection,
-            reasonKey: `progress:${sectionNodeId}`,
-            priority: 4,
-          });
-        }
 
         revalidateCourseProgressViews(userId, courseId);
       } catch (error) {

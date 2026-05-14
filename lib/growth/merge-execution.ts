@@ -11,9 +11,8 @@ import { recomputeNodeAggregates } from "@/lib/growth/aggregation";
 import type { EvidenceMergeRow } from "@/lib/growth/data-access";
 import { bumpGrowthGraphState } from "@/lib/growth/graph-state";
 import {
-  type GrowthMergePriorSummary,
   type MergePlannerEvidenceBatchItem,
-  planGrowthGraphMerge,
+  planDeterministicGrowthMerge,
   validateMergePlannerOutput,
 } from "@/lib/growth/merge";
 import { retrieveMergeCandidateSet } from "@/lib/growth/retrieve-merge-candidates";
@@ -45,10 +44,8 @@ function buildMergePlannerEvidenceBatch(
 
 export async function planValidatedGrowthMerge(params: {
   userId: string;
-  plannerResourceId: string;
   evidenceRows: EvidenceMergeRow[];
   evidenceRefs: EvidenceSourceLinkRow[];
-  priorSummary: GrowthMergePriorSummary;
 }): Promise<ValidatedGrowthMerge> {
   const [existingNodes, existingEvidenceLinks, existingPrerequisiteEdges] = await Promise.all([
     db
@@ -84,6 +81,7 @@ export async function planValidatedGrowthMerge(params: {
 
   const candidateSet = retrieveMergeCandidateSet({
     evidenceItems: evidenceBatch.map((item) => ({
+      id: item.id,
       title: item.title,
       kind: "skill",
       summary: item.summary,
@@ -98,14 +96,9 @@ export async function planValidatedGrowthMerge(params: {
     existingPrerequisiteEdges,
   });
 
-  const planned = await planGrowthGraphMerge({
-    userId: params.userId,
-    courseId: params.plannerResourceId,
-    input: {
-      candidateContext: candidateSet,
-      evidenceBatch,
-      priorCourseSummary: params.priorSummary,
-    },
+  const planned = planDeterministicGrowthMerge({
+    candidateContext: candidateSet,
+    evidenceBatch,
   });
 
   return validateMergePlannerOutput({
@@ -134,10 +127,11 @@ export async function applyValidatedGrowthMerge(params: {
     );
   }
 
-  if ((params.priorEdgeRunIds ?? []).length > 0) {
+  const priorEdgeRunIds = params.priorEdgeRunIds ?? [];
+  if (priorEdgeRunIds.length > 0) {
     await params.tx
       .delete(userSkillEdges)
-      .where(inArray(userSkillEdges.sourceMergeRunId, params.priorEdgeRunIds!));
+      .where(inArray(userSkillEdges.sourceMergeRunId, priorEdgeRunIds));
   }
 
   const tempNodeRefMap = new Map<string, string>();

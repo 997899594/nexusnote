@@ -6,6 +6,7 @@ import {
   interviewEvalSuite,
   learnEvalSuite,
   notesEvalSuite,
+  routingEvalSuite,
   runEvalSuite,
 } from "@/tests/ai-evals";
 
@@ -15,6 +16,7 @@ const SUITES: Record<EvalDomain, EvalSuite<any>> = {
   interview: interviewEvalSuite,
   learn: learnEvalSuite,
   notes: notesEvalSuite,
+  routing: routingEvalSuite,
 };
 
 async function main() {

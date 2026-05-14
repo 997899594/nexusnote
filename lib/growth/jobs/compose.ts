@@ -17,12 +17,20 @@ import {
   sortResolvedTreesByPreference,
   treeComposerOutputSchema,
 } from "@/lib/growth/compose";
-import { CAREER_TREE_SCHEMA_VERSION, GROWTH_COMPOSE_MODEL_LABEL } from "@/lib/growth/constants";
+import {
+  CAREER_TREE_SCHEMA_VERSION,
+  GROWTH_COMPOSE_MODEL_LABEL,
+  GROWTH_COMPOSE_PROMPT_VERSION,
+} from "@/lib/growth/constants";
 import { getGrowthGraphStateRow } from "@/lib/growth/graph-state";
 import { getGrowthPreference } from "@/lib/growth/preferences";
 import { buildComposeGraph, buildGrowthSnapshotArtifacts } from "@/lib/growth/projections";
 import { enqueueGrowthProjection } from "@/lib/growth/queue";
-import { getLatestCareerTreeSnapshotRow } from "@/lib/growth/snapshot-data";
+import {
+  getLatestCareerTreeSnapshotRow,
+  restoreLatestCareerTreeSnapshotForComposeRun,
+} from "@/lib/growth/snapshot-data";
+import { careerTreeSnapshotSchema } from "@/lib/growth/types";
 import {
   getGenerationRunById,
   getOrCreateGenerationRun,
@@ -97,14 +105,26 @@ export async function processGrowthComposeJob(
   const composeRun = await getOrCreateGenerationRun({
     userId: job.userId,
     kind: "compose",
-    idempotencyKey: `compose:user:${job.userId}:graph:${graphState?.graphVersion ?? 0}:pref:${preference.preferenceVersion}`,
-    inputHash: `${graphState?.graphVersion ?? 0}:${preference.preferenceVersion}`,
+    idempotencyKey: `compose:user:${job.userId}:graph:${graphState?.graphVersion ?? 0}:pref:${preference.preferenceVersion}:prompt:${GROWTH_COMPOSE_PROMPT_VERSION}`,
+    inputHash: `${graphState?.graphVersion ?? 0}:${preference.preferenceVersion}:${GROWTH_COMPOSE_PROMPT_VERSION}`,
     model: GROWTH_COMPOSE_MODEL_LABEL,
-    promptVersion: "growth-compose@v4",
+    promptVersion: GROWTH_COMPOSE_PROMPT_VERSION,
     reuseCompleted: true,
   });
 
   if (composeRun.status === "succeeded") {
+    const restoredSnapshot = await restoreLatestCareerTreeSnapshotForComposeRun({
+      userId: job.userId,
+      composeRunId: composeRun.id,
+    });
+
+    if (!restoredSnapshot) {
+      throw new Error(
+        `Growth compose run ${composeRun.id} is completed but has no compatible career tree snapshot`,
+      );
+    }
+
+    revalidateCareerTrees(job.userId);
     await enqueueProjectionIfNeeded(job.userId, enqueueFollowups);
     return;
   }
@@ -118,23 +138,6 @@ export async function processGrowthComposeJob(
     : null;
 
   try {
-    const composed = await composeGrowthTrees({
-      userId: job.userId,
-      graph: buildComposeGraph(nodes, edges),
-      preference,
-      previousSummary: previousComposeRun?.outputJson ?? null,
-    });
-
-    const parsed = treeComposerOutputSchema.parse(composed);
-    const resolvedTrees = resolveDirectionKeys({
-      trees: parsed.trees,
-      previousDirections: resolvePreviousDirections(previousComposeRun?.outputJson ?? null),
-    });
-    const sortedTrees = sortResolvedTreesByPreference({
-      trees: resolvedTrees,
-      preference,
-    });
-
     const nodeEvidenceRows = await db
       .select({
         nodeId: userSkillNodeEvidence.nodeId,
@@ -163,6 +166,23 @@ export async function processGrowthComposeJob(
       )
       .where(eq(userSkillNodeEvidence.userId, job.userId));
 
+    const composed = await composeGrowthTrees({
+      userId: job.userId,
+      graph: buildComposeGraph(nodes, edges, nodeEvidenceRows),
+      preference,
+      previousSummary: previousComposeRun?.outputJson ?? null,
+    });
+
+    const parsed = treeComposerOutputSchema.parse(composed);
+    const resolvedTrees = resolveDirectionKeys({
+      trees: parsed.trees,
+      previousDirections: resolvePreviousDirections(previousComposeRun?.outputJson ?? null),
+    });
+    const sortedTrees = sortResolvedTreesByPreference({
+      trees: resolvedTrees,
+      preference,
+    });
+
     const snapshotArtifacts = buildGrowthSnapshotArtifacts({
       resolvedTrees: sortedTrees,
       recommendedDirectionHint: parsed.recommendedDirectionHint ?? null,
@@ -171,6 +191,7 @@ export async function processGrowthComposeJob(
       supportingRows: nodeEvidenceRows,
     });
     const { snapshot: payload, recommendedDirectionKey } = snapshotArtifacts;
+    const validatedPayload = careerTreeSnapshotSchema.parse(payload);
 
     await db.transaction(async (tx) => {
       await tx
@@ -192,7 +213,7 @@ export async function processGrowthComposeJob(
         selectedDirectionKey: preference.selectedDirectionKey,
         graphVersion: graphState?.graphVersion ?? 0,
         preferenceVersion: preference.preferenceVersion,
-        payload,
+        payload: validatedPayload,
         isLatest: true,
         generatedAt: new Date(),
       });

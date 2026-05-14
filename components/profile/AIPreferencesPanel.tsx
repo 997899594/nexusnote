@@ -5,7 +5,9 @@ import type { ReactNode } from "react";
 import { useEffect, useState, useTransition } from "react";
 import { SkinSelector } from "@/components/chat/SkinSelector";
 import { useToast } from "@/components/ui/Toast";
+import { AI_ROUTE_PROFILE_OPTIONS } from "@/lib/ai/core/route-profiles";
 import { type AIPreferences, DEFAULT_AI_PREFERENCES } from "@/lib/ai/preferences";
+import { cn } from "@/lib/utils";
 import { useUserPreferencesStore } from "@/stores/user-preferences";
 
 type LearningFormat = "text" | "video" | "mixed" | "audio" | "interactive";
@@ -67,12 +69,29 @@ export function AIPreferencesPanel() {
         </p>
         <h2 className="mt-2 text-xl font-medium text-[var(--color-text)]">默认行为与表达风格</h2>
         <p className="mt-2 max-w-2xl text-sm leading-7 text-[var(--color-text-tertiary)]">
-          这里设置长期默认值。聊天、学习、笔记里仍然可以临时切换，但默认行为以这里为准。
+          这里设置长期默认值。AI 链路影响前台学习体验，表达偏好影响回答方式。
         </p>
       </div>
 
       <div className="ui-surface-card-lg rounded-3xl p-5 md:p-8">
         <div className="grid gap-6 md:grid-cols-2">
+          <PreferenceBlock
+            icon={<Brain className="h-4 w-4" />}
+            title="AI 链路"
+            description="决定前台聊天、访谈、课程蓝图和章节生成走哪组模型。"
+          >
+            <SegmentedSelect
+              value={form.aiPreferences.routeProfile}
+              onChange={(value) =>
+                updateAIPreference("routeProfile", value as AIPreferences["routeProfile"])
+              }
+              options={AI_ROUTE_PROFILE_OPTIONS.map((option) => ({
+                value: option.value,
+                label: option.label,
+              }))}
+            />
+          </PreferenceBlock>
+
           <PreferenceBlock
             icon={<Brain className="h-4 w-4" />}
             title="讲解方式"
@@ -246,7 +265,12 @@ function SegmentedSelect({
   options: Array<{ value: string; label: string }>;
 }) {
   return (
-    <div className="grid grid-cols-3 gap-2">
+    <div
+      className={cn(
+        "grid gap-2",
+        options.length >= 4 ? "grid-cols-2 xl:grid-cols-4" : "grid-cols-3",
+      )}
+    >
       {options.map((option) => (
         <button
           key={option.value}

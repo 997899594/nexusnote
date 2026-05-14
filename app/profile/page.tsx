@@ -100,13 +100,7 @@ async function ProfilePageContent() {
   return (
     <WorkspacePageShell
       header={
-        <FloatingHeader
-          showBackHint
-          showMenuButton
-          title="个人中心"
-          subtitle="Profile"
-          variant="workspace"
-        />
+        <FloatingHeader showBackHint title="个人中心" subtitle="Profile" variant="workspace" />
       }
       frameClassName="max-w-4xl"
     >

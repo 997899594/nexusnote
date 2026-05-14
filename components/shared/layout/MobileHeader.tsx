@@ -4,14 +4,14 @@
  * 功能:
  * - 返回按钮 (带确认提示，如果表单有未保存内容)
  * - 标题显示
- * - 右侧操作按钮 (菜单、设置等)
+ * - 右侧操作按钮 (关闭、自定义操作等)
  * - 支持安全区域适配
  */
 
 "use client";
 
 import { motion, useScroll, useSpring, useTransform } from "framer-motion";
-import { ArrowLeft, Menu, X } from "lucide-react";
+import { ArrowLeft, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
@@ -23,7 +23,7 @@ export interface MobileHeaderProps {
   /** 返回确认提示 (有未保存内容时) */
   backConfirm?: boolean;
   /** 右侧操作按钮 */
-  rightAction?: "menu" | "close" | "custom";
+  rightAction?: "close" | "custom";
   /** 右侧自定义操作 */
   onRightAction?: () => void;
   /** 右侧自定义文案 */
@@ -113,16 +113,6 @@ export function MobileHeader({
 
         {/* 右侧 - 操作按钮 */}
         <div className="w-10 flex items-center justify-end">
-          {rightAction === "menu" && (
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              onClick={handleRightAction}
-              className="touch-target mobile-no-tap-highlight -mr-1 flex h-10 w-10 items-center justify-center rounded-xl text-[var(--color-text-secondary)] transition-colors active:bg-[var(--color-active)]"
-              aria-label="菜单"
-            >
-              <Menu className="h-5 w-5" />
-            </motion.button>
-          )}
           {rightAction === "close" && (
             <motion.button
               whileTap={{ scale: 0.9 }}

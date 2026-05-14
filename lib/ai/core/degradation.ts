@@ -109,12 +109,14 @@ export function createAIDegradationAwareFetch(options?: {
   fetch?: typeof globalThis.fetch;
   onStateChange?: (kind: AIDegradationKind | null) => void;
   onUnauthorized?: () => void;
+  onResponse?: (response: Response) => void;
 }): typeof globalThis.fetch {
   const baseFetch = (options?.fetch ?? globalThis.fetch) as FetchWithPreconnect;
 
   const wrappedFetch = Object.assign(
     async (input: URL | RequestInfo, init?: RequestInit) => {
       const response = await baseFetch(input, init);
+      options?.onResponse?.(response);
       options?.onStateChange?.(parseAIDegradationKind(response.headers.get("X-AI-Degraded")));
 
       if (response.status === 401) {

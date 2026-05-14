@@ -5,8 +5,9 @@ import { useToast } from "@/components/ui/Toast";
 
 export interface SectionState {
   content: string; // raw Markdown
-  status: "idle" | "generating" | "complete" | "error";
+  status: "idle" | "queued" | "generating" | "complete" | "error";
   documentId?: string;
+  jobId?: string;
   error?: string;
 }
 
@@ -34,17 +35,12 @@ export function useChapterSections({
   const [sections, setSections] = useState<Map<number, SectionState>>(new Map());
   const [currentGenerating, setCurrentGenerating] = useState<number | null>(null);
 
-  // Track in-flight request to prevent concurrency
+  // Only one foreground stream is allowed. Section changes never enqueue a backlog.
   const inflightRef = useRef<AbortController | null>(null);
-  const pendingRef = useRef<number | null>(null);
-  const chapterRef = useRef(chapterIndex);
 
-  // Initialize sections from server data on chapter change
   useEffect(() => {
-    chapterRef.current = chapterIndex;
     inflightRef.current?.abort();
     inflightRef.current = null;
-    pendingRef.current = null;
     setCurrentGenerating(null);
 
     const initial = new Map<number, SectionState>();
@@ -67,9 +63,15 @@ export function useChapterSections({
   // Core generate function
   const doGenerate = useCallback(
     async (sectionIndex: number) => {
-      // Skip if already complete or generating
+      // Skip if already complete or already in progress.
       const current = sections.get(sectionIndex);
-      if (current?.status === "complete" || current?.status === "generating") return;
+      if (
+        current?.status === "complete" ||
+        current?.status === "queued" ||
+        current?.status === "generating"
+      ) {
+        return;
+      }
 
       const controller = new AbortController();
       inflightRef.current = controller;
@@ -77,7 +79,7 @@ export function useChapterSections({
 
       setSections((prev) => {
         const next = new Map(prev);
-        next.set(sectionIndex, { content: "", status: "generating" });
+        next.set(sectionIndex, { content: "", status: "queued" });
         return next;
       });
 
@@ -92,6 +94,15 @@ export function useChapterSections({
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           throw new Error(errorData?.error?.message || `生成失败 (${response.status})`);
+        }
+
+        const jobId = response.headers.get("X-Course-Production-Job-Id") || undefined;
+        if (jobId) {
+          setSections((prev) => {
+            const next = new Map(prev);
+            next.set(sectionIndex, { content: "", status: "queued", jobId });
+            return next;
+          });
         }
 
         // Check if content already exists (non-streaming JSON response)
@@ -130,7 +141,7 @@ export function useChapterSections({
           const captured = fullText;
           setSections((prev) => {
             const next = new Map(prev);
-            next.set(sectionIndex, { content: captured, status: "generating" });
+            next.set(sectionIndex, { content: captured, status: "generating", jobId });
             return next;
           });
         }
@@ -154,30 +165,20 @@ export function useChapterSections({
         inflightRef.current = null;
         setCurrentGenerating(null);
 
-        // Keep foreground generation user-driven; background production prewarms the next section.
-        if (chapterRef.current === chapterIndex) {
-          const pending = pendingRef.current;
-          pendingRef.current = null;
-
-          if (pending !== null) {
-            // A specific section was requested while generating — prioritize it
-            doGenerate(pending);
-          }
-        }
+        // No backlog: the visible section decides whether another generation should start.
       }
     },
     [courseId, chapterIndex, sections, addToast],
   );
 
-  // Public generate — handles concurrency (serial, one at a time)
   const generateSection = useCallback(
     (sectionIndex: number) => {
       const s = sections.get(sectionIndex);
-      if (s?.status === "complete") return;
+      if (s?.status === "complete" || s?.status === "queued" || s?.status === "generating") {
+        return;
+      }
 
       if (inflightRef.current) {
-        // Already generating — queue this section for after current finishes
-        pendingRef.current = sectionIndex;
         return;
       }
 
@@ -185,23 +186,6 @@ export function useChapterSections({
     },
     [sections, doGenerate],
   );
-
-  // Auto-start first ungenerated section on mount
-  // biome-ignore lint/correctness/useExhaustiveDependencies: only re-trigger on chapter change to avoid infinite generation loops
-  useEffect(() => {
-    // Small delay to let initial state settle
-    const timer = setTimeout(() => {
-      for (let i = 0; i < sectionCount; i++) {
-        const s = sections.get(i);
-        if (!s || s.status === "idle") {
-          generateSection(i);
-          break;
-        }
-      }
-    }, 100);
-
-    return () => clearTimeout(timer);
-  }, [chapterIndex]); // Only re-trigger on chapter change
 
   return { sections, currentGenerating, generateSection };
 }

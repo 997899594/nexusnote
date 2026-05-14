@@ -64,7 +64,8 @@ function findLatestOutlinePreviewPart(messages: InterviewUIMessage[], requireSta
       continue;
     }
 
-    for (const part of message.parts) {
+    for (let partIndex = message.parts.length - 1; partIndex >= 0; partIndex--) {
+      const part = message.parts[partIndex];
       if (
         !isToolUIPart(part) ||
         !isInterviewVisibleTool(getToolName(part)) ||

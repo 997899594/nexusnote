@@ -1,8 +1,10 @@
 import type { LanguageModelUsage } from "ai";
 import { env } from "@/config/env";
 import { aiUsage, db } from "@/db";
-import type { AgentProfile } from "./capability-profiles";
+import type { CapabilityMode } from "@/lib/ai/runtime/contracts";
+import { isUuidString } from "@/lib/chat/session-id";
 import { getModelNameForPolicy, getProviderForPolicy, type ModelPolicy } from "./model-policy";
+import type { AIRouteProfile } from "./route-profiles";
 
 const MODEL_PRICING_USD_PER_1M_TOKENS: Record<string, { input: number; output: number }> = {
   [env.AI_MODEL_WEB_SEARCH]: {
@@ -36,11 +38,12 @@ export interface AITelemetryContext {
   endpoint: string;
   userId?: string;
   intent?: string;
-  profile?: AgentProfile;
+  capabilityMode?: CapabilityMode;
   workflow?: string;
   promptVersion?: string;
   model?: string;
   modelPolicy?: ModelPolicy;
+  routeProfile?: AIRouteProfile;
   metadata?: Record<string, unknown>;
 }
 
@@ -75,6 +78,10 @@ function estimateCostCents(model: string, inputTokens: number, outputTokens: num
   return Math.round(costUsd * 100);
 }
 
+function normalizeTelemetryUserId(userId: string | undefined): string | undefined {
+  return isUuidString(userId) ? userId : undefined;
+}
+
 export function createTelemetryContext(
   input: Omit<AITelemetryContext, "requestId"> & { requestId?: string },
 ): AITelemetryContext {
@@ -94,9 +101,12 @@ export function getErrorMessage(error: unknown): string {
 
 export async function recordAIUsage(input: RecordAIUsageInput): Promise<void> {
   const model =
-    input.model ?? (input.modelPolicy ? getModelNameForPolicy(input.modelPolicy) : null);
+    input.model ??
+    (input.modelPolicy
+      ? getModelNameForPolicy(input.modelPolicy, { routeProfile: input.routeProfile })
+      : null);
   const provider = input.modelPolicy
-    ? getProviderForPolicy(input.modelPolicy)
+    ? getProviderForPolicy(input.modelPolicy, { routeProfile: input.routeProfile })
     : ((input.metadata?.provider as string | undefined) ?? null);
   if (!model) {
     return;
@@ -106,11 +116,11 @@ export async function recordAIUsage(input: RecordAIUsageInput): Promise<void> {
 
   try {
     await db.insert(aiUsage).values({
-      userId: input.userId,
+      userId: normalizeTelemetryUserId(input.userId),
       requestId: input.requestId,
       endpoint: input.endpoint,
-      intent: input.intent ?? input.profile ?? input.workflow,
-      profile: input.profile,
+      intent: input.intent ?? input.capabilityMode ?? input.workflow,
+      profile: input.capabilityMode ?? null,
       workflow: input.workflow,
       provider,
       modelPolicy: input.modelPolicy ?? null,
@@ -125,8 +135,10 @@ export async function recordAIUsage(input: RecordAIUsageInput): Promise<void> {
       errorMessage: input.errorMessage,
       metadata: {
         ...input.metadata,
+        capabilityMode: input.capabilityMode ?? null,
         provider,
         modelPolicy: input.modelPolicy ?? null,
+        routeProfile: input.routeProfile ?? null,
         resolvedModel: model,
       },
     });

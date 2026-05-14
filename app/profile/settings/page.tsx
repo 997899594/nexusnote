@@ -13,13 +13,7 @@ async function ProfileSettingsPageContent() {
   return (
     <LibraryAnalysisPageShell
       header={
-        <FloatingHeader
-          showBackHint
-          showMenuButton
-          title="偏好设置"
-          subtitle="Settings"
-          variant="compact"
-        />
+        <FloatingHeader showBackHint title="偏好设置" subtitle="Settings" variant="compact" />
       }
     >
       <section className="mb-8">

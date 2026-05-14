@@ -13,8 +13,8 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AIDegradationBanner, WorkspaceEmptyState } from "@/components/common";
 import { useInputProtection } from "@/components/common/useInputProtection";
 import { cn } from "@/lib/utils";
@@ -83,18 +83,41 @@ function extractCommandContent(input: string): string {
 
 export function ChatPanel({ sessionId }: ChatPanelProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastSubmittedTextRef = useRef("");
   const [input, setInput] = useState("");
   const [showCommands, setShowCommands] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [selectedCommand, setSelectedCommand] = useState<Command | null>(null);
+  const didSendLaunchMessageRef = useRef(false);
+
+  const launchMessage = searchParams.get("msg")?.trim() ?? "";
+  const chatRequestBody = useMemo(() => {
+    const context = searchParams.get("context");
+
+    if (context === "career") {
+      const selectedDirectionKey = searchParams.get("directionKey")?.trim() || undefined;
+
+      return {
+        metadata: {
+          context: "career" as const,
+          selectedDirectionKey,
+        },
+      };
+    }
+
+    return undefined;
+  }, [searchParams]);
 
   const chat = useChatSession({
     sessionId,
+    body: chatRequestBody,
   });
 
   const messages = chat.messages;
   const sendMessage = chat.sendMessage;
+  const routeHint = chat.routeHint;
   const status = chat.status;
   const aiDegradedKind = chat.aiDegradedKind;
   // AI SDK v6: isLoading is derived from status
@@ -117,6 +140,51 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
     setCurrentSessionMessages(chatMessages);
     return () => setCurrentSessionMessages(null);
   }, [chatMessages, setCurrentSessionMessages]);
+
+  useEffect(() => {
+    if (!sessionId || !launchMessage || didSendLaunchMessageRef.current) {
+      return;
+    }
+
+    if (chatMessages.length > 0 || isLoading) {
+      return;
+    }
+
+    didSendLaunchMessageRef.current = true;
+    lastSubmittedTextRef.current = launchMessage;
+    void sendMessage({ text: launchMessage }).finally(() => {
+      router.replace(`/chat/${sessionId}`);
+    });
+  }, [chatMessages.length, isLoading, launchMessage, router, sendMessage, sessionId]);
+
+  useEffect(() => {
+    if (
+      routeHint?.executionMode !== "redirect" ||
+      routeHint.handoffTarget !== "course_interviewer"
+    ) {
+      return;
+    }
+
+    const message = lastSubmittedTextRef.current || launchMessage;
+    const query = new URLSearchParams();
+
+    if (message) {
+      query.set("msg", message);
+    }
+
+    router.replace(query.size > 0 ? `/interview?${query.toString()}` : "/interview");
+  }, [launchMessage, routeHint, router]);
+
+  const sendChatMessage = async (text: string) => {
+    const trimmedText = text.trim();
+
+    if (!trimmedText) {
+      return;
+    }
+
+    lastSubmittedTextRef.current = trimmedText;
+    await sendMessage({ text: trimmedText });
+  };
 
   const filteredCommands = (() => {
     if (!input.startsWith("/")) return CHAT_COMMANDS;
@@ -169,7 +237,7 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
       return;
     }
 
-    await sendMessage({ text: input.trim() });
+    await sendChatMessage(input);
     setInput("");
   };
 
@@ -249,7 +317,7 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
           )}
 
           {chatMessages.map((msg) => (
-            <ChatMessage key={msg.id} message={msg} onSendReply={(text) => sendMessage({ text })} />
+            <ChatMessage key={msg.id} message={msg} onSendReply={sendChatMessage} />
           ))}
 
           {isAILoading && <LoadingDots />}

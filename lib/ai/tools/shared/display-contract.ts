@@ -20,6 +20,7 @@ const TOOL_UI_DISPLAY_POLICY = {
   presentOptions: { presentation: "interview" },
   presentOutlinePreview: { presentation: "interview" },
   hybridSearch: { presentation: "hidden" },
+  loadCareerContext: { presentation: "hidden" },
   loadLearnContext: { presentation: "hidden" },
   updateOutline: { presentation: "hidden" },
   proposeOutline: { presentation: "hidden" },

@@ -94,6 +94,38 @@ export async function updateOwnedConversation(params: {
   return updated ?? null;
 }
 
+function normalizeConversationMetadata(metadata: unknown): Record<string, unknown> {
+  if (metadata && typeof metadata === "object" && !Array.isArray(metadata)) {
+    return metadata as Record<string, unknown>;
+  }
+
+  return {};
+}
+
+export async function mergeOwnedConversationMetadata(params: {
+  conversationId: string;
+  userId: string;
+  metadataPatch: Record<string, unknown>;
+}): Promise<ConversationRecord | null> {
+  const existing = await getOwnedConversation(params.conversationId, params.userId);
+
+  if (!existing) {
+    return null;
+  }
+
+  return updateOwnedConversation({
+    conversationId: params.conversationId,
+    userId: params.userId,
+    updates: {
+      metadata: {
+        ...normalizeConversationMetadata(existing.metadata),
+        ...params.metadataPatch,
+      },
+      updatedAt: new Date(),
+    },
+  });
+}
+
 export async function deleteOwnedConversation(
   conversationId: string,
   userId: string,

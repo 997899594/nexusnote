@@ -1,9 +1,3 @@
-import { getUserGrowthContext, type UserGrowthContext } from "@/lib/growth/generation-context";
-import {
-  buildLearningAlignmentBrief,
-  formatLearningAlignmentBrief,
-  type LearningAlignmentBrief,
-} from "@/lib/learning/alignment";
 import { getOwnedCourseWithOutline } from "@/lib/learning/course-repository";
 import { createLearnTrace } from "@/lib/learning/observability";
 
@@ -13,7 +7,6 @@ export interface LearningGuidanceSection {
   index: number;
   title: string;
   description: string;
-  alignment: LearningAlignmentBrief;
 }
 
 export interface LearningGuidance {
@@ -32,10 +25,8 @@ export interface LearningGuidance {
     title: string;
     description: string;
     skillIds: string[];
-    alignment: LearningAlignmentBrief;
     sections: LearningGuidanceSection[];
   };
-  growth: UserGrowthContext;
 }
 
 function resolveCourseTitle(course: OwnedCourseWithOutline) {
@@ -45,7 +36,6 @@ function resolveCourseTitle(course: OwnedCourseWithOutline) {
 export function buildLearningGuidance(input: {
   course: OwnedCourseWithOutline;
   chapterIndex: number;
-  growth: UserGrowthContext;
 }): LearningGuidance | null {
   const chapter = input.course.outline.chapters[input.chapterIndex];
 
@@ -60,28 +50,11 @@ export function buildLearningGuidance(input: {
   const chapterDescription = chapter.description?.trim() || "";
   const chapterSkillIds = chapter.skillIds ?? [];
 
-  const chapterAlignment = buildLearningAlignmentBrief({
-    chapterTitle,
-    chapterDescription,
-    chapterSkillIds,
-    courseSkillIds,
-    generationContext: input.growth,
-  });
-
   const sections: LearningGuidanceSection[] = (chapter.sections ?? []).map(
     (section, sectionIndex) => ({
       index: sectionIndex,
       title: section.title.trim(),
       description: section.description ?? "",
-      alignment: buildLearningAlignmentBrief({
-        chapterTitle,
-        chapterDescription,
-        chapterSkillIds,
-        courseSkillIds,
-        sectionTitle: section.title,
-        sectionDescription: section.description,
-        generationContext: input.growth,
-      }),
     }),
   );
 
@@ -101,10 +74,8 @@ export function buildLearningGuidance(input: {
       title: chapterTitle,
       description: chapterDescription,
       skillIds: chapterSkillIds,
-      alignment: chapterAlignment,
       sections,
     },
-    growth: input.growth,
   };
 }
 
@@ -124,10 +95,7 @@ export async function getLearningGuidance(params: {
     params.traceId,
   );
 
-  const [course, growth] = await Promise.all([
-    getOwnedCourseWithOutline(params.courseId, params.userId),
-    getUserGrowthContext(params.userId),
-  ]);
+  const course = await getOwnedCourseWithOutline(params.courseId, params.userId);
 
   if (!course) {
     trace.finish({
@@ -140,7 +108,6 @@ export async function getLearningGuidance(params: {
   const guidance = buildLearningGuidance({
     course,
     chapterIndex: params.chapterIndex,
-    growth,
   });
 
   if (!guidance) {
@@ -158,7 +125,6 @@ export async function getLearningGuidance(params: {
     courseSkillCount: guidance.course.skillIds.length,
     chapterSkillCount: guidance.chapter.skillIds.length,
     sectionCount: guidance.chapter.sections.length,
-    alignmentRelation: guidance.chapter.alignment.relation,
   });
 
   return guidance;
@@ -168,12 +134,24 @@ function formatSkillIds(skillIds: string[]) {
   return skillIds.length > 0 ? skillIds.join("、") : "";
 }
 
-export function formatLearningGuidancePromptContext(guidance: LearningGuidance): string {
+export function formatLearningGuidancePromptContext(
+  guidance: LearningGuidance,
+  options: { sectionIndex?: number } = {},
+): string {
+  const currentSection =
+    typeof options.sectionIndex === "number"
+      ? guidance.chapter.sections[options.sectionIndex]
+      : null;
+
   const lines = [
     "## 当前学习上下文",
     `课程：${guidance.course.title}`,
     `当前章节：第 ${guidance.chapter.index + 1} 章 - ${guidance.chapter.title}`,
     guidance.chapter.description ? `章节描述：${guidance.chapter.description}` : "",
+    currentSection
+      ? `当前小节：第 ${guidance.chapter.index + 1}.${currentSection.index + 1} 节 - ${currentSection.title}`
+      : "",
+    currentSection?.description ? `小节描述：${currentSection.description}` : "",
     guidance.chapter.skillIds.length > 0
       ? `本章能力目标：${formatSkillIds(guidance.chapter.skillIds)}`
       : "",
@@ -183,10 +161,9 @@ export function formatLearningGuidancePromptContext(guidance: LearningGuidance):
     guidance.chapter.sections.length > 0
       ? `小节：${guidance.chapter.sections.map((section) => section.title).join("、")}`
       : "",
-    "提示：使用 loadLearnContext 工具获取章节详细内容后再回答问题。",
-    "",
-    "## 当前学习对齐简报",
-    formatLearningAlignmentBrief(guidance.chapter.alignment, "prompt"),
+    currentSection
+      ? `提示：优先围绕当前小节回答；需要正文细节时调用 loadLearnContext，并传入 sectionIndices: [${currentSection.index}]。`
+      : "提示：使用 loadLearnContext 工具获取章节详细内容后再回答问题。",
   ];
 
   return lines.filter(Boolean).join("\n");

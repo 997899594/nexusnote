@@ -11,6 +11,7 @@
  * - 当前会话 ID 由客户端路由参数提供
  */
 
+import { MessageSquare } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { FloatingHeader } from "@/components/shared/layout";
@@ -88,16 +89,24 @@ export function ChatLayout({ children }: ChatLayoutProps) {
   return (
     <div className="ui-page-shell flex min-h-dvh flex-col">
       <FloatingHeader
-        showMenuButton
-        showSkinSelector
         title="对话工作台"
         subtitle="Chat"
         variant="workspace"
         onLogoClick={() => router.push("/")}
-        onMenuClick={() => setSidebarOpen(!sidebarOpen)}
       />
 
       <div className="ui-floating-header-offset flex flex-1 overflow-hidden">
+        {!sidebarOpen && (
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(true)}
+            className="ui-floating-surface fixed left-4 top-[calc(max(env(safe-area-inset-top,0px),0.75rem)+5.25rem)] z-40 flex items-center gap-2 rounded-full px-3 py-2 text-xs font-medium text-[var(--color-text-secondary)] shadow-[var(--shadow-floating-panel)] lg:hidden"
+          >
+            <MessageSquare className="h-4 w-4" />
+            <span>对话</span>
+          </button>
+        )}
+
         <ChatHistory
           sessions={sessions}
           currentSessionId={currentSessionId}

@@ -1,6 +1,7 @@
 import type { ToolSet, UIMessage } from "ai";
-import type { AgentProfile } from "@/lib/ai/core/capability-profiles";
 import { createToolContext } from "@/lib/ai/core/tool-context";
+import type { ConversationCapabilityMode } from "@/lib/ai/runtime/contracts";
+import { createCareerContextTools } from "./career/context";
 import { createNoteTools } from "./chat/notes";
 import { createSearchTools } from "./chat/search";
 import { createWebSearchTool } from "./chat/web-search";
@@ -8,22 +9,22 @@ import { createLearnContextTools } from "./learning/context";
 import { createEnhanceTools } from "./learning/enhance";
 import { createRagTools } from "./rag";
 
-interface ProfileToolBuilderInput {
+interface CapabilityModeToolBuilderInput {
   userId?: string;
   resourceId?: string;
   messages?: UIMessage[];
 }
 
-export function buildToolsForProfile(
-  profile: AgentProfile,
-  input: ProfileToolBuilderInput = {},
+export function buildToolsForCapabilityMode(
+  capabilityMode: ConversationCapabilityMode,
+  input: CapabilityModeToolBuilderInput = {},
 ): ToolSet {
-  switch (profile) {
-    case "CHAT_BASIC":
+  switch (capabilityMode) {
+    case "general_chat":
       return {
         ...createWebSearchTool(input.userId),
       };
-    case "LEARN_ASSIST": {
+    case "learn_coach": {
       const ctx = createToolContext({
         userId: input.userId,
         resourceId: input.resourceId,
@@ -35,7 +36,7 @@ export function buildToolsForProfile(
         ...createWebSearchTool(ctx.userId),
       };
     }
-    case "NOTE_ASSIST": {
+    case "note_assistant": {
       const ctx = createToolContext({
         userId: input.userId,
         messages: input.messages,
@@ -44,6 +45,28 @@ export function buildToolsForProfile(
         ...createSearchTools(ctx.userId),
         ...createNoteTools(ctx.userId),
         ...createEnhanceTools(ctx.userId),
+      };
+    }
+    case "research_assistant": {
+      const ctx = createToolContext({
+        userId: input.userId,
+        messages: input.messages,
+      });
+      return {
+        ...createSearchTools(ctx.userId),
+        ...createRagTools(ctx.userId),
+        ...createWebSearchTool(ctx.userId),
+      };
+    }
+    case "career_guide": {
+      const ctx = createToolContext({
+        userId: input.userId,
+        messages: input.messages,
+      });
+      return {
+        ...createCareerContextTools(ctx.userId),
+        ...createSearchTools(ctx.userId),
+        ...createRagTools(ctx.userId),
       };
     }
   }

@@ -1,8 +1,5 @@
 import { Queue } from "bullmq";
-import type { CourseOutline } from "@/lib/learning/course-outline";
 import { getRedis } from "@/lib/redis";
-
-const INITIAL_MATERIALIZATION_WINDOW_SIZE = 2;
 
 export type CourseProductionJobData = {
   type: "materialize_section";
@@ -17,6 +14,11 @@ export interface QueuedCourseProductionJob {
   id: string | null;
   name: string;
   type: CourseProductionJobData["type"];
+}
+
+export interface CourseProductionJobSnapshot {
+  id: string;
+  state: string;
 }
 
 let courseProductionQueue: Queue<CourseProductionJobData> | null = null;
@@ -47,35 +49,7 @@ function buildSectionJobId(params: {
   chapterIndex: number;
   sectionIndex: number;
 }) {
-  return ["course-section", params.courseId, params.chapterIndex, params.sectionIndex].join(":");
-}
-
-interface CourseSectionTarget {
-  chapterIndex: number;
-  sectionIndex: number;
-}
-
-function listCourseSectionTargets(outline: CourseOutline): CourseSectionTarget[] {
-  return outline.chapters.flatMap((chapter, chapterIndex) =>
-    chapter.sections.map((_, sectionIndex) => ({
-      chapterIndex,
-      sectionIndex,
-    })),
-  );
-}
-
-export function resolveNextCourseSectionTarget(params: {
-  outline: CourseOutline;
-  chapterIndex: number;
-  sectionIndex: number;
-}): CourseSectionTarget | null {
-  const targets = listCourseSectionTargets(params.outline);
-  const currentIndex = targets.findIndex(
-    (target) =>
-      target.chapterIndex === params.chapterIndex && target.sectionIndex === params.sectionIndex,
-  );
-
-  return currentIndex >= 0 ? (targets[currentIndex + 1] ?? null) : null;
+  return ["course-section", params.courseId, params.chapterIndex, params.sectionIndex].join("-");
 }
 
 export async function enqueueCourseSectionMaterialization(params: {
@@ -126,25 +100,20 @@ export async function enqueueCourseSectionMaterialization(params: {
   };
 }
 
-export async function enqueueInitialCourseMaterialization(params: {
-  userId: string;
-  courseId: string;
-  outline: CourseOutline;
-}): Promise<QueuedCourseProductionJob[]> {
-  const targets = listCourseSectionTargets(params.outline).slice(
-    0,
-    INITIAL_MATERIALIZATION_WINDOW_SIZE,
-  );
+export async function getCourseProductionJobSnapshot(
+  jobId: string | null | undefined,
+): Promise<CourseProductionJobSnapshot | null> {
+  if (!jobId) {
+    return null;
+  }
 
-  return Promise.all(
-    targets.map((target, index) =>
-      enqueueCourseSectionMaterialization({
-        userId: params.userId,
-        courseId: params.courseId,
-        ...target,
-        reasonKey: index === 0 ? "course-created:first-section" : "course-created:prewarm",
-        priority: index === 0 ? 1 : 5,
-      }),
-    ),
-  );
+  const job = await getCourseProductionQueue().getJob(jobId);
+  if (!job) {
+    return null;
+  }
+
+  return {
+    id: job.id ?? jobId,
+    state: await job.getState(),
+  };
 }

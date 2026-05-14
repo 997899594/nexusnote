@@ -8,7 +8,7 @@ export const growthEvalSuite = createEvalSuite({
       id: "growth-compose-strong-signal-frontend",
       title: "强信号用户应生成多棵有区分度的职业树",
       domain: "growth",
-      promptVersion: "growth-compose@v4",
+      promptVersion: "growth-compose@v15",
       input: {
         graph: {
           nodes: [
@@ -116,7 +116,7 @@ export const growthEvalSuite = createEvalSuite({
       id: "growth-compose-weak-signal-conservative",
       title: "弱信号用户应保守生成少量高置信方向",
       domain: "growth",
-      promptVersion: "growth-compose@v4",
+      promptVersion: "growth-compose@v15",
       input: {
         graph: {
           nodes: [

@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   index,
   integer,
@@ -174,6 +175,7 @@ export const knowledgeEvidenceChunks = pgTable(
       .references(() => knowledgeEvidence.id, { onDelete: "cascade" })
       .notNull(),
     content: text("content").notNull(),
+    contentSearchText: text("content_search_text").notNull().default(""),
     embedding: embeddingVector("embedding"),
     chunkIndex: integer("chunk_index").notNull(),
     metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
@@ -181,6 +183,14 @@ export const knowledgeEvidenceChunks = pgTable(
   },
   (table) => ({
     evidenceIdx: index("knowledge_evidence_chunks_evidence_idx").on(table.knowledgeEvidenceId),
+    contentSearchTrgmIdx: index("knowledge_evidence_chunks_content_search_trgm_idx").using(
+      "gin",
+      table.contentSearchText.op("gin_trgm_ops"),
+    ),
+    contentSearchFtsIdx: index("knowledge_evidence_chunks_content_search_fts_idx").using(
+      "gin",
+      sql`to_tsvector('simple', ${table.contentSearchText})`,
+    ),
     evidenceChunkUniqueIdx: uniqueIndex("knowledge_evidence_chunks_evidence_chunk_unique_idx").on(
       table.knowledgeEvidenceId,
       table.chunkIndex,

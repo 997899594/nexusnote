@@ -13,6 +13,7 @@ export function ChapterList() {
   const expandedChapters = useLearnStore((s) => s.expandedChapters);
   const requestedSectionId = useLearnStore((s) => s.requestedSectionId);
   const setCurrentChapterIndex = useLearnStore((s) => s.setCurrentChapterIndex);
+  const setCurrentSectionIndex = useLearnStore((s) => s.setCurrentSectionIndex);
   const requestSectionFocus = useLearnStore((s) => s.requestSectionFocus);
   const toggleChapterExpanded = useLearnStore((s) => s.toggleChapterExpanded);
   const setSidebarOpen = useLearnStore((s) => s.setSidebarOpen);
@@ -117,6 +118,7 @@ export function ChapterList() {
                                 if (chIdx !== currentChapterIndex) {
                                   setCurrentChapterIndex(chIdx);
                                 }
+                                setCurrentSectionIndex(secIdx);
                                 requestSectionFocus(sec.nodeId);
                                 setSidebarOpen(false);
                               }}

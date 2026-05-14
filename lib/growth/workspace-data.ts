@@ -26,14 +26,10 @@ function applyGrowthWorkspaceCacheTags(userId: string): void {
   cacheTag(getNotesIndexTag(userId));
 }
 
-export async function getGrowthWorkspaceDataCached(
+async function loadGrowthWorkspaceData(
   userId: string,
-  insightLimit = 4,
+  insightLimit: number,
 ): Promise<GrowthWorkspaceData> {
-  "use cache";
-
-  applyGrowthWorkspaceCacheTags(userId);
-
   const [snapshot, focusSnapshot, profileSnapshot, insights] = await Promise.all([
     getGrowthSnapshot(userId),
     getLatestFocusSnapshot(userId),
@@ -47,4 +43,22 @@ export async function getGrowthWorkspaceDataCached(
     profileSnapshot,
     insights,
   };
+}
+
+export async function getGrowthWorkspaceDataCached(
+  userId: string,
+  insightLimit = 4,
+): Promise<GrowthWorkspaceData> {
+  "use cache";
+
+  applyGrowthWorkspaceCacheTags(userId);
+
+  return loadGrowthWorkspaceData(userId, insightLimit);
+}
+
+export async function getGrowthWorkspaceDataFresh(
+  userId: string,
+  insightLimit = 4,
+): Promise<GrowthWorkspaceData> {
+  return loadGrowthWorkspaceData(userId, insightLimit);
 }
