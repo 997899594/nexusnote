@@ -1167,7 +1167,7 @@ async function runRoutingEval({
       hasCareerTreeSnapshot: inputContext.hasCareerTreeSnapshot,
       hasEditorContext: inputContext.hasEditorContext,
       userPolicy: {
-        routeProfile: "platform",
+        modelSeries: "qwen",
         skinSlug: null,
       },
       learningGuidance: undefined,

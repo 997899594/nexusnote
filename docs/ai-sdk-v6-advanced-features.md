@@ -139,7 +139,7 @@ const FileUpload = () => {
 import { generateText, output } from 'ai';
 
 const result = await generateText({
-  model: chatModel,
+  model: getModelForPolicy("interactive-fast"),
   prompt: '写一篇文章',
   output: output.text(),  // 明确指定输出文本
 });
@@ -165,7 +165,7 @@ const recipeSchema = z.object({
 
 // 生成结构化数据
 const result = await generateText({
-  model: chatModel,
+  model: getModelForPolicy("interactive-fast"),
   prompt: '给我一个番茄炒蛋的食谱',
   output: output.object({
     schema: recipeSchema,
@@ -184,7 +184,7 @@ console.log(recipe.ingredients);
 
 ```typescript
 const result = await generateText({
-  model: chatModel,
+  model: getModelForPolicy("interactive-fast"),
   prompt: '列出10个编程语言',
   output: output.array({
     element: z.string(),
@@ -200,7 +200,7 @@ const languages = result.object;  // string[]
 
 ```typescript
 const result = await generateText({
-  model: chatModel,
+  model: getModelForPolicy("interactive-fast"),
   prompt: '这段评论的情感是？："这个产品真棒！"',
   output: output.choice({
     options: ['positive', 'negative', 'neutral'],
@@ -216,7 +216,7 @@ const sentiment = result.object;  // 'positive' | 'negative' | 'neutral'
 
 ```typescript
 const result = await generateText({
-  model: chatModel,
+  model: getModelForPolicy("interactive-fast"),
   prompt: '生成一个用户配置 JSON',
   output: output.json({
     name: 'userConfig',
@@ -239,7 +239,7 @@ const config = result.object;  // JSONValue (any JSON)
 import { wrapLanguageModel, extractReasoningMiddleware } from 'ai';
 
 const modelWithReasoning = wrapLanguageModel({
-  model: chatModel,
+  model: getModelForPolicy("interactive-fast"),
   middleware: extractReasoningMiddleware({
     tagName: 'thinking',  // XML 标签名
     separator: '\n\n---\n\n',  // 分隔符
@@ -289,7 +289,7 @@ const ChatMessage = ({ message }) => {
 import { wrapLanguageModel, extractJsonMiddleware } from 'ai';
 
 const modelWithJsonExtraction = wrapLanguageModel({
-  model: chatModel,
+  model: getModelForPolicy("interactive-fast"),
   middleware: extractJsonMiddleware({
     transform: (text) => {
       // 自定义转换逻辑
@@ -330,7 +330,7 @@ const searchTool = tool({
 });
 
 const modelWithExamples = wrapLanguageModel({
-  model: chatModel,
+  model: getModelForPolicy("interactive-fast"),
   middleware: addToolInputExamplesMiddleware({
     prefix: '示例输入：',  // 自定义前缀
     format: (example, index) => {
@@ -353,7 +353,7 @@ const modelWithExamples = wrapLanguageModel({
 import { wrapLanguageModel, simulateStreamingMiddleware } from 'ai';
 
 const modelWithSimulatedStreaming = wrapLanguageModel({
-  model: chatModel,
+  model: getModelForPolicy("interactive-fast"),
   middleware: simulateStreamingMiddleware(),
 });
 
@@ -417,7 +417,7 @@ const customStopCondition = (stepResult) => {
 import { streamText, smoothStream } from 'ai';
 
 const result = await streamText({
-  model: chatModel,
+  model: getModelForPolicy("interactive-fast"),
   prompt: '写一首诗',
   experimental_transform: smoothStream({
     delayInMs: 10,  // 每个 chunk 之间延迟 10ms
@@ -440,7 +440,7 @@ const result = await streamText({
 ```typescript
 // 使用 Intl.Segmenter 实现中文逐字输出
 const result = await streamText({
-  model: chatModel,
+  model: getModelForPolicy("interactive-fast"),
   prompt: '介绍一下北京',
   experimental_transform: smoothStream({
     delayInMs: 50,  // 50ms 一个字
@@ -546,12 +546,12 @@ embeddings.forEach((emb, i) => {
 import { embed, cosineSimilarity } from 'ai';
 
 const { embedding: emb1 } = await embed({
-  model: embeddingModel,
+  model: aiModelGateway.getEmbeddingModel(),
   value: '查询文本',
 });
 
 const { embedding: emb2 } = await embed({
-  model: embeddingModel,
+  model: aiModelGateway.getEmbeddingModel(),
   value: '候选文档',
 });
 
@@ -655,7 +655,7 @@ import { generateText, output, wrapLanguageModel, extractReasoningMiddleware } f
 import { z } from 'zod';
 
 const modelWithReasoning = wrapLanguageModel({
-  model: chatModel,
+  model: getModelForPolicy("interactive-fast"),
   middleware: extractReasoningMiddleware({ tagName: 'thinking' }),
 });
 

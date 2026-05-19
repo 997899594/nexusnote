@@ -14,8 +14,8 @@ import {
   getToolCallingModelForPolicy,
   type ModelPolicy,
 } from "../core/model-policy";
+import type { AIModelSeries } from "../core/model-series";
 import { buildPromptInstructions, type PromptKey } from "../core/prompt-registry";
-import type { AIRouteProfile } from "../core/route-profiles";
 import { type AITelemetryContext, recordAIUsage } from "../core/telemetry";
 import type { ConversationCapabilityMode } from "../runtime/contracts";
 import { buildToolsForCapabilityMode } from "../tools";
@@ -39,7 +39,7 @@ export interface ConversationSpecialistAgentOptions {
   courseId?: string;
   learningGuidance?: LearningGuidance | null;
   metadata?: RequestMetadata;
-  routeProfile?: AIRouteProfile;
+  modelSeries?: AIModelSeries;
   telemetry?: AITelemetryContext;
 }
 
@@ -105,9 +105,9 @@ export async function createConversationToolLoopSpecialist(
   });
   const model = spec.preferToolCallingModel
     ? getToolCallingModelForPolicy(spec.modelPolicy, {
-        routeProfile: options.routeProfile,
+        modelSeries: options.modelSeries,
       })
-    : getModelForPolicy(spec.modelPolicy, { routeProfile: options.routeProfile });
+    : getModelForPolicy(spec.modelPolicy, { modelSeries: options.modelSeries });
 
   return new ToolLoopAgent({
     id: `nexusnote-${spec.mode}`,

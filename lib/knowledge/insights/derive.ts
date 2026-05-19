@@ -63,9 +63,9 @@ interface ThemeGroup {
   evidenceKinds: Set<string>;
 }
 
-function clampConfidence(value: number, fallback = 0.5): number {
+function clampConfidence(value: number, defaultValue = 0.5): number {
   if (!Number.isFinite(value)) {
-    return Math.round(fallback * 1000) / 1000;
+    return Math.round(defaultValue * 1000) / 1000;
   }
 
   return Math.round(Math.min(1, Math.max(0, value)) * 1000) / 1000;
@@ -118,8 +118,8 @@ function buildTrajectoryTitle(rankedSources: Array<[string, number]>): string {
     .slice(0, 3)
     .map(([sourceType]) => describeSourceType(sourceType))
     .filter((label) => label.length > 0);
-  const fallbackLabel = rankedSources[0]?.[0] ?? "signal";
-  return `${labels.join(" · ") || fallbackLabel}轨迹`;
+  const defaultLabel = rankedSources[0]?.[0] ?? "signal";
+  return `${labels.join(" · ") || defaultLabel}轨迹`;
 }
 
 function compareText(left: string, right: string): number {

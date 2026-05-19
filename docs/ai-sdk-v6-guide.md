@@ -235,7 +235,7 @@ if (presentOptionsTool?.input) {
 ```typescript
 import { ToolLoopAgent, InferAgentUIMessage } from 'ai';
 import { z } from 'zod';
-import { chatModel } from '@/lib/ai/registry';
+import { getModelForPolicy } from "@/lib/ai/core/model-policy";
 import { interviewTools } from '@/lib/ai/tools/interview';
 
 // 1. 定义调用选项 Schema
@@ -250,7 +250,7 @@ export type InterviewCallOptions = z.infer<typeof InterviewCallOptionsSchema>;
 // 2. 创建 Agent
 export const interviewAgent = new ToolLoopAgent({
   id: 'nexusnote-interview',
-  model: chatModel!,
+  model: getModelForPolicy("interactive-fast"),
   tools: interviewTools,
   maxOutputTokens: 4096,
   callOptionsSchema: InterviewCallOptionsSchema,

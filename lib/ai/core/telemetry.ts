@@ -3,35 +3,8 @@ import { env } from "@/config/env";
 import { aiUsage, db } from "@/db";
 import type { CapabilityMode } from "@/lib/ai/runtime/contracts";
 import { isUuidString } from "@/lib/chat/session-id";
-import { getModelNameForPolicy, getProviderForPolicy, type ModelPolicy } from "./model-policy";
-import type { AIRouteProfile } from "./route-profiles";
-
-const MODEL_PRICING_USD_PER_1M_TOKENS: Record<string, { input: number; output: number }> = {
-  [env.AI_MODEL_WEB_SEARCH]: {
-    input: env.AI_MODEL_WEB_SEARCH_PRICE_INPUT_PER_1M,
-    output: env.AI_MODEL_WEB_SEARCH_PRICE_OUTPUT_PER_1M,
-  },
-  [env.AI_MODEL_INTERACTIVE]: {
-    input: env.AI_MODEL_INTERACTIVE_PRICE_INPUT_PER_1M,
-    output: env.AI_MODEL_INTERACTIVE_PRICE_OUTPUT_PER_1M,
-  },
-  [env.AI_MODEL_OUTLINE]: {
-    input: env.AI_MODEL_OUTLINE_PRICE_INPUT_PER_1M,
-    output: env.AI_MODEL_OUTLINE_PRICE_OUTPUT_PER_1M,
-  },
-  [env.AI_MODEL_SECTION_DRAFT]: {
-    input: env.AI_MODEL_SECTION_DRAFT_PRICE_INPUT_PER_1M,
-    output: env.AI_MODEL_SECTION_DRAFT_PRICE_OUTPUT_PER_1M,
-  },
-  [env.AI_MODEL_EXTRACT]: {
-    input: env.AI_MODEL_EXTRACT_PRICE_INPUT_PER_1M,
-    output: env.AI_MODEL_EXTRACT_PRICE_OUTPUT_PER_1M,
-  },
-  [env.AI_MODEL_REVIEW]: {
-    input: env.AI_MODEL_REVIEW_PRICE_INPUT_PER_1M,
-    output: env.AI_MODEL_REVIEW_PRICE_OUTPUT_PER_1M,
-  },
-};
+import { getModelNameForPolicy, type ModelPolicy } from "./model-policy";
+import type { AIModelSeries } from "./model-series";
 
 export interface AITelemetryContext {
   requestId: string;
@@ -43,7 +16,7 @@ export interface AITelemetryContext {
   promptVersion?: string;
   model?: string;
   modelPolicy?: ModelPolicy;
-  routeProfile?: AIRouteProfile;
+  modelSeries?: AIModelSeries;
   metadata?: Record<string, unknown>;
 }
 
@@ -67,7 +40,7 @@ function normalizeUsage(usage?: Partial<LanguageModelUsage>) {
 }
 
 function estimateCostCents(model: string, inputTokens: number, outputTokens: number): number {
-  const pricing = MODEL_PRICING_USD_PER_1M_TOKENS[model];
+  const pricing = env.AI_MODEL_PRICING_JSON[model];
   if (!pricing) {
     return 0;
   }
@@ -103,11 +76,8 @@ export async function recordAIUsage(input: RecordAIUsageInput): Promise<void> {
   const model =
     input.model ??
     (input.modelPolicy
-      ? getModelNameForPolicy(input.modelPolicy, { routeProfile: input.routeProfile })
+      ? getModelNameForPolicy(input.modelPolicy, { modelSeries: input.modelSeries })
       : null);
-  const provider = input.modelPolicy
-    ? getProviderForPolicy(input.modelPolicy, { routeProfile: input.routeProfile })
-    : ((input.metadata?.provider as string | undefined) ?? null);
   if (!model) {
     return;
   }
@@ -120,9 +90,9 @@ export async function recordAIUsage(input: RecordAIUsageInput): Promise<void> {
       requestId: input.requestId,
       endpoint: input.endpoint,
       intent: input.intent ?? input.capabilityMode ?? input.workflow,
-      profile: input.capabilityMode ?? null,
+      capabilityMode: input.capabilityMode ?? null,
       workflow: input.workflow,
-      provider,
+      modelSeries: input.modelSeries ?? null,
       modelPolicy: input.modelPolicy ?? null,
       model,
       promptVersion: input.promptVersion,
@@ -136,9 +106,8 @@ export async function recordAIUsage(input: RecordAIUsageInput): Promise<void> {
       metadata: {
         ...input.metadata,
         capabilityMode: input.capabilityMode ?? null,
-        provider,
+        modelSeries: input.modelSeries ?? null,
         modelPolicy: input.modelPolicy ?? null,
-        routeProfile: input.routeProfile ?? null,
         resolvedModel: model,
       },
     });

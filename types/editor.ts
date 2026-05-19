@@ -15,8 +15,3 @@ export interface SlashCommand {
   icon: string;
   command: (editor: Editor) => void;
 }
-
-/**
- * Tiptap Editor with extensions
- */
-export type TiptapEditor = Editor;

@@ -23,7 +23,7 @@ export const researchRuns = pgTable(
     }),
     jobType: text("job_type").notNull(),
     status: text("status").notNull(),
-    routeProfile: text("route_profile"),
+    modelSeries: text("model_series"),
     workerTransport: text("worker_transport").notNull().default("local"),
     userPrompt: text("user_prompt").notNull(),
     inputHash: text("input_hash").notNull(),

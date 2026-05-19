@@ -2,11 +2,10 @@
 
 import type { NextRequest } from "next/server";
 import { z } from "zod";
-import { aiProvider } from "@/lib/ai/core/provider";
+import { aiModelGateway } from "@/lib/ai/core/model-gateway";
 import { runGenerateCourseSectionWorkflow } from "@/lib/ai/workflows/generate-course-section";
-import { APIError, handleError } from "@/lib/api";
+import { parseJsonBodyAs, serviceUnavailable, withAuth } from "@/lib/api";
 import { checkRateLimitOrThrow } from "@/lib/api/rate-limit";
-import { auth } from "@/lib/auth";
 import { createLearnTrace } from "@/lib/learning/observability";
 
 export const maxDuration = 300;
@@ -17,36 +16,24 @@ const RequestSchema = z.object({
   sectionIndex: z.number().int().min(0),
 });
 
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async (request: NextRequest, { userId }) => {
   let trace: ReturnType<typeof createLearnTrace> | null = null;
 
   try {
-    const session = await auth();
-    const userId = session?.user?.id;
-    if (!userId) {
-      throw new APIError("请先登录", 401, "UNAUTHORIZED");
-    }
-
     trace = createLearnTrace("generate-route", {
       userId,
       method: request.method,
     });
 
-    if (!aiProvider.isConfigured()) {
-      throw new APIError("AI 服务未配置", 503, "AI_NOT_CONFIGURED");
+    if (!aiModelGateway.isConfigured()) {
+      throw serviceUnavailable("助手服务暂时不可用", "AI_NOT_CONFIGURED");
     }
 
     // Rate limit: 20 generate requests per minute per user
     await checkRateLimitOrThrow(`learn-generate:${userId}`, 20, 60 * 1000);
     trace.step("rate-limit-ok");
 
-    const body = await request.json();
-    const parsed = RequestSchema.safeParse(body);
-    if (!parsed.success) {
-      throw new APIError("请求参数无效", 400, "VALIDATION_ERROR");
-    }
-
-    const { courseId, chapterIndex, sectionIndex } = parsed.data;
+    const { courseId, chapterIndex, sectionIndex } = await parseJsonBodyAs(request, RequestSchema);
     trace.step("request-validated", {
       courseId,
       chapterIndex,
@@ -72,6 +59,6 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error) {
     trace?.fail(error);
-    return handleError(error);
+    throw error;
   }
-}
+});

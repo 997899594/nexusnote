@@ -36,7 +36,7 @@ function normalizeApiErrorMessage(message: string, code?: string): string {
     code === "INTERNAL_ERROR" &&
     (lowerMessage.includes("timed out") || lowerMessage.includes("timeout"))
   ) {
-    return "AI 响应超时了，请稍后重试，或先把目标说得更短一点。";
+    return "响应超时了，请稍后重试，或先把目标说得更短一点。";
   }
 
   if (message.trim().startsWith("{")) {

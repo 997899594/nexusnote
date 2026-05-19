@@ -8,7 +8,7 @@
 import { embedMany } from "ai";
 import type { SQL } from "drizzle-orm";
 import { db, sql } from "@/db";
-import { aiProvider } from "@/lib/ai/core/provider";
+import { aiModelGateway } from "@/lib/ai/core/model-gateway";
 import type { SourceType } from "./chunker";
 import { createRagTrace } from "./observability";
 import { rewriteQuery } from "./query-rewriter";
@@ -18,7 +18,7 @@ const KEYWORD_SEGMENTER = new Intl.Segmenter("zh-Hans", { granularity: "word" })
 const CJK_CHAR_PATTERN = /\p{Script=Han}/u;
 const LATIN_OR_NUMBER_PATTERN = /[\p{Script=Latin}\p{N}]/u;
 const PUNCTUATION_ONLY_PATTERN = /^[\p{P}\p{S}\s]+$/u;
-// Bounds SQL predicate fan-out for lexical fallback; this is a query-shape guardrail, not a domain rule.
+// Bounds SQL predicate fan-out for lexical search; this is a query-shape guardrail, not a domain rule.
 const MAX_LEXICAL_TERMS = 8;
 // Standard reciprocal rank fusion constant.
 const RRF_K = 60;
@@ -128,14 +128,14 @@ async function vectorSearch(
     similarity: number;
   }>
 > {
-  if (!aiProvider.isConfigured()) {
-    console.warn("[RAG] Provider not configured, skipping vector search");
+  if (!aiModelGateway.isConfigured()) {
+    console.warn("[RAG] model gateway not configured, skipping vector search");
     return [];
   }
 
   try {
     const { embeddings } = await embedMany({
-      model: aiProvider.embeddingModel,
+      model: aiModelGateway.getEmbeddingModel(),
       values: [query],
     });
 

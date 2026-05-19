@@ -1,6 +1,7 @@
 import { connection, type NextRequest, type NextResponse } from "next/server";
+import type { z } from "zod";
 import { auth } from "@/lib/auth";
-import { APIError, handleError } from "./errors";
+import { badRequest, handleError, unauthorized } from "./errors";
 
 export * from "./errors";
 
@@ -47,6 +48,29 @@ async function withHandledRoute<T>(handler: () => RouteResult<T>): RouteResult<T
   }
 }
 
+export async function parseJsonBody(request: NextRequest): Promise<unknown> {
+  try {
+    return await request.json();
+  } catch {
+    throw badRequest("无效的 JSON", "INVALID_JSON");
+  }
+}
+
+export async function parseJsonBodyAs<T>(request: NextRequest, schema: z.ZodType<T>): Promise<T> {
+  return schema.parse(await parseJsonBody(request));
+}
+
+export function parseSearchParamsAs<T>(request: NextRequest, schema: z.ZodType<T>): T {
+  const searchParams = new URL(request.url).searchParams;
+  const values: Record<string, string> = {};
+
+  searchParams.forEach((value, key) => {
+    values[key] = value;
+  });
+
+  return schema.parse(values);
+}
+
 async function resolveRouteUserId(required: true): Promise<string>;
 async function resolveRouteUserId(required: false): Promise<string | null>;
 async function resolveRouteUserId(required: boolean): Promise<string | null> {
@@ -54,7 +78,7 @@ async function resolveRouteUserId(required: boolean): Promise<string | null> {
   const userId = (await auth())?.user?.id ?? null;
 
   if (required && !userId) {
-    throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
+    throw unauthorized();
   }
 
   return userId;

@@ -42,10 +42,10 @@ export interface StreamOptions {
 // ============================================
 
 const FALLBACK_MESSAGES = {
-  timeout: "抱歉，AI 响应超时，请稍后重试。",
+  timeout: "抱歉，响应超时，请稍后重试。",
   rate_limit: "请求过于频繁，请稍后再试。",
-  model_error: "AI 模型暂时不可用，请稍后重试。",
-  unknown: "抱歉，AI 服务出现异常，请稍后重试。",
+  model_error: "助手暂时不可用，请稍后重试。",
+  unknown: "抱歉，服务出现异常，请稍后重试。",
 };
 
 function getFallbackMessage(error: unknown): string {

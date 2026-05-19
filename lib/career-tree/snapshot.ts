@@ -95,8 +95,8 @@ export async function restoreLatestCareerTreeSnapshotForComposeRun(params: {
     )
     .orderBy(desc(careerUserTreeSnapshots.createdAt));
 
-  const compatibleSnapshot = rows.find(isCurrentReadySnapshot)?.snapshot;
-  if (!compatibleSnapshot) {
+  const currentSnapshot = rows.find(isCurrentReadySnapshot)?.snapshot;
+  if (!currentSnapshot) {
     return null;
   }
 
@@ -114,11 +114,11 @@ export async function restoreLatestCareerTreeSnapshotForComposeRun(params: {
     await tx
       .update(careerUserTreeSnapshots)
       .set({ isLatest: true })
-      .where(eq(careerUserTreeSnapshots.id, compatibleSnapshot.id));
+      .where(eq(careerUserTreeSnapshots.id, currentSnapshot.id));
   });
 
   return {
-    ...compatibleSnapshot,
+    ...currentSnapshot,
     isLatest: true,
   };
 }

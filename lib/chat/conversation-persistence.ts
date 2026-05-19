@@ -103,12 +103,10 @@ function buildConversationActivityUpdate(params: {
   messageCount: number;
   title?: string;
   summary?: string | null;
-  isArchived?: boolean;
 }) {
   return {
     ...(params.title !== undefined && { title: params.title }),
     ...(params.summary !== undefined && { summary: params.summary }),
-    ...(params.isArchived !== undefined && { isArchived: params.isArchived }),
     messageCount: params.messageCount,
     lastMessageAt: new Date(),
     updatedAt: new Date(),
@@ -156,7 +154,6 @@ export async function saveOwnedConversationSnapshot(params: {
   messages: UIMessage[];
   title?: string;
   summary?: string | null;
-  isArchived?: boolean;
   trimmedSummaryFallback?: string | null;
 }): Promise<{
   conversation: typeof conversations.$inferSelect;
@@ -169,7 +166,6 @@ export async function saveOwnedConversationSnapshot(params: {
     messages,
     title,
     summary,
-    isArchived,
     trimmedSummaryFallback = null,
   } = params;
 
@@ -188,7 +184,6 @@ export async function saveOwnedConversationSnapshot(params: {
         buildConversationActivityUpdate({
           title,
           summary: summaryUpdate,
-          isArchived,
           messageCount: messages.length,
         }),
       )

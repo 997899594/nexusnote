@@ -18,9 +18,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AIDegradationBanner, WorkspaceEmptyState } from "@/components/common";
 import { useInputProtection } from "@/components/common/useInputProtection";
 import type { ResearchRunSnapshot, ResearchRunStatus } from "@/lib/ai/research/contracts";
-import { parseBackgroundResearchMetadata } from "@/lib/ai/research/contracts";
 import { cn } from "@/lib/utils";
-import { useChatStore } from "@/stores/chat";
 import type { Command } from "@/types/chat";
 import { ChatMessage, LoadingDots } from "./ChatMessage";
 import { CommandMenu } from "./CommandMenu";
@@ -62,7 +60,7 @@ function buildBackgroundResearchState(snapshot: ResearchRunSnapshot): Background
 const CHAT_COMMANDS: Command[] = [
   {
     id: "search",
-    label: "Search Notes",
+    label: "搜索笔记",
     icon: Search,
     modeLabel: "搜索笔记",
     modeIcon: Search,
@@ -71,7 +69,7 @@ const CHAT_COMMANDS: Command[] = [
   },
   {
     id: "create-note",
-    label: "Create Note",
+    label: "查看笔记",
     icon: Plus,
     modeLabel: "查看笔记",
     modeIcon: Plus,
@@ -80,7 +78,7 @@ const CHAT_COMMANDS: Command[] = [
   },
   {
     id: "interview",
-    label: "Interview Mode",
+    label: "课程访谈",
     icon: MessageCircle,
     modeLabel: "课程访谈",
     modeIcon: MessageCircle,
@@ -89,7 +87,7 @@ const CHAT_COMMANDS: Command[] = [
   },
   {
     id: "generate-course",
-    label: "Generate Course",
+    label: "生成课程",
     icon: GraduationCap,
     modeLabel: "生成课程",
     modeIcon: GraduationCap,
@@ -98,7 +96,7 @@ const CHAT_COMMANDS: Command[] = [
   },
   {
     id: "web-search",
-    label: "Web Search",
+    label: "联网搜索",
     icon: Globe,
     modeLabel: "联网搜索",
     modeIcon: Globe,
@@ -154,7 +152,7 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
   const sendMessage = chat.sendMessage;
   const setChatMessages = chat.setMessages;
   const routeHint = chat.routeHint;
-  const sessionMetadata = chat.sessionMetadata;
+  const persistedBackgroundResearch = chat.backgroundResearch;
   const status = chat.status;
   const aiDegradedKind = chat.aiDegradedKind;
   // AI SDK v6: isLoading is derived from status
@@ -179,13 +177,6 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
 
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatMessages.length, isLoading]);
-
-  // 同步消息到 store，供索引使用
-  const setCurrentSessionMessages = useChatStore((s) => s.setCurrentSessionMessages);
-  useEffect(() => {
-    setCurrentSessionMessages(chatMessages);
-    return () => setCurrentSessionMessages(null);
-  }, [chatMessages, setCurrentSessionMessages]);
 
   useEffect(() => {
     if (!sessionId || !launchMessage || didSendLaunchMessageRef.current) {
@@ -238,14 +229,13 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
   }, [routeHint]);
 
   useEffect(() => {
-    const resumedResearch = parseBackgroundResearchMetadata(sessionMetadata);
-    if (!resumedResearch) {
+    if (!persistedBackgroundResearch) {
       return;
     }
 
     setBackgroundResearch((current) => {
       if (
-        current?.runId === resumedResearch.runId &&
+        current?.runId === persistedBackgroundResearch.runId &&
         current.status !== "queued" &&
         current.status !== "cancel_requested"
       ) {
@@ -253,12 +243,12 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
       }
 
       return {
-        runId: resumedResearch.runId,
-        status: resumedResearch.state,
-        failedReason: resumedResearch.failedReason,
+        runId: persistedBackgroundResearch.runId,
+        status: persistedBackgroundResearch.state,
+        failedReason: persistedBackgroundResearch.failedReason,
       };
     });
-  }, [sessionMetadata]);
+  }, [persistedBackgroundResearch]);
 
   useEffect(() => {
     if (!backgroundResearch) {
@@ -448,7 +438,7 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
   const placeholder = selectedCommand
     ? `描述你想${selectedCommand.modeLabel}的内容...`
     : showCommands
-      ? "搜索命令..."
+      ? "搜索快捷动作..."
       : "继续对话...";
 
   const lastMsg = chatMessages[chatMessages.length - 1];
@@ -472,9 +462,9 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
           {chatMessages.length === 0 && !isLoading && (
             <WorkspaceEmptyState
               icon={Sparkles}
-              eyebrow="New Session"
+              eyebrow="新对话"
               title="开始一段新对话"
-              description="继续提问、保存想法，或进入课程、访谈与笔记工作流。"
+              description="继续提问、保存想法，或去生成课程和整理笔记。"
               className="py-10"
             />
           )}
@@ -497,14 +487,14 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
                   )}
                 />
                 {backgroundResearch.status === "completed"
-                  ? "后台研究已完成"
+                  ? "资料整理已完成"
                   : backgroundResearch.status === "failed"
-                    ? "后台研究失败"
+                    ? "资料整理失败"
                     : backgroundResearch.status === "canceled"
-                      ? "后台研究已取消"
+                      ? "资料整理已取消"
                       : backgroundResearch.status === "cancel_requested"
-                        ? "后台研究取消中"
-                        : "后台研究进行中"}
+                        ? "正在取消资料整理"
+                        : "正在整理资料"}
               </div>
 
               {backgroundResearch.totalTasks != null && (
@@ -519,7 +509,7 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
                 backgroundResearch.status !== "canceled" && (
                   <p className="text-[var(--color-text-secondary)]">
                     {backgroundResearch.progressMessage ??
-                      "正在拆分并行研究任务、检索来源并综合结果。你可以继续当前对话。"}
+                      "正在查找来源并整理结果。你可以继续当前对话。"}
                   </p>
                 )}
 
@@ -541,7 +531,7 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
 
               {backgroundResearch.citationCount != null && backgroundResearch.citationCount > 0 && (
                 <p className="mt-2 text-xs text-[var(--color-text-muted)]">
-                  已归档 {backgroundResearch.citationCount} 个结构化来源引用。
+                  已整理 {backgroundResearch.citationCount} 个来源。
                 </p>
               )}
 

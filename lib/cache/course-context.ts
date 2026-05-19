@@ -3,7 +3,7 @@
  *
  * Redis-backed cache for course outline and chapter content.
  * Replaces N+1 queries with batch SQL + 5-minute TTL cache.
- * Graceful fallback: if Redis is unavailable, queries DB directly.
+ * If Redis is unavailable, queries DB directly.
  */
 
 import { and, courseSections, db, eq, inArray } from "@/db";

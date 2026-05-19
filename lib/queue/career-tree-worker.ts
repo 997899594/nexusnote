@@ -1,4 +1,4 @@
-import { Worker } from "bullmq";
+import type { Worker } from "bullmq";
 import { defaults } from "@/config/env";
 import {
   recomputeAllCareerNodeAggregatesForUser,
@@ -8,7 +8,7 @@ import { processCareerTreeComposeJob } from "@/lib/career-tree/compose";
 import { processCareerTreeExtractJob } from "@/lib/career-tree/extract";
 import { processCareerTreeMergeJob } from "@/lib/career-tree/merge";
 import { enqueueCareerTreeCompose } from "@/lib/career-tree/queue";
-import { getRedis } from "@/lib/redis";
+import { createNexusWorker } from "./bullmq";
 import type { CareerTreeJobData } from "./career-tree-queue";
 
 let worker: Worker<CareerTreeJobData> | null = null;
@@ -33,7 +33,7 @@ export function startCareerTreeWorker(): Worker<CareerTreeJobData> {
     return worker;
   }
 
-  worker = new Worker<CareerTreeJobData>(
+  worker = createNexusWorker<CareerTreeJobData>(
     "career-tree",
     async (job) => {
       switch (job.data.type) {
@@ -52,20 +52,10 @@ export function startCareerTreeWorker(): Worker<CareerTreeJobData> {
       }
     },
     {
-      connection: getRedis() as never,
+      label: "CareerTreeWorker",
       concurrency: defaults.queue.careerTreeConcurrency,
     },
   );
-
-  worker.on("completed", (job) => {
-    console.log(`[CareerTreeWorker] Completed: ${job.id}`);
-  });
-
-  worker.on("failed", (job, err) => {
-    console.error(`[CareerTreeWorker] Failed: ${job?.id}`, err.message);
-  });
-
-  console.log("[CareerTreeWorker] Started with concurrency:", defaults.queue.careerTreeConcurrency);
 
   return worker;
 }

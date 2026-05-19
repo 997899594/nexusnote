@@ -2,7 +2,7 @@
  * User Preferences Store
  *
  * Manages user AI preference data on the frontend:
- * - Profile (style analysis, learning preferences)
+ * - Profile (learning preferences and AI behavior preferences)
  * - Skin preference (default and current expression skin)
  * - Available skins
  *
@@ -14,29 +14,6 @@ import { type AIPreferences, DEFAULT_AI_PREFERENCES } from "@/lib/ai/preferences
 import { buildBuiltInSkinPreviews } from "@/lib/ai/skin-catalog";
 import type { AISkin, SkinPreference } from "@/lib/ai/skin-contract";
 
-interface UserStyleProfile {
-  userId: string;
-  metrics: {
-    vocabularyComplexity: { value: number; confidence: number; samples: number };
-    sentenceComplexity: { value: number; confidence: number; samples: number };
-    abstractionLevel: { value: number; confidence: number; samples: number };
-    directness: { value: number; confidence: number; samples: number };
-    conciseness: { value: number; confidence: number; samples: number };
-    formality: { value: number; confidence: number; samples: number };
-    emotionalIntensity: { value: number; confidence: number; samples: number };
-  };
-  bigFive?: {
-    openness: { value: number; confidence: number; samples: number };
-    conscientiousness: { value: number; confidence: number; samples: number };
-    extraversion: { value: number; confidence: number; samples: number };
-    agreeableness: { value: number; confidence: number; samples: number };
-    neuroticism: { value: number; confidence: number; samples: number };
-  };
-  totalMessagesAnalyzed: number;
-  totalConversationsAnalyzed: number;
-  lastAnalyzedAt: Date | null;
-}
-
 interface LearningStyle {
   preferredFormat?: string;
   pace?: string;
@@ -45,7 +22,6 @@ interface LearningStyle {
 interface UserProfile {
   learningStyle?: LearningStyle;
   aiPreferences?: AIPreferences;
-  style?: UserStyleProfile;
 }
 
 interface UserPreferencesState {
@@ -251,10 +227,6 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
 
 export const selectCurrentSkin = (state: UserPreferencesState): AISkin | undefined => {
   return state.availableSkins.find((skin) => skin.slug === state.currentSkinSlug);
-};
-
-export const selectStyleMetrics = (state: UserPreferencesState) => {
-  return state.profile?.style?.metrics;
 };
 
 export const selectLearningStyle = (state: UserPreferencesState) => {

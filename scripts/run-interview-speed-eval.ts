@@ -3,10 +3,10 @@ import { join } from "node:path";
 import { convertToModelMessages, getToolName, isToolUIPart, readUIMessageStream } from "ai";
 import { env } from "@/config/env";
 import {
-  type AIRouteProfile,
-  AIRouteProfileSchema,
-  DEFAULT_AI_ROUTE_PROFILE,
-} from "@/lib/ai/core/route-profiles";
+  type AIModelSeries,
+  AIModelSeriesSchema,
+  DEFAULT_AI_MODEL_SERIES,
+} from "@/lib/ai/core/model-series";
 import {
   createInterviewTimingRecorder,
   type InterviewTimingEvent,
@@ -21,12 +21,12 @@ import {
 import { createCourseInterviewerSpecialistAgent } from "@/lib/ai/specialists/registry";
 import { type InterviewEvalInput, interviewEvalSuite } from "@/tests/ai-evals";
 
-type SpeedRouteProfile = AIRouteProfile;
+type SpeedModelSeries = AIModelSeries;
 
 interface CliOptions {
   repeats: number;
   timeoutMs: number;
-  routeProfiles: SpeedRouteProfile[];
+  modelSeriesList: SpeedModelSeries[];
   caseIds: string[];
 }
 
@@ -47,8 +47,8 @@ interface InterviewSpeedMetrics {
 interface InterviewSpeedRun {
   caseId: string;
   title: string;
-  originalRouteProfile: SpeedRouteProfile;
-  routeProfile: SpeedRouteProfile;
+  originalModelSeries: SpeedModelSeries;
+  modelSeries: SpeedModelSeries;
   repeatIndex: number;
   success: boolean;
   timedOut: boolean;
@@ -69,7 +69,7 @@ interface NumericSummary {
 
 interface GroupSummary {
   caseId: string;
-  routeProfile: SpeedRouteProfile;
+  modelSeries: SpeedModelSeries;
   runs: number;
   successCount: number;
   timeoutCount: number;
@@ -124,34 +124,34 @@ const SPEED_EXTRA_CASES: InterviewSpeedCase[] = [
 const DEFAULT_REPEATS = 3;
 const DEFAULT_TIMEOUT_MS = 45_000;
 const OUTPUT_DIR = "artifacts/evals/interview-speed";
-const SPEED_ROUTE_PROFILES: SpeedRouteProfile[] = ["platform", "domestic", "gemini", "openai"];
+const SPEED_MODEL_SERIES: SpeedModelSeries[] = ["qwen", "gemini", "openai"];
 
-function parsePositiveInt(value: string | undefined, fallback: number): number {
+function parsePositiveInt(value: string | undefined, defaultValue: number): number {
   if (!value) {
-    return fallback;
+    return defaultValue;
   }
 
   const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : defaultValue;
 }
 
 function parseCliOptions(): CliOptions {
   const args = process.argv.slice(2);
   const repeatsArg = args.find((arg) => arg.startsWith("--repeats="))?.split("=")[1];
   const timeoutArg = args.find((arg) => arg.startsWith("--timeout-ms="))?.split("=")[1];
-  const routeProfilesArg =
-    args.find((arg) => arg.startsWith("--route-profile="))?.split("=")[1] ??
+  const modelSeriesListArg =
+    args.find((arg) => arg.startsWith("--model-series="))?.split("=")[1] ??
     args.find((arg) => arg.startsWith("--profile="))?.split("=")[1];
   const caseArg = args.find((arg) => arg.startsWith("--case="))?.split("=")[1];
-  const routeProfiles = routeProfilesArg
-    ? routeProfilesArg
+  const modelSeriesList = modelSeriesListArg
+    ? modelSeriesListArg
         .split(",")
-        .map((routeProfile) => routeProfile.trim())
+        .map((modelSeries) => modelSeries.trim())
         .filter(
-          (routeProfile): routeProfile is SpeedRouteProfile =>
-            AIRouteProfileSchema.safeParse(routeProfile).success,
+          (modelSeries): modelSeries is SpeedModelSeries =>
+            AIModelSeriesSchema.safeParse(modelSeries).success,
         )
-    : SPEED_ROUTE_PROFILES;
+    : SPEED_MODEL_SERIES;
 
   return {
     repeats: parsePositiveInt(repeatsArg ?? process.env.INTERVIEW_SPEED_REPEATS, DEFAULT_REPEATS),
@@ -159,7 +159,7 @@ function parseCliOptions(): CliOptions {
       timeoutArg ?? process.env.INTERVIEW_SPEED_TIMEOUT_MS,
       DEFAULT_TIMEOUT_MS,
     ),
-    routeProfiles: routeProfiles.length > 0 ? routeProfiles : SPEED_ROUTE_PROFILES,
+    modelSeriesList: modelSeriesList.length > 0 ? modelSeriesList : SPEED_MODEL_SERIES,
     caseIds: caseArg
       ? caseArg
           .split(",")
@@ -248,16 +248,16 @@ function collectNumeric(values: Array<number | null | undefined>): NumericSummar
 function summarizeRuns(runs: InterviewSpeedRun[]): GroupSummary[] {
   const groups = new Map<string, InterviewSpeedRun[]>();
   for (const run of runs) {
-    const key = `${run.caseId}:${run.routeProfile}`;
+    const key = `${run.caseId}:${run.modelSeries}`;
     groups.set(key, [...(groups.get(key) ?? []), run]);
   }
 
   return [...groups.entries()]
     .map(([key, groupRuns]) => {
-      const [caseId, routeProfile] = key.split(":") as [string, SpeedRouteProfile];
+      const [caseId, modelSeries] = key.split(":") as [string, SpeedModelSeries];
       return {
         caseId,
-        routeProfile,
+        modelSeries,
         runs: groupRuns.length,
         successCount: groupRuns.filter((run) => run.success).length,
         timeoutCount: groupRuns.filter((run) => run.timedOut).length,
@@ -274,7 +274,7 @@ function summarizeRuns(runs: InterviewSpeedRun[]): GroupSummary[] {
     })
     .sort((left, right) =>
       left.caseId === right.caseId
-        ? left.routeProfile.localeCompare(right.routeProfile)
+        ? left.modelSeries.localeCompare(right.modelSeries)
         : left.caseId.localeCompare(right.caseId),
     );
 }
@@ -322,8 +322,8 @@ function buildMetrics(params: {
 async function runOneInterviewSpeedCase(params: {
   caseId: string;
   title: string;
-  originalRouteProfile: SpeedRouteProfile;
-  routeProfile: SpeedRouteProfile;
+  originalModelSeries: SpeedModelSeries;
+  modelSeries: SpeedModelSeries;
   prompt: string;
   currentOutline?: InterviewEvalInput["currentOutline"];
   repeatIndex: number;
@@ -357,7 +357,7 @@ async function runOneInterviewSpeedCase(params: {
       userId: "speed-eval-user",
       currentOutline: params.currentOutline,
       messages,
-      routeProfile: params.routeProfile,
+      modelSeries: params.modelSeries,
       timing,
     });
 
@@ -446,8 +446,8 @@ async function runOneInterviewSpeedCase(params: {
     return {
       caseId: params.caseId,
       title: params.title,
-      originalRouteProfile: params.originalRouteProfile,
-      routeProfile: params.routeProfile,
+      originalModelSeries: params.originalModelSeries,
+      modelSeries: params.modelSeries,
       repeatIndex: params.repeatIndex,
       success: true,
       timedOut: false,
@@ -472,8 +472,8 @@ async function runOneInterviewSpeedCase(params: {
     return {
       caseId: params.caseId,
       title: params.title,
-      originalRouteProfile: params.originalRouteProfile,
-      routeProfile: params.routeProfile,
+      originalModelSeries: params.originalModelSeries,
+      modelSeries: params.modelSeries,
       repeatIndex: params.repeatIndex,
       success: false,
       timedOut: isTimeoutError(error),
@@ -508,7 +508,7 @@ function printSummary(summaries: GroupSummary[]): void {
   for (const summary of summaries) {
     console.log(
       [
-        `[Interview Speed] ${summary.caseId} routeProfile=${summary.routeProfile}`,
+        `[Interview Speed] ${summary.caseId} modelSeries=${summary.modelSeries}`,
         `runs=${summary.runs}`,
         `success=${summary.successCount}`,
         `timeouts=${summary.timeoutCount}`,
@@ -528,31 +528,31 @@ async function main(): Promise<void> {
     return options.caseIds.length === 0 || options.caseIds.includes(testCase.id);
   });
   const runs: InterviewSpeedRun[] = [];
-  const provider = {
+  const modelGateway = {
     baseURL: env.AI_302_BASE_URL,
-    interactiveModel: env.AI_MODEL_INTERACTIVE,
-    outlineModel: env.AI_MODEL_OUTLINE,
-    extractModel: env.AI_MODEL_EXTRACT,
+    interactiveModel: env.AI_QWEN_MODEL_INTERACTIVE,
+    outlineModel: env.AI_QWEN_MODEL_OUTLINE,
+    extractModel: env.AI_QWEN_MODEL_EXTRACT,
   };
 
   console.log(
-    `[Interview Speed] cases=${selectedCases.length} repeats=${options.repeats} routeProfiles=${options.routeProfiles.join(",")} timeoutMs=${options.timeoutMs}`,
+    `[Interview Speed] cases=${selectedCases.length} repeats=${options.repeats} modelSeriesList=${options.modelSeriesList.join(",")} timeoutMs=${options.timeoutMs}`,
   );
   console.log(
-    `[Interview Speed] provider baseURL=${provider.baseURL} interactive=${provider.interactiveModel} outline=${provider.outlineModel} extract=${provider.extractModel}`,
+    `[Interview Speed] modelGateway baseURL=${modelGateway.baseURL} interactive=${modelGateway.interactiveModel} outline=${modelGateway.outlineModel} extract=${modelGateway.extractModel}`,
   );
 
   for (const testCase of selectedCases) {
     const input = testCase.input;
-    const originalRouteProfile = DEFAULT_AI_ROUTE_PROFILE;
+    const originalModelSeries = DEFAULT_AI_MODEL_SERIES;
 
-    for (const routeProfile of options.routeProfiles) {
+    for (const modelSeries of options.modelSeriesList) {
       for (let repeatIndex = 0; repeatIndex < options.repeats; repeatIndex++) {
         const run = await runOneInterviewSpeedCase({
           caseId: testCase.id,
           title: testCase.title,
-          originalRouteProfile,
-          routeProfile,
+          originalModelSeries,
+          modelSeries,
           prompt: input.userGoal,
           currentOutline: input.currentOutline,
           repeatIndex,
@@ -564,7 +564,7 @@ async function main(): Promise<void> {
           [
             `[Interview Speed] ${run.success ? "PASS" : "FAIL"}`,
             `${run.caseId}`,
-            `routeProfile=${run.routeProfile}`,
+            `modelSeries=${run.modelSeries}`,
             `#${run.repeatIndex + 1}`,
             `kind=${run.outputKind}`,
             `total=${run.metrics.totalMs}ms`,
@@ -591,7 +591,7 @@ async function main(): Promise<void> {
     JSON.stringify(
       {
         generatedAt: new Date().toISOString(),
-        provider,
+        modelGateway,
         options,
         summaries,
         runs,

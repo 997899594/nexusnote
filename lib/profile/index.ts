@@ -7,9 +7,6 @@
 
 import { db, eq, userProfiles } from "@/db";
 import { type AIPreferences, DEFAULT_AI_PREFERENCES } from "@/lib/ai/preferences";
-import type { EMAValue } from "@/types/profile";
-
-export type { EMAValue } from "@/types/profile";
 
 /**
  * Learning style preferences (user-set, not AI-inferred)
@@ -34,34 +31,6 @@ export interface CreateProfileInput {
 export interface UpdateProfileInput {
   learningStyle?: LearningStyle;
   aiPreferences?: AIPreferences;
-}
-
-function createDefaultEMAValue(): EMAValue {
-  return {
-    value: 0.5,
-    confidence: 0,
-    samples: 0,
-    lastAnalyzedAt: "",
-  };
-}
-
-export function buildDefaultProfileAnalysisFields() {
-  return {
-    vocabularyComplexity: createDefaultEMAValue(),
-    sentenceComplexity: createDefaultEMAValue(),
-    abstractionLevel: createDefaultEMAValue(),
-    directness: createDefaultEMAValue(),
-    conciseness: createDefaultEMAValue(),
-    formality: createDefaultEMAValue(),
-    emotionalIntensity: createDefaultEMAValue(),
-    openness: createDefaultEMAValue(),
-    conscientiousness: createDefaultEMAValue(),
-    extraversion: createDefaultEMAValue(),
-    agreeableness: createDefaultEMAValue(),
-    neuroticism: createDefaultEMAValue(),
-    totalMessagesAnalyzed: 0,
-    totalConversationsAnalyzed: 0,
-  };
 }
 
 export async function getUserProfile(userId: string) {
@@ -89,7 +58,6 @@ export async function getOrCreate(userId: string) {
       userId,
       learningStyle: { preferredFormat: "mixed", pace: "moderate" },
       aiPreferences: DEFAULT_AI_PREFERENCES,
-      ...buildDefaultProfileAnalysisFields(),
     })
     .returning();
 

@@ -9,9 +9,7 @@ export interface OwnedConversationUpdate {
   messageCount?: number | null;
   lastMessageAt?: Date | null;
   metadata?: Record<string, unknown> | null;
-  isArchived?: boolean | null;
   updatedAt?: Date | null;
-  titleGeneratedAt?: Date | null;
 }
 
 export class ConversationUnavailableError extends Error {

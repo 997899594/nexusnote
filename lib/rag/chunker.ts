@@ -10,7 +10,7 @@
 
 import { embedMany } from "ai";
 import { and, db, eq, inArray, knowledgeEvidence, knowledgeEvidenceChunks } from "@/db";
-import { aiProvider } from "@/lib/ai/core/provider";
+import { aiModelGateway } from "@/lib/ai/core/model-gateway";
 import {
   groupEvidenceSourceLinksByEvidenceId,
   listEvidenceSourceLinks,
@@ -49,14 +49,14 @@ async function createEmbeddingsOrNull(
   chunks: string[],
   context: string,
 ): Promise<(number[] | null)[]> {
-  if (!aiProvider.isConfigured()) {
-    console.warn(`[Chunker] AI provider not configured, skip embeddings for ${context}`);
+  if (!aiModelGateway.isConfigured()) {
+    console.warn(`[Chunker] AI model gateway not configured, skip embeddings for ${context}`);
     return chunks.map(() => null);
   }
 
   try {
     const { embeddings } = await embedMany({
-      model: aiProvider.embeddingModel,
+      model: aiModelGateway.getEmbeddingModel(),
       values: chunks,
     });
 
@@ -69,7 +69,7 @@ async function createEmbeddingsOrNull(
     return chunks.map((_, index) => embeddings[index] ?? null);
   } catch (error) {
     console.error(
-      `[Chunker] Embedding unavailable for ${context}, fallback to keyword-only:`,
+      `[Chunker] Embedding unavailable for ${context}, indexing keyword-only chunks:`,
       error,
     );
     return chunks.map(() => null);
@@ -196,7 +196,7 @@ export async function syncSourceKnowledgeEvidenceChunks(
     );
 
     await deleteChunksByEvidenceIds(evidenceIds);
-    trace.step("delete-old-chunks", { evidenceCount: evidenceRows.length });
+    trace.step("delete-stale-chunks", { evidenceCount: evidenceRows.length });
 
     let totalChunks = 0;
     for (const evidence of evidenceRows) {

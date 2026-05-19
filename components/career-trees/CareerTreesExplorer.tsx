@@ -4,17 +4,22 @@ import { ArrowRight, Compass, GitBranch, MessageCircle, Sparkles, X } from "luci
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import {
-  CAREER_TREE_BLACK_GOLD_VARS,
-  CareerTreeGraph,
-} from "@/components/career-trees/CareerTreeGraph";
+import { CareerTreeGraph } from "@/components/career-trees/CareerTreeGraph";
 import { useToast } from "@/components/ui/Toast";
-import { buildCareerDevelopmentGraph } from "@/lib/career-tree/career-development-graph";
+import {
+  buildCareerDevelopmentGraph,
+  type CareerRoleNode,
+} from "@/lib/career-tree/career-development-graph";
 import type {
   FocusSnapshotProjection,
   ProfileSnapshotProjection,
+  VisibleTreeMetrics,
 } from "@/lib/career-tree/projection-types";
-import type { CareerTreeSnapshot } from "@/lib/career-tree/types";
+import type {
+  CareerNodeState,
+  CareerTreeSnapshot,
+  VisibleSkillTreeNode,
+} from "@/lib/career-tree/types";
 import {
   findDefaultFocusNode,
   findNodeById,
@@ -38,21 +43,118 @@ function getInitialDirectionKey(snapshot: CareerTreeSnapshot): string | null {
   );
 }
 
+function getStateLabel(state: CareerNodeState): string {
+  switch (state) {
+    case "mastered":
+      return "已掌握";
+    case "in_progress":
+      return "学习中";
+    case "ready":
+      return "可开始";
+    case "locked":
+      return "待解锁";
+  }
+}
+
+function getFutureRoleLabel(role: CareerRoleNode): string {
+  if (role.source === "candidate_tree") {
+    return "备选方向";
+  }
+
+  return role.horizon === "next" ? "下一阶段" : "后续职业";
+}
+
+function DirectionMetricStrip({ metrics }: { metrics: VisibleTreeMetrics }) {
+  const items = [
+    { label: "能力点", value: metrics.total },
+    { label: "学习中", value: metrics.inProgress },
+    { label: "平均进度", value: `${metrics.averageProgress}%` },
+  ];
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {items.map((item) => (
+        <span
+          key={item.label}
+          className="rounded-full bg-[var(--color-panel-soft)] px-3 py-1.5 text-xs text-[var(--color-text-secondary)]"
+        >
+          {item.label} {item.value}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function FocusNodePanel({ node }: { node: VisibleSkillTreeNode | null }) {
+  return (
+    <article className="rounded-3xl border border-black/6 bg-white p-4">
+      <p className="text-xs font-medium text-[var(--color-text-tertiary)]">当前焦点</p>
+      <h2 className="mt-2 text-lg font-semibold tracking-[-0.03em] text-[var(--color-text)]">
+        {node?.title ?? "等待学习信号"}
+      </h2>
+      <p className="mt-2 line-clamp-3 text-sm leading-7 text-[var(--color-text-secondary)]">
+        {node?.summary ?? "完成更多章节后，会自动识别当前最该推进的能力点。"}
+      </p>
+      <div className="mt-4 flex items-center justify-between gap-3 text-xs text-[var(--color-text-secondary)]">
+        <span>{node ? getStateLabel(node.state) : "未开始"}</span>
+        <span>{node?.progress ?? 0}%</span>
+      </div>
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--color-panel-soft)]">
+        <div
+          className="h-full rounded-full bg-[var(--color-panel-strong)]"
+          style={{ width: `${node?.progress ?? 0}%` }}
+        />
+      </div>
+    </article>
+  );
+}
+
+function FutureCareerPanel({ careers }: { careers: CareerRoleNode[] }) {
+  return (
+    <article className="rounded-3xl border border-black/6 bg-white p-4">
+      <p className="text-xs font-medium text-[var(--color-text-tertiary)]">可发展方向</p>
+      <div className="mt-3 space-y-3">
+        {careers.length > 0 ? (
+          careers.slice(0, 3).map((career) => (
+            <div key={career.key} className="rounded-2xl bg-[var(--color-panel-soft)] px-3 py-3">
+              <div className="flex items-start justify-between gap-3">
+                <h3 className="line-clamp-2 text-sm font-semibold leading-6 text-[var(--color-text)]">
+                  {career.title}
+                </h3>
+                <span className="shrink-0 rounded-full bg-white px-2 py-1 text-[10px] text-[var(--color-text-tertiary)]">
+                  {getFutureRoleLabel(career)}
+                </span>
+              </div>
+              <p className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--color-text-secondary)]">
+                {career.summary}
+              </p>
+            </div>
+          ))
+        ) : (
+          <p className="rounded-2xl bg-[var(--color-panel-soft)] px-3 py-3 text-sm leading-6 text-[var(--color-text-secondary)]">
+            当前先完成主树能力，后续方向会随学习进度更新。
+          </p>
+        )}
+      </div>
+    </article>
+  );
+}
+
 function EmptyState() {
   return (
-    <section className="overflow-hidden rounded-[30px] border border-[#2e2419] bg-[linear-gradient(180deg,#111111_0%,#0c0d0e_100%)] p-6 text-white">
-      <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.24em] text-[#b98a43]">
+    <section className="ui-surface-card-lg overflow-hidden border border-black/6 p-6">
+      <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-[var(--color-text-tertiary)]">
         <Compass className="h-4 w-4" />
         成长主线
       </div>
-      <h1 className="mt-4 text-3xl font-semibold tracking-[-0.05em]">还没有可生成的职业树</h1>
-      <p className="mt-3 max-w-2xl text-sm leading-7 text-white/68">
-        先完成课程访谈并保存课程大纲，系统才会开始长出候选职业方向。
+      <h1 className="mt-4 text-3xl font-semibold text-[var(--color-text)]">还没有可生成的职业树</h1>
+      <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--color-text-secondary)]">
+        先完成课程访谈并保存课程大纲，职业方向会自动生成。
       </p>
       <div className="mt-6">
         <Link
           href="/interview"
-          className="inline-flex items-center gap-2 border-b border-[#6d512c] pb-1 text-sm font-medium text-[#e1c489] transition-colors hover:text-[#f0e3cc]"
+          className="ui-primary-button inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors"
         >
           开始课程访谈
           <ArrowRight className="h-4 w-4" />
@@ -64,14 +166,14 @@ function EmptyState() {
 
 function PendingState() {
   return (
-    <section className="overflow-hidden rounded-[30px] border border-[#2e2419] bg-[linear-gradient(180deg,#111111_0%,#0c0d0e_100%)] p-6 text-white">
-      <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.24em] text-[#b98a43]">
+    <section className="ui-surface-card-lg overflow-hidden border border-black/6 p-6">
+      <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-[var(--color-text-tertiary)]">
         <Sparkles className="h-4 w-4" />
         生成中
       </div>
-      <h1 className="mt-4 text-3xl font-semibold tracking-[-0.05em]">职业树正在整理</h1>
-      <p className="mt-3 max-w-2xl text-sm leading-7 text-white/68">
-        已保存的课程正在整理成候选职业方向，完成后会出现在这里。
+      <h1 className="mt-4 text-3xl font-semibold text-[var(--color-text)]">职业树正在整理</h1>
+      <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--color-text-secondary)]">
+        已保存的课程正在整理成候选职业方向，完成后可以查看。
       </p>
     </section>
   );
@@ -97,20 +199,20 @@ function CandidateDirectionPicker({
   }
 
   return (
-    <section className="relative z-20 mb-5 overflow-hidden rounded-[1.75rem] border border-[#4b3218]/80 bg-[radial-gradient(circle_at_50%_0%,rgba(216,172,88,0.14),transparent_36%),linear-gradient(180deg,rgba(13,10,7,0.98),rgba(5,4,3,0.98))] p-4 shadow-[0_24px_70px_-44px_rgba(0,0,0,0.9),inset_0_0_30px_rgba(216,172,88,0.05)]">
+    <section className="ui-surface-card relative z-20 mb-5 overflow-hidden border border-black/6 p-4">
       <div className="mb-4 flex items-start justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.24em] text-[#b98a43]">
+          <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-[var(--color-text-tertiary)]">
             <GitBranch className="h-3.5 w-3.5" />
-            选择主树
+            切换方向
           </div>
-          <p className="mt-2 max-w-xl text-sm leading-6 text-[#d8c39a]/72">
-            选择一个职业方向作为当前主树，树内会展示它自己的后续职业。
+          <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--color-text-secondary)]">
+            当前方向会影响焦点、下一阶段和职业树读法。
           </p>
         </div>
         <button
           type="button"
-          className="rounded-full border border-[#4b3218]/80 bg-black/24 p-2 text-[#c7ae78]/80 transition-colors hover:border-[#d8ac58]/60 hover:text-[#f4dfad]"
+          className="rounded-full border border-black/8 bg-[var(--color-panel-soft)] p-2 text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-active)] hover:text-[var(--color-text)]"
           onClick={onClose}
         >
           <span className="sr-only">关闭主树选择</span>
@@ -131,8 +233,8 @@ function CandidateDirectionPicker({
               className={cn(
                 "group flex min-w-0 items-center gap-3 rounded-2xl border px-3 py-3 text-left transition-colors",
                 active
-                  ? "border-[#d8ac58]/72 bg-[#d8ac58]/12 text-[#f4dfad]"
-                  : "border-[#3b2a17]/80 bg-black/20 text-[#c7ae78]/78 hover:border-[#9c7238]/72 hover:text-[#f2e5cd]",
+                  ? "border-black/14 bg-[var(--color-panel-strong)] text-[var(--color-panel-strong-fg)]"
+                  : "border-black/6 bg-[var(--color-panel-soft)] text-[var(--color-text-secondary)] hover:bg-[var(--color-active)] hover:text-[var(--color-text)]",
               )}
               disabled={isSaving && !active}
               onClick={() => {
@@ -143,8 +245,10 @@ function CandidateDirectionPicker({
               <span
                 aria-hidden
                 className={cn(
-                  "h-2.5 w-2.5 shrink-0 rounded-full border shadow-[0_0_14px_rgba(216,172,88,0.28)]",
-                  active ? "border-[#f0d28b] bg-[#d8ac58]" : "border-[#9c7238]/70 bg-[#0f0b07]",
+                  "h-2.5 w-2.5 shrink-0 rounded-full border",
+                  active
+                    ? "border-white/40 bg-white"
+                    : "border-black/12 bg-[var(--color-text-muted)]",
                 )}
               />
               <span className="flex min-w-0 flex-1 items-center justify-between gap-3">
@@ -152,7 +256,7 @@ function CandidateDirectionPicker({
                   <span className="block truncate text-[13px] font-medium tracking-[-0.03em]">
                     {tree.title}
                   </span>
-                  <span className="mt-0.5 block text-[10px] text-[#9f8a66]/80">
+                  <span className="mt-0.5 block text-[10px] opacity-70">
                     {tree.supportingCourses.length}门课 · {tree.supportingChapters.length}节 ·{" "}
                     {nodeCount}能力
                   </span>
@@ -162,8 +266,8 @@ function CandidateDirectionPicker({
                     className={cn(
                       "shrink-0 rounded-full border px-2 py-1 text-[10px]",
                       active
-                        ? "border-[#d8ac58]/60 bg-[#d8ac58]/14 text-[#f4dfad]"
-                        : "border-[#5a3c1d]/80 bg-black/20 text-[#b98a43]",
+                        ? "border-white/24 bg-white/10 text-white"
+                        : "border-black/8 bg-white text-[var(--color-text-secondary)]",
                     )}
                   >
                     {active ? "当前" : "推荐"}
@@ -241,11 +345,13 @@ export function CareerTreesExplorer({
     return <PendingState />;
   }
 
-  if (!currentTree || !developmentGraph) {
+  if (!displayState || !currentTree || !developmentGraph) {
     return <PendingState />;
   }
 
+  const resolvedDisplayState = displayState;
   const focusNode = activeNode ?? findDefaultFocusNode(currentTree.tree);
+  const metrics = resolvedDisplayState.metrics;
 
   const handleSelectDirection = async (directionKey: string) => {
     if (directionKey === currentDirectionKey || isSaving) {
@@ -297,34 +403,33 @@ export function CareerTreesExplorer({
   };
 
   return (
-    <div
-      className="relative overflow-hidden rounded-[2.75rem] border border-[#2e2419] bg-[radial-gradient(circle_at_50%_-12%,rgba(206,151,65,0.2),transparent_34%),radial-gradient(circle_at_8%_18%,rgba(117,74,31,0.22),transparent_30%),linear-gradient(180deg,#0d0b08_0%,#050403_100%)] p-4 text-white shadow-[0_38px_110px_-58px_rgba(0,0,0,0.92)] md:p-6"
-      style={CAREER_TREE_BLACK_GOLD_VARS}
-    >
+    <div className="ui-surface-card-lg relative overflow-hidden border border-black/6 p-4 md:p-6">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.22]"
+        className="pointer-events-none absolute inset-0 opacity-70"
         style={{
           backgroundImage:
-            "linear-gradient(115deg, transparent 0 44%, rgba(216,172,88,0.1) 45%, transparent 46% 100%), radial-gradient(circle at 50% 0%, rgba(255,231,171,0.24), transparent 30%)",
+            "linear-gradient(180deg, color-mix(in oklch, var(--color-panel-soft) 72%, transparent), transparent 34%)",
         }}
       />
-      <section className="relative z-10 mb-4 flex flex-col gap-3 px-1 text-white md:mb-5 md:flex-row md:items-end md:justify-between md:px-2">
-        <div>
-          <div className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.28em] text-[#b98a43]">
-            <Compass className="h-3.5 w-3.5" />
-            Career Tree
-          </div>
-          <h1 className="mt-2 font-display text-3xl font-semibold tracking-[-0.055em] text-[#f4dfad] md:text-5xl">
-            职业发展树
+      <section className="relative z-10 mb-4 flex flex-col gap-3 px-1 md:mb-5 md:flex-row md:items-end md:justify-between md:px-2">
+        <div className="max-w-3xl">
+          <p className="text-sm font-medium text-[var(--color-text-tertiary)]">当前方向</p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-[-0.05em] text-[var(--color-text)] md:text-4xl">
+            {resolvedDisplayState.displayDirection.title}
           </h1>
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--color-text-secondary)]">
+            {resolvedDisplayState.displayDirection.summary}
+          </p>
+          <div className="mt-4">
+            <DirectionMetricStrip metrics={metrics} />
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 text-[11px] text-[#c7ae78]/76">
-          <span>当前主树</span>
+        <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
-            className="inline-flex items-center gap-2 rounded-full border border-[#4b3218]/80 bg-black/18 px-3 py-1.5 text-[#e1c489] transition-colors hover:border-[#d8ac58]/60 hover:text-[#f4dfad]"
+            className="ui-soft-button inline-flex items-center gap-2 rounded-full px-3 py-1.5 transition-colors"
             onClick={handleOpenCareerChat}
           >
             <MessageCircle className="h-3.5 w-3.5" />
@@ -333,13 +438,15 @@ export function CareerTreesExplorer({
           {snapshot.trees.length > 1 ? (
             <button
               type="button"
-              className="rounded-full border border-[#4b3218]/80 bg-black/18 px-3 py-1.5 text-[#e1c489] transition-colors hover:border-[#d8ac58]/60 hover:text-[#f4dfad]"
+              className="ui-soft-button rounded-full px-3 py-1.5 transition-colors"
               onClick={() => setDirectionPickerOpen((open) => !open)}
             >
               切换主树
             </button>
           ) : null}
-          {isSaving ? <span className="text-[#e1c489]">正在保存选择</span> : null}
+          {isSaving ? (
+            <span className="text-[var(--color-text-secondary)]">正在保存选择</span>
+          ) : null}
         </div>
       </section>
 
@@ -352,7 +459,7 @@ export function CareerTreesExplorer({
         onSelectDirection={(directionKey) => void handleSelectDirection(directionKey)}
       />
 
-      <section className="relative z-10">
+      <section className="relative z-10 grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
         <CareerTreeGraph
           graph={developmentGraph}
           activeNodeId={focusNode?.id ?? null}
@@ -360,6 +467,10 @@ export function CareerTreesExplorer({
           variant="full"
           className="min-h-[34rem]"
         />
+        <aside className="grid gap-4 self-start md:grid-cols-2 xl:grid-cols-1">
+          <FocusNodePanel node={focusNode} />
+          <FutureCareerPanel careers={developmentGraph.futureCareers} />
+        </aside>
       </section>
     </div>
   );

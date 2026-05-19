@@ -1,1 +1,0 @@
-- Use simple, everyday language and avoid jargon.

@@ -38,7 +38,7 @@ runs in production.
 
 - Pros: fewer moving parts, fewer host/CI path bugs, one image build path, simpler troubleshooting
 - Cons: schema delivery now depends on the deployment platform correctly reading the repo contract instead of an
-  in-image fallback command
+  in-image migration command
 
 ## Follow-up
 

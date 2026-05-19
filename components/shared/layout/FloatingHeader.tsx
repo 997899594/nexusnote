@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { ArrowLeft, Zap } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { UserAvatar } from "./UserAvatar";
 
@@ -20,9 +21,11 @@ export function FloatingHeader({
   subtitle,
   variant = "brand",
 }: FloatingHeaderProps) {
+  const router = useRouter();
   const resolvedTitle =
     title ?? (variant === "brand" ? "开始学习" : variant === "workspace" ? "工作台" : "返回");
   const resolvedSubtitle = subtitle ?? (variant === "brand" ? "NexusNote" : null);
+  const handleShellClick = onLogoClick ?? (showBackHint ? () => router.back() : undefined);
 
   const leftShellClassName = cn(
     "ui-floating-surface group flex items-center rounded-full",
@@ -42,10 +45,12 @@ export function FloatingHeader({
     <header className="ui-floating-header fixed z-50">
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4">
         <motion.button
-          onClick={onLogoClick}
+          type="button"
+          onClick={handleShellClick}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
-          className={leftShellClassName}
+          className={cn(leftShellClassName, !handleShellClick && "cursor-default")}
+          aria-label={showBackHint ? "返回上一页" : resolvedTitle}
         >
           <div className={badgeClassName}>
             <Zap
@@ -78,8 +83,8 @@ export function FloatingHeader({
                 animate={{ opacity: 1, x: 0 }}
                 className="ui-soft-button flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px]"
               >
-                <ArrowLeft className="w-3 h-3" />
-                <span>返回首页</span>
+                <ArrowLeft className="h-3 w-3" />
+                <span>返回</span>
               </motion.div>
             )}
           </div>

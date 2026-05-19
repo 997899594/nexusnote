@@ -1,5 +1,4 @@
 import {
-  ArrowLeft,
   ArrowUpRight,
   BarChart3,
   Brain,
@@ -27,49 +26,36 @@ async function ProfileInsightsPageContent() {
 
   return (
     <LibraryAnalysisPageShell
-      header={
-        <FloatingHeader showBackHint title="学习洞察" subtitle="Insights" variant="compact" />
-      }
+      header={<FloatingHeader showBackHint title="学习洞察" variant="compact" />}
     >
-      <section className="mb-8">
-        <div className="ui-badge-pill ui-page-eyebrow inline-flex items-center gap-2 px-3 py-1.5 text-[11px] uppercase tracking-[0.22em]">
-          <span className="ui-strong-chip h-1.5 w-1.5 rounded-full" />
-          学习洞察
+      <section className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p className="text-sm font-medium text-[var(--color-text-tertiary)]">学习洞察</p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-[-0.05em] text-[var(--color-text)] md:text-5xl">
+            知识与成长状态
+          </h1>
         </div>
-        <h1 className="ui-page-title mt-5 text-3xl font-semibold tracking-[-0.05em] md:text-5xl">
-          当前知识流与成长状态
-        </h1>
-        <p className="ui-page-description mt-3 max-w-2xl text-base leading-8">
-          这里集中展示当前方向、焦点、知识信号和 AI 使用趋势，不再把洞察拆散到多个孤立页面。
-        </p>
-        <div className="mt-5 flex flex-wrap gap-3">
-          <Link
-            href="/profile"
-            className="ui-surface-soft inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-active)] hover:text-[var(--color-text)]"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            返回个人中心
-          </Link>
+        <div className="flex flex-wrap gap-3">
           <Link
             href="/profile/settings"
             className="ui-surface-soft inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-active)] hover:text-[var(--color-text)]"
           >
             <Settings2 className="h-4 w-4" />
-            打开偏好设置
+            偏好设置
           </Link>
           <Link
             href="/career-trees"
             className="ui-surface-soft inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-active)] hover:text-[var(--color-text)]"
           >
             <Compass className="h-4 w-4" />
-            查看职业树
+            职业树
           </Link>
           <Link
             href="/editor"
             className="ui-surface-soft inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-active)] hover:text-[var(--color-text)]"
           >
             <FileText className="h-4 w-4" />
-            打开知识工作台
+            知识工作台
           </Link>
         </div>
       </section>
@@ -91,10 +77,7 @@ async function ProfileInsightsPageContent() {
               {overview.direction.confidence !== null ? (
                 <div className="mt-4 flex flex-wrap gap-2 text-xs text-[var(--color-text-secondary)]">
                   <span className="ui-badge-pill rounded-full px-3 py-1.5">
-                    候选树 {overview.direction.treesCount ?? 0} 条
-                  </span>
-                  <span className="ui-badge-pill rounded-full px-3 py-1.5">
-                    置信度 {Math.round(overview.direction.confidence * 100)}%
+                    可选方向 {overview.direction.treesCount ?? 0} 个
                   </span>
                   <span className="ui-badge-pill rounded-full px-3 py-1.5">
                     支持课程 {overview.direction.supportingCoursesCount ?? 0} 门
@@ -141,7 +124,7 @@ async function ProfileInsightsPageContent() {
           <section>
             <div className="mb-4 flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
               <Brain className="h-4 w-4" />
-              Knowledge Insights
+              知识线索
             </div>
             <KnowledgeInsightStrip insights={topInsights} />
           </section>
@@ -203,7 +186,7 @@ async function ProfileInsightsPageContent() {
         <section>
           <div className="mb-4 flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
             <BarChart3 className="h-4 w-4" />
-            AI Usage Insights
+            AI 使用
           </div>
           <ProfileAiUsagePanel
             usage={usage}

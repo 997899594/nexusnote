@@ -1,9 +1,9 @@
 import { env } from "@/config/env";
 import {
-  type AIRouteProfile,
-  DEFAULT_AI_ROUTE_PROFILE,
-  normalizeAIRouteProfile,
-} from "./route-profiles";
+  type AIModelSeries,
+  DEFAULT_AI_MODEL_SERIES,
+  normalizeAIModelSeries,
+} from "./model-series";
 
 export type ModelType =
   | "chat"
@@ -19,9 +19,8 @@ export type ModelType =
 export type LanguageModelType = Exclude<ModelType, "embedding">;
 
 export interface AIModelBundle {
-  routeProfile: AIRouteProfile;
+  modelSeries: AIModelSeries;
   label: string;
-  providerLabel: string;
   models: Record<ModelType, string>;
 }
 
@@ -34,42 +33,25 @@ function buildModelMap(config: LanguageModelBundleConfig): Record<ModelType, str
   };
 }
 
-export function getAIModelBundles(): Record<AIRouteProfile, AIModelBundle> {
+export function getAIModelBundles(): Record<AIModelSeries, AIModelBundle> {
   return {
-    platform: {
-      routeProfile: "platform",
-      label: "平台推荐",
-      providerLabel: "302.ai",
+    qwen: {
+      modelSeries: "qwen",
+      label: "Qwen",
       models: buildModelMap({
-        chat: env.AI_MODEL_INTERACTIVE,
-        toolCalling: env.AI_MODEL_INTERACTIVE,
-        pro: env.AI_MODEL_REVIEW,
-        outline: env.AI_MODEL_OUTLINE,
-        sectionDraft: env.AI_MODEL_SECTION_DRAFT,
-        extract: env.AI_MODEL_EXTRACT,
-        review: env.AI_MODEL_REVIEW,
-        webSearch: env.AI_MODEL_WEB_SEARCH,
-      }),
-    },
-    domestic: {
-      routeProfile: "domestic",
-      label: "国产链路",
-      providerLabel: "302.ai / domestic",
-      models: buildModelMap({
-        chat: env.AI_DOMESTIC_MODEL_INTERACTIVE,
-        toolCalling: env.AI_DOMESTIC_MODEL_INTERACTIVE,
-        pro: env.AI_DOMESTIC_MODEL_REVIEW,
-        outline: env.AI_DOMESTIC_MODEL_OUTLINE,
-        sectionDraft: env.AI_DOMESTIC_MODEL_SECTION_DRAFT,
-        extract: env.AI_DOMESTIC_MODEL_EXTRACT,
-        review: env.AI_DOMESTIC_MODEL_REVIEW,
-        webSearch: env.AI_DOMESTIC_MODEL_WEB_SEARCH,
+        chat: env.AI_QWEN_MODEL_INTERACTIVE,
+        toolCalling: env.AI_QWEN_MODEL_INTERACTIVE,
+        pro: env.AI_QWEN_MODEL_REVIEW,
+        outline: env.AI_QWEN_MODEL_OUTLINE,
+        sectionDraft: env.AI_QWEN_MODEL_SECTION_DRAFT,
+        extract: env.AI_QWEN_MODEL_EXTRACT,
+        review: env.AI_QWEN_MODEL_REVIEW,
+        webSearch: env.AI_QWEN_MODEL_WEB_SEARCH,
       }),
     },
     gemini: {
-      routeProfile: "gemini",
-      label: "Gemini 链路",
-      providerLabel: "302.ai / Gemini",
+      modelSeries: "gemini",
+      label: "Gemini",
       models: buildModelMap({
         chat: env.AI_GEMINI_MODEL_INTERACTIVE,
         toolCalling: env.AI_GEMINI_MODEL_INTERACTIVE,
@@ -82,9 +64,8 @@ export function getAIModelBundles(): Record<AIRouteProfile, AIModelBundle> {
       }),
     },
     openai: {
-      routeProfile: "openai",
-      label: "OpenAI 链路",
-      providerLabel: "302.ai / OpenAI",
+      modelSeries: "openai",
+      label: "OpenAI",
       models: buildModelMap({
         chat: env.AI_OPENAI_MODEL_INTERACTIVE,
         toolCalling: env.AI_OPENAI_MODEL_INTERACTIVE,
@@ -99,13 +80,13 @@ export function getAIModelBundles(): Record<AIRouteProfile, AIModelBundle> {
   };
 }
 
-export function getAIModelBundle(routeProfile?: AIRouteProfile): AIModelBundle {
-  const profile = normalizeAIRouteProfile(routeProfile ?? DEFAULT_AI_ROUTE_PROFILE);
-  return getAIModelBundles()[profile];
+export function getAIModelBundle(modelSeries?: AIModelSeries): AIModelBundle {
+  const series = normalizeAIModelSeries(modelSeries ?? DEFAULT_AI_MODEL_SERIES);
+  return getAIModelBundles()[series];
 }
 
-export function getAIModelId(modelType: ModelType, routeProfile?: AIRouteProfile): string {
-  const modelId = getAIModelBundle(routeProfile).models[modelType];
+export function getAIModelId(modelType: ModelType, modelSeries?: AIModelSeries): string {
+  const modelId = getAIModelBundle(modelSeries).models[modelType];
   if (!modelId) {
     throw new Error(`No model configured for type: ${modelType}`);
   }

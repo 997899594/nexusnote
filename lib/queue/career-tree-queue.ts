@@ -1,6 +1,6 @@
-import { Queue } from "bullmq";
+import type { Queue } from "bullmq";
 import { defaults } from "@/config/env";
-import { getRedis } from "@/lib/redis";
+import { createNexusQueue } from "@/lib/queue/bullmq";
 
 export type CareerTreeJobData =
   | {
@@ -32,17 +32,9 @@ export function getCareerTreeQueue(): Queue<CareerTreeJobData> {
     return careerTreeQueue;
   }
 
-  careerTreeQueue = new Queue<CareerTreeJobData>("career-tree", {
-    connection: getRedis() as never,
-    defaultJobOptions: {
-      attempts: defaults.queue.careerTreeMaxRetries,
-      backoff: {
-        type: "exponential",
-        delay: defaults.queue.careerTreeBackoffDelay,
-      },
-      removeOnComplete: { count: 1000 },
-      removeOnFail: { count: 5000 },
-    },
+  careerTreeQueue = createNexusQueue<CareerTreeJobData>("career-tree", {
+    attempts: defaults.queue.careerTreeMaxRetries,
+    backoffDelay: defaults.queue.careerTreeBackoffDelay,
   });
 
   return careerTreeQueue;

@@ -1,16 +1,6 @@
 "use client";
 
-import {
-  Activity,
-  Brain,
-  Flame,
-  Layers3,
-  Orbit,
-  Radar,
-  Target,
-  TrendingUp,
-  Zap,
-} from "lucide-react";
+import { Brain, Layers3, Orbit, Target, TrendingUp, Zap } from "lucide-react";
 import { type ComponentType, useState } from "react";
 
 interface UsageBreakdownItem {
@@ -40,13 +30,13 @@ interface ProfileAiUsagePanelProps {
     daily: UsageDailyItem[];
     byPolicy: UsageBreakdownItem[];
     byWorkflow: UsageBreakdownItem[];
-    byProvider: UsageBreakdownItem[];
+    byModelSeries: UsageBreakdownItem[];
   };
   windowStartLabel: string;
 }
 
 type TrendMode = "requests" | "tokens" | "cost";
-type UsageKind = "policy" | "workflow" | "provider";
+type UsageKind = "policy" | "workflow" | "modelSeries";
 
 const POLICY_LABELS: Record<string, string> = {
   "interactive-fast": "交互快速",
@@ -56,16 +46,16 @@ const POLICY_LABELS: Record<string, string> = {
 
 const WORKFLOW_LABELS: Record<string, string> = {
   "notes:tag-generation": "标签生成",
-  "ai-eval-judge": "AI 评测",
-  "conversation-title-generation": "标题生成",
+  "ai-eval-judge": "质量评测",
   "query-rewrite": "检索改写",
-  "style-analysis": "风格分析",
   "interview-agent": "课程访谈",
   "generate-course-section": "课程章节生成",
 };
 
-const PROVIDER_LABELS: Record<string, string> = {
-  "302.ai": "302.ai",
+const MODEL_SERIES_LABELS: Record<string, string> = {
+  qwen: "Qwen",
+  gemini: "Gemini",
+  openai: "OpenAI",
 };
 
 function formatCompactTokens(totalTokens: number): string {
@@ -122,11 +112,11 @@ function formatDailySecondary(item: UsageDailyItem, mode: TrendMode): string {
 function getTrendLabel(mode: TrendMode): string {
   switch (mode) {
     case "tokens":
-      return "Token 强度";
+      return "处理量";
     case "cost":
       return "成本趋势";
     default:
-      return "请求量";
+      return "使用次数";
   }
 }
 
@@ -151,22 +141,22 @@ function getAIUsageLabel(value: string, kind: UsageKind | "generic" = "generic")
     return WORKFLOW_LABELS[normalized] ?? humanizeUsageIdentifier(normalized);
   }
 
-  if (kind === "provider") {
-    return PROVIDER_LABELS[normalized] ?? normalized;
+  if (kind === "modelSeries") {
+    return MODEL_SERIES_LABELS[normalized] ?? humanizeUsageIdentifier(normalized);
   }
 
   return (
     POLICY_LABELS[normalized] ??
     WORKFLOW_LABELS[normalized] ??
-    PROVIDER_LABELS[normalized] ??
+    MODEL_SERIES_LABELS[normalized] ??
     humanizeUsageIdentifier(normalized)
   );
 }
 
 function TrendToggle({ mode, onChange }: { mode: TrendMode; onChange: (mode: TrendMode) => void }) {
   const items: Array<{ key: TrendMode; label: string }> = [
-    { key: "requests", label: "请求" },
-    { key: "tokens", label: "Token" },
+    { key: "requests", label: "次数" },
+    { key: "tokens", label: "处理量" },
     { key: "cost", label: "成本" },
   ];
 
@@ -251,7 +241,7 @@ function UsageBreakdownPanel({
                       {getAIUsageLabel(item.key, kind)}
                     </div>
                     <div className="text-xs text-[var(--color-text-tertiary)]">
-                      {formatCompactTokens(item.totalTokens)} tokens
+                      处理量 {formatCompactTokens(item.totalTokens)}
                     </div>
                   </div>
                   <div className="text-right text-xs text-[var(--color-text-secondary)]">
@@ -271,7 +261,7 @@ function UsageBreakdownPanel({
             );
           })
         ) : (
-          <p className="text-sm text-[var(--color-text-muted)]">最近 7 天暂无数据</p>
+          <p className="text-sm text-[var(--color-text-muted)]">最近 7 天暂无记录</p>
         )}
       </div>
     </div>
@@ -280,23 +270,20 @@ function UsageBreakdownPanel({
 
 export function ProfileAiUsagePanel({ usage, windowStartLabel }: ProfileAiUsagePanelProps) {
   const [mode, setMode] = useState<TrendMode>("requests");
-  const dominantPolicy = usage.byPolicy[0] ?? null;
-  const dominantWorkflow = usage.byWorkflow[0] ?? null;
-  const dominantProvider = usage.byProvider[0] ?? null;
   const maxDailyValue = Math.max(1, ...usage.daily.map((item) => getDailyValue(item, mode)));
 
   return (
-    <div className="ui-surface-card rounded-2xl p-6 md:p-7">
+    <div className="ui-surface-card rounded-2xl p-5 md:p-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 md:gap-6">
         <UsageMetricCard
           icon={Zap}
-          label="请求数"
+          label="使用次数"
           value={usage.requestCount}
-          helper={`${usage.activeDays} / 7 天有 AI 活动`}
+          helper={`${usage.activeDays} / 7 天有使用`}
         />
         <UsageMetricCard
           icon={TrendingUp}
-          label="Token 数"
+          label="处理量"
           value={formatCompactTokens(usage.totalTokens)}
           helper={`平均每次 ${formatCompactTokens(usage.avgTokensPerRequest)}`}
         />
@@ -308,45 +295,14 @@ export function ProfileAiUsagePanel({ usage, windowStartLabel }: ProfileAiUsageP
         />
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-4 md:mt-6 md:grid-cols-3">
-        <UsageMetricCard
-          icon={Activity}
-          label="使用密度"
-          value={`${usage.activeDays} 天`}
-          helper={usage.activeDays >= 5 ? "最近一周使用频率较高" : "最近一周使用频率仍有提升空间"}
-        />
-        <UsageMetricCard
-          icon={Flame}
-          label="峰值日"
-          value={
-            usage.peakDay ? `${usage.peakDay.label} · ${usage.peakDay.requestCount} 次` : "暂无峰值"
-          }
-          helper={
-            usage.peakDay
-              ? `${formatCompactTokens(usage.peakDay.totalTokens)} tokens`
-              : "最近 7 天还没有 AI 请求"
-          }
-        />
-        <UsageMetricCard
-          icon={Radar}
-          label="主使用模式"
-          value={dominantWorkflow ? getAIUsageLabel(dominantWorkflow.key, "workflow") : "暂无数据"}
-          helper={
-            dominantWorkflow
-              ? `${formatUsageShare(dominantWorkflow.requestCount, usage.requestCount)} 的请求来自该工作流`
-              : "等待更多使用记录"
-          }
-        />
-      </div>
-
-      <div className="ui-message-card mt-6 rounded-[28px] p-4 md:mt-8 md:p-5">
+      <div className="ui-message-card mt-5 rounded-[28px] p-4 md:mt-6 md:p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
-              Daily Trend
+              使用趋势
             </p>
             <h3 className="mt-1 text-sm font-medium text-[var(--color-text)] md:text-base">
-              每日 AI 使用趋势
+              最近 7 天
             </h3>
           </div>
           <TrendToggle mode={mode} onChange={setMode} />
@@ -390,77 +346,31 @@ export function ProfileAiUsagePanel({ usage, windowStartLabel }: ProfileAiUsageP
         </div>
       </div>
 
-      <div className="ui-message-card mt-6 rounded-2xl p-4 md:mt-8 md:p-5">
-        <div className="grid gap-3 md:grid-cols-3">
-          <div className="ui-message-card rounded-2xl p-4">
-            <div className="text-[11px] uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
-              主策略
-            </div>
-            <div className="mt-2 text-sm font-medium text-[var(--color-text)] md:text-base">
-              {dominantPolicy ? getAIUsageLabel(dominantPolicy.key, "policy") : "暂无数据"}
-            </div>
-            <div className="mt-1 text-xs text-[var(--color-text-tertiary)]">
-              {dominantPolicy
-                ? `${formatUsageShare(dominantPolicy.requestCount, usage.requestCount)} 请求占比`
-                : "等待更多策略使用记录"}
-            </div>
-          </div>
-          <div className="ui-message-card rounded-2xl p-4">
-            <div className="text-[11px] uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
-              主工作流
-            </div>
-            <div className="mt-2 text-sm font-medium text-[var(--color-text)] md:text-base">
-              {dominantWorkflow ? getAIUsageLabel(dominantWorkflow.key, "workflow") : "暂无数据"}
-            </div>
-            <div className="mt-1 text-xs text-[var(--color-text-tertiary)]">
-              {dominantWorkflow
-                ? `${formatCompactTokens(dominantWorkflow.totalTokens)} tokens`
-                : "等待更多工作流使用记录"}
-            </div>
-          </div>
-          <div className="ui-message-card rounded-2xl p-4">
-            <div className="text-[11px] uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
-              主要 Provider
-            </div>
-            <div className="mt-2 text-sm font-medium text-[var(--color-text)] md:text-base">
-              {dominantProvider ? getAIUsageLabel(dominantProvider.key, "provider") : "暂无数据"}
-            </div>
-            <div className="mt-1 text-xs text-[var(--color-text-tertiary)]">
-              {dominantProvider
-                ? `${formatCompactCost(dominantProvider.totalCost)} 预算消耗`
-                : "等待更多 provider 使用记录"}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-6 grid gap-4 md:mt-8 md:grid-cols-3">
+      <div className="mt-5 grid gap-4 md:mt-6 md:grid-cols-3">
         <UsageBreakdownPanel
           icon={Orbit}
-          title="策略分布"
+          title="响应方式"
           kind="policy"
           items={usage.byPolicy}
           totalRequests={usage.requestCount}
         />
         <UsageBreakdownPanel
           icon={Layers3}
-          title="工作流"
+          title="使用场景"
           kind="workflow"
           items={usage.byWorkflow}
           totalRequests={usage.requestCount}
         />
         <UsageBreakdownPanel
           icon={Brain}
-          title="Provider"
-          kind="provider"
-          items={usage.byProvider}
+          title="模型选择"
+          kind="modelSeries"
+          items={usage.byModelSeries}
           totalRequests={usage.requestCount}
         />
       </div>
 
-      <p className="mt-5 text-xs text-[var(--color-text-muted)]">
-        统计窗口起点：{windowStartLabel}
-      </p>
+      <p className="mt-5 text-xs text-[var(--color-text-muted)]">统计自 {windowStartLabel}</p>
     </div>
   );
 }

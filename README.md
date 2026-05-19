@@ -24,7 +24,7 @@ NexusNote 的主链不是“通用笔记”，而是：
 - course generation and section-based learning
 - contextual learning chat
 - note capture and knowledge distillation
-- skill mapping and golden path progression
+- career-tree skill mapping and learning progression
 
 ## Quick Start
 

@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { withAuth } from "@/lib/api";
-import { revalidateCareerTrees } from "@/lib/cache/tags";
+import { conflict, parseJsonBodyAs, withAuth } from "@/lib/api";
+import { revalidateCareerTreeViews } from "@/lib/cache/domain-events";
 import { setSelectedCareerTreeDirection } from "@/lib/career-tree/preferences";
 import { enqueueCareerTreeCompose } from "@/lib/career-tree/queue";
 import { getCareerTreeSnapshot } from "@/lib/career-tree/snapshot";
@@ -15,18 +15,12 @@ export const GET = withAuth(async (_request, { userId }) => {
 });
 
 export const PUT = withAuth(async (request, { userId }) => {
-  const body = await request.json();
-  const { selectedDirectionKey } = selectCareerTreeDirectionSchema.parse(body);
+  const { selectedDirectionKey } = await parseJsonBodyAs(request, selectCareerTreeDirectionSchema);
   const snapshot = await getCareerTreeSnapshot(userId);
   const directionExists = snapshot.trees.some((tree) => tree.directionKey === selectedDirectionKey);
 
   if (snapshot.status !== "ready" || !directionExists) {
-    return Response.json(
-      {
-        error: "selected_direction_not_available",
-      },
-      { status: 409 },
-    );
+    throw conflict("selected_direction_not_available", "SELECTED_DIRECTION_NOT_AVAILABLE");
   }
 
   await setSelectedCareerTreeDirection(userId, selectedDirectionKey);
@@ -53,7 +47,7 @@ export const PUT = withAuth(async (request, { userId }) => {
     ],
   });
   await enqueueCareerTreeCompose(userId);
-  revalidateCareerTrees(userId);
+  revalidateCareerTreeViews(userId);
 
   return Response.json(
     {

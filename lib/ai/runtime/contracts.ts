@@ -1,4 +1,4 @@
-import type { AIRouteProfile } from "@/lib/ai/core/route-profiles";
+import type { AIModelSeries } from "@/lib/ai/core/model-series";
 import type { RequestMetadata } from "@/types/request-metadata";
 
 export const SURFACE_VALUES = ["chat", "learn", "notes", "career", "interview"] as const;
@@ -59,7 +59,7 @@ export interface RequestResourceContext {
 }
 
 export interface RequestUserPolicy {
-  routeProfile: AIRouteProfile;
+  modelSeries: AIModelSeries;
   skinSlug?: string | null;
 }
 

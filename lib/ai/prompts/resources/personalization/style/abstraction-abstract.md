@@ -1,1 +1,0 @@
-- User is comfortable with abstract concepts and theoretical discussions.

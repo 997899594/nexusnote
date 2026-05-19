@@ -2,135 +2,39 @@
  * Chat Session API - Single Session Operations
  *
  * GET: 获取会话详情
- * PATCH: 更新会话（标题、消息、归档状态）
  * DELETE: 删除会话
  */
 
-import type { UIMessage } from "ai";
-import { withDynamicAuth } from "@/lib/api";
-import { revalidateProfileStats } from "@/lib/cache/tags";
+import { parseBackgroundResearchMetadata } from "@/lib/ai/research/contracts";
+import { badRequest, notFound, withDynamicAuth } from "@/lib/api";
+import { revalidateConversationViews } from "@/lib/cache/domain-events";
 import { loadConversationMessages } from "@/lib/chat/conversation-messages";
-import { saveOwnedConversationSnapshot } from "@/lib/chat/conversation-persistence";
-import {
-  deleteOwnedConversation,
-  getOwnedConversation,
-  updateOwnedConversation,
-} from "@/lib/chat/conversation-repository";
+import { deleteOwnedConversation, getOwnedConversation } from "@/lib/chat/conversation-repository";
 import { isUuidString } from "@/lib/chat/session-id";
-
-interface UpdateSessionBody {
-  title?: string;
-  messages?: UIMessage[];
-  summary?: string;
-  isArchived?: boolean;
-}
-
-type UpdatedSessionSnapshot = Awaited<ReturnType<typeof saveOwnedConversationSnapshot>>;
-
-function buildSessionUpdates(body: UpdateSessionBody): {
-  title?: string;
-  summary?: string;
-  isArchived?: boolean;
-  updatedAt: Date;
-} {
-  const updates: {
-    title?: string;
-    summary?: string;
-    isArchived?: boolean;
-    updatedAt: Date;
-  } = {
-    updatedAt: new Date(),
-  };
-
-  if (body.title !== undefined) {
-    updates.title = body.title;
-  }
-
-  if (body.summary !== undefined) {
-    updates.summary = body.summary;
-  }
-
-  if (body.isArchived !== undefined) {
-    updates.isArchived = body.isArchived;
-  }
-
-  return updates;
-}
 
 export const GET = withDynamicAuth<unknown, { id: string }>(
   async (_request, { userId, params }) => {
     const { id } = params;
 
     if (!isUuidString(id)) {
-      return Response.json({ error: "Invalid session id" }, { status: 400 });
+      throw badRequest("Invalid session id", "INVALID_SESSION_ID");
     }
 
     const conv = await getOwnedConversation(id, userId);
 
     if (!conv) {
-      return Response.json({ error: "Session not found" }, { status: 404 });
+      throw notFound("Session not found", "SESSION_NOT_FOUND");
     }
 
     const messages = await loadConversationMessages(id);
 
-    return Response.json({ session: { ...conv, messages } });
-  },
-);
-
-export const PATCH = withDynamicAuth<unknown, { id: string }>(
-  async (request, { userId, params }) => {
-    const { id } = params;
-
-    if (!isUuidString(id)) {
-      return Response.json({ error: "Invalid session id" }, { status: 400 });
-    }
-
-    const existing = await getOwnedConversation(id, userId);
-
-    if (!existing) {
-      return Response.json({ error: "Session not found" }, { status: 404 });
-    }
-
-    const body: UpdateSessionBody = await request.json();
-    const { title, messages, summary, isArchived } = body;
-
-    let updated: UpdatedSessionSnapshot;
-    if (messages !== undefined) {
-      updated = await saveOwnedConversationSnapshot({
-        conversationId: id,
-        userId,
-        existingSummary: existing.summary ?? null,
-        messages,
-        title,
-        summary,
-        isArchived,
-        trimmedSummaryFallback: "较早的对话内容已折叠，仅保留最近消息。",
-      });
-    } else {
-      const conversation = await updateOwnedConversation({
-        conversationId: id,
-        userId,
-        updates: buildSessionUpdates(body),
-      });
-
-      if (!conversation) {
-        return Response.json({ error: "Session not found" }, { status: 404 });
-      }
-
-      updated = {
-        conversation,
-        messages: await loadConversationMessages(id),
-      };
-    }
-
-    if (!updated) {
-      return Response.json({ error: "Session not found" }, { status: 404 });
-    }
-
-    revalidateProfileStats(userId);
-
     return Response.json({
-      session: { ...updated.conversation, messages: updated.messages },
+      session: {
+        ...conv,
+        metadata: undefined,
+        backgroundResearch: parseBackgroundResearchMetadata(conv.metadata),
+        messages,
+      },
     });
   },
 );
@@ -140,15 +44,15 @@ export const DELETE = withDynamicAuth<unknown, { id: string }>(
     const { id } = params;
 
     if (!isUuidString(id)) {
-      return Response.json({ error: "Invalid session id" }, { status: 400 });
+      throw badRequest("Invalid session id", "INVALID_SESSION_ID");
     }
 
     const deleted = await deleteOwnedConversation(id, userId);
     if (!deleted) {
-      return Response.json({ error: "Session not found" }, { status: 404 });
+      throw notFound("Session not found", "SESSION_NOT_FOUND");
     }
 
-    revalidateProfileStats(userId);
+    revalidateConversationViews(userId);
 
     return Response.json({ success: true });
   },

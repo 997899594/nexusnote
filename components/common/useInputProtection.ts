@@ -12,7 +12,7 @@ interface InputProtectionOptions {
 
 export function useInputProtection(options: InputProtectionOptions = {}) {
   const { addToast } = useToast();
-  const { allowImages = false, errorMessage = "当前 AI 不支持图片输入，请输入文字描述" } = options;
+  const { allowImages = false, errorMessage = "当前不支持直接粘贴图片，请用文字描述。" } = options;
 
   const handlePaste = useCallback(
     (e: React.ClipboardEvent) => {

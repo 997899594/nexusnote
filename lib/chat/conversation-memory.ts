@@ -77,7 +77,7 @@ export async function summarizeDroppedConversationMessages({
   } catch (error) {
     const degradation = classifyAIDegradation(error);
     if (degradation) {
-      console.warn("[ConversationMemory] AI summary degraded, fallback to heuristic summary.");
+      console.warn("[ConversationMemory] AI summary degraded, using heuristic summary.");
     } else {
       console.error("[ConversationMemory] Failed to summarize dropped messages:", error);
     }

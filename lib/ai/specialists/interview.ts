@@ -1,6 +1,6 @@
 import { stepCountIs, ToolLoopAgent, type UIMessage } from "ai";
 import { getToolCallingModelForPolicy, type ModelPolicy } from "@/lib/ai/core/model-policy";
-import type { AIRouteProfile } from "@/lib/ai/core/route-profiles";
+import type { AIModelSeries } from "@/lib/ai/core/model-series";
 import { type AITelemetryContext, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { createToolContext } from "@/lib/ai/core/tool-context";
 import { buildInterviewAgentInstructionsWithHint } from "@/lib/ai/interview/prompts";
@@ -25,7 +25,7 @@ export interface CourseInterviewerSpecialistOptions {
   courseId?: string;
   currentOutline?: InterviewOutline;
   messages?: UIMessage[];
-  routeProfile?: AIRouteProfile;
+  modelSeries?: AIModelSeries;
   telemetry?: AITelemetryContext;
   timing?: InterviewTimingSink;
 }
@@ -59,7 +59,7 @@ export function createCourseInterviewerSpecialist(options: CourseInterviewerSpec
   const agent = new ToolLoopAgent({
     id: "nexusnote-interview",
     model: getToolCallingModelForPolicy(courseInterviewerSpecialistSpec.modelPolicy, {
-      routeProfile: options.routeProfile,
+      modelSeries: options.modelSeries,
     }),
     instructions: buildInterviewAgentInstructionsWithHint({
       currentOutline: options.currentOutline,

@@ -1,1 +1,0 @@
-- Use concrete examples and avoid overly abstract explanations.

@@ -11,7 +11,7 @@
 ## Repo Boundaries
 
 - `docs/` root is for active documentation only
-- Historical plans, one-off specs, and old reference material belong in `docs/archive/`
+- Keep only current implementation guidance in this repo
 - Do not add local assistant state or private workspace files to the repo
 
 Examples that should stay out of git:
@@ -26,7 +26,7 @@ Examples that should stay out of git:
 
 - Update [docs/README.md](/Users/findbiao/projects/nexusnote/docs/README.md) when adding a new active doc
 - Prefer updating an existing active doc over creating another overlapping one
-- If a document stops guiding current implementation, move it to `docs/archive/`
+- If a document stops guiding current implementation, delete it from the active tree
 
 ## Config Rules
 
@@ -41,4 +41,4 @@ Examples that should stay out of git:
 - Follow [AGENTS.md](/Users/findbiao/projects/nexusnote/AGENTS.md)
 - Follow [docs/AI.md](/Users/findbiao/projects/nexusnote/docs/AI.md)
 - Keep static prompt resources in `lib/ai/prompts/resources/`
-- Do not introduce legacy parallel AI paths when extending the current stack
+- Do not introduce parallel AI paths when extending the current stack

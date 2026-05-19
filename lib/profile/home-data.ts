@@ -3,11 +3,7 @@ import "server-only";
 import { cacheLife, cacheTag } from "next/cache";
 import { getProfileStatsTag } from "@/lib/cache/tags";
 import { getRecentItemsCached, type RecentItem } from "@/lib/learning/recent-courses-data";
-import {
-  getUserProfileOverviewCached,
-  type ProfileOverview,
-  type ProfileRecentActivityItem,
-} from "@/lib/profile/stats-data";
+import { getUserProfileOverviewCached, type ProfileOverview } from "@/lib/profile/stats-data";
 
 export interface ProfileHomePrimaryLearningEntry {
   title: string;
@@ -19,7 +15,6 @@ export interface ProfileHomePrimaryLearningEntry {
 export interface ProfileHomeData {
   overview: ProfileOverview;
   primaryLearningEntry: ProfileHomePrimaryLearningEntry;
-  secondaryActivities: ProfileRecentActivityItem[];
 }
 
 function buildPrimaryLearningEntry(
@@ -59,6 +54,5 @@ export async function getProfileHomeDataCached(userId: string): Promise<ProfileH
   return {
     overview,
     primaryLearningEntry: buildPrimaryLearningEntry(primaryCourse),
-    secondaryActivities: overview.recentActivity.slice(1, 4),
   };
 }

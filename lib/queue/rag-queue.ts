@@ -5,10 +5,10 @@
  * Uses exponential backoff retry (3 attempts).
  */
 
-import { Queue } from "bullmq";
+import type { Queue } from "bullmq";
 import { defaults } from "@/config/env";
 import { buildKnowledgeContentHash } from "@/lib/knowledge/content-hash";
-import { getRedis } from "@/lib/redis";
+import { createNexusQueue } from "@/lib/queue/bullmq";
 
 export interface RagIndexJobData {
   type: "course_section";
@@ -31,17 +31,9 @@ export function getRagQueue(): Queue<RagIndexJobData> {
     return ragQueue;
   }
 
-  ragQueue = new Queue<RagIndexJobData>("rag-index", {
-    connection: getRedis() as never,
-    defaultJobOptions: {
-      attempts: defaults.queue.ragMaxRetries,
-      backoff: {
-        type: "exponential",
-        delay: defaults.queue.ragBackoffDelay,
-      },
-      removeOnComplete: { count: 1000 },
-      removeOnFail: { count: 5000 },
-    },
+  ragQueue = createNexusQueue<RagIndexJobData>("rag-index", {
+    attempts: defaults.queue.ragMaxRetries,
+    backoffDelay: defaults.queue.ragBackoffDelay,
   });
 
   return ragQueue;

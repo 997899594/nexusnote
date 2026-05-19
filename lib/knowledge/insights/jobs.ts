@@ -7,11 +7,7 @@ import {
   knowledgeInsightEvidence,
   knowledgeInsights,
 } from "@/db";
-import {
-  revalidateCareerTrees,
-  revalidateNotesIndex,
-  revalidateProfileStats,
-} from "@/lib/cache/tags";
+import { revalidateKnowledgeWorkspaceViews } from "@/lib/cache/domain-events";
 import {
   deriveKnowledgeInsights,
   hashKnowledgeInsightInputs,
@@ -259,7 +255,5 @@ export async function processKnowledgeInsightsJob(job: KnowledgeInsightsJobData)
     throw error;
   }
 
-  revalidateCareerTrees(job.userId);
-  revalidateProfileStats(job.userId);
-  revalidateNotesIndex(job.userId);
+  revalidateKnowledgeWorkspaceViews(job.userId);
 }

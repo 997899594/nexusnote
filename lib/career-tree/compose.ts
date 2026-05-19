@@ -16,7 +16,7 @@ import { buildGenerationSettingsForPolicy } from "@/lib/ai/core/generation-setti
 import { getModelNameForPolicy, getPlainModelForPolicy } from "@/lib/ai/core/model-policy";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { renderPromptResource } from "@/lib/ai/prompts/load-prompt";
-import { revalidateCareerTrees } from "@/lib/cache/tags";
+import { revalidateCareerTreeViews } from "@/lib/cache/domain-events";
 import {
   CAREER_TREE_COMPOSE_PROMPT_VERSION,
   CAREER_TREE_COMPOSE_TIMEOUT_MS,
@@ -620,11 +620,11 @@ export async function processCareerTreeComposeJob(job: { userId: string }): Prom
 
     if (!restoredSnapshot) {
       throw new Error(
-        `Career compose run ${composeRun.id} is completed but has no compatible snapshot`,
+        `Career compose run ${composeRun.id} is completed but has no current snapshot`,
       );
     }
 
-    revalidateCareerTrees(job.userId);
+    revalidateCareerTreeViews(job.userId);
     return;
   }
 
@@ -697,7 +697,7 @@ export async function processCareerTreeComposeJob(job: { userId: string }): Prom
       });
     });
 
-    revalidateCareerTrees(job.userId);
+    revalidateCareerTreeViews(job.userId);
   } catch (error) {
     await markCareerRunFailed(composeRun.id, error);
     throw error;

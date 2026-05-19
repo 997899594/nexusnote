@@ -19,11 +19,11 @@ export function getKnowledgeInsightKindLabel(kind: KnowledgeInsight["kind"]): st
 
 export function buildKnowledgeExcerpt(
   plainText: string | null,
-  fallback: string | null,
+  defaultText: string | null,
   options: BuildKnowledgeExcerptOptions = {},
 ): string {
   const { emptyText = "相关知识材料会显示在这里。", maxLength = 120 } = options;
-  const raw = (plainText || fallback || "").replace(/\s+/g, " ").trim();
+  const raw = (plainText || defaultText || "").replace(/\s+/g, " ").trim();
 
   if (!raw) {
     return emptyText;

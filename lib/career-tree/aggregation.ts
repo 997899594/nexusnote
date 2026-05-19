@@ -18,7 +18,7 @@ type CareerAggregationExecutor = Pick<typeof db, "select" | "update">;
 
 interface AggregationInput {
   chapterCompletionRatios: Array<{ ratio: number; confidence: number }>;
-  fallbackCourseProgressRatios: Array<{ ratio: number; confidence: number }>;
+  courseLevelProgressRatios: Array<{ ratio: number; confidence: number }>;
   courseCount: number;
   chapterCount: number;
   repeatedEvidenceCount: number;
@@ -33,7 +33,7 @@ function computeProgress(input: AggregationInput): number {
   const sources =
     input.chapterCompletionRatios.length > 0
       ? input.chapterCompletionRatios
-      : input.fallbackCourseProgressRatios;
+      : input.courseLevelProgressRatios;
 
   if (sources.length === 0) {
     return 0;
@@ -51,7 +51,7 @@ function computeProgress(input: AggregationInput): number {
 function computeEvidenceScore(input: AggregationInput): number {
   const support =
     input.chapterCompletionRatios.reduce((sum, item) => sum + item.confidence * 20, 0) +
-    input.fallbackCourseProgressRatios.reduce((sum, item) => sum + item.confidence * 10, 0);
+    input.courseLevelProgressRatios.reduce((sum, item) => sum + item.confidence * 10, 0);
   return clampPercent(Math.min(100, support));
 }
 
@@ -148,7 +148,7 @@ export async function recomputeCareerNodeAggregates(
     const courseIds = [...new Set(linkedEvidenceRows.map((row) => row.courseId))];
     const progressByCourseId = await getCareerCourseProgressMap(userId, courseIds);
     const chapterCompletionRatios: AggregationInput["chapterCompletionRatios"] = [];
-    const fallbackCourseProgressRatios: AggregationInput["fallbackCourseProgressRatios"] = [];
+    const courseLevelProgressRatios: AggregationInput["courseLevelProgressRatios"] = [];
     const chapterKeys = new Set<string>();
 
     for (const courseId of courseIds) {
@@ -177,7 +177,7 @@ export async function recomputeCareerNodeAggregates(
       for (const row of courseEvidenceRows) {
         const confidence = Number(row.confidence);
         if (row.chapterRefs.length === 0) {
-          fallbackCourseProgressRatios.push({
+          courseLevelProgressRatios.push({
             ratio: chapterProgress.courseRatio,
             confidence,
           });
@@ -209,7 +209,7 @@ export async function recomputeCareerNodeAggregates(
 
     const aggregationInput: AggregationInput = {
       chapterCompletionRatios,
-      fallbackCourseProgressRatios,
+      courseLevelProgressRatios,
       courseCount: courseIds.length,
       chapterCount: chapterKeys.size,
       repeatedEvidenceCount: Math.max(0, linkedEvidenceRows.length - courseIds.length),

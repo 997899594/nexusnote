@@ -36,14 +36,14 @@ const KIND_LABELS: Record<NoteWorkbenchKind, string> = {
   highlight: "高亮",
   note: "笔记",
   capture: "对话",
-  manual: "手动",
+  manual: "新建",
 };
 
 const KIND_META = {
   highlight: { icon: Highlighter, description: "从课程里直接划线留下的重点" },
   note: { icon: NotebookPen, description: "带有自己理解和补充说明的课程笔记" },
-  capture: { icon: Sparkles, description: "从学习对话保存下来的结构化笔记" },
-  manual: { icon: FileText, description: "手动创建或通过编辑动作生成的笔记" },
+  capture: { icon: Sparkles, description: "从学习对话保存下来的笔记" },
+  manual: { icon: FileText, description: "直接创建的笔记" },
 } as const;
 
 function getNoteSourceLabel(note: NoteWorkbenchItem): string {
@@ -55,7 +55,7 @@ function getNoteSourceLabel(note: NoteWorkbenchItem): string {
     case "capture":
       return "对话笔记";
     case "manual":
-      return "手动笔记";
+      return "新建笔记";
   }
 }
 
@@ -142,7 +142,7 @@ function NoteCard({ note, emphasize = false }: { note: NoteWorkbenchItem; emphas
         {buildKnowledgeExcerpt(
           note.plainText,
           note.sourceContext?.selectionText ?? note.sourceContext?.latestExcerpt ?? null,
-          { emptyText: "课程里的重点会出现在这里。" },
+          { emptyText: "课程重点会自动保存。" },
         )}
       </p>
 
@@ -192,29 +192,21 @@ async function NotesIndexPageContent({
 
   return (
     <LibraryAnalysisPageShell
-      header={
-        <FloatingHeader showBackHint title="知识工作台" subtitle="Editor" variant="workspace" />
-      }
+      header={<FloatingHeader showBackHint title="知识工作台" variant="workspace" />}
       frameClassName="max-w-5xl"
     >
       <header className="mb-8 max-w-3xl md:mb-10">
-        <div className="ui-badge-pill ui-page-eyebrow inline-flex items-center gap-2 px-3 py-1.5 text-[11px] uppercase tracking-[0.22em]">
-          <span className="ui-strong-chip h-1.5 w-1.5 rounded-full" />
-          学习笔记
-        </div>
-        <h1 className="ui-page-title mt-4 text-3xl font-semibold tracking-[-0.05em] md:text-5xl">
+        <p className="text-sm font-medium text-[var(--color-text-tertiary)]">学习笔记</p>
+        <h1 className="mt-2 text-3xl font-semibold tracking-[-0.05em] text-[var(--color-text)] md:text-5xl">
           跨课程知识工作台
         </h1>
-        <p className="ui-page-description mt-3 max-w-2xl text-base leading-8">
-          把高亮、课程笔记和对话笔记放在一起，不再困在单门课程里。
-        </p>
       </header>
 
       {insights.length > 0 ? (
         <section className="mb-8">
           <div className="mb-4">
             <p className="text-[11px] uppercase tracking-[0.22em] text-[var(--color-text-muted)]">
-              AI 洞察
+              知识线索
             </p>
             <h2 className="mt-2 text-xl font-medium text-[var(--color-text)]">
               最近整理出的知识线索
@@ -273,9 +265,6 @@ async function NotesIndexPageContent({
                     </span>
                   </div>
                 </div>
-                <div className="ui-message-card rounded-[24px] px-4 py-4 text-sm leading-7 text-[var(--color-text-secondary)] lg:max-w-sm">
-                  这里优先展示和你当前学习焦点真正有关的笔记。
-                </div>
               </div>
 
               {focusItems.length > 0 ? (
@@ -317,7 +306,7 @@ async function NotesIndexPageContent({
                         </h3>
                       </div>
                       <div className="text-[11px] text-[var(--color-text-muted)]">
-                        {Math.round(group.insight.confidence * 100)}%
+                        {group.items.length} 条
                       </div>
                     </div>
                     <p className="mt-2 text-sm leading-7 text-[var(--color-text-secondary)]">
@@ -339,7 +328,7 @@ async function NotesIndexPageContent({
                               note.sourceContext?.selectionText ??
                                 note.sourceContext?.latestExcerpt ??
                                 null,
-                              { emptyText: "课程里的重点会出现在这里。" },
+                              { emptyText: "课程重点会自动保存。" },
                             )}
                           </div>
                         </Link>
@@ -379,7 +368,7 @@ async function NotesIndexPageContent({
                       {KIND_LABELS[kind]}
                     </div>
                     <p className="mt-1 text-xs leading-6 text-[var(--color-text-secondary)]">
-                      {kind === "all" ? "跨课程查看全部学习笔记" : KIND_META[kind].description}
+                      {kind === "all" ? "全部学习笔记" : KIND_META[kind].description}
                     </p>
                   </div>
                 </Link>
@@ -391,7 +380,7 @@ async function NotesIndexPageContent({
             <section>
               <div className="mb-4">
                 <p className="text-[11px] uppercase tracking-[0.22em] text-[var(--color-text-muted)]">
-                  课程维度
+                  按课程
                 </p>
                 <h2 className="mt-2 text-xl font-medium text-[var(--color-text)]">
                   按课程回看笔记
@@ -428,10 +417,14 @@ async function NotesIndexPageContent({
             <div className="mb-4 flex items-end justify-between gap-4">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.22em] text-[var(--color-text-muted)]">
-                  知识流
+                  笔记列表
                 </p>
                 <h2 className="mt-2 text-xl font-medium text-[var(--color-text)]">
-                  {courseId ? "当前课程的笔记" : `${KIND_LABELS[activeKind]}视图`}
+                  {courseId
+                    ? "当前课程的笔记"
+                    : activeKind === "all"
+                      ? "全部笔记"
+                      : `${KIND_LABELS[activeKind]}笔记`}
                 </h2>
               </div>
               {courseId && (

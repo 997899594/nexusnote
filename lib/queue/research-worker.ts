@@ -1,6 +1,6 @@
-import { Worker } from "bullmq";
+import type { Worker } from "bullmq";
 import { defaults } from "@/config/env";
-import { normalizeAIRouteProfile } from "@/lib/ai/core/route-profiles";
+import { normalizeAIModelSeries } from "@/lib/ai/core/model-series";
 import { buildResearchRunMetadata, failResearchRun } from "@/lib/ai/research/store";
 import {
   ResearchRunCancelledError,
@@ -8,7 +8,7 @@ import {
 } from "@/lib/ai/research/workflow";
 import { mergeOwnedConversationMetadata } from "@/lib/chat/conversation-repository";
 import { isUuidString } from "@/lib/chat/session-id";
-import { getRedis } from "@/lib/redis";
+import { createNexusWorker } from "./bullmq";
 import type { ResearchJobData } from "./research-queue";
 
 let worker: Worker<ResearchJobData> | null = null;
@@ -39,7 +39,7 @@ export function startResearchWorker(): Worker<ResearchJobData> {
     return worker;
   }
 
-  worker = new Worker<ResearchJobData>(
+  worker = createNexusWorker<ResearchJobData>(
     "research",
     async (job) => {
       if (job.data.type !== "run_background_research") {
@@ -58,10 +58,8 @@ export function startResearchWorker(): Worker<ResearchJobData> {
           userId: job.data.userId,
           userPrompt: job.data.userPrompt,
           sessionId: job.data.sessionId ?? null,
-          routeProfile:
-            job.data.routeProfile != null
-              ? normalizeAIRouteProfile(job.data.routeProfile)
-              : undefined,
+          modelSeries:
+            job.data.modelSeries != null ? normalizeAIModelSeries(job.data.modelSeries) : undefined,
         });
 
         await job.updateProgress({
@@ -93,19 +91,9 @@ export function startResearchWorker(): Worker<ResearchJobData> {
       }
     },
     {
-      connection: getRedis() as never,
+      label: "ResearchWorker",
       concurrency: defaults.queue.researchConcurrency,
     },
   );
-
-  worker.on("completed", (job) => {
-    console.log(`[ResearchWorker] Completed: ${job.id}`);
-  });
-
-  worker.on("failed", (job, err) => {
-    console.error(`[ResearchWorker] Failed: ${job?.id}`, err.message);
-  });
-
-  console.log("[ResearchWorker] Started with concurrency:", defaults.queue.researchConcurrency);
   return worker;
 }

@@ -1,14 +1,20 @@
 import { validateUIMessages } from "ai";
 import { type NextRequest, NextResponse } from "next/server";
 import { classifyAIDegradation } from "@/lib/ai/core/degradation";
-import { aiProvider } from "@/lib/ai/core/provider";
-import { getUserAIRouteProfile } from "@/lib/ai/core/route-profile-preferences";
+import { aiModelGateway } from "@/lib/ai/core/model-gateway";
+import { getUserAIModelSeries } from "@/lib/ai/core/model-series-preferences";
 import { createNexusNoteStreamResponse } from "@/lib/ai/core/streaming";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import type { InterviewUIMessage } from "@/lib/ai/interview/ui";
 import { createCourseInterviewerSpecialistAgent } from "@/lib/ai/specialists/registry";
 import { InterviewApiRequestSchema } from "@/lib/ai/validation";
-import { APIError, handleError } from "@/lib/api";
+import {
+  handleError,
+  notFound,
+  parseJsonBodyAs,
+  serviceUnavailable,
+  unauthorized,
+} from "@/lib/api";
 import { auth } from "@/lib/auth";
 import { getOwnedCourse } from "@/lib/learning/course-repository";
 
@@ -30,53 +36,43 @@ export async function POST(request: NextRequest) {
     const userId = session?.user?.id;
 
     if (!userId) {
-      throw new APIError("请先登录", 401, "UNAUTHORIZED");
+      throw unauthorized("请先登录");
     }
 
-    let body: unknown;
-    try {
-      body = await request.json();
-    } catch {
-      throw new APIError("无效的 JSON", 400, "INVALID_JSON");
-    }
-
-    const validation = InterviewApiRequestSchema.safeParse(body);
-    if (!validation.success) {
-      return NextResponse.json(
-        { error: { code: "VALIDATION_ERROR", details: validation.error.issues } },
-        { status: 400 },
-      );
-    }
-
-    const { messages, sessionId, courseId: inputCourseId, outline } = validation.data;
+    const {
+      messages,
+      sessionId,
+      courseId: inputCourseId,
+      outline,
+    } = await parseJsonBodyAs(request, InterviewApiRequestSchema);
     const modelPolicy = "outline-architect";
     const promptVersion = "interview@agent-v1";
     const workflow = "interview-agent";
-    const routeProfile = await getUserAIRouteProfile(userId);
+    const modelSeries = await getUserAIModelSeries(userId);
     telemetry = createTelemetryContext({
       requestId,
       endpoint: "/api/interview",
       userId,
       promptVersion,
       modelPolicy,
-      routeProfile,
+      modelSeries,
       workflow,
       metadata: {
         sessionId: sessionId ?? null,
         courseId: inputCourseId ?? null,
-        routeProfile,
+        modelSeries,
       },
     });
 
-    if (!aiProvider.isConfigured()) {
-      throw new APIError("AI 服务未配置", 503, "AI_NOT_CONFIGURED");
+    if (!aiModelGateway.isConfigured()) {
+      throw serviceUnavailable("助手服务暂时不可用", "AI_NOT_CONFIGURED");
     }
 
     let courseId: string | undefined;
     if (inputCourseId) {
       const existingCourse = await getOwnedCourse(inputCourseId, userId);
       if (!existingCourse) {
-        throw new APIError("课程不存在", 404, "NOT_FOUND");
+        throw notFound("课程不存在", "COURSE_NOT_FOUND");
       }
 
       courseId = existingCourse.id;
@@ -89,7 +85,7 @@ export async function POST(request: NextRequest) {
       courseId,
       currentOutline: outline ?? undefined,
       messages: validatedMessages,
-      routeProfile,
+      modelSeries,
       telemetry,
     });
 
@@ -119,13 +115,11 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
-  const providerStatus = aiProvider.getStatus();
+  const aiStatus = aiModelGateway.getStatus();
   return NextResponse.json({
     status: "ok",
     ai: {
-      configured: aiProvider.isConfigured(),
-      primaryProvider: providerStatus.primaryProvider,
-      providers: providerStatus.providers,
+      configured: aiStatus.configured,
     },
     timestamp: new Date().toISOString(),
   });

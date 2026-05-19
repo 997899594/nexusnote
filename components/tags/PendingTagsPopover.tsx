@@ -31,20 +31,18 @@ export function PendingTagsPopover({ pending, onConfirm, onReject }: PendingTags
       </PopoverTrigger>
       <PopoverContent className="ui-message-card w-64 rounded-2xl border-none" align="start">
         <div className="space-y-2">
-          <p className="text-sm font-medium text-muted-foreground mb-3">AI 建议的标签</p>
+          <p className="mb-3 text-muted-foreground text-sm font-medium">建议标签</p>
           {pending.map((dt) => (
             <div key={dt.id} className="flex items-center justify-between py-1">
               <div className="flex items-center gap-2">
                 <span className="text-sm">{dt.tag.name}</span>
-                <span className="text-xs text-muted-foreground">
-                  {Math.round(dt.confidence * 100)}%
-                </span>
               </div>
               <div className="flex gap-1">
                 <Button
                   size="sm"
                   variant="ghost"
                   className="h-6 w-6 p-0 text-[var(--color-text)] hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)]"
+                  aria-label={`确认标签：${dt.tag.name}`}
                   onClick={() => {
                     setLoadingId(dt.id);
                     onConfirm(dt.id).finally(() => setLoadingId(null));
@@ -57,6 +55,7 @@ export function PendingTagsPopover({ pending, onConfirm, onReject }: PendingTags
                   size="sm"
                   variant="ghost"
                   className="h-6 w-6 p-0 text-[var(--color-text-secondary)] hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)]"
+                  aria-label={`忽略标签：${dt.tag.name}`}
                   onClick={() => {
                     setLoadingId(dt.id);
                     onReject(dt.id).finally(() => setLoadingId(null));

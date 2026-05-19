@@ -5,11 +5,17 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { createLoginPath, getCurrentCallbackUrl } from "@/lib/auth/redirect";
 import { getProfileAvatarLabel } from "@/lib/profile/avatar";
-import type { User } from "@/types";
 
 interface UserAvatarProps {
   className?: string;
   size?: "sm" | "md" | "lg";
+}
+
+interface AvatarUser {
+  id: string;
+  email: string;
+  name: string;
+  image?: string;
 }
 
 export function UserAvatar({ className = "", size = "md" }: UserAvatarProps) {
@@ -23,7 +29,7 @@ export function UserAvatar({ className = "", size = "md" }: UserAvatarProps) {
         image: session.user.image || undefined,
       }
     : null;
-  const displayUser: User | null = status === "authenticated" ? sessionUser : null;
+  const displayUser: AvatarUser | null = status === "authenticated" ? sessionUser : null;
 
   const sizeClasses = {
     sm: "w-8 h-8 text-sm",

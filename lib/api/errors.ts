@@ -21,6 +21,33 @@ export function errorResponse(message: string, statusCode: number, code: string)
   return NextResponse.json({ error: { message, code } }, { status: statusCode });
 }
 
+export function badRequest(message: string, code = "BAD_REQUEST"): APIError {
+  return new APIError(message, 400, code);
+}
+
+export function unauthorized(message = "Unauthorized", code = "UNAUTHORIZED"): APIError {
+  return new APIError(message, 401, code);
+}
+
+export function notFound(message: string, code = "NOT_FOUND"): APIError {
+  return new APIError(message, 404, code);
+}
+
+export function conflict(message: string, code = "CONFLICT"): APIError {
+  return new APIError(message, 409, code);
+}
+
+export function internalError(message = "服务暂时不可用，请稍后重试。", code = "INTERNAL_ERROR") {
+  return new APIError(message, 500, code);
+}
+
+export function serviceUnavailable(
+  message = "服务暂时不可用，请稍后重试。",
+  code = "SERVICE_UNAVAILABLE",
+) {
+  return new APIError(message, 503, code);
+}
+
 function isBuildPhasePrerenderRequestApiError(error: unknown): boolean {
   const digest = typeof error === "object" && error !== null ? Reflect.get(error, "digest") : null;
   const message = error instanceof Error ? error.message : String(error ?? "");

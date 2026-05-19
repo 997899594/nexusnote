@@ -8,7 +8,7 @@ import {
   markResearchRunQueued,
   requestResearchRunCancellation,
 } from "@/lib/ai/research/store";
-import { withDynamicAuth } from "@/lib/api";
+import { conflict, notFound, parseJsonBodyAs, withDynamicAuth } from "@/lib/api";
 import { mergeOwnedConversationMetadata } from "@/lib/chat/conversation-repository";
 import { enqueueBackgroundResearch, getResearchQueue } from "@/lib/queue/research-queue";
 
@@ -51,7 +51,7 @@ export const GET = withDynamicAuth<unknown, { id: string }>(
   async (_request, { userId, params }) => {
     const snapshot = await getResearchRunSnapshot(params.id, userId);
     if (!snapshot) {
-      return Response.json({ error: "Research job not found" }, { status: 404 });
+      throw notFound("Research job not found", "RESEARCH_RUN_NOT_FOUND");
     }
 
     return Response.json(snapshot);
@@ -60,16 +60,16 @@ export const GET = withDynamicAuth<unknown, { id: string }>(
 
 export const PATCH = withDynamicAuth<unknown, { id: string }>(
   async (request, { userId, params }) => {
-    const body = updateResearchRunSchema.parse(await request.json());
+    const body = await parseJsonBodyAs(request, updateResearchRunSchema);
     const snapshot = await getResearchRunSnapshot(params.id, userId);
 
     if (!snapshot) {
-      return Response.json({ error: "Research job not found" }, { status: 404 });
+      throw notFound("Research job not found", "RESEARCH_RUN_NOT_FOUND");
     }
 
     if (body.action === "cancel") {
       if (!snapshot.canCancel) {
-        return Response.json({ error: "research_run_cannot_cancel" }, { status: 409 });
+        throw conflict("research_run_cannot_cancel", "RESEARCH_RUN_CANNOT_CANCEL");
       }
 
       const job = await getResearchQueue().getJob(params.id);
@@ -94,19 +94,19 @@ export const PATCH = withDynamicAuth<unknown, { id: string }>(
     }
 
     if (!snapshot.canRetry) {
-      return Response.json({ error: "research_run_cannot_retry" }, { status: 409 });
+      throw conflict("research_run_cannot_retry", "RESEARCH_RUN_CANNOT_RETRY");
     }
 
     const sourceRun = await getResearchRunById(params.id);
     if (!sourceRun || sourceRun.userId !== userId) {
-      return Response.json({ error: "Research job not found" }, { status: 404 });
+      throw notFound("Research job not found", "RESEARCH_RUN_NOT_FOUND");
     }
 
     const nextRun = await createResearchRun({
       userId,
       sessionId: sourceRun.sessionId,
       userPrompt: sourceRun.userPrompt,
-      routeProfile: sourceRun.routeProfile,
+      modelSeries: sourceRun.modelSeries,
       retryOfRunId: sourceRun.id,
     });
 
@@ -116,7 +116,7 @@ export const PATCH = withDynamicAuth<unknown, { id: string }>(
         userId,
         userPrompt: nextRun.userPrompt,
         sessionId: nextRun.sessionId,
-        routeProfile: nextRun.routeProfile,
+        modelSeries: nextRun.modelSeries,
       });
       await markResearchRunQueued(nextRun.id);
     } catch (error) {

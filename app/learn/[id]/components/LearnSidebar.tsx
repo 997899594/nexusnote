@@ -23,7 +23,8 @@ export function LearnSidebar({ courseTitle, width }: LearnSidebarProps) {
         <div className="flex items-center gap-3 border-b border-black/5 px-5 pb-4 pt-5">
           <button
             type="button"
-            onClick={() => router.push("/")}
+            onClick={() => router.back()}
+            aria-label="返回"
             className={cn(
               "ui-control-surface flex h-9 w-9 items-center justify-center rounded-lg",
               "text-[var(--color-text-secondary)]",
@@ -47,7 +48,7 @@ export function LearnSidebar({ courseTitle, width }: LearnSidebarProps) {
         <div className="px-5 pb-3 pt-5">
           <div className="flex items-center justify-between">
             <h2 className="text-[0.6875rem] font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider">
-              章节
+              课程章节
             </h2>
           </div>
         </div>

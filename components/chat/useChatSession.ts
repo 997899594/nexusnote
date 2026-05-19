@@ -12,6 +12,7 @@ import { DefaultChatTransport, type UIMessage } from "ai";
 import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { type AIDegradationKind, createAIDegradationAwareFetch } from "@/lib/ai/core/degradation";
+import type { BackgroundResearchMetadata } from "@/lib/ai/research/contracts";
 import {
   type AIRouteResponseHint,
   parseAIRouteResponseHint,
@@ -38,7 +39,9 @@ export function useChatSession({ sessionId, body }: UseChatSessionOptions) {
   const { addToast } = useToast();
   const [aiDegradedKind, setAIDegradedKind] = useState<AIDegradationKind | null>(null);
   const [routeHint, setRouteHint] = useState<AIRouteResponseHint | null>(null);
-  const [sessionMetadata, setSessionMetadata] = useState<unknown>(null);
+  const [backgroundResearch, setBackgroundResearch] = useState<BackgroundResearchMetadata | null>(
+    null,
+  );
 
   // Zustand-based session state
   const { getSessionMessages, markLoaded, markFailed, setSessionMessages } =
@@ -89,7 +92,7 @@ export function useChatSession({ sessionId, body }: UseChatSessionOptions) {
   // 历史恢复：loaded 必须和 message cache 绑定，否则跨页面 useChat 实例会误判已恢复。
   useEffect(() => {
     if (!sessionId) {
-      setSessionMetadata(null);
+      setBackgroundResearch(null);
       return;
     }
 
@@ -117,7 +120,7 @@ export function useChatSession({ sessionId, body }: UseChatSessionOptions) {
           return;
         }
 
-        setSessionMetadata(data.session.metadata ?? null);
+        setBackgroundResearch(data.session.backgroundResearch ?? null);
 
         if (!cachedMessages && data.session.messages) {
           const messages = data.session.messages as UIMessage[];
@@ -148,6 +151,6 @@ export function useChatSession({ sessionId, body }: UseChatSessionOptions) {
     sendMessage,
     aiDegradedKind,
     routeHint,
-    sessionMetadata,
+    backgroundResearch,
   };
 }

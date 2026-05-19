@@ -8,7 +8,7 @@ import type {
 } from "@/lib/ai/runtime/contracts";
 import type { ResolvedRequestContext } from "@/lib/ai/runtime/resolve-request-context";
 
-function getSurfaceFallbackMode(
+function getSurfaceDefaultMode(
   surface: Surface,
   hasLearningGuidance: boolean,
   hasCareerTreeSnapshot: boolean,
@@ -60,7 +60,7 @@ export function arbitrateRoute(params: {
   const arbiterNotes = [...classification.reasons];
   let resolvedCapabilityMode = isConversationCapabilityMode(classification.capabilityMode)
     ? classification.capabilityMode
-    : getSurfaceFallbackMode(
+    : getSurfaceDefaultMode(
         requestContext.surface,
         requestContext.hasLearningGuidance,
         requestContext.hasCareerTreeSnapshot,
@@ -114,7 +114,7 @@ export function arbitrateRoute(params: {
     handoffTarget = "research_assistant";
     arbiterNotes.push("deep research requests are executed as background workflows");
     assistantInstruction =
-      "这个请求会通过后台研究工作流完成。先确认已入队，再在研究完成后把结果返回给用户。不要把它当成普通对话里一次性回答。";
+      "这个请求需要较完整的资料整理。请告诉用户已经开始整理，完成后会把结果带回当前对话。不要把它当成普通对话里一次性回答。";
   }
 
   if (classification.executionMode === "workflow") {
@@ -125,7 +125,7 @@ export function arbitrateRoute(params: {
       arbiterNotes.push("workflow requests are not executed directly inside the chat specialist");
       assistantInstruction =
         assistantInstruction ??
-        "这个请求更适合进入专门的页面或后台工作流，而不是在普通聊天里直接执行。请说明边界，并把用户引导到更合适的入口。";
+        "这个请求更适合进入专门页面处理，而不是在当前对话里直接完成。请说明原因，并把用户引导到更合适的入口。";
     }
   }
 

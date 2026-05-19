@@ -1,6 +1,6 @@
-import { Queue } from "bullmq";
+import type { Queue } from "bullmq";
 import { defaults } from "@/config/env";
-import { getRedis } from "@/lib/redis";
+import { createNexusQueue } from "@/lib/queue/bullmq";
 
 export type KnowledgeInsightsQueueJobData = {
   type: "derive_user_insights";
@@ -14,17 +14,9 @@ export function getKnowledgeInsightsQueue(): Queue<KnowledgeInsightsQueueJobData
     return knowledgeInsightsQueue;
   }
 
-  knowledgeInsightsQueue = new Queue<KnowledgeInsightsQueueJobData>("knowledge-insights", {
-    connection: getRedis() as never,
-    defaultJobOptions: {
-      attempts: defaults.queue.knowledgeInsightsMaxRetries,
-      backoff: {
-        type: "exponential",
-        delay: defaults.queue.knowledgeInsightsBackoffDelay,
-      },
-      removeOnComplete: { count: 1000 },
-      removeOnFail: { count: 5000 },
-    },
+  knowledgeInsightsQueue = createNexusQueue<KnowledgeInsightsQueueJobData>("knowledge-insights", {
+    attempts: defaults.queue.knowledgeInsightsMaxRetries,
+    backoffDelay: defaults.queue.knowledgeInsightsBackoffDelay,
   });
 
   return knowledgeInsightsQueue;

@@ -20,17 +20,10 @@ export interface ProfileAIUsageDailyItem {
   totalCost: number;
 }
 
-export interface ProfileRecentActivityItem {
-  id: string;
-  title: string;
-  updatedAt: Date | null;
-}
-
 export interface ProfileOverview {
   conversations: number;
   documents: number;
   courses: number;
-  recentActivity: ProfileRecentActivityItem[];
 }
 
 export interface ProfileAIUsageStats {
@@ -45,7 +38,7 @@ export interface ProfileAIUsageStats {
   daily: ProfileAIUsageDailyItem[];
   byPolicy: ProfileAIUsageBreakdownItem[];
   byWorkflow: ProfileAIUsageBreakdownItem[];
-  byProvider: ProfileAIUsageBreakdownItem[];
+  byModelSeries: ProfileAIUsageBreakdownItem[];
 }
 
 type CountRow = { count: number };
@@ -172,7 +165,7 @@ export async function getUserProfileOverviewCached(userId: string): Promise<Prof
   cacheLife("minutes");
   cacheTag(getProfileStatsTag(userId));
 
-  const [conversationCount, noteCount, courseCount, recentActivity] = await Promise.all([
+  const [conversationCount, noteCount, courseCount] = await Promise.all([
     db
       .select({ count: count() })
       .from(conversations)
@@ -181,30 +174,12 @@ export async function getUserProfileOverviewCached(userId: string): Promise<Prof
     db.select({ count: count() }).from(notes).where(eq(notes.userId, userId)),
 
     db.select({ count: count() }).from(courses).where(eq(courses.userId, userId)),
-
-    db
-      .select({
-        id: conversations.id,
-        title: conversations.title,
-        updatedAt: conversations.updatedAt,
-      })
-      .from(conversations)
-      .where(
-        and(
-          eq(conversations.userId, userId),
-          gt(conversations.messageCount, 0),
-          eq(conversations.isArchived, false),
-        ),
-      )
-      .orderBy(desc(conversations.updatedAt))
-      .limit(5),
   ]);
 
   return {
     conversations: readCount(conversationCount),
     documents: readCount(noteCount),
     courses: readCount(courseCount),
-    recentActivity,
   };
 }
 
@@ -219,7 +194,7 @@ export async function getUserProfileInsightsCached(
   const windowStart = new Date(windowStartIso);
   const usageWindowWhere = and(eq(aiUsage.userId, userId), gt(aiUsage.createdAt, windowStart));
 
-  const [usageStats, usageByDay, usageByPolicy, usageByWorkflow, usageByProvider] =
+  const [usageStats, usageByDay, usageByPolicy, usageByWorkflow, usageByModelSeries] =
     await Promise.all([
       db
         .select({
@@ -259,7 +234,7 @@ export async function getUserProfileInsightsCached(
       loadUsageBreakdown({
         userId,
         windowStart,
-        keyExpression: sql<string>`coalesce(${aiUsage.provider}, ${aiUsage.metadata} ->> 'provider', 'unknown')`,
+        keyExpression: sql<string>`coalesce(${aiUsage.modelSeries}, ${aiUsage.metadata} ->> 'modelSeries', 'unknown')`,
         limit: 3,
       }),
     ]);
@@ -284,6 +259,6 @@ export async function getUserProfileInsightsCached(
     daily,
     byPolicy: normalizeUsageBreakdown(usageByPolicy),
     byWorkflow: normalizeUsageBreakdown(usageByWorkflow),
-    byProvider: normalizeUsageBreakdown(usageByProvider),
+    byModelSeries: normalizeUsageBreakdown(usageByModelSeries),
   };
 }

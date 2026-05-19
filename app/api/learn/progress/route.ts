@@ -4,13 +4,8 @@ import { eq } from "drizzle-orm";
 import { after, type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { courseProgress, db } from "@/db";
-import { APIError, handleError } from "@/lib/api";
-import { auth } from "@/lib/auth";
-import {
-  revalidateCareerTrees,
-  revalidateLearnPage,
-  revalidateRecentCourses,
-} from "@/lib/cache/tags";
+import { notFound, parseJsonBodyAs, withAuth } from "@/lib/api";
+import { revalidateCourseProgressViews } from "@/lib/cache/domain-events";
 import { enqueueCareerTreeRefresh } from "@/lib/career-tree/queue";
 import { computeCareerOutlineHash, normalizeCareerOutline } from "@/lib/career-tree/source";
 import { ingestEvidenceEvent } from "@/lib/knowledge/events";
@@ -38,7 +33,7 @@ interface PersistedCourseProgressRecord extends CourseProgress {
 async function getOwnedCourseOrThrow(userId: string, courseId: string) {
   const course = await getOwnedCourseWithOutline(courseId, userId);
   if (!course) {
-    throw new APIError("课程不存在", 404, "NOT_FOUND");
+    throw notFound("课程不存在", "COURSE_NOT_FOUND");
   }
 
   return course;
@@ -89,154 +84,137 @@ async function persistCourseProgress(params: {
   });
 }
 
-function revalidateCourseProgressViews(userId: string, courseId: string): void {
-  revalidateRecentCourses(userId);
-  revalidateLearnPage(userId, courseId);
-  revalidateCareerTrees(userId);
-}
+export const POST = withAuth(async (request: NextRequest, { userId }) => {
+  const { courseId, sectionNodeId } = await parseJsonBodyAs(request, RequestSchema);
 
-export async function POST(request: NextRequest) {
-  try {
-    const session = await auth();
-    const userId = session?.user?.id;
-    if (!userId) {
-      throw new APIError("未登录", 401, "UNAUTHORIZED");
+  const course = await getOwnedCourseOrThrow(userId, courseId);
+  const progressRecord = await getPersistedCourseProgress(courseId);
+
+  const existing: Partial<CourseProgress> = progressRecord ?? {};
+  const completedSections = existing.completedSections ?? [];
+
+  // Deduplicate: skip if already completed
+  if (completedSections.includes(sectionNodeId)) {
+    return NextResponse.json({ ok: true, alreadyCompleted: true });
+  }
+
+  completedSections.push(sectionNodeId);
+
+  // Check chapter completion: if all sections in a chapter are done, mark chapter complete
+  const chapters = course.outline.chapters;
+  const completedChapters = existing.completedChapters ?? [];
+
+  for (let chIdx = 0; chIdx < chapters.length; chIdx++) {
+    if (completedChapters.includes(chIdx)) continue;
+
+    const chapterSections = chapters[chIdx].sections ?? [];
+    const allDone = chapterSections.every((_, secIdx) => {
+      const nodeId = buildSectionOutlineNodeKey(chIdx, secIdx);
+      return completedSections.includes(nodeId);
+    });
+
+    if (allDone && chapterSections.length > 0) {
+      completedChapters.push(chIdx);
     }
+  }
 
-    const body = await request.json();
-    const { courseId, sectionNodeId } = RequestSchema.parse(body);
+  // Check full course completion
+  const allChaptersDone = chapters.length > 0 && completedChapters.length >= chapters.length;
+  const completedAt = allChaptersDone
+    ? (existing.completedAt ?? new Date())
+    : (existing.completedAt ?? null);
 
-    const course = await getOwnedCourseOrThrow(userId, courseId);
-    const progressRecord = await getPersistedCourseProgress(courseId);
+  const updatedProgress: CourseProgress = {
+    currentChapter: existing.currentChapter ?? 0,
+    completedChapters,
+    completedSections,
+    startedAt: existing.startedAt ?? new Date(),
+    completedAt,
+  };
 
-    const existing: Partial<CourseProgress> = progressRecord ?? {};
-    const completedSections = existing.completedSections ?? [];
+  await persistCourseProgress({
+    courseId,
+    userId,
+    progress: updatedProgress,
+    existingRecordId: progressRecord?.id,
+  });
 
-    // Deduplicate: skip if already completed
-    if (completedSections.includes(sectionNodeId)) {
-      return NextResponse.json({ ok: true, alreadyCompleted: true });
-    }
+  const normalizedOutline = normalizeCareerOutline(course.outline);
+  const outlineHash = computeCareerOutlineHash(normalizedOutline);
+  const completedSection = normalizedOutline.chapters
+    .flatMap((chapter) =>
+      chapter.sections.map((section) => ({
+        chapter,
+        section,
+      })),
+    )
+    .find((item) => item.section.sectionKey === sectionNodeId);
 
-    completedSections.push(sectionNodeId);
-
-    // Check chapter completion: if all sections in a chapter are done, mark chapter complete
-    const chapters = course.outline.chapters;
-    const completedChapters = existing.completedChapters ?? [];
-
-    for (let chIdx = 0; chIdx < chapters.length; chIdx++) {
-      if (completedChapters.includes(chIdx)) continue;
-
-      const chapterSections = chapters[chIdx].sections ?? [];
-      const allDone = chapterSections.every((_, secIdx) => {
-        const nodeId = buildSectionOutlineNodeKey(chIdx, secIdx);
-        return completedSections.includes(nodeId);
+  after(async () => {
+    try {
+      await ingestEvidenceEvent({
+        id: crypto.randomUUID(),
+        userId,
+        kind: "course_progress",
+        sourceType: "course",
+        sourceId: courseId,
+        sourceVersionHash: outlineHash,
+        title: course.title,
+        summary: completedSection
+          ? `完成了《${completedSection.section.title}》`
+          : `完成了 ${sectionNodeId}`,
+        confidence: 1,
+        happenedAt: new Date().toISOString(),
+        metadata: {
+          sectionNodeId,
+          completedSectionCount: completedSections.length,
+          completedChapterCount: completedChapters.length,
+        },
+        refs: [
+          {
+            refType: "section",
+            refId: sectionNodeId,
+            snippet: completedSection?.section.title ?? null,
+            weight: 1,
+          },
+          ...(completedSection
+            ? [
+                {
+                  refType: "chapter",
+                  refId: completedSection.chapter.chapterKey,
+                  snippet: completedSection.chapter.title,
+                  weight: 1,
+                },
+              ]
+            : []),
+        ],
       });
 
-      if (allDone && chapterSections.length > 0) {
-        completedChapters.push(chIdx);
-      }
+      await aggregateCourseEventsToKnowledgeEvidence({
+        userId,
+        courseId,
+        sourceVersionHash: outlineHash,
+      });
+
+      await enqueueCareerTreeRefresh({
+        userId,
+        courseId,
+        reasonKey: `course-progress:${courseId}:${completedSections.length}:${completedChapters.length}:${sectionNodeId}`,
+      });
+
+      revalidateCourseProgressViews(userId, courseId);
+    } catch (error) {
+      console.error("[LearnProgress] Failed to sync progress knowledge pipeline:", error);
     }
+  });
 
-    // Check full course completion
-    const allChaptersDone = chapters.length > 0 && completedChapters.length >= chapters.length;
-    const completedAt = allChaptersDone
-      ? (existing.completedAt ?? new Date())
-      : (existing.completedAt ?? null);
-
-    const updatedProgress: CourseProgress = {
-      currentChapter: existing.currentChapter ?? 0,
-      completedChapters,
-      completedSections,
-      startedAt: existing.startedAt ?? new Date(),
-      completedAt,
-    };
-
-    await persistCourseProgress({
-      courseId,
-      userId,
-      progress: updatedProgress,
-      existingRecordId: progressRecord?.id,
-    });
-
-    const normalizedOutline = normalizeCareerOutline(course.outline);
-    const outlineHash = computeCareerOutlineHash(normalizedOutline);
-    const completedSection = normalizedOutline.chapters
-      .flatMap((chapter) =>
-        chapter.sections.map((section) => ({
-          chapter,
-          section,
-        })),
-      )
-      .find((item) => item.section.sectionKey === sectionNodeId);
-
-    after(async () => {
-      try {
-        await ingestEvidenceEvent({
-          id: crypto.randomUUID(),
-          userId,
-          kind: "course_progress",
-          sourceType: "course",
-          sourceId: courseId,
-          sourceVersionHash: outlineHash,
-          title: course.title,
-          summary: completedSection
-            ? `完成了《${completedSection.section.title}》`
-            : `完成了 ${sectionNodeId}`,
-          confidence: 1,
-          happenedAt: new Date().toISOString(),
-          metadata: {
-            sectionNodeId,
-            completedSectionCount: completedSections.length,
-            completedChapterCount: completedChapters.length,
-          },
-          refs: [
-            {
-              refType: "section",
-              refId: sectionNodeId,
-              snippet: completedSection?.section.title ?? null,
-              weight: 1,
-            },
-            ...(completedSection
-              ? [
-                  {
-                    refType: "chapter",
-                    refId: completedSection.chapter.chapterKey,
-                    snippet: completedSection.chapter.title,
-                    weight: 1,
-                  },
-                ]
-              : []),
-          ],
-        });
-
-        await aggregateCourseEventsToKnowledgeEvidence({
-          userId,
-          courseId,
-          sourceVersionHash: outlineHash,
-        });
-
-        await enqueueCareerTreeRefresh({
-          userId,
-          courseId,
-          reasonKey: `course-progress:${courseId}:${completedSections.length}:${completedChapters.length}:${sectionNodeId}`,
-        });
-
-        revalidateCourseProgressViews(userId, courseId);
-      } catch (error) {
-        console.error("[LearnProgress] Failed to sync progress knowledge pipeline:", error);
-      }
-    });
-
-    return NextResponse.json({
-      ok: true,
-      completedSections,
-      completedChapters,
-      courseCompleted: allChaptersDone,
-    });
-  } catch (error) {
-    return handleError(error);
-  }
-}
+  return NextResponse.json({
+    ok: true,
+    completedSections,
+    completedChapters,
+    courseCompleted: allChaptersDone,
+  });
+});
 
 const ChapterSchema = z.object({
   courseId: z.string().uuid(),
@@ -244,40 +222,29 @@ const ChapterSchema = z.object({
 });
 
 /** Persist current chapter position (called when user switches chapters) */
-export async function PATCH(request: NextRequest) {
-  try {
-    const session = await auth();
-    const userId = session?.user?.id;
-    if (!userId) {
-      throw new APIError("未登录", 401, "UNAUTHORIZED");
-    }
+export const PATCH = withAuth(async (request: NextRequest, { userId }) => {
+  const { courseId, currentChapter } = await parseJsonBodyAs(request, ChapterSchema);
 
-    const body = await request.json();
-    const { courseId, currentChapter } = ChapterSchema.parse(body);
+  await getOwnedCourseOrThrow(userId, courseId);
+  const progressRecord = await getPersistedCourseProgress(courseId);
 
-    await getOwnedCourseOrThrow(userId, courseId);
-    const progressRecord = await getPersistedCourseProgress(courseId);
+  const existing: Partial<CourseProgress> = progressRecord ?? {};
+  const updatedProgress: CourseProgress = {
+    currentChapter,
+    completedChapters: existing.completedChapters ?? [],
+    completedSections: existing.completedSections ?? [],
+    startedAt: existing.startedAt ?? new Date(),
+    completedAt: existing.completedAt ?? null,
+  };
 
-    const existing: Partial<CourseProgress> = progressRecord ?? {};
-    const updatedProgress: CourseProgress = {
-      currentChapter,
-      completedChapters: existing.completedChapters ?? [],
-      completedSections: existing.completedSections ?? [],
-      startedAt: existing.startedAt ?? new Date(),
-      completedAt: existing.completedAt ?? null,
-    };
+  await persistCourseProgress({
+    courseId,
+    userId,
+    progress: updatedProgress,
+    existingRecordId: progressRecord?.id,
+  });
 
-    await persistCourseProgress({
-      courseId,
-      userId,
-      progress: updatedProgress,
-      existingRecordId: progressRecord?.id,
-    });
+  revalidateCourseProgressViews(userId, courseId);
 
-    revalidateCourseProgressViews(userId, courseId);
-
-    return NextResponse.json({ ok: true });
-  } catch (error) {
-    return handleError(error);
-  }
-}
+  return NextResponse.json({ ok: true });
+});

@@ -1,1 +1,0 @@
-- Keep sentences simple and straightforward, and break down complex ideas.

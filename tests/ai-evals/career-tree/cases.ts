@@ -89,7 +89,7 @@ const progressionPreferredSnapshot: CareerTreeSnapshot = {
   ],
 };
 
-const candidateFallbackSnapshot: CareerTreeSnapshot = {
+const candidateDirectionSnapshot: CareerTreeSnapshot = {
   schemaVersion: CAREER_TREE_SCHEMA_VERSION,
   status: "ready",
   recommendedDirectionKey: "ai-product-systems",
@@ -136,7 +136,7 @@ const candidateFallbackSnapshot: CareerTreeSnapshot = {
 };
 
 const selectedTreeSnapshot: CareerTreeSnapshot = {
-  ...candidateFallbackSnapshot,
+  ...candidateDirectionSnapshot,
   recommendedDirectionKey: "ai-product-systems",
   selectedDirectionKey: "ai-market-strategy",
 };
@@ -165,12 +165,12 @@ export const careerTreeEvalSuite = createEvalSuite<CareerTreeEvalInput>({
       tags: ["career-tree", "progression"],
     },
     {
-      id: "career-tree-candidates-as-fallback",
+      id: "career-tree-candidates-as-development-options",
       title: "当前树没有 progressionRoles 时，其它候选树才作为可发展方向",
       domain: "career-tree",
       promptVersion: "career-tree-graph@v1",
       input: {
-        snapshot: candidateFallbackSnapshot,
+        snapshot: candidateDirectionSnapshot,
         directionKey: "ai-product-systems",
         expected: {
           currentCareerKey: "ai-product-systems",
@@ -179,8 +179,8 @@ export const careerTreeEvalSuite = createEvalSuite<CareerTreeEvalInput>({
           requiredFutureTitles: ["AI 增长策略师"],
         },
       },
-      expectations: ["候选树是 fallback，不是 progressionRoles 的替代品"],
-      tags: ["career-tree", "fallback"],
+      expectations: ["候选树只在当前树没有 progressionRoles 时作为可发展方向"],
+      tags: ["career-tree", "development-options"],
     },
     {
       id: "career-tree-selected-direction-is-current",

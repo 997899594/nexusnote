@@ -13,8 +13,8 @@ import { z } from "zod";
 import { db } from "@/db";
 import { notes, noteTags, tags } from "@/db/schema";
 import { buildGenerationSettingsForPolicy } from "@/lib/ai/core/generation-settings";
+import { aiModelGateway } from "@/lib/ai/core/model-gateway";
 import { getPlainModelForPolicy } from "@/lib/ai/core/model-policy";
-import { aiProvider } from "@/lib/ai/core/provider";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { loadPromptResource, renderPromptResource } from "@/lib/ai/prompts/load-prompt";
 import { syncTagUsageCount } from "@/lib/tags/usage-count";
@@ -95,8 +95,8 @@ class TagGenerationService {
    * 调用 AI 生成标签
    */
   private async generateTagsWithAI(content: string): Promise<TagGenerationResult> {
-    if (!aiProvider.isConfigured()) {
-      throw new Error("AI Provider not configured");
+    if (!aiModelGateway.isConfigured()) {
+      throw new Error("AI model gateway not configured");
     }
 
     const startedAt = Date.now();
@@ -205,12 +205,12 @@ class TagGenerationService {
    * 生成文本 embedding
    */
   private async generateEmbedding(text: string): Promise<number[]> {
-    if (!aiProvider.isConfigured()) {
-      throw new Error("AI Provider not configured");
+    if (!aiModelGateway.isConfigured()) {
+      throw new Error("AI model gateway not configured");
     }
 
     const { embedding } = await embed({
-      model: aiProvider.embeddingModel,
+      model: aiModelGateway.getEmbeddingModel(),
       value: text,
     });
 

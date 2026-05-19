@@ -244,7 +244,7 @@ function SectionBlock({
                 "ui-primary-button",
               )}
             >
-              定位到这里
+              当前小节
             </span>
           </div>
         )}
@@ -272,11 +272,11 @@ function SectionBlock({
         {state.status === "queued" && (
           <SectionStateBlock
             title={sectionTitle}
-            description="这一节已经加入生成队列。后台会继续生成，你可以离开本页，稍后回来直接阅读。"
+            description="这一节正在准备中。你可以先读其它内容，稍后回来继续。"
             action={
               <div className="inline-flex items-center gap-2 text-xs text-[var(--color-text-secondary)]">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                等待生成
+                准备中
               </div>
             }
           />
@@ -285,7 +285,7 @@ function SectionBlock({
         {state.status === "generating" && state.content.length === 0 && (
           <SectionStateBlock
             title={sectionTitle}
-            description="后台生成器已经接管，内容准备好后会自动出现。"
+            description="内容正在生成，准备好后会自动出现。"
             action={
               <div className="inline-flex items-center gap-2 text-xs text-[var(--color-text-secondary)]">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />

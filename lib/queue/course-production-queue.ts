@@ -1,6 +1,6 @@
-import { Queue } from "bullmq";
+import type { Queue } from "bullmq";
 import { defaults } from "@/config/env";
-import { getRedis } from "@/lib/redis";
+import { createNexusQueue } from "@/lib/queue/bullmq";
 
 export type CourseProductionJobData = {
   type: "materialize_section";
@@ -29,17 +29,9 @@ export function getCourseProductionQueue(): Queue<CourseProductionJobData> {
     return courseProductionQueue;
   }
 
-  courseProductionQueue = new Queue<CourseProductionJobData>("course-production", {
-    connection: getRedis() as never,
-    defaultJobOptions: {
-      attempts: defaults.queue.courseProductionMaxRetries,
-      backoff: {
-        type: "exponential",
-        delay: defaults.queue.courseProductionBackoffDelay,
-      },
-      removeOnComplete: { count: 1000 },
-      removeOnFail: { count: 5000 },
-    },
+  courseProductionQueue = createNexusQueue<CourseProductionJobData>("course-production", {
+    attempts: defaults.queue.courseProductionMaxRetries,
+    backoffDelay: defaults.queue.courseProductionBackoffDelay,
   });
 
   return courseProductionQueue;

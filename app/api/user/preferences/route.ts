@@ -5,13 +5,12 @@
  */
 
 import { z } from "zod";
-import type { AIRouteProfile } from "@/lib/ai/core/route-profiles";
+import type { AIModelSeries } from "@/lib/ai/core/model-series";
 import { AIPreferencesSchema, DEFAULT_AI_PREFERENCES } from "@/lib/ai/preferences";
 import type { AISkin, SkinPreference } from "@/lib/ai/skin-contract";
 import { getAvailableSkins, getUserSkinPreference } from "@/lib/ai/skins";
-import { withAuth } from "@/lib/api";
+import { parseJsonBodyAs, withAuth } from "@/lib/api";
 import { getOrCreate, update } from "@/lib/profile";
-import { getUserStyleProfile, type UserStyleProfile } from "@/lib/style/analysis";
 
 interface PreferencesResponse {
   profile: {
@@ -20,13 +19,12 @@ interface PreferencesResponse {
       pace?: string;
     };
     aiPreferences: {
-      routeProfile: AIRouteProfile;
+      modelSeries: AIModelSeries;
       tone: "direct" | "balanced" | "gentle";
       depth: "concise" | "balanced" | "detailed";
       teachingStyle: "explain" | "coach" | "socratic";
       responseFormat: "structured" | "balanced" | "conversational";
     };
-    style?: UserStyleProfile;
   };
   skinPreference: SkinPreference;
   availableSkins: AISkin[];
@@ -44,9 +42,8 @@ const UpdatePreferencesSchema = z.object({
 
 export const GET = withAuth(async (_request, { userId }) => {
   // Parallel fetch all AI preference data
-  const [profile, styleProfile, skinPreference, availableSkins] = await Promise.all([
+  const [profile, skinPreference, availableSkins] = await Promise.all([
     getOrCreate(userId),
-    getUserStyleProfile(userId),
     getUserSkinPreference(userId),
     getAvailableSkins(userId),
   ]);
@@ -61,7 +58,6 @@ export const GET = withAuth(async (_request, { userId }) => {
         pace: "moderate",
       },
       aiPreferences: AIPreferencesSchema.parse(profile.aiPreferences ?? DEFAULT_AI_PREFERENCES),
-      style: styleProfile || undefined,
     },
     skinPreference,
     availableSkins,
@@ -71,8 +67,7 @@ export const GET = withAuth(async (_request, { userId }) => {
 });
 
 export const PUT = withAuth(async (request, { userId }) => {
-  const body = await request.json();
-  const input = UpdatePreferencesSchema.parse(body);
+  const input = await parseJsonBodyAs(request, UpdatePreferencesSchema);
 
   const updated = await update(userId, {
     learningStyle: input.learningStyle,

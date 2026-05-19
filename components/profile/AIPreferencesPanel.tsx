@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { useEffect, useState, useTransition } from "react";
 import { SkinSelector } from "@/components/chat/SkinSelector";
 import { useToast } from "@/components/ui/Toast";
-import { AI_ROUTE_PROFILE_OPTIONS } from "@/lib/ai/core/route-profiles";
+import { AI_MODEL_SERIES_OPTIONS } from "@/lib/ai/core/model-series";
 import { type AIPreferences, DEFAULT_AI_PREFERENCES } from "@/lib/ai/preferences";
 import { cn } from "@/lib/utils";
 import { useUserPreferencesStore } from "@/stores/user-preferences";
@@ -43,10 +43,10 @@ export function AIPreferencesPanel() {
     startTransition(async () => {
       try {
         await saveProfilePreferences(form);
-        addToast("AI 偏好已更新", "success");
+        addToast("偏好已更新", "success");
       } catch (error) {
         console.error("[AIPreferencesPanel] Failed to save:", error);
-        addToast("保存 AI 偏好失败", "error");
+        addToast("保存偏好失败", "error");
       }
     });
   };
@@ -65,11 +65,11 @@ export function AIPreferencesPanel() {
     <section className="mb-8">
       <div className="mb-4">
         <p className="text-[11px] uppercase tracking-[0.22em] text-[var(--color-text-muted)]">
-          AI 偏好
+          助手偏好
         </p>
-        <h2 className="mt-2 text-xl font-medium text-[var(--color-text)]">默认行为与表达风格</h2>
+        <h2 className="mt-2 text-xl font-medium text-[var(--color-text)]">讲解与学习方式</h2>
         <p className="mt-2 max-w-2xl text-sm leading-7 text-[var(--color-text-tertiary)]">
-          这里设置长期默认值。AI 链路影响前台学习体验，表达偏好影响回答方式。
+          这些设置会影响讲解方式、语气和课程内容的展开方式。
         </p>
       </div>
 
@@ -77,15 +77,15 @@ export function AIPreferencesPanel() {
         <div className="grid gap-6 md:grid-cols-2">
           <PreferenceBlock
             icon={<Brain className="h-4 w-4" />}
-            title="AI 链路"
-            description="决定前台聊天、访谈、课程蓝图和章节生成走哪组模型。"
+            title="默认模型"
+            description="决定对话、访谈和课程生成默认使用的模型。"
           >
             <SegmentedSelect
-              value={form.aiPreferences.routeProfile}
+              value={form.aiPreferences.modelSeries}
               onChange={(value) =>
-                updateAIPreference("routeProfile", value as AIPreferences["routeProfile"])
+                updateAIPreference("modelSeries", value as AIPreferences["modelSeries"])
               }
-              options={AI_ROUTE_PROFILE_OPTIONS.map((option) => ({
+              options={AI_MODEL_SERIES_OPTIONS.map((option) => ({
                 value: option.value,
                 label: option.label,
               }))}
@@ -95,7 +95,7 @@ export function AIPreferencesPanel() {
           <PreferenceBlock
             icon={<Brain className="h-4 w-4" />}
             title="讲解方式"
-            description="决定 AI 是先讲清楚、先带练，还是更偏启发式。"
+            description="选择更适合你的学习引导方式。"
           >
             <SegmentedSelect
               value={form.aiPreferences.teachingStyle}
@@ -113,7 +113,7 @@ export function AIPreferencesPanel() {
           <PreferenceBlock
             icon={<Sparkles className="h-4 w-4" />}
             title="交流风格"
-            description="控制语气强弱与展开深度，不改变事实标准和工具边界。"
+            description="调整回答语气、展开程度和呈现方式。"
           >
             <div className="space-y-4">
               <LabeledSelect
@@ -143,8 +143,8 @@ export function AIPreferencesPanel() {
                   updateAIPreference("responseFormat", value as AIPreferences["responseFormat"])
                 }
                 options={[
-                  { value: "structured", label: "结构化" },
-                  { value: "balanced", label: "按需结构化" },
+                  { value: "structured", label: "条理清晰" },
+                  { value: "balanced", label: "自然平衡" },
                   { value: "conversational", label: "更口语" },
                 ]}
               />
@@ -154,7 +154,7 @@ export function AIPreferencesPanel() {
           <PreferenceBlock
             icon={<Palette className="h-4 w-4" />}
             title="默认皮肤"
-            description="皮肤只影响表达气质与语言表层，不应覆盖助手能力、工具边界和学习目标。"
+            description="选择默认表达气质，不改变学习目标和能力范围。"
           >
             <SkinSelector
               skins={availableSkins}
@@ -222,7 +222,7 @@ export function AIPreferencesPanel() {
             disabled={isPending}
             className="ui-primary-button rounded-full px-5 py-2.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isPending ? "保存中..." : "保存 AI 偏好"}
+            {isPending ? "保存中..." : "保存偏好"}
           </button>
         </div>
       </div>

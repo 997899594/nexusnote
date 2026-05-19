@@ -4,8 +4,8 @@
 
 ## 核心原则
 
-- 单一运行时 provider：当前运行时统一走 302.ai，不做隐式多 provider fallback
-- 用户可选 AI 链路：前台聊天、访谈、课程蓝图、章节生成按用户偏好选择平台推荐 / 国产 / Gemini / OpenAI 链路
+- 用户可选模型系列：前台聊天、访谈、课程蓝图、章节生成按用户偏好选择 Qwen / Gemini / OpenAI
+- 模型网关只负责运行时接入：底层上游是实现细节，产品层不展示 provider
 - AI SDK v6 原生：以 `useChat`、route handlers、`UIMessage.parts`、agents、workflows 为主
 - code-driven：流程由代码控制，prompt 负责表达，不负责弥补架构缺陷
 - degradation-first：模型、结构化输出、embedding 出问题时显式降级，不静默伪装成功
@@ -13,38 +13,38 @@
 
 ## 当前架构
 
-### Provider 层
+### Model Gateway 层
 
 - 文件：
-  - [provider.ts](/Users/findbiao/projects/nexusnote/lib/ai/core/provider.ts)
+  - [model-gateway.ts](/Users/findbiao/projects/nexusnote/lib/ai/core/model-gateway.ts)
   - [model-policy.ts](/Users/findbiao/projects/nexusnote/lib/ai/core/model-policy.ts)
-  - [route-profiles.ts](/Users/findbiao/projects/nexusnote/lib/ai/core/route-profiles.ts)
+  - [model-series.ts](/Users/findbiao/projects/nexusnote/lib/ai/core/model-series.ts)
   - [model-bundles.ts](/Users/findbiao/projects/nexusnote/lib/ai/core/model-bundles.ts)
   - [degradation.ts](/Users/findbiao/projects/nexusnote/lib/ai/core/degradation.ts)
 
 职责：
 
-- 统一 302.ai client 初始化
+- 统一运行时 client 初始化
 - 提供 chat / outline / sectionDraft / extract / review / webSearch / embedding 模型入口
 - 通过 model policy 隔离业务意图和具体模型 ID
-- 通过 route profile 隔离用户偏好和具体模型组合
+- 通过 model series 隔离用户偏好和具体模型组合；界面只展示模型系列，不展示底层 provider
 - 把不可用状态分类为可处理的降级结果
 
-### Route Profile 层
+### Model Series 层
 
-用户设置里的 AI 链路只影响前台学习体验：
+用户设置里的模型系列只影响前台学习体验：
 
 - `/api/chat`
 - `/api/interview`
 - 课程蓝图生成所在的自然访谈 agent
 - 章节内容生成 worker
 
-不受用户链路影响的后台基础设施：
+不受用户模型系列影响的后台基础设施：
 
 - embedding / reranker
 - RAG 索引
 - career-tree evidence / merge / compose
-- 标签、风格分析、质量评审等后台任务
+- 标签、质量评审等后台任务
 
 这条边界避免“用户想试 Gemini”时把索引、职业树和长期知识图一起改掉。
 
@@ -131,11 +131,10 @@
 - 前端不伪造 AI 结构化结果
 - tool 展示和普通 assistant 文本必须隔离
 - 对话 UI 只渲染服务端允许呈现的 parts
-- UI fallback 只能处理加载和错误，不能伪造业务结果
+- UI 空状态和错误状态只能处理加载和失败，不能伪造业务结果
 
 ## 当前重点文档
 
-- [AI_ROLE_SYSTEM_2026.md](/Users/findbiao/projects/nexusnote/docs/AI_ROLE_SYSTEM_2026.md)
 - [AI_SDK_V6_PROJECT_GUIDELINES.md](/Users/findbiao/projects/nexusnote/docs/AI_SDK_V6_PROJECT_GUIDELINES.md)
 - [ai-sdk-v6-guide.md](/Users/findbiao/projects/nexusnote/docs/ai-sdk-v6-guide.md)
 - [ai-sdk-v6-advanced-features.md](/Users/findbiao/projects/nexusnote/docs/ai-sdk-v6-advanced-features.md)

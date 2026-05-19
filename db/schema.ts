@@ -1,13 +1,6 @@
 import { relations } from "drizzle-orm";
 import { aiUsage } from "./schema/ai-usage";
-import {
-  accounts,
-  sessions,
-  stylePrivacySettings,
-  userProfiles,
-  users,
-  verificationTokens,
-} from "./schema/auth";
+import { accounts, sessions, userProfiles, users, verificationTokens } from "./schema/auth";
 import {
   careerCourseChapterEvidence,
   careerCourseSkillEvidence,
@@ -64,7 +57,6 @@ export const usersRelations = relations(users, ({ many }) => ({
   knowledgeEvidenceEvents: many(knowledgeEvidenceEvents),
   knowledgeInsights: many(knowledgeInsights),
   userProfiles: many(userProfiles),
-  stylePrivacySettings: many(stylePrivacySettings),
   createdSkins: many(aiSkins),
   skinPreference: many(userSkinPreferences),
   courseProgress: many(courseProgress),
@@ -257,13 +249,6 @@ export const courseSectionAnnotationsRelations = relations(courseSectionAnnotati
   }),
   user: one(users, {
     fields: [courseSectionAnnotations.userId],
-    references: [users.id],
-  }),
-}));
-
-export const stylePrivacySettingsRelations = relations(stylePrivacySettings, ({ one }) => ({
-  user: one(users, {
-    fields: [stylePrivacySettings.userId],
     references: [users.id],
   }),
 }));

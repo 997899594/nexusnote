@@ -1,6 +1,6 @@
 import type { CallSettings } from "ai";
 import { getModelNameForPolicy, type ModelPolicy } from "./model-policy";
-import type { AIRouteProfile } from "./route-profiles";
+import type { AIModelSeries } from "./model-series";
 
 type TunableGenerationSettings = Pick<
   CallSettings,
@@ -30,9 +30,9 @@ function isOpenAIReasoningFamily(model: string): boolean {
 
 export function getGenerationCapabilitiesForPolicy(
   policy: ModelPolicy,
-  routeProfile?: AIRouteProfile,
+  modelSeries?: AIModelSeries,
 ): ModelGenerationCapabilities {
-  const model = getModelNameForPolicy(policy, { routeProfile });
+  const model = getModelNameForPolicy(policy, { modelSeries });
 
   return {
     model,
@@ -44,10 +44,10 @@ export function buildGenerationSettingsForPolicy(
   policy: ModelPolicy,
   settings: TunableGenerationSettings,
   options?: {
-    routeProfile?: AIRouteProfile;
+    modelSeries?: AIModelSeries;
   },
 ): TunableGenerationSettings {
-  const capabilities = getGenerationCapabilitiesForPolicy(policy, options?.routeProfile);
+  const capabilities = getGenerationCapabilitiesForPolicy(policy, options?.modelSeries);
 
   if (capabilities.supportsSamplingControls) {
     return settings;

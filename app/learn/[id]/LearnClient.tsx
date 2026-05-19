@@ -156,6 +156,7 @@ export function LearnClient({
               <button
                 type="button"
                 onClick={() => setSidebarOpen(true)}
+                aria-label="打开课程目录"
                 className={cn(
                   "rounded-xl p-2 transition-colors",
                   isSidebarOpen
@@ -168,6 +169,7 @@ export function LearnClient({
               <button
                 type="button"
                 onClick={() => setChatOpen(true)}
+                aria-label="打开学习助手"
                 className={cn(
                   "rounded-xl p-2 transition-colors",
                   isChatOpen

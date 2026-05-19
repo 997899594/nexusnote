@@ -41,18 +41,12 @@ export const defaults = {
 
   // AI Models (task-routed stack)
   ai: {
-    modelInteractive: "qwen-plus-latest",
-    modelOutline: "gpt-5.4-mini",
-    modelSectionDraft: "qwen-plus-latest",
-    modelExtract: "qwen-plus-latest",
-    modelReview: "gpt-5.5",
-    modelWebSearch: "gpt-5.4-mini",
-    domesticModelInteractive: "qwen-plus-latest",
-    domesticModelOutline: "qwen-plus-latest",
-    domesticModelSectionDraft: "qwen-plus-latest",
-    domesticModelExtract: "qwen-plus-latest",
-    domesticModelReview: "qwen-max-latest",
-    domesticModelWebSearch: "qwen-plus-latest",
+    qwenModelInteractive: "qwen-plus-latest",
+    qwenModelOutline: "qwen-plus-latest",
+    qwenModelSectionDraft: "qwen-plus-latest",
+    qwenModelExtract: "qwen-plus-latest",
+    qwenModelReview: "qwen-max-latest",
+    qwenModelWebSearch: "qwen-plus-latest",
     geminiModelInteractive: "gemini-3.1-flash-lite-preview",
     geminiModelOutline: "gemini-3.1-pro-preview",
     geminiModelSectionDraft: "gemini-3.1-flash-lite-preview",
@@ -65,22 +59,11 @@ export const defaults = {
     openaiModelExtract: "gpt-5.4-mini",
     openaiModelReview: "gpt-5.5",
     openaiModelWebSearch: "gpt-5.4-mini",
-    // 定价（USD / 1M tokens）。未知供应商通道默认 0，避免伪精确成本。
-    priceInteractiveInputPer1M: 0,
-    priceInteractiveOutputPer1M: 0,
-    priceOutlineInputPer1M: 0.75,
-    priceOutlineOutputPer1M: 4.5,
-    priceSectionDraftInputPer1M: 0,
-    priceSectionDraftOutputPer1M: 0,
-    priceExtractInputPer1M: 0,
-    priceExtractOutputPer1M: 0,
-    priceReviewInputPer1M: 5,
-    priceReviewOutputPer1M: 30,
-    priceWebSearchInputPer1M: 0.75,
-    priceWebSearchOutputPer1M: 4.5,
-    // 默认关闭 provider 初始化噪音
+    // Optional JSON object keyed by concrete model id:
+    // {"qwen-plus-latest":{"input":0.3,"output":1.2}}
+    modelPricingJson: "{}",
+    // 默认关闭 AI 初始化噪音
     debugLogs: false,
-    // 302.ai 为首选 Provider
     baseURL: "https://api.302.ai/v1",
   },
 
@@ -122,7 +105,7 @@ export const defaults = {
 /**
  * Server environment schema
  *
- * 必需变量：DATABASE_URL, REDIS_URL, AUTH_SECRET, 至少一个 AI Provider Key
+ * 必需变量：DATABASE_URL, REDIS_URL, AUTH_SECRET, AI gateway key
  * 其余均有合理默认值，不写也能跑
  */
 export const serverEnvSchema = z.object({
@@ -151,7 +134,7 @@ export const serverEnvSchema = z.object({
     .optional()
     .transform((v) => v === "true"),
 
-  // AI Provider Keys (至少配置一个)
+  // AI gateway
   AI_302_API_KEY: z.string().min(1),
   AI_302_BASE_URL: z.string().url().default(defaults.ai.baseURL),
   TAVILY_API_KEY: z.string().optional(),
@@ -161,18 +144,12 @@ export const serverEnvSchema = z.object({
   LANGFUSE_SECRET_KEY: z.string().optional(),
 
   // AI Models (task-routed defaults)
-  AI_MODEL_INTERACTIVE: z.string().default(defaults.ai.modelInteractive),
-  AI_MODEL_OUTLINE: z.string().default(defaults.ai.modelOutline),
-  AI_MODEL_SECTION_DRAFT: z.string().default(defaults.ai.modelSectionDraft),
-  AI_MODEL_EXTRACT: z.string().default(defaults.ai.modelExtract),
-  AI_MODEL_REVIEW: z.string().default(defaults.ai.modelReview),
-  AI_MODEL_WEB_SEARCH: z.string().default(defaults.ai.modelWebSearch),
-  AI_DOMESTIC_MODEL_INTERACTIVE: z.string().default(defaults.ai.domesticModelInteractive),
-  AI_DOMESTIC_MODEL_OUTLINE: z.string().default(defaults.ai.domesticModelOutline),
-  AI_DOMESTIC_MODEL_SECTION_DRAFT: z.string().default(defaults.ai.domesticModelSectionDraft),
-  AI_DOMESTIC_MODEL_EXTRACT: z.string().default(defaults.ai.domesticModelExtract),
-  AI_DOMESTIC_MODEL_REVIEW: z.string().default(defaults.ai.domesticModelReview),
-  AI_DOMESTIC_MODEL_WEB_SEARCH: z.string().default(defaults.ai.domesticModelWebSearch),
+  AI_QWEN_MODEL_INTERACTIVE: z.string().default(defaults.ai.qwenModelInteractive),
+  AI_QWEN_MODEL_OUTLINE: z.string().default(defaults.ai.qwenModelOutline),
+  AI_QWEN_MODEL_SECTION_DRAFT: z.string().default(defaults.ai.qwenModelSectionDraft),
+  AI_QWEN_MODEL_EXTRACT: z.string().default(defaults.ai.qwenModelExtract),
+  AI_QWEN_MODEL_REVIEW: z.string().default(defaults.ai.qwenModelReview),
+  AI_QWEN_MODEL_WEB_SEARCH: z.string().default(defaults.ai.qwenModelWebSearch),
   AI_GEMINI_MODEL_INTERACTIVE: z.string().default(defaults.ai.geminiModelInteractive),
   AI_GEMINI_MODEL_OUTLINE: z.string().default(defaults.ai.geminiModelOutline),
   AI_GEMINI_MODEL_SECTION_DRAFT: z.string().default(defaults.ai.geminiModelSectionDraft),
@@ -185,54 +162,29 @@ export const serverEnvSchema = z.object({
   AI_OPENAI_MODEL_EXTRACT: z.string().default(defaults.ai.openaiModelExtract),
   AI_OPENAI_MODEL_REVIEW: z.string().default(defaults.ai.openaiModelReview),
   AI_OPENAI_MODEL_WEB_SEARCH: z.string().default(defaults.ai.openaiModelWebSearch),
-  AI_MODEL_INTERACTIVE_PRICE_INPUT_PER_1M: z.coerce
-    .number()
-    .nonnegative()
-    .default(defaults.ai.priceInteractiveInputPer1M),
-  AI_MODEL_INTERACTIVE_PRICE_OUTPUT_PER_1M: z.coerce
-    .number()
-    .nonnegative()
-    .default(defaults.ai.priceInteractiveOutputPer1M),
-  AI_MODEL_OUTLINE_PRICE_INPUT_PER_1M: z.coerce
-    .number()
-    .nonnegative()
-    .default(defaults.ai.priceOutlineInputPer1M),
-  AI_MODEL_OUTLINE_PRICE_OUTPUT_PER_1M: z.coerce
-    .number()
-    .nonnegative()
-    .default(defaults.ai.priceOutlineOutputPer1M),
-  AI_MODEL_SECTION_DRAFT_PRICE_INPUT_PER_1M: z.coerce
-    .number()
-    .nonnegative()
-    .default(defaults.ai.priceSectionDraftInputPer1M),
-  AI_MODEL_SECTION_DRAFT_PRICE_OUTPUT_PER_1M: z.coerce
-    .number()
-    .nonnegative()
-    .default(defaults.ai.priceSectionDraftOutputPer1M),
-  AI_MODEL_EXTRACT_PRICE_INPUT_PER_1M: z.coerce
-    .number()
-    .nonnegative()
-    .default(defaults.ai.priceExtractInputPer1M),
-  AI_MODEL_EXTRACT_PRICE_OUTPUT_PER_1M: z.coerce
-    .number()
-    .nonnegative()
-    .default(defaults.ai.priceExtractOutputPer1M),
-  AI_MODEL_REVIEW_PRICE_INPUT_PER_1M: z.coerce
-    .number()
-    .nonnegative()
-    .default(defaults.ai.priceReviewInputPer1M),
-  AI_MODEL_REVIEW_PRICE_OUTPUT_PER_1M: z.coerce
-    .number()
-    .nonnegative()
-    .default(defaults.ai.priceReviewOutputPer1M),
-  AI_MODEL_WEB_SEARCH_PRICE_INPUT_PER_1M: z.coerce
-    .number()
-    .nonnegative()
-    .default(defaults.ai.priceWebSearchInputPer1M),
-  AI_MODEL_WEB_SEARCH_PRICE_OUTPUT_PER_1M: z.coerce
-    .number()
-    .nonnegative()
-    .default(defaults.ai.priceWebSearchOutputPer1M),
+  AI_MODEL_PRICING_JSON: z
+    .string()
+    .default(defaults.ai.modelPricingJson)
+    .transform((value, ctx) => {
+      try {
+        return z
+          .record(
+            z.string().min(1),
+            z.object({
+              input: z.coerce.number().nonnegative(),
+              output: z.coerce.number().nonnegative(),
+            }),
+          )
+          .parse(JSON.parse(value));
+      } catch {
+        ctx.addIssue({
+          code: "custom",
+          message:
+            'AI_MODEL_PRICING_JSON must be a JSON object like {"model-id":{"input":0,"output":0}}',
+        });
+        return z.NEVER;
+      }
+    }),
   AI_DEBUG_LOGS: z
     .string()
     .default(String(defaults.ai.debugLogs))
@@ -525,15 +477,15 @@ export function logServerConfig(env: ServerEnv): void {
   console.log(`  DATABASE_URL: ${env.DATABASE_URL.replace(/\/\/[^@]+@/, "//***@")}`);
   console.log(`  REDIS_URL: ${env.REDIS_URL}`);
   console.log(`  AI_302_API_KEY: ${maskSecret(env.AI_302_API_KEY)}`);
-  console.log(`  AI_MODEL_INTERACTIVE: ${env.AI_MODEL_INTERACTIVE}`);
-  console.log(`  AI_MODEL_OUTLINE: ${env.AI_MODEL_OUTLINE}`);
-  console.log(`  AI_MODEL_SECTION_DRAFT: ${env.AI_MODEL_SECTION_DRAFT}`);
-  console.log(`  AI_MODEL_EXTRACT: ${env.AI_MODEL_EXTRACT}`);
-  console.log(`  AI_MODEL_REVIEW: ${env.AI_MODEL_REVIEW}`);
-  console.log(`  AI_MODEL_WEB_SEARCH: ${env.AI_MODEL_WEB_SEARCH}`);
-  console.log(`  AI_DOMESTIC_MODEL_INTERACTIVE: ${env.AI_DOMESTIC_MODEL_INTERACTIVE}`);
+  console.log(`  AI_QWEN_MODEL_INTERACTIVE: ${env.AI_QWEN_MODEL_INTERACTIVE}`);
+  console.log(`  AI_QWEN_MODEL_OUTLINE: ${env.AI_QWEN_MODEL_OUTLINE}`);
+  console.log(`  AI_QWEN_MODEL_SECTION_DRAFT: ${env.AI_QWEN_MODEL_SECTION_DRAFT}`);
+  console.log(`  AI_QWEN_MODEL_EXTRACT: ${env.AI_QWEN_MODEL_EXTRACT}`);
+  console.log(`  AI_QWEN_MODEL_REVIEW: ${env.AI_QWEN_MODEL_REVIEW}`);
+  console.log(`  AI_QWEN_MODEL_WEB_SEARCH: ${env.AI_QWEN_MODEL_WEB_SEARCH}`);
   console.log(`  AI_GEMINI_MODEL_INTERACTIVE: ${env.AI_GEMINI_MODEL_INTERACTIVE}`);
   console.log(`  AI_OPENAI_MODEL_INTERACTIVE: ${env.AI_OPENAI_MODEL_INTERACTIVE}`);
+  console.log(`  AI_MODEL_PRICING_CONFIGURED: ${Object.keys(env.AI_MODEL_PRICING_JSON).length}`);
   console.log(`  AI_ENABLE_WEB_SEARCH: ${env.AI_ENABLE_WEB_SEARCH}`);
   console.log(`  EMBEDDING_MODEL: ${env.EMBEDDING_MODEL}`);
   console.log(`  EMBEDDING_DIMENSIONS: ${env.EMBEDDING_DIMENSIONS}`);

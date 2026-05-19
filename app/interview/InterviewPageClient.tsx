@@ -248,7 +248,7 @@ function InterviewContent() {
           <Link
             href="/"
             className="ui-control-surface rounded-xl p-2 text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)]"
-            aria-label="返回首页"
+            aria-label="返回"
           >
             <ArrowLeft className="w-5 h-5" />
           </Link>

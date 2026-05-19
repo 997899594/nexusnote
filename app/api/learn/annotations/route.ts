@@ -4,9 +4,8 @@ import { and, eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { courseSectionAnnotations, courseSections, courses, db } from "@/db";
-import { APIError, handleError } from "@/lib/api";
-import { auth } from "@/lib/auth";
-import { revalidateLearnPage } from "@/lib/cache/tags";
+import { notFound, parseJsonBodyAs, withAuth } from "@/lib/api";
+import { revalidateCourseContentViews } from "@/lib/cache/domain-events";
 import { syncSectionAnnotationsKnowledge } from "@/lib/learning/annotation-knowledge";
 import { parseSectionOutlineNodeKey } from "@/lib/learning/outline-node-key";
 
@@ -47,80 +46,64 @@ function buildAnnotationRows(params: {
   }));
 }
 
-export async function PATCH(request: NextRequest) {
-  try {
-    const session = await auth();
-    const userId = session?.user?.id;
-    if (!userId) {
-      throw new APIError("请先登录", 401, "UNAUTHORIZED");
-    }
+export const PATCH = withAuth(async (request: NextRequest, { userId }) => {
+  const { sectionId, annotations } = await parseJsonBodyAs(request, RequestSchema);
 
-    const body = await request.json();
-    const parsed = RequestSchema.safeParse(body);
-    if (!parsed.success) {
-      throw new APIError("请求参数无效", 400, "VALIDATION_ERROR");
-    }
+  const [section] = await db
+    .select({
+      id: courseSections.id,
+      courseId: courses.id,
+      courseTitle: courses.title,
+      outlineNodeKey: courseSections.outlineNodeKey,
+    })
+    .from(courseSections)
+    .innerJoin(courses, eq(courseSections.courseId, courses.id))
+    .where(and(eq(courseSections.id, sectionId), eq(courses.userId, userId)))
+    .limit(1);
 
-    const { sectionId, annotations } = parsed.data;
-
-    const [section] = await db
-      .select({
-        id: courseSections.id,
-        courseId: courses.id,
-        courseTitle: courses.title,
-        outlineNodeKey: courseSections.outlineNodeKey,
-      })
-      .from(courseSections)
-      .innerJoin(courses, eq(courseSections.courseId, courses.id))
-      .where(and(eq(courseSections.id, sectionId), eq(courses.userId, userId)))
-      .limit(1);
-
-    if (!section) {
-      throw new APIError("小节不存在", 404, "NOT_FOUND");
-    }
-
-    const parsedSectionKey = parseSectionOutlineNodeKey(section.outlineNodeKey);
-    const chapterKey = parsedSectionKey?.chapterKey ?? null;
-
-    await db
-      .delete(courseSectionAnnotations)
-      .where(
-        and(
-          eq(courseSectionAnnotations.courseSectionId, sectionId),
-          eq(courseSectionAnnotations.userId, userId),
-        ),
-      );
-
-    const inserted =
-      annotations.length > 0
-        ? await db
-            .insert(courseSectionAnnotations)
-            .values(buildAnnotationRows({ sectionId, userId, annotations }))
-            .returning({
-              id: courseSectionAnnotations.id,
-            })
-        : [];
-
-    await syncSectionAnnotationsKnowledge({
-      userId,
-      sectionId,
-      courseId: section.courseId,
-      courseTitle: section.courseTitle,
-      chapterKey,
-      annotations: inserted.map((saved, index) => ({
-        id: saved.id,
-        type: annotations[index].type,
-        anchor: annotations[index].anchor,
-        color: annotations[index].color ?? null,
-        noteContent: annotations[index].noteContent ?? null,
-        createdAt: annotations[index].createdAt,
-      })),
-    });
-
-    revalidateLearnPage(userId, section.courseId);
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    return handleError(error);
+  if (!section) {
+    throw notFound("小节不存在", "SECTION_NOT_FOUND");
   }
-}
+
+  const parsedSectionKey = parseSectionOutlineNodeKey(section.outlineNodeKey);
+  const chapterKey = parsedSectionKey?.chapterKey ?? null;
+
+  await db
+    .delete(courseSectionAnnotations)
+    .where(
+      and(
+        eq(courseSectionAnnotations.courseSectionId, sectionId),
+        eq(courseSectionAnnotations.userId, userId),
+      ),
+    );
+
+  const inserted =
+    annotations.length > 0
+      ? await db
+          .insert(courseSectionAnnotations)
+          .values(buildAnnotationRows({ sectionId, userId, annotations }))
+          .returning({
+            id: courseSectionAnnotations.id,
+          })
+      : [];
+
+  await syncSectionAnnotationsKnowledge({
+    userId,
+    sectionId,
+    courseId: section.courseId,
+    courseTitle: section.courseTitle,
+    chapterKey,
+    annotations: inserted.map((saved, index) => ({
+      id: saved.id,
+      type: annotations[index].type,
+      anchor: annotations[index].anchor,
+      color: annotations[index].color ?? null,
+      noteContent: annotations[index].noteContent ?? null,
+      createdAt: annotations[index].createdAt,
+    })),
+  });
+
+  revalidateCourseContentViews(userId, section.courseId);
+
+  return NextResponse.json({ success: true });
+});

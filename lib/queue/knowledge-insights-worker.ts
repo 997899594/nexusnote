@@ -1,7 +1,7 @@
-import { Worker } from "bullmq";
+import type { Worker } from "bullmq";
 import { defaults } from "@/config/env";
 import { processKnowledgeInsightsJob } from "@/lib/knowledge/insights/jobs";
-import { getRedis } from "@/lib/redis";
+import { createNexusWorker } from "./bullmq";
 import type { KnowledgeInsightsQueueJobData } from "./knowledge-insights-queue";
 
 let worker: Worker<KnowledgeInsightsQueueJobData> | null = null;
@@ -11,7 +11,7 @@ export function startKnowledgeInsightsWorker(): Worker<KnowledgeInsightsQueueJob
     return worker;
   }
 
-  worker = new Worker<KnowledgeInsightsQueueJobData>(
+  worker = createNexusWorker<KnowledgeInsightsQueueJobData>(
     "knowledge-insights",
     async (job) => {
       switch (job.data.type) {
@@ -21,22 +21,9 @@ export function startKnowledgeInsightsWorker(): Worker<KnowledgeInsightsQueueJob
       }
     },
     {
-      connection: getRedis() as never,
+      label: "KnowledgeInsightsWorker",
       concurrency: defaults.queue.knowledgeInsightsConcurrency,
     },
-  );
-
-  worker.on("completed", (job) => {
-    console.log(`[KnowledgeInsightsWorker] Completed: ${job.id}`);
-  });
-
-  worker.on("failed", (job, err) => {
-    console.error(`[KnowledgeInsightsWorker] Failed: ${job?.id}`, err.message);
-  });
-
-  console.log(
-    "[KnowledgeInsightsWorker] Started with concurrency:",
-    defaults.queue.knowledgeInsightsConcurrency,
   );
   return worker;
 }

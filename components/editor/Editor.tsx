@@ -123,7 +123,7 @@ function SlashMenu({ editor, onClose }: SlashMenuProps) {
   return (
     <div className="absolute left-0 z-50 p-2 bg-white border rounded-lg shadow-card min-w-[200px] top-full">
       <input
-        placeholder="搜索命令..."
+        placeholder="搜索动作..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         onKeyDown={(e) => {
@@ -176,7 +176,7 @@ function ToolbarButton({ onClick, active, children, disabled }: ToolbarButtonPro
 
 export function Editor({
   content = "",
-  placeholder = "输入 / 查看命令...",
+  placeholder = "输入 / 查看动作...",
   onChange,
   editable = true,
   onReady,

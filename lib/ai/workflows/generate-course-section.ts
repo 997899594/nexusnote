@@ -70,9 +70,7 @@ function createCourseSectionLiveResponse(params: {
           if (snapshot.status === "pending" && Date.now() - startedAt > WORKER_START_GRACE_MS) {
             const jobSnapshot = await getCourseProductionJobSnapshot(params.jobId);
             if (!jobSnapshot || jobSnapshot.state !== "active") {
-              throw new Error(
-                "章节生成任务已入队，但后台生成器暂未接管。生成会继续保留在队列中，可以稍后回来查看。",
-              );
+              throw new Error("章节生成已经开始，但当前还没有产出内容。可以稍后回来查看。");
             }
           }
 

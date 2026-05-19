@@ -12,56 +12,48 @@ async function ProfileSettingsPageContent() {
 
   return (
     <LibraryAnalysisPageShell
-      header={
-        <FloatingHeader showBackHint title="偏好设置" subtitle="Settings" variant="compact" />
-      }
+      header={<FloatingHeader showBackHint title="偏好设置" variant="compact" />}
     >
-      <section className="mb-8">
-        <div className="ui-badge-pill ui-page-eyebrow inline-flex items-center gap-2 px-3 py-1.5 text-[11px] uppercase tracking-[0.22em]">
-          <span className="ui-strong-chip h-1.5 w-1.5 rounded-full" />
-          偏好设置
+      <section className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p className="text-sm font-medium text-[var(--color-text-tertiary)]">偏好设置</p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-[-0.05em] text-[var(--color-text)] md:text-5xl">
+            学习助手默认设置
+          </h1>
         </div>
-        <h1 className="ui-page-title mt-5 text-3xl font-semibold tracking-[-0.05em] md:text-5xl">
-          管理默认行为
-        </h1>
-        <p className="ui-page-description mt-3 max-w-2xl text-base leading-8">
-          这里处理长期默认值，不把这些表单再塞回个人首页。
-        </p>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <Link
+            href="/profile"
+            className="ui-surface-soft inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-active)] hover:text-[var(--color-text)]"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            个人中心
+          </Link>
+          <Link
+            href="/profile/insights"
+            className="ui-surface-soft inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-active)] hover:text-[var(--color-text)]"
+          >
+            <BarChart3 className="h-4 w-4" />
+            学习洞察
+          </Link>
+          <ProfileSignOut />
+        </div>
       </section>
 
-      <section className="mb-8">
-        <div className="ui-surface-card-lg rounded-3xl p-5 md:p-8">
-          <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-            <div className="flex items-start gap-4 md:gap-6">
-              <div className="ui-primary-button flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl text-xl font-bold md:h-20 md:w-20 md:text-2xl">
-                {getProfileAvatarLabel(session.user.name, session.user.email)}
-              </div>
-              <div className="min-w-0">
-                <h2 className="text-lg font-semibold text-[var(--color-text)] md:text-2xl">
-                  {session.user.name || "学习者"}
-                </h2>
-                <p className="mt-1 text-sm text-[var(--color-text-tertiary)] md:text-base">
-                  {session.user.email}
-                </p>
-              </div>
+      <section className="mb-6">
+        <div className="ui-surface-card rounded-3xl border border-black/6 px-5 py-4">
+          <div className="flex items-center gap-4">
+            <div className="ui-primary-button flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl text-lg font-bold">
+              {getProfileAvatarLabel(session.user.name, session.user.email)}
             </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <Link
-                href="/profile"
-                className="ui-surface-soft inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-active)] hover:text-[var(--color-text)]"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                返回个人中心
-              </Link>
-              <Link
-                href="/profile/insights"
-                className="ui-surface-soft inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-active)] hover:text-[var(--color-text)]"
-              >
-                <BarChart3 className="h-4 w-4" />
-                查看学习洞察
-              </Link>
-              <ProfileSignOut />
+            <div className="min-w-0">
+              <h2 className="truncate text-base font-semibold text-[var(--color-text)]">
+                {session.user.name || "学习者"}
+              </h2>
+              <p className="mt-1 truncate text-sm text-[var(--color-text-tertiary)]">
+                {session.user.email}
+              </p>
             </div>
           </div>
         </div>

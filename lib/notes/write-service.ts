@@ -1,10 +1,6 @@
 import { and, db, eq, notes } from "@/db";
 import type { NoteSourceContext } from "@/db/schema/notes";
-import {
-  revalidateNoteDetail,
-  revalidateNotesIndex,
-  revalidateProfileStats,
-} from "@/lib/cache/tags";
+import { revalidateNoteWorkspaceViews } from "@/lib/cache/domain-events";
 import { htmlToPlainText, plainTextToHtml } from "@/lib/notes/content";
 import { clearNoteKnowledge, syncNoteKnowledge } from "@/lib/notes/knowledge";
 import { getOwnedNote, type NoteRecord } from "@/lib/notes/repository";
@@ -63,12 +59,6 @@ function resolveNoteContent(content: NoteContentInput): {
   }
 }
 
-function revalidateNoteCaches(userId: string, noteId: string) {
-  revalidateNotesIndex(userId);
-  revalidateNoteDetail(userId, noteId);
-  revalidateProfileStats(userId);
-}
-
 function appendPlainTextAsParagraph(existingHtml: string, plainText: string): string {
   const addition = plainTextToHtml(plainText);
   if (!addition) {
@@ -95,7 +85,7 @@ export async function createOwnedNote(params: CreateOwnedNoteParams): Promise<No
     .returning();
 
   await syncNoteKnowledge(note);
-  revalidateNoteCaches(userId, note.id);
+  revalidateNoteWorkspaceViews(userId, note.id);
 
   return note;
 }
@@ -133,7 +123,7 @@ export async function updateOwnedNote(params: UpdateOwnedNoteParams): Promise<No
   }
 
   await syncNoteKnowledge(note);
-  revalidateNoteCaches(userId, note.id);
+  revalidateNoteWorkspaceViews(userId, note.id);
 
   return note;
 }
@@ -190,6 +180,6 @@ export async function deleteOwnedNote(noteId: string, userId: string): Promise<N
   }
 
   await clearNoteKnowledge(noteId, userId, deleted.sourceType);
-  revalidateNoteCaches(userId, noteId);
+  revalidateNoteWorkspaceViews(userId, noteId);
   return deleted;
 }

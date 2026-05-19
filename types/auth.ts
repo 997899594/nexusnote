@@ -4,7 +4,7 @@
  * 严格的类型定义，无 any
  */
 
-import type { User } from "next-auth";
+export {};
 
 declare module "next-auth" {
   interface Session {
@@ -22,17 +22,4 @@ declare module "next-auth" {
     name?: string | null;
     image?: string | null;
   }
-}
-
-/**
- * Credentials provider authorization return type
- */
-export type AuthorizedUser = User;
-
-/**
- * Credentials input type
- */
-export interface Credentials {
-  email: string;
-  name?: string;
 }

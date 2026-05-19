@@ -1,7 +1,7 @@
 import type { UIMessage } from "ai";
-import type { AIRouteProfile } from "@/lib/ai/core/route-profiles";
+import type { AIModelSeries } from "@/lib/ai/core/model-series";
 import { extractUIMessageText } from "@/lib/ai/message-text";
-import { APIError } from "@/lib/api";
+import { notFound } from "@/lib/api";
 import { getLatestCareerTreeSnapshotRow } from "@/lib/career-tree/snapshot";
 import { getOwnedConversation } from "@/lib/chat/conversation-repository";
 import { isUuidString } from "@/lib/chat/session-id";
@@ -111,7 +111,7 @@ export async function resolveRequestContext(params: {
   sessionId?: string | null;
   courseId?: string | null;
   metadata?: RequestMetadata;
-  routeProfile: AIRouteProfile;
+  modelSeries: AIModelSeries;
   skinSlug?: string | null;
 }): Promise<ResolvedRequestContext> {
   const sessionMetadata = params.metadata
@@ -142,7 +142,7 @@ export async function resolveRequestContext(params: {
   ]);
 
   if (requestedLearnContext && !learningGuidance) {
-    throw new APIError("课程不存在或无权限访问", 404, "COURSE_NOT_FOUND");
+    throw notFound("课程不存在或无权限访问", "COURSE_NOT_FOUND");
   }
 
   const resolvedMetadata = learningGuidance
@@ -174,7 +174,7 @@ export async function resolveRequestContext(params: {
     hasCareerTreeSnapshot: Boolean(latestCareerTreeSnapshot),
     hasEditorContext: isEditorRequestMetadata(effectiveMetadata),
     userPolicy: {
-      routeProfile: params.routeProfile,
+      modelSeries: params.modelSeries,
       skinSlug: params.skinSlug ?? null,
     },
     learningGuidance: learningGuidance ?? undefined,

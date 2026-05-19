@@ -4,14 +4,15 @@
 
 import { and, eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { db } from "@/db";
 import { notes, noteTags } from "@/db/schema";
-import { auth } from "@/lib/auth";
+import { notFound, parseJsonBodyAs, withDynamicAuth } from "@/lib/api";
 import { syncTagUsageCount } from "@/lib/tags/usage-count";
 
-interface RouteParams {
-  params: Promise<{ id: string }>;
-}
+const UpdateNoteTagSchema = z.object({
+  status: z.enum(["confirmed", "rejected"]),
+});
 
 async function getOwnedNoteTag(noteTagId: string, userId: string) {
   const [result] = await db
@@ -29,35 +30,25 @@ async function getOwnedNoteTag(noteTagId: string, userId: string) {
 }
 
 async function getOwnedRouteNoteTag(
-  params: RouteParams["params"],
+  noteTagId: string,
   userId: string,
 ): Promise<{
   noteTagId: string;
   ownedTag: Awaited<ReturnType<typeof getOwnedNoteTag>>;
 }> {
-  const { id: noteTagId } = await params;
   const ownedTag = await getOwnedNoteTag(noteTagId, userId);
   return { noteTagId, ownedTag };
 }
 
 // PATCH /api/note-tags/[id]
-export async function PATCH(request: NextRequest, { params }: RouteParams) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
-    const { noteTagId, ownedTag } = await getOwnedRouteNoteTag(params, session.user.id);
+export const PATCH = withDynamicAuth<unknown, { id: string }>(
+  async (request: NextRequest, { userId, params }) => {
+    const { noteTagId, ownedTag } = await getOwnedRouteNoteTag(params.id, userId);
     if (!ownedTag) {
-      return NextResponse.json({ error: "标签关联不存在或无权访问" }, { status: 404 });
+      throw notFound("标签关联不存在或无权访问", "NOTE_TAG_NOT_FOUND");
     }
 
-    const body = await request.json();
-    const { status } = body as { status: "confirmed" | "rejected" };
-    if (!["confirmed", "rejected"].includes(status)) {
-      return NextResponse.json({ error: "无效的 status 值" }, { status: 400 });
-    }
+    const { status } = await parseJsonBodyAs(request, UpdateNoteTagSchema);
 
     const updateData =
       status === "confirmed" ? { status, confirmedAt: new Date() } : { status, confirmedAt: null };
@@ -79,26 +70,19 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     });
 
     if (!updated) {
-      return NextResponse.json({ error: "标签关联不存在" }, { status: 404 });
+      throw notFound("标签关联不存在", "NOTE_TAG_NOT_FOUND");
     }
 
     return NextResponse.json({ success: true, noteTag: updated });
-  } catch (_error) {
-    return NextResponse.json({ error: "更新失败" }, { status: 500 });
-  }
-}
+  },
+);
 
 // DELETE /api/note-tags/[id]
-export async function DELETE(_request: NextRequest, { params }: RouteParams) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
-    const { noteTagId, ownedTag } = await getOwnedRouteNoteTag(params, session.user.id);
+export const DELETE = withDynamicAuth<unknown, { id: string }>(
+  async (_request: NextRequest, { userId, params }) => {
+    const { noteTagId, ownedTag } = await getOwnedRouteNoteTag(params.id, userId);
     if (!ownedTag) {
-      return NextResponse.json({ error: "标签关联不存在或无权访问" }, { status: 404 });
+      throw notFound("标签关联不存在或无权访问", "NOTE_TAG_NOT_FOUND");
     }
 
     const [deleted] = await db.transaction(async (tx) => {
@@ -112,11 +96,9 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
       return [next];
     });
     if (!deleted) {
-      return NextResponse.json({ error: "标签关联不存在" }, { status: 404 });
+      throw notFound("标签关联不存在", "NOTE_TAG_NOT_FOUND");
     }
 
     return NextResponse.json({ success: true });
-  } catch (_error) {
-    return NextResponse.json({ error: "删除失败" }, { status: 500 });
-  }
-}
+  },
+);

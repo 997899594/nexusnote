@@ -1,5 +1,4 @@
 import {
-  boolean,
   index,
   integer,
   jsonb,
@@ -9,7 +8,6 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
-import type { EMAValue } from "@/types/profile";
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -69,21 +67,6 @@ export const userProfiles = pgTable(
       .unique(),
     learningStyle: jsonb("learning_style"),
     aiPreferences: jsonb("ai_preferences"),
-    vocabularyComplexity: jsonb("vocabulary_complexity").$type<EMAValue>(),
-    sentenceComplexity: jsonb("sentence_complexity").$type<EMAValue>(),
-    abstractionLevel: jsonb("abstraction_level").$type<EMAValue>(),
-    directness: jsonb("directness").$type<EMAValue>(),
-    conciseness: jsonb("conciseness").$type<EMAValue>(),
-    formality: jsonb("formality").$type<EMAValue>(),
-    emotionalIntensity: jsonb("emotional_intensity").$type<EMAValue>(),
-    openness: jsonb("openness").$type<EMAValue>(),
-    conscientiousness: jsonb("conscientiousness").$type<EMAValue>(),
-    extraversion: jsonb("extraversion").$type<EMAValue>(),
-    agreeableness: jsonb("agreeableness").$type<EMAValue>(),
-    neuroticism: jsonb("neuroticism").$type<EMAValue>(),
-    totalMessagesAnalyzed: integer("total_messages_analyzed").notNull().default(0),
-    totalConversationsAnalyzed: integer("total_conversations_analyzed").notNull().default(0),
-    lastAnalyzedAt: timestamp("last_analyzed_at"),
     updatedAt: timestamp("updated_at").defaultNow(),
     createdAt: timestamp("created_at").defaultNow(),
   },
@@ -92,30 +75,7 @@ export const userProfiles = pgTable(
   }),
 );
 
-export const stylePrivacySettings = pgTable(
-  "style_privacy_settings",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id")
-      .references(() => users.id, { onDelete: "cascade" })
-      .notNull()
-      .unique(),
-    analysisEnabled: boolean("analysis_enabled").notNull().default(false),
-    consentGivenAt: timestamp("consent_given_at"),
-    bigFiveEnabled: boolean("big_five_enabled").notNull().default(false),
-    bigFiveConsentGivenAt: timestamp("big_five_consent_given_at"),
-    autoDeleteAfterDays: integer("auto_delete_after_days"),
-    createdAt: timestamp("created_at").defaultNow(),
-    updatedAt: timestamp("updated_at").defaultNow(),
-  },
-  (table) => ({
-    userIdIdx: index("style_privacy_settings_user_id_idx").on(table.userId),
-  }),
-);
-
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type UserProfile = typeof userProfiles.$inferSelect;
 export type NewUserProfile = typeof userProfiles.$inferInsert;
-export type StylePrivacySettings = typeof stylePrivacySettings.$inferSelect;
-export type NewStylePrivacySettings = typeof stylePrivacySettings.$inferInsert;

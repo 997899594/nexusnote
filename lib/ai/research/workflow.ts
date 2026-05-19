@@ -8,7 +8,7 @@ import { loadConversationMessages } from "@/lib/chat/conversation-messages";
 import { persistConversationMessages } from "@/lib/chat/conversation-persistence";
 import { getOwnedConversation } from "@/lib/chat/conversation-repository";
 import { isUuidString } from "@/lib/chat/session-id";
-import type { AIRouteProfile } from "../core/route-profiles";
+import type { AIModelSeries } from "../core/model-series";
 import {
   type BackgroundResearchProgress,
   type BackgroundResearchReport,
@@ -209,7 +209,7 @@ export async function runBackgroundResearchWorkflow(params: {
   userId: string;
   userPrompt: string;
   sessionId?: string | null;
-  routeProfile?: AIRouteProfile;
+  modelSeries?: AIModelSeries;
 }): Promise<
   BackgroundResearchReport & {
     persistedToConversation: boolean;
@@ -224,7 +224,7 @@ export async function runBackgroundResearchWorkflow(params: {
 
   const managerResult = await generateText({
     model: getPlainModelForPolicy("interactive-fast", {
-      routeProfile: params.routeProfile,
+      modelSeries: params.modelSeries,
     }),
     output: Output.object({ schema: researchPlanSchema }),
     prompt: renderPromptResource("research/manager-plan.md", {
@@ -236,7 +236,7 @@ export async function runBackgroundResearchWorkflow(params: {
         temperature: 0.1,
         maxOutputTokens: 700,
       },
-      { routeProfile: params.routeProfile },
+      { modelSeries: params.modelSeries },
     ),
     timeout: 20_000,
   });
@@ -264,7 +264,7 @@ export async function runBackgroundResearchWorkflow(params: {
   );
 
   const workerProvider = resolveResearchWorkerProvider({
-    routeProfile: params.routeProfile,
+    modelSeries: params.modelSeries,
   });
   let completedTasks = 0;
   const taskResults = await Promise.allSettled(
@@ -346,7 +346,7 @@ export async function runBackgroundResearchWorkflow(params: {
 
   const synthesisResult = await generateText({
     model: getPlainModelForPolicy("quality-review", {
-      routeProfile: params.routeProfile,
+      modelSeries: params.modelSeries,
     }),
     prompt: renderPromptResource("research/synthesis.md", {
       user_prompt: params.userPrompt,
@@ -361,7 +361,7 @@ export async function runBackgroundResearchWorkflow(params: {
         temperature: 0.15,
         maxOutputTokens: 1800,
       },
-      { routeProfile: params.routeProfile },
+      { modelSeries: params.modelSeries },
     ),
     timeout: 35_000,
   });

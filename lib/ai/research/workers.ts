@@ -3,7 +3,7 @@ import { buildGenerationSettingsForPolicy } from "@/lib/ai/core/generation-setti
 import { getPlainModelForPolicy } from "@/lib/ai/core/model-policy";
 import { renderPromptResource } from "@/lib/ai/prompts/load-prompt";
 import { performWebSearch } from "@/lib/ai/tools/chat/web-search";
-import type { AIRouteProfile } from "../core/route-profiles";
+import type { AIModelSeries } from "../core/model-series";
 import type { ResearchWorkerProvider } from "./a2a";
 import {
   type ResearchSource,
@@ -36,7 +36,7 @@ function formatSearchResults(results: ResearchSource[]) {
 async function runLocalResearchWorker(input: {
   userPrompt: string;
   task: ResearchWorkerTask;
-  routeProfile?: AIRouteProfile;
+  modelSeries?: AIModelSeries;
 }): Promise<ResearchWorkerResult> {
   const searchOutput = await performWebSearch(input.task.query, 5);
   const sources = searchOutput.success
@@ -50,7 +50,7 @@ async function runLocalResearchWorker(input: {
 
   const summaryResult = await generateText({
     model: getPlainModelForPolicy("interactive-fast", {
-      routeProfile: input.routeProfile,
+      modelSeries: input.modelSeries,
     }),
     output: Output.object({ schema: researchWorkerSummarySchema }),
     prompt: renderPromptResource("research/worker-summary.md", {
@@ -66,7 +66,7 @@ async function runLocalResearchWorker(input: {
         temperature: 0.1,
         maxOutputTokens: 700,
       },
-      { routeProfile: input.routeProfile },
+      { modelSeries: input.modelSeries },
     ),
     timeout: 20_000,
   });
@@ -81,7 +81,7 @@ async function runLocalResearchWorker(input: {
 }
 
 function createLocalResearchWorkerProvider(options?: {
-  routeProfile?: AIRouteProfile;
+  modelSeries?: AIModelSeries;
 }): ResearchWorkerProvider {
   return {
     kind: "local",
@@ -89,7 +89,7 @@ function createLocalResearchWorkerProvider(options?: {
       return runLocalResearchWorker({
         userPrompt: input.userPrompt,
         task: input.task,
-        routeProfile: options?.routeProfile,
+        modelSeries: options?.modelSeries,
       });
     },
   };
@@ -105,7 +105,7 @@ function createRemoteA2AResearchWorkerProvider(): ResearchWorkerProvider {
 }
 
 export function resolveResearchWorkerProvider(options?: {
-  routeProfile?: AIRouteProfile;
+  modelSeries?: AIModelSeries;
   preferRemoteA2A?: boolean;
 }): ResearchWorkerProvider {
   if (options?.preferRemoteA2A) {
@@ -113,6 +113,6 @@ export function resolveResearchWorkerProvider(options?: {
   }
 
   return createLocalResearchWorkerProvider({
-    routeProfile: options?.routeProfile,
+    modelSeries: options?.modelSeries,
   });
 }

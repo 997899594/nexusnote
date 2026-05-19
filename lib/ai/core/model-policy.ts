@@ -1,6 +1,6 @@
 import type { ModelType } from "./model-bundles";
-import { aiProvider } from "./provider";
-import type { AIRouteProfile } from "./route-profiles";
+import { aiModelGateway } from "./model-gateway";
+import type { AIModelSeries } from "./model-series";
 
 export type ModelPolicy =
   | "interactive-fast"
@@ -23,37 +23,30 @@ const POLICY_TO_MODEL_TYPE: Record<
 };
 
 export interface ModelPolicyResolutionOptions {
-  routeProfile?: AIRouteProfile;
+  modelSeries?: AIModelSeries;
 }
 
 export function getModelForPolicy(policy: ModelPolicy, options?: ModelPolicyResolutionOptions) {
-  return aiProvider.getModel(POLICY_TO_MODEL_TYPE[policy], options?.routeProfile);
+  return aiModelGateway.getModel(POLICY_TO_MODEL_TYPE[policy], options?.modelSeries);
 }
 
 export function getPlainModelForPolicy(
   policy: ModelPolicy,
   options?: ModelPolicyResolutionOptions,
 ) {
-  return aiProvider.getPlainModel(POLICY_TO_MODEL_TYPE[policy], options?.routeProfile);
+  return aiModelGateway.getPlainModel(POLICY_TO_MODEL_TYPE[policy], options?.modelSeries);
 }
 
 export function getToolCallingModelForPolicy(
   policy: ModelPolicy,
   options?: ModelPolicyResolutionOptions,
 ) {
-  return aiProvider.getToolCallingModel(POLICY_TO_MODEL_TYPE[policy], options?.routeProfile);
+  return aiModelGateway.getToolCallingModel(POLICY_TO_MODEL_TYPE[policy], options?.modelSeries);
 }
 
 export function getModelNameForPolicy(
   policy: ModelPolicy,
   options?: ModelPolicyResolutionOptions,
 ): string {
-  return aiProvider.getModelName(POLICY_TO_MODEL_TYPE[policy], options?.routeProfile);
-}
-
-export function getProviderForPolicy(
-  policy: ModelPolicy,
-  options?: ModelPolicyResolutionOptions,
-): string | null {
-  return aiProvider.getProviderLabel(POLICY_TO_MODEL_TYPE[policy], options?.routeProfile);
+  return aiModelGateway.getModelName(POLICY_TO_MODEL_TYPE[policy], options?.modelSeries);
 }

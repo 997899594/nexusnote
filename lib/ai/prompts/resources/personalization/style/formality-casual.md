@@ -1,1 +1,0 @@
-- Use a casual, conversational tone; informal language is acceptable.

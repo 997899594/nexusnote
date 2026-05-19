@@ -72,15 +72,12 @@ export function HeroInput() {
           ))}
         </div>
 
-        <div className="mt-3 flex flex-col gap-3 md:mt-4 md:flex-row md:items-center md:justify-between">
-          <div className="hidden text-sm text-[var(--color-text-tertiary)] md:block">
-            输入越具体，访谈越快进入课程生成。
-          </div>
+        <div className="mt-3 flex flex-col gap-3 md:mt-4 md:flex-row md:items-end">
           <button
             type="button"
             onClick={handleSubmit}
             disabled={!input.trim()}
-            className="ui-primary-button inline-flex h-11 w-full shrink-0 items-center justify-center gap-2 rounded-2xl px-4 py-3 transition-opacity disabled:cursor-not-allowed disabled:opacity-50 md:h-auto md:w-auto"
+            className="ui-primary-button inline-flex h-11 w-full shrink-0 items-center justify-center gap-2 rounded-2xl px-4 py-3 transition-opacity disabled:cursor-not-allowed disabled:opacity-50 md:ml-auto md:h-auto md:w-auto"
             aria-label="开始课程访谈"
           >
             <Send className="h-4 w-4 md:h-5 md:w-5" />

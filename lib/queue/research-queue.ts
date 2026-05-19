@@ -1,6 +1,6 @@
-import { Queue } from "bullmq";
+import type { Queue } from "bullmq";
 import { defaults } from "@/config/env";
-import { getRedis } from "@/lib/redis";
+import { createNexusQueue } from "@/lib/queue/bullmq";
 
 export type ResearchJobData = {
   type: "run_background_research";
@@ -8,7 +8,7 @@ export type ResearchJobData = {
   userId: string;
   userPrompt: string;
   sessionId?: string | null;
-  routeProfile?: string | null;
+  modelSeries?: string | null;
 };
 
 export interface QueuedResearchJob {
@@ -24,17 +24,11 @@ export function getResearchQueue(): Queue<ResearchJobData> {
     return researchQueue;
   }
 
-  researchQueue = new Queue<ResearchJobData>("research", {
-    connection: getRedis() as never,
-    defaultJobOptions: {
-      attempts: defaults.queue.researchMaxRetries,
-      backoff: {
-        type: "exponential",
-        delay: defaults.queue.researchBackoffDelay,
-      },
-      removeOnComplete: { count: 500 },
-      removeOnFail: { count: 2000 },
-    },
+  researchQueue = createNexusQueue<ResearchJobData>("research", {
+    attempts: defaults.queue.researchMaxRetries,
+    backoffDelay: defaults.queue.researchBackoffDelay,
+    removeOnComplete: 500,
+    removeOnFail: 2000,
   });
 
   return researchQueue;
@@ -45,7 +39,7 @@ export async function enqueueBackgroundResearch(params: {
   userId: string;
   userPrompt: string;
   sessionId?: string | null;
-  routeProfile?: string | null;
+  modelSeries?: string | null;
 }): Promise<QueuedResearchJob> {
   const queued = await getResearchQueue().add(
     "run-background-research",
@@ -55,7 +49,7 @@ export async function enqueueBackgroundResearch(params: {
       userId: params.userId,
       userPrompt: params.userPrompt,
       sessionId: params.sessionId ?? null,
-      routeProfile: params.routeProfile ?? null,
+      modelSeries: params.modelSeries ?? null,
     },
     {
       jobId: params.runId,

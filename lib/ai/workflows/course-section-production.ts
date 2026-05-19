@@ -2,12 +2,12 @@ import { smoothStream, streamText } from "ai";
 import { and, courseSections, db, eq } from "@/db";
 import { buildGenerationSettingsForPolicy } from "@/lib/ai/core/generation-settings";
 import { getModelForPolicy } from "@/lib/ai/core/model-policy";
-import { getUserAIRouteProfile } from "@/lib/ai/core/route-profile-preferences";
+import { getUserAIModelSeries } from "@/lib/ai/core/model-series-preferences";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { renderPromptResource } from "@/lib/ai/prompts/load-prompt";
-import { APIError } from "@/lib/api";
+import { notFound } from "@/lib/api";
 import { invalidateChapterCache } from "@/lib/cache/course-context";
-import { revalidateLearnPage } from "@/lib/cache/tags";
+import { revalidateCourseContentViews } from "@/lib/cache/domain-events";
 import { getOwnedCourseWithOutline } from "@/lib/learning/course-repository";
 import { buildLearningGuidance, type LearningGuidance } from "@/lib/learning/guidance";
 import { createLearnTrace } from "@/lib/learning/observability";
@@ -134,7 +134,7 @@ export async function resolveCourseSectionProductionInput(
 ): Promise<ResolvedCourseSectionProductionInput> {
   const course = await getOwnedCourseWithOutline(params.courseId, params.userId);
   if (!course) {
-    throw new APIError("课程不存在", 404, "NOT_FOUND");
+    throw notFound("课程不存在", "COURSE_NOT_FOUND");
   }
 
   const guidance = buildLearningGuidance({
@@ -142,12 +142,12 @@ export async function resolveCourseSectionProductionInput(
     chapterIndex: params.chapterIndex,
   });
   if (!guidance) {
-    throw new APIError("章节不存在", 404, "CHAPTER_NOT_FOUND");
+    throw notFound("章节不存在", "CHAPTER_NOT_FOUND");
   }
 
   const section = guidance.chapter.sections[params.sectionIndex];
   if (!section) {
-    throw new APIError("小节不存在", 404, "SECTION_NOT_FOUND");
+    throw notFound("小节不存在", "SECTION_NOT_FOUND");
   }
 
   const outlineNodeId = buildSectionOutlineNodeKey(params.chapterIndex, params.sectionIndex);
@@ -217,7 +217,7 @@ export async function persistGeneratedCourseSection(params: {
     });
 
     await invalidateChapterCache(params.courseId, params.chapterIndex);
-    revalidateLearnPage(params.userId, params.courseId);
+    revalidateCourseContentViews(params.userId, params.courseId);
   }
 
   return {
@@ -388,19 +388,19 @@ export async function materializeCourseSectionInBackground(
     chapterIndex: target.chapterIndex,
     sectionIndex: target.sectionIndex,
   });
-  const routeProfile = await getUserAIRouteProfile(target.userId);
+  const modelSeries = await getUserAIModelSeries(target.userId);
   const telemetry = createTelemetryContext({
     endpoint: "course-production-worker",
     userId: target.userId,
     workflow: "materialize-course-section",
     promptVersion: "course-section@v3",
     modelPolicy: "section-draft",
-    routeProfile,
+    modelSeries,
     metadata: {
       courseId: target.courseId,
       chapterIndex: target.chapterIndex,
       sectionIndex: target.sectionIndex,
-      routeProfile,
+      modelSeries,
     },
   });
 
@@ -456,7 +456,7 @@ export async function materializeCourseSectionInBackground(
     let stepCount = 0;
 
     const result = streamText({
-      model: getModelForPolicy("section-draft", { routeProfile }),
+      model: getModelForPolicy("section-draft", { modelSeries }),
       system: buildCourseSectionSystemPrompt({
         guidance: input.guidance,
         sectionIndex: target.sectionIndex,
@@ -468,7 +468,7 @@ export async function materializeCourseSectionInBackground(
           temperature: 0.5,
         },
         {
-          routeProfile,
+          modelSeries,
         },
       ),
       timeout: 180_000,

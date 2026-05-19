@@ -21,15 +21,20 @@ export function CommandMenu({ commands, selectedIndex, onSelect }: CommandMenuPr
       exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.15 }}
       className="ui-message-card absolute bottom-full left-0 right-0 z-50 mb-3 overflow-hidden rounded-2xl"
+      role="listbox"
+      aria-label="快捷动作"
     >
       <div className="p-2">
         <div className="px-3 py-2 text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
-          命令
+          快捷动作
         </div>
         {commands.map((cmd, idx) => (
           <button
             type="button"
             key={cmd.id}
+            id={`chat-command-${cmd.id}`}
+            role="option"
+            aria-selected={idx === selectedIndex}
             onClick={() => onSelect(cmd)}
             className={cn(
               "w-full flex items-center px-3 py-3 rounded-xl text-left transition-colors",

@@ -85,7 +85,7 @@ const INTERVIEW_CUES = [
   "时间",
 ];
 
-interface FallbackCandidate {
+interface DeterministicCandidate {
   capabilityMode: CapabilityMode;
   score: number;
   reasons: string[];
@@ -163,7 +163,7 @@ function buildCueReason(label: string, matches: string[]): string {
   return `${label} cues matched: ${matches.join(", ")}`;
 }
 
-function getSurfaceFallbackMode(requestContext: ResolvedRequestContext): CapabilityMode {
+function getSurfaceDefaultMode(requestContext: ResolvedRequestContext): CapabilityMode {
   const { surface, hasLearningGuidance, hasCareerTreeSnapshot } = requestContext;
 
   switch (surface) {
@@ -174,22 +174,22 @@ function getSurfaceFallbackMode(requestContext: ResolvedRequestContext): Capabil
     case "career":
       return hasCareerTreeSnapshot ? "career_guide" : "career_guide";
     case "interview":
-      return "course_interviewer";
+      return "general_chat";
     default:
       return "general_chat";
   }
 }
 
-function getFallbackClassification(
+function getDeterministicClassification(
   requestContext: ResolvedRequestContext,
   latestUserMessage: string,
   reason: string,
 ): IntentClassification {
   if (!latestUserMessage) {
     return buildClassificationFromCapabilityMode({
-      capabilityMode: getSurfaceFallbackMode(requestContext),
+      capabilityMode: getSurfaceDefaultMode(requestContext),
       confidence: 0.25,
-      reasons: [reason, `surface fallback: ${requestContext.surface}`],
+      reasons: [reason, `surface default: ${requestContext.surface}`],
     });
   }
 
@@ -197,7 +197,7 @@ function getFallbackClassification(
     return buildClassificationFromCapabilityMode({
       capabilityMode: "learn_coach",
       confidence: 0.45,
-      reasons: [reason, "surface fallback: learn surface with live course context"],
+      reasons: [reason, "surface default: learn surface with live course context"],
     });
   }
 
@@ -205,7 +205,7 @@ function getFallbackClassification(
     return buildClassificationFromCapabilityMode({
       capabilityMode: "note_assistant",
       confidence: 0.45,
-      reasons: [reason, "surface fallback: notes/editor context is present"],
+      reasons: [reason, "surface default: notes/editor context is present"],
     });
   }
 
@@ -213,15 +213,15 @@ function getFallbackClassification(
     return buildClassificationFromCapabilityMode({
       capabilityMode: "career_guide",
       confidence: 0.45,
-      reasons: [reason, "surface fallback: career surface preserves career_guide"],
+      reasons: [reason, "surface default: career surface preserves career_guide"],
     });
   }
 
   if (requestContext.surface === "interview") {
     return buildClassificationFromCapabilityMode({
-      capabilityMode: "course_interviewer",
+      capabilityMode: "general_chat",
       confidence: 0.45,
-      reasons: [reason, "surface fallback: interview surface preserves course_interviewer"],
+      reasons: [reason, "surface default: interview surface delegates through route arbiter"],
     });
   }
 
@@ -233,11 +233,11 @@ function getFallbackClassification(
   const noteMatches = collectCueMatches(normalizedMessage, NOTE_CUES);
   const interviewMatches = collectCueMatches(normalizedMessage, INTERVIEW_CUES);
 
-  const candidates: FallbackCandidate[] = [
+  const candidates: DeterministicCandidate[] = [
     {
       capabilityMode: "general_chat",
       score: 0,
-      reasons: [reason, "deterministic fallback found no stronger specialist contract"],
+      reasons: [reason, "deterministic routing found no stronger specialist contract"],
     },
   ];
 
@@ -290,7 +290,7 @@ function getFallbackClassification(
         buildCueReason("notes", noteMatches),
         requestContext.hasEditorContext
           ? "editor context is present for note operations"
-          : "note-editing cues are stronger than a general chat fallback",
+          : "note-editing cues are stronger than a general chat default",
       ],
     });
   }
@@ -375,14 +375,14 @@ export async function classifyIntent(params: {
   requestContext: ResolvedRequestContext;
 }): Promise<IntentClassification> {
   const latestUserMessage = getLatestUserMessage(params.messages);
-  const routeProfile = params.requestContext.userPolicy.routeProfile;
+  const modelSeries = params.requestContext.userPolicy.modelSeries;
   const shouldRecordTelemetry = isUuidString(params.userId);
   const telemetry = createTelemetryContext({
     endpoint: "chat:route-classifier",
     workflow: "intent-classifier",
     promptVersion: INTENT_CLASSIFIER_PROMPT_VERSION,
     modelPolicy: "interactive-fast",
-    routeProfile,
+    modelSeries,
     userId: params.userId,
     metadata: {
       surface: params.requestContext.surface,
@@ -395,7 +395,7 @@ export async function classifyIntent(params: {
   const startedAt = Date.now();
 
   if (!latestUserMessage) {
-    return getFallbackClassification(
+    return getDeterministicClassification(
       params.requestContext,
       latestUserMessage,
       "missing_latest_user_message",
@@ -404,7 +404,7 @@ export async function classifyIntent(params: {
 
   try {
     const result = await generateText({
-      model: getPlainModelForPolicy("interactive-fast", { routeProfile }),
+      model: getPlainModelForPolicy("interactive-fast", { modelSeries }),
       output: Output.object({ schema: intentClassificationSchema }),
       system: renderPromptResource("routing/intent-classifier-system.md", {}),
       prompt: renderPromptResource("routing/intent-classifier-user.md", {
@@ -419,7 +419,7 @@ export async function classifyIntent(params: {
           temperature: 0.1,
           maxOutputTokens: 300,
         },
-        { routeProfile },
+        { modelSeries },
       ),
       timeout: INTENT_CLASSIFIER_TIMEOUT_MS,
     });
@@ -466,7 +466,7 @@ export async function classifyIntent(params: {
       });
     }
 
-    return getFallbackClassification(
+    return getDeterministicClassification(
       params.requestContext,
       latestUserMessage,
       `classifier_failed:${getErrorMessage(error)}`,

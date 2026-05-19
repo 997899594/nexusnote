@@ -10,24 +10,15 @@
  * - 消息内容（由 useChat 管理）
  */
 
-import type { UIMessage } from "ai";
 import { create } from "zustand";
 import { redirectToLogin } from "@/lib/api/client";
-import type {
-  ConversationSummary,
-  ConversationsResponse,
-  UpdateSessionRequest,
-} from "@/types/chat";
+import type { ConversationSummary, ConversationsResponse } from "@/types/chat";
 
 interface ChatStore {
   sessions: ConversationSummary[];
-  currentSessionMessages: UIMessage[] | null;
 
   loadSessions: () => Promise<void>;
-  generateBatchTitles: () => Promise<number>;
-  updateSession: (id: string, updates: Partial<ConversationSummary>) => Promise<void>;
   deleteSession: (id: string) => Promise<void>;
-  setCurrentSessionMessages: (messages: UIMessage[] | null) => void;
 }
 
 function isUnauthorizedResponse(response: Response): boolean {
@@ -53,28 +44,6 @@ async function loadChatSessions(): Promise<ConversationSummary[]> {
   }
 }
 
-async function updateChatSession(id: string, updates: UpdateSessionRequest): Promise<void> {
-  try {
-    const response = await fetch(`/api/chat-sessions/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updates),
-    });
-
-    if (isUnauthorizedResponse(response)) {
-      redirectToLogin();
-      return;
-    }
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-  } catch (error) {
-    console.error("[ChatStore] Failed to update session:", error);
-    throw error;
-  }
-}
-
 async function deleteChatSession(id: string): Promise<void> {
   try {
     const response = await fetch(`/api/chat-sessions/${id}`, {
@@ -97,54 +66,10 @@ async function deleteChatSession(id: string): Promise<void> {
 
 export const useChatStore = create<ChatStore>((set) => ({
   sessions: [],
-  currentSessionMessages: null,
 
   loadSessions: async () => {
     const sessions = await loadChatSessions();
     set({ sessions });
-
-    // Trigger batch title generation if sessions have default titles
-    const hasDefaultTitles = sessions.some((s) => s.title === "新对话");
-    if (hasDefaultTitles) {
-      // Fire and forget - don't block the UI
-      useChatStore
-        .getState()
-        .generateBatchTitles()
-        .catch((err) => {
-          console.error("[ChatStore] Failed to generate batch titles:", err);
-        });
-    }
-  },
-
-  generateBatchTitles: async () => {
-    try {
-      const res = await fetch("/api/chat-sessions/generate-titles", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-      if (res.status === 401) {
-        redirectToLogin();
-        return 0;
-      }
-      if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-      const data = (await res.json()) as { updated: number };
-      // Reload sessions to get updated titles
-      if (data.updated > 0) {
-        await useChatStore.getState().loadSessions();
-      }
-      return data.updated;
-    } catch (error) {
-      console.error("[ChatStore] Failed to generate batch titles:", error);
-      return 0;
-    }
-  },
-
-  updateSession: async (id: string, updates: Partial<ConversationSummary>) => {
-    await updateChatSession(id, updates as UpdateSessionRequest);
-    // Optimistically update local state
-    set((state) => ({
-      sessions: state.sessions.map((s) => (s.id === id ? { ...s, ...updates } : s)),
-    }));
   },
 
   deleteSession: async (id: string) => {
@@ -152,9 +77,5 @@ export const useChatStore = create<ChatStore>((set) => ({
     set((state) => ({
       sessions: state.sessions.filter((s) => s.id !== id),
     }));
-  },
-
-  setCurrentSessionMessages: (messages: UIMessage[] | null) => {
-    set({ currentSessionMessages: messages });
   },
 }));

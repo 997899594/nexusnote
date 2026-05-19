@@ -106,7 +106,7 @@ export interface ResearchRunSnapshot {
   jobType: "run_background_research";
   status: ResearchRunStatus;
   userPrompt: string;
-  routeProfile: string | null;
+  modelSeries: string | null;
   workerTransport: string;
   progress: BackgroundResearchProgress | null;
   report: BackgroundResearchReport | null;

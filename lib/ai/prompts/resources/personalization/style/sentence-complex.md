@@ -1,1 +1,0 @@
-- User can handle complex sentence structures and nested ideas.

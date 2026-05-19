@@ -13,30 +13,13 @@
 
 import { MessageSquare } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { FloatingHeader } from "@/components/shared/layout";
-import { redirectToLogin } from "@/lib/api/client";
 import { useChatStore } from "@/stores/chat";
 import { ChatHistory } from "./ChatHistory";
 
 interface ChatLayoutProps {
   children: React.ReactNode;
-}
-
-function triggerIndex(sessionId: string, messages: unknown): void {
-  void fetch("/api/chat-sessions/index", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ sessionId, messages }),
-  })
-    .then((response) => {
-      if (response.status === 401) {
-        redirectToLogin();
-      }
-    })
-    .catch((error) => {
-      console.warn("[Index] Background indexing failed:", error);
-    });
 }
 
 export function ChatLayout({ children }: ChatLayoutProps) {
@@ -47,19 +30,7 @@ export function ChatLayout({ children }: ChatLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(() =>
     typeof window === "undefined" ? false : window.matchMedia("(min-width: 1024px)").matches,
   );
-  const { sessions, deleteSession, loadSessions, currentSessionMessages } = useChatStore();
-
-  const prevSessionRef = useRef<string | null>(null);
-
-  // 监听会话切换，索引上一个会话
-  useEffect(() => {
-    const prevId = prevSessionRef.current;
-    if (prevId && prevId !== currentSessionId && currentSessionMessages) {
-      console.log("[Index] Session switched, indexing:", prevId);
-      triggerIndex(prevId, currentSessionMessages);
-    }
-    prevSessionRef.current = currentSessionId;
-  }, [currentSessionId, currentSessionMessages]);
+  const { sessions, deleteSession, loadSessions } = useChatStore();
 
   useEffect(() => {
     loadSessions();
@@ -88,12 +59,7 @@ export function ChatLayout({ children }: ChatLayoutProps) {
 
   return (
     <div className="ui-page-shell flex min-h-dvh flex-col">
-      <FloatingHeader
-        title="对话工作台"
-        subtitle="Chat"
-        variant="workspace"
-        onLogoClick={() => router.push("/")}
-      />
+      <FloatingHeader title="对话工作台" variant="workspace" onLogoClick={() => router.push("/")} />
 
       <div className="ui-floating-header-offset flex flex-1 overflow-hidden">
         {!sidebarOpen && (

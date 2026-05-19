@@ -44,11 +44,16 @@ NexusNote 当前是一个以 Next.js 16 为核心的 AI-native 学习应用：
 
 - 页面数据获取尽量集中到 server loaders
 - 默认动态，局部 `use cache` + `cacheTag` 驱动重验证
+- mutation 只调用 `lib/cache/domain-events.ts` 的领域失效入口，不在 route handler 里拼 tag 列表
 - 不把 request-bound 逻辑散落到组件树深处
+
+更多见：
+
+- [CACHE_AND_ASYNC_CONTRACT.md](/Users/findbiao/projects/nexusnote/docs/CACHE_AND_ASYNC_CONTRACT.md)
 
 ### 3. AI Layer
 
-- `lib/ai/core/`: provider、model policy、telemetry、degradation、resumable streams
+- `lib/ai/core/`: model gateway、model policy、telemetry、degradation、resumable streams
 - `lib/ai/agents/`: open-ended conversational agents
 - `lib/ai/tools/`: capability tools
 - `lib/ai/workflows/`: 固定顺序后台任务
@@ -56,7 +61,7 @@ NexusNote 当前是一个以 Next.js 16 为核心的 AI-native 学习应用：
 
 规则：
 
-- 单 provider 运行时
+- 用户选择模型系列，运行时网关不作为产品概念暴露
 - `ToolLoopAgent` 用于开放式对话
 - tools 只承载真正能力调用或副作用
 - 结构化 UI 数据优先走 `UIMessage.parts`
@@ -101,19 +106,20 @@ NexusNote 当前是一个以 Next.js 16 为核心的 AI-native 学习应用：
 - Web runtime 不隐式启动 BullMQ worker
 - 后台任务由独立 worker 进程 / service 承载
 - worker 生命周期、并发和重试参数必须显式配置，而不是挂在页面服务器副作用里
+- `after()` 只放响应后的轻量 follow-up；可重试、长耗时、有副作用链路的任务进入 BullMQ
 
 ## 当前仓库约束
 
 - 包管理器只用 `bun`
 - 文档入口以 [docs/README.md](/Users/findbiao/projects/nexusnote/docs/README.md) 为准
 - 代理开发规范以 [AGENTS.md](/Users/findbiao/projects/nexusnote/AGENTS.md) 为准
-- 历史设计稿和实验资料统一放在 `docs/archive/`
+- 不在仓库内保留历史方案、一次性计划和过渡文档
 
 ## 非目标
 
 当前仓库不再把这些内容当主架构的一部分：
 
-- 多 provider 隐式自动切换
+- 多上游隐式自动切换
 - Helm / ArgoCD / Flux 仓库内编排
 - 根级别大而全代理说明
-- 历史设计稿和一次性资料混在主 docs 入口
+- 历史方案和过渡文档回流到仓库

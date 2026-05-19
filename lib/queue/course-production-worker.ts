@@ -1,7 +1,7 @@
-import { Worker } from "bullmq";
+import type { Worker } from "bullmq";
 import { defaults } from "@/config/env";
 import { materializeCourseSectionInBackground } from "@/lib/ai/workflows/course-section-production";
-import { getRedis } from "@/lib/redis";
+import { createNexusWorker } from "./bullmq";
 import type { CourseProductionJobData } from "./course-production-queue";
 
 let worker: Worker<CourseProductionJobData> | null = null;
@@ -11,7 +11,7 @@ export function startCourseProductionWorker(): Worker<CourseProductionJobData> {
     return worker;
   }
 
-  worker = new Worker<CourseProductionJobData>(
+  worker = createNexusWorker<CourseProductionJobData>(
     "course-production",
     async (job) => {
       switch (job.data.type) {
@@ -21,22 +21,9 @@ export function startCourseProductionWorker(): Worker<CourseProductionJobData> {
       }
     },
     {
-      connection: getRedis() as never,
+      label: "CourseProductionWorker",
       concurrency: defaults.queue.courseProductionConcurrency,
     },
-  );
-
-  worker.on("completed", (job) => {
-    console.log(`[CourseProductionWorker] Completed: ${job.id}`);
-  });
-
-  worker.on("failed", (job, err) => {
-    console.error(`[CourseProductionWorker] Failed: ${job?.id}`, err.message);
-  });
-
-  console.log(
-    "[CourseProductionWorker] Started with concurrency:",
-    defaults.queue.courseProductionConcurrency,
   );
 
   return worker;

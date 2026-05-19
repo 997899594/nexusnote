@@ -4,15 +4,14 @@
 
 import { z } from "zod";
 import { setUserSkinPreference } from "@/lib/ai/skins";
-import { withAuth } from "@/lib/api";
+import { parseJsonBodyAs, withAuth } from "@/lib/api";
 
 const SetSkinSchema = z.object({
   skinSlug: z.string().trim().min(1),
 });
 
 export const PUT = withAuth(async (request, { userId }) => {
-  const body = await request.json();
-  const { skinSlug } = SetSkinSchema.parse(body);
+  const { skinSlug } = await parseJsonBodyAs(request, SetSkinSchema);
 
   await setUserSkinPreference(userId, skinSlug);
 

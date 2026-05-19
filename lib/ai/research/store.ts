@@ -144,13 +144,13 @@ function buildRunMetadata(run: ResearchRunSnapshot): BackgroundResearchMetadata 
 
 export function createResearchInputHash(params: {
   userPrompt: string;
-  routeProfile?: string | null;
+  modelSeries?: string | null;
   sessionId?: string | null;
 }): string {
   return buildKnowledgeContentHash(
     JSON.stringify({
       prompt: params.userPrompt.trim(),
-      routeProfile: params.routeProfile ?? null,
+      modelSeries: params.modelSeries ?? null,
       sessionId: params.sessionId ?? null,
     }),
   );
@@ -160,7 +160,7 @@ export async function createResearchRun(params: {
   userId: string;
   sessionId?: string | null;
   userPrompt: string;
-  routeProfile?: string | null;
+  modelSeries?: string | null;
   retryOfRunId?: string | null;
 }): Promise<ResearchRunRecord> {
   const [created] = await db
@@ -170,18 +170,18 @@ export async function createResearchRun(params: {
       sessionId: params.sessionId ?? null,
       jobType: "run_background_research",
       status: "queued",
-      routeProfile: params.routeProfile ?? null,
+      modelSeries: params.modelSeries ?? null,
       workerTransport: "local",
       userPrompt: params.userPrompt.trim(),
       inputHash: createResearchInputHash({
         userPrompt: params.userPrompt,
-        routeProfile: params.routeProfile,
+        modelSeries: params.modelSeries,
         sessionId: params.sessionId,
       }),
       retryOfRunId: params.retryOfRunId ?? null,
       progressJson: {
         stage: "queued",
-        message: "研究任务已入队，等待后台 worker 处理。",
+        message: "资料整理已开始，完成后会回到这里。",
         updatedAt: new Date().toISOString(),
       },
     })
@@ -424,7 +424,7 @@ export async function getResearchRunSnapshot(
     jobType: run.jobType as "run_background_research",
     status: run.status as ResearchRunStatus,
     userPrompt: run.userPrompt,
-    routeProfile: run.routeProfile,
+    modelSeries: run.modelSeries,
     workerTransport: run.workerTransport,
     progress: (run.progressJson as BackgroundResearchProgress | null) ?? null,
     report: report

@@ -1,5 +1,4 @@
 import {
-  boolean,
   index,
   integer,
   jsonb,
@@ -29,10 +28,8 @@ export const conversations = pgTable(
     }),
     learnChapterIndex: integer("learn_chapter_index"),
     metadata: jsonb("metadata"),
-    isArchived: boolean("is_archived").default(false),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
-    titleGeneratedAt: timestamp("title_generated_at"),
   },
   (table) => ({
     userIdIdx: index("conversations_user_id_idx").on(table.userId),
