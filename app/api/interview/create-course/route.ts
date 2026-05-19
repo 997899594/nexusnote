@@ -1,4 +1,4 @@
-import { after, type NextRequest, NextResponse } from "next/server";
+import { after, type NextRequest } from "next/server";
 import { z } from "zod";
 import { InterviewOutlineSchema } from "@/lib/ai/interview/schemas";
 import { runCreateCourseWorkflow } from "@/lib/ai/workflows/create-course";
@@ -45,7 +45,7 @@ export const POST = withAuth(async (request: NextRequest, { userId }) => {
     }
   });
 
-  return NextResponse.json({
+  return Response.json({
     success: true,
     courseId: result.courseId,
     outline: result.outline,

@@ -1,7 +1,7 @@
 // app/api/learn/annotations/route.ts
 
 import { and, eq } from "drizzle-orm";
-import { type NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { courseSectionAnnotations, courseSections, courses, db } from "@/db";
 import { notFound, parseJsonBodyAs, withAuth } from "@/lib/api";
@@ -105,5 +105,5 @@ export const PATCH = withAuth(async (request: NextRequest, { userId }) => {
 
   revalidateCourseContentViews(userId, section.courseId);
 
-  return NextResponse.json({ success: true });
+  return Response.json({ success: true });
 });

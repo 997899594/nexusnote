@@ -1,5 +1,5 @@
 import { validateUIMessages } from "ai";
-import { type NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { classifyAIDegradation } from "@/lib/ai/core/degradation";
 import { aiModelGateway } from "@/lib/ai/core/model-gateway";
 import { getUserAIModelSeries } from "@/lib/ai/core/model-series-preferences";
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   const aiStatus = aiModelGateway.getStatus();
-  return NextResponse.json({
+  return Response.json({
     status: "ok",
     ai: {
       configured: aiStatus.configured,

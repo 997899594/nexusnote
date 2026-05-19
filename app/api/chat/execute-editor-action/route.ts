@@ -4,7 +4,7 @@
  * 处理编辑器操作（editDocument, batchEdit, draftContent）的执行
  */
 
-import { type NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { badRequest, notFound, parseJsonBodyAs, withAuth } from "@/lib/api";
 import { getOwnedNote } from "@/lib/notes/repository";
@@ -59,7 +59,7 @@ export const POST = withAuth(async (request: NextRequest, { userId }) => {
         throw notFound("Note not found", "NOTE_NOT_FOUND");
       }
 
-      return NextResponse.json({
+      return Response.json({
         success: true,
         message: "Note updated successfully",
       });
@@ -70,7 +70,7 @@ export const POST = withAuth(async (request: NextRequest, { userId }) => {
         throw badRequest("Missing edits array", "MISSING_EDITS");
       }
 
-      return NextResponse.json(
+      return Response.json(
         {
           error: "Batch editing is not supported by the current note content model yet",
         },
@@ -91,7 +91,7 @@ export const POST = withAuth(async (request: NextRequest, { userId }) => {
           plainText: content,
         }))
       ) {
-        return NextResponse.json({
+        return Response.json({
           success: true,
           message: "Content appended to note",
           noteId: targetId,
@@ -107,7 +107,7 @@ export const POST = withAuth(async (request: NextRequest, { userId }) => {
         },
       });
 
-      return NextResponse.json({
+      return Response.json({
         success: true,
         message: "Note created",
         noteId: newNote.id,

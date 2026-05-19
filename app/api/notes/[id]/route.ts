@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { notFound, parseJsonBodyAs, withDynamicAuth } from "@/lib/api";
 import { plainTextToHtml } from "@/lib/notes/content";
@@ -19,7 +18,7 @@ export const GET = withDynamicAuth<unknown, { id: string }>(
       throw notFound("Note not found", "NOTE_NOT_FOUND");
     }
 
-    return NextResponse.json({
+    return Response.json({
       note: {
         id: note.id,
         title: note.title,
@@ -57,6 +56,6 @@ export const PATCH = withDynamicAuth<unknown, { id: string }>(
       throw notFound("Note not found", "NOTE_NOT_FOUND");
     }
 
-    return NextResponse.json({ note: updated });
+    return Response.json({ note: updated });
   },
 );

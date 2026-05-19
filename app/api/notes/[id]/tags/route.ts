@@ -6,7 +6,7 @@
  */
 
 import { and, eq, ne } from "drizzle-orm";
-import { type NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { db } from "@/db";
 import { noteTags, tags } from "@/db/schema";
 import { tagGenerationService } from "@/lib/ai/services/tag-generation-service";
@@ -45,7 +45,7 @@ export const GET = withDynamicAuth<unknown, { id: string }>(
       .innerJoin(tags, eq(noteTags.tagId, tags.id))
       .where(and(eq(noteTags.noteId, noteId), ne(noteTags.status, "rejected")));
 
-    return NextResponse.json({ tags: result });
+    return Response.json({ tags: result });
   },
 );
 
@@ -58,6 +58,6 @@ export const POST = withDynamicAuth<unknown, { id: string }>(
     }
 
     await tagGenerationService.generateTags(noteId);
-    return NextResponse.json({ success: true });
+    return Response.json({ success: true });
   },
 );

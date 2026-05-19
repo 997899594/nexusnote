@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { type NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { courseSections, courses, db } from "@/db";
 import { tagGenerationService } from "@/lib/ai/services/tag-generation-service";
@@ -95,7 +95,7 @@ export const POST = withAuth(async (request: NextRequest, { userId }) => {
     console.error("[Notes Capture] Failed to generate tags:", error);
   }
 
-  return NextResponse.json({
+  return Response.json({
     success: true,
     note: {
       id: note.id,

@@ -1,7 +1,7 @@
 // app/api/learn/progress/route.ts
 
 import { eq } from "drizzle-orm";
-import { after, type NextRequest, NextResponse } from "next/server";
+import { after, type NextRequest } from "next/server";
 import { z } from "zod";
 import { courseProgress, db } from "@/db";
 import { notFound, parseJsonBodyAs, withAuth } from "@/lib/api";
@@ -95,7 +95,7 @@ export const POST = withAuth(async (request: NextRequest, { userId }) => {
 
   // Deduplicate: skip if already completed
   if (completedSections.includes(sectionNodeId)) {
-    return NextResponse.json({ ok: true, alreadyCompleted: true });
+    return Response.json({ ok: true, alreadyCompleted: true });
   }
 
   completedSections.push(sectionNodeId);
@@ -208,7 +208,7 @@ export const POST = withAuth(async (request: NextRequest, { userId }) => {
     }
   });
 
-  return NextResponse.json({
+  return Response.json({
     ok: true,
     completedSections,
     completedChapters,
@@ -246,5 +246,5 @@ export const PATCH = withAuth(async (request: NextRequest, { userId }) => {
 
   revalidateCourseProgressViews(userId, courseId);
 
-  return NextResponse.json({ ok: true });
+  return Response.json({ ok: true });
 });

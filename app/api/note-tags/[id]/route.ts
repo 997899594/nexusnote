@@ -3,7 +3,7 @@
  */
 
 import { and, eq } from "drizzle-orm";
-import { type NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { db } from "@/db";
 import { notes, noteTags } from "@/db/schema";
@@ -73,7 +73,7 @@ export const PATCH = withDynamicAuth<unknown, { id: string }>(
       throw notFound("标签关联不存在", "NOTE_TAG_NOT_FOUND");
     }
 
-    return NextResponse.json({ success: true, noteTag: updated });
+    return Response.json({ success: true, noteTag: updated });
   },
 );
 
@@ -99,6 +99,6 @@ export const DELETE = withDynamicAuth<unknown, { id: string }>(
       throw notFound("标签关联不存在", "NOTE_TAG_NOT_FOUND");
     }
 
-    return NextResponse.json({ success: true });
+    return Response.json({ success: true });
   },
 );

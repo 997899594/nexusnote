@@ -1,4 +1,4 @@
-import { type NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { tagGenerationService } from "@/lib/ai/services/tag-generation-service";
 import { badRequest, notFound, parseJsonBodyAs, withAuth } from "@/lib/api";
@@ -97,7 +97,7 @@ export const POST = withAuth(async (request: NextRequest, { userId }) => {
     console.error("[Notes Capture Chat] Failed to generate tags:", error);
   }
 
-  return NextResponse.json({
+  return Response.json({
     success: true,
     note: {
       id: note.id,
