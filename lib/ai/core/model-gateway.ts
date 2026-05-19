@@ -42,6 +42,9 @@ class AIModelGateway {
     this.client = createOpenAI({
       baseURL: env.AI_302_BASE_URL,
       apiKey: env.AI_302_API_KEY,
+      headers: {
+        Accept: "application/json",
+      },
     });
     if (env.AI_DEBUG_LOGS) {
       console.log("[AI] Model gateway initialized");

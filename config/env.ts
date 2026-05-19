@@ -64,7 +64,7 @@ export const defaults = {
     modelPricingJson: "{}",
     // 默认关闭 AI 初始化噪音
     debugLogs: false,
-    baseURL: "https://api.302.ai/v1",
+    baseURL: "https://api.302ai.cn/v1",
   },
 
   // Notes / Liquid Knowledge
