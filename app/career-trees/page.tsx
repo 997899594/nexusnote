@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { CareerTreesExplorer } from "@/components/career-trees/CareerTreesExplorer";
-import { FloatingHeader, WorkspacePageShell } from "@/components/shared/layout";
 import { getDynamicPageSession } from "@/lib/auth/page";
 import { getCareerTreeWorkspaceDataFresh } from "@/lib/career-tree/workspace-data";
 
@@ -15,17 +14,13 @@ async function CareerTreesPageContent() {
   const careerTrees = await getCareerTreeWorkspaceDataFresh(session.user.id, 0);
 
   return (
-    <WorkspacePageShell
-      frameClassName="ui-page-frame-wide"
-      header={<FloatingHeader showBackHint title="职业树" variant="workspace" />}
-      shellClassName="ui-page-shell"
-    >
+    <main className="ui-page-shell min-h-dvh overflow-hidden">
       <CareerTreesExplorer
         snapshot={careerTrees.snapshot}
         focusSnapshot={careerTrees.focusSnapshot}
         profileSnapshot={careerTrees.profileSnapshot}
       />
-    </WorkspacePageShell>
+    </main>
   );
 }
 

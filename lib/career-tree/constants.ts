@@ -1,11 +1,11 @@
 export const CAREER_TREE_SCHEMA_VERSION = 2;
 export const CAREER_TREE_EXTRACT_PROMPT_VERSION = "career-tree-extract@v1";
 export const CAREER_TREE_MERGE_PROMPT_VERSION = "career-tree-merge@v1";
-export const CAREER_TREE_COMPOSE_PROMPT_VERSION = "career-tree-compose@v1";
+export const CAREER_TREE_COMPOSE_PROMPT_VERSION = "career-tree-compose@v3";
 
-export const CAREER_TREE_EXTRACT_TIMEOUT_MS = 45_000;
-export const CAREER_TREE_MERGE_TIMEOUT_MS = 45_000;
-export const CAREER_TREE_COMPOSE_TIMEOUT_MS = 60_000;
+export const CAREER_TREE_EXTRACT_TIMEOUT_MS = 90_000;
+export const CAREER_TREE_MERGE_TIMEOUT_MS = 90_000;
+export const CAREER_TREE_COMPOSE_TIMEOUT_MS = 180_000;
 
 export const MAX_CAREER_EVIDENCE_ITEMS_PER_COURSE = 32;
 export const MAX_CAREER_NEW_NODES_PER_COURSE = 18;

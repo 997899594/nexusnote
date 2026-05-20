@@ -48,6 +48,8 @@ import {
   type VisibleSkillTreeNode,
 } from "@/lib/career-tree/types";
 
+const CAREER_TREE_COMPOSE_MODEL_SERIES = "openai" as const;
+
 interface ComposerVisibleNode {
   anchorRef: string;
   title: string;
@@ -152,21 +154,22 @@ function validateComposerOutput(params: {
   nodeIds: Set<string>;
   previousDirectionKeys: Set<string>;
 }): TreeComposerOutput {
+  const normalizedOutput: TreeComposerOutput = {
+    ...params.output,
+    trees: params.output.trees.map((tree) =>
+      tree.matchPreviousDirectionKey &&
+      !params.previousDirectionKeys.has(tree.matchPreviousDirectionKey)
+        ? { ...tree, matchPreviousDirectionKey: undefined }
+        : tree,
+    ),
+  };
+
   ensureUniqueValues(
-    params.output.trees.map((tree) => tree.keySeed),
+    normalizedOutput.trees.map((tree) => tree.keySeed),
     "keySeed",
   );
 
-  for (const tree of params.output.trees) {
-    if (
-      tree.matchPreviousDirectionKey &&
-      !params.previousDirectionKeys.has(tree.matchPreviousDirectionKey)
-    ) {
-      throw new Error(
-        `Career compose returned invalid previous direction key: ${tree.matchPreviousDirectionKey}`,
-      );
-    }
-
+  for (const tree of normalizedOutput.trees) {
     ensureUniqueValues(tree.supportingNodeRefs, `supporting refs for ${tree.keySeed}`);
     const supportingNodeRefs = new Set(tree.supportingNodeRefs);
     for (const nodeRef of tree.supportingNodeRefs) {
@@ -196,7 +199,7 @@ function validateComposerOutput(params: {
     }
   }
 
-  return params.output;
+  return normalizedOutput;
 }
 
 function resolveDirectionKeys(params: {
@@ -522,15 +525,23 @@ async function runCareerTreeComposer(params: {
 
   try {
     const result = await generateText({
-      model: getPlainModelForPolicy("outline-architect"),
+      model: getPlainModelForPolicy("outline-architect", {
+        modelSeries: CAREER_TREE_COMPOSE_MODEL_SERIES,
+      }),
       output: Output.object({ schema: treeComposerOutputSchema }),
       prompt: renderPromptResource("career-tree/compose.md", {
         compose_context: buildComposeContext(params),
       }),
-      ...buildGenerationSettingsForPolicy("outline-architect", {
-        temperature: 0.2,
-        maxOutputTokens: 5_000,
-      }),
+      ...buildGenerationSettingsForPolicy(
+        "outline-architect",
+        {
+          temperature: 0.2,
+          maxOutputTokens: 8_000,
+        },
+        {
+          modelSeries: CAREER_TREE_COMPOSE_MODEL_SERIES,
+        },
+      ),
       timeout: CAREER_TREE_COMPOSE_TIMEOUT_MS,
     });
 
@@ -607,7 +618,9 @@ export async function processCareerTreeComposeJob(job: { userId: string }): Prom
     kind: "compose",
     idempotencyKey: `compose:user:${job.userId}:graph:${graphVersion}:pref:${preference.preferenceVersion}:progress:${progressHash}:prompt:${CAREER_TREE_COMPOSE_PROMPT_VERSION}`,
     inputHash,
-    model: getModelNameForPolicy("outline-architect"),
+    model: getModelNameForPolicy("outline-architect", {
+      modelSeries: CAREER_TREE_COMPOSE_MODEL_SERIES,
+    }),
     promptVersion: CAREER_TREE_COMPOSE_PROMPT_VERSION,
     reuseCompleted: true,
   });
