@@ -312,37 +312,39 @@ export function ProfileAiUsagePanel({ usage, windowStartLabel }: ProfileAiUsageP
           当前视图：{getTrendLabel(mode)}
         </div>
 
-        <div className="grid grid-cols-7 gap-2 md:gap-3">
-          {usage.daily.map((item) => {
-            const barHeight = `${Math.max(12, (getDailyValue(item, mode) / maxDailyValue) * 100)}%`;
+        <div className="-mx-2 overflow-x-auto px-2 pb-2">
+          <div className="grid min-w-[42rem] grid-cols-7 gap-2 md:min-w-0 md:gap-3">
+            {usage.daily.map((item) => {
+              const barHeight = `${Math.max(12, (getDailyValue(item, mode) / maxDailyValue) * 100)}%`;
 
-            return (
-              <div key={item.dayKey} className="flex min-w-0 flex-col items-center gap-2">
-                <div className="ui-message-card w-full rounded-2xl px-2 py-2 text-center">
-                  <div className="truncate text-[11px] font-medium text-[var(--color-text)]">
-                    {formatDailyPrimary(item, mode)}
+              return (
+                <div key={item.dayKey} className="flex min-w-0 flex-col items-center gap-2">
+                  <div className="ui-message-card w-full rounded-2xl px-2 py-2 text-center">
+                    <div className="truncate text-[11px] font-medium text-[var(--color-text)]">
+                      {formatDailyPrimary(item, mode)}
+                    </div>
+                    <div className="truncate text-[10px] text-[var(--color-text-muted)]">
+                      {formatDailySecondary(item, mode)}
+                    </div>
                   </div>
-                  <div className="truncate text-[10px] text-[var(--color-text-muted)]">
-                    {formatDailySecondary(item, mode)}
+                  <div className="flex h-32 w-full items-end rounded-[22px] bg-[var(--color-panel-soft)] px-2 py-2 md:h-40 md:px-3">
+                    <div
+                      className="w-full rounded-[16px] bg-[linear-gradient(180deg,var(--color-panel-strong)_0%,var(--color-text-secondary)_100%)] shadow-[var(--shadow-strong-button)] transition-all duration-300"
+                      style={{ height: barHeight }}
+                    />
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xs font-medium text-[var(--color-text)]">{item.label}</div>
+                    <div className="text-[10px] text-[var(--color-text-muted)]">
+                      {mode === "cost"
+                        ? `${item.requestCount} 次`
+                        : formatCompactCost(item.totalCost)}
+                    </div>
                   </div>
                 </div>
-                <div className="flex h-32 w-full items-end rounded-[22px] bg-[var(--color-panel-soft)] px-2 py-2 md:h-40 md:px-3">
-                  <div
-                    className="w-full rounded-[16px] bg-[linear-gradient(180deg,var(--color-panel-strong)_0%,var(--color-text-secondary)_100%)] shadow-[var(--shadow-strong-button)] transition-all duration-300"
-                    style={{ height: barHeight }}
-                  />
-                </div>
-                <div className="text-center">
-                  <div className="text-xs font-medium text-[var(--color-text)]">{item.label}</div>
-                  <div className="text-[10px] text-[var(--color-text-muted)]">
-                    {mode === "cost"
-                      ? `${item.requestCount} 次`
-                      : formatCompactCost(item.totalCost)}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
 

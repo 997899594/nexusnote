@@ -118,18 +118,10 @@ export const serverEnvSchema = z.object({
   // Auth.js v5 (session 签名，开发环境有默认值，生产必须自行配置)
   AUTH_SECRET: z.string().default("nexusnote-dev-secret-change-in-production"),
 
-  // OAuth Providers (NextAuth)
-  AUTH_GITHUB_ID: z.string().optional(),
-  AUTH_GITHUB_SECRET: z.string().optional(),
-
   // Magic Link (Resend)
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().optional(),
   AUTH_RESEND_ENABLED: z
-    .string()
-    .optional()
-    .transform((v) => v === "true"),
-  AUTH_DEV_LOGIN_ENABLED: z
     .string()
     .optional()
     .transform((v) => v === "true"),
@@ -347,15 +339,6 @@ export const clientEnvSchema = z.object({
   NEXT_PUBLIC_AI_ENABLE_WEB_SEARCH: z
     .string()
     .default("false")
-    .transform((v) => v === "true"),
-
-  NEXT_PUBLIC_AUTH_RESEND_ENABLED: z
-    .string()
-    .optional()
-    .transform((v) => v === "true"),
-  NEXT_PUBLIC_AUTH_DEV_LOGIN_ENABLED: z
-    .string()
-    .optional()
     .transform((v) => v === "true"),
 
   // Environment

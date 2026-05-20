@@ -52,7 +52,7 @@ export function ChatMessage({
     >
       <div
         className={cn(
-          "text-sm",
+          "min-w-0 break-words text-sm [overflow-wrap:anywhere]",
           isUser
             ? "ui-primary-button max-w-[min(78%,var(--message-max-width))] rounded-3xl rounded-br-md px-4 py-3"
             : cn(
@@ -64,7 +64,7 @@ export function ChatMessage({
         )}
       >
         {isUser ? (
-          <p className="whitespace-pre-wrap">{content}</p>
+          <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{content}</p>
         ) : (
           <>
             {isLearning && (

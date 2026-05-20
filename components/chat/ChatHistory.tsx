@@ -151,7 +151,7 @@ export function ChatHistory({
                       e.stopPropagation();
                       onDeleteSession(session.id);
                     }}
-                    className="mt-1 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[var(--color-text-muted)] opacity-0 transition-all hover:bg-white hover:text-red-500 focus:opacity-100 group-hover:opacity-100"
+                    className="mt-1 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[var(--color-text-muted)] opacity-100 transition-all hover:bg-white hover:text-red-500 focus:opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>

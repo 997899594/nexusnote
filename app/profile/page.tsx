@@ -8,13 +8,14 @@ import {
   type LucideIcon,
   MessageSquare,
   Settings2,
+  User,
 } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { ProfileCareerTreeSummary } from "@/components/profile/ProfileCareerTreeSummary";
 import { ProfileCareerTreeSummarySkeleton } from "@/components/profile/ProfileCareerTreeSummarySkeleton";
 import { redirectIfUnauthenticated } from "@/lib/auth/page";
-import { getProfileAvatarLabel } from "@/lib/profile/avatar";
+import { getProfileAvatarLabel, getProfileDisplayName } from "@/lib/profile/avatar";
 import { getProfileHomeDataCached } from "@/lib/profile/home-data";
 import { ProfileSignOut } from "./profile-client";
 
@@ -74,7 +75,7 @@ async function ProfilePageContent() {
   const session = await redirectIfUnauthenticated("/profile");
   const { overview, primaryLearningEntry } = await getProfileHomeDataCached(session.user.id);
   const avatarLabel = getProfileAvatarLabel(session.user.name, session.user.email);
-  const displayName = session.user.name || "学习者";
+  const displayName = getProfileDisplayName(session.user.name, session.user.email);
 
   return (
     <main className="ui-page-shell min-h-dvh">
@@ -83,7 +84,7 @@ async function ProfilePageContent() {
           <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
             <div className="flex min-w-0 items-start gap-4">
               <div className="ui-primary-button flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-[1.4rem] text-2xl font-semibold">
-                {avatarLabel}
+                {avatarLabel ? <span>{avatarLabel}</span> : <User className="h-7 w-7" />}
               </div>
               <div className="min-w-0 pt-1">
                 <p className="text-xs font-medium uppercase tracking-[0.18em] text-[var(--color-text-tertiary)]">

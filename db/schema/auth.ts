@@ -53,6 +53,9 @@ export const verificationTokens = pgTable(
     identifier: text("identifier").notNull(),
     token: text("token").notNull(),
     expires: timestamp("expires", { mode: "date" }).notNull(),
+    firstUsedAt: timestamp("first_used_at", { mode: "date" }),
+    lastUsedAt: timestamp("last_used_at", { mode: "date" }),
+    useCount: integer("use_count").notNull().default(0),
   },
   (vt) => [primaryKey({ columns: [vt.identifier, vt.token] })],
 );

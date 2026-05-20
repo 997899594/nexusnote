@@ -33,14 +33,14 @@ export function InterviewMessage({ message, onSendReply, isStreaming }: Intervie
     >
       <div
         className={cn(
-          "text-sm",
+          "min-w-0 break-words text-sm [overflow-wrap:anywhere]",
           isUser
             ? "ui-primary-button max-w-[min(78%,var(--message-max-width))] rounded-3xl rounded-br-md px-4 py-3"
             : "ui-message-card max-w-[var(--message-max-width)] rounded-[26px] px-4 py-3.5 text-[var(--color-text)]",
         )}
       >
         {isUser ? (
-          <p className="whitespace-pre-wrap">{message.text}</p>
+          <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{message.text}</p>
         ) : (
           <>
             <div className="mb-2 flex items-center gap-2">

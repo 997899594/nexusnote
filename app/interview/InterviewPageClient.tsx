@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, GraduationCap, Loader2, Send } from "lucide-react";
+import { ArrowLeft, BookOpen, GraduationCap, Loader2, Send, X } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
@@ -65,7 +65,7 @@ function InterviewContent() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [input, setInput] = useState("");
   const [started, setStarted] = useState(false);
-  const [mobilePane, setMobilePane] = useState<"chat" | "outline">("chat");
+  const [isMobileOutlineOpen, setIsMobileOutlineOpen] = useState(false);
 
   const interview = useInterview({
     initialMessage: initialMessage || undefined,
@@ -118,13 +118,102 @@ function InterviewContent() {
     (status === "submitted" || status === "streaming") && (!lastMsg || lastMsg.role === "user");
   const shouldShowOutlinePanel =
     Boolean(displayOutline) || Boolean(stableOutline) || isOutlineLoading || interviewCompleted;
-  const mobileShowsOutline = isMobile && shouldShowOutlinePanel && mobilePane === "outline";
+  const activeOutline = displayOutline ?? stableOutline;
+  const outlineStatusLabel = interviewCompleted
+    ? "可开始学习"
+    : isOutlineLoading
+      ? "整理中"
+      : stableOutline
+        ? "已生成"
+        : "可查看";
 
   useEffect(() => {
-    if (isMobile && shouldShowOutlinePanel) {
-      setMobilePane("outline");
+    if (!isMobile || !shouldShowOutlinePanel) {
+      setIsMobileOutlineOpen(false);
     }
   }, [isMobile, shouldShowOutlinePanel]);
+
+  const mobileOutlineDock =
+    isMobile && shouldShowOutlinePanel ? (
+      <div className="shrink-0 border-black/5 border-t bg-white/95 px-4 py-3 backdrop-blur">
+        <button
+          type="button"
+          onClick={() => setIsMobileOutlineOpen(true)}
+          className="ui-message-card flex w-full items-center gap-3 rounded-[22px] p-3 text-left transition-transform active:scale-[0.99]"
+          aria-expanded={isMobileOutlineOpen}
+        >
+          <div className="ui-primary-button flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl">
+            <BookOpen className="h-4 w-4 text-white" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-[var(--color-text)]">课程蓝图</span>
+              <span className="rounded-full bg-[var(--color-active)] px-2 py-0.5 text-[10px] font-medium text-[var(--color-text-secondary)]">
+                {outlineStatusLabel}
+              </span>
+            </div>
+            <p className="mt-1 truncate text-xs text-[var(--color-text-tertiary)]">
+              {activeOutline?.title ??
+                (isOutlineLoading
+                  ? "正在整理课程结构，不会打断当前对话"
+                  : "查看结构、调整建议和开始学习入口")}
+            </p>
+          </div>
+          <span className="flex-shrink-0 rounded-full bg-[var(--color-panel-soft)] px-3 py-1.5 text-xs font-medium text-[var(--color-text-secondary)]">
+            查看
+          </span>
+        </button>
+      </div>
+    ) : null;
+
+  const mobileOutlineSheet =
+    isMobile && shouldShowOutlinePanel && isMobileOutlineOpen ? (
+      <motion.div
+        key="mobile-outline-sheet"
+        className="fixed inset-0 z-50 md:hidden"
+        role="dialog"
+        aria-modal="true"
+        aria-label="课程蓝图"
+      >
+        <motion.button
+          type="button"
+          aria-label="关闭课程蓝图"
+          className="absolute inset-0 bg-black/20 backdrop-blur-[2px]"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={() => setIsMobileOutlineOpen(false)}
+        />
+        <motion.div
+          initial={{ y: "100%" }}
+          animate={{ y: 0 }}
+          exit={{ y: "100%" }}
+          transition={{ type: "spring", stiffness: 320, damping: 34 }}
+          className="safe-bottom absolute inset-x-0 bottom-0 h-[min(82dvh,720px)] overflow-hidden rounded-t-[30px] bg-white shadow-[var(--shadow-floating-panel)]"
+        >
+          <button
+            type="button"
+            onClick={() => setIsMobileOutlineOpen(false)}
+            className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-panel-soft)] text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)]"
+            aria-label="关闭课程蓝图"
+          >
+            <X className="h-4 w-4" />
+          </button>
+          <OutlinePanel
+            outline={displayOutline ?? stableOutline}
+            stableOutline={stableOutline ?? null}
+            actionOptions={outlineActions}
+            isLoading={isOutlineLoading}
+            courseId={courseId ?? undefined}
+            onCourseCreated={setCourseId}
+            onSelectAction={(option) => {
+              setIsMobileOutlineOpen(false);
+              sendMessage({ text: option.action || option.label });
+            }}
+          />
+        </motion.div>
+      </motion.div>
+    ) : null;
 
   const chatViewport = (
     <div className="mobile-scroll min-h-0 flex-1 overflow-y-auto px-4 py-5 md:px-6 md:py-6">
@@ -139,18 +228,21 @@ function InterviewContent() {
               description="告诉我你想学什么，我会先聊清楚目标、基础和约束，再生成可确认的课程蓝图。"
               footer={
                 <div className="flex flex-wrap justify-center gap-2">
-                  {["我想学 Python", "我想学做 PPT", "考研数学怎么准备", "教我做川菜"].map(
-                    (example) => (
-                      <PromptChip
-                        key={example}
-                        label={example}
-                        onClick={() => {
-                          setStarted(true);
-                          void sendMessage({ text: example });
-                        }}
-                      />
-                    ),
-                  )}
+                  {[
+                    "补齐 React 工程化",
+                    "三个月做数据分析",
+                    "考研数学周计划",
+                    "梳理面试准备路线",
+                  ].map((example) => (
+                    <PromptChip
+                      key={example}
+                      label={example}
+                      onClick={() => {
+                        setStarted(true);
+                        void sendMessage({ text: example });
+                      }}
+                    />
+                  ))}
                 </div>
               }
               className="mx-auto max-w-2xl"
@@ -242,7 +334,7 @@ function InterviewContent() {
         variants={mainContentVariants}
         initial="full"
         animate={!isMobile && shouldShowOutlinePanel ? "withPanel" : "full"}
-        className="flex min-h-0 min-w-0 flex-1 flex-col bg-white"
+        className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-white"
       >
         <header className="ui-page-frame safe-top flex shrink-0 items-center gap-4 pb-4 pt-5 md:pb-5 md:pt-6">
           <Link
@@ -269,49 +361,9 @@ function InterviewContent() {
           </div>
         </header>
 
-        {isMobile && shouldShowOutlinePanel ? (
-          <div className="flex min-h-0 flex-1 flex-col">
-            <div className="shrink-0 border-b border-black/5 bg-white px-4 pb-3">
-              <div className="ui-control-surface grid grid-cols-2 rounded-2xl p-1">
-                {[
-                  ["chat", "对话"],
-                  ["outline", "蓝图"],
-                ].map(([pane, label]) => (
-                  <button
-                    key={pane}
-                    type="button"
-                    onClick={() => setMobilePane(pane as "chat" | "outline")}
-                    className={cn(
-                      "rounded-xl px-3 py-2 text-sm font-medium transition-colors",
-                      mobilePane === pane
-                        ? "ui-primary-button"
-                        : "text-[var(--color-text-secondary)] hover:text-[var(--color-text)]",
-                    )}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            {mobileShowsOutline ? (
-              <div className="min-h-0 flex-1">
-                <OutlinePanel
-                  outline={displayOutline ?? stableOutline}
-                  stableOutline={stableOutline ?? null}
-                  actionOptions={outlineActions}
-                  isLoading={isOutlineLoading}
-                  courseId={courseId ?? undefined}
-                  onCourseCreated={setCourseId}
-                  onSelectAction={(option) => sendMessage({ text: option.action || option.label })}
-                />
-              </div>
-            ) : (
-              chatViewport
-            )}
-          </div>
-        ) : (
-          chatViewport
-        )}
+        {chatViewport}
+        {mobileOutlineDock}
+        <AnimatePresence>{mobileOutlineSheet}</AnimatePresence>
 
         {composer}
       </motion.div>

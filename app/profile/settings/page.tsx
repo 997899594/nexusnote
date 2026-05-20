@@ -1,14 +1,16 @@
-import { ArrowLeft, BarChart3 } from "lucide-react";
+import { ArrowLeft, BarChart3, User } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { AIPreferencesPanel } from "@/components/profile/AIPreferencesPanel";
 import { FloatingHeader, LibraryAnalysisPageShell } from "@/components/shared/layout";
 import { redirectIfUnauthenticated } from "@/lib/auth/page";
-import { getProfileAvatarLabel } from "@/lib/profile/avatar";
+import { getProfileAvatarLabel, getProfileDisplayName } from "@/lib/profile/avatar";
 import { ProfileSignOut } from "../profile-client";
 
 async function ProfileSettingsPageContent() {
   const session = await redirectIfUnauthenticated("/profile/settings");
+  const avatarLabel = getProfileAvatarLabel(session.user.name, session.user.email);
+  const displayName = getProfileDisplayName(session.user.name, session.user.email);
 
   return (
     <LibraryAnalysisPageShell
@@ -45,11 +47,11 @@ async function ProfileSettingsPageContent() {
         <div className="ui-surface-card rounded-3xl border border-black/6 px-5 py-4">
           <div className="flex items-center gap-4">
             <div className="ui-primary-button flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl text-lg font-bold">
-              {getProfileAvatarLabel(session.user.name, session.user.email)}
+              {avatarLabel ? <span>{avatarLabel}</span> : <User className="h-5 w-5" />}
             </div>
             <div className="min-w-0">
               <h2 className="truncate text-base font-semibold text-[var(--color-text)]">
-                {session.user.name || "学习者"}
+                {displayName}
               </h2>
               <p className="mt-1 truncate text-sm text-[var(--color-text-tertiary)]">
                 {session.user.email}

@@ -47,7 +47,7 @@ function SafeStreamdown({
     // 降级到纯文本
     console.error("[Streamdown] Render error:", error);
     return (
-      <pre className="whitespace-pre-wrap text-sm text-[var(--color-text-secondary)]">
+      <pre className="whitespace-pre-wrap break-words text-sm text-[var(--color-text-secondary)] [overflow-wrap:anywhere]">
         {content}
       </pre>
     );
@@ -62,7 +62,9 @@ export function StreamdownMessage({
   if (!content) return null;
 
   return (
-    <div className={`prose prose-sm max-w-none dark:prose-invert ${className}`}>
+    <div
+      className={`prose prose-sm max-w-none break-words dark:prose-invert [overflow-wrap:anywhere] prose-pre:max-w-full prose-pre:overflow-x-auto ${className}`}
+    >
       <SafeStreamdown content={content} isStreaming={isStreaming} />
     </div>
   );

@@ -8,9 +8,9 @@ import { PromptChip } from "@/components/common";
 import { useInputProtection } from "@/components/common/useInputProtection";
 
 const EXAMPLE_PROMPTS = [
-  "我想系统学 React，并做一个作品集项目",
-  "我想学做 PPT，两周后能独立完成工作汇报",
-  "我想准备考研数学，想先有一套三个月计划",
+  "三个月内能独立做数据分析",
+  "补齐 React 工程化并上线一个项目",
+  "把考研数学拆成每周计划",
 ];
 
 export function HeroInput() {
@@ -47,12 +47,12 @@ export function HeroInput() {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
-          placeholder="例如：我想系统学 SQL 和数据分析，三个月内能独立完成日常报表分析。"
+          placeholder="写下你想学的内容、期限和目标，我会先问清楚再生成课程蓝图。"
           rows={3}
           className="h-28 w-full resize-none border-none bg-transparent py-4 text-base leading-7 text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-muted)] md:h-auto md:min-h-[104px] md:py-4 md:text-lg md:leading-8 lg:min-h-[118px] lg:text-[1.12rem]"
         />
 
-        <div className="mt-2 hidden flex-wrap gap-2 md:mt-3 md:flex">
+        <div className="-mx-1 mt-2 flex gap-2 overflow-x-auto px-1 pb-1 md:mx-0 md:mt-3 md:flex-wrap md:overflow-visible md:px-0 md:pb-0">
           {EXAMPLE_PROMPTS.map((prompt, index) => (
             <motion.div
               key={prompt}
@@ -66,7 +66,7 @@ export function HeroInput() {
                 onClick={() => {
                   setInput(prompt);
                 }}
-                className="max-w-full text-left"
+                className="max-w-[82vw] shrink-0 text-left md:max-w-full"
               />
             </motion.div>
           ))}
