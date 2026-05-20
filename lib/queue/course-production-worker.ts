@@ -16,7 +16,10 @@ export function startCourseProductionWorker(): Worker<CourseProductionJobData> {
     async (job) => {
       switch (job.data.type) {
         case "materialize_section":
-          await materializeCourseSectionInBackground(job.data);
+          await materializeCourseSectionInBackground(job.data, {
+            attemptNumber: job.attemptsMade + 1,
+            maxAttempts: job.opts.attempts ?? 1,
+          });
           break;
       }
     },

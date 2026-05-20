@@ -17,6 +17,8 @@ import { getRedis } from "@/lib/redis";
 
 const COURSE_SECTION_LOCK_TTL_MS = 10 * 60 * 1000;
 const COURSE_SECTION_LIVE_STREAM_TTL_SECONDS = 30 * 60;
+const COURSE_SECTION_MAX_OUTPUT_TOKENS = 1800;
+const COURSE_SECTION_STREAM_CONTINUATION_ATTEMPTS = 1;
 
 export interface CourseSectionProductionTarget {
   userId: string;
@@ -24,6 +26,11 @@ export interface CourseSectionProductionTarget {
   chapterIndex: number;
   sectionIndex: number;
   traceId?: string;
+}
+
+export interface CourseSectionProductionRunContext {
+  attemptNumber?: number;
+  maxAttempts?: number;
 }
 
 export interface ExistingCourseSectionDocument {
@@ -60,10 +67,34 @@ export interface CourseSectionLiveStreamSnapshot {
   error: string | null;
 }
 
+interface CourseSectionStreamingDraftResult {
+  text: string;
+  finishReason: string | null;
+  totalUsage: Parameters<typeof recordAIUsage>[0]["usage"] | undefined;
+  stepCount: number;
+}
+
 export function buildCourseSectionUserPrompt(sectionTitle: string) {
   return renderPromptResource("learn/course-section-user.md", {
     section_title: sectionTitle,
   });
+}
+
+function buildCourseSectionContinuationPrompt(params: {
+  sectionTitle: string;
+  partialText: string;
+}) {
+  return [
+    `请继续完成「${params.sectionTitle}」这一节。`,
+    "",
+    "要求：",
+    "- 不要重新开始，不要重复已经写过的标题或段落。",
+    "- 直接从断点之后继续输出正文。",
+    "- 保持原有 Markdown 风格，最后补齐 1-3 条小结。",
+    "",
+    "已经生成的内容如下：",
+    params.partialText.slice(-1800),
+  ].join("\n");
 }
 
 function formatSkillIds(skillIds?: string[]) {
@@ -327,6 +358,20 @@ async function failCourseSectionLiveStream(params: {
   await expireSectionLiveStream(keys);
 }
 
+async function markCourseSectionLiveStreamPending(params: {
+  courseId: string;
+  outlineNodeId: string;
+}) {
+  const redis = getRedis();
+  const keys = buildSectionLiveStreamKeys(params.courseId, params.outlineNodeId);
+  await redis.hset(keys.state, {
+    status: "pending",
+    updatedAt: new Date().toISOString(),
+    error: "",
+  });
+  await expireSectionLiveStream(keys);
+}
+
 export async function readCourseSectionLiveStream(params: {
   courseId: string;
   outlineNodeId: string;
@@ -378,8 +423,164 @@ async function releaseSectionLock(lock: { key: string; token: string } | null) {
   }
 }
 
+function hasRemainingQueueAttempts(context: CourseSectionProductionRunContext): boolean {
+  if (!context.attemptNumber || !context.maxAttempts) {
+    return false;
+  }
+
+  return context.attemptNumber < context.maxAttempts;
+}
+
+function isTransientUpstreamGenerationError(error: unknown): boolean {
+  const message = getErrorMessage(error).toLowerCase();
+  return (
+    message.includes("bad gateway") ||
+    message.includes("socket connection was closed") ||
+    message.includes("operation timed out") ||
+    message.includes("timeout") ||
+    message.includes("fetch failed") ||
+    message.includes("econnreset") ||
+    message.includes("etimedout") ||
+    message.includes("502") ||
+    message.includes("503") ||
+    message.includes("504")
+  );
+}
+
+function shouldKeepLiveStreamPendingForRetry(params: {
+  error: unknown;
+  generatedText: string;
+  context: CourseSectionProductionRunContext;
+}): boolean {
+  return (
+    !params.generatedText.trim() &&
+    hasRemainingQueueAttempts(params.context) &&
+    isTransientUpstreamGenerationError(params.error)
+  );
+}
+
+function getCourseSectionUserFacingError(error: unknown): string {
+  if (isTransientUpstreamGenerationError(error)) {
+    return "模型服务临时波动，请稍后重试。";
+  }
+
+  const message = getErrorMessage(error);
+  if (message === "Generated section content is empty") {
+    return "模型这次没有返回章节内容，请重试。";
+  }
+
+  return message;
+}
+
+function mergeUsage(
+  left: CourseSectionStreamingDraftResult["totalUsage"],
+  right: CourseSectionStreamingDraftResult["totalUsage"],
+): CourseSectionStreamingDraftResult["totalUsage"] {
+  if (!left) {
+    return right;
+  }
+  if (!right) {
+    return left;
+  }
+
+  return {
+    inputTokens: (left.inputTokens ?? 0) + (right.inputTokens ?? 0),
+    outputTokens: (left.outputTokens ?? 0) + (right.outputTokens ?? 0),
+    totalTokens: (left.totalTokens ?? 0) + (right.totalTokens ?? 0),
+  };
+}
+
+async function streamCourseSectionDraft(params: {
+  input: ResolvedCourseSectionProductionInput;
+  target: CourseSectionProductionTarget;
+  modelSeries: Awaited<ReturnType<typeof getUserAIModelSeries>>;
+  trace: ReturnType<typeof createLearnTrace>;
+  onTextChange: (text: string) => void;
+}): Promise<CourseSectionStreamingDraftResult> {
+  let generatedText = "";
+  let totalUsage: CourseSectionStreamingDraftResult["totalUsage"];
+  let finishReason: string | null = null;
+  let stepCount = 0;
+  let continuationAttempts = 0;
+
+  const runStream = async (prompt: string) => {
+    const result = streamText({
+      model: getModelForPolicy("section-draft", { modelSeries: params.modelSeries }),
+      system: buildCourseSectionSystemPrompt({
+        guidance: params.input.guidance,
+        sectionIndex: params.target.sectionIndex,
+      }),
+      prompt,
+      ...buildGenerationSettingsForPolicy(
+        "section-draft",
+        {
+          maxOutputTokens: COURSE_SECTION_MAX_OUTPUT_TOKENS,
+          temperature: 0.5,
+        },
+        {
+          modelSeries: params.modelSeries,
+        },
+      ),
+      timeout: 180_000,
+      experimental_transform: smoothStream({
+        chunking: new Intl.Segmenter("zh-Hans", { granularity: "word" }),
+      }),
+      onFinish: ({ totalUsage: usage, finishReason: reason, steps }) => {
+        totalUsage = mergeUsage(totalUsage, usage);
+        finishReason = reason;
+        stepCount += steps.length;
+      },
+    });
+
+    for await (const chunk of result.textStream) {
+      generatedText += chunk;
+      params.onTextChange(generatedText);
+      await appendCourseSectionLiveStreamChunk({
+        courseId: params.target.courseId,
+        outlineNodeId: params.input.outlineNodeId,
+        chunk,
+      });
+    }
+  };
+
+  try {
+    await runStream(buildCourseSectionUserPrompt(params.input.section.title));
+  } catch (error) {
+    const shouldContinue =
+      generatedText.trim() &&
+      continuationAttempts < COURSE_SECTION_STREAM_CONTINUATION_ATTEMPTS &&
+      isTransientUpstreamGenerationError(error);
+
+    if (!shouldContinue) {
+      throw error;
+    }
+
+    continuationAttempts += 1;
+    params.trace.step("stream-continuation-retry", {
+      outlineNodeId: params.input.outlineNodeId,
+      generatedChars: generatedText.length,
+      continuationAttempts,
+    });
+
+    await runStream(
+      buildCourseSectionContinuationPrompt({
+        sectionTitle: params.input.section.title,
+        partialText: generatedText,
+      }),
+    );
+  }
+
+  return {
+    text: generatedText,
+    finishReason,
+    totalUsage,
+    stepCount,
+  };
+}
+
 export async function materializeCourseSectionInBackground(
   target: CourseSectionProductionTarget,
+  context: CourseSectionProductionRunContext = {},
 ): Promise<BackgroundCourseSectionProductionResult> {
   const startedAt = Date.now();
   const trace = createLearnTrace("course-section-production", {
@@ -417,6 +618,8 @@ export async function materializeCourseSectionInBackground(
     };
   }
 
+  let generatedText = "";
+
   try {
     if (input.existingSection?.content) {
       await startCourseSectionLiveStream({
@@ -450,45 +653,20 @@ export async function materializeCourseSectionInBackground(
       outlineNodeId: input.outlineNodeId,
     });
 
-    let generatedText = "";
-    let finishReason: string | null = null;
-    let totalUsage: Parameters<typeof recordAIUsage>[0]["usage"] | undefined;
-    let stepCount = 0;
-
-    const result = streamText({
-      model: getModelForPolicy("section-draft", { modelSeries }),
-      system: buildCourseSectionSystemPrompt({
-        guidance: input.guidance,
-        sectionIndex: target.sectionIndex,
-      }),
-      prompt: buildCourseSectionUserPrompt(input.section.title),
-      ...buildGenerationSettingsForPolicy(
-        "section-draft",
-        {
-          temperature: 0.5,
-        },
-        {
-          modelSeries,
-        },
-      ),
-      timeout: 180_000,
-      experimental_transform: smoothStream({
-        chunking: new Intl.Segmenter("zh-Hans", { granularity: "word" }),
-      }),
-      onFinish: ({ totalUsage: usage, finishReason: reason, steps }) => {
-        totalUsage = usage;
-        finishReason = reason;
-        stepCount = steps.length;
+    const draft = await streamCourseSectionDraft({
+      input,
+      target,
+      modelSeries,
+      trace,
+      onTextChange: (text) => {
+        generatedText = text;
       },
     });
 
-    for await (const chunk of result.textStream) {
-      generatedText += chunk;
-      await appendCourseSectionLiveStreamChunk({
-        courseId: target.courseId,
-        outlineNodeId: input.outlineNodeId,
-        chunk,
-      });
+    generatedText = draft.text;
+
+    if (!generatedText.trim()) {
+      throw new Error("Generated section content is empty");
     }
 
     const persisted = await persistGeneratedCourseSection({
@@ -511,20 +689,20 @@ export async function materializeCourseSectionInBackground(
       status: "generated",
       outlineNodeId: input.outlineNodeId,
       generatedChars: generatedText.length,
-      finishReason,
+      finishReason: draft.finishReason,
       sectionDocumentId: persisted.sectionDocumentId,
       indexJobId: persisted.indexJobId,
     });
 
     void recordAIUsage({
       ...telemetry,
-      usage: totalUsage,
+      usage: draft.totalUsage,
       durationMs: Date.now() - startedAt,
       success: true,
       metadata: {
         ...telemetry.metadata,
-        finishReason,
-        stepCount,
+        finishReason: draft.finishReason,
+        stepCount: draft.stepCount,
         outlineNodeId: input.outlineNodeId,
         sectionDocumentId: persisted.sectionDocumentId,
         indexJobId: persisted.indexJobId,
@@ -536,11 +714,23 @@ export async function materializeCourseSectionInBackground(
       ...persisted,
     };
   } catch (error) {
-    await failCourseSectionLiveStream({
-      courseId: target.courseId,
-      outlineNodeId: input.outlineNodeId,
-      error: getErrorMessage(error),
-    });
+    if (shouldKeepLiveStreamPendingForRetry({ error, generatedText, context })) {
+      await markCourseSectionLiveStreamPending({
+        courseId: target.courseId,
+        outlineNodeId: input.outlineNodeId,
+      });
+      trace.step("retryable-upstream-error-pending", {
+        outlineNodeId: input.outlineNodeId,
+        attemptNumber: context.attemptNumber,
+        maxAttempts: context.maxAttempts,
+      });
+    } else {
+      await failCourseSectionLiveStream({
+        courseId: target.courseId,
+        outlineNodeId: input.outlineNodeId,
+        error: getCourseSectionUserFacingError(error),
+      });
+    }
     trace.fail(error, {
       outlineNodeId: input.outlineNodeId,
     });

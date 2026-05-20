@@ -10,6 +10,7 @@
     "typecheck": "bun ./node_modules/.bin/next typegen && tsc --noEmit",
     "ai:eval": "bun scripts/run-ai-evals.ts",
     "ai:eval:interview-speed": "bun scripts/run-interview-speed-eval.ts",
+    "billing:create-code": "bun scripts/create-redeem-code.ts",
     "worker:all": "bun scripts/start-workers.ts",
     "worker:career-tree": "bun scripts/start-career-tree-worker.ts",
     "worker:course-production": "bun scripts/start-course-production-worker.ts",

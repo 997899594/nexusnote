@@ -2,6 +2,13 @@ import { relations } from "drizzle-orm";
 import { aiUsage } from "./schema/ai-usage";
 import { accounts, sessions, userProfiles, users, verificationTokens } from "./schema/auth";
 import {
+  billingOrders,
+  billingWebhookEvents,
+  redeemCodeRedemptions,
+  redeemCodes,
+  userEntitlements,
+} from "./schema/billing";
+import {
   careerCourseChapterEvidence,
   careerCourseSkillEvidence,
   careerGenerationRuns,
@@ -37,6 +44,7 @@ import { aiSkins, userSkinPreferences } from "./schema/skins";
 
 export * from "./schema/ai-usage";
 export * from "./schema/auth";
+export * from "./schema/billing";
 export * from "./schema/career-tree";
 export * from "./schema/conversations";
 export * from "./schema/courses";
@@ -73,6 +81,9 @@ export const usersRelations = relations(users, ({ many }) => ({
   careerUserTreeSnapshots: many(careerUserTreeSnapshots),
   careerUserGraphState: many(careerUserGraphState),
   researchRuns: many(researchRuns),
+  billingOrders: many(billingOrders),
+  entitlements: many(userEntitlements),
+  redeemCodeRedemptions: many(redeemCodeRedemptions),
 }));
 
 export const notesRelations = relations(notes, ({ one, many }) => ({
@@ -338,5 +349,40 @@ export const aiUsageRelations = relations(aiUsage, ({ one }) => ({
   user: one(users, {
     fields: [aiUsage.userId],
     references: [users.id],
+  }),
+}));
+
+export const billingOrdersRelations = relations(billingOrders, ({ one }) => ({
+  user: one(users, {
+    fields: [billingOrders.userId],
+    references: [users.id],
+  }),
+}));
+
+export const userEntitlementsRelations = relations(userEntitlements, ({ one }) => ({
+  user: one(users, {
+    fields: [userEntitlements.userId],
+    references: [users.id],
+  }),
+}));
+
+export const billingWebhookEventsRelations = relations(billingWebhookEvents, () => ({}));
+
+export const redeemCodesRelations = relations(redeemCodes, ({ many }) => ({
+  redemptions: many(redeemCodeRedemptions),
+}));
+
+export const redeemCodeRedemptionsRelations = relations(redeemCodeRedemptions, ({ one }) => ({
+  code: one(redeemCodes, {
+    fields: [redeemCodeRedemptions.codeId],
+    references: [redeemCodes.id],
+  }),
+  user: one(users, {
+    fields: [redeemCodeRedemptions.userId],
+    references: [users.id],
+  }),
+  entitlement: one(userEntitlements, {
+    fields: [redeemCodeRedemptions.entitlementId],
+    references: [userEntitlements.id],
   }),
 }));

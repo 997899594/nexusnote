@@ -96,6 +96,14 @@ export const defaults = {
     researchMaxRetries: 2,
     researchBackoffDelay: 1500,
   },
+
+  billing: {
+    provider: "external",
+    checkoutBaseUrl: "",
+    webhookSecret: "",
+    pay302BaseUrl: "https://api.302.ai",
+    pay302ApiKey: "",
+  },
 } as const;
 
 // ============================================
@@ -195,6 +203,13 @@ export const serverEnvSchema = z.object({
     .string()
     .default("false")
     .transform((v) => v === "true"),
+
+  // Billing
+  BILLING_PROVIDER: z.enum(["external", "302pay"]).default(defaults.billing.provider),
+  BILLING_CHECKOUT_BASE_URL: z.string().default(defaults.billing.checkoutBaseUrl),
+  BILLING_WEBHOOK_SECRET: z.string().default(defaults.billing.webhookSecret),
+  BILLING_302PAY_BASE_URL: z.string().url().default(defaults.billing.pay302BaseUrl),
+  BILLING_302PAY_API_KEY: z.string().default(defaults.billing.pay302ApiKey),
 
   // Notes / Liquid Knowledge
   NOTES_TOPIC_THRESHOLD: z.coerce.number().min(0).max(1).default(defaults.notes.topicThreshold),
@@ -472,6 +487,12 @@ export function logServerConfig(env: ServerEnv): void {
   console.log(`  AI_ENABLE_WEB_SEARCH: ${env.AI_ENABLE_WEB_SEARCH}`);
   console.log(`  EMBEDDING_MODEL: ${env.EMBEDDING_MODEL}`);
   console.log(`  EMBEDDING_DIMENSIONS: ${env.EMBEDDING_DIMENSIONS}`);
+  console.log(`  BILLING_PROVIDER: ${env.BILLING_PROVIDER}`);
+  console.log(
+    `  BILLING_CHECKOUT_CONFIGURED: ${Boolean(
+      env.BILLING_CHECKOUT_BASE_URL || env.BILLING_302PAY_API_KEY,
+    )}`,
+  );
 }
 
 // ============================================

@@ -2,6 +2,7 @@ import { ArrowLeft, BarChart3, User } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { AIPreferencesPanel } from "@/components/profile/AIPreferencesPanel";
+import { BillingPanel } from "@/components/profile/BillingPanel";
 import { FloatingHeader, LibraryAnalysisPageShell } from "@/components/shared/layout";
 import { redirectIfUnauthenticated } from "@/lib/auth/page";
 import { getProfileAvatarLabel, getProfileDisplayName } from "@/lib/profile/avatar";
@@ -61,7 +62,10 @@ async function ProfileSettingsPageContent() {
         </div>
       </section>
 
-      <AIPreferencesPanel />
+      <div className="space-y-6">
+        <BillingPanel />
+        <AIPreferencesPanel />
+      </div>
     </LibraryAnalysisPageShell>
   );
 }

@@ -12,6 +12,7 @@ import {
 const LIVE_STREAM_POLL_INTERVAL_MS = 180;
 const LIVE_STREAM_TIMEOUT_MS = 285_000;
 const WORKER_START_GRACE_MS = 45_000;
+const PENDING_JOB_STATES = new Set(["active", "waiting", "delayed", "prioritized"]);
 
 interface GenerateCourseSectionWorkflowOptions {
   userId: string;
@@ -69,8 +70,17 @@ function createCourseSectionLiveResponse(params: {
 
           if (snapshot.status === "pending" && Date.now() - startedAt > WORKER_START_GRACE_MS) {
             const jobSnapshot = await getCourseProductionJobSnapshot(params.jobId);
-            if (!jobSnapshot || jobSnapshot.state !== "active") {
+            if (!jobSnapshot) {
               throw new Error("章节生成已经开始，但当前还没有产出内容。可以稍后回来查看。");
+            }
+            if (jobSnapshot.state === "failed") {
+              throw new Error("章节生成失败，请稍后重试。");
+            }
+            if (jobSnapshot.state === "completed") {
+              throw new Error("章节生成没有返回内容，请稍后重试。");
+            }
+            if (!PENDING_JOB_STATES.has(jobSnapshot.state)) {
+              throw new Error("章节生成暂时不可用，请稍后重试。");
             }
           }
 
