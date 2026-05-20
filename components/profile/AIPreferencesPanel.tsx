@@ -1,6 +1,6 @@
 "use client";
 
-import { Brain, Palette, Sparkles } from "lucide-react";
+import { Brain, ChevronDown, Palette, Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useState, useTransition } from "react";
 import { SkinSelector } from "@/components/chat/SkinSelector";
@@ -301,21 +301,32 @@ function LabeledSelect({
   options: Array<{ value: string; label: string }>;
 }) {
   return (
-    <label className="block">
-      <span className="mb-2 block text-sm font-medium text-[var(--color-text-secondary)]">
+    <label className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-4">
+      <span className="text-sm font-medium text-[var(--color-text-secondary)] md:min-w-20">
         {label}
       </span>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="w-full rounded-2xl border border-black/8 bg-white px-4 py-3 text-sm text-[var(--color-text)] outline-none transition-colors focus:border-[var(--color-panel-strong)]"
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+      <span className="group relative block md:w-[min(100%,16rem)]">
+        <select
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className={cn(
+            "h-11 w-full appearance-none rounded-full border border-black/8 bg-[var(--color-panel-soft)]",
+            "px-4 pr-11 text-sm font-medium text-[var(--color-text)] shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]",
+            "outline-none transition-[border-color,background-color,box-shadow]",
+            "hover:border-black/12 hover:bg-white",
+            "focus:border-[var(--color-panel-strong)] focus:bg-white focus:shadow-[0_0_0_3px_rgba(15,23,42,0.08),inset_0_1px_0_rgba(255,255,255,0.85)]",
+          )}
+        >
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <span className="pointer-events-none absolute inset-y-1 right-1 flex w-9 items-center justify-center rounded-full text-[var(--color-text-tertiary)] transition-colors group-hover:bg-white/75 group-hover:text-[var(--color-text-secondary)]">
+          <ChevronDown className="h-4 w-4" />
+        </span>
+      </span>
     </label>
   );
 }
