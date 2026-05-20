@@ -2,20 +2,10 @@
 
 import type { UIMessage } from "ai";
 import { AnimatePresence, motion } from "framer-motion";
-import {
-  Globe,
-  GraduationCap,
-  Loader2,
-  MessageCircle,
-  Plus,
-  Search,
-  Send,
-  Sparkles,
-  X,
-} from "lucide-react";
+import { Globe, GraduationCap, Loader2, MessageCircle, Plus, Search, Send, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AIDegradationBanner, WorkspaceEmptyState } from "@/components/common";
+import { AIDegradationBanner } from "@/components/common";
 import { useInputProtection } from "@/components/common/useInputProtection";
 import type { ResearchRunSnapshot, ResearchRunStatus } from "@/lib/ai/research/contracts";
 import { cn } from "@/lib/utils";
@@ -439,7 +429,7 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
     ? `描述你想${selectedCommand.modeLabel}的内容...`
     : showCommands
       ? "搜索快捷动作..."
-      : "继续对话...";
+      : "输入问题，或 / 调出动作...";
 
   const lastMsg = chatMessages[chatMessages.length - 1];
   const isAILoading =
@@ -447,26 +437,46 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
 
   if (!sessionId) {
     return (
-      <div className="flex h-full items-center justify-center text-[var(--color-text-muted)]">
+      <div className="flex h-full items-center justify-center bg-white/72 text-[var(--color-text-muted)]">
         选择或创建一个会话开始聊天
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="mobile-scroll flex-1 overflow-y-auto bg-white px-4 pb-8 pt-5 safe-bottom md:px-6 md:pb-10 md:pt-6">
-        <div className="mx-auto max-w-[calc(100vw-32px)] space-y-4 md:max-w-[var(--message-max-width)]">
+    <div className="flex h-full w-full flex-col overflow-hidden bg-white/72">
+      <div className="hidden border-b border-black/[0.04] bg-white/82 px-4 pb-3 pt-3 backdrop-blur-xl md:px-6 md:py-4 lg:block">
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <div className="text-[0.625rem] font-semibold tracking-[0.18em] text-[var(--color-text-muted)]">
+              对话
+            </div>
+            <p className="mt-1 truncate text-xs text-[var(--color-text-secondary)]">
+              聚焦当前问题，必要时用 / 切换动作。
+            </p>
+          </div>
+          <div className="hidden rounded-full bg-[var(--color-panel-soft)] px-3 py-1.5 text-[0.6875rem] font-medium text-[var(--color-text-tertiary)] md:block">
+            Shift + Enter 换行
+          </div>
+        </div>
+      </div>
+
+      <div className="mobile-scroll flex-1 overflow-y-auto bg-transparent px-4 pb-8 pt-5 md:px-6 md:pb-10 md:pt-6">
+        <div className="mx-auto max-w-[calc(100vw-32px)] space-y-4 md:max-w-[780px]">
           <AIDegradationBanner kind={aiDegradedKind} />
 
           {chatMessages.length === 0 && !isLoading && (
-            <WorkspaceEmptyState
-              icon={Sparkles}
-              eyebrow="新对话"
-              title="开始一段新对话"
-              description="继续提问、保存想法，或去生成课程和整理笔记。"
-              className="py-10"
-            />
+            <div className="mx-auto flex max-w-sm flex-col items-center px-4 py-16 text-center">
+              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-panel-soft)] text-[var(--color-text-secondary)]">
+                <MessageCircle className="h-4 w-4" />
+              </div>
+              <h2 className="text-base font-semibold tracking-[-0.02em] text-[var(--color-text)]">
+                开始对话
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">
+                直接输入问题。需要搜索、课程或笔记动作时，用 / 调出快捷入口。
+              </p>
+            </div>
           )}
 
           {chatMessages.map((msg) => (
@@ -474,7 +484,7 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
           ))}
 
           {backgroundResearch && (
-            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-text)] shadow-sm">
+            <div className="ui-message-card rounded-[26px] px-4 py-3 text-sm text-[var(--color-text)]">
               <div className="mb-2 flex items-center gap-2 font-medium">
                 <Loader2
                   className={cn(
@@ -574,8 +584,8 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
         </div>
       </div>
 
-      <div className="bg-[var(--color-panel-soft)] px-4 pb-5 pt-4 safe-bottom md:px-6 md:pb-6 md:pt-4">
-        <div className="relative mx-auto max-w-[calc(100vw-32px)] md:max-w-[var(--message-max-width)]">
+      <div className="safe-bottom border-t border-black/[0.04] bg-white/84 px-4 pb-4 pt-3 backdrop-blur-xl md:px-6 md:pb-5 md:pt-4">
+        <div className="relative mx-auto max-w-[calc(100vw-32px)] md:max-w-[780px]">
           <AnimatePresence>
             {showCommands && !selectedCommand && filteredCommands.length > 0 && (
               <CommandMenu
@@ -611,10 +621,7 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
             )}
           </AnimatePresence>
 
-          <div className="ui-input-shell flex items-end gap-2 rounded-[28px] p-2 md:gap-3 md:p-3">
-            <div className="ui-icon-chip flex h-8 w-8 flex-shrink-0 items-center justify-center">
-              <Sparkles className="h-4 w-4 text-[var(--color-text)]" />
-            </div>
+          <div className="ui-input-shell flex items-end gap-2 rounded-[20px] p-2 md:gap-3">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -622,7 +629,7 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
               onPaste={handlePaste}
               placeholder={placeholder}
               rows={1}
-              className="flex-1 bg-transparent border-none outline-none text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] resize-none min-h-[24px] max-h-[120px]"
+              className="min-h-[24px] max-h-[120px] flex-1 resize-none border-none bg-transparent text-sm text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-muted)]"
             />
             <motion.button
               whileHover={{ scale: 1.05 }}

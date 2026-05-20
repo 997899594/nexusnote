@@ -59,7 +59,7 @@ export function ChatMessage({
                 "max-w-[var(--message-max-width)]",
                 isLearning
                   ? "ui-message-card rounded-[26px] px-4 py-3.5"
-                  : "rounded-2xl rounded-bl-md bg-[var(--color-panel-soft)] px-4 py-3 text-[var(--color-text)]",
+                  : "ui-message-card rounded-[26px] px-4 py-3.5 text-[var(--color-text)]",
               ),
         )}
       >
@@ -108,7 +108,7 @@ export function LoadingDots({ className, variant = "default" }: LoadingDotsProps
         className={cn(
           isLearning
             ? "ui-message-card rounded-[26px] px-4 py-3.5"
-            : "rounded-2xl rounded-bl-md bg-[var(--color-panel-soft)] px-4 py-3",
+            : "ui-message-card rounded-[26px] px-4 py-3.5",
         )}
       >
         {isLearning && (

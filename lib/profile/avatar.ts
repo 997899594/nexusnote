@@ -1,8 +1,18 @@
 const READABLE_CHARACTER_PATTERN = /[A-Za-z\u4E00-\u9FFF]/;
 const LATIN_CHARACTER_PATTERN = /[A-Za-z]/;
+const PLACEHOLDER_DISPLAY_NAMES = new Set(["学习者", "用户", "新用户", "demo", "demo user"]);
+const PLACEHOLDER_EMAIL_HANDLES = new Set(["demo", "test", "user"]);
 
 function normalizeText(value: string | null | undefined): string {
   return value?.trim() ?? "";
+}
+
+function isPlaceholderName(value: string): boolean {
+  return PLACEHOLDER_DISPLAY_NAMES.has(value.toLowerCase());
+}
+
+function isPlaceholderEmailHandle(value: string): boolean {
+  return PLACEHOLDER_EMAIL_HANDLES.has(value.toLowerCase());
 }
 
 function isReadableCharacter(char: string): boolean {
@@ -34,7 +44,8 @@ function getReadableEmailHandle(email: string | null | undefined): string | null
     return null;
   }
 
-  return localPart.split(/\s+/).filter(Boolean).map(toDisplayToken).join(" ");
+  const readableHandle = localPart.split(/\s+/).filter(Boolean).map(toDisplayToken).join(" ");
+  return isPlaceholderEmailHandle(readableHandle) ? null : readableHandle;
 }
 
 function getReadableParts(value: string): string[] {
@@ -58,7 +69,7 @@ export function getProfileDisplayName(
   email: string | null | undefined,
 ): string {
   const trimmedName = normalizeText(name);
-  if (trimmedName) {
+  if (trimmedName && !isPlaceholderName(trimmedName)) {
     return trimmedName;
   }
 
@@ -69,7 +80,11 @@ export function getProfileAvatarLabel(
   name: string | null | undefined,
   email: string | null | undefined,
 ): string | null {
-  const source = normalizeText(name) || getReadableEmailHandle(email) || "";
+  const trimmedName = normalizeText(name);
+  const source =
+    trimmedName && !isPlaceholderName(trimmedName)
+      ? trimmedName
+      : getReadableEmailHandle(email) || "";
   if (!source) {
     return null;
   }
