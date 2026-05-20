@@ -3,6 +3,7 @@
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useLearnStore } from "@/stores/learn";
 import { ChapterList } from "./ChapterList";
 
 interface LearnSidebarProps {
@@ -12,49 +13,63 @@ interface LearnSidebarProps {
 
 export function LearnSidebar({ courseTitle, width }: LearnSidebarProps) {
   const router = useRouter();
+  const chapters = useLearnStore((s) => s.chapters);
+  const completedSections = useLearnStore((s) => s.completedSections);
+  const totalSections = chapters.reduce((total, chapter) => total + chapter.sections.length, 0);
+  const completedCount = chapters.reduce(
+    (total, chapter) =>
+      total + chapter.sections.filter((section) => completedSections.has(section.nodeId)).length,
+    0,
+  );
+  const progress = totalSections > 0 ? Math.round((completedCount / totalSections) * 100) : 0;
 
   return (
     <div
-      className="ui-page-shell flex h-full w-full flex-col safe-top safe-bottom"
+      className="flex h-full w-full flex-col bg-white/72 safe-top safe-bottom"
       style={{ maxWidth: width }}
     >
       <div className="flex h-full flex-col">
-        {/* Header */}
-        <div className="flex items-center gap-3 border-b border-black/5 px-5 pb-4 pt-5">
+        <div className="border-b border-black/[0.04] px-4 pb-5 pt-5 lg:px-5">
           <button
             type="button"
             onClick={() => router.back()}
             aria-label="返回"
             className={cn(
-              "ui-control-surface flex h-9 w-9 items-center justify-center rounded-lg",
+              "flex h-9 w-9 items-center justify-center rounded-full",
               "text-[var(--color-text-secondary)]",
               "hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]",
-              "transition-all duration-200",
+              "transition-colors duration-200",
             )}
           >
             <ArrowLeft className="h-4.5 w-4.5" />
           </button>
-          <div className="flex-1 min-w-0">
-            <div className="mb-1 text-[0.625rem] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
-              目录
+
+          <div className="mt-5">
+            <div className="mb-2 text-[0.625rem] font-semibold tracking-[0.18em] text-[var(--color-text-muted)]">
+              课程
             </div>
-            <h1 className="text-[0.9375rem] font-semibold text-[var(--color-text)] truncate leading-snug">
+            <h1 className="line-clamp-3 text-[0.98rem] font-semibold leading-snug tracking-[-0.02em] text-[var(--color-text)]">
               {courseTitle}
             </h1>
           </div>
-        </div>
 
-        {/* Chapter list header */}
-        <div className="px-5 pb-3 pt-5">
-          <div className="flex items-center justify-between">
-            <h2 className="text-[0.6875rem] font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider">
-              课程章节
-            </h2>
+          <div className="mt-5 space-y-2">
+            <div className="flex items-center justify-between text-[0.6875rem] text-[var(--color-text-tertiary)]">
+              <span>
+                {completedCount}/{totalSections || 0}
+              </span>
+              <span>{progress}%</span>
+            </div>
+            <div className="h-1 overflow-hidden rounded-full bg-black/[0.06]">
+              <div
+                className="h-full rounded-full bg-[var(--color-panel-strong)] transition-[width] duration-500"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
           </div>
         </div>
 
-        {/* Chapter > Section list */}
-        <div className="mobile-scroll flex-1 overflow-y-auto px-3 pb-5">
+        <div className="mobile-scroll flex-1 overflow-y-auto px-3 py-4">
           <ChapterList />
         </div>
       </div>

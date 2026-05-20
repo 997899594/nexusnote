@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronDown, Circle } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLearnStore } from "@/stores/learn";
 
@@ -20,15 +20,14 @@ export function ChapterList() {
 
   if (chapters.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-[var(--color-text-tertiary)]">
-        <Circle className="w-10 h-10 mb-3 opacity-20" />
-        <p className="text-xs">暂无章节内容</p>
+      <div className="px-2 py-10 text-sm leading-6 text-[var(--color-text-tertiary)]">
+        <p>暂无章节内容</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-0.5">
       {chapters.map((chapter, chIdx) => {
         const isExpanded = expandedChapters.has(chIdx);
         const isCurrent = chIdx === currentChapterIndex;
@@ -48,16 +47,16 @@ export function ChapterList() {
                 }
               }}
               className={cn(
-                "group w-full rounded-2xl border px-3 py-2.5 text-left transition-all duration-200",
+                "group w-full rounded-2xl px-2.5 py-2.5 text-left transition-colors duration-200",
                 isCurrent
-                  ? "border-black/8 bg-white text-[var(--color-text)] shadow-[0_12px_34px_-28px_rgba(15,23,42,0.35)]"
-                  : "border-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)]",
+                  ? "bg-[var(--color-panel-soft)] text-[var(--color-text)]"
+                  : "text-[var(--color-text-secondary)] hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)]",
               )}
             >
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-start gap-2.5">
                 <span
                   className={cn(
-                    "h-2 w-2 shrink-0 rounded-full transition-colors",
+                    "mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full transition-colors",
                     isCurrent
                       ? "bg-[var(--color-text)]"
                       : isChapterComplete
@@ -70,18 +69,21 @@ export function ChapterList() {
                 <div className="min-w-0 flex-1">
                   <div
                     className={cn(
-                      "truncate text-[0.84rem] leading-snug",
+                      "line-clamp-2 text-[0.84rem] leading-snug",
                       isCurrent ? "font-semibold" : "font-medium",
                     )}
                   >
                     {chapter.title}
                   </div>
+                  <div className="mt-1 text-[0.625rem] leading-none text-[var(--color-text-muted)]">
+                    {chapterCompletedCount}/{chapter.sections.length || 0}
+                  </div>
                 </div>
 
                 <span
                   className={cn(
-                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors",
-                    "text-[var(--color-text-tertiary)] group-hover:bg-white group-hover:text-[var(--color-text-secondary)]",
+                    "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-colors",
+                    "text-[var(--color-text-tertiary)] group-hover:text-[var(--color-text-secondary)]",
                   )}
                 >
                   <ChevronDown
@@ -103,8 +105,8 @@ export function ChapterList() {
                   transition={{ duration: 0.2 }}
                   className="overflow-hidden"
                 >
-                  <div className="py-1 pl-9">
-                    <div className="space-y-0.5">
+                  <div className="ml-[1.1rem] border-l border-black/[0.06] py-1 pl-3">
+                    <div className="space-y-px">
                       {chapter.sections.map((sec, secIdx) => {
                         const isCompleted = completedSections.has(sec.nodeId);
                         const isCurrentSection = isCurrent && secIdx === currentSectionIndex;
@@ -123,16 +125,20 @@ export function ChapterList() {
                                 setSidebarOpen(false);
                               }}
                               className={cn(
-                                "w-full rounded-xl px-3 py-2 text-left text-[0.8125rem] transition-colors",
+                                "relative w-full rounded-xl px-2.5 py-2 text-left text-[0.8125rem] transition-colors",
                                 isCurrentSection || isRequestedSection
-                                  ? "bg-[var(--color-panel-soft)] text-[var(--color-text)]"
+                                  ? "bg-white text-[var(--color-text)] shadow-[inset_0_0_0_1px_rgba(15,23,42,0.05)]"
                                   : "text-[var(--color-text-secondary)] hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)]",
                               )}
                             >
                               <div className="flex items-center gap-2.5">
                                 <span
+                                  className="absolute -left-3 top-1/2 h-px w-2 bg-black/[0.08]"
+                                  aria-hidden="true"
+                                />
+                                <span
                                   className={cn(
-                                    "h-1.5 w-1.5 shrink-0 rounded-full",
+                                    "h-1 w-1 shrink-0 rounded-full",
                                     isCurrentSection || isRequestedSection
                                       ? "bg-[var(--color-text)]"
                                       : isCompleted

@@ -48,7 +48,7 @@ function CaptureNoteDialog({
       <motion.div
         initial={{ opacity: 0, scale: 0.98, y: 18 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="ui-message-card safe-bottom w-full max-w-[32rem] rounded-[28px] p-4 md:w-[28rem] md:max-w-[calc(100vw-2rem)]"
+        className="ui-message-card safe-bottom w-[min(32rem,calc(100vw-1.5rem))] rounded-[28px] p-4"
       >
         <h3 className="mb-2 text-sm font-semibold text-[var(--color-text)]">保存到笔记</h3>
         <div className="rounded-xl bg-[var(--color-panel-soft)] px-3 py-2 text-sm leading-6 text-[var(--color-text-secondary)]">
@@ -98,7 +98,7 @@ function SectionStateBlock({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        "border-b border-black/5 px-1 py-8 md:px-2 md:py-10",
+        "border-b border-black/[0.05] px-1 py-8 md:px-2 md:py-10",
         tone === "error" && "border-rose-200/70",
       )}
     >
@@ -272,7 +272,7 @@ function SectionBlock({
         {state.status === "queued" && (
           <SectionStateBlock
             title={sectionTitle}
-            description="这一节正在准备中。你可以先读其它内容，稍后回来继续。"
+            description="这一节正在准备中。"
             action={
               <div className="inline-flex items-center gap-2 text-xs text-[var(--color-text-secondary)]">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -285,7 +285,7 @@ function SectionBlock({
         {state.status === "generating" && state.content.length === 0 && (
           <SectionStateBlock
             title={sectionTitle}
-            description="内容正在生成，准备好后会自动出现。"
+            description="内容准备好后会自动出现。"
             action={
               <div className="inline-flex items-center gap-2 text-xs text-[var(--color-text-secondary)]">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -297,10 +297,10 @@ function SectionBlock({
 
         {(state.status === "generating" || state.status === "complete") && state.content && (
           <article className="px-1 py-1 md:px-2">
-            <h3 className="mb-5 text-xl font-semibold leading-tight tracking-[-0.03em] text-[var(--color-text)] md:text-2xl">
+            <h3 className="mb-6 text-[1.55rem] font-semibold leading-tight tracking-[-0.045em] text-[var(--color-text)] md:text-[1.9rem]">
               {sectionTitle}
             </h3>
-            <div className="learn-prose border-b border-black/5 pb-10 md:pb-12">
+            <div className="learn-prose border-b border-black/[0.05] pb-10 md:pb-12">
               <StreamdownMessage
                 content={state.content}
                 isStreaming={state.status === "generating"}
@@ -385,27 +385,27 @@ function SectionBoundary({
   onNext: () => void;
 }) {
   return (
-    <section className="mt-14 border-t border-black/6 pt-6 md:mt-16 md:pt-8">
+    <section className="mt-12 border-t border-black/[0.06] pt-5 md:mt-14 md:pt-6">
       <div className="grid gap-2 md:grid-cols-[1fr_auto_1fr]">
         <button
           type="button"
           onClick={onPrevious}
           disabled={!hasPrevious}
           className={cn(
-            "group flex min-h-14 items-center gap-2 rounded-full px-2.5 py-2 text-left transition-all",
+            "group flex min-h-12 items-center gap-2 rounded-2xl px-2.5 py-2 text-left transition-colors",
             !hasPrevious
               ? "cursor-not-allowed text-[var(--color-text-muted)]"
               : "text-[var(--color-text)] hover:bg-[var(--color-panel-soft)]",
           )}
         >
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--color-panel-soft)]">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-panel-soft)]">
             <ArrowLeft className="h-4 w-4" />
           </span>
           <span className="min-w-0">
-            <span className="block text-[0.6875rem] font-semibold tracking-[0.14em] text-[var(--color-text-tertiary)]">
+            <span className="block text-[0.625rem] font-semibold tracking-[0.14em] text-[var(--color-text-tertiary)]">
               上一节
             </span>
-            <span className="mt-1 line-clamp-2 text-sm font-medium">
+            <span className="mt-1 line-clamp-1 text-sm font-medium">
               {previousTitle ?? "已经是第一节"}
             </span>
           </span>
@@ -414,10 +414,10 @@ function SectionBoundary({
         <button
           type="button"
           onClick={onOpenChat}
-          className="group flex min-h-14 items-center justify-center gap-2 rounded-full px-5 py-2 text-sm font-medium text-[var(--color-text)] transition-all hover:bg-[var(--color-panel-soft)]"
+          className="group flex min-h-12 items-center justify-center gap-2 rounded-2xl px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)]"
         >
           <MessageSquare className="h-4 w-4 text-[var(--color-text-secondary)]" />
-          问这一节
+          提问
         </button>
 
         <button
@@ -425,28 +425,28 @@ function SectionBoundary({
           onClick={onNext}
           disabled={!hasNext}
           className={cn(
-            "group flex min-h-14 items-center justify-between gap-2 rounded-full px-2.5 py-2 text-left transition-all",
+            "group flex min-h-12 items-center justify-between gap-2 rounded-2xl px-2.5 py-2 text-left transition-colors",
             !hasNext
               ? "cursor-not-allowed text-[var(--color-text-muted)]"
-              : "bg-[var(--color-panel-strong)] text-white hover:bg-[var(--color-panel-strong)]/90",
+              : "bg-[var(--color-panel-strong)] text-white hover:bg-[var(--color-panel-strong)]/92",
           )}
         >
           <span className="min-w-0">
             <span
               className={cn(
-                "block text-[0.6875rem] font-semibold tracking-[0.14em]",
+                "block text-[0.625rem] font-semibold tracking-[0.14em]",
                 !hasNext ? "text-[var(--color-text-tertiary)]" : "text-white/62",
               )}
             >
               下一节
             </span>
-            <span className="mt-1 line-clamp-2 text-sm font-medium">
+            <span className="mt-1 line-clamp-1 text-sm font-medium">
               {nextTitle ?? "课程已经读完"}
             </span>
           </span>
           <span
             className={cn(
-              "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
+              "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
               !hasNext ? "bg-[var(--color-panel-soft)]" : "bg-white/14",
             )}
           >
@@ -639,25 +639,27 @@ export function SectionReader({
   return (
     <div ref={scrollContainerRef} className="mobile-scroll h-full overflow-y-auto">
       <div
-        className={cn(
-          "mx-auto w-full max-w-[820px]",
-          "px-4 py-6 md:px-8 md:py-8 lg:px-10 lg:py-10",
-        )}
+        className={cn("mx-auto w-full max-w-[780px]", "px-4 py-5 md:px-8 md:py-7 lg:px-10 lg:py-8")}
       >
-        <div className="sticky top-0 z-20 -mx-1 mb-8 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(255,255,255,0.9)_72%,rgba(255,255,255,0)_100%)] px-1 pb-5 pt-1">
-          <div className="max-w-3xl">
-            <div className="mb-2 text-[0.6875rem] font-semibold tracking-[0.16em] text-[var(--color-text-muted)]">
-              第 {currentChapterIndex + 1} 章
+        <div className="sticky top-0 z-20 -mx-4 mb-9 hidden border-b border-black/[0.04] bg-white/90 px-4 py-4 backdrop-blur-xl md:block md:-mx-8 md:px-8 lg:-mx-10 lg:px-10">
+          <div className="flex items-end justify-between gap-5">
+            <div className="min-w-0">
+              <div className="mb-1.5 text-[0.625rem] font-semibold tracking-[0.18em] text-[var(--color-text-muted)]">
+                第 {currentChapterIndex + 1} 章
+              </div>
+              <h2 className="truncate text-[1.25rem] font-semibold leading-tight tracking-[-0.04em] text-[var(--color-text)] md:text-[1.45rem]">
+                {currentChapter.title}
+              </h2>
             </div>
-            <h2 className="text-[1.55rem] font-semibold leading-tight tracking-[-0.045em] text-[var(--color-text)] md:text-[1.85rem]">
-              {currentChapter.title}
-            </h2>
-            {currentChapter.description ? (
-              <p className="mt-2 max-w-2xl text-[0.92rem] leading-7 text-[var(--color-text-secondary)]">
-                {currentChapter.description}
-              </p>
-            ) : null}
+            <div className="hidden shrink-0 rounded-full bg-[var(--color-panel-soft)] px-3 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] sm:block">
+              {currentSectionIndex + 1}/{currentChapter.sections.length || 0}
+            </div>
           </div>
+          {currentChapter.description ? (
+            <p className="mt-2 line-clamp-2 max-w-2xl text-[0.86rem] leading-6 text-[var(--color-text-secondary)]">
+              {currentChapter.description}
+            </p>
+          ) : null}
         </div>
 
         {currentSection ? (

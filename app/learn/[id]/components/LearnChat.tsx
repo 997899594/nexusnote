@@ -1,8 +1,7 @@
 "use client";
 
 import type { UIMessage } from "ai";
-import { motion } from "framer-motion";
-import { Loader2, MessageSquare, NotebookPen, Send, X } from "lucide-react";
+import { Loader2, NotebookPen, Send, X } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChatMessage, LoadingDots } from "@/components/chat/ChatMessage";
 import { useChatSession } from "@/components/chat/useChatSession";
@@ -30,8 +29,8 @@ function ChatEmptyState({
   description: string;
 }) {
   return (
-    <div className="mt-3 flex flex-col items-center justify-center px-5 py-10 text-center">
-      <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-panel-soft)] text-[var(--color-text-secondary)]">
+    <div className="mt-3 flex flex-col items-center justify-center px-4 py-8 text-center">
+      <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-panel-soft)] text-[var(--color-text-secondary)]">
         {icon}
       </div>
       <p className="text-sm font-semibold text-[var(--color-text)]">{title}</p>
@@ -243,15 +242,15 @@ export function LearnChat({ courseId, courseTitle }: LearnChatProps) {
     quickPrompts.length > 0 ? (
       <div className="space-y-2 text-left">
         <div className="text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
-          可直接提问
+          建议问题
         </div>
-        <div className="flex flex-wrap gap-2">
-          {quickPrompts.map((prompt) => (
+        <div className="space-y-1.5">
+          {quickPrompts.slice(0, 3).map((prompt) => (
             <button
               key={prompt}
               type="button"
               onClick={() => void handleQuickPrompt(prompt)}
-              className="rounded-full border border-black/8 bg-white px-3 py-1.5 text-xs text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]"
+              className="w-full rounded-2xl bg-[var(--color-panel-soft)] px-3 py-2 text-left text-xs leading-5 text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-active)] hover:text-[var(--color-text)]"
             >
               {prompt}
             </button>
@@ -267,8 +266,8 @@ export function LearnChat({ courseId, courseTitle }: LearnChatProps) {
       return (
         <ChatEmptyState
           icon={<Loader2 className="h-4 w-4 animate-spin" />}
-          title="正在恢复学习对话"
-          description="正在定位这门课的历史线程并恢复消息。"
+          title="正在打开对话"
+          description="稍等片刻。"
         />
       );
     }
@@ -277,7 +276,7 @@ export function LearnChat({ courseId, courseTitle }: LearnChatProps) {
       return (
         <div className="mt-3 flex flex-col items-center justify-center gap-3 rounded-[28px] border border-dashed border-black/10 bg-[var(--color-panel-soft)] px-5 py-10 text-center">
           <div className="space-y-1">
-            <p className="text-sm font-semibold text-[var(--color-text)]">学习对话暂时不可用</p>
+            <p className="text-sm font-semibold text-[var(--color-text)]">对话暂时不可用</p>
             <p className="text-xs leading-5 text-[var(--color-text-secondary)]">{sessionError}</p>
           </div>
           <button
@@ -292,21 +291,21 @@ export function LearnChat({ courseId, courseTitle }: LearnChatProps) {
     }
 
     return (
-      <ChatEmptyState
-        icon={<MessageSquare className="h-4 w-4" />}
-        title="围绕当前小节继续追问"
-        description="可以让我解释概念、举例、对比知识点，或者把当前理解保存到笔记。"
-      />
+      <div className="px-1 py-2 text-xs leading-5 text-[var(--color-text-tertiary)]">
+        围绕当前小节提问，回答会保留在这里。
+      </div>
     );
   };
 
   return (
-    <div className="ui-page-shell flex h-full w-full flex-col overflow-hidden">
+    <div className="flex h-full w-full flex-col overflow-hidden bg-white/72">
       {/* Header */}
-      <div className="safe-top border-b border-black/5 bg-white/92 px-4 pb-3 pt-3 backdrop-blur-xl shadow-[var(--shadow-soft-panel)] md:px-5 md:py-4">
+      <div className="safe-top border-b border-black/[0.04] bg-white/82 px-4 pb-3 pt-3 backdrop-blur-xl md:px-5 md:py-4">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <h3 className="truncate text-sm font-semibold text-[var(--color-text)]">学习助手</h3>
+            <div className="text-[0.625rem] font-semibold tracking-[0.18em] text-[var(--color-text-muted)]">
+              教练
+            </div>
             <p className="truncate text-xs text-[var(--color-text-secondary)]">
               {currentSection?.title ?? currentChapter?.title ?? courseTitle}
             </p>
@@ -328,12 +327,12 @@ export function LearnChat({ courseId, courseTitle }: LearnChatProps) {
               ) : (
                 <NotebookPen className="h-3.5 w-3.5" />
               )}
-              <span>存为笔记</span>
+              <span>保存</span>
             </button>
             <button
               type="button"
               onClick={() => setChatOpen(false)}
-              className="rounded-xl border border-black/8 bg-white p-1.5 text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-hover)] hover:text-[var(--color-text)] md:p-2"
+              className="rounded-xl border border-black/8 bg-white p-1.5 text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-hover)] hover:text-[var(--color-text)] md:hidden"
             >
               <X className="h-4 w-4" />
             </button>
@@ -343,7 +342,7 @@ export function LearnChat({ courseId, courseTitle }: LearnChatProps) {
       </div>
 
       {/* Messages */}
-      <div className="mobile-scroll flex-1 overflow-y-auto bg-white px-4 pb-8 pt-5 md:px-5 md:pb-10 md:pt-6">
+      <div className="mobile-scroll flex-1 overflow-y-auto bg-transparent px-4 pb-8 pt-5 md:px-5 md:pb-10 md:pt-6">
         <div className="space-y-4">
           <AIDegradationBanner kind={aiDegradedKind} className="mb-4" />
 
@@ -365,7 +364,7 @@ export function LearnChat({ courseId, courseTitle }: LearnChatProps) {
       </div>
 
       {/* Input */}
-      <div className="safe-bottom border-t border-black/5 bg-white px-4 pb-4 pt-3 md:px-5 md:pb-5 md:pt-4">
+      <div className="safe-bottom border-t border-black/[0.04] bg-white/84 px-4 pb-4 pt-3 backdrop-blur-xl md:px-5 md:pb-5 md:pt-4">
         <div className="ui-input-shell flex items-end gap-2 rounded-[20px] p-2">
           <textarea
             value={input}
@@ -376,9 +375,8 @@ export function LearnChat({ courseId, courseTitle }: LearnChatProps) {
             className="flex-1 min-h-[24px] max-h-[80px] resize-none border-none bg-transparent text-sm text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-muted)]"
             disabled={!resolvedSessionId || isResolvingSession || !!sessionError}
           />
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+          <button
+            type="button"
             onClick={handleSubmit}
             disabled={!input.trim() || isLoading || !resolvedSessionId || !!sessionError}
             className={cn(
@@ -393,7 +391,7 @@ export function LearnChat({ courseId, courseTitle }: LearnChatProps) {
             ) : (
               <Send className="w-3.5 h-3.5" />
             )}
-          </motion.button>
+          </button>
         </div>
       </div>
     </div>

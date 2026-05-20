@@ -25,23 +25,7 @@ export interface LearnClientProps
   sessionId: string;
 }
 
-// Sidebar width constant
-const SIDEBAR_WIDTH = 312;
-
-// Animation variants
-const sidebarVariants = {
-  hidden: { opacity: 0, x: -16 },
-  visible: {
-    opacity: 1,
-    x: 0,
-    transition: { type: "spring" as const, stiffness: 300, damping: 30 },
-  },
-  exit: {
-    opacity: 0,
-    x: -16,
-    transition: { type: "spring" as const, stiffness: 300, damping: 30 },
-  },
-};
+const SIDEBAR_WIDTH = 288;
 
 export function LearnClient({
   sessionId,
@@ -133,52 +117,23 @@ export function LearnClient({
     return (
       <div className="ui-page-shell flex min-h-dvh flex-col safe-bottom">
         {/* Mobile header */}
-        <header className="safe-top sticky top-0 z-30 shrink-0 border-b border-black/5 bg-white/95 px-4 pb-3 pt-3 backdrop-blur-xl shadow-[var(--shadow-soft-panel)]">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex min-w-0 items-start gap-2.5">
-              <button
-                type="button"
-                onClick={() => router.back()}
-                className="ui-control-surface mt-0.5 shrink-0 rounded-xl p-2 text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)]"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </button>
-              <div className="min-w-0 space-y-1">
-                <h1 className="line-clamp-2 text-sm font-semibold leading-5 text-[var(--color-text)]">
-                  {courseTitle}
-                </h1>
-                <p className="truncate text-[0.6875rem] text-[var(--color-text-tertiary)]">
-                  {currentChapter ? `第 ${currentChapterIndex + 1} 章` : "课程"}
-                </p>
-              </div>
-            </div>
-            <div className="ui-control-surface flex shrink-0 items-center gap-1 rounded-2xl p-1">
-              <button
-                type="button"
-                onClick={() => setSidebarOpen(true)}
-                aria-label="打开课程目录"
-                className={cn(
-                  "rounded-xl p-2 transition-colors",
-                  isSidebarOpen
-                    ? "ui-primary-button"
-                    : "text-[var(--color-text-secondary)] hover:bg-white",
-                )}
-              >
-                <List className="h-5 w-5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setChatOpen(true)}
-                aria-label="打开学习助手"
-                className={cn(
-                  "rounded-xl p-2 transition-colors",
-                  isChatOpen
-                    ? "ui-primary-button"
-                    : "text-[var(--color-text-secondary)] hover:bg-white",
-                )}
-              >
-                <MessageSquare className="h-5 w-5" />
-              </button>
+        <header className="safe-top sticky top-0 z-30 shrink-0 border-b border-black/[0.04] bg-white/90 px-4 pb-3 pt-3 backdrop-blur-xl">
+          <div className="flex min-w-0 items-center gap-3">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              aria-label="返回"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)]"
+            >
+              <ArrowLeft className="h-4.5 w-4.5" />
+            </button>
+            <div className="min-w-0">
+              <p className="truncate text-[0.6875rem] font-medium text-[var(--color-text-tertiary)]">
+                {currentChapter ? `第 ${currentChapterIndex + 1} 章 · ${courseTitle}` : "课程"}
+              </p>
+              <h1 className="mt-0.5 line-clamp-1 text-sm font-semibold leading-5 text-[var(--color-text)]">
+                {currentChapter?.title ?? courseTitle}
+              </h1>
             </div>
           </div>
         </header>
@@ -194,6 +149,35 @@ export function LearnClient({
             scrollToSectionId={scrollToSectionId}
           />
         </div>
+
+        <nav className="safe-bottom fixed inset-x-4 bottom-3 z-30 flex rounded-full border border-black/[0.06] bg-white/88 p-1.5 shadow-[0_18px_46px_-28px_rgba(15,23,42,0.32)] backdrop-blur-xl">
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(true)}
+            className={cn(
+              "flex h-11 flex-1 items-center justify-center gap-2 rounded-full text-sm font-medium transition-colors",
+              isSidebarOpen
+                ? "bg-[var(--color-panel-strong)] text-white"
+                : "text-[var(--color-text-secondary)] hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)]",
+            )}
+          >
+            <List className="h-4 w-4" />
+            目录
+          </button>
+          <button
+            type="button"
+            onClick={() => setChatOpen(true)}
+            className={cn(
+              "flex h-11 flex-1 items-center justify-center gap-2 rounded-full text-sm font-medium transition-colors",
+              isChatOpen
+                ? "bg-[var(--color-panel-strong)] text-white"
+                : "text-[var(--color-text-secondary)] hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)]",
+            )}
+          >
+            <MessageSquare className="h-4 w-4" />
+            提问
+          </button>
+        </nav>
 
         {/* Sidebar overlay - slide from left */}
         <AnimatePresence>
@@ -211,7 +195,7 @@ export function LearnClient({
                 animate={{ x: 0 }}
                 exit={{ x: -SIDEBAR_WIDTH }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className="ui-page-shell fixed inset-y-0 left-0 z-50 w-[min(88vw,312px)] overflow-hidden rounded-r-[28px] shadow-xl"
+                className="ui-page-shell fixed inset-y-0 left-0 z-50 w-[min(88vw,288px)] overflow-hidden rounded-r-[28px] shadow-xl"
               >
                 <LearnSidebar courseTitle={courseTitle} width={SIDEBAR_WIDTH} />
               </motion.div>
@@ -247,21 +231,13 @@ export function LearnClient({
   }
 
   return (
-    <div className="ui-page-shell flex min-h-dvh gap-3 p-3 md:gap-4 md:p-4 lg:gap-5 lg:p-5">
-      <motion.div
-        variants={sidebarVariants}
-        initial="hidden"
-        animate="visible"
-        style={{ width: SIDEBAR_WIDTH }}
-        className="ui-page-shell flex-shrink-0 overflow-hidden rounded-[30px] border border-black/5 shadow-[var(--shadow-floating-panel)]"
-      >
-        <LearnSidebar courseTitle={courseTitle} width={SIDEBAR_WIDTH} />
-      </motion.div>
+    <div className="ui-page-shell min-h-dvh overflow-hidden">
+      <div className="mx-auto grid h-dvh max-w-[1640px] grid-cols-[minmax(13.5rem,15.5rem)_minmax(0,1fr)_minmax(17rem,19rem)] gap-3 p-3 lg:grid-cols-[16rem_minmax(0,1fr)_20rem] lg:gap-4 lg:p-4 xl:grid-cols-[288px_minmax(0,1fr)_344px]">
+        <aside className="min-h-0 overflow-hidden rounded-[28px] border border-black/[0.06] bg-white/78 shadow-[0_22px_64px_-48px_rgba(15,23,42,0.28)] backdrop-blur-xl">
+          <LearnSidebar courseTitle={courseTitle} width={SIDEBAR_WIDTH} />
+        </aside>
 
-      {/* Main content */}
-      <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-[32px] bg-white shadow-[0_24px_80px_-56px_rgba(15,23,42,0.35)]">
-        {/* Section content (streaming generation + read-only) */}
-        <div className="flex-1 overflow-hidden bg-white">
+        <main className="min-h-0 min-w-0 overflow-hidden rounded-[30px] border border-black/[0.04] bg-white/94 shadow-[0_24px_76px_-58px_rgba(15,23,42,0.32)]">
           <SectionReader
             courseId={sessionId}
             sections={sections}
@@ -270,33 +246,12 @@ export function LearnClient({
             sectionDocs={sectionDocs}
             scrollToSectionId={scrollToSectionId}
           />
-        </div>
-      </div>
+        </main>
 
-      <AnimatePresence>
-        {isChatOpen && (
-          <>
-            <motion.button
-              type="button"
-              aria-label="关闭学习助手"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-40 bg-slate-950/[0.04]"
-              onClick={() => setChatOpen(false)}
-            />
-            <motion.div
-              initial={{ x: 28, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: 28, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 320, damping: 34 }}
-              className="ui-page-shell fixed bottom-5 right-5 top-5 z-50 w-[min(26rem,calc(100vw-2.5rem))] overflow-hidden rounded-[32px] border border-black/5 shadow-[var(--shadow-floating-panel)]"
-            >
-              <LearnChat courseId={sessionId} courseTitle={courseTitle} />
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+        <aside className="min-h-0 overflow-hidden rounded-[28px] border border-black/[0.06] bg-white/82 shadow-[0_22px_64px_-50px_rgba(15,23,42,0.3)] backdrop-blur-xl">
+          <LearnChat courseId={sessionId} courseTitle={courseTitle} />
+        </aside>
+      </div>
     </div>
   );
 }
