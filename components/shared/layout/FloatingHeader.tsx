@@ -1,11 +1,10 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ArrowLeft, ChevronRight, Zap } from "lucide-react";
+import { ArrowLeft, Zap } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { createLoginPath, getCurrentCallbackUrl } from "@/lib/auth/redirect";
-import { getProfileDisplayName } from "@/lib/profile/avatar";
 import { cn } from "@/lib/utils";
 import { UserAvatar } from "./UserAvatar";
 
@@ -25,19 +24,11 @@ export function FloatingHeader({
   variant = "brand",
 }: FloatingHeaderProps) {
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const resolvedTitle =
     title ?? (variant === "brand" ? "开始学习" : variant === "workspace" ? "工作台" : "返回");
   const resolvedSubtitle = subtitle ?? (variant === "brand" ? "NexusNote" : null);
   const handleShellClick = onLogoClick ?? (showBackHint ? () => router.back() : undefined);
-  const accountTitle =
-    status === "authenticated"
-      ? getProfileDisplayName(session?.user?.name, session?.user?.email)
-      : status === "loading"
-        ? "账户"
-        : "登录";
-  const accountSubtitle =
-    status === "authenticated" ? "个人中心" : status === "loading" ? "正在读取" : "进入账户";
 
   const handleAccountClick = () => {
     if (status === "loading") {
@@ -67,10 +58,7 @@ export function FloatingHeader({
   );
 
   const accountShellClassName = cn(
-    "ui-floating-surface group flex items-center rounded-full text-left transition-shadow hover:[box-shadow:var(--shadow-soft-panel-hover)]",
-    variant === "brand" && "gap-3 px-2.5 py-2 pr-3.5",
-    variant === "workspace" && "gap-3 px-3 py-2.5 pr-3.5",
-    variant === "compact" && "gap-2.5 px-2 py-2 pr-3",
+    "ui-floating-surface group flex items-center rounded-full p-1.5 transition-shadow hover:[box-shadow:var(--shadow-soft-panel-hover)] disabled:pointer-events-none",
   );
 
   return (
@@ -129,22 +117,9 @@ export function FloatingHeader({
           whileTap={status === "loading" ? undefined : { scale: 0.98 }}
           className={accountShellClassName}
           aria-label={status === "authenticated" ? "打开个人中心" : "登录"}
+          disabled={status === "loading"}
         >
           <UserAvatar interactive={false} size={variant === "compact" ? "sm" : "md"} />
-          <div className="hidden min-w-0 flex-col items-start leading-none sm:flex">
-            <span className="text-[10px] font-medium uppercase tracking-[0.22em] text-[var(--color-text-tertiary)]">
-              {accountSubtitle}
-            </span>
-            <span
-              className={cn(
-                "mt-1 max-w-[10rem] truncate font-medium text-[var(--color-text)]",
-                variant === "compact" ? "text-sm" : "text-sm md:text-[15px]",
-              )}
-            >
-              {accountTitle}
-            </span>
-          </div>
-          <ChevronRight className="hidden h-4 w-4 text-[var(--color-text-muted)] transition-transform group-hover:translate-x-0.5 sm:block" />
         </motion.button>
       </div>
     </header>
