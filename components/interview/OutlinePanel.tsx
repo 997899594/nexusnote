@@ -2,6 +2,7 @@
 
 import { BookOpen, Loader2, Play } from "lucide-react";
 import { useRouter } from "next/navigation";
+import type { ReactNode } from "react";
 import { useState } from "react";
 import { WorkspaceEmptyState } from "@/components/common";
 import { InterviewOptions, type Option } from "@/components/interview/InterviewOptions";
@@ -18,6 +19,9 @@ interface OutlinePanelProps {
   courseId?: string;
   onCourseCreated: (courseId: string) => void;
   onSelectAction?: (action: Option) => void;
+  showHeader?: boolean;
+  headerAction?: ReactNode;
+  className?: string;
 }
 
 const DIFFICULTY_LABELS: Record<string, string> = {
@@ -42,6 +46,9 @@ export function OutlinePanel({
   courseId,
   onCourseCreated,
   onSelectAction,
+  showHeader = true,
+  headerAction,
+  className,
 }: OutlinePanelProps) {
   const router = useRouter();
   const [isStarting, setIsStarting] = useState(false);
@@ -94,14 +101,19 @@ export function OutlinePanel({
   };
 
   return (
-    <div className="ui-page-shell flex h-full flex-col">
+    <div className={cn("ui-page-shell flex h-full flex-col", className)}>
       {/* Header */}
-      <div className="flex items-center gap-2 px-5 pb-4 pt-5">
-        <div className="ui-primary-button flex h-9 w-9 items-center justify-center rounded-xl">
-          <BookOpen className="h-4 w-4 text-white" />
+      {showHeader ? (
+        <div className="flex items-center justify-between gap-3 px-5 pb-4 pt-5">
+          <div className="flex items-center gap-2">
+            <div className="ui-primary-button flex h-9 w-9 items-center justify-center rounded-xl">
+              <BookOpen className="h-4 w-4 text-white" />
+            </div>
+            <h2 className="text-base font-semibold text-[var(--color-text)]">课程蓝图</h2>
+          </div>
+          {headerAction}
         </div>
-        <h2 className="text-base font-semibold text-[var(--color-text)]">课程蓝图</h2>
-      </div>
+      ) : null}
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-5">

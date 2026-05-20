@@ -1,7 +1,16 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, BookOpen, GraduationCap, Loader2, Send, X } from "lucide-react";
+import {
+  ArrowLeft,
+  BookOpen,
+  CheckCircle2,
+  GraduationCap,
+  Loader2,
+  MessageCircle,
+  Send,
+  Sparkles,
+} from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
@@ -57,15 +66,32 @@ const mainContentVariants = {
   },
 };
 
+const DIFFICULTY_LABELS: Record<string, string> = {
+  beginner: "入门",
+  intermediate: "进阶",
+  advanced: "高级",
+};
+
+type MobileInterviewView = "chat" | "reveal" | "blueprint";
+
+function getDifficultyLabel(difficulty?: string | null): string {
+  if (!difficulty) {
+    return "整理中";
+  }
+
+  return DIFFICULTY_LABELS[difficulty] ?? difficulty;
+}
+
 function InterviewContent() {
   const searchParams = useSearchParams();
   const initialMessage = searchParams.get("msg");
   const isMobile = useIsMobile();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const revealedOutlineKeyRef = useRef<string | null>(null);
   const [input, setInput] = useState("");
   const [started, setStarted] = useState(false);
-  const [isMobileOutlineOpen, setIsMobileOutlineOpen] = useState(false);
+  const [mobileView, setMobileView] = useState<MobileInterviewView>("chat");
 
   const interview = useInterview({
     initialMessage: initialMessage || undefined,
@@ -119,35 +145,75 @@ function InterviewContent() {
   const shouldShowOutlinePanel =
     Boolean(displayOutline) || Boolean(stableOutline) || isOutlineLoading || interviewCompleted;
   const activeOutline = displayOutline ?? stableOutline;
-  const outlineStatusLabel = interviewCompleted
-    ? "可开始学习"
-    : isOutlineLoading
-      ? "整理中"
+  const stableOutlineKey = stableOutline
+    ? [
+        stableOutline.title,
+        stableOutline.difficulty ?? "",
+        stableOutline.chapters.map((chapter) => chapter.title).join("|"),
+      ].join("::")
+    : null;
+  const outlineChapterCount = activeOutline?.chapters.length ?? 0;
+  const outlineStatusLabel = isOutlineLoading
+    ? stableOutline
+      ? "更新中"
+      : "整理中"
+    : interviewCompleted
+      ? "可开始学习"
       : stableOutline
         ? "已生成"
         : "可查看";
 
   useEffect(() => {
     if (!isMobile || !shouldShowOutlinePanel) {
-      setIsMobileOutlineOpen(false);
+      setMobileView("chat");
     }
   }, [isMobile, shouldShowOutlinePanel]);
 
-  const mobileOutlineDock =
+  useEffect(() => {
+    if (!isMobile || !stableOutlineKey) {
+      return;
+    }
+
+    if (revealedOutlineKeyRef.current === stableOutlineKey) {
+      return;
+    }
+
+    revealedOutlineKeyRef.current = stableOutlineKey;
+    setMobileView("reveal");
+  }, [isMobile, stableOutlineKey]);
+
+  const handleSelectOutlineAction = (option: (typeof outlineActions)[number]) => {
+    if (isMobile) {
+      setMobileView("chat");
+    }
+    void sendMessage({ text: option.action || option.label });
+  };
+
+  const mobileBlueprintStatus =
     isMobile && shouldShowOutlinePanel ? (
       <div className="shrink-0 border-black/5 border-t bg-white/95 px-4 py-3 backdrop-blur">
         <button
           type="button"
-          onClick={() => setIsMobileOutlineOpen(true)}
+          onClick={() => {
+            if (stableOutline) {
+              setMobileView("blueprint");
+            }
+          }}
+          disabled={!stableOutline}
           className="ui-message-card flex w-full items-center gap-3 rounded-[22px] p-3 text-left transition-transform active:scale-[0.99]"
-          aria-expanded={isMobileOutlineOpen}
         >
           <div className="ui-primary-button flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl">
-            <BookOpen className="h-4 w-4 text-white" />
+            {stableOutline ? (
+              <CheckCircle2 className="h-4 w-4 text-white" />
+            ) : (
+              <Loader2 className="h-4 w-4 animate-spin text-white" />
+            )}
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-[var(--color-text)]">课程蓝图</span>
+              <span className="text-sm font-semibold text-[var(--color-text)]">
+                {stableOutline ? "蓝图已生成" : "正在生成蓝图"}
+              </span>
               <span className="rounded-full bg-[var(--color-active)] px-2 py-0.5 text-[10px] font-medium text-[var(--color-text-secondary)]">
                 {outlineStatusLabel}
               </span>
@@ -160,59 +226,130 @@ function InterviewContent() {
             </p>
           </div>
           <span className="flex-shrink-0 rounded-full bg-[var(--color-panel-soft)] px-3 py-1.5 text-xs font-medium text-[var(--color-text-secondary)]">
-            查看
+            {stableOutline ? "查看" : "稍等"}
           </span>
         </button>
       </div>
     ) : null;
 
-  const mobileOutlineSheet =
-    isMobile && shouldShowOutlinePanel && isMobileOutlineOpen ? (
-      <motion.div
-        key="mobile-outline-sheet"
-        className="fixed inset-0 z-50 md:hidden"
-        role="dialog"
-        aria-modal="true"
-        aria-label="课程蓝图"
-      >
-        <motion.button
-          type="button"
-          aria-label="关闭课程蓝图"
-          className="absolute inset-0 bg-black/20 backdrop-blur-[2px]"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={() => setIsMobileOutlineOpen(false)}
-        />
+  const mobileBlueprintReveal =
+    isMobile && activeOutline ? (
+      <div className="mobile-scroll min-h-0 flex-1 overflow-y-auto bg-[linear-gradient(180deg,#fff_0%,var(--color-panel-soft)_100%)] px-4 py-5">
         <motion.div
-          initial={{ y: "100%" }}
-          animate={{ y: 0 }}
-          exit={{ y: "100%" }}
-          transition={{ type: "spring", stiffness: 320, damping: 34 }}
-          className="safe-bottom absolute inset-x-0 bottom-0 h-[min(82dvh,720px)] overflow-hidden rounded-t-[30px] bg-white shadow-[var(--shadow-floating-panel)]"
+          initial={{ opacity: 0, y: 18, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ type: "spring", stiffness: 260, damping: 28 }}
+          className="mx-auto max-w-[calc(100vw-32px)] overflow-hidden rounded-[32px] border border-black/6 bg-white shadow-[var(--shadow-soft-panel)]"
         >
-          <button
-            type="button"
-            onClick={() => setIsMobileOutlineOpen(false)}
-            className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-panel-soft)] text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)]"
-            aria-label="关闭课程蓝图"
-          >
-            <X className="h-4 w-4" />
-          </button>
-          <OutlinePanel
-            outline={displayOutline ?? stableOutline}
-            stableOutline={stableOutline ?? null}
-            actionOptions={outlineActions}
-            isLoading={isOutlineLoading}
-            courseId={courseId ?? undefined}
-            onCourseCreated={setCourseId}
-            onSelectAction={(option) => {
-              setIsMobileOutlineOpen(false);
-              sendMessage({ text: option.action || option.label });
-            }}
-          />
+          <div className="relative overflow-hidden px-5 pb-6 pt-5">
+            <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full bg-[var(--color-active)] blur-2xl" />
+            <div className="relative">
+              <div className="inline-flex items-center gap-2 rounded-full bg-[var(--color-text)] px-3 py-1.5 text-[11px] font-medium text-white">
+                <Sparkles className="h-3.5 w-3.5" />
+                蓝图已生成
+              </div>
+              <h2 className="mt-5 text-2xl font-semibold leading-tight tracking-[-0.05em] text-[var(--color-text)]">
+                先确认这条学习路线
+              </h2>
+              <p className="mt-3 text-sm leading-7 text-[var(--color-text-secondary)]">
+                我已经把刚才的目标、基础和约束收束成一版课程蓝图。你可以直接看结构，也可以回到对话继续微调。
+              </p>
+            </div>
+          </div>
+
+          <div className="border-black/6 border-t px-5 py-5">
+            <p className="text-xs font-medium uppercase tracking-[0.18em] text-[var(--color-text-tertiary)]">
+              建议课程
+            </p>
+            <h3 className="mt-2 text-lg font-semibold leading-snug text-[var(--color-text)]">
+              {activeOutline.title}
+            </h3>
+            {activeOutline.description ? (
+              <p className="mt-2 line-clamp-3 text-sm leading-6 text-[var(--color-text-secondary)]">
+                {activeOutline.description}
+              </p>
+            ) : null}
+
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              <div className="rounded-2xl bg-[var(--color-panel-soft)] px-3 py-3 text-center">
+                <div className="text-base font-semibold text-[var(--color-text)]">
+                  {outlineChapterCount}
+                </div>
+                <div className="mt-0.5 text-[10px] text-[var(--color-text-tertiary)]">章节</div>
+              </div>
+              <div className="rounded-2xl bg-[var(--color-panel-soft)] px-3 py-3 text-center">
+                <div className="text-base font-semibold text-[var(--color-text)]">
+                  {getDifficultyLabel(activeOutline.difficulty)}
+                </div>
+                <div className="mt-0.5 text-[10px] text-[var(--color-text-tertiary)]">难度</div>
+              </div>
+              <div className="rounded-2xl bg-[var(--color-panel-soft)] px-3 py-3 text-center">
+                <div className="text-base font-semibold text-[var(--color-text)]">可调整</div>
+                <div className="mt-0.5 text-[10px] text-[var(--color-text-tertiary)]">状态</div>
+              </div>
+            </div>
+
+            <div className="mt-4 space-y-2">
+              {activeOutline.chapters.slice(0, 3).map((chapter, index) => (
+                <div
+                  key={`${chapter.title}-${index}`}
+                  className="flex items-center gap-3 rounded-2xl bg-white px-3 py-2 ring-1 ring-black/6"
+                >
+                  <span className="ui-primary-button flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold">
+                    {index + 1}
+                  </span>
+                  <span className="min-w-0 truncate text-sm font-medium text-[var(--color-text)]">
+                    {chapter.title}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-3 bg-[var(--color-panel-soft)] px-5 py-5">
+            <button
+              type="button"
+              onClick={() => setMobileView("blueprint")}
+              className="ui-primary-button flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium"
+            >
+              <BookOpen className="h-4 w-4" />
+              查看完整蓝图
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileView("chat")}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-medium text-[var(--color-text-secondary)] ring-1 ring-black/6"
+            >
+              <MessageCircle className="h-4 w-4" />
+              继续对话微调
+            </button>
+          </div>
         </motion.div>
-      </motion.div>
+      </div>
+    ) : null;
+
+  const mobileBlueprintView =
+    isMobile && shouldShowOutlinePanel ? (
+      <div className="min-h-0 flex-1">
+        <OutlinePanel
+          outline={displayOutline ?? stableOutline}
+          stableOutline={stableOutline ?? null}
+          actionOptions={outlineActions}
+          isLoading={isOutlineLoading}
+          courseId={courseId ?? undefined}
+          onCourseCreated={setCourseId}
+          onSelectAction={handleSelectOutlineAction}
+          headerAction={
+            <button
+              type="button"
+              onClick={() => setMobileView("chat")}
+              className="rounded-full bg-[var(--color-panel-soft)] px-3 py-1.5 text-xs font-medium text-[var(--color-text-secondary)]"
+            >
+              回到对话
+            </button>
+          }
+        />
+      </div>
     ) : null;
 
   const chatViewport = (
@@ -351,21 +488,29 @@ function InterviewContent() {
             <div>
               <h1 className="font-semibold text-[var(--color-text)]">课程访谈</h1>
               <p className="text-xs text-[var(--color-text-tertiary)]">
-                {interviewCompleted
-                  ? "蓝图已生成"
-                  : shouldShowOutlinePanel
-                    ? "正在整理课程蓝图"
-                    : "边聊边收束课程方向"}
+                {isMobile && mobileView === "reveal"
+                  ? "先确认蓝图方向"
+                  : isMobile && mobileView === "blueprint"
+                    ? "查看结构并开始学习"
+                    : interviewCompleted
+                      ? "蓝图已生成"
+                      : shouldShowOutlinePanel
+                        ? "正在整理课程蓝图"
+                        : "边聊边收束课程方向"}
               </p>
             </div>
           </div>
         </header>
 
-        {chatViewport}
-        {mobileOutlineDock}
-        <AnimatePresence>{mobileOutlineSheet}</AnimatePresence>
+        {isMobile && shouldShowOutlinePanel && mobileView === "reveal"
+          ? mobileBlueprintReveal
+          : isMobile && shouldShowOutlinePanel && mobileView === "blueprint"
+            ? mobileBlueprintView
+            : chatViewport}
 
-        {composer}
+        {isMobile && mobileView === "chat" ? mobileBlueprintStatus : null}
+
+        {!isMobile || mobileView === "chat" ? composer : null}
       </motion.div>
     </div>
   );
