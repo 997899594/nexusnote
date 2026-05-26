@@ -56,7 +56,7 @@ export async function performWebSearch(
     });
     return {
       success: false,
-      error: "搜索服务未配置。请配置 TAVILY_API_KEY、EXA_API_KEY 或 SERPER_API_KEY。",
+      error: "搜索服务未配置。请配置 TAVILY_API_KEY、EXA_API_KEY 或 JINA_API_KEY。",
       query,
       results: [],
     };

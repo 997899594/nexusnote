@@ -263,13 +263,6 @@ function getProviderFreshnessStartDate(
   return startDate.toISOString().slice(0, 10);
 }
 
-function getSerperFreshnessFilter(
-  query: string,
-  freshnessWindowDays: 30 | 90 | 180,
-): string | null {
-  return getProviderFreshnessStartDate(query, freshnessWindowDays) ? "qdr:m" : null;
-}
-
 function getExaSearchType(query: string): "auto" | "deep-lite" {
   return hasTimeSensitiveCue(query) || hasTechnicalResearchCue(query) ? "deep-lite" : "auto";
 }
@@ -484,22 +477,31 @@ function mapExaResult(result: Record<string, unknown>): ResearchSearchResult | n
   };
 }
 
-function mapSerperResult(result: Record<string, unknown>): ResearchSearchResult | null {
-  const url = typeof result.link === "string" ? result.link : "";
+function mapJinaSearchResult(result: Record<string, unknown>): ResearchSearchResult | null {
+  const url = typeof result.url === "string" ? result.url : "";
   const normalizedUrl = normalizeUrl(url);
   if (!normalizedUrl) {
     return null;
   }
+
+  const content =
+    cleanText(typeof result.content === "string" ? result.content : "") ||
+    cleanText(typeof result.description === "string" ? result.description : "");
 
   return {
     title:
       typeof result.title === "string" && result.title.trim() ? result.title.trim() : normalizedUrl,
     url: normalizedUrl,
     domain: getDomain(normalizedUrl),
-    snippet: cleanText(typeof result.snippet === "string" ? result.snippet : ""),
-    provider: "serper",
-    score: 58,
-    publishedAt: typeof result.date === "string" ? result.date : undefined,
+    snippet: truncateText(content, 500),
+    provider: "jina-search",
+    score: 66,
+    publishedAt:
+      typeof result.publishedTime === "string"
+        ? result.publishedTime
+        : typeof result.date === "string"
+          ? result.date
+          : undefined,
   };
 }
 
@@ -623,20 +625,12 @@ async function searchWithExa(
   return output;
 }
 
-async function searchWithSerper(
+async function searchWithJina(
   query: string,
   limit: number,
   freshnessWindowDays: 30 | 90 | 180,
 ): Promise<{ answer: string | null; results: ResearchSearchResult[] }> {
-  const freshnessFilter = getSerperFreshnessFilter(query, freshnessWindowDays);
-  const cacheKey = buildCacheKey([
-    "search",
-    "serper",
-    query,
-    limit,
-    freshnessWindowDays,
-    freshnessFilter,
-  ]);
+  const cacheKey = buildCacheKey(["search", "jina-search", query, limit, freshnessWindowDays]);
   const cached = await readCache<{ answer: string | null; results: ResearchSearchResult[] }>(
     cacheKey,
   );
@@ -644,34 +638,63 @@ async function searchWithSerper(
     return cached;
   }
 
-  const data = await fetchJson<Record<string, unknown>>("https://google.serper.dev/search", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-API-KEY": env.SERPER_API_KEY ?? "",
+  const data = await fetchJson<Record<string, unknown>>(
+    `https://s.jina.ai/${encodeURIComponent(query)}`,
+    {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${env.JINA_API_KEY}`,
+      },
+      timeoutMs: 15_000,
     },
-    body: JSON.stringify({
-      q: query,
-      num: limit,
-      ...(freshnessFilter ? { tbs: freshnessFilter } : {}),
-    }),
-    timeoutMs: 12_000,
-  });
+  );
+  const rawResults = Array.isArray(data.data)
+    ? data.data
+    : Array.isArray(data.results)
+      ? data.results
+      : [];
 
   const output = {
     answer: null,
-    results: Array.isArray(data.organic)
-      ? data.organic
-          .filter(
-            (item): item is Record<string, unknown> => item != null && typeof item === "object",
-          )
-          .map(mapSerperResult)
-          .filter((item): item is ResearchSearchResult => item != null)
-      : [],
+    results: rawResults
+      .filter((item): item is Record<string, unknown> => item != null && typeof item === "object")
+      .map(mapJinaSearchResult)
+      .filter((item): item is ResearchSearchResult => item != null)
+      .slice(0, limit),
   };
 
   await writeCache(cacheKey, output, getCacheTtlSeconds(freshnessWindowDays));
   return output;
+}
+
+async function extractWithJinaReader(url: string): Promise<ExtractedDocument | null> {
+  const normalizedUrl = normalizeUrl(url);
+  if (!normalizedUrl) {
+    return null;
+  }
+
+  const data = await fetchText(`https://r.jina.ai/${normalizedUrl}`, {
+    method: "GET",
+    headers: {
+      Accept: "text/plain",
+      "X-Return-Format": "markdown",
+      ...(env.JINA_API_KEY ? { Authorization: `Bearer ${env.JINA_API_KEY}` } : {}),
+    },
+    timeoutMs: 20_000,
+  });
+  const content = cleanText(data);
+
+  if (content.length < MIN_EXTRACTED_CONTENT_LENGTH) {
+    return null;
+  }
+
+  return {
+    url: normalizedUrl,
+    content,
+    provider: "jina-reader",
+    extractedAt: new Date().toISOString(),
+  };
 }
 
 async function searchAcrossProviders(
@@ -713,6 +736,19 @@ async function searchAcrossProviders(
     providerTrace.push({ provider: "exa", status: "skipped", message: "EXA_API_KEY missing" });
   }
 
+  if (env.JINA_API_KEY) {
+    primaryTasks.push({
+      provider: "jina-search",
+      run: searchWithJina(query, limit, freshnessWindowDays),
+    });
+  } else {
+    providerTrace.push({
+      provider: "jina-search",
+      status: "skipped",
+      message: "JINA_API_KEY missing",
+    });
+  }
+
   const primaryResults = await Promise.allSettled(primaryTasks.map((task) => task.run));
   const answer =
     primaryResults.find(
@@ -745,28 +781,6 @@ async function searchAcrossProviders(
       providerTrace.push({ provider: primaryTasks[index].provider, status: "used" });
     }
   });
-
-  if ((results.length < limit || primaryTasks.length === 0) && env.SERPER_API_KEY) {
-    try {
-      const fallback = await searchWithSerper(query, limit, freshnessWindowDays);
-      providerTrace.push({ provider: "serper", status: "used" });
-      return {
-        answer: answer ?? fallback.answer,
-        results: [...results, ...fallback.results],
-        errors,
-        providerTrace,
-      };
-    } catch (error) {
-      errors.push(formatError(error));
-      providerTrace.push({ provider: "serper", status: "failed", message: formatError(error) });
-    }
-  } else if (!env.SERPER_API_KEY) {
-    providerTrace.push({
-      provider: "serper",
-      status: "skipped",
-      message: "SERPER_API_KEY missing",
-    });
-  }
 
   return { answer, results, errors, providerTrace };
 }
@@ -899,34 +913,6 @@ async function extractWithFirecrawl(url: string): Promise<ExtractedDocument | nu
     title: typeof metadata.title === "string" ? metadata.title : undefined,
     content,
     provider: "firecrawl",
-    extractedAt: new Date().toISOString(),
-  };
-}
-
-async function extractWithJinaReader(url: string): Promise<ExtractedDocument | null> {
-  const normalizedUrl = normalizeUrl(url);
-  if (!normalizedUrl) {
-    return null;
-  }
-
-  const data = await fetchText(`https://r.jina.ai/${normalizedUrl}`, {
-    method: "GET",
-    headers: {
-      Accept: "text/plain",
-      "X-Return-Format": "markdown",
-    },
-    timeoutMs: 20_000,
-  });
-  const content = cleanText(data);
-
-  if (content.length < MIN_EXTRACTED_CONTENT_LENGTH) {
-    return null;
-  }
-
-  return {
-    url: normalizedUrl,
-    content,
-    provider: "jina-reader",
     extractedAt: new Date().toISOString(),
   };
 }
@@ -1116,31 +1102,11 @@ async function rerankWithQwen(
   chunks: Array<{ text: string; sourceIndex: number; chunkIndex: number }>,
   topN: number,
 ): Promise<RankedChunk[] | null> {
-  if (!env.RERANKER_ENABLED || chunks.length === 0) {
+  if (!env.RERANKER_ENABLED || chunks.length === 0 || !env.DASHSCOPE_API_KEY) {
     return null;
   }
 
-  const errors: string[] = [];
-
-  if (env.DASHSCOPE_API_KEY) {
-    try {
-      return await rerankWithDashScope(query, chunks, topN);
-    } catch (error) {
-      errors.push(`dashscope: ${formatError(error)}`);
-    }
-  }
-
-  try {
-    return await rerankWithCompatibleGateway(query, chunks, topN);
-  } catch (error) {
-    errors.push(`compatible: ${formatError(error)}`);
-  }
-
-  if (errors.length > 0) {
-    throw new Error(errors.join(" | "));
-  }
-
-  return null;
+  return await rerankWithDashScope(query, chunks, topN);
 }
 
 function mapRerankResults(
@@ -1204,31 +1170,6 @@ async function rerankWithDashScope(
   return mapRerankResults(data.results, chunks);
 }
 
-async function rerankWithCompatibleGateway(
-  query: string,
-  chunks: Array<{ text: string; sourceIndex: number; chunkIndex: number }>,
-  topN: number,
-): Promise<RankedChunk[] | null> {
-  const endpoint = `${env.AI_302_BASE_URL.replace(/\/$/u, "")}/rerank`;
-  const data = await fetchJson<Record<string, unknown>>(endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${env.AI_302_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: env.RERANKER_MODEL_PRO || env.RERANKER_MODEL,
-      query,
-      documents: chunks.map((chunk) => chunk.text),
-      top_n: Math.min(topN, chunks.length),
-      return_documents: false,
-    }),
-    timeoutMs: 20_000,
-  });
-
-  return mapRerankResults(data.results, chunks);
-}
-
 async function rankEvidenceSources(
   query: string,
   sources: Omit<ResearchEvidenceSource, "sourceId" | "relevanceScore" | "evidenceChunks">[],
@@ -1250,7 +1191,9 @@ async function rankEvidenceSources(
     providerTrace.push({
       provider: "reranker",
       status: rankedChunks ? "used" : "skipped",
-      message: rankedChunks ? undefined : "RERANKER_ENABLED=false or no chunks",
+      message: rankedChunks
+        ? undefined
+        : "DASHSCOPE_API_KEY missing, reranker disabled, or no chunks",
     });
   } catch (error) {
     providerTrace.push({ provider: "reranker", status: "failed", message: formatError(error) });
@@ -1358,7 +1301,7 @@ function buildEvidenceSource(params: {
 }
 
 export function hasResearchProviderConfigured(): boolean {
-  return Boolean(env.TAVILY_API_KEY || env.EXA_API_KEY || env.SERPER_API_KEY);
+  return Boolean(env.TAVILY_API_KEY || env.EXA_API_KEY || env.JINA_API_KEY);
 }
 
 export async function collectResearchEvidence(

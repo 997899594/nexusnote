@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const researchSearchProviderSchema = z.enum(["tavily", "exa", "serper"]);
+export const researchSearchProviderSchema = z.enum(["tavily", "exa", "jina-search"]);
 export const researchExtractProviderSchema = z.enum([
   "tavily-extract",
   "firecrawl",

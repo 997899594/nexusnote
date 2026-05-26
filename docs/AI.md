@@ -79,7 +79,7 @@
 ### Web Research 层
 
 - 统一入口：[web-research.ts](/Users/findbiao/projects/nexusnote/lib/ai/research/web-research.ts)
-- 多路检索：Tavily 负责 agent search，Exa deep-lite 负责 semantic/deep web search，Serper 仅作为 Google fallback
+- 多路检索：Tavily 负责 agent search，Exa deep-lite 负责 semantic/deep web search，Jina Search 负责 AI-native web search
 - 页面读取：优先 Tavily Extract，其次 Firecrawl，最后 Jina Reader；不再只吃搜索摘要
 - 证据处理：URL 去重、来源分级、Qwen3 reranker 重排、Redis freshness cache
 - 引用契约：research 报告和课程蓝图都保留 source id；前沿课程 outline 会写入 `researchCitations`
@@ -90,8 +90,8 @@
 - `TAVILY_API_KEY`
 - `EXA_API_KEY`
 - `FIRECRAWL_API_KEY`
-- `SERPER_API_KEY`
-- `DASHSCOPE_API_KEY`（可选；配置后优先走官方 compatible `/reranks` Qwen3 reranker）
+- `JINA_API_KEY`
+- `DASHSCOPE_API_KEY`（可选；配置后走 DashScope 官方 `/reranks` Qwen3 reranker，不再走网关兼容 rerank）
 - `RERANKER_ENABLED=true`
 
 ### Streaming 层

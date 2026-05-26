@@ -149,7 +149,7 @@ export const serverEnvSchema = z.object({
   TAVILY_API_KEY: z.string().optional(),
   EXA_API_KEY: z.string().optional(),
   FIRECRAWL_API_KEY: z.string().optional(),
-  SERPER_API_KEY: z.string().optional(),
+  JINA_API_KEY: z.string().optional(),
 
   // AI Observability (可选 - Langfuse)
   LANGFUSE_PUBLIC_KEY: z.string().optional(),
@@ -508,7 +508,7 @@ export function logServerConfig(env: ServerEnv): void {
   console.log(`  TAVILY_API_KEY: ${maskSecret(env.TAVILY_API_KEY)}`);
   console.log(`  EXA_API_KEY: ${maskSecret(env.EXA_API_KEY)}`);
   console.log(`  FIRECRAWL_API_KEY: ${maskSecret(env.FIRECRAWL_API_KEY)}`);
-  console.log(`  SERPER_API_KEY: ${maskSecret(env.SERPER_API_KEY)}`);
+  console.log(`  JINA_API_KEY: ${maskSecret(env.JINA_API_KEY)}`);
   console.log(`  EMBEDDING_MODEL: ${env.EMBEDDING_MODEL}`);
   console.log(`  EMBEDDING_DIMENSIONS: ${env.EMBEDDING_DIMENSIONS}`);
   console.log(`  RERANKER_ENABLED: ${env.RERANKER_ENABLED}`);
