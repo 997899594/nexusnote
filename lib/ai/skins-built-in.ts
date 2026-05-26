@@ -7,13 +7,10 @@ export interface BuiltInSkinDefinition extends BuiltInSkinCatalogItem {
 
 const BUILT_IN_SKIN_SYSTEM_PROMPTS = {
   default: loadPromptResource("skins/default-system.md"),
-  best_friend: loadPromptResource("skins/best-friend-system.md"),
-  girlfriend: loadPromptResource("skins/girlfriend-system.md"),
-  gentle_teacher: loadPromptResource("skins/gentle-teacher-system.md"),
-  socrates: loadPromptResource("skins/socrates-system.md"),
-  steve_jobs: loadPromptResource("skins/steve-jobs-system.md"),
-  gordon: loadPromptResource("skins/gordon-system.md"),
-  clickbait: loadPromptResource("skins/clickbait-system.md"),
+  direct: loadPromptResource("skins/direct-system.md"),
+  architect: loadPromptResource("skins/architect-system.md"),
+  coach: loadPromptResource("skins/coach-system.md"),
+  reviewer: loadPromptResource("skins/reviewer-system.md"),
 } as const;
 
 export const BUILT_IN_SKINS: readonly BuiltInSkinDefinition[] = BUILT_IN_SKIN_CATALOG.map(

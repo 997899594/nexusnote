@@ -2,7 +2,7 @@
  * Skin Selector Component
  *
  * Allows users to switch between AI skins.
- * Displays available skins with avatars and descriptions.
+ * Displays available skins with compact text marks and descriptions.
  */
 
 import { useState } from "react";
@@ -14,6 +14,25 @@ interface SkinSelectorProps {
   onSkinChange: (slug: string) => void;
   disabled?: boolean;
   variant?: "dropdown" | "radio" | "cards";
+}
+
+function getSkinMark(skin: AISkin | undefined): string {
+  const rawMark = skin?.avatar?.trim() || skin?.name?.trim() || "AI";
+  const readable = Array.from(rawMark)
+    .filter((char) => /[A-Za-z0-9\u4E00-\u9FFF]/u.test(char))
+    .join("");
+
+  return (readable || "AI").slice(0, 2).toUpperCase();
+}
+
+function SkinMark({ skin, className = "" }: { skin: AISkin | undefined; className?: string }) {
+  return (
+    <span
+      className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-black/[0.06] bg-[var(--color-panel-soft)] text-[0.625rem] font-semibold tracking-[0.08em] text-[var(--color-text-secondary)] ${className}`}
+    >
+      {getSkinMark(skin)}
+    </span>
+  );
 }
 
 export function SkinSelector({
@@ -53,7 +72,7 @@ export function SkinSelector({
             title={skin.description || undefined}
           >
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-xl">{skin.avatar || "🤖"}</span>
+              <SkinMark skin={skin} />
               <span className="font-medium text-sm truncate text-[var(--color-text)]">
                 {skin.name}
               </span>
@@ -94,7 +113,7 @@ export function SkinSelector({
               disabled={disabled}
               className="h-4 w-4 text-[var(--color-panel-strong)]"
             />
-            <span className="text-lg">{skin.avatar || "🤖"}</span>
+            <SkinMark skin={skin} />
             <div className="flex-1">
               <div className="font-medium text-sm text-[var(--color-text)]">{skin.name}</div>
               {skin.description && (
@@ -125,7 +144,7 @@ export function SkinSelector({
           transition-colors
         `}
       >
-        <span className="text-lg">{currentSkin?.avatar || "🤖"}</span>
+        <SkinMark skin={currentSkin} className="h-6 w-6 rounded-md text-[0.56rem]" />
         <span className="font-medium text-sm text-[var(--color-text)]">{currentSkin?.name}</span>
         <svg
           className={`w-4 h-4 transition-transform text-[var(--color-text-muted)] ${isOpen ? "rotate-180" : ""}`}
@@ -164,7 +183,7 @@ export function SkinSelector({
                   ${disabled ? "opacity-50 cursor-not-allowed" : ""}
                 `}
               >
-                <span className="text-lg">{skin.avatar || "🤖"}</span>
+                <SkinMark skin={skin} />
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-sm truncate text-[var(--color-text)]">
                     {skin.name}

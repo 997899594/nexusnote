@@ -170,6 +170,10 @@ function getDomain(url: string): string {
 function normalizeUrl(url: string): string | null {
   try {
     const parsed = new URL(url);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return null;
+    }
+
     parsed.hash = "";
     for (const key of [...parsed.searchParams.keys()]) {
       if (/^(utm_|fbclid|gclid|yclid|mc_)/i.test(key)) {
@@ -217,14 +221,25 @@ async function writeCache(key: string, value: unknown, ttlSeconds: number): Prom
   }
 }
 
+function hasTimeSensitiveCue(query: string): boolean {
+  const currentYear = new Date().getUTCFullYear();
+  const currentYearPattern = new RegExp(`\\b${currentYear}\\b`, "u");
+  return (
+    /(最新|当前|现在|今年|today|latest|current|release|changelog|发布|前沿)/iu.test(query) ||
+    currentYearPattern.test(query)
+  );
+}
+
+function hasTechnicalResearchCue(query: string): boolean {
+  return /(api|sdk|模型|model|framework|框架|论文|paper|benchmark|agent)/iu.test(query);
+}
+
 function getFreshnessWindowDays(query: string): 30 | 90 | 180 {
-  if (
-    /(最新|当前|现在|今年|today|latest|current|2026|2025|release|changelog|发布|前沿)/iu.test(query)
-  ) {
+  if (hasTimeSensitiveCue(query)) {
     return 30;
   }
 
-  if (/(api|sdk|模型|model|framework|框架|论文|paper|benchmark|agent)/iu.test(query)) {
+  if (hasTechnicalResearchCue(query)) {
     return 90;
   }
 
@@ -233,6 +248,30 @@ function getFreshnessWindowDays(query: string): 30 | 90 | 180 {
 
 function getCacheTtlSeconds(freshnessWindowDays: 30 | 90 | 180): number {
   return freshnessWindowDays * 24 * 60 * 60;
+}
+
+function getProviderFreshnessStartDate(
+  query: string,
+  freshnessWindowDays: 30 | 90 | 180,
+): string | null {
+  if (freshnessWindowDays !== 30 || !hasTimeSensitiveCue(query)) {
+    return null;
+  }
+
+  const startDate = new Date();
+  startDate.setUTCDate(startDate.getUTCDate() - freshnessWindowDays);
+  return startDate.toISOString().slice(0, 10);
+}
+
+function getSerperFreshnessFilter(
+  query: string,
+  freshnessWindowDays: 30 | 90 | 180,
+): string | null {
+  return getProviderFreshnessStartDate(query, freshnessWindowDays) ? "qdr:m" : null;
+}
+
+function getExaSearchType(query: string): "auto" | "deep-lite" {
+  return hasTimeSensitiveCue(query) || hasTechnicalResearchCue(query) ? "deep-lite" : "auto";
 }
 
 function normalizeQueryList(query: string, queries?: string[]): string[] {
@@ -260,7 +299,7 @@ function buildQueryVariants(query: string, focus?: string): string[] {
     variants.add(`${query} ${normalizedFocus}`);
   }
 
-  if (/(最新|当前|前沿|2025|2026|latest|current|release|api|sdk|模型|agent)/iu.test(query)) {
+  if (hasTimeSensitiveCue(query) || hasTechnicalResearchCue(query)) {
     variants.add(`${query} official docs release notes`);
     variants.add(`${query} paper technical report github`);
   }
@@ -428,13 +467,16 @@ function mapExaResult(result: Record<string, unknown>): ResearchSearchResult | n
 
   const text = cleanText(typeof result.text === "string" ? result.text : "");
   const summary = cleanText(typeof result.summary === "string" ? result.summary : "");
+  const highlights = Array.isArray(result.highlights)
+    ? cleanText(result.highlights.filter((item) => typeof item === "string").join("\n"))
+    : "";
 
   return {
     title:
       typeof result.title === "string" && result.title.trim() ? result.title.trim() : normalizedUrl,
     url: normalizedUrl,
     domain: getDomain(normalizedUrl),
-    snippet: truncateText(summary || text, 500),
+    snippet: truncateText(highlights || summary || text, 500),
     provider: "exa",
     score: typeof result.score === "number" ? clampScore(result.score * 100) : 72,
     publishedAt: typeof result.publishedDate === "string" ? result.publishedDate : undefined,
@@ -466,7 +508,15 @@ async function searchWithTavily(
   limit: number,
   freshnessWindowDays: 30 | 90 | 180,
 ): Promise<{ answer: string | null; results: ResearchSearchResult[] }> {
-  const cacheKey = buildCacheKey(["search", "tavily", query, limit, freshnessWindowDays]);
+  const freshnessStartDate = getProviderFreshnessStartDate(query, freshnessWindowDays);
+  const cacheKey = buildCacheKey([
+    "search",
+    "tavily",
+    query,
+    limit,
+    freshnessWindowDays,
+    freshnessStartDate,
+  ]);
   const cached = await readCache<{ answer: string | null; results: ResearchSearchResult[] }>(
     cacheKey,
   );
@@ -487,6 +537,7 @@ async function searchWithTavily(
       include_raw_content: false,
       search_depth: "advanced",
       chunks_per_source: 3,
+      ...(freshnessStartDate ? { start_date: freshnessStartDate } : {}),
     }),
     timeoutMs: 15_000,
   });
@@ -512,7 +563,17 @@ async function searchWithExa(
   limit: number,
   freshnessWindowDays: 30 | 90 | 180,
 ): Promise<{ answer: string | null; results: ResearchSearchResult[] }> {
-  const cacheKey = buildCacheKey(["search", "exa", query, limit, freshnessWindowDays]);
+  const freshnessStartDate = getProviderFreshnessStartDate(query, freshnessWindowDays);
+  const searchType = getExaSearchType(query);
+  const cacheKey = buildCacheKey([
+    "search",
+    "exa",
+    query,
+    limit,
+    freshnessWindowDays,
+    freshnessStartDate,
+    searchType,
+  ]);
   const cached = await readCache<{ answer: string | null; results: ResearchSearchResult[] }>(
     cacheKey,
   );
@@ -528,14 +589,20 @@ async function searchWithExa(
     },
     body: JSON.stringify({
       query,
-      type: "auto",
-      useAutoprompt: true,
+      type: searchType,
       numResults: limit,
+      systemPrompt:
+        "Prefer official documentation, papers, release notes, source repositories, and original technical posts. Avoid SEO aggregators and duplicate summaries.",
       contents: {
+        highlights: {
+          query,
+          maxCharacters: 1200,
+        },
         text: {
           maxCharacters: 5000,
         },
       },
+      ...(freshnessStartDate ? { startPublishedDate: `${freshnessStartDate}T00:00:00.000Z` } : {}),
     }),
     timeoutMs: 15_000,
   });
@@ -561,7 +628,15 @@ async function searchWithSerper(
   limit: number,
   freshnessWindowDays: 30 | 90 | 180,
 ): Promise<{ answer: string | null; results: ResearchSearchResult[] }> {
-  const cacheKey = buildCacheKey(["search", "serper", query, limit, freshnessWindowDays]);
+  const freshnessFilter = getSerperFreshnessFilter(query, freshnessWindowDays);
+  const cacheKey = buildCacheKey([
+    "search",
+    "serper",
+    query,
+    limit,
+    freshnessWindowDays,
+    freshnessFilter,
+  ]);
   const cached = await readCache<{ answer: string | null; results: ResearchSearchResult[] }>(
     cacheKey,
   );
@@ -578,6 +653,7 @@ async function searchWithSerper(
     body: JSON.stringify({
       q: query,
       num: limit,
+      ...(freshnessFilter ? { tbs: freshnessFilter } : {}),
     }),
     timeoutMs: 12_000,
   });
@@ -833,7 +909,7 @@ async function extractWithJinaReader(url: string): Promise<ExtractedDocument | n
     return null;
   }
 
-  const data = await fetchText(`https://r.jina.ai/http://${normalizedUrl}`, {
+  const data = await fetchText(`https://r.jina.ai/${normalizedUrl}`, {
     method: "GET",
     headers: {
       Accept: "text/plain",

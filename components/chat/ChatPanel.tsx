@@ -235,14 +235,17 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
   }, [persistedBackgroundResearch]);
 
   useEffect(() => {
-    if (!backgroundResearch) {
+    const researchRunId = backgroundResearch?.runId;
+    const researchStatus = backgroundResearch?.status;
+
+    if (!researchRunId || !researchStatus) {
       return;
     }
 
     if (
-      backgroundResearch.status === "completed" ||
-      backgroundResearch.status === "failed" ||
-      backgroundResearch.status === "canceled"
+      researchStatus === "completed" ||
+      researchStatus === "failed" ||
+      researchStatus === "canceled"
     ) {
       return;
     }
@@ -250,7 +253,7 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
     let cancelled = false;
 
     const poll = async () => {
-      const response = await fetch(`/api/research-jobs/${backgroundResearch.runId}`);
+      const response = await fetch(`/api/research-jobs/${researchRunId}`);
       if (!response.ok || cancelled) {
         return;
       }
@@ -277,7 +280,9 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
       }
     };
 
-    void poll();
+    void poll().catch((error) => {
+      console.error("[ChatPanel] background research poll failed", error);
+    });
     const intervalId = window.setInterval(() => {
       void poll().catch((error) => {
         console.error("[ChatPanel] background research poll failed", error);
@@ -288,7 +293,7 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
       cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [backgroundResearch, sessionId, setChatMessages]);
+  }, [backgroundResearch?.runId, backgroundResearch?.status, sessionId, setChatMessages]);
 
   const handleResearchAction = async (action: "cancel" | "retry") => {
     if (!backgroundResearch) {
@@ -482,11 +487,9 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
               research={backgroundResearch}
               onAction={(action) => void handleResearchAction(action)}
             >
-              {backgroundResearch.status === "completed" &&
-                !sessionId &&
-                backgroundResearch.reportMarkdown && (
-                  <StreamdownMessage content={backgroundResearch.reportMarkdown} />
-                )}
+              {backgroundResearch.status === "completed" && backgroundResearch.reportMarkdown && (
+                <StreamdownMessage content={backgroundResearch.reportMarkdown} />
+              )}
             </BackgroundResearchCard>
           )}
 
