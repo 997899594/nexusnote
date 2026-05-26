@@ -1184,7 +1184,7 @@ async function rerankWithDashScope(
   chunks: Array<{ text: string; sourceIndex: number; chunkIndex: number }>,
   topN: number,
 ): Promise<RankedChunk[] | null> {
-  const endpoint = `${env.DASHSCOPE_BASE_URL.replace(/\/$/u, "")}/services/rerank/text-rerank/text-rerank`;
+  const endpoint = `${env.DASHSCOPE_BASE_URL.replace(/\/$/u, "")}/reranks`;
   const data = await fetchJson<Record<string, unknown>>(endpoint, {
     method: "POST",
     headers: {
@@ -1193,20 +1193,15 @@ async function rerankWithDashScope(
     },
     body: JSON.stringify({
       model: env.RERANKER_MODEL_PRO || env.RERANKER_MODEL,
-      input: {
-        query,
-        documents: chunks.map((chunk) => chunk.text),
-      },
-      parameters: {
-        top_n: Math.min(topN, chunks.length),
-        return_documents: false,
-      },
+      query,
+      documents: chunks.map((chunk) => chunk.text),
+      top_n: Math.min(topN, chunks.length),
+      return_documents: false,
     }),
     timeoutMs: 20_000,
   });
 
-  const output = data.output && typeof data.output === "object" ? data.output : {};
-  return mapRerankResults((output as Record<string, unknown>).results, chunks);
+  return mapRerankResults(data.results, chunks);
 }
 
 async function rerankWithCompatibleGateway(

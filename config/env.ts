@@ -71,7 +71,7 @@ export const defaults = {
     // 默认关闭 AI 初始化噪音
     debugLogs: false,
     baseURL: "https://api.302ai.cn/v1",
-    dashscopeBaseURL: "https://dashscope-intl.aliyuncs.com/api/v1",
+    dashscopeBaseURL: "https://dashscope-intl.aliyuncs.com/compatible-api/v1",
   },
 
   // Notes / Liquid Knowledge

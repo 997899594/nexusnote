@@ -91,7 +91,7 @@
 - `EXA_API_KEY`
 - `FIRECRAWL_API_KEY`
 - `SERPER_API_KEY`
-- `DASHSCOPE_API_KEY`（可选；配置后优先走官方 Qwen3 reranker）
+- `DASHSCOPE_API_KEY`（可选；配置后优先走官方 compatible `/reranks` Qwen3 reranker）
 - `RERANKER_ENABLED=true`
 
 ### Streaming 层
