@@ -19,6 +19,12 @@ const COURSE_SECTION_LOCK_TTL_MS = 10 * 60 * 1000;
 const COURSE_SECTION_LIVE_STREAM_TTL_SECONDS = 30 * 60;
 const COURSE_SECTION_MAX_OUTPUT_TOKENS = 1800;
 const COURSE_SECTION_STREAM_CONTINUATION_ATTEMPTS = 1;
+const RELEASE_SECTION_LOCK_SCRIPT = `
+if redis.call("GET", KEYS[1]) == ARGV[1] then
+  return redis.call("DEL", KEYS[1])
+end
+return 0
+`;
 
 export interface CourseSectionProductionTarget {
   userId: string;
@@ -417,10 +423,7 @@ async function releaseSectionLock(lock: { key: string; token: string } | null) {
     return;
   }
 
-  const currentToken = await getRedis().get(lock.key);
-  if (currentToken === lock.token) {
-    await getRedis().del(lock.key);
-  }
+  await getRedis().eval(RELEASE_SECTION_LOCK_SCRIPT, 1, lock.key, lock.token);
 }
 
 function hasRemainingQueueAttempts(context: CourseSectionProductionRunContext): boolean {

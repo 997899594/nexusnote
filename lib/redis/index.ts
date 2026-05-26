@@ -34,10 +34,27 @@ export function getRedis(): Redis {
   }
 
   const client = createRedisClient();
-
-  if (env.NODE_ENV !== "production") {
-    globalForRedis.redis = client;
-  }
+  globalForRedis.redis = client;
 
   return client;
+}
+
+export async function closeRedisConnection(): Promise<void> {
+  const client = globalForRedis.redis;
+  if (!client) {
+    return;
+  }
+
+  globalForRedis.redis = undefined;
+
+  if (client.status === "end" || client.status === "wait") {
+    return;
+  }
+
+  try {
+    await client.quit();
+  } catch (error) {
+    client.disconnect();
+    throw error;
+  }
 }

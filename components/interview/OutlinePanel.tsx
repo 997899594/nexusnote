@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Loader2, Play } from "lucide-react";
+import { BookOpen, ExternalLink, Loader2, Play } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useState } from "react";
@@ -162,6 +162,37 @@ export function OutlinePanel({
                   <span>正在更新蓝图...</span>
                 </div>
               )}
+              {(outline.researchCitations?.length ?? 0) > 0 ? (
+                <div className="rounded-2xl border border-black/[0.05] bg-[#fbfaf5]/80 p-3">
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-tertiary)]">
+                      Sources
+                    </p>
+                    <span className="text-[11px] text-[var(--color-text-muted)]">
+                      {outline.researchCitations?.length}
+                    </span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {outline.researchCitations?.slice(0, 4).map((source) => (
+                      <a
+                        key={`${source.id}-${source.url}`}
+                        href={source.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="group flex items-center justify-between gap-3 rounded-xl bg-white/58 px-3 py-2 text-xs text-[var(--color-text-secondary)] transition-colors hover:bg-white hover:text-[var(--color-text)]"
+                      >
+                        <span className="min-w-0 truncate">
+                          <span className="mr-1 font-medium text-[var(--color-text)]">
+                            {source.id}
+                          </span>
+                          {source.title}
+                        </span>
+                        <ExternalLink className="h-3.5 w-3.5 shrink-0 text-[var(--color-text-muted)] transition-colors group-hover:text-[var(--color-text-secondary)]" />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               {actionOptions.length > 0 ? (
                 <div className="ui-control-surface rounded-2xl p-3">
                   <p className="text-xs font-medium text-[var(--color-text)]">快速调整</p>

@@ -49,6 +49,20 @@ export function getAIModelBundles(): Record<AIModelSeries, AIModelBundle> {
         webSearch: env.AI_QWEN_MODEL_WEB_SEARCH,
       }),
     },
+    deepseek: {
+      modelSeries: "deepseek",
+      label: "DeepSeek",
+      models: buildModelMap({
+        chat: env.AI_DEEPSEEK_MODEL_INTERACTIVE,
+        toolCalling: env.AI_DEEPSEEK_MODEL_INTERACTIVE,
+        pro: env.AI_DEEPSEEK_MODEL_REVIEW,
+        outline: env.AI_DEEPSEEK_MODEL_OUTLINE,
+        sectionDraft: env.AI_DEEPSEEK_MODEL_SECTION_DRAFT,
+        extract: env.AI_DEEPSEEK_MODEL_EXTRACT,
+        review: env.AI_DEEPSEEK_MODEL_REVIEW,
+        webSearch: env.AI_DEEPSEEK_MODEL_WEB_SEARCH,
+      }),
+    },
     gemini: {
       modelSeries: "gemini",
       label: "Gemini",

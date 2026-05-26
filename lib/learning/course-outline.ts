@@ -5,6 +5,7 @@ import {
   type InterviewOutline,
   InterviewOutlineSchema,
 } from "@/lib/ai/interview/schemas";
+import { researchCitationRefSchema } from "@/lib/ai/research/source-types";
 
 const CoursePrerequisiteSchema = z.string().trim().min(1).max(120);
 
@@ -26,6 +27,7 @@ export const CourseOutlineChapterSchema = z.object({
 
 export const CourseOutlineSchema = InterviewOutlineSchema.extend({
   prerequisites: z.array(CoursePrerequisiteSchema).max(8).optional(),
+  researchCitations: z.array(researchCitationRefSchema).max(12).optional(),
   chapters: z
     .array(CourseOutlineChapterSchema)
     .min(INTERVIEW_OUTLINE_CHAPTER_LIMITS.min)
@@ -52,6 +54,7 @@ export function createCourseOutlineFromInterviewOutline(outline: InterviewOutlin
     description: outline.description,
     targetAudience: outline.targetAudience,
     learningOutcome: outline.learningOutcome,
+    researchCitations: outline.researchCitations,
     prerequisites: undefined,
   });
 }

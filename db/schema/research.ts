@@ -100,6 +100,23 @@ export const researchRunSources = pgTable(
     url: text("url").notNull(),
     domain: text("domain").notNull(),
     snippet: text("snippet").notNull(),
+    provider: text("provider").notNull().default("unknown"),
+    sourceType: text("source_type").notNull().default("unknown"),
+    qualityTier: text("quality_tier").notNull().default("standard"),
+    qualityScore: integer("quality_score").notNull().default(0),
+    relevanceScore: integer("relevance_score").notNull().default(0),
+    citationId: text("citation_id"),
+    publishedAt: text("published_at"),
+    extractedAt: text("extracted_at"),
+    extractProvider: text("extract_provider"),
+    extractionStatus: text("extraction_status").notNull().default("snippet_only"),
+    freshnessWindowDays: integer("freshness_window_days").notNull().default(90),
+    searchQuery: text("search_query"),
+    contentPreview: text("content_preview"),
+    evidenceChunks: jsonb("evidence_chunks")
+      .$type<Array<{ id: string; text: string; relevanceScore?: number }>>()
+      .notNull()
+      .default([]),
     rank: integer("rank").notNull().default(0),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },

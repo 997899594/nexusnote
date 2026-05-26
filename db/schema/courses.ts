@@ -47,6 +47,22 @@ export const courseOutlineVersions = pgTable(
     learningOutcome: text("learning_outcome"),
     courseSkillIds: jsonb("course_skill_ids").$type<string[]>().notNull().default([]),
     prerequisites: jsonb("prerequisites").$type<string[]>().notNull().default([]),
+    researchCitations: jsonb("research_citations")
+      .$type<
+        Array<{
+          id: string;
+          title: string;
+          url: string;
+          domain: string;
+          sourceType?: string;
+          qualityTier?: string;
+          provider?: string;
+          publishedAt?: string;
+          snippet?: string;
+        }>
+      >()
+      .notNull()
+      .default([]),
     isLatest: boolean("is_latest").notNull().default(false),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),

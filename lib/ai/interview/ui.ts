@@ -1,6 +1,7 @@
 import { getToolName, isToolUIPart, type UIMessage } from "ai";
 import type { z } from "zod";
 import { extractUIMessageText } from "@/lib/ai/message-text";
+import { researchCitationRefSchema } from "@/lib/ai/research/source-types";
 import type {
   PresentOptionsInputSchema,
   PresentOptionsOutput,
@@ -203,6 +204,7 @@ function normalizePartialOutline(raw: unknown): OutlineDisplay | null {
     difficulty?: unknown;
     learningOutcome?: unknown;
     courseSkillIds?: unknown;
+    researchCitations?: unknown;
     chapters?: unknown;
   };
 
@@ -253,6 +255,12 @@ function normalizePartialOutline(raw: unknown): OutlineDisplay | null {
     learningOutcome:
       typeof outline.learningOutcome === "string" ? outline.learningOutcome : undefined,
     courseSkillIds: normalizeStringArray(outline.courseSkillIds),
+    researchCitations: Array.isArray(outline.researchCitations)
+      ? outline.researchCitations
+          .map((item) => researchCitationRefSchema.safeParse(item))
+          .filter((item) => item.success)
+          .map((item) => item.data)
+      : undefined,
     chapters,
   };
 }

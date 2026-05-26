@@ -2,51 +2,27 @@ import { generateText, Output } from "ai";
 import { buildGenerationSettingsForPolicy } from "@/lib/ai/core/generation-settings";
 import { getPlainModelForPolicy } from "@/lib/ai/core/model-policy";
 import { renderPromptResource } from "@/lib/ai/prompts/load-prompt";
-import { performWebSearch } from "@/lib/ai/tools/chat/web-search";
 import type { AIModelSeries } from "../core/model-series";
 import type { ResearchWorkerProvider } from "./a2a";
 import {
-  type ResearchSource,
   type ResearchWorkerResult,
   type ResearchWorkerTask,
   researchWorkerSummarySchema,
 } from "./contracts";
-
-function getSourceDomain(url: string): string {
-  try {
-    return new URL(url).hostname.replace(/^www\./, "");
-  } catch {
-    return "unknown";
-  }
-}
-
-function formatSearchResults(results: ResearchSource[]) {
-  if (results.length === 0) {
-    return "无可用搜索结果";
-  }
-
-  return results
-    .map(
-      (result, index) =>
-        `${index + 1}. ${result.title}\nURL: ${result.url}\n摘要: ${result.snippet || "无摘要"}`,
-    )
-    .join("\n\n");
-}
+import { collectResearchEvidence, formatResearchEvidenceForPrompt } from "./web-research";
 
 async function runLocalResearchWorker(input: {
   userPrompt: string;
   task: ResearchWorkerTask;
   modelSeries?: AIModelSeries;
 }): Promise<ResearchWorkerResult> {
-  const searchOutput = await performWebSearch(input.task.query, 5);
-  const sources = searchOutput.success
-    ? searchOutput.results.map((result) => ({
-        title: result.title,
-        url: result.url,
-        domain: getSourceDomain(result.url),
-        snippet: result.snippet,
-      }))
-    : [];
+  const retrieval = await collectResearchEvidence({
+    query: input.task.query,
+    focus: input.task.focus,
+    limit: 6,
+    maxExtractedSources: 8,
+  });
+  const sources = retrieval.sources;
 
   const summaryResult = await generateText({
     model: getPlainModelForPolicy("interactive-fast", {
@@ -58,7 +34,7 @@ async function runLocalResearchWorker(input: {
       task_title: input.task.title,
       task_query: input.task.query,
       task_focus: input.task.focus,
-      search_results: formatSearchResults(sources),
+      search_results: formatResearchEvidenceForPrompt(sources),
     }),
     ...buildGenerationSettingsForPolicy(
       "interactive-fast",

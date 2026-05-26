@@ -1,4 +1,11 @@
 import { z } from "zod";
+import type {
+  ResearchEvidenceChunk,
+  ResearchExtractProvider,
+  ResearchSearchProvider,
+  ResearchSourceQualityTier,
+  ResearchSourceType,
+} from "./source-types";
 
 export const researchPlanTaskSchema = z.object({
   id: z.string().trim().min(1).max(40),
@@ -24,6 +31,20 @@ export interface ResearchSource {
   url: string;
   domain: string;
   snippet: string;
+  provider?: ResearchSearchProvider;
+  sourceType?: ResearchSourceType;
+  qualityTier?: ResearchSourceQualityTier;
+  qualityScore?: number;
+  relevanceScore?: number;
+  citationId?: string;
+  publishedAt?: string;
+  extractedAt?: string;
+  extractProvider?: ResearchExtractProvider;
+  extractionStatus?: "extracted" | "snippet_only" | "failed";
+  freshnessWindowDays?: 30 | 90 | 180;
+  searchQuery?: string;
+  contentPreview?: string;
+  evidenceChunks?: ResearchEvidenceChunk[];
 }
 
 export interface ResearchWorkerTask {
@@ -82,6 +103,13 @@ export interface ResearchCitation {
   domain: string;
   snippets: string[];
   taskKeys: string[];
+  provider?: ResearchSearchProvider;
+  sourceType?: ResearchSourceType;
+  qualityTier?: ResearchSourceQualityTier;
+  qualityScore?: number;
+  relevanceScore?: number;
+  publishedAt?: string;
+  extractedAt?: string;
 }
 
 export interface ResearchTaskSnapshot {

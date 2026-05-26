@@ -80,6 +80,7 @@ function buildInterviewDynamicHint(input: {
 export function buildInterviewAgentInstructionsWithHint(input: {
   currentOutline?: InterviewOutline;
   messages?: Array<Pick<UIMessage, "role" | "parts">>;
+  webResearchContext?: string;
 }) {
   const latestUserMessage = getLatestUserMessage(input.messages);
   const dynamicHint = buildInterviewDynamicHint({
@@ -100,6 +101,9 @@ export function buildInterviewAgentInstructionsWithHint(input: {
         ? INTERVIEW_NATURAL_HINTS.existingOutlineRules
         : "",
     }),
+    input.webResearchContext,
     dynamicHint,
-  ].join("\n\n");
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }

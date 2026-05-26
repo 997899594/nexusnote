@@ -163,6 +163,10 @@ export async function runGenerateCourseSectionWorkflow({
     });
   }
 
+  await prepareCourseSectionLiveStream({
+    courseId,
+    outlineNodeId: input.outlineNodeId,
+  });
   const queued = await enqueueCourseSectionMaterialization({
     userId,
     courseId,
@@ -170,10 +174,6 @@ export async function runGenerateCourseSectionWorkflow({
     sectionIndex,
     reasonKey: `view:${input.outlineNodeId}`,
     priority: 1,
-  });
-  await prepareCourseSectionLiveStream({
-    courseId,
-    outlineNodeId: input.outlineNodeId,
   });
   trace.step("materialization-queued", {
     outlineNodeId: input.outlineNodeId,

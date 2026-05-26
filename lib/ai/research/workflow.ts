@@ -47,6 +47,7 @@ function buildCanonicalCitations(workerResults: ResearchWorkerResult[]): Researc
       domain: string;
       snippets: string[];
       taskKeys: string[];
+      source: ResearchWorkerResult["sources"][number];
     }
   >();
 
@@ -69,6 +70,7 @@ function buildCanonicalCitations(workerResults: ResearchWorkerResult[]): Researc
         domain: source.domain,
         snippets: source.snippet ? [source.snippet] : [],
         taskKeys: [result.task.id],
+        source,
       });
     }
   }
@@ -80,6 +82,13 @@ function buildCanonicalCitations(workerResults: ResearchWorkerResult[]): Researc
     domain: source.domain,
     snippets: source.snippets.slice(0, 2),
     taskKeys: [...source.taskKeys].sort(),
+    provider: source.source.provider,
+    sourceType: source.source.sourceType,
+    qualityTier: source.source.qualityTier,
+    qualityScore: source.source.qualityScore,
+    relevanceScore: source.source.relevanceScore,
+    publishedAt: source.source.publishedAt,
+    extractedAt: source.source.extractedAt,
   }));
 }
 
@@ -94,7 +103,17 @@ function buildWorkerResultsBlock(
   return workerResults
     .map((result, index) => {
       const sources = result.sources
-        .map((source, sourceIndex) => `${sourceIndex + 1}. ${source.title} - ${source.url}`)
+        .map((source, sourceIndex) => {
+          const evidence = (source.evidenceChunks ?? [])
+            .slice(0, 2)
+            .map((chunk) => `   - ${chunk.text}`)
+            .join("\n");
+          return [
+            `${sourceIndex + 1}. ${source.title} - ${source.url}`,
+            `   类型：${source.sourceType ?? "unknown"}；质量：${source.qualityTier ?? "standard"}；相关性：${source.relevanceScore ?? 0}`,
+            evidence ? `   证据：\n${evidence}` : `   摘要：${source.snippet}`,
+          ].join("\n");
+        })
         .map((line, lineIndex) => {
           const source = result.sources[lineIndex];
           const citationId = citationLookup.get(source.url);
@@ -124,9 +143,18 @@ function buildCitationCatalog(citations: ResearchCitation[]) {
   }
 
   return citations
-    .map(
-      (citation) =>
-        `[${citation.id}] ${citation.title}\nURL: ${citation.url}\n域名: ${citation.domain}\n关联任务: ${citation.taskKeys.join(", ")}`,
+    .map((citation) =>
+      [
+        `[${citation.id}] ${citation.title}`,
+        `URL: ${citation.url}`,
+        `域名: ${citation.domain}`,
+        `类型: ${citation.sourceType ?? "unknown"}`,
+        `质量: ${citation.qualityTier ?? "standard"}`,
+        citation.publishedAt ? `发布时间: ${citation.publishedAt}` : null,
+        `关联任务: ${citation.taskKeys.join(", ")}`,
+      ]
+        .filter((line): line is string => Boolean(line))
+        .join("\n"),
     )
     .join("\n\n");
 }
@@ -142,7 +170,10 @@ function appendStructuredSources(markdown: string, citations: ResearchCitation[]
   }
 
   const sourcesBlock = citations
-    .map((citation) => `- [${citation.id}] [${citation.title}](${citation.url})`)
+    .map((citation) => {
+      const meta = [citation.sourceType, citation.qualityTier].filter(Boolean).join(" / ");
+      return `- [${citation.id}] [${citation.title}](${citation.url})${meta ? ` · ${meta}` : ""}`;
+    })
     .join("\n");
 
   return `${body}\n\n## 来源\n${sourcesBlock}`;
@@ -218,7 +249,7 @@ export async function runBackgroundResearchWorkflow(params: {
   await setResearchRunProgress(
     params.runId,
     "running",
-    buildProgress("planning", "正在拆分研究任务。"),
+    buildProgress("planning", "规划研究路径。"),
   );
   await assertResearchRunStillActive(params.runId);
 
@@ -253,14 +284,10 @@ export async function runBackgroundResearchWorkflow(params: {
   await setResearchRunProgress(
     params.runId,
     "running",
-    buildProgress(
-      "researching",
-      `已拆分为 ${managerResult.output.tasks.length} 个并行研究子任务。`,
-      {
-        totalTasks: managerResult.output.tasks.length,
-        completedTasks: 0,
-      },
-    ),
+    buildProgress("researching", `并行检索 ${managerResult.output.tasks.length} 个子任务。`, {
+      totalTasks: managerResult.output.tasks.length,
+      completedTasks: 0,
+    }),
   );
 
   const workerProvider = resolveResearchWorkerProvider({
@@ -298,7 +325,7 @@ export async function runBackgroundResearchWorkflow(params: {
           "running",
           buildProgress(
             "researching",
-            `已完成 ${completedTasks}/${managerResult.output.tasks.length} 个研究子任务。`,
+            `已读取并重排 ${completedTasks}/${managerResult.output.tasks.length} 个子任务。`,
             {
               totalTasks: managerResult.output.tasks.length,
               completedTasks,
@@ -338,7 +365,7 @@ export async function runBackgroundResearchWorkflow(params: {
   await setResearchRunProgress(
     params.runId,
     "running",
-    buildProgress("synthesizing", "正在综合子任务发现并生成最终报告。", {
+    buildProgress("synthesizing", "综合证据。", {
       totalTasks: managerResult.output.tasks.length,
       completedTasks: managerResult.output.tasks.length,
     }),
@@ -370,7 +397,7 @@ export async function runBackgroundResearchWorkflow(params: {
   await setResearchRunProgress(
     params.runId,
     "running",
-    buildProgress("persisting", "正在写回研究结果并同步会话知识。", {
+    buildProgress("persisting", "写回结果。", {
       totalTasks: managerResult.output.tasks.length,
       completedTasks: managerResult.output.tasks.length,
     }),

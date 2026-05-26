@@ -64,7 +64,7 @@ export function startResearchWorker(): Worker<ResearchJobData> {
 
         await job.updateProgress({
           stage: "completed",
-          message: "研究结果已整理完成",
+          message: "Research 已完成",
         });
 
         await persistBackgroundResearchMetadata({

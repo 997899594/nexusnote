@@ -1,11 +1,16 @@
 /**
- * Chat Tools - 网页搜索
+ * Chat Tools - web research search.
  *
- * 工厂模式：可绑定 userId 用于用量追踪和日志归属
+ * This is intentionally a thin tool wrapper around the shared research retrieval pipeline.
  */
 
 import { tool } from "ai";
 import { z } from "zod";
+import { env } from "@/config/env";
+import {
+  collectResearchEvidence,
+  hasResearchProviderConfigured,
+} from "@/lib/ai/research/web-research";
 
 const WebSearchSchema = z.object({
   query: z.string().min(1).max(500),
@@ -16,6 +21,11 @@ export interface WebSearchToolResultItem {
   title: string;
   url: string;
   snippet: string;
+  sourceId?: string;
+  provider?: string;
+  sourceType?: string;
+  qualityTier?: string;
+  relevanceScore?: number;
 }
 
 export interface WebSearchToolOutput {
@@ -31,30 +41,51 @@ export async function performWebSearch(
   limit: number,
   options?: { userId?: string },
 ): Promise<WebSearchToolOutput> {
-  const searchApiKey = process.env.TAVILY_API_KEY || process.env.SERPER_API_KEY;
+  if (!env.AI_ENABLE_WEB_SEARCH) {
+    return {
+      success: false,
+      error: "联网搜索未启用。请配置 AI_ENABLE_WEB_SEARCH=true。",
+      query,
+      results: [],
+    };
+  }
 
-  if (!searchApiKey) {
+  if (!hasResearchProviderConfigured()) {
     console.warn("[Tool] webSearch: No search API key configured", {
       userId: options?.userId ?? null,
     });
     return {
       success: false,
-      error: "搜索服务未配置。请联系管理员配置 TAVILY_API_KEY 或 SERPER_API_KEY。",
+      error: "搜索服务未配置。请配置 TAVILY_API_KEY、EXA_API_KEY 或 SERPER_API_KEY。",
       query,
       results: [],
     };
   }
 
   try {
-    if (process.env.TAVILY_API_KEY) {
-      return await searchWithTavily(query, limit);
-    }
+    const output = await collectResearchEvidence({
+      query,
+      limit,
+      maxExtractedSources: Math.min(limit, 6),
+      userId: options?.userId,
+    });
 
-    if (process.env.SERPER_API_KEY) {
-      return await searchWithSerper(query, limit);
-    }
-
-    return { success: false, error: "搜索服务配置错误", query, results: [] };
+    return {
+      success: output.success,
+      query,
+      answer: output.answer,
+      error: output.success ? undefined : (output.errors[0] ?? "搜索服务暂不可用"),
+      results: output.sources.map((source) => ({
+        title: source.title,
+        url: source.url,
+        snippet: source.snippet,
+        sourceId: source.sourceId,
+        provider: source.provider,
+        sourceType: source.sourceType,
+        qualityTier: source.qualityTier,
+        relevanceScore: source.relevanceScore,
+      })),
+    };
   } catch (error) {
     console.error("[Tool] webSearch error:", error, {
       userId: options?.userId ?? null,
@@ -69,83 +100,12 @@ export async function performWebSearch(
   }
 }
 
-/**
- * 创建网页搜索工具（绑定 userId）
- */
 export function createWebSearchTool(userId?: string) {
   return {
     webSearch: tool({
-      description: "搜索互联网获取最新信息",
+      description: "搜索互联网并读取关键页面正文，返回带 source id 的可追溯来源",
       inputSchema: WebSearchSchema,
       execute: async (args) => performWebSearch(args.query, args.limit, { userId }),
     }),
-  };
-}
-
-/**
- * 使用 Tavily API 搜索
- */
-async function searchWithTavily(query: string, limit: number) {
-  const response = await fetch("https://api.tavily.com/search", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.TAVILY_API_KEY}`,
-    },
-    body: JSON.stringify({
-      query,
-      max_results: limit,
-      include_answer: true,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Tavily API error: ${response.statusText}`);
-  }
-
-  const data = await response.json();
-
-  return {
-    success: true,
-    query,
-    answer: data.answer || null,
-    results: (data.results || []).map((r: { title: string; url: string; content: string }) => ({
-      title: r.title,
-      url: r.url,
-      snippet: r.content,
-    })),
-  };
-}
-
-/**
- * 使用 Serper API 搜索
- */
-async function searchWithSerper(query: string, limit: number) {
-  const response = await fetch("https://google.serper.dev/search", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-API-KEY": process.env.SERPER_API_KEY!,
-    },
-    body: JSON.stringify({
-      q: query,
-      num: limit,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Serper API error: ${response.statusText}`);
-  }
-
-  const data = await response.json();
-
-  return {
-    success: true,
-    query,
-    results: (data.organic || []).map((r: { title: string; link: string; snippet: string }) => ({
-      title: r.title,
-      url: r.link,
-      snippet: r.snippet,
-    })),
   };
 }

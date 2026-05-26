@@ -36,31 +36,37 @@ export const defaults = {
   reranker: {
     model: "Qwen/Qwen3-Reranker-4B",
     modelPro: "Qwen/Qwen3-Reranker-8B",
-    enabled: false,
+    enabled: true,
   },
 
   // AI Models (task-routed stack)
   ai: {
-    qwenModelInteractive: "qwen-plus-latest",
-    qwenModelOutline: "qwen-plus-latest",
-    qwenModelSectionDraft: "qwen-plus-latest",
-    qwenModelExtract: "qwen-plus-latest",
-    qwenModelReview: "qwen-max-latest",
-    qwenModelWebSearch: "qwen-plus-latest",
-    geminiModelInteractive: "gemini-3.1-flash-lite-preview",
-    geminiModelOutline: "gemini-3.1-pro-preview",
-    geminiModelSectionDraft: "gemini-3.1-flash-lite-preview",
-    geminiModelExtract: "gemini-3.1-flash-lite-preview",
-    geminiModelReview: "gemini-3.1-pro-preview",
-    geminiModelWebSearch: "gemini-3.1-flash-lite-preview",
-    openaiModelInteractive: "gpt-5.4-mini",
-    openaiModelOutline: "gpt-5.4-mini",
-    openaiModelSectionDraft: "gpt-5.4-mini",
-    openaiModelExtract: "gpt-5.4-mini",
+    qwenModelInteractive: "qwen3.6-plus",
+    qwenModelOutline: "qwen3.7-max",
+    qwenModelSectionDraft: "qwen3.6-plus",
+    qwenModelExtract: "qwen3.6-flash",
+    qwenModelReview: "qwen3.7-max",
+    qwenModelWebSearch: "qwen3.6-plus",
+    deepseekModelInteractive: "deepseek-v4-flash",
+    deepseekModelOutline: "deepseek-v4-pro",
+    deepseekModelSectionDraft: "deepseek-v4-flash",
+    deepseekModelExtract: "deepseek-v4-flash",
+    deepseekModelReview: "deepseek-v4-pro",
+    deepseekModelWebSearch: "deepseek-v4-flash",
+    geminiModelInteractive: "gemini-3.5-flash",
+    geminiModelOutline: "gemini-3.5-flash",
+    geminiModelSectionDraft: "gemini-3.5-flash",
+    geminiModelExtract: "gemini-3.5-flash",
+    geminiModelReview: "gemini-3.5-flash",
+    geminiModelWebSearch: "gemini-3.5-flash",
+    openaiModelInteractive: "gpt-5.5",
+    openaiModelOutline: "gpt-5.5",
+    openaiModelSectionDraft: "gpt-5.5",
+    openaiModelExtract: "gpt-5.5",
     openaiModelReview: "gpt-5.5",
-    openaiModelWebSearch: "gpt-5.4-mini",
+    openaiModelWebSearch: "gpt-5.5",
     // Optional JSON object keyed by concrete model id:
-    // {"qwen-plus-latest":{"input":0.3,"output":1.2}}
+    // {"qwen3.6-plus":{"input":0.3,"output":1.2}}
     modelPricingJson: "{}",
     // 默认关闭 AI 初始化噪音
     debugLogs: false,
@@ -138,6 +144,9 @@ export const serverEnvSchema = z.object({
   AI_302_API_KEY: z.string().min(1),
   AI_302_BASE_URL: z.string().url().default(defaults.ai.baseURL),
   TAVILY_API_KEY: z.string().optional(),
+  EXA_API_KEY: z.string().optional(),
+  FIRECRAWL_API_KEY: z.string().optional(),
+  SERPER_API_KEY: z.string().optional(),
 
   // AI Observability (可选 - Langfuse)
   LANGFUSE_PUBLIC_KEY: z.string().optional(),
@@ -150,6 +159,12 @@ export const serverEnvSchema = z.object({
   AI_QWEN_MODEL_EXTRACT: z.string().default(defaults.ai.qwenModelExtract),
   AI_QWEN_MODEL_REVIEW: z.string().default(defaults.ai.qwenModelReview),
   AI_QWEN_MODEL_WEB_SEARCH: z.string().default(defaults.ai.qwenModelWebSearch),
+  AI_DEEPSEEK_MODEL_INTERACTIVE: z.string().default(defaults.ai.deepseekModelInteractive),
+  AI_DEEPSEEK_MODEL_OUTLINE: z.string().default(defaults.ai.deepseekModelOutline),
+  AI_DEEPSEEK_MODEL_SECTION_DRAFT: z.string().default(defaults.ai.deepseekModelSectionDraft),
+  AI_DEEPSEEK_MODEL_EXTRACT: z.string().default(defaults.ai.deepseekModelExtract),
+  AI_DEEPSEEK_MODEL_REVIEW: z.string().default(defaults.ai.deepseekModelReview),
+  AI_DEEPSEEK_MODEL_WEB_SEARCH: z.string().default(defaults.ai.deepseekModelWebSearch),
   AI_GEMINI_MODEL_INTERACTIVE: z.string().default(defaults.ai.geminiModelInteractive),
   AI_GEMINI_MODEL_OUTLINE: z.string().default(defaults.ai.geminiModelOutline),
   AI_GEMINI_MODEL_SECTION_DRAFT: z.string().default(defaults.ai.geminiModelSectionDraft),
@@ -201,7 +216,7 @@ export const serverEnvSchema = z.object({
   // AI Features
   AI_ENABLE_WEB_SEARCH: z
     .string()
-    .default("false")
+    .default("true")
     .transform((v) => v === "true"),
 
   // Billing
@@ -230,7 +245,7 @@ export const serverEnvSchema = z.object({
   RERANKER_MODEL_PRO: z.string().default(defaults.reranker.modelPro),
   RERANKER_ENABLED: z
     .string()
-    .default("false")
+    .default(String(defaults.reranker.enabled))
     .transform((v) => v === "true"),
 
   // RAG
@@ -261,7 +276,6 @@ export const serverEnvSchema = z.object({
     .string()
     .default(String(defaults.rag.debugLogs))
     .transform((v) => v === "true"),
-  AI_FAST_MODEL: z.string().optional().describe("Fast model for query rewriting"),
 
   // Snapshot
   SNAPSHOT_INTERVAL_MS: z.coerce.number().int().positive().default(defaults.snapshot.intervalMs),
@@ -353,7 +367,7 @@ export const clientEnvSchema = z.object({
   // AI Features (client can override via user preference)
   NEXT_PUBLIC_AI_ENABLE_WEB_SEARCH: z
     .string()
-    .default("false")
+    .default("true")
     .transform((v) => v === "true"),
 
   // Environment
@@ -400,7 +414,7 @@ export function parseServerEnv(env: NodeJS.ProcessEnv = process.env): ServerEnv 
  */
 export function parseClientEnv(env: Record<string, string | undefined> = {}): ClientEnv {
   const processEnv = {
-    NEXT_PUBLIC_AI_ENABLE_WEB_SEARCH: process.env.NEXT_PUBLIC_AI_ENABLE_WEB_SEARCH ?? "false",
+    NEXT_PUBLIC_AI_ENABLE_WEB_SEARCH: process.env.NEXT_PUBLIC_AI_ENABLE_WEB_SEARCH ?? "true",
     NODE_ENV: process.env.NODE_ENV,
   };
 
@@ -481,12 +495,19 @@ export function logServerConfig(env: ServerEnv): void {
   console.log(`  AI_QWEN_MODEL_EXTRACT: ${env.AI_QWEN_MODEL_EXTRACT}`);
   console.log(`  AI_QWEN_MODEL_REVIEW: ${env.AI_QWEN_MODEL_REVIEW}`);
   console.log(`  AI_QWEN_MODEL_WEB_SEARCH: ${env.AI_QWEN_MODEL_WEB_SEARCH}`);
+  console.log(`  AI_DEEPSEEK_MODEL_INTERACTIVE: ${env.AI_DEEPSEEK_MODEL_INTERACTIVE}`);
+  console.log(`  AI_DEEPSEEK_MODEL_OUTLINE: ${env.AI_DEEPSEEK_MODEL_OUTLINE}`);
   console.log(`  AI_GEMINI_MODEL_INTERACTIVE: ${env.AI_GEMINI_MODEL_INTERACTIVE}`);
   console.log(`  AI_OPENAI_MODEL_INTERACTIVE: ${env.AI_OPENAI_MODEL_INTERACTIVE}`);
   console.log(`  AI_MODEL_PRICING_CONFIGURED: ${Object.keys(env.AI_MODEL_PRICING_JSON).length}`);
   console.log(`  AI_ENABLE_WEB_SEARCH: ${env.AI_ENABLE_WEB_SEARCH}`);
+  console.log(`  TAVILY_API_KEY: ${maskSecret(env.TAVILY_API_KEY)}`);
+  console.log(`  EXA_API_KEY: ${maskSecret(env.EXA_API_KEY)}`);
+  console.log(`  FIRECRAWL_API_KEY: ${maskSecret(env.FIRECRAWL_API_KEY)}`);
+  console.log(`  SERPER_API_KEY: ${maskSecret(env.SERPER_API_KEY)}`);
   console.log(`  EMBEDDING_MODEL: ${env.EMBEDDING_MODEL}`);
   console.log(`  EMBEDDING_DIMENSIONS: ${env.EMBEDDING_DIMENSIONS}`);
+  console.log(`  RERANKER_ENABLED: ${env.RERANKER_ENABLED}`);
   console.log(`  BILLING_PROVIDER: ${env.BILLING_PROVIDER}`);
   console.log(
     `  BILLING_CHECKOUT_CONFIGURED: ${Boolean(

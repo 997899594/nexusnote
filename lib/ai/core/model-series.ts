@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const AIModelSeriesSchema = z.enum(["qwen", "gemini", "openai"]);
+export const AIModelSeriesSchema = z.enum(["qwen", "deepseek", "gemini", "openai"]);
 
 export type AIModelSeries = z.infer<typeof AIModelSeriesSchema>;
 
@@ -16,7 +16,12 @@ export const AI_MODEL_SERIES_OPTIONS: AIModelSeriesOption[] = [
   {
     value: "qwen",
     label: "Qwen",
-    description: "使用 Qwen 系列模型。",
+    description: "使用 Qwen 最新系列模型。",
+  },
+  {
+    value: "deepseek",
+    label: "DeepSeek",
+    description: "使用 DeepSeek V4 系列模型。",
   },
   {
     value: "gemini",

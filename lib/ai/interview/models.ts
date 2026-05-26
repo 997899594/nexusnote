@@ -1,3 +1,4 @@
+import type { ResearchCitationRef } from "../research/source-types";
 import type { InterviewOutline } from "./schemas";
 
 export interface Section {
@@ -20,6 +21,7 @@ export interface OutlineDisplay {
   difficulty?: "beginner" | "intermediate" | "advanced";
   learningOutcome?: string;
   courseSkillIds?: string[];
+  researchCitations?: ResearchCitationRef[];
   chapters: Chapter[];
 }
 

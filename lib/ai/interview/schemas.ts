@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { researchCitationRefSchema } from "@/lib/ai/research/source-types";
 
 export const INTERVIEW_OUTLINE_CHAPTER_LIMITS = {
   min: 3,
@@ -113,6 +114,11 @@ export const InterviewOutlineSchema = z.object({
     .min(20)
     .max(240)
     .describe("最终会保存的学习成果。必须是可判断的能力或产出，不写空泛愿景。"),
+  researchCitations: z
+    .array(researchCitationRefSchema)
+    .max(12)
+    .optional()
+    .describe("本课程蓝图使用过的外部来源。只有联网资料存在时填写，id 必须来自系统给定来源。"),
 });
 
 export const InterviewPhaseSchema = z.enum(["discover", "revise"]);

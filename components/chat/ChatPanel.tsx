@@ -7,9 +7,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AIDegradationBanner } from "@/components/common";
 import { useInputProtection } from "@/components/common/useInputProtection";
-import type { ResearchRunSnapshot, ResearchRunStatus } from "@/lib/ai/research/contracts";
+import type { ResearchRunSnapshot } from "@/lib/ai/research/contracts";
 import { cn } from "@/lib/utils";
 import type { Command } from "@/types/chat";
+import { BackgroundResearchCard, type BackgroundResearchCardState } from "./BackgroundResearchCard";
 import { ChatMessage, LoadingDots } from "./ChatMessage";
 import { CommandMenu } from "./CommandMenu";
 import { StreamdownMessage } from "./StreamdownMessage";
@@ -19,29 +20,22 @@ interface ChatPanelProps {
   sessionId: string | null;
 }
 
-interface BackgroundResearchState {
-  runId: string;
-  status: ResearchRunStatus;
-  progressMessage?: string;
-  completedTasks?: number;
-  totalTasks?: number;
+interface BackgroundResearchState extends BackgroundResearchCardState {
   reportMarkdown?: string;
-  failedReason?: string;
-  citationCount?: number;
-  canCancel?: boolean;
-  canRetry?: boolean;
 }
 
 function buildBackgroundResearchState(snapshot: ResearchRunSnapshot): BackgroundResearchState {
   return {
     runId: snapshot.id,
     status: snapshot.status,
+    stage: snapshot.progress?.stage,
     progressMessage: snapshot.progress?.message,
     completedTasks: snapshot.progress?.completedTasks,
     totalTasks: snapshot.progress?.totalTasks,
     reportMarkdown: snapshot.report?.reportMarkdown,
     failedReason: snapshot.errorMessage ?? undefined,
     citationCount: snapshot.citations.length,
+    citations: snapshot.citations,
     canCancel: snapshot.canCancel,
     canRetry: snapshot.canRetry,
   };
@@ -484,98 +478,16 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
           ))}
 
           {backgroundResearch && (
-            <div className="ui-message-card rounded-[26px] px-4 py-3 text-sm text-[var(--color-text)]">
-              <div className="mb-2 flex items-center gap-2 font-medium">
-                <Loader2
-                  className={cn(
-                    "h-4 w-4",
-                    backgroundResearch.status === "completed" ||
-                      backgroundResearch.status === "failed" ||
-                      backgroundResearch.status === "canceled"
-                      ? "animate-none"
-                      : "animate-spin",
-                  )}
-                />
-                {backgroundResearch.status === "completed"
-                  ? "资料整理已完成"
-                  : backgroundResearch.status === "failed"
-                    ? "资料整理失败"
-                    : backgroundResearch.status === "canceled"
-                      ? "资料整理已取消"
-                      : backgroundResearch.status === "cancel_requested"
-                        ? "正在取消资料整理"
-                        : "正在整理资料"}
-              </div>
-
-              {backgroundResearch.totalTasks != null && (
-                <p className="mb-2 text-xs text-[var(--color-text-muted)]">
-                  {backgroundResearch.completedTasks ?? 0}/{backgroundResearch.totalTasks}{" "}
-                  个子任务已完成
-                </p>
-              )}
-
-              {backgroundResearch.status !== "completed" &&
-                backgroundResearch.status !== "failed" &&
-                backgroundResearch.status !== "canceled" && (
-                  <p className="text-[var(--color-text-secondary)]">
-                    {backgroundResearch.progressMessage ??
-                      "正在查找来源并整理结果。你可以继续当前对话。"}
-                  </p>
-                )}
-
-              {backgroundResearch.status === "failed" && (
-                <p className="text-[var(--color-text-secondary)]">
-                  {backgroundResearch.failedReason ?? "研究任务执行失败，请稍后再试。"}
-                </p>
-              )}
-
-              {backgroundResearch.status === "canceled" && (
-                <p className="text-[var(--color-text-secondary)]">
-                  研究任务已停止，当前不会再继续生成结果。
-                </p>
-              )}
-
-              {backgroundResearch.status === "completed" && sessionId && (
-                <p className="text-[var(--color-text-secondary)]">研究结果已经写回当前对话。</p>
-              )}
-
-              {backgroundResearch.citationCount != null && backgroundResearch.citationCount > 0 && (
-                <p className="mt-2 text-xs text-[var(--color-text-muted)]">
-                  已整理 {backgroundResearch.citationCount} 个来源。
-                </p>
-              )}
-
-              {(backgroundResearch.canCancel || backgroundResearch.canRetry) && (
-                <div className="mt-3 flex items-center gap-2">
-                  {backgroundResearch.canCancel && (
-                    <button
-                      type="button"
-                      onClick={() => void handleResearchAction("cancel")}
-                      className="rounded-full border border-[var(--color-border)] px-3 py-1 text-xs text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)]"
-                    >
-                      取消研究
-                    </button>
-                  )}
-                  {backgroundResearch.canRetry && (
-                    <button
-                      type="button"
-                      onClick={() => void handleResearchAction("retry")}
-                      className="rounded-full border border-[var(--color-border)] px-3 py-1 text-xs text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)]"
-                    >
-                      重试研究
-                    </button>
-                  )}
-                </div>
-              )}
-
+            <BackgroundResearchCard
+              research={backgroundResearch}
+              onAction={(action) => void handleResearchAction(action)}
+            >
               {backgroundResearch.status === "completed" &&
                 !sessionId &&
                 backgroundResearch.reportMarkdown && (
-                  <div className="mt-3 rounded-xl bg-[var(--color-panel-soft)] px-3 py-3">
-                    <StreamdownMessage content={backgroundResearch.reportMarkdown} />
-                  </div>
+                  <StreamdownMessage content={backgroundResearch.reportMarkdown} />
                 )}
-            </div>
+            </BackgroundResearchCard>
           )}
 
           {isAILoading && <LoadingDots />}

@@ -14,6 +14,7 @@ import type {
   ResearchCitation,
   ResearchRunSnapshot,
   ResearchRunStatus,
+  ResearchSource,
   ResearchTaskSnapshot,
   ResearchTaskStatus,
   ResearchWorkerTask,
@@ -27,12 +28,14 @@ function buildCitationMap(params: {
   tasks: Array<{
     id: string;
     taskKey: string;
-    sources: Array<{
-      title: string;
-      url: string;
-      domain: string;
-      snippet: string;
-    }>;
+    sources: Array<
+      {
+        title: string;
+        url: string;
+        domain: string;
+        snippet: string;
+      } & Partial<ResearchSource>
+    >;
   }>;
 }): ResearchCitation[] {
   const byUrl = new Map<
@@ -43,6 +46,7 @@ function buildCitationMap(params: {
       domain: string;
       snippets: string[];
       taskKeys: string[];
+      source: ResearchSource;
     }
   >();
 
@@ -65,6 +69,7 @@ function buildCitationMap(params: {
         domain: source.domain,
         snippets: source.snippet ? [source.snippet] : [],
         taskKeys: [task.taskKey],
+        source,
       });
     }
   }
@@ -76,6 +81,13 @@ function buildCitationMap(params: {
     domain: source.domain,
     snippets: source.snippets.slice(0, 2),
     taskKeys: [...source.taskKeys].sort(),
+    provider: source.source.provider,
+    sourceType: source.source.sourceType,
+    qualityTier: source.source.qualityTier,
+    qualityScore: source.source.qualityScore,
+    relevanceScore: source.source.relevanceScore,
+    publishedAt: source.source.publishedAt,
+    extractedAt: source.source.extractedAt,
   }));
 }
 
@@ -126,6 +138,20 @@ async function loadResearchRunTasks(runId: string): Promise<ResearchTaskSnapshot
       url: source.url,
       domain: source.domain,
       snippet: source.snippet,
+      provider: source.provider as ResearchSource["provider"],
+      sourceType: source.sourceType as ResearchSource["sourceType"],
+      qualityTier: source.qualityTier as ResearchSource["qualityTier"],
+      qualityScore: source.qualityScore,
+      relevanceScore: source.relevanceScore,
+      citationId: source.citationId ?? undefined,
+      publishedAt: source.publishedAt ?? undefined,
+      extractedAt: source.extractedAt ?? undefined,
+      extractProvider: source.extractProvider as ResearchSource["extractProvider"],
+      extractionStatus: source.extractionStatus as ResearchSource["extractionStatus"],
+      freshnessWindowDays: source.freshnessWindowDays as ResearchSource["freshnessWindowDays"],
+      searchQuery: source.searchQuery ?? undefined,
+      contentPreview: source.contentPreview ?? undefined,
+      evidenceChunks: source.evidenceChunks,
     })),
   }));
 }
@@ -181,7 +207,7 @@ export async function createResearchRun(params: {
       retryOfRunId: params.retryOfRunId ?? null,
       progressJson: {
         stage: "queued",
-        message: "资料整理已开始，完成后会回到这里。",
+        message: "Research 已开始。",
         updatedAt: new Date().toISOString(),
       },
     })
@@ -271,12 +297,7 @@ export async function updateResearchTaskStatus(params: {
   findings?: string[];
   evidenceGaps?: string[];
   errorMessage?: string | null;
-  sources?: Array<{
-    title: string;
-    url: string;
-    domain: string;
-    snippet: string;
-  }>;
+  sources?: ResearchSource[];
 }) {
   await db.transaction(async (tx) => {
     const [task] = await tx
@@ -321,6 +342,20 @@ export async function updateResearchTaskStatus(params: {
             url: source.url,
             domain: source.domain,
             snippet: source.snippet,
+            provider: source.provider ?? "unknown",
+            sourceType: source.sourceType ?? "unknown",
+            qualityTier: source.qualityTier ?? "standard",
+            qualityScore: source.qualityScore ?? 0,
+            relevanceScore: source.relevanceScore ?? 0,
+            citationId: source.citationId ?? null,
+            publishedAt: source.publishedAt ?? null,
+            extractedAt: source.extractedAt ?? null,
+            extractProvider: source.extractProvider ?? null,
+            extractionStatus: source.extractionStatus ?? "snippet_only",
+            freshnessWindowDays: source.freshnessWindowDays ?? 90,
+            searchQuery: source.searchQuery ?? null,
+            contentPreview: source.contentPreview ?? null,
+            evidenceChunks: source.evidenceChunks ?? [],
             rank: index,
           })),
         );
@@ -340,7 +375,7 @@ export async function completeResearchRun(params: {
       reportJson: params.report as unknown as Record<string, unknown>,
       progressJson: {
         stage: "completed",
-        message: "研究任务已完成。",
+        message: "Research 已完成。",
         updatedAt: new Date().toISOString(),
       },
       errorCode: null,
@@ -384,7 +419,7 @@ export async function requestResearchRunCancellation(runId: string) {
       cancelRequestedAt: new Date(),
       progressJson: {
         stage: "cancel_requested",
-        message: "已请求取消，当前任务会在安全边界停止。",
+        message: "正在停止。",
         updatedAt: new Date().toISOString(),
       },
       updatedAt: new Date(),

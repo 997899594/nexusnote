@@ -6,6 +6,7 @@ import { createToolContext } from "@/lib/ai/core/tool-context";
 import { buildInterviewAgentInstructionsWithHint } from "@/lib/ai/interview/prompts";
 import type { InterviewOutline } from "@/lib/ai/interview/schemas";
 import type { InterviewTimingSink } from "@/lib/ai/interview/timing";
+import { createWebSearchTool } from "@/lib/ai/tools/chat/web-search";
 import { createInterviewTools } from "@/lib/ai/tools/interview";
 
 const COURSE_INTERVIEWER_MAX_STEPS = 12;
@@ -25,6 +26,7 @@ export interface CourseInterviewerSpecialistOptions {
   courseId?: string;
   currentOutline?: InterviewOutline;
   messages?: UIMessage[];
+  webResearchContext?: string;
   modelSeries?: AIModelSeries;
   telemetry?: AITelemetryContext;
   timing?: InterviewTimingSink;
@@ -54,6 +56,7 @@ export function createCourseInterviewerSpecialist(options: CourseInterviewerSpec
       messages: options.messages,
     }),
   );
+  const webSearchTools = createWebSearchTool(options.userId);
   options.timing?.mark("agent.tools.ready", { mode: "natural" });
 
   const agent = new ToolLoopAgent({
@@ -64,8 +67,12 @@ export function createCourseInterviewerSpecialist(options: CourseInterviewerSpec
     instructions: buildInterviewAgentInstructionsWithHint({
       currentOutline: options.currentOutline,
       messages: options.messages,
+      webResearchContext: options.webResearchContext,
     }),
-    tools,
+    tools: {
+      ...tools,
+      ...webSearchTools,
+    },
     stopWhen: [
       stepCountIs(COURSE_INTERVIEWER_MAX_STEPS),
       ({ steps }) =>

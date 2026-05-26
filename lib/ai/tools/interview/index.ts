@@ -41,7 +41,7 @@ export const createInterviewTools = (_ctx: ToolContext) => {
     }),
     presentOutlinePreview: tool({
       description:
-        "向用户展示可确认、可保存的课程蓝图。用于信息已足够、用户要求生成课程蓝图，或用户要求修改现有大纲时返回最终会保存的课程元信息、章节树和后续动作选项。必须同时提供 2-4 个 options；每个 option 必须包含 label 和 intent，其中至少一个 intent=start_course，修改类 intent=revise 且 action 说明具体修改请求。",
+        "向用户展示可确认、可保存的课程蓝图。用于信息已足够、用户要求生成课程蓝图，或用户要求修改现有大纲时返回最终会保存的课程元信息、章节树、researchCitations 和后续动作选项。使用过系统提供的外部来源时，outline.researchCitations 必须保留对应 source id。必须同时提供 2-4 个 options；每个 option 必须包含 label 和 intent，其中至少一个 intent=start_course，修改类 intent=revise 且 action 说明具体修改请求。",
       inputSchema: PresentOutlinePreviewInputSchema,
       execute: async (): Promise<PresentOutlinePreviewOutput> => ({
         status: "presented",

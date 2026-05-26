@@ -5,6 +5,7 @@ import type {
   NewCourseOutlineNode,
   NewCourseOutlineVersion,
 } from "@/db";
+import { researchCitationRefSchema } from "@/lib/ai/research/source-types";
 import type { CourseOutline } from "@/lib/learning/course-outline";
 import {
   buildChapterOutlineNodeKey,
@@ -31,6 +32,7 @@ export function buildCourseOutlineVersionValues(params: {
     learningOutcome: outline.learningOutcome ?? null,
     courseSkillIds: normalizeStringList(outline.courseSkillIds),
     prerequisites: normalizeStringList(outline.prerequisites),
+    researchCitations: outline.researchCitations ?? [],
     isLatest: true,
     updatedAt: new Date(),
   };
@@ -90,6 +92,13 @@ function requireCourseBlueprintText(value: string | null, field: string): string
   return text;
 }
 
+function normalizeResearchCitations(value: CourseOutlineVersion["researchCitations"]) {
+  return (value ?? [])
+    .map((item) => researchCitationRefSchema.safeParse(item))
+    .filter((item) => item.success)
+    .map((item) => item.data);
+}
+
 export function materializeCourseOutline(params: {
   version: Pick<
     CourseOutlineVersion,
@@ -100,6 +109,7 @@ export function materializeCourseOutline(params: {
     | "learningOutcome"
     | "courseSkillIds"
     | "prerequisites"
+    | "researchCitations"
   >;
   nodes: Array<
     Pick<
@@ -132,6 +142,7 @@ export function materializeCourseOutline(params: {
     difficulty: version.difficulty as CourseOutline["difficulty"],
     courseSkillIds: normalizeStringList(version.courseSkillIds ?? []),
     learningOutcome: requireCourseBlueprintText(version.learningOutcome, "learningOutcome"),
+    researchCitations: normalizeResearchCitations(version.researchCitations),
     chapters: chapterNodes.map((chapterNode) => ({
       title: chapterNode.title,
       description: chapterNode.description ?? undefined,

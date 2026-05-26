@@ -1,10 +1,10 @@
 # NexusNote AI System
 
-更新时间：2026-04-30
+更新时间：2026-05-26
 
 ## 核心原则
 
-- 用户可选模型系列：前台聊天、访谈、课程蓝图、章节生成按用户偏好选择 Qwen / Gemini / OpenAI
+- 用户可选模型系列：前台聊天、访谈、课程蓝图、章节生成按用户偏好选择 Qwen / DeepSeek / Gemini / OpenAI
 - 模型网关只负责运行时接入：底层上游是实现细节，产品层不展示 provider
 - AI SDK v6 原生：以 `useChat`、route handlers、`UIMessage.parts`、agents、workflows 为主
 - code-driven：流程由代码控制，prompt 负责表达，不负责弥补架构缺陷
@@ -29,6 +29,7 @@
 - 通过 model policy 隔离业务意图和具体模型 ID
 - 通过 model series 隔离用户偏好和具体模型组合；界面只展示模型系列，不展示底层 provider
 - 把不可用状态分类为可处理的降级结果
+- 默认模型矩阵只保留当前网关支持的新模型：Qwen 走 `qwen3.6-plus` / `qwen3.7-max`，DeepSeek 走 `deepseek-v4-flash` / `deepseek-v4-pro`，OpenAI 走 `gpt-5.5`
 
 ### Model Series 层
 
@@ -70,9 +71,27 @@
 当前典型场景：
 
 - 访谈：自然 agent + 展示类 tool + 课程蓝图数据
+- 前沿课程访谈：先构造联网检索上下文，再进入自然 agent；`webSearch` 作为隐藏工具供 agent 补查，前端只展示访谈 tool
 - 学习助手：chat + learn context + RAG
 - 课程生成：workflow + 服务端流式生成
 - research / career-tree / knowledge-insights / RAG indexing / section materialization：显式 worker runtime 执行，不挂在 web 进程副作用里
+
+### Web Research 层
+
+- 统一入口：[web-research.ts](/Users/findbiao/projects/nexusnote/lib/ai/research/web-research.ts)
+- 多路检索：Tavily 负责 agent search，Exa 负责 semantic/deep web search，Serper 仅作为 Google fallback
+- 页面读取：优先 Tavily Extract，其次 Firecrawl，最后 Jina Reader；不再只吃搜索摘要
+- 证据处理：URL 去重、来源分级、Qwen reranker 重排、Redis freshness cache
+- 引用契约：research 报告和课程蓝图都保留 source id；前沿课程 outline 会写入 `researchCitations`
+- freshness window：根据查询意图默认 30/90/180 天；最新/发布/前沿类走 30 天窗口
+
+配置项：
+
+- `TAVILY_API_KEY`
+- `EXA_API_KEY`
+- `FIRECRAWL_API_KEY`
+- `SERPER_API_KEY`
+- `RERANKER_ENABLED=true`
 
 ### Streaming 层
 
