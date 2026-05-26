@@ -7,9 +7,11 @@ export interface BuiltInSkinDefinition extends BuiltInSkinCatalogItem {
 
 const BUILT_IN_SKIN_SYSTEM_PROMPTS = {
   default: loadPromptResource("skins/default-system.md"),
-  direct: loadPromptResource("skins/direct-system.md"),
+  girlfriend: loadPromptResource("skins/girlfriend-system.md"),
+  best_friend: loadPromptResource("skins/best-friend-system.md"),
+  rhetorician: loadPromptResource("skins/rhetorician-system.md"),
+  drill_master: loadPromptResource("skins/drill-master-system.md"),
   architect: loadPromptResource("skins/architect-system.md"),
-  coach: loadPromptResource("skins/coach-system.md"),
   reviewer: loadPromptResource("skins/reviewer-system.md"),
 } as const;
 

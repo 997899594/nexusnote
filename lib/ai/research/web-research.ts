@@ -995,7 +995,11 @@ async function extractDocuments(
           getCacheTtlSeconds(freshnessWindowDays),
         );
       }
-      providerTrace.push({ provider: "tavily-extract", status: "used" });
+      providerTrace.push({
+        provider: "tavily-extract",
+        status: tavilyDocuments.size > 0 ? "used" : "skipped",
+        message: tavilyDocuments.size > 0 ? undefined : "No extractable Tavily documents",
+      });
     } catch (error) {
       providerTrace.push({
         provider: "tavily-extract",
@@ -1007,7 +1011,8 @@ async function extractDocuments(
     providerTrace.push({
       provider: "tavily-extract",
       status: "skipped",
-      message: "TAVILY_API_KEY missing",
+      message:
+        urlsNeedingExtraction.length === 0 ? "No extraction targets" : "TAVILY_API_KEY missing",
     });
   }
 
@@ -1025,8 +1030,20 @@ async function extractDocuments(
     }),
   );
 
-  if (env.FIRECRAWL_API_KEY) {
+  const usedProviders = new Set([...documents.values()].map((document) => document.provider));
+
+  if (usedProviders.has("exa-contents")) {
+    providerTrace.push({ provider: "exa-contents", status: "used" });
+  }
+
+  if (usedProviders.has("firecrawl")) {
     providerTrace.push({ provider: "firecrawl", status: "used" });
+  } else if (env.FIRECRAWL_API_KEY) {
+    providerTrace.push({
+      provider: "firecrawl",
+      status: "skipped",
+      message: "No Firecrawl document extracted",
+    });
   } else {
     providerTrace.push({
       provider: "firecrawl",
@@ -1034,7 +1051,11 @@ async function extractDocuments(
       message: "FIRECRAWL_API_KEY missing",
     });
   }
-  providerTrace.push({ provider: "jina-reader", status: "used" });
+  providerTrace.push({
+    provider: "jina-reader",
+    status: usedProviders.has("jina-reader") ? "used" : "skipped",
+    message: usedProviders.has("jina-reader") ? undefined : "Not needed or no document extracted",
+  });
 
   return documents;
 }
@@ -1099,24 +1120,37 @@ async function rerankWithQwen(
     return null;
   }
 
-  const endpoint = `${env.AI_302_BASE_URL.replace(/\/$/u, "")}/rerank`;
-  const data = await fetchJson<Record<string, unknown>>(endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${env.AI_302_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: env.RERANKER_MODEL_PRO || env.RERANKER_MODEL,
-      query,
-      documents: chunks.map((chunk) => chunk.text),
-      top_n: Math.min(topN, chunks.length),
-      return_documents: false,
-    }),
-    timeoutMs: 20_000,
-  });
+  const errors: string[] = [];
 
-  const results = Array.isArray(data.results) ? data.results : [];
+  if (env.DASHSCOPE_API_KEY) {
+    try {
+      return await rerankWithDashScope(query, chunks, topN);
+    } catch (error) {
+      errors.push(`dashscope: ${formatError(error)}`);
+    }
+  }
+
+  try {
+    return await rerankWithCompatibleGateway(query, chunks, topN);
+  } catch (error) {
+    errors.push(`compatible: ${formatError(error)}`);
+  }
+
+  if (errors.length > 0) {
+    throw new Error(errors.join(" | "));
+  }
+
+  return null;
+}
+
+function mapRerankResults(
+  results: unknown,
+  chunks: Array<{ text: string; sourceIndex: number; chunkIndex: number }>,
+): RankedChunk[] | null {
+  if (!Array.isArray(results)) {
+    return null;
+  }
+
   const ranked = results
     .filter((item): item is Record<string, unknown> => item != null && typeof item === "object")
     .map((item) => {
@@ -1143,6 +1177,61 @@ async function rerankWithQwen(
     .filter((item): item is RankedChunk => item != null);
 
   return ranked.length > 0 ? ranked : null;
+}
+
+async function rerankWithDashScope(
+  query: string,
+  chunks: Array<{ text: string; sourceIndex: number; chunkIndex: number }>,
+  topN: number,
+): Promise<RankedChunk[] | null> {
+  const endpoint = `${env.DASHSCOPE_BASE_URL.replace(/\/$/u, "")}/services/rerank/text-rerank/text-rerank`;
+  const data = await fetchJson<Record<string, unknown>>(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${env.DASHSCOPE_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: env.RERANKER_MODEL_PRO || env.RERANKER_MODEL,
+      input: {
+        query,
+        documents: chunks.map((chunk) => chunk.text),
+      },
+      parameters: {
+        top_n: Math.min(topN, chunks.length),
+        return_documents: false,
+      },
+    }),
+    timeoutMs: 20_000,
+  });
+
+  const output = data.output && typeof data.output === "object" ? data.output : {};
+  return mapRerankResults((output as Record<string, unknown>).results, chunks);
+}
+
+async function rerankWithCompatibleGateway(
+  query: string,
+  chunks: Array<{ text: string; sourceIndex: number; chunkIndex: number }>,
+  topN: number,
+): Promise<RankedChunk[] | null> {
+  const endpoint = `${env.AI_302_BASE_URL.replace(/\/$/u, "")}/rerank`;
+  const data = await fetchJson<Record<string, unknown>>(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${env.AI_302_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: env.RERANKER_MODEL_PRO || env.RERANKER_MODEL,
+      query,
+      documents: chunks.map((chunk) => chunk.text),
+      top_n: Math.min(topN, chunks.length),
+      return_documents: false,
+    }),
+    timeoutMs: 20_000,
+  });
+
+  return mapRerankResults(data.results, chunks);
 }
 
 async function rankEvidenceSources(

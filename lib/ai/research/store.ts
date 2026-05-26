@@ -207,7 +207,7 @@ export async function createResearchRun(params: {
       retryOfRunId: params.retryOfRunId ?? null,
       progressJson: {
         stage: "queued",
-        message: "Research 已开始。",
+        message: "研究已开始。",
         updatedAt: new Date().toISOString(),
       },
     })

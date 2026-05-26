@@ -26,10 +26,10 @@ interface BackgroundResearchCardProps {
 }
 
 const PIPELINE = [
-  { key: "planning", label: "Plan" },
-  { key: "researching", label: "Read" },
-  { key: "synthesizing", label: "Shape" },
-  { key: "persisting", label: "Save" },
+  { key: "planning", label: "计划" },
+  { key: "researching", label: "读取" },
+  { key: "synthesizing", label: "综合" },
+  { key: "persisting", label: "写回" },
 ] as const;
 
 const STAGE_INDEX: Record<string, number> = {
@@ -43,18 +43,18 @@ const STAGE_INDEX: Record<string, number> = {
 
 function getStatusLabel(status: ResearchRunStatus) {
   if (status === "completed") {
-    return "Done";
+    return "已完成";
   }
   if (status === "failed") {
-    return "Failed";
+    return "失败";
   }
   if (status === "canceled") {
-    return "Stopped";
+    return "已停止";
   }
   if (status === "cancel_requested") {
-    return "Stopping";
+    return "停止中";
   }
-  return "Research";
+  return "深度研究";
 }
 
 function getActiveIndex(research: BackgroundResearchCardState) {
@@ -105,7 +105,7 @@ export function BackgroundResearchCard({
             </span>
           </div>
           <p className="mt-1 text-xs leading-5 text-[var(--color-text-tertiary)]">
-            {research.progressMessage ?? "Planning sources."}
+            {research.progressMessage ?? "准备检索源。"}
           </p>
         </div>
 
@@ -145,24 +145,26 @@ export function BackgroundResearchCard({
 
       {research.status === "failed" ? (
         <p className="mt-4 text-xs leading-5 text-amber-800">
-          {research.failedReason ?? "Research failed."}
+          {research.failedReason ?? "研究失败。"}
         </p>
       ) : null}
 
       {research.status === "canceled" ? (
-        <p className="mt-4 text-xs leading-5 text-[var(--color-text-secondary)]">Stopped.</p>
+        <p className="mt-4 text-xs leading-5 text-[var(--color-text-secondary)]">已停止。</p>
       ) : null}
 
       {(research.citationCount ?? 0) > 0 ? (
         <div className="mt-4 flex flex-wrap gap-2 text-[11px] text-[var(--color-text-tertiary)]">
           <span className="rounded-full bg-white/64 px-2.5 py-1">
-            {research.citationCount} sources
+            {research.citationCount} 个来源
           </span>
           {quality.primary > 0 ? (
-            <span className="rounded-full bg-white/64 px-2.5 py-1">{quality.primary} primary</span>
+            <span className="rounded-full bg-white/64 px-2.5 py-1">{quality.primary} 个主来源</span>
           ) : null}
           {quality.high > 0 ? (
-            <span className="rounded-full bg-white/64 px-2.5 py-1">{quality.high} high</span>
+            <span className="rounded-full bg-white/64 px-2.5 py-1">
+              {quality.high} 个高质量来源
+            </span>
           ) : null}
         </div>
       ) : null}
@@ -176,7 +178,7 @@ export function BackgroundResearchCard({
               className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-white/50 px-3 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-white hover:text-[var(--color-text)]"
             >
               <XCircle className="h-3.5 w-3.5" />
-              Stop
+              停止
             </button>
           ) : null}
           {research.canRetry ? (
@@ -186,7 +188,7 @@ export function BackgroundResearchCard({
               className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-white/50 px-3 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-white hover:text-[var(--color-text)]"
             >
               <RotateCcw className="h-3.5 w-3.5" />
-              Retry
+              重试
             </button>
           ) : null}
         </div>
