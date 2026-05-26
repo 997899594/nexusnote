@@ -57,6 +57,7 @@ export const courseOutlineVersions = pgTable(
           sourceType?: string;
           qualityTier?: string;
           provider?: string;
+          extractProvider?: string;
           publishedAt?: string;
           snippet?: string;
         }>

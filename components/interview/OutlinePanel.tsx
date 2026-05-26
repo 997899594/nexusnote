@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { WorkspaceEmptyState } from "@/components/common";
 import { InterviewOptions, type Option } from "@/components/interview/InterviewOptions";
+import { ResearchEvidenceStack } from "@/components/research/ResearchEvidenceStack";
 import { useToast } from "@/components/ui/Toast";
 import type { OutlineDisplay } from "@/lib/ai/interview/models";
 import type { InterviewOutline } from "@/lib/ai/interview/schemas";
@@ -36,6 +37,31 @@ function getDifficultyLabel(difficulty?: string | null) {
   }
 
   return DIFFICULTY_LABELS[difficulty] ?? difficulty;
+}
+
+const PROVIDER_LABELS: Record<string, string> = {
+  tavily: "Tavily",
+  exa: "Exa",
+  "jina-search": "Jina",
+  "tavily-extract": "Tavily Extract",
+  firecrawl: "Firecrawl",
+  "jina-reader": "Jina Reader",
+  "exa-contents": "Exa Contents",
+};
+
+const QUALITY_LABELS: Record<string, string> = {
+  primary: "主来源",
+  high: "高质量",
+  standard: "标准",
+  low: "低置信",
+};
+
+function getSourceMeta(source: NonNullable<OutlineDisplay["researchCitations"]>[number]) {
+  const provider = source.provider ? PROVIDER_LABELS[source.provider] : null;
+  const extractor = source.extractProvider ? PROVIDER_LABELS[source.extractProvider] : null;
+  const quality = source.qualityTier ? QUALITY_LABELS[source.qualityTier] : null;
+
+  return [provider, extractor, quality].filter(Boolean).join(" · ");
 }
 
 export function OutlinePanel({
@@ -162,8 +188,15 @@ export function OutlinePanel({
                   <span>正在更新蓝图...</span>
                 </div>
               )}
+              {(outline.researchCitations?.length ?? 0) > 0 || isLoading ? (
+                <ResearchEvidenceStack
+                  citations={outline.researchCitations}
+                  isRunning={isLoading}
+                  compact
+                />
+              ) : null}
               {(outline.researchCitations?.length ?? 0) > 0 ? (
-                <div className="rounded-2xl border border-black/[0.05] bg-[#fbfaf5]/80 p-3">
+                <div className="rounded-[22px] border border-black/[0.05] bg-[#fbfaf5]/80 p-3">
                   <div className="mb-2 flex items-center justify-between gap-3">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-tertiary)]">
                       Sources
@@ -181,11 +214,18 @@ export function OutlinePanel({
                         rel="noreferrer"
                         className="group flex items-center justify-between gap-3 rounded-xl bg-white/58 px-3 py-2 text-xs text-[var(--color-text-secondary)] transition-colors hover:bg-white hover:text-[var(--color-text)]"
                       >
-                        <span className="min-w-0 truncate">
-                          <span className="mr-1 font-medium text-[var(--color-text)]">
-                            {source.id}
+                        <span className="min-w-0">
+                          <span className="block truncate">
+                            <span className="mr-1 font-medium text-[var(--color-text)]">
+                              {source.id}
+                            </span>
+                            {source.title}
                           </span>
-                          {source.title}
+                          {getSourceMeta(source) ? (
+                            <span className="mt-0.5 block truncate text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-tertiary)]">
+                              {getSourceMeta(source)}
+                            </span>
+                          ) : null}
                         </span>
                         <ExternalLink className="h-3.5 w-3.5 shrink-0 text-[var(--color-text-muted)] transition-colors group-hover:text-[var(--color-text-secondary)]" />
                       </a>

@@ -82,6 +82,8 @@ function buildCitationMap(params: {
     snippets: source.snippets.slice(0, 2),
     taskKeys: [...source.taskKeys].sort(),
     provider: source.source.provider,
+    extractProvider: source.source.extractProvider,
+    extractionStatus: source.source.extractionStatus,
     sourceType: source.source.sourceType,
     qualityTier: source.source.qualityTier,
     qualityScore: source.source.qualityScore,

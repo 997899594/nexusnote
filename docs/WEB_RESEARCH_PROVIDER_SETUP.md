@@ -329,6 +329,13 @@ bun dev
 4. 检查生成结果里是否有 source id / citations。
 5. 检查服务端日志里的 provider trace，确认 Tavily、Exa、Jina、Firecrawl、reranker 是否 used/skipped/failed。
 
+前端可见状态：
+
+- 课程访谈蓝图面板会显示 `Research Stack / 联网核验`。
+- 后台 research 卡片会显示 Tavily、Exa、Jina、Firecrawl 四路证据栈状态。
+- 来源列表会显示 source id、标题、provider、extract provider 和质量分级。
+- 普通用户看到的是“本次实际使用到的证据链”，不是裸露的后台 key 配置清单。
+
 如果某个 provider 失败：
 
 - 401：key 错、没保存、环境变量没加载。

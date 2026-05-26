@@ -2,6 +2,7 @@
 
 import { AlertTriangle, Check, Circle, Loader2, RotateCcw, Square, XCircle } from "lucide-react";
 import type { ReactNode } from "react";
+import { ResearchEvidenceStack } from "@/components/research/ResearchEvidenceStack";
 import type { ResearchCitation, ResearchRunStatus } from "@/lib/ai/research/contracts";
 import { cn } from "@/lib/utils";
 
@@ -142,6 +143,13 @@ export function BackgroundResearchCard({
           );
         })}
       </div>
+
+      <ResearchEvidenceStack
+        citations={research.citations}
+        isRunning={isRunning}
+        compact
+        className="mt-4"
+      />
 
       {research.status === "failed" ? (
         <p className="mt-4 text-xs leading-5 text-amber-800">

@@ -122,6 +122,6 @@ export async function buildInterviewWebResearchContext(params: {
     "- 涉及最新技术、模型、版本、生态判断时，优先依据 primary/high 来源。",
     "- 如果证据不足，直接写成待核验，不要编造确定结论。",
     "- 课程结构要区分稳定基础能力和近期活跃方向。",
-    "- presentOutlinePreview 的 outline.researchCitations 必须引用上面的 source id、title、url、domain。",
+    "- presentOutlinePreview 的 outline.researchCitations 必须引用上面的 source id、title、url、domain、provider；如果来源有 Extractor，也要写入 extractProvider。",
   ].join("\n");
 }

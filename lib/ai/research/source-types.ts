@@ -37,6 +37,7 @@ export const researchCitationRefSchema = z.object({
   sourceType: researchSourceTypeSchema.optional(),
   qualityTier: researchSourceQualityTierSchema.optional(),
   provider: researchSearchProviderSchema.optional(),
+  extractProvider: researchExtractProviderSchema.optional(),
   publishedAt: z.string().trim().min(1).max(80).optional(),
   snippet: z.string().trim().min(1).max(500).optional(),
 });

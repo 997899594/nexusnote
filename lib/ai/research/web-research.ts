@@ -1404,6 +1404,7 @@ export function formatResearchEvidenceForPrompt(
       | "sourceType"
       | "qualityTier"
       | "provider"
+      | "extractProvider"
       | "publishedAt"
       | "extractedAt"
       | "extractionStatus"
@@ -1430,7 +1431,7 @@ export function formatResearchEvidenceForPrompt(
         `[${sourceId}] ${source.title}`,
         `URL: ${source.url}`,
         `Domain: ${source.domain}`,
-        `Type: ${source.sourceType}; Quality: ${source.qualityTier}; Provider: ${source.provider}; Status: ${source.extractionStatus}`,
+        `Type: ${source.sourceType}; Quality: ${source.qualityTier}; Provider: ${source.provider}; Extractor: ${source.extractProvider ?? "none"}; Status: ${source.extractionStatus}`,
         source.publishedAt ? `Published: ${source.publishedAt}` : null,
         source.extractedAt ? `Extracted: ${source.extractedAt}` : null,
         "Evidence:",
