@@ -6,6 +6,7 @@
 
 - [PRD](/Users/findbiao/projects/nexusnote/docs/PRD.md)
 - [AI System](/Users/findbiao/projects/nexusnote/docs/AI.md)
+- [Web Research Provider Setup](/Users/findbiao/projects/nexusnote/docs/WEB_RESEARCH_PROVIDER_SETUP.md)
 - [Architecture 2026](/Users/findbiao/projects/nexusnote/docs/ARCHITECTURE_2026.md)
 - [Cache and Async Contract](/Users/findbiao/projects/nexusnote/docs/CACHE_AND_ASYNC_CONTRACT.md)
 - [Deployment Build Architecture](/Users/findbiao/projects/nexusnote/docs/DEPLOYMENT_BUILD_ARCHITECTURE.md)

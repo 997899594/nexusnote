@@ -94,6 +94,8 @@
 - `DASHSCOPE_API_KEY`（可选；配置后走 DashScope 官方 `/reranks` Qwen3 reranker，不再走网关兼容 rerank）
 - `RERANKER_ENABLED=true`
 
+申请、费用、填写和验证流程见 [WEB_RESEARCH_PROVIDER_SETUP.md](/Users/findbiao/projects/nexusnote/docs/WEB_RESEARCH_PROVIDER_SETUP.md)。
+
 ### Streaming 层
 
 - 路由处理器负责真实流式输出
