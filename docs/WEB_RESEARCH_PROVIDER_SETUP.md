@@ -331,10 +331,12 @@ bun dev
 
 前端可见状态：
 
-- 课程访谈蓝图面板会显示 `Research Stack / 联网核验`。
-- 后台 research 卡片会显示 Tavily、Exa、Jina、Firecrawl 四路证据栈状态。
-- 来源列表会显示 source id、标题、provider、extract provider 和质量分级。
-- 普通用户看到的是“本次实际使用到的证据链”，不是裸露的后台 key 配置清单。
+- 课程访谈蓝图面板会显示 `Evidence Quality / 联网核验`。
+- 默认视图展示来源数、权威来源、已读原文、覆盖域名和证据质量。
+- 生成中展示“检索权威来源 → 读取原文 → 去重重排 → 生成蓝图”的产品化进度。
+- 后台 research 卡片复用同一套证据质量组件。
+- Tavily、Exa、Jina、Firecrawl 供应商状态只放在折叠的“技术细节”里。
+- 普通用户看到的是“本次实际使用到的证据质量”，不是裸露的后台 key 配置清单。
 
 如果某个 provider 失败：
 
