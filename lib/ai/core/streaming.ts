@@ -25,6 +25,8 @@ export interface StreamOptions {
   presentation?: "chat" | "interview";
   /** 是否向前端发送 reasoning */
   sendReasoning?: boolean;
+  /** 服务端写入的权威 UI 数据片段 */
+  dataParts?: UIMessageChunk[];
   /** 流结束回调 */
   onFinish?: (options: {
     messages: UIMessage[];
@@ -184,6 +186,7 @@ export function createStaticAssistantMessageResponse(params: {
 
 function createPresentationFilteredStreamResponse({
   stream,
+  dataParts,
   originalMessages,
   allowedPresentation,
   headers,
@@ -192,6 +195,7 @@ function createPresentationFilteredStreamResponse({
   consumeSseStream,
 }: {
   stream: ReadableStream<UIMessageChunk>;
+  dataParts?: UIMessageChunk[];
   originalMessages?: UIMessage[];
   allowedPresentation: ToolUIPresentation;
   headers?: HeadersInit;
@@ -210,6 +214,9 @@ function createPresentationFilteredStreamResponse({
       originalMessages,
       onFinish,
       execute: async ({ writer }) => {
+        for (const part of dataParts ?? []) {
+          writer.write(part);
+        }
         await forwardFilteredChunks(stream, writer, allowedPresentation);
       },
       onError,
@@ -244,6 +251,7 @@ export async function createNexusNoteStreamResponse<
     resourceId,
     presentation = "chat",
     sendReasoning = false,
+    dataParts,
     onFinish,
     consumeSseStream,
   } = options;
@@ -264,6 +272,7 @@ export async function createNexusNoteStreamResponse<
       stream: result.toUIMessageStream({
         sendReasoning,
       }),
+      dataParts,
       originalMessages: messages,
       allowedPresentation: presentation,
       onError: getFallbackMessage,

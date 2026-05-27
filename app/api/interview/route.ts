@@ -110,6 +110,15 @@ export async function POST(request: NextRequest) {
       sessionId,
       presentation: "interview",
       sendReasoning: false,
+      dataParts: webResearchContext.evidenceSnapshot
+        ? [
+            {
+              type: "data-researchEvidence",
+              id: webResearchContext.evidenceSnapshot.id,
+              data: webResearchContext.evidenceSnapshot,
+            },
+          ]
+        : undefined,
     });
     response.headers.set("X-Request-Id", requestId);
     return response;

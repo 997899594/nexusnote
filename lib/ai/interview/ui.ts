@@ -1,6 +1,7 @@
-import { getToolName, isToolUIPart, type UIMessage } from "ai";
+import { getToolName, isDataUIPart, isToolUIPart, type UIMessage } from "ai";
 import type { z } from "zod";
 import { extractUIMessageText } from "@/lib/ai/message-text";
+import type { ResearchEvidenceSnapshot } from "@/lib/ai/research/evidence-snapshot";
 import { researchCitationRefSchema } from "@/lib/ai/research/source-types";
 import type {
   PresentOptionsInputSchema,
@@ -34,7 +35,9 @@ export interface InterviewDisplayMessage {
 
 export type InterviewUIMessage = UIMessage<
   never,
-  never,
+  {
+    researchEvidence: ResearchEvidenceSnapshot;
+  },
   {
     presentOptions: {
       input: z.infer<typeof PresentOptionsInputSchema>;
@@ -46,6 +49,26 @@ export type InterviewUIMessage = UIMessage<
     };
   }
 >;
+
+export function findLatestResearchEvidence(
+  messages: InterviewUIMessage[],
+): ResearchEvidenceSnapshot | null {
+  for (let messageIndex = messages.length - 1; messageIndex >= 0; messageIndex -= 1) {
+    const message = messages[messageIndex];
+    if (message.role !== "assistant") {
+      continue;
+    }
+
+    for (let partIndex = message.parts.length - 1; partIndex >= 0; partIndex -= 1) {
+      const part = message.parts[partIndex];
+      if (isDataUIPart(part) && part.type === "data-researchEvidence") {
+        return part.data as ResearchEvidenceSnapshot;
+      }
+    }
+  }
+
+  return null;
+}
 
 function getLatestInterviewToolPart(message: UIMessage) {
   for (let i = message.parts.length - 1; i >= 0; i--) {

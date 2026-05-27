@@ -110,6 +110,7 @@ function InterviewContent() {
   const aiDegradedKind = interview.aiDegradedKind;
   const displayOutline = interview.outline.display;
   const stableOutline = interview.outline.stable;
+  const researchEvidence = interview.outline.researchEvidence;
   const outlineActions = interview.outline.actions;
   const isOutlineLoading = interview.outline.isLoading;
   const interviewCompleted = interview.outline.isReady;
@@ -334,6 +335,7 @@ function InterviewContent() {
         <OutlinePanel
           outline={displayOutline ?? stableOutline}
           stableOutline={stableOutline ?? null}
+          researchEvidence={researchEvidence}
           actionOptions={outlineActions}
           isLoading={isOutlineLoading}
           courseId={courseId ?? undefined}
@@ -455,6 +457,7 @@ function InterviewContent() {
                 <OutlinePanel
                   outline={displayOutline ?? stableOutline}
                   stableOutline={stableOutline ?? null}
+                  researchEvidence={researchEvidence}
                   actionOptions={outlineActions}
                   isLoading={isOutlineLoading}
                   courseId={courseId ?? undefined}

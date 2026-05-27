@@ -12,6 +12,7 @@ import type {
 import type { InterviewOutline } from "@/lib/ai/interview/schemas";
 import {
   findLatestOutline,
+  findLatestResearchEvidence,
   findLatestStableOutline,
   type InterviewDisplayMessage,
   type InterviewUIMessage,
@@ -101,6 +102,7 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
   const displayMessages = toInterviewDisplayMessages(messages);
   const isLoading = status === "submitted" || status === "streaming";
   const liveOutlineResult = findLatestOutline(messages);
+  const researchEvidence = findLatestResearchEvidence(messages);
   const latestAssistantMessage = [...displayMessages]
     .reverse()
     .find((message) => message.role === "assistant");
@@ -108,6 +110,7 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
   const outline: InterviewOutlineState = {
     display: displayOutline,
     stable: stableOutline,
+    researchEvidence,
     actions:
       liveOutlineResult?.options ??
       (latestAssistantMessage?.mode === "outline" ? (latestAssistantMessage.options ?? []) : []),

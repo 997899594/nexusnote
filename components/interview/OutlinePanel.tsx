@@ -6,15 +6,18 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { WorkspaceEmptyState } from "@/components/common";
 import { InterviewOptions, type Option } from "@/components/interview/InterviewOptions";
+import { ResearchEvidencePanel } from "@/components/research/ResearchEvidencePanel";
 import { ResearchEvidenceStack } from "@/components/research/ResearchEvidenceStack";
 import { useToast } from "@/components/ui/Toast";
 import type { OutlineDisplay } from "@/lib/ai/interview/models";
 import type { InterviewOutline } from "@/lib/ai/interview/schemas";
+import type { ResearchEvidenceSnapshot } from "@/lib/ai/research/evidence-snapshot";
 import { cn } from "@/lib/utils";
 
 interface OutlinePanelProps {
   outline: OutlineDisplay | null;
   stableOutline: InterviewOutline | null;
+  researchEvidence?: ResearchEvidenceSnapshot | null;
   actionOptions?: Option[];
   isLoading?: boolean;
   courseId?: string;
@@ -67,6 +70,7 @@ function getSourceMeta(source: NonNullable<OutlineDisplay["researchCitations"]>[
 export function OutlinePanel({
   outline,
   stableOutline,
+  researchEvidence,
   actionOptions = [],
   isLoading,
   courseId,
@@ -188,7 +192,9 @@ export function OutlinePanel({
                   <span>正在更新蓝图...</span>
                 </div>
               )}
-              {(outline.researchCitations?.length ?? 0) > 0 || isLoading ? (
+              {researchEvidence ? (
+                <ResearchEvidencePanel evidence={researchEvidence} isRunning={isLoading} compact />
+              ) : (outline.researchCitations?.length ?? 0) > 0 || isLoading ? (
                 <ResearchEvidenceStack
                   citations={outline.researchCitations}
                   isRunning={isLoading}

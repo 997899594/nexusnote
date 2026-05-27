@@ -4,6 +4,10 @@ import {
   resolveResearchEvidenceRequestFromMessages,
 } from "@/lib/ai/research/evidence-request";
 import {
+  buildResearchEvidenceSnapshot,
+  type ResearchEvidenceSnapshot,
+} from "@/lib/ai/research/evidence-snapshot";
+import {
   collectResearchEvidence,
   formatResearchEvidenceForPrompt,
   type ResearchRetrievalOutput,
@@ -13,6 +17,7 @@ export interface InterviewWebResearchContext {
   promptBlock: string;
   evidenceRequest: ResearchEvidenceRequest | null;
   retrieval: ResearchRetrievalOutput | null;
+  evidenceSnapshot: ResearchEvidenceSnapshot | null;
   shouldDraftOutline: boolean;
   evidenceAvailable: boolean;
 }
@@ -36,6 +41,7 @@ export async function resolveInterviewWebResearchContext(params: {
       promptBlock: "",
       evidenceRequest: null,
       retrieval: null,
+      evidenceSnapshot: null,
       shouldDraftOutline: false,
       evidenceAvailable: false,
     };
@@ -51,6 +57,11 @@ export async function resolveInterviewWebResearchContext(params: {
   });
 
   if (!output.success) {
+    const evidenceSnapshot = buildResearchEvidenceSnapshot({
+      request: evidenceRequest,
+      retrieval: output,
+    });
+
     return {
       promptBlock: [
         "## 当前外部资料状态",
@@ -62,10 +73,16 @@ export async function resolveInterviewWebResearchContext(params: {
         .join("\n"),
       evidenceRequest,
       retrieval: output,
+      evidenceSnapshot,
       shouldDraftOutline: evidenceRequest.shouldDraftWithEvidence,
       evidenceAvailable: false,
     };
   }
+
+  const evidenceSnapshot = buildResearchEvidenceSnapshot({
+    request: evidenceRequest,
+    retrieval: output,
+  });
 
   return {
     promptBlock: [
@@ -85,6 +102,7 @@ export async function resolveInterviewWebResearchContext(params: {
     ].join("\n"),
     evidenceRequest,
     retrieval: output,
+    evidenceSnapshot,
     shouldDraftOutline: evidenceRequest.shouldDraftWithEvidence,
     evidenceAvailable: true,
   };

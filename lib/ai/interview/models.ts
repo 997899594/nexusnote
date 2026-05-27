@@ -1,3 +1,4 @@
+import type { ResearchEvidenceSnapshot } from "../research/evidence-snapshot";
 import type { ResearchCitationRef } from "../research/source-types";
 import type { InterviewOutline } from "./schemas";
 
@@ -34,6 +35,7 @@ export interface InterviewOptionAction {
 export interface InterviewOutlineState {
   display: OutlineDisplay | null;
   stable: InterviewOutline | null;
+  researchEvidence: ResearchEvidenceSnapshot | null;
   actions: InterviewOptionAction[];
   isLoading: boolean;
   isReady: boolean;
