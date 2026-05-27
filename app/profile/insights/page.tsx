@@ -44,11 +44,11 @@ async function ProfileInsightsPageContent() {
             偏好设置
           </Link>
           <Link
-            href="/career-trees"
+            href="/career"
             className="ui-surface-soft inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-active)] hover:text-[var(--color-text)]"
           >
             <Compass className="h-4 w-4" />
-            职业树
+            职业地图
           </Link>
           <Link
             href="/editor"

@@ -1,4 +1,4 @@
-export type ToolUIPresentation = "chat" | "interview" | "hidden";
+export type ToolUIPresentation = "chat" | "interview" | "state" | "hidden";
 
 interface ToolUIDisplayPolicy {
   presentation: ToolUIPresentation;
@@ -19,6 +19,7 @@ const TOOL_UI_DISPLAY_POLICY = {
   discoverSkills: { presentation: "chat" },
   presentOptions: { presentation: "interview" },
   presentOutlinePreview: { presentation: "interview" },
+  presentCareerMapDraft: { presentation: "state" },
   hybridSearch: { presentation: "hidden" },
   loadCareerContext: { presentation: "hidden" },
   loadLearnContext: { presentation: "hidden" },

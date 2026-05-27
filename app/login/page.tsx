@@ -1,13 +1,14 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, Brain, CheckCircle2, Loader2, Mail } from "lucide-react";
+import { ArrowLeft, Brain, CheckCircle2, Loader2, Mail, Wrench } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getProviders, signIn, useSession } from "next-auth/react";
 import { Suspense, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
 const EMAIL_LOGIN_CODE_LENGTH = 8;
+const IS_DEV_LOGIN_ENABLED = process.env.NODE_ENV !== "production";
 
 function getSafeCallbackUrl(callbackUrl: string | null): string {
   if (!callbackUrl) return "/";
@@ -109,6 +110,11 @@ function LoginForm() {
       email: targetEmail,
     });
     window.location.assign(`/api/auth/callback/resend?${params.toString()}`);
+  };
+
+  const handleDevLogin = () => {
+    const params = new URLSearchParams({ callbackUrl });
+    window.location.assign(`/api/auth/dev-login?${params.toString()}`);
   };
 
   return (
@@ -233,6 +239,17 @@ function LoginForm() {
                     <Loader2 className="h-4 w-4 animate-spin" />
                     正在读取登录方式
                   </div>
+                ) : null}
+
+                {IS_DEV_LOGIN_ENABLED ? (
+                  <button
+                    type="button"
+                    onClick={handleDevLogin}
+                    className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--color-text)] px-4 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90"
+                  >
+                    <Wrench className="h-4 w-4" />
+                    开发环境直接登录
+                  </button>
                 ) : null}
 
                 {isResendLoginEnabled ? (

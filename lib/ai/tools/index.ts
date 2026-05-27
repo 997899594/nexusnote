@@ -2,6 +2,7 @@ import type { ToolSet, UIMessage } from "ai";
 import { createToolContext } from "@/lib/ai/core/tool-context";
 import type { ConversationCapabilityMode } from "@/lib/ai/runtime/contracts";
 import { createCareerContextTools } from "./career/context";
+import { createCareerPlanningTools } from "./career/planning";
 import { createNoteTools } from "./chat/notes";
 import { createSearchTools } from "./chat/search";
 import { createWebSearchTool } from "./chat/web-search";
@@ -65,6 +66,7 @@ export function buildToolsForCapabilityMode(
       });
       return {
         ...createCareerContextTools(ctx.userId),
+        ...createCareerPlanningTools(),
         ...createSearchTools(ctx.userId),
         ...createRagTools(ctx.userId),
       };

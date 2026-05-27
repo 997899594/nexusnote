@@ -1,7 +1,8 @@
 "use client";
 
-import type { TextUIPart, ToolUIPart, UIMessage } from "ai";
+import { getToolName, type TextUIPart, type ToolUIPart, type UIMessage } from "ai";
 import { motion } from "framer-motion";
+import { isChatVisibleTool } from "@/lib/ai/tools/shared/display-contract";
 import { cn } from "@/lib/utils";
 import { StreamdownMessage } from "./StreamdownMessage";
 import { ToolResultRenderer } from "./tool-result/ToolResultRenderer";
@@ -29,7 +30,9 @@ function getTextContent(message: UIMessage): string {
 }
 
 function getToolParts(message: UIMessage): ToolUIPart[] {
-  return message.parts.filter(isToolPart) as ToolUIPart[];
+  return (message.parts.filter(isToolPart) as ToolUIPart[]).filter((part) =>
+    isChatVisibleTool(getToolName(part)),
+  );
 }
 
 export function ChatMessage({
@@ -42,6 +45,10 @@ export function ChatMessage({
   const content = getTextContent(message);
   const toolParts = getToolParts(message);
   const isLearning = variant === "learning";
+
+  if (!isUser && !content && toolParts.length === 0) {
+    return null;
+  }
 
   return (
     <motion.div

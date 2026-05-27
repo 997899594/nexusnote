@@ -157,10 +157,10 @@ export async function ProfileCareerTreeSummary({ userId }: ProfileCareerTreeSumm
             </p>
           </div>
           <Link
-            href="/career-trees"
+            href="/career"
             className="inline-flex items-center gap-2 rounded-full border border-black/8 bg-white px-4 py-2 text-sm font-medium text-[var(--color-text)] transition-colors hover:bg-[var(--color-hover)]"
           >
-            查看生成进度
+            打开职业地图
             <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
@@ -198,10 +198,10 @@ export async function ProfileCareerTreeSummary({ userId }: ProfileCareerTreeSumm
           </h2>
         </div>
         <Link
-          href="/career-trees"
+          href="/career"
           className="inline-flex items-center gap-2 text-sm font-medium text-[var(--color-text)] transition-colors hover:text-[var(--color-text-secondary)]"
         >
-          详情
+          职业地图
           <ArrowRight className="h-4 w-4" />
         </Link>
       </div>

@@ -1,4 +1,5 @@
 import { stepCountIs, ToolLoopAgent } from "ai";
+import { buildCareerPlanningPromptContext } from "@/lib/career-planning/workspace-data";
 import {
   formatLearningGuidancePromptContext,
   getLearningGuidance,
@@ -81,6 +82,10 @@ export async function createConversationToolLoopSpecialist(
   }
 
   if (spec.mode === "career_guide" && isCareerRequestMetadata(options.metadata)) {
+    if (options.metadata.entry === "planning" && options.userId) {
+      userContextParts.push(await buildCareerPlanningPromptContext(options.userId));
+    }
+
     const selectedDirectionKey = options.metadata.selectedDirectionKey?.trim();
 
     if (selectedDirectionKey) {

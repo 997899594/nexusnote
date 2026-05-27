@@ -15,6 +15,8 @@
 - [AI SDK v6 Advanced Features](/Users/findbiao/projects/nexusnote/docs/ai-sdk-v6-advanced-features.md)
 - [Next 16 Page Boundary Rules](/Users/findbiao/projects/nexusnote/docs/NEXT16_PAGE_BOUNDARY_RULES.md)
 - [RAG Performance and Observability](/Users/findbiao/projects/nexusnote/docs/RAG_PERFORMANCE_AND_OBSERVABILITY.md)
+- [Career Map Interview Plan](/Users/findbiao/projects/nexusnote/docs/plans/2026-05-27-career-map-interview.md)
+- [Research Evidence Boundary ADR](/Users/findbiao/projects/nexusnote/docs/adr/2026-05-27-research-evidence-boundary.md)
 
 原则：
 

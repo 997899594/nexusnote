@@ -21,6 +21,7 @@ export const EditorRequestMetadataSchema = z.object({
 
 export const CareerRequestMetadataSchema = z.object({
   context: z.literal("career"),
+  entry: z.enum(["guide", "planning"]).optional(),
   selectedDirectionKey: z.string().trim().min(1).optional(),
 });
 

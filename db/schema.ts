@@ -8,6 +8,7 @@ import {
   redeemCodes,
   userEntitlements,
 } from "./schema/billing";
+import { careerPlanningSessions, careerPlanRevisions } from "./schema/career-planning";
 import {
   careerCourseChapterEvidence,
   careerCourseSkillEvidence,
@@ -45,6 +46,7 @@ import { aiSkins, userSkinPreferences } from "./schema/skins";
 export * from "./schema/ai-usage";
 export * from "./schema/auth";
 export * from "./schema/billing";
+export * from "./schema/career-planning";
 export * from "./schema/career-tree";
 export * from "./schema/conversations";
 export * from "./schema/courses";
@@ -80,6 +82,8 @@ export const usersRelations = relations(users, ({ many }) => ({
   careerUserTreePreferences: many(careerUserTreePreferences),
   careerUserTreeSnapshots: many(careerUserTreeSnapshots),
   careerUserGraphState: many(careerUserGraphState),
+  careerPlanningSessions: many(careerPlanningSessions),
+  careerPlanRevisions: many(careerPlanRevisions),
   researchRuns: many(researchRuns),
   billingOrders: many(billingOrders),
   entitlements: many(userEntitlements),
@@ -128,6 +132,7 @@ export const conversationsRelations = relations(conversations, ({ one, many }) =
   }),
   messages: many(conversationMessages),
   researchRuns: many(researchRuns),
+  careerPlanningSessions: many(careerPlanningSessions),
 }));
 
 export const conversationMessagesRelations = relations(conversationMessages, ({ one }) => ({
@@ -319,6 +324,32 @@ export const researchRunSourcesRelations = relations(researchRunSources, ({ one 
   task: one(researchRunTasks, {
     fields: [researchRunSources.taskId],
     references: [researchRunTasks.id],
+  }),
+}));
+
+export const careerPlanningSessionsRelations = relations(
+  careerPlanningSessions,
+  ({ one, many }) => ({
+    user: one(users, {
+      fields: [careerPlanningSessions.userId],
+      references: [users.id],
+    }),
+    conversation: one(conversations, {
+      fields: [careerPlanningSessions.conversationId],
+      references: [conversations.id],
+    }),
+    revisions: many(careerPlanRevisions),
+  }),
+);
+
+export const careerPlanRevisionsRelations = relations(careerPlanRevisions, ({ one }) => ({
+  session: one(careerPlanningSessions, {
+    fields: [careerPlanRevisions.sessionId],
+    references: [careerPlanningSessions.id],
+  }),
+  user: one(users, {
+    fields: [careerPlanRevisions.userId],
+    references: [users.id],
   }),
 }));
 

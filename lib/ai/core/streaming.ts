@@ -70,7 +70,8 @@ function getFallbackMessage(error: unknown): string {
 }
 
 function shouldForwardTool(toolName: string, allowedPresentation: ToolUIPresentation): boolean {
-  return getToolUIPresentation(toolName) === allowedPresentation;
+  const presentation = getToolUIPresentation(toolName);
+  return presentation === allowedPresentation || presentation === "state";
 }
 
 async function forwardFilteredChunks(
