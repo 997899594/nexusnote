@@ -20,12 +20,26 @@ The default mental model is:
 course evidence -> initial career hypothesis -> one consultative question -> user calibration -> career map revision
 ```
 
-The UI direction must stay aligned with course interview:
+界面布局必须和课程访谈的心智模型一致，不另起一套相反结构：
 
 ```text
-desktop: result panel on the left, conversation on the right
-mobile: conversation first, bottom card opens the result panel
+桌面端：左侧是职业地图，也就是证据和结果面板；右侧是职业访谈，也就是咨询式对话。
+移动端：先进入职业访谈；底部用一张克制的职业地图卡片承接状态，点击后进入地图视图。
 ```
+
+这里的“左侧”不是导航侧栏，也不是信息堆料区，而是用户随时能对照的职业判断结果：
+
+- 当前规划主线。
+- 课程和技能树给出的证据。
+- 仍需校准的缺口。
+- 候选路线之间的取舍。
+
+这里的“右侧”不是自由聊天，而是咨询师式访谈：
+
+- 先基于课程证据提出观察。
+- 再给出当前假设。
+- 每轮只问一个会改变路线判断的问题。
+- 当判断变化时，用结构化职业地图草稿更新左侧面板。
 
 ## Non-Negotiable Decisions
 
@@ -57,7 +71,7 @@ Planning layer:
 Already implemented in this branch:
 
 - `/career` route.
-- `CareerPlanningClient` with left Career Map and right consultative chat.
+- `CareerPlanningClient` with left Career Map evidence/result panel and right consultative interview.
 - `CareerMapPanel` for current route, course signals, gaps, and candidate routes.
 - `lib/career-planning/workspace-data.ts` to derive a course-driven planning context from existing career-tree workspace data.
 - Chat metadata `entry: "planning"` so the existing `career_guide` specialist receives career-planning context.
@@ -100,7 +114,7 @@ flowchart LR
 **Acceptance Criteria:**
 
 - The plan explicitly separates evidence state from planning state.
-- The plan states left result panel / right conversation as the canonical layout.
+- The plan states left Career Map evidence/result panel and right consultative interview as the canonical layout.
 - The plan states dev login must be local-only and production must stay magic-link based.
 
 ## Task 2: Add Local-Only Dev Login
@@ -210,5 +224,5 @@ git diff --check
 - `/login` in development shows direct login.
 - `/career` redirects unauthenticated users to `/login?callbackUrl=%2Fcareer`.
 - Dev direct login returns to `/career`.
-- Desktop `/career` shows Career Map left and conversation right.
+- Desktop `/career` shows Career Map evidence/result panel on the left and consultative interview on the right.
 - Mobile `/career` starts in conversation view and opens map via bottom card.
