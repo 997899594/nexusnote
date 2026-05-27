@@ -6,7 +6,7 @@ import { getUserAIModelSeries } from "@/lib/ai/core/model-series-preferences";
 import { createNexusNoteStreamResponse } from "@/lib/ai/core/streaming";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import type { InterviewUIMessage } from "@/lib/ai/interview/ui";
-import { buildInterviewWebResearchContext } from "@/lib/ai/interview/web-research-context";
+import { resolveInterviewWebResearchContext } from "@/lib/ai/interview/web-research-context";
 import { createCourseInterviewerSpecialistAgent } from "@/lib/ai/specialists/registry";
 import { InterviewApiRequestSchema } from "@/lib/ai/validation";
 import {
@@ -80,10 +80,21 @@ export async function POST(request: NextRequest) {
     }
 
     const validatedMessages = await validateUIMessages<InterviewUIMessage>({ messages });
-    const webResearchContext = await buildInterviewWebResearchContext({
+    const webResearchContext = await resolveInterviewWebResearchContext({
       userId,
       messages: validatedMessages,
     });
+    telemetry = {
+      ...telemetry,
+      metadata: {
+        ...telemetry.metadata,
+        evidenceRequired: Boolean(webResearchContext.evidenceRequest),
+        evidenceDomain: webResearchContext.evidenceRequest?.domain ?? null,
+        evidenceReasons: webResearchContext.evidenceRequest?.reasonCodes ?? [],
+        evidenceAvailable: webResearchContext.evidenceAvailable,
+        evidenceSourceCount: webResearchContext.retrieval?.sources.length ?? 0,
+      },
+    };
 
     const agent = createCourseInterviewerSpecialistAgent({
       userId,

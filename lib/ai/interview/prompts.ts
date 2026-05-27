@@ -2,6 +2,7 @@ import type { UIMessage } from "ai";
 import { extractUIMessageText } from "@/lib/ai/message-text";
 import { loadPromptResource, renderPromptResource } from "@/lib/ai/prompts/load-prompt";
 import type { InterviewOutline } from "./schemas";
+import type { InterviewWebResearchContext } from "./web-research-context";
 
 const INTERVIEW_SYSTEM_PROMPT = loadPromptResource("interview-system.md");
 const INTERVIEW_NATURAL_USER_PROMPT = "interview/natural-user.md";
@@ -41,7 +42,7 @@ function shouldDirectlyDraftOutline(message: string) {
 function buildInterviewDynamicHint(input: {
   currentOutline?: InterviewOutline;
   latestUserMessage: string;
-  hasWebResearchContext?: boolean;
+  webResearchContext?: InterviewWebResearchContext;
 }) {
   const message = input.latestUserMessage;
   if (!message) {
@@ -66,12 +67,16 @@ function buildInterviewDynamicHint(input: {
     ].join("\n");
   }
 
-  if (input.hasWebResearchContext) {
+  if (input.webResearchContext?.shouldDraftOutline) {
     return [
       "## 本轮动态提示",
-      "用户已经要求覆盖最新/前沿方向，且系统已提供外部检索资料。",
+      input.webResearchContext.evidenceAvailable
+        ? "用户已经要求覆盖最新/前沿方向，且系统已提供外部检索资料。"
+        : "用户已经要求覆盖最新/前沿方向，但外部检索暂不可用。",
       "本轮信息已经足够给第一版课程蓝图；优先直接调用 presentOutlinePreview。",
-      "必须把实际使用过的外部来源写入 outline.researchCitations，不要继续用 presentOptions 追问方向。",
+      input.webResearchContext.evidenceAvailable
+        ? "必须把实际使用过的外部来源写入 outline.researchCitations，不要继续用 presentOptions 追问方向。"
+        : "必须在蓝图里标注需要后续联网核验，不要编造 citation。",
       "可以基于用户当前选择/补充调整课程定位，但不要丢失前面关于最新技术范围的要求。",
     ].join("\n");
   }
@@ -91,13 +96,13 @@ function buildInterviewDynamicHint(input: {
 export function buildInterviewAgentInstructionsWithHint(input: {
   currentOutline?: InterviewOutline;
   messages?: Array<Pick<UIMessage, "role" | "parts">>;
-  webResearchContext?: string;
+  webResearchContext?: InterviewWebResearchContext;
 }) {
   const latestUserMessage = getLatestUserMessage(input.messages);
   const dynamicHint = buildInterviewDynamicHint({
     currentOutline: input.currentOutline,
     latestUserMessage,
-    hasWebResearchContext: Boolean(input.webResearchContext),
+    webResearchContext: input.webResearchContext,
   });
   const currentOutlineBlock = input.currentOutline
     ? renderPromptResource(INTERVIEW_NATURAL_CURRENT_OUTLINE_PROMPT, {
@@ -113,7 +118,7 @@ export function buildInterviewAgentInstructionsWithHint(input: {
         ? INTERVIEW_NATURAL_HINTS.existingOutlineRules
         : "",
     }),
-    input.webResearchContext,
+    input.webResearchContext?.promptBlock,
     dynamicHint,
   ]
     .filter(Boolean)

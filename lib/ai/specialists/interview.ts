@@ -6,6 +6,7 @@ import { createToolContext } from "@/lib/ai/core/tool-context";
 import { buildInterviewAgentInstructionsWithHint } from "@/lib/ai/interview/prompts";
 import type { InterviewOutline } from "@/lib/ai/interview/schemas";
 import type { InterviewTimingSink } from "@/lib/ai/interview/timing";
+import type { InterviewWebResearchContext } from "@/lib/ai/interview/web-research-context";
 import { createWebSearchTool } from "@/lib/ai/tools/chat/web-search";
 import { createInterviewTools } from "@/lib/ai/tools/interview";
 
@@ -26,7 +27,7 @@ export interface CourseInterviewerSpecialistOptions {
   courseId?: string;
   currentOutline?: InterviewOutline;
   messages?: UIMessage[];
-  webResearchContext?: string;
+  webResearchContext?: InterviewWebResearchContext;
   modelSeries?: AIModelSeries;
   telemetry?: AITelemetryContext;
   timing?: InterviewTimingSink;
@@ -57,6 +58,11 @@ export function createCourseInterviewerSpecialist(options: CourseInterviewerSpec
     }),
   );
   const webSearchTools = createWebSearchTool(options.userId);
+  const agentTools = {
+    ...tools,
+    ...webSearchTools,
+  };
+  const shouldForceOutlinePreview = options.webResearchContext?.shouldDraftOutline === true;
   options.timing?.mark("agent.tools.ready", { mode: "natural" });
 
   const agent = new ToolLoopAgent({
@@ -69,9 +75,18 @@ export function createCourseInterviewerSpecialist(options: CourseInterviewerSpec
       messages: options.messages,
       webResearchContext: options.webResearchContext,
     }),
-    tools: {
-      ...tools,
-      ...webSearchTools,
+    tools: agentTools,
+    prepareStep: ({ stepNumber }) => {
+      if (stepNumber === 0 && shouldForceOutlinePreview) {
+        return {
+          toolChoice: {
+            type: "tool",
+            toolName: "presentOutlinePreview",
+          },
+        };
+      }
+
+      return undefined;
     },
     stopWhen: [
       stepCountIs(COURSE_INTERVIEWER_MAX_STEPS),
