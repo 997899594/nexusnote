@@ -55,6 +55,20 @@ export interface ResearchEvidenceSnapshot {
 }
 
 const AUTHORITATIVE_TYPES = new Set(["official_docs", "release_note", "paper", "source_code"]);
+const MAX_UI_QUERY_LENGTH = 360;
+const MAX_UI_ERROR_LENGTH = 240;
+const MAX_UI_CONTENT_PREVIEW_LENGTH = 900;
+const MAX_UI_EVIDENCE_CHUNKS_PER_SOURCE = 2;
+const MAX_UI_EVIDENCE_CHUNK_LENGTH = 900;
+
+function truncateForUi(value: string | undefined, maxLength: number): string {
+  const normalized = (value ?? "").replace(/\s+/gu, " ").trim();
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, maxLength - 1).trim()}…`;
+}
 
 function getStableSnapshotId(request: ResearchEvidenceRequest): string {
   const normalized = [request.domain, request.seedMessage, request.latestUserMessage]
@@ -92,15 +106,16 @@ export function buildResearchEvidenceSnapshot(params: {
   retrieval: ResearchRetrievalOutput;
   generatedAt?: Date;
 }): ResearchEvidenceSnapshot {
-  const queries =
-    params.retrieval.queries.length > 0 ? params.retrieval.queries : params.request.queries;
+  const queries = (
+    params.retrieval.queries.length > 0 ? params.retrieval.queries : params.request.queries
+  ).map((query) => truncateForUi(query, MAX_UI_QUERY_LENGTH));
   const sources = params.retrieval.sources.map(
     (source): ResearchEvidenceSnapshotSource => ({
       id: source.sourceId,
       title: source.title,
       url: source.url,
       domain: source.domain,
-      snippet: source.snippet,
+      snippet: truncateForUi(source.snippet, 500),
       provider: source.provider,
       sourceType: source.sourceType,
       qualityTier: source.qualityTier,
@@ -110,9 +125,14 @@ export function buildResearchEvidenceSnapshot(params: {
       extractProvider: source.extractProvider,
       extractionStatus: source.extractionStatus,
       freshnessWindowDays: source.freshnessWindowDays,
-      searchQuery: source.searchQuery,
-      contentPreview: source.contentPreview,
-      evidenceChunks: source.evidenceChunks,
+      searchQuery: truncateForUi(source.searchQuery, MAX_UI_QUERY_LENGTH),
+      contentPreview: truncateForUi(source.contentPreview, MAX_UI_CONTENT_PREVIEW_LENGTH),
+      evidenceChunks: source.evidenceChunks
+        .slice(0, MAX_UI_EVIDENCE_CHUNKS_PER_SOURCE)
+        .map((chunk) => ({
+          ...chunk,
+          text: truncateForUi(chunk.text, MAX_UI_EVIDENCE_CHUNK_LENGTH),
+        })),
     }),
   );
 
@@ -125,12 +145,15 @@ export function buildResearchEvidenceSnapshot(params: {
     reasonCodes: params.request.reasonCodes,
     seedMessage: params.request.seedMessage,
     latestUserMessage: params.request.latestUserMessage,
-    query: params.request.query,
+    query: truncateForUi(params.request.query, MAX_UI_QUERY_LENGTH),
     queries,
     freshnessWindowDays: params.request.freshnessWindowDays,
     summary: buildSummary(sources, queries),
-    providerTrace: params.retrieval.providerTrace,
+    providerTrace: params.retrieval.providerTrace.map((trace) => ({
+      ...trace,
+      message: trace.message ? truncateForUi(trace.message, MAX_UI_ERROR_LENGTH) : undefined,
+    })),
     sources,
-    errors: params.retrieval.errors,
+    errors: params.retrieval.errors.map((error) => truncateForUi(error, MAX_UI_ERROR_LENGTH)),
   };
 }
