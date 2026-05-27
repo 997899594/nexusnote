@@ -1,11 +1,11 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { GraduationCap, Send, Sparkles } from "lucide-react";
+import { GraduationCap, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ChatComposer, type ChatComposerSubmitPayload } from "@/components/chat/ChatComposer";
 import { PromptChip } from "@/components/common";
-import { shouldSubmitOnEnter } from "@/components/common/keyboard";
 import { useInputProtection } from "@/components/common/useInputProtection";
 
 const EXAMPLE_PROMPTS = [
@@ -19,19 +19,8 @@ export function HeroInput() {
   const [input, setInput] = useState("");
   const { handlePaste } = useInputProtection();
 
-  const handleSubmit = () => {
-    const message = input.trim();
-    if (!message) return;
-
-    router.push(`/interview?msg=${encodeURIComponent(message)}`);
-    setInput("");
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (shouldSubmitOnEnter(e)) {
-      e.preventDefault();
-      handleSubmit();
-    }
+  const handleComposerSubmit = ({ text }: ChatComposerSubmitPayload) => {
+    router.push(`/interview?msg=${encodeURIComponent(text)}`);
   };
 
   return (
@@ -43,18 +32,19 @@ export function HeroInput() {
       <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-[linear-gradient(180deg,rgba(248,249,251,0.92),transparent)] md:h-24" />
 
       <div className="relative p-4 md:p-6 lg:p-7">
-        <textarea
+        <ChatComposer
           value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
+          onValueChange={setInput}
+          onSubmit={handleComposerSubmit}
           onPaste={handlePaste}
           placeholder="写下你想学的内容、期限和目标，我会先问清楚再生成课程蓝图。"
           rows={3}
-          className="h-28 w-full resize-none border-none bg-transparent py-4 text-base leading-7 text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-muted)] md:h-auto md:min-h-[104px] md:py-4 md:text-lg md:leading-8 lg:min-h-[118px] lg:text-[1.12rem]"
-        />
-
-        <div className="-mx-1 mt-2 flex gap-2 overflow-x-auto px-1 pb-1 md:mx-0 md:mt-3 md:flex-wrap md:overflow-visible md:px-0 md:pb-0">
-          {EXAMPLE_PROMPTS.map((prompt, index) => (
+          autoResize={false}
+          submitPlacement="footer"
+          className="border-0 bg-transparent p-0 shadow-none focus-within:bg-transparent focus-within:shadow-none"
+          textareaClassName="h-28 w-full py-4 text-base leading-7 md:h-auto md:min-h-[104px] md:py-4 md:text-lg md:leading-8 lg:min-h-[118px] lg:text-[1.12rem]"
+          footerClassName="-mx-1 mt-2 flex gap-2 overflow-x-auto px-1 pb-1 md:mx-0 md:mt-3 md:flex-wrap md:overflow-visible md:px-0 md:pb-0"
+          footer={EXAMPLE_PROMPTS.map((prompt, index) => (
             <motion.div
               key={prompt}
               initial={{ opacity: 0, y: 8 }}
@@ -71,20 +61,14 @@ export function HeroInput() {
               />
             </motion.div>
           ))}
-        </div>
-
-        <div className="mt-3 flex flex-col gap-3 md:mt-4 md:flex-row md:items-end">
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={!input.trim()}
-            className="ui-primary-button inline-flex h-11 w-full shrink-0 items-center justify-center gap-2 rounded-2xl px-4 py-3 transition-opacity disabled:cursor-not-allowed disabled:opacity-50 md:ml-auto md:h-auto md:w-auto"
-            aria-label="开始课程访谈"
-          >
-            <Send className="h-4 w-4 md:h-5 md:w-5" />
-            <span className="text-sm font-medium">开始访谈</span>
-          </button>
-        </div>
+          submitContainerClassName="mt-3 flex flex-col gap-3 md:mt-4 md:flex-row md:items-end"
+          submitButtonClassName="ui-primary-button inline-flex h-11 w-full shrink-0 items-center justify-center gap-2 rounded-2xl px-4 py-3 transition-opacity disabled:cursor-not-allowed disabled:opacity-50 md:ml-auto md:h-auto md:w-auto"
+          submitButtonActiveClassName=""
+          submitButtonInactiveClassName="cursor-not-allowed opacity-50"
+          submitIconClassName="h-4 w-4 md:h-5 md:w-5"
+          submitLabel={<span className="text-sm font-medium">开始访谈</span>}
+          submitAriaLabel="开始课程访谈"
+        />
       </div>
     </motion.div>
   );

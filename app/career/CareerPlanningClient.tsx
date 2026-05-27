@@ -1,20 +1,18 @@
 "use client";
 
 import { getToolName, isDataUIPart, isToolUIPart, type UIMessage } from "ai";
-import { ArrowLeft, CheckCircle2, Compass, Loader2, MessageCircle, Save, Send } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Compass, Loader2, MessageCircle, Save } from "lucide-react";
 import Link from "next/link";
-import type { KeyboardEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CareerMapPanel } from "@/components/career-planning/CareerMapPanel";
+import { ChatComposer, type ChatComposerSubmitPayload } from "@/components/chat/ChatComposer";
 import { ChatMessage, LoadingDots } from "@/components/chat/ChatMessage";
 import { useChatSession } from "@/components/chat/useChatSession";
 import { AIDegradationBanner, PromptChip, WorkspaceEmptyState } from "@/components/common";
-import { shouldSubmitOnEnter } from "@/components/common/keyboard";
 import { useInputProtection } from "@/components/common/useInputProtection";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { type CareerMapDraft, careerMapDraftSchema } from "@/lib/ai/career-planning/schemas";
 import type { CareerPlanningWorkspaceData } from "@/lib/career-planning/workspace-data";
-import { cn } from "@/lib/utils";
 
 interface CareerPlanningClientProps {
   data: CareerPlanningWorkspaceData;
@@ -246,27 +244,8 @@ export default function CareerPlanningClient({ data }: CareerPlanningClientProps
   );
   const mapHeaderAction = data.snapshot.status === "ready" ? saveMapButton : null;
 
-  const handleSubmit = async () => {
-    const nextInput = input;
-    const trimmedText = nextInput.trim();
-    if (!trimmedText || isLoading) {
-      return;
-    }
-
-    setInput("");
-    try {
-      await sendCareerMessage(trimmedText);
-    } catch (error) {
-      setInput(nextInput);
-      console.error("[CareerPlanning] send failed", error);
-    }
-  };
-
-  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (shouldSubmitOnEnter(event)) {
-      event.preventDefault();
-      void handleSubmit();
-    }
+  const handleComposerSubmit = async ({ text }: ChatComposerSubmitPayload) => {
+    await sendCareerMessage(text);
   };
 
   const chatViewport = (
@@ -314,35 +293,19 @@ export default function CareerPlanningClient({ data }: CareerPlanningClientProps
   const composer = (
     <div className="safe-bottom shrink-0 border-black/[0.04] border-t bg-white/84 px-4 pb-4 pt-3 backdrop-blur-xl md:px-6 md:pb-5 md:pt-4">
       <div className="mx-auto max-w-[calc(100vw-32px)] md:max-w-[780px]">
-        <div className="ui-input-shell flex items-end gap-2 rounded-[20px] p-2 md:gap-3">
-          <textarea
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            onKeyDown={handleKeyDown}
-            onPaste={handlePaste}
-            placeholder="回答这个问题，或说说你真实的犹豫..."
-            rows={1}
-            className="min-h-[24px] max-h-[120px] flex-1 resize-none border-none bg-transparent text-sm text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-muted)]"
-          />
-          <button
-            type="button"
-            onClick={() => void handleSubmit()}
-            disabled={!input.trim() || isLoading}
-            className={cn(
-              "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors",
-              input.trim() && !isLoading
-                ? "ui-primary-button"
-                : "cursor-not-allowed bg-[var(--color-active)] text-[var(--color-text-muted)]",
-            )}
-            aria-label="发送"
-          >
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-          </button>
-        </div>
+        <ChatComposer
+          value={input}
+          onValueChange={setInput}
+          onSubmit={handleComposerSubmit}
+          onSubmitError={(error) => {
+            console.error("[CareerPlanning] send failed", error);
+          }}
+          onPaste={handlePaste}
+          placeholder="回答这个问题，或说说你真实的犹豫..."
+          isLoading={isLoading}
+          inputRowClassName="md:gap-3"
+          textareaClassName="max-h-[120px]"
+        />
       </div>
     </div>
   );

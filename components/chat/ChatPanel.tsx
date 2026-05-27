@@ -2,16 +2,15 @@
 
 import type { UIMessage } from "ai";
 import { AnimatePresence, motion } from "framer-motion";
-import { Globe, GraduationCap, Loader2, MessageCircle, Plus, Search, Send, X } from "lucide-react";
+import { Globe, GraduationCap, MessageCircle, Plus, Search, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AIDegradationBanner } from "@/components/common";
-import { shouldSubmitOnEnter } from "@/components/common/keyboard";
 import { useInputProtection } from "@/components/common/useInputProtection";
 import type { ResearchRunSnapshot } from "@/lib/ai/research/contracts";
-import { cn } from "@/lib/utils";
 import type { Command } from "@/types/chat";
 import { BackgroundResearchCard, type BackgroundResearchCardState } from "./BackgroundResearchCard";
+import { ChatComposer, type ChatComposerSubmitPayload } from "./ChatComposer";
 import { ChatMessage, LoadingDots } from "./ChatMessage";
 import { CommandMenu } from "./CommandMenu";
 import { StreamdownMessage } from "./StreamdownMessage";
@@ -357,49 +356,34 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
     setSelectedCommand(null);
   };
 
-  const handleSubmit = async () => {
-    const nextInput = input;
-    const trimmedText = nextInput.trim();
-    if (!trimmedText || isLoading) return;
-
+  const handleComposerSubmit = async ({ text, rawText }: ChatComposerSubmitPayload) => {
     if (selectedCommand) {
-      const params = selectedCommand.getQueryParams(nextInput);
+      const params = selectedCommand.getQueryParams(rawText);
       const queryString = new URLSearchParams(params).toString();
       const path = queryString
         ? `${selectedCommand.targetPath}?${queryString}`
         : selectedCommand.targetPath;
       router.push(path);
-      setInput("");
       setSelectedCommand(null);
       setShowCommands(false);
       return;
     }
 
-    if (nextInput.startsWith("/") && filteredCommands.length > 0) {
-      setInput(extractCommandContent(nextInput));
+    if (rawText.startsWith("/") && filteredCommands.length > 0) {
+      setInput(extractCommandContent(rawText));
       setSelectedCommand(filteredCommands[selectedIndex]);
       setShowCommands(false);
       return;
     }
 
-    setInput("");
-    try {
-      await sendChatMessage(trimmedText);
-    } catch (error) {
-      setInput(nextInput);
-      console.error("[ChatPanel] send failed", error);
-    }
+    await sendChatMessage(text);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleComposerKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (selectedCommand) {
       if (e.key === "Escape") {
-        handleCancelCommand();
-        return;
-      }
-      if (shouldSubmitOnEnter(e)) {
         e.preventDefault();
-        handleSubmit();
+        handleCancelCommand();
         return;
       }
     }
@@ -415,20 +399,10 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
         setSelectedIndex((i) => (i - 1 + filteredCommands.length) % filteredCommands.length);
         return;
       }
-      if (shouldSubmitOnEnter(e)) {
-        e.preventDefault();
-        handleSubmit();
-        return;
-      }
       if (e.key === "Escape") {
+        e.preventDefault();
         setShowCommands(false);
-        return;
       }
-    }
-
-    if (shouldSubmitOnEnter(e)) {
-      e.preventDefault();
-      handleSubmit();
     }
   };
 
@@ -544,35 +518,20 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
             )}
           </AnimatePresence>
 
-          <div className="ui-input-shell flex items-end gap-2 rounded-[20px] p-2 md:gap-3">
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              onPaste={handlePaste}
-              placeholder={placeholder}
-              rows={1}
-              className="min-h-[24px] max-h-[120px] flex-1 resize-none border-none bg-transparent text-sm text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-muted)]"
-            />
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleSubmit}
-              disabled={!input.trim() || isLoading}
-              className={cn(
-                "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-colors",
-                input.trim() && !isLoading
-                  ? "ui-primary-button"
-                  : "cursor-not-allowed bg-[var(--color-active)] text-[var(--color-text-muted)]",
-              )}
-            >
-              {isLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Send className="w-4 h-4" />
-              )}
-            </motion.button>
-          </div>
+          <ChatComposer
+            value={input}
+            onValueChange={setInput}
+            onSubmit={handleComposerSubmit}
+            onSubmitError={(error) => {
+              console.error("[ChatPanel] send failed", error);
+            }}
+            onKeyDown={handleComposerKeyDown}
+            onPaste={handlePaste}
+            placeholder={placeholder}
+            isLoading={isLoading}
+            inputRowClassName="md:gap-3"
+            textareaClassName="max-h-[120px]"
+          />
         </div>
       </div>
     </div>

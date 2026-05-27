@@ -8,20 +8,18 @@ import {
   GraduationCap,
   Loader2,
   MessageCircle,
-  Send,
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
+import { ChatComposer, type ChatComposerSubmitPayload } from "@/components/chat/ChatComposer";
 import { LoadingDots } from "@/components/chat/ChatMessage";
 import { AIDegradationBanner, PromptChip, WorkspaceEmptyState } from "@/components/common";
-import { shouldSubmitOnEnter } from "@/components/common/keyboard";
 import { InterviewMessage } from "@/components/interview/InterviewMessage";
 import { OutlinePanel } from "@/components/interview/OutlinePanel";
 import { useInterview } from "@/hooks/useInterview";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { cn } from "@/lib/utils";
 
 const panelVariants = {
   hidden: {
@@ -128,25 +126,8 @@ function InterviewContent() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatMessages.length, isLoading]);
 
-  const handleSubmit = async () => {
-    const nextInput = input;
-    const trimmedText = nextInput.trim();
-    if (!trimmedText || isLoading) return;
-
-    setInput("");
-    try {
-      await sendMessage({ text: trimmedText });
-    } catch (error) {
-      setInput(nextInput);
-      console.error("[Interview] send failed", error);
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (shouldSubmitOnEnter(e)) {
-      e.preventDefault();
-      handleSubmit();
-    }
+  const handleComposerSubmit = async ({ text }: ChatComposerSubmitPayload) => {
+    await sendMessage({ text });
   };
 
   const lastMsg = chatMessages[chatMessages.length - 1];
@@ -417,34 +398,20 @@ function InterviewContent() {
   const composer = (
     <div className="safe-bottom shrink-0 bg-white px-4 pb-5 pt-4 md:px-6 md:pb-6 md:pt-4">
       <div className="mx-auto max-w-[calc(100vw-32px)] md:max-w-[var(--message-max-width)]">
-        <div className="ui-input-shell flex items-end gap-2 rounded-2xl p-2 md:gap-3 md:p-3">
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={shouldShowOutlinePanel ? "继续调整蓝图..." : "继续对话..."}
-            rows={1}
-            className="flex-1 min-h-[24px] max-h-[120px] resize-none border-none bg-transparent text-sm text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-muted)]"
-          />
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={handleSubmit}
-            disabled={!input.trim() || isLoading}
-            className={cn(
-              "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full transition-colors",
-              input.trim() && !isLoading
-                ? "ui-primary-button"
-                : "cursor-not-allowed bg-[var(--color-active)] text-[var(--color-text-muted)]",
-            )}
-          >
-            {isLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Send className="w-4 h-4" />
-            )}
-          </motion.button>
-        </div>
+        <ChatComposer
+          value={input}
+          onValueChange={setInput}
+          onSubmit={handleComposerSubmit}
+          onSubmitError={(error) => {
+            console.error("[Interview] send failed", error);
+          }}
+          placeholder={shouldShowOutlinePanel ? "继续调整蓝图..." : "继续对话..."}
+          isLoading={isLoading}
+          className="rounded-2xl md:p-3"
+          inputRowClassName="md:gap-3"
+          textareaClassName="max-h-[120px]"
+          submitButtonClassName="rounded-full"
+        />
       </div>
     </div>
   );

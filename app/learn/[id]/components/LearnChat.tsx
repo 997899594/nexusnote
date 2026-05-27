@@ -1,12 +1,12 @@
 "use client";
 
 import type { UIMessage } from "ai";
-import { Loader2, NotebookPen, Send, X } from "lucide-react";
+import { Loader2, NotebookPen, X } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChatComposer, type ChatComposerSubmitPayload } from "@/components/chat/ChatComposer";
 import { ChatMessage, LoadingDots } from "@/components/chat/ChatMessage";
 import { useChatSession } from "@/components/chat/useChatSession";
 import { AIDegradationBanner } from "@/components/common";
-import { shouldSubmitOnEnter } from "@/components/common/keyboard";
 import { useToast } from "@/components/ui/Toast";
 import { extractUIMessageText } from "@/lib/ai/message-text";
 import { isUnauthorizedError, parseApiError, redirectToLogin } from "@/lib/api/client";
@@ -143,18 +143,8 @@ export function LearnChat({ courseId, courseTitle }: LearnChatProps) {
     void resolveLearnSession();
   }, [resolveLearnSession]);
 
-  const handleSubmit = async () => {
-    const nextInput = input;
-    const trimmedText = nextInput.trim();
-    if (!trimmedText || isLoading || !resolvedSessionId) return;
-
-    setInput("");
-    try {
-      await sendMessage({ text: trimmedText });
-    } catch (error) {
-      setInput(nextInput);
-      console.error("[LearnChat] send failed", error);
-    }
+  const handleComposerSubmit = async ({ text }: ChatComposerSubmitPayload) => {
+    await sendMessage({ text });
   };
 
   const handleQuickPrompt = useCallback(
@@ -231,13 +221,6 @@ export function LearnChat({ courseId, courseTitle }: LearnChatProps) {
     getMessageText,
     isCapturingChat,
   ]);
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (shouldSubmitOnEnter(e)) {
-      e.preventDefault();
-      handleSubmit();
-    }
-  };
 
   const lastMsg = chatMessages[chatMessages.length - 1];
   const isAILoading =
@@ -374,34 +357,21 @@ export function LearnChat({ courseId, courseTitle }: LearnChatProps) {
 
       {/* Input */}
       <div className="safe-bottom border-t border-black/[0.04] bg-white/84 px-4 pb-4 pt-3 backdrop-blur-xl md:px-5 md:pb-5 md:pt-4">
-        <div className="ui-input-shell flex items-end gap-2 rounded-[20px] p-2">
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={sessionError ? "学习对话暂不可用" : "针对这一节提问..."}
-            rows={1}
-            className="flex-1 min-h-[24px] max-h-[80px] resize-none border-none bg-transparent text-sm text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-muted)]"
-            disabled={!resolvedSessionId || isResolvingSession || !!sessionError}
-          />
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={!input.trim() || isLoading || !resolvedSessionId || !!sessionError}
-            className={cn(
-              "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-colors",
-              input.trim() && !isLoading && resolvedSessionId && !sessionError
-                ? "ui-primary-button"
-                : "cursor-not-allowed bg-[var(--color-active)] text-[var(--color-text-muted)]",
-            )}
-          >
-            {isLoading ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Send className="w-3.5 h-3.5" />
-            )}
-          </button>
-        </div>
+        <ChatComposer
+          value={input}
+          onValueChange={setInput}
+          onSubmit={handleComposerSubmit}
+          onSubmitError={(error) => {
+            console.error("[LearnChat] send failed", error);
+          }}
+          placeholder={sessionError ? "学习对话暂不可用" : "针对这一节提问..."}
+          isLoading={isLoading}
+          inputDisabled={!resolvedSessionId || isResolvingSession || !!sessionError}
+          submitDisabled={!resolvedSessionId || !!sessionError}
+          maxHeightPx={80}
+          textareaClassName="max-h-[80px]"
+          submitIconClassName="h-3.5 w-3.5"
+        />
       </div>
     </div>
   );
