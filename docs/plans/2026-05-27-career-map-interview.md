@@ -78,7 +78,7 @@ Already implemented in this branch:
 - Profile, insights, and chat navigation now point to `/career`.
 - Local-only development login through `/api/auth/dev-login`.
 - Append-only career planning sessions and revisions.
-- Structured career-map draft delivery through `presentCareerMapDraft`, forwarded as client state rather than rendered as a tool card.
+- Structured career-map draft delivery through `data-careerMapDraft` as authoritative server UI data, with `presentCareerMapDraft` still available for model-refined updates. Both are forwarded as client state rather than rendered as tool cards.
 - Latest planning revision restore on `/career`, including the same planning session id and last map draft.
 - "确认主线" writes planning-state revision only; it does not mark skill nodes mastered.
 
@@ -177,13 +177,13 @@ flowchart LR
 **Steps:**
 
 1. Define a strict Zod schema for a career-map draft.
-2. Add `presentCareerMapDraft` as a structured client-state tool part, not a visible tool card.
+2. Add `data-careerMapDraft` as a server-seeded UI data part and keep `presentCareerMapDraft` as a structured client-state tool part, not a visible tool card.
 3. Render route changes, user constraints, key uncertainties, and next question in the panel.
 4. Keep provider/tool metadata hidden.
 
 **Acceptance Criteria:**
 
-- The chat can update the map without relying on parsing assistant prose.
+- The chat can update the map without relying on parsing assistant prose or optional model tool-call behavior.
 - The map remains usable even while the assistant streams.
 - Generic chat rendering must suppress state-only tool parts so tool plumbing never leaks into the user-facing transcript.
 

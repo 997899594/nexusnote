@@ -13,6 +13,7 @@ import { classifyAIDegradation } from "@/lib/ai/core/degradation";
 import { aiModelGateway } from "@/lib/ai/core/model-gateway";
 import { getUserAIModelSeries } from "@/lib/ai/core/model-series-preferences";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
+import { extractUIMessageText } from "@/lib/ai/message-text";
 import {
   createBackgroundResearchHandoffResponse,
   shouldStartBackgroundResearchWorkflow,
@@ -37,8 +38,18 @@ import { ChatApiRequestSchema } from "@/lib/ai/validation";
 import { handleError, parseJsonBodyAs, serviceUnavailable, unauthorized } from "@/lib/api";
 import { checkRateLimitOrThrow } from "@/lib/api/rate-limit";
 import { auth } from "@/lib/auth";
+import {
+  buildCareerMapDraftFromWorkspaceData,
+  getCareerPlanningWorkspaceDataFresh,
+} from "@/lib/career-planning/workspace-data";
+import { isCareerRequestMetadata } from "@/types/request-metadata";
 
 export const maxDuration = 300;
+
+function getLatestUserMessageText(messages: UIMessage[]): string {
+  const latestUserMessage = [...messages].reverse().find((message) => message.role === "user");
+  return latestUserMessage ? extractUIMessageText(latestUserMessage) : "";
+}
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
@@ -164,6 +175,13 @@ export async function POST(request: NextRequest) {
         telemetry,
       },
     });
+    const careerMapDraft =
+      isCareerRequestMetadata(resolvedMetadata) && resolvedMetadata.entry === "planning"
+        ? buildCareerMapDraftFromWorkspaceData({
+            data: await getCareerPlanningWorkspaceDataFresh(userId),
+            latestUserMessage: getLatestUserMessageText(uiMessages),
+          })
+        : null;
 
     const response = await createChatStreamResponse({
       agent,
@@ -171,6 +189,15 @@ export async function POST(request: NextRequest) {
       userId,
       sessionId,
       scheduleAfter: after,
+      dataParts: careerMapDraft
+        ? [
+            {
+              type: "data-careerMapDraft",
+              id: `career-map-draft-${requestId}`,
+              data: careerMapDraft,
+            },
+          ]
+        : undefined,
     });
     response.headers.set("X-Request-Id", requestId);
     response.headers.set(AI_EXECUTION_MODE_HEADER, routeDecision.executionMode);

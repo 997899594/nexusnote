@@ -1,10 +1,10 @@
 "use client";
 
-import { getToolName, isToolUIPart, type UIMessage } from "ai";
+import { getToolName, isDataUIPart, isToolUIPart, type UIMessage } from "ai";
 import { ArrowLeft, CheckCircle2, Compass, Loader2, MessageCircle, Save, Send } from "lucide-react";
 import Link from "next/link";
 import type { KeyboardEvent } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CareerMapPanel } from "@/components/career-planning/CareerMapPanel";
 import { ChatMessage, LoadingDots } from "@/components/chat/ChatMessage";
 import { useChatSession } from "@/components/chat/useChatSession";
@@ -48,6 +48,11 @@ function getLatestCareerMapDraft(messages: UIMessage[]): CareerMapDraft | null {
 
     for (let partIndex = message.parts.length - 1; partIndex >= 0; partIndex--) {
       const part = message.parts[partIndex];
+      if (isDataUIPart(part) && part.type === "data-careerMapDraft") {
+        const parsed = careerMapDraftSchema.safeParse(part.data);
+        return parsed.success ? parsed.data : null;
+      }
+
       if (
         !isToolUIPart(part) ||
         getToolName(part) !== "presentCareerMapDraft" ||
@@ -86,8 +91,11 @@ export default function CareerPlanningClient({ data }: CareerPlanningClientProps
       },
     }),
   });
-  const messages = chat.messages.filter((message: UIMessage) => message.role !== "system");
-  const streamedCareerMapDraft = getLatestCareerMapDraft(messages);
+  const messages = useMemo(
+    () => chat.messages.filter((message: UIMessage) => message.role !== "system"),
+    [chat.messages],
+  );
+  const streamedCareerMapDraft = useMemo(() => getLatestCareerMapDraft(messages), [messages]);
   const careerMapDraft = streamedCareerMapDraft ?? data.planningState?.mapDraft ?? null;
   const status = chat.status;
   const isLoading = status === "submitted" || status === "streaming";
@@ -111,10 +119,15 @@ export default function CareerPlanningClient({ data }: CareerPlanningClientProps
   }, [messages.length, isLoading]);
 
   useEffect(() => {
+    if (streamedCareerMapDraft) {
+      setSaveState("idle");
+      setCommitState("idle");
+    }
+
     if (streamedCareerMapDraft?.selectedRouteKey) {
       setSelectedRouteKey(streamedCareerMapDraft.selectedRouteKey);
     }
-  }, [streamedCareerMapDraft?.selectedRouteKey]);
+  }, [streamedCareerMapDraft]);
 
   const sendCareerMessage = async (text: string) => {
     const trimmedText = text.trim();

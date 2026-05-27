@@ -1,4 +1,4 @@
-import type { Agent, ToolSet, UIMessage } from "ai";
+import type { Agent, ToolSet, UIMessage, UIMessageChunk } from "ai";
 import type { after as afterFn } from "next/server";
 import { getChatResumableStreamContext } from "@/lib/ai/core/resumable-streams";
 import { createNexusNoteStreamResponse } from "@/lib/ai/core/streaming";
@@ -137,6 +137,7 @@ export async function createChatStreamResponse<
   userId: string;
   sessionId?: string | null;
   scheduleAfter: ScheduleAfter;
+  dataParts?: UIMessageChunk[];
 }): Promise<Response> {
   if (isPersistentChatSession(params.sessionId)) {
     await persistConversationMessages(params.sessionId, params.userId, params.messages);
@@ -151,6 +152,7 @@ export async function createChatStreamResponse<
   return createNexusNoteStreamResponse(params.agent, params.messages, {
     sessionId: params.sessionId ?? undefined,
     presentation: "chat",
+    dataParts: params.dataParts,
     onFinish: async ({ messages }) => {
       const persistentSessionId = isPersistentChatSession(params.sessionId)
         ? params.sessionId

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { type CareerMapDraft, careerMapDraftSchema } from "@/lib/ai/career-planning/schemas";
 import {
   type CareerPlanningState,
   getLatestCareerPlanningState,
@@ -56,6 +57,7 @@ export interface CareerPlanningWorkspaceData {
 const MAX_ROUTES = 4;
 const MAX_ROUTE_NODES = 5;
 const MAX_PROMPT_CONTEXT_ROUTES = 3;
+const MAX_INSIGHT_SIGNAL_CHARS = 180;
 
 function toSkillGap(node: VisibleSkillTreeNode): CareerPlanningSkillGap {
   return {
@@ -89,6 +91,134 @@ function toCareerPlanningRoute(tree: CandidateCareerTree): CareerPlanningRoute {
     keyNodes,
     gapNodes,
   };
+}
+
+function compactWhitespace(value: string): string {
+  return value.replace(/\s+/gu, " ").trim();
+}
+
+function stripMarkdownSyntax(value: string): string {
+  return compactWhitespace(
+    value
+      .replace(/```[\s\S]*?```/gu, " ")
+      .replace(/`([^`]+)`/gu, "$1")
+      .replace(/\*\*([^*]+)\*\*/gu, "$1")
+      .replace(/^\s{0,3}#{1,6}\s*/gmu, "")
+      .replace(/^\s*[-*]\s+/gmu, "")
+      .replace(/^\s*\d+\.\s+/gmu, ""),
+  );
+}
+
+function clampText(value: string, maxLength: number): string {
+  const normalized = compactWhitespace(value);
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, maxLength - 1).trim()}…`;
+}
+
+function compactInsightTitle(title: string): string {
+  return stripMarkdownSyntax(title)
+    .replace(/^第\s*\d+\s*章\s*[·:：-]\s*/u, "")
+    .replace(/\s*·\s*这一章.*$/u, "")
+    .trim();
+}
+
+function extractInsightTopics(summary: string): string[] {
+  const topics = Array.from(summary.matchAll(/^#{2,4}\s*(?:\d+[.)、]\s*)?(.+)$/gmu))
+    .map((match) => stripMarkdownSyntax(match[1] ?? ""))
+    .map((topic) => topic.trim())
+    .filter((topic) => topic.length > 0 && !/建议|总结|如何.*扎实/u.test(topic));
+
+  return Array.from(new Set(topics)).slice(0, 3);
+}
+
+function toCompactInsightSignal(insight: { title: string; summary: string }): string {
+  const title = compactInsightTitle(insight.title);
+  const topics = extractInsightTopics(insight.summary);
+
+  if (topics.length > 0) {
+    return clampText(`${title}: ${topics.join("、")}。`, MAX_INSIGHT_SIGNAL_CHARS);
+  }
+
+  const summary = stripMarkdownSyntax(insight.summary)
+    .replace(/^课程[:：].*?学习对话沉淀[:：]\s*/u, "")
+    .replace(/^我[:：].*?AI[:：]\s*/u, "");
+  const detail = title && !summary.includes(title) ? `${title}: ${summary}` : summary;
+
+  return clampText(detail, MAX_INSIGHT_SIGNAL_CHARS);
+}
+
+function toDraftSource(
+  source: CareerPlanningSignal["source"],
+): CareerMapDraft["observations"][number]["source"] {
+  return source === "skill_tree" ? "skill_tree" : source;
+}
+
+function buildDraftNextActions(route: CareerPlanningRoute): string[] {
+  const actions = route.gapNodes
+    .slice(0, 2)
+    .map((node) => clampText(`用一个小作品验证：${node.title}`, 140));
+
+  if (actions.length > 0) {
+    return actions;
+  }
+
+  return ["用一轮真实交付验证这条路线是否适合继续投入。"];
+}
+
+export function buildCareerMapDraftFromWorkspaceData(input: {
+  data: CareerPlanningWorkspaceData;
+  latestUserMessage?: string;
+}): CareerMapDraft | null {
+  const { data } = input;
+
+  if (data.snapshot.status !== "ready" || !data.currentRoute || data.routes.length === 0) {
+    return null;
+  }
+
+  const selectedRouteKey = data.planningState?.selectedRouteKey ?? data.currentRoute.directionKey;
+  const selectedRoute =
+    data.routes.find((route) => route.directionKey === selectedRouteKey) ?? data.currentRoute;
+  const asksComparison = /比较|取舍|备选|区别/u.test(input.latestUserMessage ?? "");
+  const routeOptions = data.routes.slice(0, 3).map((route) => route.title);
+  const nextQuestion = asksComparison
+    ? "如果只看未来一个月，你更想把哪条路线做成可展示成果？"
+    : "你现在更想优先跑通哪一种最小可交付原型？";
+
+  const draft = {
+    message: `先按“${selectedRoute.title}”做一版职业地图校准。`,
+    selectedRouteKey: selectedRoute.directionKey,
+    observations: data.signals.slice(0, 4).map((signal) => ({
+      title: clampText(signal.label, 80),
+      summary: clampText(`${signal.value}: ${signal.detail}`, 220),
+      source: toDraftSource(signal.source),
+    })),
+    routes: data.routes.slice(0, 4).map((route) => {
+      const topGap = route.gapNodes[0]?.title ?? "真实交付证据";
+
+      return {
+        directionKey: route.directionKey,
+        title: clampText(route.title, 100),
+        summary: clampText(route.summary, 260),
+        fitScore: Math.round(route.confidence * 100),
+        reason: clampText(route.whyThisDirection, 280),
+        risk: clampText(`如果不补齐“${topGap}”，这条路线容易停留在判断层。`, 220),
+        gaps: route.gapNodes.slice(0, 5).map((node) => clampText(node.title, 100)),
+        nextActions: buildDraftNextActions(route),
+      };
+    }),
+    openQuestions: [nextQuestion],
+    nextQuestion: {
+      question: nextQuestion,
+      why: "这个答案会决定先补系统层、产品层，还是前端工程基座。",
+      options: asksComparison ? routeOptions : ["AI 编排原型", "AI 前端工作台", "前端工程基座"],
+    },
+  };
+
+  const parsed = careerMapDraftSchema.safeParse(draft);
+  return parsed.success ? parsed.data : null;
 }
 
 function buildSignals(input: {
@@ -175,7 +305,7 @@ export async function getCareerPlanningWorkspaceDataFresh(
   const signals = buildSignals({
     currentTree,
     currentRoute,
-    insightSummaries: workspace.insights.map((insight) => insight.summary),
+    insightSummaries: workspace.insights.map(toCompactInsightSignal),
   });
 
   return {
@@ -222,8 +352,9 @@ export async function buildCareerPlanningPromptContext(userId: string): Promise<
     "你要先基于课程、职业树、学习洞察提出观察和假设，再用少量高质量问题帮助用户校准自己。",
     "不要让用户一次性提供学历、年限、薪资、城市、目标等一大堆信息；每轮只问一个真正影响判断的问题。",
     "不要把用户主观偏好说成已掌握能力；能力结论必须锚定课程或技能树证据。",
-    "当你形成或更新职业路线判断时，必须调用 presentCareerMapDraft 输出结构化职业地图；正文只保留一句自然说明。",
-    "回答结构优先是：我从课程看到什么 -> 我现在的假设 -> 我只问一个问题。",
+    "每轮都必须先调用 presentCareerMapDraft 输出结构化职业地图，即使只是确认当前判断；不要只在正文里讲完。",
+    "正文不要复述完整地图；最多三句话，不使用编号列表；选项和取舍放进 presentCareerMapDraft.nextQuestion.options。",
+    "回答结构优先是：一句课程观察 -> 一句当前假设 -> 一个会改变路线判断的问题。",
     "## 当前课程驱动画像",
     JSON.stringify(promptPayload, null, 2),
   ].join("\n\n");

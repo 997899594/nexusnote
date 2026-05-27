@@ -228,6 +228,27 @@ function CareerMapDraftPanel({ draft }: { draft: CareerMapDraft }) {
         ))}
       </div>
 
+      <div className="mt-4 rounded-2xl bg-white/78 px-3 py-3">
+        <p className="text-[0.625rem] font-semibold tracking-[0.16em] text-[var(--color-text-muted)]">
+          下一次校准
+        </p>
+        <p className="mt-2 text-sm font-medium leading-6 text-[var(--color-text)]">
+          {draft.nextQuestion.question}
+        </p>
+        {draft.nextQuestion.options?.length ? (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {draft.nextQuestion.options.map((option) => (
+              <span
+                key={option}
+                className="rounded-full bg-[var(--color-panel-soft)] px-2.5 py-1 text-[0.6875rem] text-[var(--color-text-secondary)]"
+              >
+                {option}
+              </span>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
       <div className="mt-4 space-y-2">
         {draft.routes.map((route) => (
           <DraftRouteCard
