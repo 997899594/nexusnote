@@ -1097,16 +1097,16 @@ function chunkText(text: string, maxLength = 1100): string[] {
   return chunks.slice(0, 8);
 }
 
-async function rerankWithQwen(
+async function rerankWith302Qwen(
   query: string,
   chunks: Array<{ text: string; sourceIndex: number; chunkIndex: number }>,
   topN: number,
 ): Promise<RankedChunk[] | null> {
-  if (!env.RERANKER_ENABLED || chunks.length === 0 || !env.DASHSCOPE_API_KEY) {
+  if (!env.RERANKER_ENABLED || chunks.length === 0 || !env.AI_302_API_KEY) {
     return null;
   }
 
-  return await rerankWithDashScope(query, chunks, topN);
+  return await rerankWith302(query, chunks, topN);
 }
 
 function mapRerankResults(
@@ -1145,17 +1145,17 @@ function mapRerankResults(
   return ranked.length > 0 ? ranked : null;
 }
 
-async function rerankWithDashScope(
+async function rerankWith302(
   query: string,
   chunks: Array<{ text: string; sourceIndex: number; chunkIndex: number }>,
   topN: number,
 ): Promise<RankedChunk[] | null> {
-  const endpoint = `${env.DASHSCOPE_BASE_URL.replace(/\/$/u, "")}/reranks`;
+  const endpoint = `${env.AI_302_BASE_URL.replace(/\/$/u, "")}/reranks`;
   const data = await fetchJson<Record<string, unknown>>(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${env.DASHSCOPE_API_KEY}`,
+      Authorization: `Bearer ${env.AI_302_API_KEY}`,
     },
     body: JSON.stringify({
       model: env.RERANKER_MODEL_PRO || env.RERANKER_MODEL,
@@ -1187,13 +1187,13 @@ async function rankEvidenceSources(
 
   let rankedChunks: RankedChunk[] | null = null;
   try {
-    rankedChunks = await rerankWithQwen(query, chunkCandidates, topN);
+    rankedChunks = await rerankWith302Qwen(query, chunkCandidates, topN);
     providerTrace.push({
       provider: "reranker",
       status: rankedChunks ? "used" : "skipped",
       message: rankedChunks
         ? undefined
-        : "DASHSCOPE_API_KEY missing, reranker disabled, or no chunks",
+        : "RERANKER_ENABLED=false, AI_302_API_KEY missing, or no chunks",
     });
   } catch (error) {
     providerTrace.push({ provider: "reranker", status: "failed", message: formatError(error) });

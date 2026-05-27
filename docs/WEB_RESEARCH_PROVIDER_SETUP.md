@@ -1,9 +1,10 @@
 # Web Research Provider Setup
 
-更新时间：2026-05-26
+更新时间：2026-05-27
 
-这份文档记录 NexusNote 联网 research 链路的五个外部 key：`TAVILY_API_KEY`、
-`EXA_API_KEY`、`JINA_API_KEY`、`FIRECRAWL_API_KEY`、`DASHSCOPE_API_KEY`。
+这份文档记录 NexusNote 联网 research 链路的四个外部检索/读取 key：`TAVILY_API_KEY`、
+`EXA_API_KEY`、`JINA_API_KEY`、`FIRECRAWL_API_KEY`。rerank 统一复用项目已有的
+`AI_302_API_KEY`，不再单独申请新的 rerank key。
 
 ## 结论
 
@@ -13,14 +14,16 @@
 - Exa：semantic / deep web search + highlights / contents
 - Jina：AI-native search + Reader
 - Firecrawl：复杂页面正文抽取
-- DashScope：官方 Qwen3 reranker
+- 302：Qwen3 reranker
 
 已删除的低价值链路：
 
 - Serper / Google fallback
-- 302 gateway `/rerank` 兼容兜底
+- 独立 rerank 供应商 key
+- 302 旧单数 rerank 接口路径；只使用 `/v1/reranks`
 
-本项目的判断标准很明确：宁可缺 key 后显式跳过，也不维护低质量或过时兼容实现。
+本项目的判断标准很明确：302 已能解决的模型和 rerank 能力不再引入新供应商 key；
+搜索和页面读取继续保留专业 provider。
 
 ## 申请优先级
 
@@ -208,49 +211,42 @@ FIRECRAWL_API_KEY=fc-...
 - 不要在 research 默认读取过多来源；当前 `maxExtractedSources` 会限制抽取数量。
 - 对高频 query 依赖 Redis extract cache，避免重复 scrape 同一 URL。
 
-### 5. DashScope
+## Reranker
 
-环境变量：`DASHSCOPE_API_KEY`
+环境变量：复用 `AI_302_API_KEY`
 
 项目用途：
 
-- Qwen3 reranker 官方调用凭证
+- 调用 302 `/v1/reranks`
+- 模型默认 `qwen3-rerank`
 - 只用于 research evidence chunks 的重排
 - 提升引用来源排序质量，降低 SEO 页面和弱相关页面进入蓝图的概率
 
-为什么保留：
+为什么不再申请新 rerank key：
 
-- 这是 Qwen3 rerank 的官方链路
-- 项目已删除 302 `/rerank` 兼容兜底，不再维护旧网关重排
-- 没配置时显式跳过 reranker，并使用 lexical + quality score 排序
-
-申请入口：
-
-- API key 说明：https://www.alibabacloud.com/help/en/model-studio/get-api-key
-- Model Studio console：https://modelstudio.console.alibabacloud.com/
-- Qwen 模型和价格表：https://www.alibabacloud.com/help/en/model-studio/models
-
-费用口径：
-
-- 官方模型表列出 `qwen3-rerank` 的输入限制和按 1M input tokens 计价
-- 当前项目默认模型：`qwen3-rerank`
-- 只对候选 chunks 做 top-N 重排，不参与长文本生成
+- 302 已提供 `qwen3-rerank`，和项目主模型网关复用同一个 key。
+- 这里不需要多一套供应商运维配置。
+- “现代化”在这里是少配置、少分叉、单一调用链路，而不是多接一个官方 key。
+- 没配置 302 或关闭 reranker 时，系统显式跳过 reranker，并使用 lexical + quality score 排序。
 
 填法：
 
 ```env
-DASHSCOPE_API_KEY=sk-...
-DASHSCOPE_BASE_URL=https://dashscope-intl.aliyuncs.com/compatible-api/v1
+AI_302_API_KEY=sk-your-302ai-api-key
+AI_302_BASE_URL=https://api.302ai.cn/v1
 RERANKER_MODEL=qwen3-rerank
 RERANKER_MODEL_PRO=qwen3-rerank
 RERANKER_ENABLED=true
 ```
 
+当前默认 `AI_302_BASE_URL` 保持 `https://api.302ai.cn/v1`，该域名已验证可调用
+`/reranks`。不要为了文档域名变化随意切换到未验证 base URL。
+
 成本控制：
 
 - 不要把 chunk 数无限放大。
 - 当前代码会限制候选 chunk 和 `top_n`。
-- 如果 key 暂时没有，也不要接旧兼容网关；允许 rerank 跳过。
+- 不做 rerank fallback，也不做双 reranker provider。
 
 ## 本地填写位置
 
@@ -260,11 +256,11 @@ RERANKER_ENABLED=true
 
 ```env
 AI_ENABLE_WEB_SEARCH=true
+AI_302_API_KEY=
 TAVILY_API_KEY=
 EXA_API_KEY=
 JINA_API_KEY=
 FIRECRAWL_API_KEY=
-DASHSCOPE_API_KEY=
 ```
 
 推荐填 `.env.local`；如果项目当前主要读取 `.env`，也可以填 `.env`。这两个文件都必须保持
@@ -274,11 +270,11 @@ git ignored。
 
 ```env
 AI_ENABLE_WEB_SEARCH=true
+AI_302_API_KEY=...
 TAVILY_API_KEY=...
 EXA_API_KEY=...
 JINA_API_KEY=...
 FIRECRAWL_API_KEY=...
-DASHSCOPE_API_KEY=...
 ```
 
 ## 最小可用组合
@@ -291,7 +287,7 @@ EXA_API_KEY=...
 JINA_API_KEY=...
 ```
 
-这能跑出多路检索和 Jina Reader 兜底，但复杂页面抽取和 Qwen3 rerank 质量不完整。
+这能跑出多路检索和 Jina Reader 兜底。Qwen3 rerank 复用已必配的 `AI_302_API_KEY`。
 
 ### 完整高级链路
 
@@ -300,7 +296,6 @@ TAVILY_API_KEY=...
 EXA_API_KEY=...
 JINA_API_KEY=...
 FIRECRAWL_API_KEY=...
-DASHSCOPE_API_KEY=...
 ```
 
 这是当前推荐生产形态。
@@ -354,12 +349,13 @@ bun dev
 - Redis cache 缓存 search/extract 结果。
 - freshness window 默认 30/90/180 天。
 - 来源分级优先官方 docs、论文、release note、技术博客原文。
-- Qwen3 reranker 只重排 evidence chunks。
+- 302 Qwen3 reranker 只重排 evidence chunks。
 
 禁止策略：
 
 - 不接 Serper / Google fallback。
-- 不恢复 302 `/rerank` 兼容接口。
+- 不引入独立 rerank 供应商 key。
+- 不恢复 302 旧单数 rerank 接口；只走 `/v1/reranks`。
 - 不把 Firecrawl crawl / agent 设为默认路径。
 - 不在前端伪造 citations。
 - 不把 key 写入仓库。
@@ -380,5 +376,5 @@ bun dev
 - Jina Reader / Search: https://jina.ai/reader/
 - Firecrawl API introduction: https://docs.firecrawl.dev/api-reference/introduction
 - Firecrawl pricing: https://www.firecrawl.dev/pricing
-- Alibaba Cloud Model Studio API key: https://www.alibabacloud.com/help/en/model-studio/get-api-key
-- Alibaba Cloud Model Studio models: https://www.alibabacloud.com/help/en/model-studio/models
+- 302 qwen3-rerank: https://302.ai/product/detail/qwen3-rerank
+- 302 Rerank docs: https://doc.302.ai/410513178e0

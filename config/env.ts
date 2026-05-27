@@ -71,7 +71,6 @@ export const defaults = {
     // 默认关闭 AI 初始化噪音
     debugLogs: false,
     baseURL: "https://api.302ai.cn/v1",
-    dashscopeBaseURL: "https://dashscope-intl.aliyuncs.com/compatible-api/v1",
   },
 
   // Notes / Liquid Knowledge
@@ -144,8 +143,6 @@ export const serverEnvSchema = z.object({
   // AI gateway
   AI_302_API_KEY: z.string().min(1),
   AI_302_BASE_URL: z.string().url().default(defaults.ai.baseURL),
-  DASHSCOPE_API_KEY: z.string().optional(),
-  DASHSCOPE_BASE_URL: z.string().url().default(defaults.ai.dashscopeBaseURL),
   TAVILY_API_KEY: z.string().optional(),
   EXA_API_KEY: z.string().optional(),
   FIRECRAWL_API_KEY: z.string().optional(),
@@ -492,7 +489,6 @@ export function logServerConfig(env: ServerEnv): void {
   console.log(`  DATABASE_URL: ${env.DATABASE_URL.replace(/\/\/[^@]+@/, "//***@")}`);
   console.log(`  REDIS_URL: ${env.REDIS_URL}`);
   console.log(`  AI_302_API_KEY: ${maskSecret(env.AI_302_API_KEY)}`);
-  console.log(`  DASHSCOPE_API_KEY: ${maskSecret(env.DASHSCOPE_API_KEY)}`);
   console.log(`  AI_QWEN_MODEL_INTERACTIVE: ${env.AI_QWEN_MODEL_INTERACTIVE}`);
   console.log(`  AI_QWEN_MODEL_OUTLINE: ${env.AI_QWEN_MODEL_OUTLINE}`);
   console.log(`  AI_QWEN_MODEL_SECTION_DRAFT: ${env.AI_QWEN_MODEL_SECTION_DRAFT}`);
