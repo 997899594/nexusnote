@@ -63,6 +63,11 @@ export function createCourseInterviewerSpecialist(options: CourseInterviewerSpec
     ...webSearchTools,
   };
   const shouldForceOutlinePreview = options.webResearchContext?.shouldDraftOutline === true;
+  const instructions = buildInterviewAgentInstructionsWithHint({
+    currentOutline: options.currentOutline,
+    messages: options.messages,
+    webResearchContext: options.webResearchContext,
+  });
   options.timing?.mark("agent.tools.ready", { mode: "natural" });
 
   const agent = new ToolLoopAgent({
@@ -70,11 +75,7 @@ export function createCourseInterviewerSpecialist(options: CourseInterviewerSpec
     model: getToolCallingModelForPolicy(courseInterviewerSpecialistSpec.modelPolicy, {
       modelSeries: options.modelSeries,
     }),
-    instructions: buildInterviewAgentInstructionsWithHint({
-      currentOutline: options.currentOutline,
-      messages: options.messages,
-      webResearchContext: options.webResearchContext,
-    }),
+    instructions,
     tools: agentTools,
     prepareStep: ({ stepNumber }) => {
       if (stepNumber === 0 && shouldForceOutlinePreview) {

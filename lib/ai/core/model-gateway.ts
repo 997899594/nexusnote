@@ -11,6 +11,79 @@ import { env } from "@/config/env";
 import { getAIModelId, type LanguageModelType, type ModelType } from "./model-bundles";
 import type { AIModelSeries } from "./model-series";
 
+const NATIVE_TOOL_USE_MODE = "2";
+type OpenAIProviderOptions = NonNullable<Parameters<typeof createOpenAI>[0]>;
+type OpenAIProviderFetch = NonNullable<OpenAIProviderOptions["fetch"]>;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function isQwenModel(model: unknown): boolean {
+  return typeof model === "string" && /qwen/iu.test(model);
+}
+
+function hasTools(body: Record<string, unknown>): boolean {
+  return Array.isArray(body.tools) && body.tools.length > 0;
+}
+
+function hasNamedToolChoice(body: Record<string, unknown>): boolean {
+  const toolChoice = body.tool_choice;
+  return (
+    isRecord(toolChoice) &&
+    toolChoice.type === "function" &&
+    isRecord(toolChoice.function) &&
+    typeof toolChoice.function.name === "string" &&
+    toolChoice.function.name.length > 0
+  );
+}
+
+function parseJsonBody(body: BodyInit | null | undefined): Record<string, unknown> | null {
+  if (typeof body !== "string") {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(body);
+    return isRecord(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function create302CompatibleFetch(): OpenAIProviderFetch {
+  return (async (input, init) => {
+    const headers = new Headers(input instanceof Request ? input.headers : undefined);
+    if (init?.headers) {
+      new Headers(init.headers).forEach((value, key) => {
+        headers.set(key, value);
+      });
+    }
+
+    const body = parseJsonBody(init?.body);
+    if (!body || !hasTools(body)) {
+      return fetch(input, init);
+    }
+
+    headers.set("tool-use-mode", NATIVE_TOOL_USE_MODE);
+
+    const nextInit: RequestInit = {
+      ...init,
+      headers,
+    };
+
+    if (isQwenModel(body.model) && hasNamedToolChoice(body)) {
+      // Qwen thinking mode only supports auto/none tool_choice; named tools need non-thinking mode.
+      nextInit.body = JSON.stringify({
+        ...body,
+        enable_thinking: false,
+      });
+    }
+
+    return fetch(input, nextInit);
+  }) as OpenAIProviderFetch;
+}
+
 function createReasoningModel(
   client: ReturnType<typeof createOpenAI>,
   modelId: string,
@@ -45,6 +118,7 @@ class AIModelGateway {
       headers: {
         Accept: "application/json",
       },
+      fetch: create302CompatibleFetch(),
     });
     if (env.AI_DEBUG_LOGS) {
       console.log("[AI] Model gateway initialized");

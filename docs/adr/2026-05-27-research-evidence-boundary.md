@@ -26,6 +26,9 @@ Use a shared research evidence boundary:
   output into an interview prompt block.
 - The interview agent uses AI SDK v6 `prepareStep` to force `presentOutlinePreview` when code has
   already determined that evidence-backed drafting is required.
+- The 302 model gateway sends native tool-use mode for requests with `tools`. For Qwen named
+  `tool_choice` requests, it disables thinking for that call because Qwen thinking mode supports
+  only automatic or disabled tool choice.
 
 ## Consequences
 
