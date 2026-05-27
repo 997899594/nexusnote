@@ -41,6 +41,7 @@ function shouldDirectlyDraftOutline(message: string) {
 function buildInterviewDynamicHint(input: {
   currentOutline?: InterviewOutline;
   latestUserMessage: string;
+  hasWebResearchContext?: boolean;
 }) {
   const message = input.latestUserMessage;
   if (!message) {
@@ -65,6 +66,16 @@ function buildInterviewDynamicHint(input: {
     ].join("\n");
   }
 
+  if (input.hasWebResearchContext) {
+    return [
+      "## 本轮动态提示",
+      "用户已经要求覆盖最新/前沿方向，且系统已提供外部检索资料。",
+      "本轮信息已经足够给第一版课程蓝图；优先直接调用 presentOutlinePreview。",
+      "必须把实际使用过的外部来源写入 outline.researchCitations，不要继续用 presentOptions 追问方向。",
+      "可以基于用户当前选择/补充调整课程定位，但不要丢失前面关于最新技术范围的要求。",
+    ].join("\n");
+  }
+
   if (!shouldDirectlyDraftOutline(message)) {
     return "";
   }
@@ -86,6 +97,7 @@ export function buildInterviewAgentInstructionsWithHint(input: {
   const dynamicHint = buildInterviewDynamicHint({
     currentOutline: input.currentOutline,
     latestUserMessage,
+    hasWebResearchContext: Boolean(input.webResearchContext),
   });
   const currentOutlineBlock = input.currentOutline
     ? renderPromptResource(INTERVIEW_NATURAL_CURRENT_OUTLINE_PROMPT, {

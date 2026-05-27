@@ -1,5 +1,3 @@
-import "server-only";
-
 import { createHash } from "node:crypto";
 import { env } from "@/config/env";
 import { getRedis } from "@/lib/redis";

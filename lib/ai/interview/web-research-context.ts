@@ -48,9 +48,15 @@ const AI_FRONTIER_CUES = [
   "ai技术",
 ];
 
+function getRecentUserMessages(messages: Array<Pick<UIMessage, "role" | "parts">>) {
+  return messages
+    .filter((message) => message.role === "user")
+    .map((message) => extractUIMessageText(message, { separator: " " }).trim())
+    .filter(Boolean);
+}
+
 function getLatestUserMessage(messages: Array<Pick<UIMessage, "role" | "parts">>) {
-  const latest = [...messages].reverse().find((message) => message.role === "user");
-  return latest ? extractUIMessageText(latest, { separator: " " }).trim() : "";
+  return getRecentUserMessages(messages).at(-1) ?? "";
 }
 
 function hasAnyCue(message: string, cues: string[]) {
@@ -61,8 +67,9 @@ function hasAnyCue(message: string, cues: string[]) {
 export function shouldBuildInterviewWebResearchContext(
   messages: Array<Pick<UIMessage, "role" | "parts">>,
 ) {
-  const latestUserMessage = getLatestUserMessage(messages);
-  return latestUserMessage.length > 0 && hasAnyCue(latestUserMessage, CURRENT_KNOWLEDGE_CUES);
+  return getRecentUserMessages(messages)
+    .slice(-4)
+    .some((message) => hasAnyCue(message, CURRENT_KNOWLEDGE_CUES));
 }
 
 function buildSearchQueries(latestUserMessage: string) {
@@ -89,10 +96,18 @@ export async function buildInterviewWebResearchContext(params: {
   if (!shouldBuildInterviewWebResearchContext(params.messages)) {
     return "";
   }
+  const researchSeedMessage =
+    [...getRecentUserMessages(params.messages)]
+      .reverse()
+      .find((message) => hasAnyCue(message, CURRENT_KNOWLEDGE_CUES)) ?? latestUserMessage;
+  const query =
+    latestUserMessage && latestUserMessage !== researchSeedMessage
+      ? `${researchSeedMessage}\n\n用户当前选择/补充：${latestUserMessage}`
+      : researchSeedMessage;
 
   const output = await collectResearchEvidence({
-    query: latestUserMessage,
-    queries: buildSearchQueries(latestUserMessage),
+    query,
+    queries: buildSearchQueries(query),
     limit: 8,
     maxExtractedSources: 10,
     freshnessWindowDays: 30,
