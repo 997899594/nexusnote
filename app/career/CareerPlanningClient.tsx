@@ -9,6 +9,7 @@ import { CareerMapPanel } from "@/components/career-planning/CareerMapPanel";
 import { ChatMessage, LoadingDots } from "@/components/chat/ChatMessage";
 import { useChatSession } from "@/components/chat/useChatSession";
 import { AIDegradationBanner, PromptChip, WorkspaceEmptyState } from "@/components/common";
+import { shouldSubmitOnEnter } from "@/components/common/keyboard";
 import { useInputProtection } from "@/components/common/useInputProtection";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { type CareerMapDraft, careerMapDraftSchema } from "@/lib/ai/career-planning/schemas";
@@ -246,12 +247,23 @@ export default function CareerPlanningClient({ data }: CareerPlanningClientProps
   const mapHeaderAction = data.snapshot.status === "ready" ? saveMapButton : null;
 
   const handleSubmit = async () => {
-    await sendCareerMessage(input);
+    const nextInput = input;
+    const trimmedText = nextInput.trim();
+    if (!trimmedText || isLoading) {
+      return;
+    }
+
     setInput("");
+    try {
+      await sendCareerMessage(trimmedText);
+    } catch (error) {
+      setInput(nextInput);
+      console.error("[CareerPlanning] send failed", error);
+    }
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === "Enter" && !event.shiftKey) {
+    if (shouldSubmitOnEnter(event)) {
       event.preventDefault();
       void handleSubmit();
     }

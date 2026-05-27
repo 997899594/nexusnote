@@ -16,6 +16,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { LoadingDots } from "@/components/chat/ChatMessage";
 import { AIDegradationBanner, PromptChip, WorkspaceEmptyState } from "@/components/common";
+import { shouldSubmitOnEnter } from "@/components/common/keyboard";
 import { InterviewMessage } from "@/components/interview/InterviewMessage";
 import { OutlinePanel } from "@/components/interview/OutlinePanel";
 import { useInterview } from "@/hooks/useInterview";
@@ -128,13 +129,21 @@ function InterviewContent() {
   }, [chatMessages.length, isLoading]);
 
   const handleSubmit = async () => {
-    if (!input.trim() || isLoading) return;
-    await sendMessage({ text: input.trim() });
+    const nextInput = input;
+    const trimmedText = nextInput.trim();
+    if (!trimmedText || isLoading) return;
+
     setInput("");
+    try {
+      await sendMessage({ text: trimmedText });
+    } catch (error) {
+      setInput(nextInput);
+      console.error("[Interview] send failed", error);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (shouldSubmitOnEnter(e)) {
       e.preventDefault();
       handleSubmit();
     }

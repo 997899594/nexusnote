@@ -5,6 +5,7 @@ import { GraduationCap, Send, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { PromptChip } from "@/components/common";
+import { shouldSubmitOnEnter } from "@/components/common/keyboard";
 import { useInputProtection } from "@/components/common/useInputProtection";
 
 const EXAMPLE_PROMPTS = [
@@ -27,7 +28,7 @@ export function HeroInput() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (shouldSubmitOnEnter(e)) {
       e.preventDefault();
       handleSubmit();
     }

@@ -6,6 +6,7 @@ import { Globe, GraduationCap, Loader2, MessageCircle, Plus, Search, Send, X } f
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AIDegradationBanner } from "@/components/common";
+import { shouldSubmitOnEnter } from "@/components/common/keyboard";
 import { useInputProtection } from "@/components/common/useInputProtection";
 import type { ResearchRunSnapshot } from "@/lib/ai/research/contracts";
 import { cn } from "@/lib/utils";
@@ -357,10 +358,12 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
   };
 
   const handleSubmit = async () => {
-    if (!input.trim() || isLoading) return;
+    const nextInput = input;
+    const trimmedText = nextInput.trim();
+    if (!trimmedText || isLoading) return;
 
     if (selectedCommand) {
-      const params = selectedCommand.getQueryParams(input);
+      const params = selectedCommand.getQueryParams(nextInput);
       const queryString = new URLSearchParams(params).toString();
       const path = queryString
         ? `${selectedCommand.targetPath}?${queryString}`
@@ -372,15 +375,20 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
       return;
     }
 
-    if (input.startsWith("/") && filteredCommands.length > 0) {
-      setInput(extractCommandContent(input));
+    if (nextInput.startsWith("/") && filteredCommands.length > 0) {
+      setInput(extractCommandContent(nextInput));
       setSelectedCommand(filteredCommands[selectedIndex]);
       setShowCommands(false);
       return;
     }
 
-    await sendChatMessage(input);
     setInput("");
+    try {
+      await sendChatMessage(trimmedText);
+    } catch (error) {
+      setInput(nextInput);
+      console.error("[ChatPanel] send failed", error);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -389,7 +397,7 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
         handleCancelCommand();
         return;
       }
-      if (e.key === "Enter" && !e.shiftKey) {
+      if (shouldSubmitOnEnter(e)) {
         e.preventDefault();
         handleSubmit();
         return;
@@ -407,7 +415,7 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
         setSelectedIndex((i) => (i - 1 + filteredCommands.length) % filteredCommands.length);
         return;
       }
-      if (e.key === "Enter") {
+      if (shouldSubmitOnEnter(e)) {
         e.preventDefault();
         handleSubmit();
         return;
@@ -418,7 +426,7 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
       }
     }
 
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (shouldSubmitOnEnter(e)) {
       e.preventDefault();
       handleSubmit();
     }

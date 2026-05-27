@@ -6,6 +6,7 @@ import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } fro
 import { ChatMessage, LoadingDots } from "@/components/chat/ChatMessage";
 import { useChatSession } from "@/components/chat/useChatSession";
 import { AIDegradationBanner } from "@/components/common";
+import { shouldSubmitOnEnter } from "@/components/common/keyboard";
 import { useToast } from "@/components/ui/Toast";
 import { extractUIMessageText } from "@/lib/ai/message-text";
 import { isUnauthorizedError, parseApiError, redirectToLogin } from "@/lib/api/client";
@@ -143,9 +144,17 @@ export function LearnChat({ courseId, courseTitle }: LearnChatProps) {
   }, [resolveLearnSession]);
 
   const handleSubmit = async () => {
-    if (!input.trim() || isLoading || !resolvedSessionId) return;
-    await sendMessage({ text: input.trim() });
+    const nextInput = input;
+    const trimmedText = nextInput.trim();
+    if (!trimmedText || isLoading || !resolvedSessionId) return;
+
     setInput("");
+    try {
+      await sendMessage({ text: trimmedText });
+    } catch (error) {
+      setInput(nextInput);
+      console.error("[LearnChat] send failed", error);
+    }
   };
 
   const handleQuickPrompt = useCallback(
@@ -224,7 +233,7 @@ export function LearnChat({ courseId, courseTitle }: LearnChatProps) {
   ]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (shouldSubmitOnEnter(e)) {
       e.preventDefault();
       handleSubmit();
     }
