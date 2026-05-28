@@ -1,5 +1,4 @@
 import { stepCountIs, ToolLoopAgent } from "ai";
-import { buildCareerPlanningPromptContext } from "@/lib/career-planning/workspace-data";
 import {
   formatLearningGuidancePromptContext,
   getLearningGuidance,
@@ -20,6 +19,12 @@ import { buildPromptInstructions, type PromptKey } from "../core/prompt-registry
 import { type AITelemetryContext, recordAIUsage } from "../core/telemetry";
 import type { ConversationCapabilityMode } from "../runtime/contracts";
 import { buildToolsForCapabilityMode } from "../tools";
+
+async function buildCareerPlanningPromptContextForSpecialist(userId: string): Promise<string> {
+  const { buildCareerPlanningPromptContext } = await import("@/lib/career-planning/workspace-data");
+
+  return buildCareerPlanningPromptContext(userId);
+}
 
 export interface ConversationSpecialistRuntimeSpec {
   mode: ConversationCapabilityMode;
@@ -83,7 +88,7 @@ export async function createConversationToolLoopSpecialist(
 
   if (spec.mode === "career_guide" && isCareerRequestMetadata(options.metadata)) {
     if (options.metadata.entry === "planning" && options.userId) {
-      userContextParts.push(await buildCareerPlanningPromptContext(options.userId));
+      userContextParts.push(await buildCareerPlanningPromptContextForSpecialist(options.userId));
     }
 
     const selectedDirectionKey = options.metadata.selectedDirectionKey?.trim();
