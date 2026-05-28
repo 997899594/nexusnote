@@ -117,25 +117,15 @@ export function LearnClient({
     return (
       <div className="ui-page-shell flex min-h-dvh flex-col safe-bottom">
         {/* Mobile header */}
-        <header className="safe-top sticky top-0 z-30 shrink-0 border-b border-black/[0.04] bg-white/90 px-4 pb-3 pt-3 backdrop-blur-xl">
-          <div className="flex min-w-0 items-center gap-3">
-            <button
-              type="button"
-              onClick={() => router.back()}
-              aria-label="返回"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)]"
-            >
-              <ArrowLeft className="h-4.5 w-4.5" />
-            </button>
-            <div className="min-w-0">
-              <p className="truncate text-[0.6875rem] font-medium text-[var(--color-text-tertiary)]">
-                {currentChapter ? `第 ${currentChapterIndex + 1} 章 · ${courseTitle}` : "课程"}
-              </p>
-              <h1 className="mt-0.5 line-clamp-1 text-sm font-semibold leading-5 text-[var(--color-text)]">
-                {currentChapter?.title ?? courseTitle}
-              </h1>
-            </div>
-          </div>
+        <header className="safe-top sticky top-0 z-30 shrink-0 bg-white/90 px-4 pb-2 pt-3 backdrop-blur-xl">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            aria-label="返回"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)]"
+          >
+            <ArrowLeft className="h-4.5 w-4.5" />
+          </button>
         </header>
 
         {/* Content area */}

@@ -3,7 +3,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, Loader2, MessageSquare, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StreamdownMessage } from "@/components/chat/StreamdownMessage";
 import { useToast } from "@/components/ui/Toast";
@@ -297,9 +297,6 @@ function SectionBlock({
 
         {(state.status === "generating" || state.status === "complete") && state.content && (
           <article className="px-1 py-1 md:px-2">
-            <h3 className="mb-6 text-[1.55rem] font-semibold leading-tight tracking-[-0.045em] text-[var(--color-text)] md:text-[1.9rem]">
-              {sectionTitle}
-            </h3>
             <div className="learn-prose border-b border-black/[0.05] pb-10 md:pb-12">
               <StreamdownMessage
                 content={state.content}
@@ -368,56 +365,31 @@ function SectionBlock({
 }
 
 function SectionBoundary({
-  previousTitle,
-  nextTitle,
   hasPrevious,
   hasNext,
   onPrevious,
-  onOpenChat,
   onNext,
 }: {
-  previousTitle?: string;
-  nextTitle?: string;
   hasPrevious: boolean;
   hasNext: boolean;
   onPrevious: () => void;
-  onOpenChat: () => void;
   onNext: () => void;
 }) {
   return (
-    <section className="mt-12 border-t border-black/[0.06] pt-5 md:mt-14 md:pt-6">
-      <div className="grid gap-2 md:grid-cols-[1fr_auto_1fr]">
+    <section className="mt-10 border-t border-black/[0.06] pt-4 md:mt-12 md:pt-5">
+      <div className="flex items-center justify-between gap-3">
         <button
           type="button"
           onClick={onPrevious}
           disabled={!hasPrevious}
           className={cn(
-            "group flex min-h-12 items-center gap-2 rounded-2xl px-2.5 py-2 text-left transition-colors",
+            "min-h-9 px-0 text-sm font-medium transition-colors",
             !hasPrevious
-              ? "cursor-not-allowed text-[var(--color-text-muted)]"
-              : "text-[var(--color-text)] hover:bg-[var(--color-panel-soft)]",
+              ? "cursor-not-allowed text-[var(--color-text-muted)] opacity-50"
+              : "text-[var(--color-text-secondary)] hover:text-[var(--color-text)]",
           )}
         >
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-panel-soft)]">
-            <ArrowLeft className="h-4 w-4" />
-          </span>
-          <span className="min-w-0">
-            <span className="block text-[0.625rem] font-semibold tracking-[0.14em] text-[var(--color-text-tertiary)]">
-              上一节
-            </span>
-            <span className="mt-1 line-clamp-1 text-sm font-medium">
-              {previousTitle ?? "已经是第一节"}
-            </span>
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={onOpenChat}
-          className="group flex min-h-12 items-center justify-center gap-2 rounded-2xl px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)]"
-        >
-          <MessageSquare className="h-4 w-4 text-[var(--color-text-secondary)]" />
-          提问
+          上一章
         </button>
 
         <button
@@ -425,33 +397,13 @@ function SectionBoundary({
           onClick={onNext}
           disabled={!hasNext}
           className={cn(
-            "group flex min-h-12 items-center justify-between gap-2 rounded-2xl px-2.5 py-2 text-left transition-colors",
+            "min-h-9 px-0 text-sm font-medium transition-colors",
             !hasNext
-              ? "cursor-not-allowed text-[var(--color-text-muted)]"
-              : "bg-[var(--color-panel-strong)] text-white hover:bg-[var(--color-panel-strong)]/92",
+              ? "cursor-not-allowed text-[var(--color-text-muted)] opacity-50"
+              : "text-[var(--color-text-secondary)] hover:text-[var(--color-text)]",
           )}
         >
-          <span className="min-w-0">
-            <span
-              className={cn(
-                "block text-[0.625rem] font-semibold tracking-[0.14em]",
-                !hasNext ? "text-[var(--color-text-tertiary)]" : "text-white/62",
-              )}
-            >
-              下一节
-            </span>
-            <span className="mt-1 line-clamp-1 text-sm font-medium">
-              {nextTitle ?? "课程已经读完"}
-            </span>
-          </span>
-          <span
-            className={cn(
-              "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
-              !hasNext ? "bg-[var(--color-panel-soft)]" : "bg-white/14",
-            )}
-          >
-            <ArrowRight className="h-4 w-4" />
-          </span>
+          下一章
         </button>
       </div>
     </section>
@@ -471,7 +423,6 @@ export function SectionReader({
     chapters,
     requestedSectionId,
     expandChapter,
-    setChatOpen,
     setCurrentSectionIndex,
     setCurrentChapterIndex,
     clearRequestedSectionFocus,
@@ -641,27 +592,6 @@ export function SectionReader({
       <div
         className={cn("mx-auto w-full max-w-[780px]", "px-4 py-5 md:px-8 md:py-7 lg:px-10 lg:py-8")}
       >
-        <div className="sticky top-0 z-20 -mx-4 mb-9 hidden border-b border-black/[0.04] bg-white/90 px-4 py-4 backdrop-blur-xl md:block md:-mx-8 md:px-8 lg:-mx-10 lg:px-10">
-          <div className="flex items-end justify-between gap-5">
-            <div className="min-w-0">
-              <div className="mb-1.5 text-[0.625rem] font-semibold tracking-[0.18em] text-[var(--color-text-muted)]">
-                第 {currentChapterIndex + 1} 章
-              </div>
-              <h2 className="truncate text-[1.25rem] font-semibold leading-tight tracking-[-0.04em] text-[var(--color-text)] md:text-[1.45rem]">
-                {currentChapter.title}
-              </h2>
-            </div>
-            <div className="hidden shrink-0 rounded-full bg-[var(--color-panel-soft)] px-3 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] sm:block">
-              {currentSectionIndex + 1}/{currentChapter.sections.length || 0}
-            </div>
-          </div>
-          {currentChapter.description ? (
-            <p className="mt-2 line-clamp-2 max-w-2xl text-[0.86rem] leading-6 text-[var(--color-text-secondary)]">
-              {currentChapter.description}
-            </p>
-          ) : null}
-        </div>
-
         {currentSection ? (
           <SectionBlock
             key={currentSection.nodeId}
@@ -679,12 +609,9 @@ export function SectionReader({
         )}
 
         <SectionBoundary
-          previousTitle={previousTarget?.title}
-          nextTitle={nextTarget?.title}
           hasPrevious={Boolean(previousTarget)}
           hasNext={Boolean(nextTarget)}
           onPrevious={() => navigateToSection(previousTarget)}
-          onOpenChat={() => setChatOpen(true)}
           onNext={() => navigateToSection(nextTarget)}
         />
 
