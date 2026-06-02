@@ -23,7 +23,7 @@ async function CareerTreesPageContent() {
   });
 
   return (
-    <main className="ui-page-shell min-h-dvh overflow-hidden">
+    <main className="ui-page-shell min-h-dvh overflow-x-hidden lg:overflow-hidden">
       <CareerTreesExplorer
         snapshot={careerTrees.snapshot}
         focusSnapshot={careerTrees.focusSnapshot}

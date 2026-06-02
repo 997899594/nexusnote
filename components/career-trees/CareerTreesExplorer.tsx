@@ -158,6 +158,53 @@ function DirectionRail({
   );
 }
 
+function MobileDirectionStrip({
+  snapshot,
+  currentDirectionKey,
+  isSaving,
+  onSelectDirection,
+}: {
+  snapshot: CareerTreeSnapshot;
+  currentDirectionKey: string;
+  isSaving: boolean;
+  onSelectDirection: (directionKey: string) => void;
+}) {
+  return (
+    <div className="mobile-scroll flex gap-2 overflow-x-auto px-4 py-3 md:px-6 lg:hidden">
+      {snapshot.trees.map((tree) => {
+        const active = tree.directionKey === currentDirectionKey;
+        const recommended = tree.directionKey === snapshot.recommendedDirectionKey;
+
+        return (
+          <button
+            key={tree.directionKey}
+            type="button"
+            onClick={() => onSelectDirection(tree.directionKey)}
+            disabled={isSaving && !active}
+            className={cn(
+              "flex shrink-0 items-center gap-2 rounded-full border px-3.5 py-2 text-xs font-medium transition-colors",
+              active
+                ? "border-slate-950 bg-slate-950 text-white"
+                : "border-black/[0.08] bg-white text-[var(--color-text-secondary)]",
+            )}
+          >
+            <span
+              className={cn(
+                "h-1.5 w-1.5 rounded-full",
+                active ? "bg-white" : "bg-[var(--color-text-tertiary)]",
+              )}
+            />
+            <span className="max-w-[12rem] truncate">{tree.title}</span>
+            {recommended && !active ? (
+              <span className="text-[0.625rem] text-[var(--color-text-muted)]">推荐</span>
+            ) : null}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function TreeHeader({
   title,
   summary,
@@ -328,7 +375,7 @@ export function CareerTreesExplorer({
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-[1640px] flex-col gap-3 p-3 lg:grid lg:h-dvh lg:grid-cols-[16rem_minmax(0,1fr)_22rem] lg:gap-4 lg:p-4 xl:grid-cols-[288px_minmax(0,1fr)_380px]">
-      <div className="overflow-hidden rounded-[28px] border border-black/[0.06] bg-white/78 shadow-[0_22px_64px_-48px_rgba(15,23,42,0.28)] backdrop-blur-xl lg:min-h-0">
+      <div className="hidden overflow-hidden rounded-[28px] border border-black/[0.06] bg-white/78 shadow-[0_22px_64px_-48px_rgba(15,23,42,0.28)] backdrop-blur-xl lg:block lg:min-h-0">
         <DirectionRail
           snapshot={snapshot}
           currentDirectionKey={currentTree.directionKey}
@@ -345,7 +392,22 @@ export function CareerTreesExplorer({
             summary={displayState.displayDirection.summary}
             generatedAt={snapshot.generatedAt}
           />
-          <div className="mobile-scroll min-h-[28rem] flex-1 overflow-auto p-3 md:p-4">
+          <MobileDirectionStrip
+            snapshot={snapshot}
+            currentDirectionKey={currentTree.directionKey}
+            isSaving={isSaving}
+            onSelectDirection={(directionKey) => void handleSelectDirection(directionKey)}
+          />
+          <div className="mobile-scroll min-h-[30rem] flex-1 overflow-hidden p-3 md:p-4 lg:min-h-[28rem]">
+            <CareerTreeGraph
+              graph={developmentGraph}
+              activeNodeId={focusNode?.id ?? null}
+              onSelectCareer={handleSelectCareer}
+              onSelectNode={setActiveNodeId}
+              planningHighlightNodeIds={planningHighlightNodeIds}
+              variant="compact"
+              className="h-full min-h-[30rem] lg:hidden"
+            />
             <CareerTreeGraph
               graph={developmentGraph}
               activeNodeId={focusNode?.id ?? null}
@@ -353,13 +415,13 @@ export function CareerTreesExplorer({
               onSelectNode={setActiveNodeId}
               planningHighlightNodeIds={planningHighlightNodeIds}
               variant="full"
-              className="min-h-[36rem]"
+              className="hidden h-full min-h-[34rem] lg:block"
             />
           </div>
         </div>
       </main>
 
-      <div className="overflow-hidden rounded-[28px] border border-black/[0.06] bg-white/82 shadow-[0_22px_64px_-50px_rgba(15,23,42,0.3)] backdrop-blur-xl lg:min-h-0">
+      <div className="min-h-[38rem] overflow-hidden rounded-[28px] border border-black/[0.06] bg-white/82 shadow-[0_22px_64px_-50px_rgba(15,23,42,0.3)] backdrop-blur-xl lg:min-h-0">
         <CareerPlanningMentorPanel
           data={planningData}
           onPatchChange={setActivePlanningPatch}
