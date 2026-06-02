@@ -26,7 +26,7 @@ const WORKSPACE_LINKS = [
   { href: "/search", label: "搜索", icon: Search },
   { href: "/editor", label: "笔记", icon: FileText },
   { href: "/interview", label: "课程", icon: GraduationCap },
-  { href: "/career", label: "职业地图", icon: Compass },
+  { href: "/career-trees", label: "职业树", icon: Compass },
 ];
 
 export function ChatLayout({ children }: ChatLayoutProps) {

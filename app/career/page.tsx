@@ -1,8 +1,6 @@
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { getDynamicPageSession } from "@/lib/auth/page";
-import { getCareerPlanningWorkspaceDataFresh } from "@/lib/career-planning/workspace-data";
-import CareerPlanningClient from "./CareerPlanningClient";
 
 async function CareerPageContent() {
   const session = await getDynamicPageSession();
@@ -11,9 +9,9 @@ async function CareerPageContent() {
     redirect("/login?callbackUrl=%2Fcareer");
   }
 
-  const data = await getCareerPlanningWorkspaceDataFresh(session.user.id);
+  redirect("/career-trees?mentor=planning");
 
-  return <CareerPlanningClient data={data} />;
+  return null;
 }
 
 export default function Page() {

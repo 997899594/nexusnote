@@ -19,7 +19,7 @@ export interface ResearchEvidenceRequest {
   recentUserMessages: string[];
   freshnessWindowDays: 30 | 90 | 180;
   reasonCodes: ResearchEvidenceReasonCode[];
-  shouldDraftWithEvidence: boolean;
+  outlineReadiness: "needs_interview" | "ready";
 }
 
 const CURRENT_KNOWLEDGE_CUES = [
@@ -59,6 +59,7 @@ const AI_FRONTIER_CUES = [
   "前沿知识",
   "ai 技术",
   "ai技术",
+  "人工智能",
 ];
 
 const TECHNOLOGY_CUES = [
@@ -95,12 +96,44 @@ function hasAnyCue(message: string, cues: string[]): boolean {
   return cues.some((cue) => normalized.includes(cue.toLowerCase()));
 }
 
+function hasStandaloneAiCue(message: string): boolean {
+  return /(^|[\s,.;:!?，。！？、])ai($|[\s,.;:!?，。！？、])/iu.test(message);
+}
+
+function hasAiFrontierCue(message: string): boolean {
+  return hasStandaloneAiCue(message) || hasAnyCue(message, AI_FRONTIER_CUES);
+}
+
 function hasVersionedTechnologyCue(message: string): boolean {
   return /\b[a-z][\w.-]*(?:\.js)?\s+v?\d{1,2}(?:\.\d+){0,2}\b/iu.test(message);
 }
 
 function hasTechnologyCue(message: string): boolean {
   return hasAnyCue(message, TECHNOLOGY_CUES) || hasVersionedTechnologyCue(message);
+}
+
+function hasTopicSignal(message: string): boolean {
+  return /想学|学习|课程|ai|人工智能|agent|智能体|React|SQL|Python|PPT|汇报|作品集|转岗|求职|数据分析|前端|运营/iu.test(
+    message,
+  );
+}
+
+function hasBaselineSignal(message: string): boolean {
+  return /零基础|基础|我会|会一点|学过|用过|目前|现在|已经|熟悉|不熟|小白|入门/iu.test(message);
+}
+
+function hasOutcomeSignal(message: string): boolean {
+  return /想.*做|做一个|完成|独立完成|作品集|项目|落地|应用|提效|工作|业务|转岗|求职|面试|汇报|考试|两周后|一个月|三个月|方案|产品/iu.test(
+    message,
+  );
+}
+
+function resolveOutlineReadiness(messages: string[]): ResearchEvidenceRequest["outlineReadiness"] {
+  const joined = messages.join("\n");
+
+  return hasTopicSignal(joined) && hasBaselineSignal(joined) && hasOutcomeSignal(joined)
+    ? "ready"
+    : "needs_interview";
 }
 
 function extractMentionedYears(message: string): number[] {
@@ -113,7 +146,7 @@ function hasRecentYearCue(message: string, currentYear: number): boolean {
 }
 
 function getDomain(message: string): ResearchEvidenceDomain {
-  if (hasAnyCue(message, AI_FRONTIER_CUES)) {
+  if (hasAiFrontierCue(message)) {
     return "ai_frontier";
   }
 
@@ -133,7 +166,7 @@ function getReasonCodes(message: string, currentYear: number): ResearchEvidenceR
   if (hasRecentYearCue(message, currentYear)) {
     reasonCodes.push("recent_year");
   }
-  if (hasAnyCue(message, AI_FRONTIER_CUES)) {
+  if (hasAiFrontierCue(message)) {
     reasonCodes.push("ai_frontier_domain");
   }
   if (hasTechnologyCue(message)) {
@@ -254,7 +287,7 @@ export function resolveResearchEvidenceRequest(params: {
     freshnessWindowDays:
       reasonCodes.includes("freshness_cue") || reasonCodes.includes("ai_frontier_domain") ? 30 : 90,
     reasonCodes,
-    shouldDraftWithEvidence: true,
+    outlineReadiness: resolveOutlineReadiness(recentUserMessages),
   };
 }
 

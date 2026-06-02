@@ -1,7 +1,7 @@
 "use client";
 
 import type { UIMessage } from "ai";
-import { Loader2, NotebookPen, X } from "lucide-react";
+import { Loader2, NotebookPen, PanelRightClose, X } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChatComposer, type ChatComposerSubmitPayload } from "@/components/chat/ChatComposer";
 import { ChatMessage, LoadingDots } from "@/components/chat/ChatMessage";
@@ -18,6 +18,7 @@ import { useLearnStore } from "@/stores/learn";
 interface LearnChatProps {
   courseId: string;
   courseTitle: string;
+  onCollapse?: () => void;
 }
 
 function ChatEmptyState({
@@ -42,7 +43,7 @@ function ChatEmptyState({
   );
 }
 
-export function LearnChat({ courseId, courseTitle }: LearnChatProps) {
+export function LearnChat({ courseId, courseTitle, onCollapse }: LearnChatProps) {
   const { addToast } = useToast();
   const { currentChapterIndex, currentSectionIndex, chapters, setChatOpen } = useLearnStore();
   const [input, setInput] = useState("");
@@ -320,6 +321,14 @@ export function LearnChat({ courseId, courseTitle }: LearnChatProps) {
                 <NotebookPen className="h-3.5 w-3.5" />
               )}
               <span>保存</span>
+            </button>
+            <button
+              type="button"
+              onClick={onCollapse}
+              className="hidden rounded-xl border border-black/8 bg-white p-1.5 text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-hover)] hover:text-[var(--color-text)] md:block"
+              aria-label="收起教练"
+            >
+              <PanelRightClose className="h-4 w-4" />
             </button>
             <button
               type="button"

@@ -1,5 +1,6 @@
 import {
   revalidateCareerTrees,
+  revalidateCoursePublication,
   revalidateLearnPage,
   revalidateNoteDetail,
   revalidateNotesIndex,
@@ -19,6 +20,10 @@ export function revalidateCourseCreationViews(userId: string, courseId: string):
 
 export function revalidateCourseContentViews(userId: string, courseId: string): void {
   revalidateLearnPage(userId, courseId);
+}
+
+export function revalidateCoursePublicationViews(slugOrId: string): void {
+  revalidateCoursePublication(slugOrId);
 }
 
 export function revalidateCourseProgressViews(userId: string, courseId: string): void {

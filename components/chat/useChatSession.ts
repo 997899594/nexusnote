@@ -54,8 +54,7 @@ export function useChatSession({ sessionId, body }: UseChatSessionOptions) {
   }, [currentSkinSlug]);
 
   const chat = useChat({
-    id: sessionId ?? undefined,
-    resume: Boolean(sessionId),
+    ...(sessionId ? { id: sessionId, resume: true } : {}),
     transport: new DefaultChatTransport({
       api: "/api/chat",
       fetch: createAIDegradationAwareFetch({
@@ -66,7 +65,7 @@ export function useChatSession({ sessionId, body }: UseChatSessionOptions) {
         },
       }),
       body: () => ({
-        sessionId,
+        sessionId: sessionId ?? undefined,
         skinSlug: skinSlugRef.current,
         ...resolveBody(body),
       }),

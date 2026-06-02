@@ -3,6 +3,9 @@
 import { motion } from "framer-motion";
 import { StreamdownMessage } from "@/components/chat/StreamdownMessage";
 import { InterviewOptions, type Option } from "@/components/interview/InterviewOptions";
+import { InterviewResearchActivity } from "@/components/interview/InterviewResearchActivity";
+import type { InterviewResearchEvent } from "@/lib/ai/interview/research-events";
+import type { ResearchEvidenceSnapshot } from "@/lib/ai/research/evidence-snapshot";
 import { cn } from "@/lib/utils";
 
 export interface InterviewMessageData {
@@ -11,6 +14,8 @@ export interface InterviewMessageData {
   text: string;
   mode?: "question" | "outline";
   options?: Option[];
+  researchEvidence?: ResearchEvidenceSnapshot | null;
+  researchEvents?: InterviewResearchEvent[];
 }
 
 interface InterviewMessageProps {
@@ -48,6 +53,14 @@ export function InterviewMessage({ message, onSendReply, isStreaming }: Intervie
                 课程访谈
               </span>
             </div>
+            {message.researchEvidence || (message.researchEvents?.length ?? 0) > 0 ? (
+              <InterviewResearchActivity
+                evidence={message.researchEvidence}
+                events={message.researchEvents}
+                defaultOpen={Boolean(isStreaming)}
+                isRunning={isStreaming}
+              />
+            ) : null}
             {message.text && <StreamdownMessage content={message.text} />}
             {shouldShowOptions ? (
               <InterviewOptions

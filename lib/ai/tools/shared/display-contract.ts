@@ -19,7 +19,7 @@ const TOOL_UI_DISPLAY_POLICY = {
   discoverSkills: { presentation: "chat" },
   presentOptions: { presentation: "interview" },
   presentOutlinePreview: { presentation: "interview" },
-  presentCareerMapDraft: { presentation: "state" },
+  presentCareerGraphPatch: { presentation: "state" },
   hybridSearch: { presentation: "hidden" },
   loadCareerContext: { presentation: "hidden" },
   loadLearnContext: { presentation: "hidden" },

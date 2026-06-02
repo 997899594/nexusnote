@@ -134,7 +134,12 @@ async function ProfilePageContent() {
           </Link>
 
           <div className="grid gap-3">
-            <ShortcutCard href="/career" icon={Compass} title="职业地图" meta="校准职业方向" />
+            <ShortcutCard
+              href="/career-trees"
+              icon={Compass}
+              title="职业树"
+              meta="查看可视化成长路径"
+            />
             <ShortcutCard
               href="/profile/settings"
               icon={Settings2}

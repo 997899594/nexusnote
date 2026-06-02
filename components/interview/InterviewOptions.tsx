@@ -15,6 +15,7 @@ interface InterviewOptionsProps {
   options: OptionInput[];
   onSelect: (option: Option) => void;
   isStreaming?: boolean;
+  showWhileStreaming?: boolean;
 }
 
 // 标准化选项格式
@@ -22,13 +23,18 @@ function normalizeOption(option: OptionInput): Option {
   return typeof option === "string" ? { label: option } : option;
 }
 
-export function InterviewOptions({ options, onSelect, isStreaming }: InterviewOptionsProps) {
+export function InterviewOptions({
+  options,
+  onSelect,
+  isStreaming,
+  showWhileStreaming,
+}: InterviewOptionsProps) {
   if (!options || options.length === 0) {
     return null;
   }
 
   // 流式响应时不显示选项
-  if (isStreaming) {
+  if (isStreaming && !showWhileStreaming) {
     return null;
   }
 
@@ -41,6 +47,7 @@ export function InterviewOptions({ options, onSelect, isStreaming }: InterviewOp
             key={`${normalized.label}-${index}`}
             label={normalized.label}
             onClick={() => onSelect(normalized)}
+            disabled={isStreaming}
             className="bg-[var(--color-panel-soft)] text-xs"
           />
         );

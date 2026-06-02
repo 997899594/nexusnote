@@ -118,7 +118,7 @@ export async function createConversationToolLoopSpecialist(
         modelSeries: options.modelSeries,
       })
     : getModelForPolicy(spec.modelPolicy, { modelSeries: options.modelSeries });
-  const shouldPrimeCareerMapDraft =
+  const shouldPrimeCareerGraphPatch =
     spec.mode === "career_guide" &&
     isCareerRequestMetadata(options.metadata) &&
     options.metadata.entry === "planning";
@@ -129,11 +129,11 @@ export async function createConversationToolLoopSpecialist(
     instructions,
     tools,
     prepareStep: ({ stepNumber }) => {
-      if (stepNumber === 0 && shouldPrimeCareerMapDraft) {
+      if (stepNumber === 0 && shouldPrimeCareerGraphPatch) {
         return {
           toolChoice: {
             type: "tool",
-            toolName: "presentCareerMapDraft",
+            toolName: "presentCareerGraphPatch",
           },
         };
       }

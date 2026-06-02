@@ -22,6 +22,11 @@ import {
 } from "./schema/career-tree";
 import { conversationMessages, conversations } from "./schema/conversations";
 import {
+  coursePublicAnnotations,
+  coursePublicationSnapshots,
+  coursePublications,
+} from "./schema/course-sharing";
+import {
   courseOutlineNodes,
   courseOutlineVersions,
   courseProgress,
@@ -49,6 +54,7 @@ export * from "./schema/billing";
 export * from "./schema/career-planning";
 export * from "./schema/career-tree";
 export * from "./schema/conversations";
+export * from "./schema/course-sharing";
 export * from "./schema/courses";
 export * from "./schema/knowledge";
 export * from "./schema/knowledge-runs";
@@ -84,6 +90,8 @@ export const usersRelations = relations(users, ({ many }) => ({
   careerUserGraphState: many(careerUserGraphState),
   careerPlanningSessions: many(careerPlanningSessions),
   careerPlanRevisions: many(careerPlanRevisions),
+  ownedCoursePublications: many(coursePublications),
+  coursePublicAnnotations: many(coursePublicAnnotations),
   researchRuns: many(researchRuns),
   billingOrders: many(billingOrders),
   entitlements: many(userEntitlements),
@@ -218,6 +226,7 @@ export const coursesRelations = relations(courses, ({ one, many }) => ({
   outlineNodes: many(courseOutlineNodes),
   sections: many(courseSections),
   progress: many(courseProgress),
+  publications: many(coursePublications),
 }));
 
 export const courseOutlineVersionsRelations = relations(courseOutlineVersions, ({ one, many }) => ({
@@ -265,6 +274,57 @@ export const courseSectionAnnotationsRelations = relations(courseSectionAnnotati
   }),
   user: one(users, {
     fields: [courseSectionAnnotations.userId],
+    references: [users.id],
+  }),
+}));
+
+export const coursePublicationsRelations = relations(coursePublications, ({ one, many }) => ({
+  sourceCourse: one(courses, {
+    fields: [coursePublications.sourceCourseId],
+    references: [courses.id],
+  }),
+  owner: one(users, {
+    fields: [coursePublications.ownerUserId],
+    references: [users.id],
+  }),
+  currentSnapshot: one(coursePublicationSnapshots, {
+    fields: [coursePublications.currentSnapshotId],
+    references: [coursePublicationSnapshots.id],
+  }),
+  snapshots: many(coursePublicationSnapshots),
+  annotations: many(coursePublicAnnotations),
+}));
+
+export const coursePublicationSnapshotsRelations = relations(
+  coursePublicationSnapshots,
+  ({ one, many }) => ({
+    publication: one(coursePublications, {
+      fields: [coursePublicationSnapshots.publicationId],
+      references: [coursePublications.id],
+    }),
+    sourceCourse: one(courses, {
+      fields: [coursePublicationSnapshots.sourceCourseId],
+      references: [courses.id],
+    }),
+    sourceOutlineVersion: one(courseOutlineVersions, {
+      fields: [coursePublicationSnapshots.sourceOutlineVersionId],
+      references: [courseOutlineVersions.id],
+    }),
+    annotations: many(coursePublicAnnotations),
+  }),
+);
+
+export const coursePublicAnnotationsRelations = relations(coursePublicAnnotations, ({ one }) => ({
+  publication: one(coursePublications, {
+    fields: [coursePublicAnnotations.publicationId],
+    references: [coursePublications.id],
+  }),
+  snapshot: one(coursePublicationSnapshots, {
+    fields: [coursePublicAnnotations.snapshotId],
+    references: [coursePublicationSnapshots.id],
+  }),
+  user: one(users, {
+    fields: [coursePublicAnnotations.userId],
     references: [users.id],
   }),
 }));

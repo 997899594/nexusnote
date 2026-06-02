@@ -3,9 +3,19 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, List, MessageSquare } from "lucide-react";
-import { useRouter } from "next/navigation";
+import {
+  ArrowLeftToLine,
+  BookOpenText,
+  Clock3,
+  List,
+  MessageSquare,
+  PanelLeftOpen,
+  PanelRightOpen,
+  Target,
+} from "lucide-react";
+import Link from "next/link";
 import { useEffect, useMemo } from "react";
+import { CoursePublishControl } from "@/components/course-reader/CoursePublishControl";
 import { useChapterSections } from "@/hooks/useChapterSections";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import type { LearnPageProjection, LearnResumeState } from "@/lib/learning/projection";
@@ -17,7 +27,17 @@ import { LearnSidebar } from "./components/LearnSidebar";
 import { SectionReader } from "./components/SectionReader";
 
 export interface LearnClientProps
-  extends Pick<LearnPageProjection, "courseTitle" | "chapters" | "sectionDocs">,
+  extends Pick<
+      LearnPageProjection,
+      | "courseTitle"
+      | "courseDescription"
+      | "difficulty"
+      | "estimatedMinutes"
+      | "learningOutcome"
+      | "targetAudience"
+      | "chapters"
+      | "sectionDocs"
+    >,
     Pick<
       LearnResumeState,
       "initialChapterIndex" | "initialCompletedSections" | "scrollToSectionId"
@@ -30,6 +50,11 @@ const SIDEBAR_WIDTH = 288;
 export function LearnClient({
   sessionId,
   courseTitle,
+  courseDescription,
+  difficulty,
+  estimatedMinutes,
+  learningOutcome,
+  targetAudience,
   chapters,
   sectionDocs,
   initialChapterIndex,
@@ -46,9 +71,12 @@ export function LearnClient({
   const setSidebarOpen = useLearnStore((s) => s.setSidebarOpen);
   const isChatOpen = useLearnStore((s) => s.isChatOpen);
   const setChatOpen = useLearnStore((s) => s.setChatOpen);
+  const isDesktopSidebarCollapsed = useLearnStore((s) => s.isDesktopSidebarCollapsed);
+  const setDesktopSidebarCollapsed = useLearnStore((s) => s.setDesktopSidebarCollapsed);
+  const isDesktopChatCollapsed = useLearnStore((s) => s.isDesktopChatCollapsed);
+  const setDesktopChatCollapsed = useLearnStore((s) => s.setDesktopChatCollapsed);
 
   const isMobile = useIsMobile();
-  const router = useRouter();
 
   // Initialize store on mount
   // biome-ignore lint/correctness/useExhaustiveDependencies: initialization effect, runs once on mount
@@ -59,6 +87,8 @@ export function LearnClient({
     setChapters(chapters);
     setSidebarOpen(false);
     setChatOpen(false);
+    setDesktopSidebarCollapsed(false);
+    setDesktopChatCollapsed(false);
 
     // Initialize completed sections
     for (const nodeId of initialCompletedSections) {
@@ -70,6 +100,20 @@ export function LearnClient({
   }, []); // Run once on mount
 
   const currentChapter = chapters[currentChapterIndex];
+  const totalSections = chapters.reduce((count, chapter) => count + chapter.sections.length, 0);
+  const difficultyLabel =
+    difficulty === "beginner"
+      ? "入门"
+      : difficulty === "intermediate"
+        ? "进阶"
+        : difficulty === "advanced"
+          ? "高级"
+          : (difficulty ?? "课程");
+  const estimatedLabel = estimatedMinutes
+    ? estimatedMinutes >= 60
+      ? `${Math.round(estimatedMinutes / 60)} 小时`
+      : `${estimatedMinutes} 分钟`
+    : `${chapters.length} 章`;
 
   // Build initialContent map for the current chapter's sections
   const initialContent = useMemo(() => {
@@ -118,14 +162,13 @@ export function LearnClient({
       <div className="ui-page-shell flex min-h-dvh flex-col safe-bottom">
         {/* Mobile header */}
         <header className="safe-top sticky top-0 z-30 shrink-0 bg-white/90 px-4 pb-2 pt-3 backdrop-blur-xl">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            aria-label="返回"
+          <Link
+            href="/profile"
+            aria-label="回到个人中心"
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)]"
           >
-            <ArrowLeft className="h-4.5 w-4.5" />
-          </button>
+            <ArrowLeftToLine className="h-4.5 w-4.5" />
+          </Link>
         </header>
 
         {/* Content area */}
@@ -222,25 +265,110 @@ export function LearnClient({
 
   return (
     <div className="ui-page-shell min-h-dvh overflow-hidden">
-      <div className="mx-auto grid h-dvh max-w-[1640px] grid-cols-[minmax(13.5rem,15.5rem)_minmax(0,1fr)_minmax(17rem,19rem)] gap-3 p-3 lg:grid-cols-[16rem_minmax(0,1fr)_20rem] lg:gap-4 lg:p-4 xl:grid-cols-[288px_minmax(0,1fr)_344px]">
-        <aside className="min-h-0 overflow-hidden rounded-[28px] border border-black/[0.06] bg-white/78 shadow-[0_22px_64px_-48px_rgba(15,23,42,0.28)] backdrop-blur-xl">
-          <LearnSidebar courseTitle={courseTitle} width={SIDEBAR_WIDTH} />
-        </aside>
+      <div
+        className={cn(
+          "mx-auto grid h-dvh max-w-[1640px] gap-3 p-3 transition-[grid-template-columns] duration-200 lg:gap-4 lg:p-4",
+          isDesktopSidebarCollapsed && isDesktopChatCollapsed
+            ? "grid-cols-[minmax(0,1fr)]"
+            : isDesktopSidebarCollapsed
+              ? "grid-cols-[minmax(0,1fr)_minmax(17rem,19rem)] lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_344px]"
+              : isDesktopChatCollapsed
+                ? "grid-cols-[minmax(13.5rem,15.5rem)_minmax(0,1fr)] lg:grid-cols-[16rem_minmax(0,1fr)] xl:grid-cols-[288px_minmax(0,1fr)]"
+                : "grid-cols-[minmax(13.5rem,15.5rem)_minmax(0,1fr)_minmax(17rem,19rem)] lg:grid-cols-[16rem_minmax(0,1fr)_20rem] xl:grid-cols-[288px_minmax(0,1fr)_344px]",
+        )}
+      >
+        {!isDesktopSidebarCollapsed ? (
+          <aside className="min-h-0 overflow-hidden rounded-[28px] border border-black/[0.06] bg-white/78 shadow-[0_22px_64px_-48px_rgba(15,23,42,0.28)] backdrop-blur-xl">
+            <LearnSidebar
+              courseTitle={courseTitle}
+              width={SIDEBAR_WIDTH}
+              onCollapse={() => setDesktopSidebarCollapsed(true)}
+            />
+          </aside>
+        ) : null}
 
-        <main className="min-h-0 min-w-0 overflow-hidden rounded-[30px] border border-black/[0.04] bg-white/94 shadow-[0_24px_76px_-58px_rgba(15,23,42,0.32)]">
-          <SectionReader
-            courseId={sessionId}
-            sections={sections}
-            currentGenerating={currentGenerating}
-            generateSection={generateSection}
-            sectionDocs={sectionDocs}
-            scrollToSectionId={scrollToSectionId}
-          />
+        <main className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-[30px] border border-black/[0.04] bg-white/94 shadow-[0_24px_76px_-58px_rgba(15,23,42,0.32)]">
+          <header className="flex shrink-0 items-start justify-between gap-4 border-b border-black/[0.04] bg-white/86 px-5 py-4 backdrop-blur-xl lg:px-7">
+            <div className="min-w-0">
+              <div className="mb-2 flex flex-wrap items-center gap-2 text-[0.6875rem] font-medium text-[var(--color-text-tertiary)]">
+                <span className="inline-flex items-center gap-1.5">
+                  <BookOpenText className="h-3.5 w-3.5" />
+                  {chapters.length} 章 · {totalSections} 节
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <Clock3 className="h-3.5 w-3.5" />
+                  {estimatedLabel}
+                </span>
+                <span>{difficultyLabel}</span>
+                {targetAudience ? <span>{targetAudience}</span> : null}
+              </div>
+              <h1 className="truncate text-lg font-semibold tracking-[-0.02em] text-[var(--color-text)]">
+                {courseTitle}
+              </h1>
+              <p className="mt-1 line-clamp-2 max-w-3xl text-sm leading-6 text-[var(--color-text-secondary)]">
+                {learningOutcome ??
+                  courseDescription ??
+                  currentChapter?.description ??
+                  "继续当前课程。"}
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <CoursePublishControl courseId={sessionId} />
+              {isDesktopSidebarCollapsed ? (
+                <button
+                  type="button"
+                  onClick={() => setDesktopSidebarCollapsed(false)}
+                  className="rounded-xl border border-black/8 bg-white p-2 text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]"
+                  aria-label="展开目录"
+                >
+                  <PanelLeftOpen className="h-4 w-4" />
+                </button>
+              ) : null}
+              <Link
+                href="/profile"
+                className="rounded-xl border border-black/8 bg-white p-2 text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]"
+                aria-label="回到个人中心"
+              >
+                <ArrowLeftToLine className="h-4 w-4" />
+              </Link>
+              {isDesktopChatCollapsed ? (
+                <button
+                  type="button"
+                  onClick={() => setDesktopChatCollapsed(false)}
+                  className="rounded-xl border border-black/8 bg-white p-2 text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]"
+                  aria-label="展开教练"
+                >
+                  <PanelRightOpen className="h-4 w-4" />
+                </button>
+              ) : null}
+              {learningOutcome ? (
+                <div className="hidden rounded-xl bg-[var(--color-panel-soft)] p-2 text-[var(--color-text-secondary)] xl:block">
+                  <Target className="h-4 w-4" />
+                </div>
+              ) : null}
+            </div>
+          </header>
+          <div className="min-h-0 flex-1">
+            <SectionReader
+              courseId={sessionId}
+              sections={sections}
+              currentGenerating={currentGenerating}
+              generateSection={generateSection}
+              sectionDocs={sectionDocs}
+              scrollToSectionId={scrollToSectionId}
+            />
+          </div>
         </main>
 
-        <aside className="min-h-0 overflow-hidden rounded-[28px] border border-black/[0.06] bg-white/82 shadow-[0_22px_64px_-50px_rgba(15,23,42,0.3)] backdrop-blur-xl">
-          <LearnChat courseId={sessionId} courseTitle={courseTitle} />
-        </aside>
+        {!isDesktopChatCollapsed ? (
+          <aside className="min-h-0 overflow-hidden rounded-[28px] border border-black/[0.06] bg-white/82 shadow-[0_22px_64px_-50px_rgba(15,23,42,0.3)] backdrop-blur-xl">
+            <LearnChat
+              courseId={sessionId}
+              courseTitle={courseTitle}
+              onCollapse={() => setDesktopChatCollapsed(true)}
+            />
+          </aside>
+        ) : null}
       </div>
     </div>
   );

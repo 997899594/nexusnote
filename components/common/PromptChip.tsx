@@ -8,15 +8,18 @@ interface PromptChipProps {
   onClick?: () => void;
   icon?: LucideIcon;
   className?: string;
+  disabled?: boolean;
 }
 
-export function PromptChip({ label, onClick, icon: Icon, className }: PromptChipProps) {
+export function PromptChip({ label, onClick, icon: Icon, className, disabled }: PromptChipProps) {
   return (
     <button
       type="button"
+      disabled={disabled}
       onClick={onClick}
       className={cn(
         "ui-control-surface inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)]",
+        disabled && "cursor-not-allowed opacity-55 hover:text-[var(--color-text-secondary)]",
         className,
       )}
     >

@@ -31,6 +31,7 @@ interface CareerTreeGraphProps {
   onSelectCareer?: (directionKey: string) => void;
   variant?: CareerTreeGraphVariant;
   maxDepth?: number;
+  planningHighlightNodeIds?: string[];
   className?: string;
 }
 
@@ -44,12 +45,14 @@ interface CareerSkillNodeData extends Record<string, unknown> {
   skillNode: VisibleSkillTreeNode;
   variant: CareerTreeGraphVariant;
   active: boolean;
+  planningHighlighted: boolean;
 }
 
 interface CareerRoleNodeData extends Record<string, unknown> {
   role: CareerRoleNode;
   roleKind: "current" | "future";
   variant: CareerTreeGraphVariant;
+  planningHighlighted: boolean;
 }
 
 interface CareerBranchEdgeData extends Record<string, unknown> {
@@ -311,8 +314,10 @@ function buildFlowElements(params: {
   activeNodeId?: string | null;
   variant: CareerTreeGraphVariant;
   maxDepth?: number;
+  planningHighlightNodeIds?: string[];
 }): { nodes: CareerFlowNode[]; edges: CareerFlowEdge[]; signature: string } {
   const metrics = getLayoutMetrics(params.variant);
+  const planningHighlightNodeIds = new Set(params.planningHighlightNodeIds ?? []);
   const skillDepth = getVisibleSkillDepth(params.graph.skillRoots, params.maxDepth);
   const hasFutureCareers = params.graph.futureCareers.length > 0;
   const currentCareerY = hasFutureCareers ? metrics.currentY : metrics.currentOnlyY;
@@ -343,10 +348,14 @@ function buildFlowElements(params: {
           skillNode,
           variant: params.variant,
           active: skillNode.id === params.activeNodeId,
+          planningHighlighted: planningHighlightNodeIds.has(skillNode.id),
         },
         selectable: false,
         draggable: false,
-        zIndex: skillNode.id === params.activeNodeId ? 3 : 2,
+        zIndex:
+          skillNode.id === params.activeNodeId || planningHighlightNodeIds.has(skillNode.id)
+            ? 3
+            : 2,
       };
     });
   const skillCenterX =
@@ -361,6 +370,9 @@ function buildFlowElements(params: {
       role: params.graph.currentCareer,
       roleKind: "current",
       variant: params.variant,
+      planningHighlighted:
+        planningHighlightNodeIds.has(params.graph.currentCareer.key) ||
+        planningHighlightNodeIds.has(CURRENT_CAREER_NODE_ID),
     },
     selectable: false,
     draggable: false,
@@ -386,6 +398,9 @@ function buildFlowElements(params: {
         role,
         roleKind: "future",
         variant: params.variant,
+        planningHighlighted:
+          planningHighlightNodeIds.has(role.key) ||
+          planningHighlightNodeIds.has(`${FUTURE_CAREER_NODE_PREFIX}${role.key}`),
       },
       selectable: false,
       draggable: false,
@@ -406,7 +421,11 @@ function buildFlowElements(params: {
     .map<CareerFlowEdge>((link) => {
       const parent = link.source.data.skillNode as VisibleSkillTreeNode;
       const child = link.target.data.skillNode as VisibleSkillTreeNode;
-      const active = parent.id === params.activeNodeId || child.id === params.activeNodeId;
+      const active =
+        parent.id === params.activeNodeId ||
+        child.id === params.activeNodeId ||
+        planningHighlightNodeIds.has(parent.id) ||
+        planningHighlightNodeIds.has(child.id);
 
       return {
         id: `skill:${parent.id}:${child.id}`,
@@ -432,7 +451,7 @@ function buildFlowElements(params: {
       type: "careerBranch",
       data: {
         state: "role",
-        active: node.id === params.activeNodeId,
+        active: node.id === params.activeNodeId || planningHighlightNodeIds.has(node.id),
         kind: "career",
       },
       selectable: false,
@@ -446,7 +465,12 @@ function buildFlowElements(params: {
     type: "careerBranch",
     data: {
       state: "role",
-      active: role.isSelected || role.isRecommended,
+      active:
+        role.isSelected ||
+        role.isRecommended ||
+        planningHighlightNodeIds.has(role.key) ||
+        planningHighlightNodeIds.has(`${FUTURE_CAREER_NODE_PREFIX}${role.key}`) ||
+        planningHighlightNodeIds.has(CURRENT_CAREER_NODE_ID),
       kind: "career",
     },
     selectable: false,
@@ -499,9 +523,9 @@ function CareerRoleNodeView({ data }: NodeProps<CareerRoleFlowNode>) {
     ? data.role.source === "candidate_tree"
       ? "备选方向"
       : data.role.horizon === "next"
-        ? "下一阶职业"
-        : "可发展职业"
-    : "当前职业";
+        ? "下一阶段岗位"
+        : "可发展岗位"
+    : "当前方向";
   const signalLabel = formatRoleSignal(data.role);
   const labelPositionClass = isFuture
     ? "bottom-full mb-3"
@@ -521,22 +545,29 @@ function CareerRoleNodeView({ data }: NodeProps<CareerRoleFlowNode>) {
         className={cn(
           "nodrag nowheel group relative isolate flex h-full w-full items-center justify-center rounded-full text-[var(--color-text)] transition duration-300",
           isFuture ? "cursor-pointer hover:scale-[1.03]" : "cursor-default",
+          data.planningHighlighted && "scale-[1.035]",
         )}
       >
         <span
           aria-hidden
           className={cn(
-            "absolute rounded-full bg-slate-400/16 blur-2xl transition-opacity duration-300",
-            isFuture ? "-inset-5 opacity-55 group-hover:opacity-85" : "-inset-9",
+            "absolute rounded-full blur-2xl transition-opacity duration-300",
+            data.planningHighlighted
+              ? "-inset-8 bg-slate-500/20 opacity-100"
+              : isFuture
+                ? "-inset-5 bg-slate-400/16 opacity-55 group-hover:opacity-85"
+                : "-inset-9 bg-slate-400/16",
           )}
         />
         <span
           aria-hidden
           className={cn(
             "absolute inset-0 rounded-full border bg-white shadow-[inset_0_0_0_1px_rgba(15,23,42,0.03)] transition duration-300",
-            isFuture
-              ? "border-black/10 shadow-[0_18px_34px_-28px_rgba(15,23,42,0.3)] group-hover:border-black/18"
-              : "border-black/16 shadow-[0_22px_42px_-30px_rgba(15,23,42,0.36)]",
+            data.planningHighlighted
+              ? "border-slate-500/35 shadow-[0_24px_48px_-32px_rgba(15,23,42,0.42)]"
+              : isFuture
+                ? "border-black/10 shadow-[0_18px_34px_-28px_rgba(15,23,42,0.3)] group-hover:border-black/18"
+                : "border-black/16 shadow-[0_22px_42px_-30px_rgba(15,23,42,0.36)]",
           )}
         />
         <span
@@ -599,11 +630,12 @@ function CareerRoleNodeView({ data }: NodeProps<CareerRoleFlowNode>) {
 }
 
 function CareerSkillNode({ data }: NodeProps<CareerSkillFlowNode>) {
-  const { skillNode, active, variant } = data;
+  const { skillNode, active, planningHighlighted, variant } = data;
   const tone = getStateTone(skillNode.state);
   const progress = clampProgress(skillNode.progress);
   const isCompact = variant === "compact";
   const label = getStateLabel(skillNode.state);
+  const emphasized = active || planningHighlighted;
   const nodeSizeClass = isCompact
     ? "h-[58px] w-[58px]"
     : "h-[82px] w-[82px] sm:h-[98px] sm:w-[98px]";
@@ -620,7 +652,7 @@ function CareerSkillNode({ data }: NodeProps<CareerSkillFlowNode>) {
       <div
         className={cn(
           "relative flex h-full w-full shrink-0 items-center justify-center transition duration-300",
-          active ? "scale-110" : "hover:scale-105",
+          active ? "scale-110" : planningHighlighted ? "scale-[1.07]" : "hover:scale-105",
         )}
         style={{ color: tone.metal, opacity: tone.opacity }}
       >
@@ -629,15 +661,21 @@ function CareerSkillNode({ data }: NodeProps<CareerSkillFlowNode>) {
           className="absolute -inset-5 rounded-full blur-2xl transition-opacity duration-300"
           style={{
             background: `radial-gradient(circle, ${tone.halo}, transparent 66%)`,
-            opacity: active ? 1 : 0.72,
+            opacity: emphasized ? 1 : 0.72,
           }}
         />
+        {planningHighlighted ? (
+          <span
+            aria-hidden
+            className="absolute -inset-2 rotate-45 rounded-[1.55rem] border border-slate-900/18"
+          />
+        ) : null}
         <span
           aria-hidden
           className="absolute inset-0 rotate-45 rounded-[1.35rem] border bg-white shadow-[inset_0_0_0_1px_rgba(15,23,42,0.03)]"
           style={{
-            borderColor: tone.edge,
-            boxShadow: active
+            borderColor: planningHighlighted ? "rgba(51,65,85,0.46)" : tone.edge,
+            boxShadow: emphasized
               ? `0 0 34px ${tone.glow}, 0 18px 34px -28px rgba(15,23,42,0.32)`
               : `0 0 18px ${tone.glow}, 0 14px 28px -26px rgba(15,23,42,0.22)`,
           }}
@@ -765,6 +803,7 @@ export function CareerTreeGraph({
   onSelectCareer,
   variant = "full",
   maxDepth,
+  planningHighlightNodeIds,
   className,
 }: CareerTreeGraphProps) {
   const instanceRef = useRef<ReactFlowInstance<CareerFlowNode, CareerFlowEdge> | null>(null);
@@ -774,8 +813,8 @@ export function CareerTreeGraph({
   const hasFutureCareers = graph.futureCareers.length > 0;
   const canvasHeight = hasFutureCareers ? metrics.canvasHeight : metrics.currentOnlyCanvasHeight;
   const elements = useMemo(
-    () => buildFlowElements({ graph, activeNodeId, variant, maxDepth }),
-    [activeNodeId, graph, maxDepth, variant],
+    () => buildFlowElements({ graph, activeNodeId, variant, maxDepth, planningHighlightNodeIds }),
+    [activeNodeId, graph, maxDepth, planningHighlightNodeIds, variant],
   );
 
   useEffect(() => {

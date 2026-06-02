@@ -1,5 +1,7 @@
 import { revalidateTag } from "next/cache";
 
+type RevalidateTagProfile = "max" | { expire: number };
+
 function canIgnoreRevalidateError(error: unknown): boolean {
   if (!(error instanceof Error)) {
     return false;
@@ -8,9 +10,9 @@ function canIgnoreRevalidateError(error: unknown): boolean {
   return error.message.includes("static generation store missing");
 }
 
-function revalidateTagSafely(tag: string): void {
+function revalidateTagSafely(tag: string, profile: RevalidateTagProfile = "max"): void {
   try {
-    revalidateTag(tag, "max");
+    revalidateTag(tag, profile);
   } catch (error) {
     if (canIgnoreRevalidateError(error)) {
       return;
@@ -29,6 +31,10 @@ export function getProfileStatsTag(userId: string): string {
 
 export function getLearnPageTag(userId: string, courseId: string): string {
   return `learn-page:${userId}:${courseId}`;
+}
+
+export function getCoursePublicationTag(slugOrId: string): string {
+  return `course-publication:${slugOrId}`;
 }
 
 export function getCareerTreesTag(userId: string): string {
@@ -53,6 +59,10 @@ export function revalidateProfileStats(userId: string): void {
 
 export function revalidateLearnPage(userId: string, courseId: string): void {
   revalidateTagSafely(getLearnPageTag(userId, courseId));
+}
+
+export function revalidateCoursePublication(slugOrId: string): void {
+  revalidateTagSafely(getCoursePublicationTag(slugOrId), { expire: 0 });
 }
 
 export function revalidateCareerTrees(userId: string): void {

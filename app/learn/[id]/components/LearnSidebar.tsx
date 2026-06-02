@@ -1,7 +1,7 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { ArrowLeftToLine, PanelLeftClose } from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useLearnStore } from "@/stores/learn";
 import { ChapterList } from "./ChapterList";
@@ -9,10 +9,10 @@ import { ChapterList } from "./ChapterList";
 interface LearnSidebarProps {
   courseTitle: string;
   width: number;
+  onCollapse?: () => void;
 }
 
-export function LearnSidebar({ courseTitle, width }: LearnSidebarProps) {
-  const router = useRouter();
+export function LearnSidebar({ courseTitle, width, onCollapse }: LearnSidebarProps) {
   const chapters = useLearnStore((s) => s.chapters);
   const completedSections = useLearnStore((s) => s.completedSections);
   const totalSections = chapters.reduce((total, chapter) => total + chapter.sections.length, 0);
@@ -30,19 +30,35 @@ export function LearnSidebar({ courseTitle, width }: LearnSidebarProps) {
     >
       <div className="flex h-full flex-col">
         <div className="border-b border-black/[0.04] px-4 pb-5 pt-5 lg:px-5">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            aria-label="返回"
-            className={cn(
-              "flex h-9 w-9 items-center justify-center rounded-full",
-              "text-[var(--color-text-secondary)]",
-              "hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]",
-              "transition-colors duration-200",
-            )}
-          >
-            <ArrowLeft className="h-4.5 w-4.5" />
-          </button>
+          <div className="flex items-center justify-between gap-2">
+            <Link
+              href="/profile"
+              aria-label="回到个人中心"
+              className={cn(
+                "flex h-9 w-9 items-center justify-center rounded-full",
+                "text-[var(--color-text-secondary)]",
+                "hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]",
+                "transition-colors duration-200",
+              )}
+            >
+              <ArrowLeftToLine className="h-4.5 w-4.5" />
+            </Link>
+            {onCollapse ? (
+              <button
+                type="button"
+                onClick={onCollapse}
+                aria-label="收起目录"
+                className={cn(
+                  "hidden h-9 w-9 items-center justify-center rounded-full md:flex",
+                  "text-[var(--color-text-secondary)]",
+                  "hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]",
+                  "transition-colors duration-200",
+                )}
+              >
+                <PanelLeftClose className="h-4.5 w-4.5" />
+              </button>
+            ) : null}
+          </div>
 
           <div className="mt-5">
             <div className="mb-2 text-[0.625rem] font-semibold tracking-[0.18em] text-[var(--color-text-muted)]">

@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { CareerTreesExplorer } from "@/components/career-trees/CareerTreesExplorer";
 import { getDynamicPageSession } from "@/lib/auth/page";
+import { getLatestCareerPlanningState } from "@/lib/career-planning/state";
+import { buildCareerPlanningWorkspaceDataFromCareerWorkspace } from "@/lib/career-planning/workspace-data";
 import { getCareerTreeWorkspaceDataFresh } from "@/lib/career-tree/workspace-data";
 
 async function CareerTreesPageContent() {
@@ -11,7 +13,14 @@ async function CareerTreesPageContent() {
     redirect("/login?callbackUrl=%2Fcareer-trees");
   }
 
-  const careerTrees = await getCareerTreeWorkspaceDataFresh(session.user.id, 0);
+  const [careerTrees, planningState] = await Promise.all([
+    getCareerTreeWorkspaceDataFresh(session.user.id, 4),
+    getLatestCareerPlanningState(session.user.id),
+  ]);
+  const planningData = await buildCareerPlanningWorkspaceDataFromCareerWorkspace({
+    workspace: careerTrees,
+    planningState,
+  });
 
   return (
     <main className="ui-page-shell min-h-dvh overflow-hidden">
@@ -19,6 +28,7 @@ async function CareerTreesPageContent() {
         snapshot={careerTrees.snapshot}
         focusSnapshot={careerTrees.focusSnapshot}
         profileSnapshot={careerTrees.profileSnapshot}
+        planningData={planningData}
       />
     </main>
   );

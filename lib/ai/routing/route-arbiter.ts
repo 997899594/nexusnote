@@ -7,6 +7,7 @@ import type {
   Surface,
 } from "@/lib/ai/runtime/contracts";
 import type { ResolvedRequestContext } from "@/lib/ai/runtime/resolve-request-context";
+import { isCareerRequestMetadata } from "@/types/request-metadata";
 
 function getSurfaceDefaultMode(
   surface: Surface,
@@ -96,13 +97,32 @@ export function arbitrateRoute(params: {
       "用户的问题更像学习答疑，但当前没有课程上下文。请先请用户打开对应课程/章节，或告诉你具体在学哪门课，再继续深入解释。";
   }
 
-  if (classification.capabilityMode === "career_guide" && !requestContext.hasCareerTreeSnapshot) {
+  const isCareerPlanningEntry =
+    isCareerRequestMetadata(requestContext.metadata) &&
+    requestContext.metadata.entry === "planning";
+
+  if (
+    classification.capabilityMode === "career_guide" &&
+    !requestContext.hasCareerTreeSnapshot &&
+    !isCareerPlanningEntry
+  ) {
     resolvedCapabilityMode = "general_chat";
     executionMode = "ask_clarification";
     handoffTarget = "career_guide";
     arbiterNotes.push("career_guide requires an existing career tree snapshot");
     assistantInstruction =
       "用户在问职业方向或下一步学习，但当前还没有可用的职业树快照。请明确告诉用户：先保存并学习几门课程，系统生成职业树后才能给出更具体的个性化方向建议。";
+  }
+
+  if (isCareerPlanningEntry) {
+    resolvedCapabilityMode = "career_guide";
+    if (executionMode === "direct_answer" || executionMode === "ask_clarification") {
+      executionMode = "tool_loop";
+    }
+    handoffTarget = null;
+    arbiterNotes.push("career planning entry supports zero-start mentor interview");
+    assistantInstruction =
+      "这是职业规划导师入口。即使没有职业树快照，也不要要求用户先去学课程或生成快照；继续用访谈方式每轮只问一个会改变判断的问题。";
   }
 
   if (

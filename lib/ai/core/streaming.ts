@@ -5,10 +5,12 @@ import {
   convertToModelMessages,
   createUIMessageStream,
   createUIMessageStreamResponse,
+  type InferUIMessageChunk,
   smoothStream,
   type ToolSet,
   type UIMessage,
   type UIMessageChunk,
+  type UIMessageStreamWriter,
 } from "ai";
 import { classifyAIDegradation } from "@/lib/ai/core/degradation";
 import {
@@ -182,6 +184,91 @@ export function createStaticAssistantMessageResponse(params: {
     }),
     headers: params.headers,
   });
+}
+
+export async function streamAgentIntoWriter<
+  CALL_OPTIONS = never,
+  TOOLS extends ToolSet = ToolSet,
+>(params: {
+  writer: UIMessageStreamWriter;
+  agent: Agent<CALL_OPTIONS, TOOLS, never>;
+  messages: UIMessage[];
+  presentation: "chat" | "interview";
+  sendReasoning?: boolean;
+}) {
+  const modelMessages = await convertToModelMessages(params.messages, {
+    tools: params.agent.tools,
+  });
+  const result = await params.agent.stream({
+    prompt: modelMessages,
+    experimental_transform: smoothStream({
+      chunking: new Intl.Segmenter("zh-Hans", { granularity: "word" }),
+    }),
+  });
+  const filteredStream = createFilteredUIMessageStream({
+    stream: result.toUIMessageStream({
+      sendReasoning: params.sendReasoning ?? false,
+    }) as ReadableStream<UIMessageChunk>,
+    allowedPresentation: params.presentation,
+  });
+
+  params.writer.merge(filteredStream);
+}
+
+function createFilteredUIMessageStream({
+  stream,
+  allowedPresentation,
+}: {
+  stream: ReadableStream<UIMessageChunk>;
+  allowedPresentation: ToolUIPresentation;
+}) {
+  return createUIMessageStream({
+    execute: async ({ writer }) => {
+      await forwardFilteredChunks(stream, writer, allowedPresentation);
+    },
+  });
+}
+
+export function createNexusNoteDeferredStreamResponse(params: {
+  originalMessages: UIMessage[];
+  sessionId?: string;
+  resourceId?: string;
+  headers?: HeadersInit;
+  execute: (options: {
+    writer: UIMessageStreamWriter;
+    writeData: (part: UIMessageChunk) => void;
+  }) => Promise<void> | void;
+  onFinish?: (options: {
+    messages: UIMessage[];
+    isContinuation: boolean;
+    isAborted: boolean;
+    responseMessage: UIMessage;
+    finishReason?: "stop" | "length" | "content-filter" | "tool-calls" | "error" | "other";
+  }) => Promise<void> | void;
+}) {
+  const response = createUIMessageStreamResponse({
+    stream: createUIMessageStream({
+      originalMessages: params.originalMessages,
+      onFinish: params.onFinish,
+      execute: async ({ writer }) => {
+        await params.execute({
+          writer,
+          writeData: (part) => {
+            writer.write(part as InferUIMessageChunk<UIMessage>);
+          },
+        });
+      },
+      onError: getFallbackMessage,
+    }),
+    headers: params.headers,
+  });
+
+  if (params.sessionId) response.headers.set("X-Session-Id", params.sessionId);
+  if (params.resourceId) response.headers.set("X-Resource-Id", params.resourceId);
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
+
+  return response;
 }
 
 function createPresentationFilteredStreamResponse({

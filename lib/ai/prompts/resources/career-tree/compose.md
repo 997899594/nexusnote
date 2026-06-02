@@ -11,6 +11,10 @@
 - 如果 previousSnapshot 为 null，不要填写 matchPreviousDirectionKey。
 - 只有当一棵新树明显继承 previousSnapshot.trees 里的方向时，才填写对应的 matchPreviousDirectionKey；否则用 keySeed 给代码生成稳定 key。
 - progressionRoles 是这棵树内部的下一阶段职业落点，可为空；它不是候选树列表的替代品。
+- trees[].title 表示候选成长方向，不要伪装成具体岗位；如果证据只能支持方向，就写成方向，例如“AI 应用开发主线”。
+- progressionRoles[].title 必须是现实招聘市场中真实存在的岗位或岗位族，优先使用招聘 JD 常见名称，例如“AI 应用开发工程师”“前端工程师（AI 产品方向）”“数据分析师”“机器学习工程师”“产品经理（AI 工具方向）”。
+- progressionRoles[].title 禁止使用抽象能力、课程名、学习路线或泛化愿景，例如“AI 原生能力构建者”“Prompt 工程成长路线”“全栈智能体探索者”“能力地图负责人”。
+- progressionRoles[].summary 要说明这个岗位在现实工作中交付什么、为什么当前证据支持它；证据不足时宁可少给或不给 progressionRoles。
 
 只输出一个 JSON 对象，字段必须完全匹配：
 - recommendedDirectionHint: string | null

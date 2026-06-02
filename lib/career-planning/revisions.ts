@@ -2,7 +2,7 @@ import "server-only";
 
 import { and, desc, eq } from "drizzle-orm";
 import { type CareerPlanRevision, careerPlanningSessions, careerPlanRevisions, db } from "@/db";
-import type { CareerMapDraft } from "@/lib/ai/career-planning/schemas";
+import type { CareerGraphPatch } from "@/lib/ai/career-planning/schemas";
 import {
   type CareerPlanningWorkspaceData,
   getCareerPlanningWorkspaceDataFresh,
@@ -11,14 +11,14 @@ import {
 type JsonObject = Record<string, unknown>;
 type JsonObjectArray = JsonObject[];
 
-interface SaveCurrentCareerMapRevisionInput {
+interface SaveCurrentCareerGraphRevisionInput {
   userId: string;
   sessionId: string;
   conversationId?: string | null;
   source: "initial" | "manual_save" | "route_commit";
   selectedRouteKey?: string | null;
   constraints?: JsonObject;
-  mapDraft?: CareerMapDraft | null;
+  graphPatch?: CareerGraphPatch | null;
 }
 
 function toJsonObject(value: unknown): JsonObject {
@@ -32,21 +32,28 @@ function toJsonObjectArray(value: unknown[]): JsonObjectArray {
 function buildRevisionPayload(
   data: CareerPlanningWorkspaceData,
   selectedRouteKey?: string | null,
-  mapDraft?: CareerMapDraft | null,
+  graphPatch?: CareerGraphPatch | null,
 ) {
+  const patchRoute =
+    data.routes.find((route) => route.directionKey === graphPatch?.targetDirectionKey) ?? null;
   const currentRoute =
-    data.routes.find((route) => route.directionKey === selectedRouteKey) ?? data.currentRoute;
-  const draftRoute =
-    mapDraft?.routes.find((route) => route.directionKey === selectedRouteKey) ??
-    mapDraft?.routes.find((route) => route.directionKey === mapDraft.selectedRouteKey) ??
-    mapDraft?.routes[0] ??
+    patchRoute ??
+    data.routes.find((route) => route.directionKey === selectedRouteKey) ??
+    data.currentRoute;
+  const primaryTargetNode =
+    graphPatch?.nodes.find((node) => node.type === "future_path" || node.type === "target_role") ??
+    graphPatch?.nodes[0] ??
     null;
 
   return {
     selectedRouteKey:
-      draftRoute?.directionKey ?? currentRoute?.directionKey ?? selectedRouteKey ?? null,
-    title: draftRoute?.title ?? currentRoute?.title ?? "职业地图",
-    summary: draftRoute?.summary ?? currentRoute?.summary ?? "从课程和学习证据开始校准职业方向。",
+      graphPatch?.targetDirectionKey ?? currentRoute?.directionKey ?? selectedRouteKey ?? null,
+    title: primaryTargetNode?.title ?? currentRoute?.title ?? "职业成长校准",
+    summary:
+      primaryTargetNode?.summary ??
+      graphPatch?.summary ??
+      currentRoute?.summary ??
+      "从访谈和学习证据开始校准职业方向。",
     sourceSnapshotJson: {
       status: data.snapshot.status,
       generatedAt: data.snapshot.generatedAt,
@@ -55,20 +62,20 @@ function buildRevisionPayload(
       treesCount: data.snapshot.trees.length,
     },
     signalsJson: toJsonObjectArray(data.signals),
-    routesJson: toJsonObjectArray(mapDraft?.routes ?? data.routes),
+    routesJson: toJsonObjectArray(graphPatch?.nodes ?? data.routes),
     mapJson: {
-      draft: mapDraft ?? null,
+      graphPatch: graphPatch ?? null,
       currentRoute,
       metrics: data.metrics,
     },
   };
 }
 
-export async function saveCurrentCareerMapRevision(
-  input: SaveCurrentCareerMapRevisionInput,
+export async function saveCurrentCareerGraphRevision(
+  input: SaveCurrentCareerGraphRevisionInput,
 ): Promise<CareerPlanRevision> {
   const data = await getCareerPlanningWorkspaceDataFresh(input.userId);
-  const payload = buildRevisionPayload(data, input.selectedRouteKey, input.mapDraft);
+  const payload = buildRevisionPayload(data, input.selectedRouteKey, input.graphPatch);
 
   return db.transaction(async (tx) => {
     const [existingSession] = await tx

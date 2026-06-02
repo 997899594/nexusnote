@@ -75,9 +75,20 @@ function buildInterviewDynamicHint(input: {
         : "用户已经要求覆盖最新/前沿方向，但外部检索暂不可用。",
       "本轮信息已经足够给第一版课程蓝图；优先直接调用 presentOutlinePreview。",
       input.webResearchContext.evidenceAvailable
-        ? "必须把实际使用过的外部来源写入 outline.researchCitations，不要继续用 presentOptions 追问方向。"
+        ? "必须把实际使用过的外部来源写入 outline.researchCitations。"
         : "必须在蓝图里标注需要后续联网核验，不要编造 citation。",
       "可以基于用户当前选择/补充调整课程定位，但不要丢失前面关于最新技术范围的要求。",
+    ].join("\n");
+  }
+
+  if (input.webResearchContext?.evidenceRequest) {
+    return [
+      "## 本轮动态提示",
+      input.webResearchContext.evidenceAvailable
+        ? "本轮已完成外部资料检索，但资料只用于校准事实和方向，不代表访谈信息已经足够。"
+        : "本轮需要最新/前沿资料，但外部检索暂不可用；不要假装已经完成核验。",
+      "如果用户只给了宽泛主题，必须继续追问一个会影响课程定位的关键问题，不要调用 presentOutlinePreview。",
+      "优先用 presentOptions 给 2 到 4 个方向选择，例如应用落地、Agent 工程、编程提效、模型原理或职业转型。",
     ].join("\n");
   }
 

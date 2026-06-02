@@ -1,3 +1,4 @@
+import { isRealisticProgressionRoleTitle } from "@/lib/career-tree/realistic-roles";
 import type {
   CandidateCareerTree,
   CareerProgressionRole,
@@ -110,9 +111,12 @@ export function buildCareerDevelopmentGraph(
   }
 
   const currentCareer = toCareerRoleNode(currentTree, snapshot);
+  const realisticProgressionRoles = currentTree.progressionRoles.filter((role) =>
+    isRealisticProgressionRoleTitle(role.title),
+  );
   const futureCareers =
-    currentTree.progressionRoles.length > 0
-      ? currentTree.progressionRoles.map((role) => toFutureCareerRoleNode(role, currentTree))
+    realisticProgressionRoles.length > 0
+      ? realisticProgressionRoles.map((role) => toFutureCareerRoleNode(role, currentTree))
       : candidateTreesAsFutureRoles(snapshot, currentTree);
 
   return {

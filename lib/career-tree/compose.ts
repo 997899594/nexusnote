@@ -25,6 +25,7 @@ import {
 } from "@/lib/career-tree/constants";
 import { getCareerGraphStateRow } from "@/lib/career-tree/graph-state";
 import { getCareerTreePreference } from "@/lib/career-tree/preferences";
+import { isRealisticProgressionRoleTitle } from "@/lib/career-tree/realistic-roles";
 import {
   getOrCreateCareerRun,
   markCareerRunFailed,
@@ -97,6 +98,7 @@ const treeComposerOutputSchema = z.object({
 
 type TreeComposerOutput = z.infer<typeof treeComposerOutputSchema>;
 type ResolvedComposerTree = z.infer<typeof composerTreeSchema> & { directionKey: string };
+type ResolvedComposerProgressionRole = ResolvedComposerTree["progressionRoles"][number];
 
 interface ComposeGraphNode {
   id: string;
@@ -309,6 +311,12 @@ function buildNodeEvidenceMap(rows: SupportingEvidenceRow[]): Map<string, string
   return nodeEvidenceMap;
 }
 
+function filterRealisticProgressionRoles(
+  roles: ResolvedComposerTree["progressionRoles"],
+): ResolvedComposerProgressionRole[] {
+  return roles.filter((role) => isRealisticProgressionRoleTitle(role.title)).slice(0, 3);
+}
+
 function buildSnapshotPayload(params: {
   resolvedTrees: ResolvedComposerTree[];
   recommendedDirectionHint: string | null;
@@ -364,7 +372,7 @@ function buildSnapshotPayload(params: {
       whyThisDirection: tree.whyThisDirection,
       supportingCourses,
       supportingChapters,
-      progressionRoles: tree.progressionRoles,
+      progressionRoles: filterRealisticProgressionRoles(tree.progressionRoles),
       tree: materializeTreeNodes(tree.directionKey, tree.tree, nodeMap, nodeEvidenceMap),
     };
   });

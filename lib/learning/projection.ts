@@ -32,6 +32,11 @@ export interface LearnProgressProjection {
 
 export interface LearnPageProjection {
   courseTitle: string;
+  courseDescription: string | null;
+  difficulty: string | null;
+  estimatedMinutes: number | null;
+  learningOutcome: string | null;
+  targetAudience: string | null;
   chapters: LearnChapterProjection[];
   sectionDocs: LearnSectionDocProjection[];
   progressRecord: LearnProgressProjection | null;
@@ -122,6 +127,12 @@ export function buildLearnPageProjection(input: {
 
   return {
     courseTitle: input.courseSession.title ?? "Untitled Course",
+    courseDescription:
+      input.courseSession.description ?? input.courseSession.outline.description ?? null,
+    difficulty: input.courseSession.difficulty ?? input.courseSession.outline.difficulty ?? null,
+    estimatedMinutes: input.courseSession.estimatedMinutes ?? null,
+    learningOutcome: input.courseSession.outline.learningOutcome ?? null,
+    targetAudience: input.courseSession.outline.targetAudience ?? null,
     chapters,
     sectionDocs,
     progressRecord: input.progressRecord,

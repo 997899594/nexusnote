@@ -1,7 +1,7 @@
 export const CAREER_TREE_SCHEMA_VERSION = 2;
 export const CAREER_TREE_EXTRACT_PROMPT_VERSION = "career-tree-extract@v1";
 export const CAREER_TREE_MERGE_PROMPT_VERSION = "career-tree-merge@v1";
-export const CAREER_TREE_COMPOSE_PROMPT_VERSION = "career-tree-compose@v3";
+export const CAREER_TREE_COMPOSE_PROMPT_VERSION = "career-tree-compose@v4";
 
 export const CAREER_TREE_EXTRACT_TIMEOUT_MS = 90_000;
 export const CAREER_TREE_MERGE_TIMEOUT_MS = 90_000;

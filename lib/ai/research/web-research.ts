@@ -124,6 +124,46 @@ export interface ResearchRetrievalOutput {
   }>;
 }
 
+export type ResearchEvidenceProgress =
+  | {
+      stage: "searching";
+      query: string;
+      queries: string[];
+      freshnessWindowDays: 30 | 90 | 180;
+    }
+  | {
+      stage: "searched";
+      query: string;
+      resultCount: number;
+    }
+  | {
+      stage: "reading";
+      query: string;
+      sourceCount: number;
+    }
+  | {
+      stage: "read";
+      query: string;
+      sourceCount: number;
+      extractedCount: number;
+    }
+  | {
+      stage: "ranking";
+      query: string;
+      sourceCount: number;
+    }
+  | {
+      stage: "completed";
+      query: string;
+      sourceCount: number;
+      extractedCount: number;
+    }
+  | {
+      stage: "unavailable";
+      query: string;
+      reason: string;
+    };
+
 interface CollectResearchEvidenceInput {
   query: string;
   queries?: string[];
@@ -132,6 +172,7 @@ interface CollectResearchEvidenceInput {
   maxExtractedSources?: number;
   freshnessWindowDays?: 30 | 90 | 180;
   userId?: string;
+  onProgress?: (progress: ResearchEvidenceProgress) => void | Promise<void>;
 }
 
 interface ExtractedDocument {
@@ -1316,6 +1357,11 @@ export async function collectResearchEvidence(
   const errors: string[] = [];
 
   if (!env.AI_ENABLE_WEB_SEARCH) {
+    await input.onProgress?.({
+      stage: "unavailable",
+      query,
+      reason: "AI_ENABLE_WEB_SEARCH=false",
+    });
     return {
       success: false,
       query,
@@ -1328,6 +1374,11 @@ export async function collectResearchEvidence(
   }
 
   if (!hasResearchProviderConfigured()) {
+    await input.onProgress?.({
+      stage: "unavailable",
+      query,
+      reason: "No web research provider configured",
+    });
     return {
       success: false,
       query,
@@ -1343,6 +1394,12 @@ export async function collectResearchEvidence(
     ...buildQueryVariants(query, input.focus),
     ...(input.queries ?? []),
   ]);
+  await input.onProgress?.({
+    stage: "searching",
+    query,
+    queries,
+    freshnessWindowDays,
+  });
   const searchOutputs = await Promise.all(
     queries.map((variant) => searchAcrossProviders(variant, limit, freshnessWindowDays)),
   );
@@ -1364,9 +1421,25 @@ export async function collectResearchEvidence(
     .sort((left, right) => right.rankScore - left.rankScore)
     .map((item) => item.result)
     .slice(0, Math.max(limit, maxExtractedSources));
+  await input.onProgress?.({
+    stage: "searched",
+    query,
+    resultCount: results.length,
+  });
 
   const extractionTargets = results.slice(0, maxExtractedSources);
+  await input.onProgress?.({
+    stage: "reading",
+    query,
+    sourceCount: extractionTargets.length,
+  });
   const documents = await extractDocuments(extractionTargets, freshnessWindowDays, providerTrace);
+  await input.onProgress?.({
+    stage: "read",
+    query,
+    sourceCount: extractionTargets.length,
+    extractedCount: documents.size,
+  });
 
   const sourcesWithoutRank = results.map((result) =>
     buildEvidenceSource({
@@ -1377,8 +1450,19 @@ export async function collectResearchEvidence(
     }),
   );
 
+  await input.onProgress?.({
+    stage: "ranking",
+    query,
+    sourceCount: sourcesWithoutRank.length,
+  });
   const rankedSources = await rankEvidenceSources(query, sourcesWithoutRank, providerTrace);
   const sources = rankedSources.slice(0, limit);
+  await input.onProgress?.({
+    stage: "completed",
+    query,
+    sourceCount: sources.length,
+    extractedCount: sources.filter((source) => source.extractionStatus === "extracted").length,
+  });
 
   return {
     success: sources.length > 0,

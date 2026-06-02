@@ -10,6 +10,7 @@ import {
 import {
   collectResearchEvidence,
   formatResearchEvidenceForPrompt,
+  type ResearchEvidenceProgress,
   type ResearchRetrievalOutput,
 } from "@/lib/ai/research/web-research";
 
@@ -31,6 +32,8 @@ export function shouldBuildInterviewWebResearchContext(
 export async function resolveInterviewWebResearchContext(params: {
   userId: string;
   messages: Array<Pick<UIMessage, "role" | "parts">>;
+  onRequest?: (request: ResearchEvidenceRequest) => void | Promise<void>;
+  onProgress?: (progress: ResearchEvidenceProgress) => void | Promise<void>;
 }): Promise<InterviewWebResearchContext> {
   const evidenceRequest = resolveResearchEvidenceRequestFromMessages({
     messages: params.messages,
@@ -47,6 +50,8 @@ export async function resolveInterviewWebResearchContext(params: {
     };
   }
 
+  await params.onRequest?.(evidenceRequest);
+
   const output = await collectResearchEvidence({
     query: evidenceRequest.query,
     queries: evidenceRequest.queries,
@@ -54,6 +59,7 @@ export async function resolveInterviewWebResearchContext(params: {
     maxExtractedSources: 10,
     freshnessWindowDays: evidenceRequest.freshnessWindowDays,
     userId: params.userId,
+    onProgress: params.onProgress,
   });
 
   if (!output.success) {
@@ -66,7 +72,9 @@ export async function resolveInterviewWebResearchContext(params: {
       promptBlock: [
         "## 当前外部资料状态",
         "本轮需要最新/前沿信息，但没有拿到可用联网证据。",
-        "生成课程蓝图时必须明确标注“当前未完成联网核验”。",
+        evidenceRequest.outlineReadiness === "ready"
+          ? "如果生成课程蓝图，必须明确标注“当前未完成联网核验”。"
+          : "如果访谈信息还不完整，先继续追问关键约束，不要因为检索失败而生成蓝图。",
         output.errors.length > 0 ? `失败原因：${output.errors[0]}` : null,
       ]
         .filter((line): line is string => Boolean(line))
@@ -74,7 +82,7 @@ export async function resolveInterviewWebResearchContext(params: {
       evidenceRequest,
       retrieval: output,
       evidenceSnapshot,
-      shouldDraftOutline: evidenceRequest.shouldDraftWithEvidence,
+      shouldDraftOutline: evidenceRequest.outlineReadiness === "ready",
       evidenceAvailable: false,
     };
   }
@@ -87,7 +95,7 @@ export async function resolveInterviewWebResearchContext(params: {
   return {
     promptBlock: [
       "## 当前外部资料",
-      "以下来源已完成多路检索、页面正文读取、去重和重排。生成课程蓝图时必须使用 source id 写入 outline.researchCitations；不要只吸收结论后丢掉来源。",
+      "以下来源已完成多路检索、页面正文读取、去重和重排。它们是本轮事实校准材料，不代表访谈信息已经足够。",
       `检索时间：${new Date().toISOString()}`,
       `Evidence Request: domain=${evidenceRequest.domain}; reasons=${evidenceRequest.reasonCodes.join(",")}`,
       `查询：${output.queries.join(" | ")}`,
@@ -98,12 +106,13 @@ export async function resolveInterviewWebResearchContext(params: {
       "- 涉及最新技术、模型、版本、生态判断时，优先依据 primary/high 来源。",
       "- 如果证据不足，直接写成待核验，不要编造确定结论。",
       "- 课程结构要区分稳定基础能力和近期活跃方向。",
-      "- presentOutlinePreview 的 outline.researchCitations 必须引用上面的 source id、title、url、domain、provider；如果来源有 Extractor，也要写入 extractProvider。",
+      "- 如果本轮信息足够并调用 presentOutlinePreview，outline.researchCitations 必须引用上面的 source id、title、url、domain、provider；如果来源有 Extractor，也要写入 extractProvider。",
+      "- 如果用户只给了宽泛主题，必须先继续追问应用场景、当前基础或目标产出。",
     ].join("\n"),
     evidenceRequest,
     retrieval: output,
     evidenceSnapshot,
-    shouldDraftOutline: evidenceRequest.shouldDraftWithEvidence,
+    shouldDraftOutline: evidenceRequest.outlineReadiness === "ready",
     evidenceAvailable: true,
   };
 }

@@ -51,6 +51,14 @@ interface LearnState {
   toggleChat: () => void;
   setChatOpen: (open: boolean) => void;
 
+  // Desktop panel visibility
+  isDesktopSidebarCollapsed: boolean;
+  toggleDesktopSidebar: () => void;
+  setDesktopSidebarCollapsed: (collapsed: boolean) => void;
+  isDesktopChatCollapsed: boolean;
+  toggleDesktopChat: () => void;
+  setDesktopChatCollapsed: (collapsed: boolean) => void;
+
   // Reset
   reset: () => void;
 }
@@ -65,6 +73,8 @@ const initialState = {
   completedSections: new Set<string>(),
   isSidebarOpen: false,
   isChatOpen: false,
+  isDesktopSidebarCollapsed: false,
+  isDesktopChatCollapsed: false,
 };
 
 export const useLearnStore = create<LearnState>((set) => ({
@@ -125,6 +135,16 @@ export const useLearnStore = create<LearnState>((set) => ({
   toggleChat: () => set((state) => ({ isChatOpen: !state.isChatOpen })),
 
   setChatOpen: (isChatOpen) => set({ isChatOpen }),
+
+  toggleDesktopSidebar: () =>
+    set((state) => ({ isDesktopSidebarCollapsed: !state.isDesktopSidebarCollapsed })),
+
+  setDesktopSidebarCollapsed: (isDesktopSidebarCollapsed) => set({ isDesktopSidebarCollapsed }),
+
+  toggleDesktopChat: () =>
+    set((state) => ({ isDesktopChatCollapsed: !state.isDesktopChatCollapsed })),
+
+  setDesktopChatCollapsed: (isDesktopChatCollapsed) => set({ isDesktopChatCollapsed }),
 
   reset: () => set(initialState),
 }));

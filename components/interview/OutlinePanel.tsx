@@ -6,7 +6,6 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { WorkspaceEmptyState } from "@/components/common";
 import { InterviewOptions, type Option } from "@/components/interview/InterviewOptions";
-import { ResearchEvidencePanel } from "@/components/research/ResearchEvidencePanel";
 import { ResearchEvidenceStack } from "@/components/research/ResearchEvidenceStack";
 import { useToast } from "@/components/ui/Toast";
 import type { OutlineDisplay } from "@/lib/ai/interview/models";
@@ -192,9 +191,7 @@ export function OutlinePanel({
                   <span>正在更新蓝图...</span>
                 </div>
               )}
-              {researchEvidence ? (
-                <ResearchEvidencePanel evidence={researchEvidence} isRunning={isLoading} compact />
-              ) : (outline.researchCitations?.length ?? 0) > 0 || isLoading ? (
+              {(outline.researchCitations?.length ?? 0) > 0 || (isLoading && !researchEvidence) ? (
                 <ResearchEvidenceStack
                   citations={outline.researchCitations}
                   isRunning={isLoading}

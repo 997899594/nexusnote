@@ -1,5 +1,6 @@
 import { getToolName, isDataUIPart, isToolUIPart, type UIMessage } from "ai";
 import type { z } from "zod";
+import type { InterviewResearchEvent } from "@/lib/ai/interview/research-events";
 import { extractUIMessageText } from "@/lib/ai/message-text";
 import type { ResearchEvidenceSnapshot } from "@/lib/ai/research/evidence-snapshot";
 import { researchCitationRefSchema } from "@/lib/ai/research/source-types";
@@ -31,12 +32,15 @@ export interface InterviewDisplayMessage {
   text: string;
   mode?: "question" | "outline";
   options?: InterviewOptionAction[];
+  researchEvidence?: ResearchEvidenceSnapshot | null;
+  researchEvents?: InterviewResearchEvent[];
 }
 
 export type InterviewUIMessage = UIMessage<
   never,
   {
     researchEvidence: ResearchEvidenceSnapshot;
+    researchEvent: InterviewResearchEvent;
   },
   {
     presentOptions: {
@@ -79,6 +83,36 @@ function getLatestInterviewToolPart(message: UIMessage) {
   }
 
   return null;
+}
+
+function getResearchEvidenceFromMessage(message: UIMessage): ResearchEvidenceSnapshot | null {
+  if (message.role !== "assistant") {
+    return null;
+  }
+
+  for (let partIndex = message.parts.length - 1; partIndex >= 0; partIndex -= 1) {
+    const part = message.parts[partIndex];
+    if (isDataUIPart(part) && part.type === "data-researchEvidence") {
+      return part.data as ResearchEvidenceSnapshot;
+    }
+  }
+
+  return null;
+}
+
+function getResearchEventsFromMessage(message: UIMessage): InterviewResearchEvent[] {
+  if (message.role !== "assistant") {
+    return [];
+  }
+
+  const events: InterviewResearchEvent[] = [];
+  for (const part of message.parts) {
+    if (isDataUIPart(part) && part.type === "data-researchEvent") {
+      events.push(part.data as InterviewResearchEvent);
+    }
+  }
+
+  return events;
 }
 
 function findLatestOutlinePreviewPart(messages: InterviewUIMessage[], requireStableState: boolean) {
@@ -364,9 +398,19 @@ export function toInterviewDisplayMessages(
         text: getInterviewMessageText(message),
         mode,
         options: message.role === "assistant" ? getInterviewMessageOptions(message) : undefined,
+        researchEvidence:
+          message.role === "assistant" ? getResearchEvidenceFromMessage(message) : undefined,
+        researchEvents:
+          message.role === "assistant" ? getResearchEventsFromMessage(message) : undefined,
       };
     })
-    .filter((message) => message.text.length > 0 || (message.options?.length ?? 0) > 0);
+    .filter(
+      (message) =>
+        message.text.length > 0 ||
+        (message.options?.length ?? 0) > 0 ||
+        Boolean(message.researchEvidence) ||
+        (message.researchEvents?.length ?? 0) > 0,
+    );
 }
 
 export function getLatestVisibleInterviewAssistantMessage(

@@ -3,8 +3,17 @@ import type { NextRequest } from "next/server";
 import { classifyAIDegradation } from "@/lib/ai/core/degradation";
 import { aiModelGateway } from "@/lib/ai/core/model-gateway";
 import { getUserAIModelSeries } from "@/lib/ai/core/model-series-preferences";
-import { createNexusNoteStreamResponse } from "@/lib/ai/core/streaming";
+import {
+  createNexusNoteDeferredStreamResponse,
+  streamAgentIntoWriter,
+} from "@/lib/ai/core/streaming";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
+import {
+  createInterviewResearchCompletedEvent,
+  createInterviewResearchProgressEvent,
+  createInterviewResearchRunId,
+  createInterviewResearchStartedEvent,
+} from "@/lib/ai/interview/research-events";
 import type { InterviewUIMessage } from "@/lib/ai/interview/ui";
 import { resolveInterviewWebResearchContext } from "@/lib/ai/interview/web-research-context";
 import { createCourseInterviewerSpecialistAgent } from "@/lib/ai/specialists/registry";
@@ -80,45 +89,84 @@ export async function POST(request: NextRequest) {
     }
 
     const validatedMessages = await validateUIMessages<InterviewUIMessage>({ messages });
-    const webResearchContext = await resolveInterviewWebResearchContext({
-      userId,
-      messages: validatedMessages,
-    });
-    telemetry = {
-      ...telemetry,
-      metadata: {
-        ...telemetry.metadata,
-        evidenceRequired: Boolean(webResearchContext.evidenceRequest),
-        evidenceDomain: webResearchContext.evidenceRequest?.domain ?? null,
-        evidenceReasons: webResearchContext.evidenceRequest?.reasonCodes ?? [],
-        evidenceAvailable: webResearchContext.evidenceAvailable,
-        evidenceSourceCount: webResearchContext.retrieval?.sources.length ?? 0,
-      },
-    };
-
-    const agent = createCourseInterviewerSpecialistAgent({
-      userId,
-      courseId,
-      currentOutline: outline ?? undefined,
-      messages: validatedMessages,
-      webResearchContext,
-      modelSeries,
-      telemetry,
-    });
-
-    const response = await createNexusNoteStreamResponse(agent, validatedMessages, {
+    const response = createNexusNoteDeferredStreamResponse({
+      originalMessages: validatedMessages,
       sessionId,
-      presentation: "interview",
-      sendReasoning: false,
-      dataParts: webResearchContext.evidenceSnapshot
-        ? [
-            {
-              type: "data-researchEvidence",
-              id: webResearchContext.evidenceSnapshot.id,
-              data: webResearchContext.evidenceSnapshot,
-            },
-          ]
-        : undefined,
+      execute: async ({ writer, writeData }) => {
+        const researchRunId = createInterviewResearchRunId();
+        const webResearchContext = await resolveInterviewWebResearchContext({
+          userId,
+          messages: validatedMessages,
+          onRequest: (evidenceRequest) => {
+            writeData({
+              type: "data-researchEvent",
+              id: `${researchRunId}-started`,
+              data: createInterviewResearchStartedEvent({
+                runId: researchRunId,
+                query: evidenceRequest.query,
+                queries: evidenceRequest.queries,
+                freshnessWindowDays: evidenceRequest.freshnessWindowDays,
+              }),
+            });
+          },
+          onProgress: (progress) => {
+            writeData({
+              type: "data-researchEvent",
+              id: `${researchRunId}-${progress.stage}`,
+              data: createInterviewResearchProgressEvent({
+                runId: researchRunId,
+                progress,
+              }),
+            });
+          },
+        });
+
+        telemetry = {
+          ...telemetry,
+          metadata: {
+            ...telemetry.metadata,
+            evidenceRequired: Boolean(webResearchContext.evidenceRequest),
+            evidenceDomain: webResearchContext.evidenceRequest?.domain ?? null,
+            evidenceReasons: webResearchContext.evidenceRequest?.reasonCodes ?? [],
+            evidenceAvailable: webResearchContext.evidenceAvailable,
+            evidenceSourceCount: webResearchContext.retrieval?.sources.length ?? 0,
+          },
+        };
+
+        if (webResearchContext.evidenceSnapshot) {
+          writeData({
+            type: "data-researchEvent",
+            id: `${researchRunId}-completed`,
+            data: createInterviewResearchCompletedEvent({
+              runId: researchRunId,
+              evidence: webResearchContext.evidenceSnapshot,
+            }),
+          });
+          writeData({
+            type: "data-researchEvidence",
+            id: webResearchContext.evidenceSnapshot.id,
+            data: webResearchContext.evidenceSnapshot,
+          });
+        }
+
+        const agent = createCourseInterviewerSpecialistAgent({
+          userId,
+          courseId,
+          currentOutline: outline ?? undefined,
+          messages: validatedMessages,
+          webResearchContext,
+          modelSeries,
+          telemetry,
+        });
+
+        await streamAgentIntoWriter({
+          writer,
+          agent,
+          messages: validatedMessages,
+          presentation: "interview",
+          sendReasoning: false,
+        });
+      },
     });
     response.headers.set("X-Request-Id", requestId);
     return response;

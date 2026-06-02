@@ -1,6 +1,5 @@
 import "server-only";
 
-import { type CareerMapDraft, careerMapDraftSchema } from "@/lib/ai/career-planning/schemas";
 import {
   type CareerPlanningState,
   getLatestCareerPlanningState,
@@ -15,7 +14,10 @@ import {
   flattenVisibleNodes,
   getCurrentCareerTree,
 } from "@/lib/career-tree/view-model";
-import { getCareerTreeWorkspaceDataFresh } from "@/lib/career-tree/workspace-data";
+import {
+  type CareerTreeWorkspaceData,
+  getCareerTreeWorkspaceDataFresh,
+} from "@/lib/career-tree/workspace-data";
 
 export interface CareerPlanningSignal {
   label: string;
@@ -49,7 +51,6 @@ export interface CareerPlanningWorkspaceData {
   currentRoute: CareerPlanningRoute | null;
   routes: CareerPlanningRoute[];
   signals: CareerPlanningSignal[];
-  starterPrompts: string[];
   metrics: ReturnType<typeof countVisibleTreeMetrics> | null;
   planningState: CareerPlanningState | null;
 }
@@ -150,77 +151,6 @@ function toCompactInsightSignal(insight: { title: string; summary: string }): st
   return clampText(detail, MAX_INSIGHT_SIGNAL_CHARS);
 }
 
-function toDraftSource(
-  source: CareerPlanningSignal["source"],
-): CareerMapDraft["observations"][number]["source"] {
-  return source === "skill_tree" ? "skill_tree" : source;
-}
-
-function buildDraftNextActions(route: CareerPlanningRoute): string[] {
-  const actions = route.gapNodes
-    .slice(0, 2)
-    .map((node) => clampText(`用一个小作品验证：${node.title}`, 140));
-
-  if (actions.length > 0) {
-    return actions;
-  }
-
-  return ["用一轮真实交付验证这条路线是否适合继续投入。"];
-}
-
-export function buildCareerMapDraftFromWorkspaceData(input: {
-  data: CareerPlanningWorkspaceData;
-  latestUserMessage?: string;
-}): CareerMapDraft | null {
-  const { data } = input;
-
-  if (data.snapshot.status !== "ready" || !data.currentRoute || data.routes.length === 0) {
-    return null;
-  }
-
-  const selectedRouteKey = data.planningState?.selectedRouteKey ?? data.currentRoute.directionKey;
-  const selectedRoute =
-    data.routes.find((route) => route.directionKey === selectedRouteKey) ?? data.currentRoute;
-  const asksComparison = /比较|取舍|备选|区别/u.test(input.latestUserMessage ?? "");
-  const routeOptions = data.routes.slice(0, 3).map((route) => route.title);
-  const nextQuestion = asksComparison
-    ? "如果只看未来一个月，你更想把哪条路线做成可展示成果？"
-    : "你现在更想优先跑通哪一种最小可交付原型？";
-
-  const draft = {
-    message: `先按“${selectedRoute.title}”做一版职业地图校准。`,
-    selectedRouteKey: selectedRoute.directionKey,
-    observations: data.signals.slice(0, 4).map((signal) => ({
-      title: clampText(signal.label, 80),
-      summary: clampText(`${signal.value}: ${signal.detail}`, 220),
-      source: toDraftSource(signal.source),
-    })),
-    routes: data.routes.slice(0, 4).map((route) => {
-      const topGap = route.gapNodes[0]?.title ?? "真实交付证据";
-
-      return {
-        directionKey: route.directionKey,
-        title: clampText(route.title, 100),
-        summary: clampText(route.summary, 260),
-        fitScore: Math.round(route.confidence * 100),
-        reason: clampText(route.whyThisDirection, 280),
-        risk: clampText(`如果不补齐“${topGap}”，这条路线容易停留在判断层。`, 220),
-        gaps: route.gapNodes.slice(0, 5).map((node) => clampText(node.title, 100)),
-        nextActions: buildDraftNextActions(route),
-      };
-    }),
-    openQuestions: [nextQuestion],
-    nextQuestion: {
-      question: nextQuestion,
-      why: "这个答案会决定先补系统层、产品层，还是前端工程基座。",
-      options: asksComparison ? routeOptions : ["AI 编排原型", "AI 前端工作台", "前端工程基座"],
-    },
-  };
-
-  const parsed = careerMapDraftSchema.safeParse(draft);
-  return parsed.success ? parsed.data : null;
-}
-
 function buildSignals(input: {
   currentTree: CandidateCareerTree | null;
   currentRoute: CareerPlanningRoute | null;
@@ -268,29 +198,11 @@ function buildSignals(input: {
   return signals.slice(0, 5);
 }
 
-function buildStarterPrompts(currentRoute: CareerPlanningRoute | null): string[] {
-  if (!currentRoute) {
-    return [
-      "先根据我已有课程，帮我判断可能的职业方向",
-      "你先问我几个问题，帮我把职业方向看清楚",
-      "我还没有明确目标，先从学习记录里推断",
-    ];
-  }
-
-  return [
-    `基于“${currentRoute.title}”，先帮我确认这条路线是不是真的适合我`,
-    "你先从课程信号出发，问我一个最关键的问题",
-    "帮我比较当前路线和备选路线的取舍",
-  ];
-}
-
-export async function getCareerPlanningWorkspaceDataFresh(
-  userId: string,
-): Promise<CareerPlanningWorkspaceData> {
-  const [workspace, planningState] = await Promise.all([
-    getCareerTreeWorkspaceDataFresh(userId, 4),
-    getLatestCareerPlanningState(userId),
-  ]);
+export async function buildCareerPlanningWorkspaceDataFromCareerWorkspace(input: {
+  workspace: CareerTreeWorkspaceData;
+  planningState: CareerPlanningState | null;
+}): Promise<CareerPlanningWorkspaceData> {
+  const { workspace, planningState } = input;
   const currentTree = getCurrentCareerTree(workspace.snapshot);
   const routes = workspace.snapshot.trees.slice(0, MAX_ROUTES).map(toCareerPlanningRoute);
   const planningRoute = routes.find(
@@ -313,10 +225,20 @@ export async function getCareerPlanningWorkspaceDataFresh(
     currentRoute,
     routes,
     signals,
-    starterPrompts: buildStarterPrompts(currentRoute),
     metrics,
     planningState,
   };
+}
+
+export async function getCareerPlanningWorkspaceDataFresh(
+  userId: string,
+): Promise<CareerPlanningWorkspaceData> {
+  const [workspace, planningState] = await Promise.all([
+    getCareerTreeWorkspaceDataFresh(userId, 4),
+    getLatestCareerPlanningState(userId),
+  ]);
+
+  return buildCareerPlanningWorkspaceDataFromCareerWorkspace({ workspace, planningState });
 }
 
 export async function buildCareerPlanningPromptContext(userId: string): Promise<string> {
@@ -325,16 +247,24 @@ export async function buildCareerPlanningPromptContext(userId: string): Promise<
   if (data.snapshot.status === "empty") {
     return [
       "## 职业访谈模式",
-      "用户当前还没有可用课程职业树。不要要求用户填写一大堆资料；先用咨询师风格了解他最近想学什么、为什么想变动、希望工作状态如何。",
-      "如果用户有明确学习方向，引导他先生成课程；如果用户已经有经历，可以先做轻量职业澄清，但不要假装已有课程证据。",
+      "用户当前还没有可用课程职业树。你要像专业职业规划师一样发起访谈，而不是让前端脚本决定问题。",
+      "如果用户消息是 __career_planning_mentor_bootstrap__，这是系统启动信号，不是用户回答；直接调用 presentCareerGraphPatch 生成第一问。",
+      "第一问必须由你判断，应该能改变后续职业成长图，不要问资料表式问题。",
+      "你必须先在工具入参里完成 diagnosis、interviewTechnique、qualityGate。qualityGate 四个布尔项必须为 true；如果做不到，先改问题再输出工具。",
+      "从零开始时也要产出图补丁：可先不建节点，但 nextValidation 要说明下一步怎样把模糊意图变成 target_role、future_path、skill_gap 或 validation_task。",
+      "可从成就事件、真实取舍、约束、证据、失败样本、市场校准、验证设计中择一切入；不要把它们写成固定模板。",
+      "不要假装已有课程证据，不要要求用户先保存课程、先学习课程、先生成快照；当前任务就是从零开始访谈。",
+      "正文最多两句话，不使用编号列表，不解释系统流程。",
     ].join("\n");
   }
 
   if (data.snapshot.status === "pending") {
     return [
       "## 职业访谈模式",
-      "用户已经有课程信号，但职业树还在整理。先说明你会基于已保存课程做初步观察，再通过少量问题校准方向。",
-      "不要要求用户一次性提供完整背景；每轮只问一个会改变路线判断的问题。",
+      "用户已经有课程信号，但职业树还在整理。只做初步校准，不给完整路径结论。",
+      "如果用户消息是 __career_planning_mentor_bootstrap__，这是系统启动信号，不是用户回答；直接调用 presentCareerGraphPatch 生成第一问。",
+      "你必须先在工具入参里完成 diagnosis、interviewTechnique、qualityGate。qualityGate 四个布尔项必须为 true；如果做不到，先改问题再输出工具。",
+      "每轮只问一个会改变路线判断的问题；正文最多两句话，不解释系统流程。",
     ].join("\n");
   }
 
@@ -350,11 +280,18 @@ export async function buildCareerPlanningPromptContext(userId: string): Promise<
     "## 职业访谈模式",
     "这是一个课程驱动的职业规划访谈，不是普通职业问答。",
     "你要先基于课程、职业树、学习洞察提出观察和假设，再用少量高质量问题帮助用户校准自己。",
+    "如果用户消息是 __career_planning_mentor_bootstrap__，这是系统启动信号，不是用户回答；直接调用 presentCareerGraphPatch 生成第一问。",
     "不要让用户一次性提供学历、年限、薪资、城市、目标等一大堆信息；每轮只问一个真正影响判断的问题。",
     "不要把用户主观偏好说成已掌握能力；能力结论必须锚定课程或技能树证据。",
-    "每轮都必须先调用 presentCareerMapDraft 输出结构化职业地图，即使只是确认当前判断；不要只在正文里讲完。",
-    "正文不要复述完整地图；最多三句话，不使用编号列表；选项和取舍放进 presentCareerMapDraft.nextQuestion.options。",
-    "回答结构优先是：一句课程观察 -> 一句当前假设 -> 一个会改变路线判断的问题。",
+    "你必须先在工具入参里完成 diagnosis、interviewTechnique、qualityGate。qualityGate 四个布尔项必须为 true；如果做不到，先改问题再输出工具。",
+    "diagnosis 是隐藏职业规划师诊断，不要在正文里展开；它必须覆盖 motivation、capabilityEvidence、constraints、workStyle、targetHypothesis、marketHypothesis、risk、nextValidation。",
+    "interviewTechnique 必须从 achievement_event、counterfactual_tradeoff、constraint_probe、evidence_probe、failure_sample、market_calibration、validation_design 中选择一个，并让 nextQuestion 与该技法一致。",
+    "qualityGate.nextQuestionPurpose 要说明这个问题如何改变职业成长图；不要问只增加资料、但不改变判断的问题。",
+    "每轮都必须先调用 presentCareerGraphPatch 输出结构化图补丁，即使只是确认当前判断；不要只在正文里讲完。",
+    "引用已存在职业树能力、缺口或方向时，优先复用 payload 里的 node id 或 directionKey 写入 highlightNodeIds；不要为了视觉效果发明不存在的旧节点。",
+    "如果提出验证动作，优先用 validation_task 节点表达，让它连接到被验证的 target_role、future_path 或 skill_gap。",
+    "正文不要复述完整图补丁；最多两句话，不使用编号列表；选项和取舍放进 presentCareerGraphPatch.nextQuestion.options。",
+    "回答结构固定为：一句观察 -> 一个会改变路线判断的问题。",
     "## 当前课程驱动画像",
     JSON.stringify(promptPayload, null, 2),
   ].join("\n\n");
