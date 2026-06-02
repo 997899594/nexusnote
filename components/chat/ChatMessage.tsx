@@ -74,13 +74,6 @@ export function ChatMessage({
           <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{content}</p>
         ) : (
           <>
-            {isLearning && (
-              <div className="mb-2 flex items-center gap-2">
-                <span className="rounded-full bg-[var(--color-active)] px-2.5 py-1 text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-secondary)]">
-                  学习助手
-                </span>
-              </div>
-            )}
             {content && <StreamdownMessage content={content} />}
             {toolParts.map((toolPart) => (
               <ToolResultRenderer
@@ -118,13 +111,6 @@ export function LoadingDots({ className, variant = "default" }: LoadingDotsProps
             : "ui-message-card rounded-[26px] px-4 py-3.5",
         )}
       >
-        {isLearning && (
-          <div className="mb-2 flex items-center gap-2">
-            <span className="rounded-full bg-[var(--color-active)] px-2.5 py-1 text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-secondary)]">
-              学习助手
-            </span>
-          </div>
-        )}
         <div className="flex gap-1">
           {[0, 1, 2].map((i) => (
             <motion.span

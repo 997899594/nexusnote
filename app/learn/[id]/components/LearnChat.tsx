@@ -296,9 +296,6 @@ export function LearnChat({ courseId, courseTitle, onCollapse }: LearnChatProps)
       <div className="safe-top border-b border-black/[0.04] bg-white/82 px-4 pb-3 pt-3 backdrop-blur-xl md:px-5 md:py-4">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <div className="text-[0.625rem] font-semibold tracking-[0.18em] text-[var(--color-text-muted)]">
-              教练
-            </div>
             <p className="truncate text-xs text-[var(--color-text-secondary)]">
               {currentSection?.title ?? currentChapter?.title ?? courseTitle}
             </p>
@@ -326,7 +323,7 @@ export function LearnChat({ courseId, courseTitle, onCollapse }: LearnChatProps)
               type="button"
               onClick={onCollapse}
               className="hidden rounded-xl border border-black/8 bg-white p-1.5 text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-hover)] hover:text-[var(--color-text)] md:block"
-              aria-label="收起教练"
+              aria-label="收起提问"
             >
               <PanelRightClose className="h-4 w-4" />
             </button>

@@ -30,7 +30,7 @@ interface ToolResultRendererProps {
   isStreaming?: boolean;
 }
 
-export function ToolResultRenderer({ toolPart }: ToolResultRendererProps) {
+export function ToolResultRenderer({ toolPart, isStreaming }: ToolResultRendererProps) {
   if (toolPart.state !== "output-available") {
     return null;
   }
@@ -55,7 +55,7 @@ export function ToolResultRenderer({ toolPart }: ToolResultRendererProps) {
       if (!output?.success) {
         return <GenericToolResult output={output} />;
       }
-      return <SearchResults output={output} type={toolName} />;
+      return <SearchResults output={output} type={toolName} defaultOpen={Boolean(isStreaming)} />;
     }
 
     case "summarize": {

@@ -461,7 +461,12 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
           )}
 
           {chatMessages.map((msg) => (
-            <ChatMessage key={msg.id} message={msg} onSendReply={sendChatMessage} />
+            <ChatMessage
+              key={msg.id}
+              message={msg}
+              onSendReply={sendChatMessage}
+              isStreaming={isLoading && msg.id === lastMsg?.id}
+            />
           ))}
 
           {backgroundResearch && (

@@ -59,7 +59,7 @@ export function InterviewResearchActivity({
   const visibleSources = completedEvidence?.sources.slice(0, 5) ?? [];
   const isReady = completedEvidence?.status === "ready";
   const statusText = isReady
-    ? `已查看 ${sourceCount} 个来源`
+    ? `已核对 ${sourceCount} 个来源`
     : latestProgress?.stage === "reading"
       ? `正在读取 ${sourceCount} 个来源`
       : latestProgress?.stage === "ranking"
@@ -72,7 +72,7 @@ export function InterviewResearchActivity({
 
   return (
     <details
-      className="group mb-3 overflow-hidden rounded-[22px] border border-black/[0.06] bg-[#fbfaf6] shadow-[0_14px_40px_rgba(20,18,14,0.05)]"
+      className="group mb-3 overflow-hidden rounded-[20px] border border-black/[0.06] bg-[#fbfaf6] shadow-[0_14px_40px_rgba(20,18,14,0.04)]"
       open={defaultOpen}
     >
       <summary className="flex cursor-pointer list-none items-center gap-3 px-3.5 py-3">
@@ -91,7 +91,7 @@ export function InterviewResearchActivity({
         <span className="min-w-0 flex-1">
           <span className="block text-xs font-semibold text-[var(--color-text)]">{statusText}</span>
           <span className="mt-0.5 block truncate text-[11px] text-[var(--color-text-tertiary)]">
-            {extractedCount} 篇原文 · {authoritativeCount} 个高质量来源
+            {extractedCount} 篇原文 · {authoritativeCount} 个优先来源
             {freshnessWindowDays ? ` · ${freshnessWindowDays} 天窗口` : ""}
           </span>
         </span>
@@ -101,7 +101,7 @@ export function InterviewResearchActivity({
       <div className="border-black/[0.05] border-t px-3.5 pb-3.5 pt-3">
         <div className="mb-2 flex items-center gap-2 text-[11px] font-medium text-[var(--color-text-secondary)]">
           <Sparkles className="h-3.5 w-3.5" />
-          <span>本轮资料只用于校准方向，蓝图仍取决于你的目标、基础和产出。</span>
+          <span>本轮依据。</span>
         </div>
         {visibleSources.length > 0 ? (
           <div className="space-y-1.5">

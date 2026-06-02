@@ -88,7 +88,7 @@ export function LearnClient({
     setSidebarOpen(false);
     setChatOpen(false);
     setDesktopSidebarCollapsed(false);
-    setDesktopChatCollapsed(false);
+    setDesktopChatCollapsed(true);
 
     // Initialize completed sections
     for (const nodeId of initialCompletedSections) {
@@ -336,7 +336,7 @@ export function LearnClient({
                   type="button"
                   onClick={() => setDesktopChatCollapsed(false)}
                   className="rounded-xl border border-black/8 bg-white p-2 text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]"
-                  aria-label="展开教练"
+                  aria-label="打开提问"
                 >
                   <PanelRightOpen className="h-4 w-4" />
                 </button>

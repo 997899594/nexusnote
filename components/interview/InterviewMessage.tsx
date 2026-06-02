@@ -28,6 +28,7 @@ export function InterviewMessage({ message, onSendReply, isStreaming }: Intervie
   const isUser = message.role === "user";
   const shouldShowOptions =
     !isUser && message.mode !== "outline" && (message.options?.length ?? 0) > 0;
+  const hasActivity = message.researchEvidence || (message.researchEvents?.length ?? 0) > 0;
 
   return (
     <motion.div
@@ -48,18 +49,18 @@ export function InterviewMessage({ message, onSendReply, isStreaming }: Intervie
           <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{message.text}</p>
         ) : (
           <>
-            <div className="mb-2 flex items-center gap-2">
-              <span className="rounded-full bg-[var(--color-active)] px-2.5 py-1 text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-secondary)]">
-                课程访谈
-              </span>
-            </div>
-            {message.researchEvidence || (message.researchEvents?.length ?? 0) > 0 ? (
+            {hasActivity ? (
               <InterviewResearchActivity
                 evidence={message.researchEvidence}
                 events={message.researchEvents}
                 defaultOpen={Boolean(isStreaming)}
                 isRunning={isStreaming}
               />
+            ) : null}
+            {message.mode === "outline" ? (
+              <div className="mb-3 inline-flex items-center rounded-full bg-[var(--color-panel-soft)] px-3 py-1.5 text-[0.6875rem] font-medium text-[var(--color-text-secondary)]">
+                蓝图已更新
+              </div>
             ) : null}
             {message.text && <StreamdownMessage content={message.text} />}
             {shouldShowOptions ? (
