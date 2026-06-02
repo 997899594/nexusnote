@@ -702,8 +702,8 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
                     : data.viewer.role === "owner"
                       ? "作者视图"
                       : savedCourseId
-                        ? "进入学习库"
-                        : "保存到学习库"}
+                        ? "进入学习"
+                        : "加入我的学习"}
                 </span>
               </button>
             </div>
