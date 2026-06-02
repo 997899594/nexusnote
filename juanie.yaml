@@ -68,3 +68,37 @@ environments:
     branch: main
   staging:
     branch: main
+
+deliverables:
+  - name: nexusnote-web-runtime
+    type: archive
+    source:
+      service: web
+    variants:
+      - name: linux-amd64
+        platform: linux/amd64
+        extract:
+          from: /app/.
+          to: .
+        package:
+          format: tar.gz
+        checks:
+          - command: test -f "$JUANIE_ARTIFACT_STAGE/server.js"
+          - command: test -d "$JUANIE_ARTIFACT_STAGE/.next"
+          - command: test -d "$JUANIE_ARTIFACT_STAGE/public"
+  - name: nexusnote-worker-runtime
+    type: archive
+    source:
+      service: worker
+    variants:
+      - name: linux-amd64
+        platform: linux/amd64
+        extract:
+          from: /app/.
+          to: .
+        package:
+          format: tar.gz
+        checks:
+          - command: test -f "$JUANIE_ARTIFACT_STAGE/package.json"
+          - command: test -f "$JUANIE_ARTIFACT_STAGE/scripts/start-workers.ts"
+          - command: test -d "$JUANIE_ARTIFACT_STAGE/lib"
