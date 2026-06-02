@@ -151,9 +151,39 @@ export const coursePublicAnnotations = pgTable(
   }),
 );
 
+export const coursePublicationSaves = pgTable(
+  "course_publication_saves",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    publicationId: uuid("publication_id")
+      .references(() => coursePublications.id, { onDelete: "cascade" })
+      .notNull(),
+    snapshotId: uuid("snapshot_id")
+      .references(() => coursePublicationSnapshots.id, { onDelete: "cascade" })
+      .notNull(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    savedCourseId: uuid("saved_course_id")
+      .references(() => courses.id, { onDelete: "cascade" })
+      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    userPublicationUniqueIdx: uniqueIndex(
+      "course_publication_saves_user_publication_unique_idx",
+    ).on(table.userId, table.publicationId),
+    publicationIdx: index("course_publication_saves_publication_idx").on(table.publicationId),
+    savedCourseIdx: index("course_publication_saves_saved_course_idx").on(table.savedCourseId),
+  }),
+);
+
 export type CoursePublication = typeof coursePublications.$inferSelect;
 export type NewCoursePublication = typeof coursePublications.$inferInsert;
 export type CoursePublicationSnapshot = typeof coursePublicationSnapshots.$inferSelect;
 export type NewCoursePublicationSnapshot = typeof coursePublicationSnapshots.$inferInsert;
 export type CoursePublicAnnotation = typeof coursePublicAnnotations.$inferSelect;
 export type NewCoursePublicAnnotation = typeof coursePublicAnnotations.$inferInsert;
+export type CoursePublicationSave = typeof coursePublicationSaves.$inferSelect;
+export type NewCoursePublicationSave = typeof coursePublicationSaves.$inferInsert;

@@ -23,6 +23,7 @@ import {
 import { conversationMessages, conversations } from "./schema/conversations";
 import {
   coursePublicAnnotations,
+  coursePublicationSaves,
   coursePublicationSnapshots,
   coursePublications,
 } from "./schema/course-sharing";
@@ -92,6 +93,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   careerPlanRevisions: many(careerPlanRevisions),
   ownedCoursePublications: many(coursePublications),
   coursePublicAnnotations: many(coursePublicAnnotations),
+  coursePublicationSaves: many(coursePublicationSaves),
   researchRuns: many(researchRuns),
   billingOrders: many(billingOrders),
   entitlements: many(userEntitlements),
@@ -293,6 +295,7 @@ export const coursePublicationsRelations = relations(coursePublications, ({ one,
   }),
   snapshots: many(coursePublicationSnapshots),
   annotations: many(coursePublicAnnotations),
+  saves: many(coursePublicationSaves),
 }));
 
 export const coursePublicationSnapshotsRelations = relations(
@@ -311,6 +314,7 @@ export const coursePublicationSnapshotsRelations = relations(
       references: [courseOutlineVersions.id],
     }),
     annotations: many(coursePublicAnnotations),
+    saves: many(coursePublicationSaves),
   }),
 );
 
@@ -326,6 +330,25 @@ export const coursePublicAnnotationsRelations = relations(coursePublicAnnotation
   user: one(users, {
     fields: [coursePublicAnnotations.userId],
     references: [users.id],
+  }),
+}));
+
+export const coursePublicationSavesRelations = relations(coursePublicationSaves, ({ one }) => ({
+  publication: one(coursePublications, {
+    fields: [coursePublicationSaves.publicationId],
+    references: [coursePublications.id],
+  }),
+  snapshot: one(coursePublicationSnapshots, {
+    fields: [coursePublicationSaves.snapshotId],
+    references: [coursePublicationSnapshots.id],
+  }),
+  user: one(users, {
+    fields: [coursePublicationSaves.userId],
+    references: [users.id],
+  }),
+  savedCourse: one(courses, {
+    fields: [coursePublicationSaves.savedCourseId],
+    references: [courses.id],
   }),
 }));
 

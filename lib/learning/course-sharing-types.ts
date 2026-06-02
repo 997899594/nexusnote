@@ -9,6 +9,7 @@ export interface PublicCourseAnnotationProjection {
   quotedText: string;
   body: string;
   anchor: CoursePublicAnnotationAnchor;
+  status: "visible" | "hidden";
   createdAt: string;
   author: {
     name: string | null;
@@ -28,6 +29,7 @@ export interface PublicCourseReaderProjection {
   snapshotId: string;
   content: CoursePublicationSnapshotContent;
   annotations: PublicCourseAnnotationProjection[];
+  savedCourseId: string | null;
   viewer: {
     userId: string | null;
     role: "owner" | "reader" | "guest";

@@ -8,6 +8,7 @@ import {
   courseOutlineVersions,
   courseProgress,
   coursePublicAnnotations,
+  coursePublicationSaves,
   coursePublicationSnapshots,
   coursePublications,
   courseSections,
@@ -15,10 +16,13 @@ import {
   db,
   desc,
   eq,
+  inArray,
+  sql,
   users,
 } from "@/db";
 import type {
   CoursePublicAnnotationAnchor,
+  CoursePublicAnnotationStatus,
   CoursePublicationSnapshotContent,
 } from "@/db/schema/course-sharing";
 import { getCoursePublicationTag } from "@/lib/cache/tags";
@@ -49,7 +53,7 @@ interface PublicCourseSnapshotProjection {
   };
   snapshotId: string;
   content: CoursePublicationSnapshotContent;
-  annotations: PublicCourseAnnotationProjection[];
+  visibleAnnotations: PublicCourseAnnotationProjection[];
 }
 
 function createPublicationSlug(): string {
@@ -307,9 +311,36 @@ export async function revokeCoursePublication(params: {
   return { revoked: true, slug: publication.slug };
 }
 
-async function loadVisibleAnnotations(
+function mapAnnotationRow(row: {
+  id: string;
+  sectionKey: string;
+  quotedText: string;
+  body: string;
+  anchor: CoursePublicAnnotationAnchor;
+  status: CoursePublicAnnotationStatus;
+  createdAt: Date | null;
+  authorName: string | null;
+  authorImage: string | null;
+}): PublicCourseAnnotationProjection {
+  return {
+    id: row.id,
+    sectionKey: row.sectionKey,
+    quotedText: row.quotedText,
+    body: row.body,
+    anchor: row.anchor,
+    status: row.status,
+    createdAt: row.createdAt?.toISOString() ?? new Date().toISOString(),
+    author: {
+      name: row.authorName,
+      image: row.authorImage,
+    },
+  };
+}
+
+async function loadAnnotations(
   publicationId: string,
   snapshotId: string,
+  statuses: CoursePublicAnnotationStatus[],
 ): Promise<PublicCourseAnnotationProjection[]> {
   const rows = await db
     .select({
@@ -318,6 +349,7 @@ async function loadVisibleAnnotations(
       quotedText: coursePublicAnnotations.quotedText,
       body: coursePublicAnnotations.body,
       anchor: coursePublicAnnotations.anchor,
+      status: coursePublicAnnotations.status,
       createdAt: coursePublicAnnotations.createdAt,
       authorName: users.name,
       authorImage: users.image,
@@ -328,23 +360,12 @@ async function loadVisibleAnnotations(
       and(
         eq(coursePublicAnnotations.publicationId, publicationId),
         eq(coursePublicAnnotations.snapshotId, snapshotId),
-        eq(coursePublicAnnotations.status, "visible"),
+        inArray(coursePublicAnnotations.status, statuses),
       ),
     )
     .orderBy(desc(coursePublicAnnotations.createdAt));
 
-  return rows.map((row) => ({
-    id: row.id,
-    sectionKey: row.sectionKey,
-    quotedText: row.quotedText,
-    body: row.body,
-    anchor: row.anchor,
-    createdAt: row.createdAt?.toISOString() ?? new Date().toISOString(),
-    author: {
-      name: row.authorName,
-      image: row.authorImage,
-    },
-  }));
+  return rows.map(mapAnnotationRow);
 }
 
 async function getPublicCourseSnapshotCached(
@@ -370,7 +391,7 @@ async function getPublicCourseSnapshotCached(
     return null;
   }
 
-  const annotations = await loadVisibleAnnotations(publication.id, snapshot.id);
+  const visibleAnnotations = await loadAnnotations(publication.id, snapshot.id, ["visible"]);
 
   return {
     publication: {
@@ -384,8 +405,26 @@ async function getPublicCourseSnapshotCached(
     },
     snapshotId: snapshot.id,
     content: snapshot.contentJson,
-    annotations,
+    visibleAnnotations,
   };
+}
+
+async function loadSavedCourseId(
+  publicationId: string,
+  userId: string | null,
+): Promise<string | null> {
+  if (!userId) {
+    return null;
+  }
+
+  const save = await db.query.coursePublicationSaves.findFirst({
+    where: and(
+      eq(coursePublicationSaves.publicationId, publicationId),
+      eq(coursePublicationSaves.userId, userId),
+    ),
+  });
+
+  return save?.savedCourseId ?? null;
 }
 
 function getPublicCourseViewerRole(
@@ -409,6 +448,14 @@ export async function getPublicCourseReaderData(
   }
 
   const role = getPublicCourseViewerRole(snapshot.publication.ownerUserId, viewerUserId);
+  const [annotations, savedCourseId] = await Promise.all([
+    role === "owner"
+      ? loadAnnotations(snapshot.publication.id, snapshot.snapshotId, ["visible", "hidden"])
+      : Promise.resolve(snapshot.visibleAnnotations),
+    role === "owner"
+      ? Promise.resolve(null)
+      : loadSavedCourseId(snapshot.publication.id, viewerUserId),
+  ]);
 
   return {
     publication: {
@@ -421,7 +468,8 @@ export async function getPublicCourseReaderData(
     },
     snapshotId: snapshot.snapshotId,
     content: snapshot.content,
-    annotations: snapshot.annotations,
+    annotations,
+    savedCourseId,
     viewer: {
       userId: viewerUserId,
       role,
@@ -497,12 +545,73 @@ export async function createPublicCourseAnnotation(params: {
     quotedText: params.quotedText,
     body: params.body,
     anchor: params.anchor,
+    status: "visible",
     createdAt,
     author: {
       name: user?.name ?? null,
       image: user?.image ?? null,
     },
   };
+}
+
+export async function updatePublicCourseAnnotationStatus(params: {
+  slug: string;
+  annotationId: string;
+  userId: string;
+  status: CoursePublicAnnotationStatus;
+}): Promise<PublicCourseAnnotationProjection> {
+  const publication = await db.query.coursePublications.findFirst({
+    where: and(
+      eq(coursePublications.slug, params.slug),
+      eq(coursePublications.status, "published"),
+    ),
+  });
+
+  if (!publication?.currentSnapshotId) {
+    throw new Error("COURSE_PUBLICATION_NOT_FOUND");
+  }
+
+  if (publication.ownerUserId !== params.userId) {
+    throw new Error("COURSE_PUBLICATION_FORBIDDEN");
+  }
+
+  const [updated] = await db
+    .update(coursePublicAnnotations)
+    .set({
+      status: params.status,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(coursePublicAnnotations.id, params.annotationId),
+        eq(coursePublicAnnotations.publicationId, publication.id),
+        eq(coursePublicAnnotations.snapshotId, publication.currentSnapshotId),
+      ),
+    )
+    .returning({
+      id: coursePublicAnnotations.id,
+      sectionKey: coursePublicAnnotations.sectionKey,
+      quotedText: coursePublicAnnotations.quotedText,
+      body: coursePublicAnnotations.body,
+      anchor: coursePublicAnnotations.anchor,
+      status: coursePublicAnnotations.status,
+      createdAt: coursePublicAnnotations.createdAt,
+      userId: coursePublicAnnotations.userId,
+    });
+
+  if (!updated) {
+    throw new Error("COURSE_PUBLIC_ANNOTATION_NOT_FOUND");
+  }
+
+  const user = await db.query.users.findFirst({
+    where: eq(users.id, updated.userId),
+  });
+
+  return mapAnnotationRow({
+    ...updated,
+    authorName: user?.name ?? null,
+    authorImage: user?.image ?? null,
+  });
 }
 
 function buildOutlineFromSnapshot(content: CoursePublicationSnapshotContent): CourseOutline {
@@ -538,7 +647,7 @@ function buildOutlineFromSnapshot(content: CoursePublicationSnapshotContent): Co
 export async function savePublicCourseToLibrary(params: {
   slug: string;
   userId: string;
-}): Promise<{ courseId: string }> {
+}): Promise<{ courseId: string; alreadySaved: boolean }> {
   const publication = await db.query.coursePublications.findFirst({
     where: and(
       eq(coursePublications.slug, params.slug),
@@ -549,6 +658,15 @@ export async function savePublicCourseToLibrary(params: {
     throw new Error("COURSE_PUBLICATION_NOT_FOUND");
   }
 
+  if (publication.ownerUserId === params.userId) {
+    throw new Error("COURSE_PUBLICATION_SAVE_FORBIDDEN");
+  }
+
+  const existingSavedCourseId = await loadSavedCourseId(publication.id, params.userId);
+  if (existingSavedCourseId) {
+    return { courseId: existingSavedCourseId, alreadySaved: true };
+  }
+
   const snapshot = await db.query.coursePublicationSnapshots.findFirst({
     where: eq(coursePublicationSnapshots.id, publication.currentSnapshotId),
   });
@@ -557,8 +675,26 @@ export async function savePublicCourseToLibrary(params: {
   }
 
   const outline = buildOutlineFromSnapshot(snapshot.contentJson);
+  const lockKey = `${publication.id}:${params.userId}`;
 
   return db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${lockKey}, 0::bigint))`);
+
+    const [existingSave] = await tx
+      .select({ savedCourseId: coursePublicationSaves.savedCourseId })
+      .from(coursePublicationSaves)
+      .where(
+        and(
+          eq(coursePublicationSaves.publicationId, publication.id),
+          eq(coursePublicationSaves.userId, params.userId),
+        ),
+      )
+      .limit(1);
+
+    if (existingSave) {
+      return { courseId: existingSave.savedCourseId, alreadySaved: true };
+    }
+
     const [createdCourse] = await tx
       .insert(courses)
       .values({
@@ -616,6 +752,14 @@ export async function savePublicCourseToLibrary(params: {
       updatedAt: new Date(),
     });
 
-    return { courseId: createdCourse.id };
+    await tx.insert(coursePublicationSaves).values({
+      publicationId: publication.id,
+      snapshotId: snapshot.id,
+      userId: params.userId,
+      savedCourseId: createdCourse.id,
+      updatedAt: new Date(),
+    });
+
+    return { courseId: createdCourse.id, alreadySaved: false };
   });
 }
