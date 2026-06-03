@@ -13,6 +13,7 @@ export interface InterviewMessageData {
   role: "user" | "assistant";
   text: string;
   mode?: "question" | "outline";
+  outlineComplete?: boolean;
   options?: Option[];
   researchEvidence?: ResearchEvidenceSnapshot | null;
   researchEvents?: InterviewResearchEvent[];
@@ -57,7 +58,7 @@ export function InterviewMessage({ message, onSendReply, isStreaming }: Intervie
                 isRunning={isStreaming}
               />
             ) : null}
-            {message.mode === "outline" ? (
+            {message.mode === "outline" && message.outlineComplete ? (
               <div className="mb-3 inline-flex items-center rounded-full bg-[var(--color-panel-soft)] px-3 py-1.5 text-[0.6875rem] font-medium text-[var(--color-text-secondary)]">
                 蓝图已更新
               </div>

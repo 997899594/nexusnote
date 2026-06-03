@@ -287,7 +287,9 @@ export function OutlinePanel({
                     : canStartLearning
                       ? "生成课程并开始学习"
                       : isLoading
-                        ? "正在生成蓝图..."
+                        ? stableOutline
+                          ? "正在更新蓝图..."
+                          : "正在生成蓝图..."
                         : "等待蓝图"}
                 </span>
               </button>

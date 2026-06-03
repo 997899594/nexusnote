@@ -12,6 +12,7 @@ import type {
 import type { InterviewOutline } from "@/lib/ai/interview/schemas";
 import {
   findLatestOutline,
+  findLatestOutlineSinceLastUser,
   findLatestResearchEvidence,
   findLatestStableOutline,
   type InterviewDisplayMessage,
@@ -43,7 +44,6 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
   const [aiDegradedKind, setAIDegradedKind] = useState<AIDegradationKind | null>(null);
   const [stableOutline, setStableOutlineState] = useState<InterviewOutline | null>(null);
   const [courseId, setCourseIdState] = useState<string | null>(null);
-  const [isOutlineLoading, setIsOutlineLoading] = useState(false);
 
   const stableOutlineRef = useRef<InterviewOutline | null>(null);
   const courseIdRef = useRef<string | null>(null);
@@ -83,10 +83,8 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
       if (stableResult?.outline) {
         setStableOutline(stableResult.outline);
       }
-      setIsOutlineLoading(false);
     },
     onError: (error) => {
-      setIsOutlineLoading(false);
       console.error("[Interview] API Error:", error);
       parseApiError(error).then(({ message, status, code }) => {
         if (isUnauthorizedError(status, code)) {
@@ -102,20 +100,24 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
   const displayMessages = toInterviewDisplayMessages(messages);
   const isLoading = status === "submitted" || status === "streaming";
   const liveOutlineResult = findLatestOutline(messages);
+  const currentTurnOutlineResult = findLatestOutlineSinceLastUser(messages);
   const researchEvidence = findLatestResearchEvidence(messages);
+  const stableResult = findLatestStableOutline(messages);
   const latestAssistantMessage = [...displayMessages]
     .reverse()
     .find((message) => message.role === "assistant");
-  const displayOutline: OutlineDisplay | null = liveOutlineResult?.outline ?? stableOutline;
+  const currentStableOutline = stableResult?.outline ?? stableOutline;
+  const displayOutline: OutlineDisplay | null = liveOutlineResult?.outline ?? currentStableOutline;
+  const outlineIsLoading = isLoading && !currentTurnOutlineResult?.isComplete;
   const outline: InterviewOutlineState = {
     display: displayOutline,
-    stable: stableOutline,
+    stable: currentStableOutline,
     researchEvidence,
     actions:
       liveOutlineResult?.options ??
       (latestAssistantMessage?.mode === "outline" ? (latestAssistantMessage.options ?? []) : []),
-    isLoading: isOutlineLoading,
-    isReady: stableOutline != null,
+    isLoading: outlineIsLoading,
+    isReady: currentStableOutline != null,
   };
   const course: InterviewCourseState = {
     id: courseId,
@@ -123,25 +125,16 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
   };
 
   useEffect(() => {
-    if (liveOutlineResult?.isStarted) {
-      setIsOutlineLoading(!liveOutlineResult.isComplete);
-      return;
+    if (stableResult?.outline && stableOutlineRef.current !== stableResult.outline) {
+      setStableOutline(stableResult.outline);
     }
-
-    if (!isLoading) {
-      setIsOutlineLoading(false);
-    }
-  }, [isLoading, liveOutlineResult]);
+  }, [stableResult, setStableOutline]);
 
   const sendMessage = useCallback(
     async ({ text }: { text: string }) => {
       const nextText = text.trim();
       if (!nextText) {
         return;
-      }
-
-      if (stableOutlineRef.current) {
-        setIsOutlineLoading(true);
       }
 
       await chat.sendMessage({ text: nextText });

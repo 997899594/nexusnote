@@ -31,6 +31,7 @@ export interface InterviewDisplayMessage {
   role: "user" | "assistant";
   text: string;
   mode?: "question" | "outline";
+  outlineComplete?: boolean;
   options?: InterviewOptionAction[];
   researchEvidence?: ResearchEvidenceSnapshot | null;
   researchEvents?: InterviewResearchEvent[];
@@ -341,23 +342,32 @@ export function findLatestOutline(
   const outline = normalizePartialOutline(input?.outline);
   const stableOutline = normalizeStableOutline(input?.outline);
   const options = normalizeInterviewOptions(input?.options, "revise");
+  const hasStableToolState = part.state === "input-available" || part.state === "output-available";
 
   return {
     outline,
-    isComplete:
-      stableOutline != null ||
-      part.state === "input-available" ||
-      part.state === "output-available",
+    isComplete: stableOutline != null && hasStableToolState,
     isStarted: true,
     ...(typeof input?.message === "string" ? { message: input.message } : {}),
     ...(options.length > 0 ? { options } : {}),
   };
 }
 
+export function findLatestOutlineSinceLastUser(
+  messages: InterviewUIMessage[],
+): InterviewOutlinePreviewData | null {
+  const lastUserIndex = [...messages]
+    .map((message, index) => ({ message, index }))
+    .reverse()
+    .find((entry) => entry.message.role === "user")?.index;
+
+  return findLatestOutline(lastUserIndex == null ? messages : messages.slice(lastUserIndex + 1));
+}
+
 export function findLatestStableOutline(
   messages: InterviewUIMessage[],
 ): InterviewStableOutlineData | null {
-  const part = findLatestOutlinePreviewPart(messages, false);
+  const part = findLatestOutlinePreviewPart(messages, true);
   if (!part) {
     return null;
   }
@@ -385,18 +395,16 @@ export function toInterviewDisplayMessages(
       } => message.role === "user" || message.role === "assistant",
     )
     .map((message) => {
+      const outlineResult = message.role === "assistant" ? findLatestOutline([message]) : null;
       const mode: InterviewDisplayMessage["mode"] =
-        message.role === "assistant"
-          ? findLatestOutline([message])
-            ? "outline"
-            : "question"
-          : undefined;
+        message.role === "assistant" ? (outlineResult ? "outline" : "question") : undefined;
 
       return {
         id: message.id,
         role: message.role,
         text: getInterviewMessageText(message),
         mode,
+        outlineComplete: outlineResult?.isComplete,
         options: message.role === "assistant" ? getInterviewMessageOptions(message) : undefined,
         researchEvidence:
           message.role === "assistant" ? getResearchEvidenceFromMessage(message) : undefined,
