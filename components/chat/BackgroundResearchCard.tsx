@@ -1,10 +1,9 @@
 "use client";
 
-import { AlertTriangle, Check, Circle, Loader2, RotateCcw, Square, XCircle } from "lucide-react";
+import { AlertTriangle, Check, Loader2, RotateCcw, XCircle } from "lucide-react";
 import type { ReactNode } from "react";
-import { ResearchEvidenceStack } from "@/components/research/ResearchEvidenceStack";
+import { ResearchSourceStrip } from "@/components/research/ResearchSourceStrip";
 import type { ResearchCitation, ResearchRunStatus } from "@/lib/ai/research/contracts";
-import { cn } from "@/lib/utils";
 
 export interface BackgroundResearchCardState {
   runId: string;
@@ -26,22 +25,6 @@ interface BackgroundResearchCardProps {
   children?: ReactNode;
 }
 
-const PIPELINE = [
-  { key: "planning", label: "计划" },
-  { key: "researching", label: "读取" },
-  { key: "synthesizing", label: "综合" },
-  { key: "persisting", label: "写回" },
-] as const;
-
-const STAGE_INDEX: Record<string, number> = {
-  queued: 0,
-  planning: 0,
-  researching: 1,
-  synthesizing: 2,
-  persisting: 3,
-  completed: 4,
-};
-
 function getStatusLabel(status: ResearchRunStatus) {
   if (status === "completed") {
     return "已完成";
@@ -58,21 +41,22 @@ function getStatusLabel(status: ResearchRunStatus) {
   return "深度研究";
 }
 
-function getActiveIndex(research: BackgroundResearchCardState) {
-  if (research.status === "completed") {
-    return PIPELINE.length;
-  }
-  if (research.status === "failed" || research.status === "canceled") {
-    return -1;
-  }
-
-  return STAGE_INDEX[research.stage ?? research.status] ?? 0;
-}
-
 function summarizeQuality(citations: ResearchCitation[] | undefined) {
   const primary = citations?.filter((citation) => citation.qualityTier === "primary").length ?? 0;
   const high = citations?.filter((citation) => citation.qualityTier === "high").length ?? 0;
   return { primary, high };
+}
+
+function getProgressLabel(research: BackgroundResearchCardState) {
+  if (research.progressMessage) {
+    return research.progressMessage;
+  }
+
+  if (research.completedTasks != null && research.totalTasks != null) {
+    return `${research.completedTasks}/${research.totalTasks}`;
+  }
+
+  return research.status === "queued" ? "排队中" : "处理中";
 }
 
 export function BackgroundResearchCard({
@@ -80,7 +64,6 @@ export function BackgroundResearchCard({
   onAction,
   children,
 }: BackgroundResearchCardProps) {
-  const activeIndex = getActiveIndex(research);
   const isRunning =
     research.status !== "completed" &&
     research.status !== "failed" &&
@@ -88,10 +71,8 @@ export function BackgroundResearchCard({
   const quality = summarizeQuality(research.citations);
 
   return (
-    <div className="relative overflow-hidden rounded-[28px] border border-black/[0.06] bg-[#fbfaf5]/90 p-4 text-sm text-[var(--color-text)] shadow-[0_18px_54px_rgba(42,38,28,0.08)]">
-      <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-black/20 to-transparent" />
-
-      <div className="flex items-start justify-between gap-3">
+    <div className="border-black/[0.06] border-y py-2 text-xs text-[var(--color-text-secondary)]">
+      <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             {isRunning ? (
@@ -101,89 +82,52 @@ export function BackgroundResearchCard({
             ) : (
               <AlertTriangle className="h-3.5 w-3.5 text-amber-700" />
             )}
-            <span className="font-medium tracking-[-0.01em]">
+            <span className="font-medium text-[var(--color-text)]">
               {getStatusLabel(research.status)}
             </span>
+            <span className="min-w-0 truncate text-[var(--color-text-tertiary)]">
+              {getProgressLabel(research)}
+            </span>
           </div>
-          <p className="mt-1 text-xs leading-5 text-[var(--color-text-tertiary)]">
-            {research.progressMessage ?? "准备检索源。"}
-          </p>
         </div>
 
         {research.totalTasks != null ? (
-          <div className="shrink-0 rounded-full border border-black/[0.06] bg-white/60 px-2.5 py-1 text-[11px] font-medium text-[var(--color-text-secondary)]">
+          <div className="shrink-0 text-[var(--color-text-tertiary)]">
             {research.completedTasks ?? 0}/{research.totalTasks}
           </div>
         ) : null}
       </div>
 
-      <div className="mt-4 grid grid-cols-4 gap-2">
-        {PIPELINE.map((step, index) => {
-          const done = activeIndex > index;
-          const active = activeIndex === index && isRunning;
-          return (
-            <div key={step.key} className="min-w-0">
-              <div
-                className={cn(
-                  "h-1.5 rounded-full transition-colors",
-                  done ? "bg-stone-900" : active ? "bg-stone-400" : "bg-black/[0.07]",
-                )}
-              />
-              <div className="mt-1.5 flex items-center gap-1 text-[10px] uppercase tracking-[0.14em] text-[var(--color-text-tertiary)]">
-                {done ? (
-                  <Check className="h-3 w-3" />
-                ) : active ? (
-                  <Circle className="h-2.5 w-2.5 fill-current" />
-                ) : (
-                  <Square className="h-2.5 w-2.5" />
-                )}
-                <span className="truncate">{step.label}</span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <ResearchEvidenceStack
-        citations={research.citations}
-        isRunning={isRunning}
-        compact
-        className="mt-4"
-      />
+      {(research.citations?.length ?? 0) > 0 ? (
+        <ResearchSourceStrip
+          sources={research.citations}
+          label={`来源 ${research.citations?.length ?? 0}`}
+          meta={[
+            quality.primary > 0 ? `${quality.primary} 个主来源` : null,
+            quality.high > 0 ? `${quality.high} 个高质量` : null,
+          ]}
+          isRunning={isRunning}
+          className="mt-2 border-b-0"
+        />
+      ) : null}
 
       {research.status === "failed" ? (
-        <p className="mt-4 text-xs leading-5 text-amber-800">
+        <p className="mt-2 text-xs leading-5 text-amber-800">
           {research.failedReason ?? "研究失败。"}
         </p>
       ) : null}
 
       {research.status === "canceled" ? (
-        <p className="mt-4 text-xs leading-5 text-[var(--color-text-secondary)]">已停止。</p>
-      ) : null}
-
-      {(research.citationCount ?? 0) > 0 ? (
-        <div className="mt-4 flex flex-wrap gap-2 text-[11px] text-[var(--color-text-tertiary)]">
-          <span className="rounded-full bg-white/64 px-2.5 py-1">
-            {research.citationCount} 个来源
-          </span>
-          {quality.primary > 0 ? (
-            <span className="rounded-full bg-white/64 px-2.5 py-1">{quality.primary} 个主来源</span>
-          ) : null}
-          {quality.high > 0 ? (
-            <span className="rounded-full bg-white/64 px-2.5 py-1">
-              {quality.high} 个高质量来源
-            </span>
-          ) : null}
-        </div>
+        <p className="mt-2 text-xs leading-5 text-[var(--color-text-secondary)]">已停止。</p>
       ) : null}
 
       {(research.canCancel || research.canRetry) && (
-        <div className="mt-4 flex items-center gap-2">
+        <div className="mt-2 flex items-center gap-2">
           {research.canCancel ? (
             <button
               type="button"
               onClick={() => onAction("cancel")}
-              className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-white/50 px-3 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-white hover:text-[var(--color-text)]"
+              className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-black/[0.04] hover:text-[var(--color-text)]"
             >
               <XCircle className="h-3.5 w-3.5" />
               停止
@@ -193,7 +137,7 @@ export function BackgroundResearchCard({
             <button
               type="button"
               onClick={() => onAction("retry")}
-              className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-white/50 px-3 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-white hover:text-[var(--color-text)]"
+              className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-black/[0.04] hover:text-[var(--color-text)]"
             >
               <RotateCcw className="h-3.5 w-3.5" />
               重试
@@ -202,7 +146,7 @@ export function BackgroundResearchCard({
         </div>
       )}
 
-      {children ? <div className="mt-4 rounded-2xl bg-white/58 px-3 py-3">{children}</div> : null}
+      {children ? <div className="mt-2">{children}</div> : null}
     </div>
   );
 }

@@ -20,7 +20,7 @@ import { persistConversationMessages } from "@/lib/chat/conversation-persistence
 import { mergeOwnedConversationMetadata } from "@/lib/chat/conversation-repository";
 import { enqueueBackgroundResearch, type QueuedResearchJob } from "@/lib/queue/research-queue";
 
-const BACKGROUND_RESEARCH_ACKNOWLEDGEMENT = "已开始深度研究，完成后回到这里。";
+const BACKGROUND_RESEARCH_ACKNOWLEDGEMENT = "已开始深度研究。";
 
 function getLatestUserMessageText(messages: UIMessage[]): string {
   const latestUserMessage = [...messages].reverse().find((message) => message.role === "user");

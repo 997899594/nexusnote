@@ -185,7 +185,18 @@ function buildAssistantResearchResultMessage(report: BackgroundResearchReport): 
   return {
     id: crypto.randomUUID(),
     role: "assistant",
-    parts: [{ type: "text", text: report.reportMarkdown }],
+    parts: [
+      {
+        type: "data-researchSources",
+        id: `research-sources-${crypto.randomUUID()}`,
+        data: {
+          sourceCount: report.sourceCount,
+          completedAt: report.completedAt,
+          sources: report.citations,
+        },
+      },
+      { type: "text", text: report.reportMarkdown },
+    ],
   };
 }
 

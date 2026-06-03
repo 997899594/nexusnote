@@ -1,12 +1,12 @@
 "use client";
 
-import { BookOpen, ExternalLink, Loader2, Play } from "lucide-react";
+import { BookOpen, Loader2, Play } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { WorkspaceEmptyState } from "@/components/common";
 import { InterviewOptions, type Option } from "@/components/interview/InterviewOptions";
-import { ResearchEvidenceStack } from "@/components/research/ResearchEvidenceStack";
+import { ResearchSourceStrip } from "@/components/research/ResearchSourceStrip";
 import { useToast } from "@/components/ui/Toast";
 import type { OutlineDisplay } from "@/lib/ai/interview/models";
 import type { InterviewOutline } from "@/lib/ai/interview/schemas";
@@ -39,31 +39,6 @@ function getDifficultyLabel(difficulty?: string | null) {
   }
 
   return DIFFICULTY_LABELS[difficulty] ?? difficulty;
-}
-
-const PROVIDER_LABELS: Record<string, string> = {
-  tavily: "Tavily",
-  exa: "Exa",
-  "jina-search": "Jina",
-  "tavily-extract": "Tavily Extract",
-  firecrawl: "Firecrawl",
-  "jina-reader": "Jina Reader",
-  "exa-contents": "Exa Contents",
-};
-
-const QUALITY_LABELS: Record<string, string> = {
-  primary: "主来源",
-  high: "高质量",
-  standard: "标准",
-  low: "低置信",
-};
-
-function getSourceMeta(source: NonNullable<OutlineDisplay["researchCitations"]>[number]) {
-  const provider = source.provider ? PROVIDER_LABELS[source.provider] : null;
-  const extractor = source.extractProvider ? PROVIDER_LABELS[source.extractProvider] : null;
-  const quality = source.qualityTier ? QUALITY_LABELS[source.qualityTier] : null;
-
-  return [provider, extractor, quality].filter(Boolean).join(" · ");
 }
 
 export function OutlinePanel({
@@ -191,50 +166,17 @@ export function OutlinePanel({
                   <span>正在更新蓝图...</span>
                 </div>
               )}
-              {(outline.researchCitations?.length ?? 0) > 0 || (isLoading && !researchEvidence) ? (
-                <ResearchEvidenceStack
-                  citations={outline.researchCitations}
-                  isRunning={isLoading}
-                  compact
-                />
-              ) : null}
               {(outline.researchCitations?.length ?? 0) > 0 ? (
-                <div className="rounded-[22px] border border-black/[0.05] bg-[#fbfaf5]/80 p-3">
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-tertiary)]">
-                      Sources
-                    </p>
-                    <span className="text-[11px] text-[var(--color-text-muted)]">
-                      {outline.researchCitations?.length}
-                    </span>
-                  </div>
-                  <div className="space-y-1.5">
-                    {outline.researchCitations?.slice(0, 4).map((source) => (
-                      <a
-                        key={`${source.id}-${source.url}`}
-                        href={source.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="group flex items-center justify-between gap-3 rounded-xl bg-white/58 px-3 py-2 text-xs text-[var(--color-text-secondary)] transition-colors hover:bg-white hover:text-[var(--color-text)]"
-                      >
-                        <span className="min-w-0">
-                          <span className="block truncate">
-                            <span className="mr-1 font-medium text-[var(--color-text)]">
-                              {source.id}
-                            </span>
-                            {source.title}
-                          </span>
-                          {getSourceMeta(source) ? (
-                            <span className="mt-0.5 block truncate text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-tertiary)]">
-                              {getSourceMeta(source)}
-                            </span>
-                          ) : null}
-                        </span>
-                        <ExternalLink className="h-3.5 w-3.5 shrink-0 text-[var(--color-text-muted)] transition-colors group-hover:text-[var(--color-text-secondary)]" />
-                      </a>
-                    ))}
-                  </div>
-                </div>
+                <ResearchSourceStrip
+                  sources={outline.researchCitations}
+                  label={`引用 ${outline.researchCitations?.length ?? 0}`}
+                  meta={[
+                    researchEvidence?.freshnessWindowDays
+                      ? `${researchEvidence.freshnessWindowDays} 天`
+                      : null,
+                  ]}
+                  maxVisible={4}
+                />
               ) : null}
               {actionOptions.length > 0 ? (
                 <div className="ui-control-surface rounded-2xl p-3">

@@ -1,7 +1,9 @@
 "use client";
 
-import { getToolName, type TextUIPart, type ToolUIPart, type UIMessage } from "ai";
+import { getToolName, isDataUIPart, type TextUIPart, type ToolUIPart, type UIMessage } from "ai";
 import { motion } from "framer-motion";
+import { ResearchSourceStrip } from "@/components/research/ResearchSourceStrip";
+import type { ResearchCitation } from "@/lib/ai/research/contracts";
 import { isChatVisibleTool } from "@/lib/ai/tools/shared/display-contract";
 import { cn } from "@/lib/utils";
 import { StreamdownMessage } from "./StreamdownMessage";
@@ -14,8 +16,22 @@ interface ChatMessageProps {
   variant?: "default" | "learning";
 }
 
+interface ChatResearchSourcesData {
+  sourceCount: number;
+  completedAt: string;
+  sources: ResearchCitation[];
+}
+
 function isTextPart(part: { type: string }): part is TextUIPart {
   return part.type === "text";
+}
+
+function isBackgroundResearchAcknowledgement(content: string): boolean {
+  return content.trim() === "已开始深度研究。";
+}
+
+function stripMarkdownSourcesSection(content: string): string {
+  return content.replace(/\n## 来源[\s\S]*$/u, "").trim();
 }
 
 function isToolPart(part: { type: string }): part is ToolUIPart {
@@ -35,6 +51,21 @@ function getToolParts(message: UIMessage): ToolUIPart[] {
   );
 }
 
+function getResearchSources(message: UIMessage): ChatResearchSourcesData | null {
+  if (message.role !== "assistant") {
+    return null;
+  }
+
+  for (let index = message.parts.length - 1; index >= 0; index -= 1) {
+    const part = message.parts[index];
+    if (isDataUIPart(part) && part.type === "data-researchSources") {
+      return part.data as ChatResearchSourcesData;
+    }
+  }
+
+  return null;
+}
+
 export function ChatMessage({
   message,
   onSendReply,
@@ -44,9 +75,15 @@ export function ChatMessage({
   const isUser = message.role === "user";
   const content = getTextContent(message);
   const toolParts = getToolParts(message);
+  const researchSources = getResearchSources(message);
+  const visibleContent = isBackgroundResearchAcknowledgement(content)
+    ? ""
+    : researchSources
+      ? stripMarkdownSourcesSection(content)
+      : content;
   const isLearning = variant === "learning";
 
-  if (!isUser && !content && toolParts.length === 0) {
+  if (!isUser && !visibleContent && toolParts.length === 0 && !researchSources) {
     return null;
   }
 
@@ -74,7 +111,15 @@ export function ChatMessage({
           <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{content}</p>
         ) : (
           <>
-            {content && <StreamdownMessage content={content} />}
+            {researchSources ? (
+              <ResearchSourceStrip
+                sources={researchSources.sources}
+                label={`来源 ${researchSources.sourceCount}`}
+                defaultOpen={Boolean(isStreaming)}
+                className={visibleContent ? "mb-3" : undefined}
+              />
+            ) : null}
+            {visibleContent && <StreamdownMessage content={visibleContent} />}
             {toolParts.map((toolPart) => (
               <ToolResultRenderer
                 key={toolPart.toolCallId}
