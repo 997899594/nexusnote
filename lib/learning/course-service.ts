@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import {
   courseOutlineNodes,
   courseOutlineVersions,
@@ -11,6 +11,7 @@ import { getOwnedCourse } from "@/lib/learning/course-repository";
 import {
   buildCourseOutlineNodeValues,
   buildCourseOutlineVersionValues,
+  computeCourseOutlineVersionHash,
 } from "@/lib/learning/course-structure";
 import { buildSectionOutlineNodeKey } from "@/lib/learning/outline-node-key";
 import type { CourseOutline } from "./course-outline";
@@ -20,6 +21,8 @@ interface SaveCourseFromOutlineOptions {
   outline: CourseOutline;
   courseId?: string;
 }
+
+type CourseSaveTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 function estimateCourseMinutes(outline: CourseOutline) {
   const sectionCount = outline.chapters.reduce(
@@ -44,19 +47,86 @@ function buildInitialProgress(_outline: CourseOutline) {
   };
 }
 
+function buildSectionDocuments(courseId: string, outline: CourseOutline) {
+  return outline.chapters.flatMap((chapter, chapterIndex) =>
+    chapter.sections.map((section, sectionIndex) => ({
+      title: section.title,
+      courseId,
+      outlineNodeKey: buildSectionOutlineNodeKey(chapterIndex, sectionIndex),
+      contentMarkdown: null,
+      plainText: null,
+    })),
+  );
+}
+
+async function replaceCourseStructureFromOutline(params: {
+  tx: CourseSaveTransaction;
+  userId: string;
+  courseId: string;
+  outlineVersionId: string;
+  outline: CourseOutline;
+}) {
+  const { tx, userId, courseId, outlineVersionId, outline } = params;
+
+  await tx
+    .delete(courseOutlineNodes)
+    .where(eq(courseOutlineNodes.outlineVersionId, outlineVersionId));
+
+  const outlineNodes = buildCourseOutlineNodeValues({
+    courseId,
+    outlineVersionId,
+    outline,
+  });
+
+  if (outlineNodes.length > 0) {
+    await tx.insert(courseOutlineNodes).values(outlineNodes);
+  }
+
+  await tx.delete(courseSections).where(eq(courseSections.courseId, courseId));
+
+  const sectionDocuments = buildSectionDocuments(courseId, outline);
+
+  if (sectionDocuments.length > 0) {
+    await tx.insert(courseSections).values(sectionDocuments);
+  }
+
+  const progressValues = {
+    courseId,
+    userId,
+    ...buildInitialProgress(outline),
+  };
+
+  const [existingProgress] = await tx
+    .select({ id: courseProgress.id })
+    .from(courseProgress)
+    .where(eq(courseProgress.courseId, courseId))
+    .limit(1);
+
+  if (existingProgress) {
+    await tx
+      .update(courseProgress)
+      .set(progressValues)
+      .where(eq(courseProgress.courseId, courseId));
+  } else {
+    await tx.insert(courseProgress).values(progressValues);
+  }
+}
+
 export async function saveCourseFromOutline({
   userId,
   outline,
   courseId,
 }: SaveCourseFromOutlineOptions): Promise<{ courseId: string }> {
   return db.transaction(async (tx) => {
+    const now = new Date();
+    const outlineVersionHash = computeCourseOutlineVersionHash(outline);
     const courseValues = {
       userId,
       title: outline.title,
       description: outline.description ?? null,
       difficulty: outline.difficulty,
       estimatedMinutes: estimateCourseMinutes(outline),
-      updatedAt: new Date(),
+      updatedAt: now,
     };
 
     let persistedCourseId = courseId;
@@ -77,63 +147,94 @@ export async function saveCourseFromOutline({
       persistedCourseId = createdCourse.id;
     }
 
+    const [existingOutlineVersion] = await tx
+      .select({ id: courseOutlineVersions.id, isLatest: courseOutlineVersions.isLatest })
+      .from(courseOutlineVersions)
+      .where(
+        and(
+          eq(courseOutlineVersions.courseId, persistedCourseId),
+          eq(courseOutlineVersions.versionHash, outlineVersionHash),
+        ),
+      )
+      .limit(1);
+
+    if (existingOutlineVersion) {
+      if (!existingOutlineVersion.isLatest) {
+        await tx
+          .update(courseOutlineVersions)
+          .set({ isLatest: false, updatedAt: now })
+          .where(eq(courseOutlineVersions.courseId, persistedCourseId));
+
+        await tx
+          .update(courseOutlineVersions)
+          .set({ isLatest: true, updatedAt: now })
+          .where(eq(courseOutlineVersions.id, existingOutlineVersion.id));
+
+        await replaceCourseStructureFromOutline({
+          tx,
+          userId,
+          courseId: persistedCourseId,
+          outlineVersionId: existingOutlineVersion.id,
+          outline,
+        });
+      }
+
+      return { courseId: persistedCourseId };
+    }
+
     await tx
       .update(courseOutlineVersions)
-      .set({ isLatest: false, updatedAt: new Date() })
+      .set({ isLatest: false, updatedAt: now })
       .where(eq(courseOutlineVersions.courseId, persistedCourseId));
 
     const [outlineVersion] = await tx
       .insert(courseOutlineVersions)
-      .values(buildCourseOutlineVersionValues({ courseId: persistedCourseId, outline }))
+      .values(
+        buildCourseOutlineVersionValues({
+          courseId: persistedCourseId,
+          outline,
+          versionHash: outlineVersionHash,
+          updatedAt: now,
+        }),
+      )
+      .onConflictDoNothing({
+        target: [courseOutlineVersions.courseId, courseOutlineVersions.versionHash],
+      })
       .returning({ id: courseOutlineVersions.id });
 
-    await tx
-      .delete(courseOutlineNodes)
-      .where(eq(courseOutlineNodes.outlineVersionId, outlineVersion.id));
+    if (!outlineVersion) {
+      const [racedOutlineVersion] = await tx
+        .select({ id: courseOutlineVersions.id, isLatest: courseOutlineVersions.isLatest })
+        .from(courseOutlineVersions)
+        .where(
+          and(
+            eq(courseOutlineVersions.courseId, persistedCourseId),
+            eq(courseOutlineVersions.versionHash, outlineVersionHash),
+          ),
+        )
+        .limit(1);
 
-    await tx.insert(courseOutlineNodes).values(
-      buildCourseOutlineNodeValues({
-        courseId: persistedCourseId,
-        outlineVersionId: outlineVersion.id,
-        outline,
-      }),
-    );
+      if (!racedOutlineVersion) {
+        throw new Error("Course outline version conflict without persisted row");
+      }
 
-    await tx.delete(courseSections).where(eq(courseSections.courseId, persistedCourseId));
+      if (!racedOutlineVersion.isLatest) {
+        await tx
+          .update(courseOutlineVersions)
+          .set({ isLatest: true, updatedAt: now })
+          .where(eq(courseOutlineVersions.id, racedOutlineVersion.id));
+      }
 
-    const sectionDocuments = outline.chapters.flatMap((chapter, chapterIndex) =>
-      chapter.sections.map((section, sectionIndex) => ({
-        title: section.title,
-        courseId: persistedCourseId,
-        outlineNodeKey: buildSectionOutlineNodeKey(chapterIndex, sectionIndex),
-        contentMarkdown: null,
-        plainText: null,
-      })),
-    );
-
-    if (sectionDocuments.length > 0) {
-      await tx.insert(courseSections).values(sectionDocuments);
+      return { courseId: persistedCourseId };
     }
-    const progressValues = {
-      courseId: persistedCourseId,
+
+    await replaceCourseStructureFromOutline({
+      tx,
       userId,
-      ...buildInitialProgress(outline),
-    };
-
-    const [existingProgress] = await tx
-      .select({ id: courseProgress.id })
-      .from(courseProgress)
-      .where(eq(courseProgress.courseId, persistedCourseId))
-      .limit(1);
-
-    if (existingProgress) {
-      await tx
-        .update(courseProgress)
-        .set(progressValues)
-        .where(eq(courseProgress.courseId, persistedCourseId));
-    } else {
-      await tx.insert(courseProgress).values(progressValues);
-    }
+      courseId: persistedCourseId,
+      outlineVersionId: outlineVersion.id,
+      outline,
+    });
 
     return { courseId: persistedCourseId };
   });

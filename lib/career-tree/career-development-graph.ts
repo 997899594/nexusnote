@@ -11,6 +11,7 @@ export interface CareerRoleNode {
   key: string;
   title: string;
   summary: string;
+  routeTitle: string | null;
   confidence: number;
   horizon: "current" | CareerProgressionRole["horizon"];
   source: "current_tree" | "progression_role" | "candidate_tree";
@@ -34,14 +35,49 @@ function flattenVisibleNodes(nodes: VisibleSkillTreeNode[]): VisibleSkillTreeNod
   return nodes.flatMap((node) => [node, ...flattenVisibleNodes(node.children)]);
 }
 
+function normalizeRoleTitle(title: string): string {
+  return title
+    .replace(/[（(].*?[）)]/gu, "")
+    .replace(/\s+/g, "")
+    .toLowerCase();
+}
+
+function getRealisticProgressionRoles(tree: CandidateCareerTree): CareerProgressionRole[] {
+  const seen = new Set<string>();
+
+  return tree.progressionRoles.filter((role) => {
+    if (!isRealisticProgressionRoleTitle(role.title)) {
+      return false;
+    }
+
+    const normalizedTitle = normalizeRoleTitle(role.title);
+    if (seen.has(normalizedTitle)) {
+      return false;
+    }
+
+    seen.add(normalizedTitle);
+    return true;
+  });
+}
+
+function resolveTargetRole(tree: CandidateCareerTree): CareerProgressionRole | null {
+  if (isRealisticProgressionRoleTitle(tree.title)) {
+    return null;
+  }
+
+  return getRealisticProgressionRoles(tree)[0] ?? null;
+}
+
 function toCareerRoleNode(tree: CandidateCareerTree, snapshot: CareerTreeSnapshot): CareerRoleNode {
   const visibleNodes = flattenVisibleNodes(tree.tree);
+  const targetRole = resolveTargetRole(tree);
 
   return {
     key: tree.directionKey,
-    title: tree.title,
-    summary: tree.summary,
-    confidence: tree.confidence,
+    title: targetRole?.title ?? tree.title,
+    summary: targetRole?.summary ?? tree.summary,
+    routeTitle: targetRole ? tree.title : null,
+    confidence: targetRole ? Math.max(tree.confidence, targetRole.confidence) : tree.confidence,
     horizon: "current",
     source: "current_tree",
     supportingCoursesCount: tree.supportingCourses.length,
@@ -69,6 +105,7 @@ function toFutureCareerRoleNode(
     key: role.id,
     title: role.title,
     summary: role.summary,
+    routeTitle: null,
     confidence: role.confidence,
     horizon: role.horizon,
     source: "progression_role",
@@ -111,8 +148,9 @@ export function buildCareerDevelopmentGraph(
   }
 
   const currentCareer = toCareerRoleNode(currentTree, snapshot);
-  const realisticProgressionRoles = currentTree.progressionRoles.filter((role) =>
-    isRealisticProgressionRoleTitle(role.title),
+  const currentTargetTitle = normalizeRoleTitle(currentCareer.title);
+  const realisticProgressionRoles = getRealisticProgressionRoles(currentTree).filter(
+    (role) => normalizeRoleTitle(role.title) !== currentTargetTitle,
   );
   const futureCareers =
     realisticProgressionRoles.length > 0

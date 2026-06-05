@@ -3,16 +3,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import {
-  ArrowLeftToLine,
-  BookOpenText,
-  Clock3,
-  List,
-  MessageSquare,
-  PanelLeftOpen,
-  PanelRightOpen,
-  Target,
-} from "lucide-react";
+import { ArrowLeftToLine, List, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo } from "react";
 import { CoursePublishControl } from "@/components/course-reader/CoursePublishControl";
@@ -50,11 +41,6 @@ const SIDEBAR_WIDTH = 288;
 export function LearnClient({
   sessionId,
   courseTitle,
-  courseDescription,
-  difficulty,
-  estimatedMinutes,
-  learningOutcome,
-  targetAudience,
   chapters,
   sectionDocs,
   initialChapterIndex,
@@ -100,20 +86,6 @@ export function LearnClient({
   }, []); // Run once on mount
 
   const currentChapter = chapters[currentChapterIndex];
-  const totalSections = chapters.reduce((count, chapter) => count + chapter.sections.length, 0);
-  const difficultyLabel =
-    difficulty === "beginner"
-      ? "入门"
-      : difficulty === "intermediate"
-        ? "进阶"
-        : difficulty === "advanced"
-          ? "高级"
-          : (difficulty ?? "课程");
-  const estimatedLabel = estimatedMinutes
-    ? estimatedMinutes >= 60
-      ? `${Math.round(estimatedMinutes / 60)} 小时`
-      : `${estimatedMinutes} 分钟`
-    : `${chapters.length} 章`;
 
   // Build initialContent map for the current chapter's sections
   const initialContent = useMemo(() => {
@@ -161,7 +133,7 @@ export function LearnClient({
     return (
       <div className="ui-page-shell flex min-h-dvh flex-col safe-bottom">
         {/* Mobile header */}
-        <header className="safe-top sticky top-0 z-30 shrink-0 bg-white/90 px-4 pb-2 pt-3 backdrop-blur-xl">
+        <header className="safe-top sticky top-0 z-30 flex shrink-0 items-center justify-between gap-3 bg-white/90 px-4 pb-2 pt-3 backdrop-blur-xl">
           <Link
             href="/profile"
             aria-label="回到个人中心"
@@ -169,6 +141,10 @@ export function LearnClient({
           >
             <ArrowLeftToLine className="h-4.5 w-4.5" />
           </Link>
+          <div className="min-w-0 flex-1 text-center text-sm font-semibold tracking-[-0.02em] text-[var(--color-text)]">
+            <span className="line-clamp-1">{courseTitle}</span>
+          </div>
+          <div className="h-9 w-9" />
         </header>
 
         {/* Content area */}
@@ -288,29 +264,16 @@ export function LearnClient({
         ) : null}
 
         <main className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-[30px] border border-black/[0.04] bg-white/94 shadow-[0_24px_76px_-58px_rgba(15,23,42,0.32)]">
-          <header className="flex shrink-0 items-start justify-between gap-4 border-b border-black/[0.04] bg-white/86 px-5 py-4 backdrop-blur-xl lg:px-7">
+          <header className="flex shrink-0 items-center justify-between gap-4 border-b border-black/[0.04] bg-white/86 px-5 py-3 backdrop-blur-xl lg:px-6">
             <div className="min-w-0">
-              <div className="mb-2 flex flex-wrap items-center gap-2 text-[0.6875rem] font-medium text-[var(--color-text-tertiary)]">
-                <span className="inline-flex items-center gap-1.5">
-                  <BookOpenText className="h-3.5 w-3.5" />
-                  {chapters.length} 章 · {totalSections} 节
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <Clock3 className="h-3.5 w-3.5" />
-                  {estimatedLabel}
-                </span>
-                <span>{difficultyLabel}</span>
-                {targetAudience ? <span>{targetAudience}</span> : null}
-              </div>
               <h1 className="truncate text-lg font-semibold tracking-[-0.02em] text-[var(--color-text)]">
                 {courseTitle}
               </h1>
-              <p className="mt-1 line-clamp-2 max-w-3xl text-sm leading-6 text-[var(--color-text-secondary)]">
-                {learningOutcome ??
-                  courseDescription ??
-                  currentChapter?.description ??
-                  "继续当前课程。"}
-              </p>
+              {currentChapter ? (
+                <p className="mt-0.5 truncate text-xs text-[var(--color-text-muted)]">
+                  {currentChapter.title}
+                </p>
+              ) : null}
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <CoursePublishControl courseId={sessionId} />
@@ -318,33 +281,21 @@ export function LearnClient({
                 <button
                   type="button"
                   onClick={() => setDesktopSidebarCollapsed(false)}
-                  className="rounded-xl border border-black/8 bg-white p-2 text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]"
+                  className="rounded-xl border border-black/8 bg-white px-3 py-2 text-xs font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]"
                   aria-label="展开目录"
                 >
-                  <PanelLeftOpen className="h-4 w-4" />
+                  目录
                 </button>
               ) : null}
-              <Link
-                href="/profile"
-                className="rounded-xl border border-black/8 bg-white p-2 text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]"
-                aria-label="回到个人中心"
-              >
-                <ArrowLeftToLine className="h-4 w-4" />
-              </Link>
               {isDesktopChatCollapsed ? (
                 <button
                   type="button"
                   onClick={() => setDesktopChatCollapsed(false)}
-                  className="rounded-xl border border-black/8 bg-white p-2 text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]"
+                  className="rounded-xl border border-black/8 bg-white px-3 py-2 text-xs font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]"
                   aria-label="打开提问"
                 >
-                  <PanelRightOpen className="h-4 w-4" />
+                  提问
                 </button>
-              ) : null}
-              {learningOutcome ? (
-                <div className="hidden rounded-xl bg-[var(--color-panel-soft)] p-2 text-[var(--color-text-secondary)] xl:block">
-                  <Target className="h-4 w-4" />
-                </div>
               ) : null}
             </div>
           </header>

@@ -272,11 +272,14 @@ function materializeTreeNodes(
   nodes: ComposerVisibleNode[],
   nodeMap: Map<string, ComposeGraphNode>,
   nodeEvidenceMap: Map<string, string[]>,
+  supportingRowsByNodeId: Map<string, SupportingEvidenceRow[]>,
+  chapterTitleByKey: Map<string, { chapterIndex: number; title: string }>,
   pathPrefix = "0",
 ): VisibleSkillTreeNode[] {
   return nodes.map((node, index) => {
     const pathIndex = `${pathPrefix}-${index}`;
     const hiddenNode = nodeMap.get(node.anchorRef);
+    const supportingRows = supportingRowsByNodeId.get(node.anchorRef) ?? [];
 
     return {
       id: `${directionKey}:${node.anchorRef}:${pathIndex}`,
@@ -290,9 +293,13 @@ function materializeTreeNodes(
         node.children,
         nodeMap,
         nodeEvidenceMap,
+        supportingRowsByNodeId,
+        chapterTitleByKey,
         pathIndex,
       ),
       evidenceRefs: nodeEvidenceMap.get(node.anchorRef) ?? undefined,
+      supportingCourses: resolveNodeSupportingCourses(supportingRows),
+      supportingChapters: resolveNodeSupportingChapters(supportingRows, chapterTitleByKey),
     };
   });
 }
@@ -314,7 +321,74 @@ function buildNodeEvidenceMap(rows: SupportingEvidenceRow[]): Map<string, string
 function filterRealisticProgressionRoles(
   roles: ResolvedComposerTree["progressionRoles"],
 ): ResolvedComposerProgressionRole[] {
-  return roles.filter((role) => isRealisticProgressionRoleTitle(role.title)).slice(0, 3);
+  const seen = new Set<string>();
+
+  return roles
+    .filter((role) => isRealisticProgressionRoleTitle(role.title))
+    .filter((role) => {
+      const normalizedTitle = role.title
+        .replace(/[（(].*?[）)]/gu, "")
+        .replace(/\s+/g, "")
+        .toLowerCase();
+
+      if (seen.has(normalizedTitle)) {
+        return false;
+      }
+
+      seen.add(normalizedTitle);
+      return true;
+    })
+    .slice(0, 3);
+}
+
+function buildSupportingRowsByNodeId(
+  rows: SupportingEvidenceRow[],
+): Map<string, SupportingEvidenceRow[]> {
+  const rowsByNodeId = new Map<string, SupportingEvidenceRow[]>();
+
+  for (const row of rows) {
+    rowsByNodeId.set(row.nodeId, [...(rowsByNodeId.get(row.nodeId) ?? []), row]);
+  }
+
+  return rowsByNodeId;
+}
+
+function resolveNodeSupportingCourses(rows: SupportingEvidenceRow[]) {
+  return [
+    ...new Map(
+      rows.map((row) => [
+        row.courseId,
+        {
+          courseId: row.courseId,
+          title: row.courseTitle,
+        },
+      ]),
+    ).values(),
+  ];
+}
+
+function resolveNodeSupportingChapters(
+  rows: SupportingEvidenceRow[],
+  chapterTitleByKey: Map<string, { chapterIndex: number; title: string }>,
+) {
+  return [
+    ...new Map(
+      rows.flatMap((row) =>
+        row.chapterRefs.map((chapterKey) => {
+          const chapter = chapterTitleByKey.get(`${row.courseId}:${chapterKey}`);
+          return [
+            `${row.courseId}:${chapterKey}`,
+            {
+              courseId: row.courseId,
+              chapterKey,
+              chapterIndex: chapter?.chapterIndex ?? 0,
+              title: chapter?.title ?? chapterKey,
+            },
+          ] as const;
+        }),
+      ),
+    ).values(),
+  ];
 }
 
 function buildSnapshotPayload(params: {
@@ -330,6 +404,7 @@ function buildSnapshotPayload(params: {
 } {
   const nodeMap = new Map(params.nodes.map((node) => [node.id, node]));
   const nodeEvidenceMap = buildNodeEvidenceMap(params.supportingRows);
+  const supportingRowsByNodeId = buildSupportingRowsByNodeId(params.supportingRows);
   const snapshotTrees: CandidateCareerTree[] = params.resolvedTrees.map((tree) => {
     const supportingRows = params.supportingRows.filter((row) =>
       tree.supportingNodeRefs.includes(row.nodeId),
@@ -373,7 +448,14 @@ function buildSnapshotPayload(params: {
       supportingCourses,
       supportingChapters,
       progressionRoles: filterRealisticProgressionRoles(tree.progressionRoles),
-      tree: materializeTreeNodes(tree.directionKey, tree.tree, nodeMap, nodeEvidenceMap),
+      tree: materializeTreeNodes(
+        tree.directionKey,
+        tree.tree,
+        nodeMap,
+        nodeEvidenceMap,
+        supportingRowsByNodeId,
+        params.chapterTitleByKey,
+      ),
     };
   });
   const recommendedDirectionKey = resolveRecommendedDirectionKey({

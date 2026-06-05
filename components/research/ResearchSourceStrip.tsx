@@ -98,35 +98,46 @@ export function ResearchSourceStrip({
   const summaryMeta = compactMeta(meta);
 
   if (sourceCount === 0) {
-    if (!isRunning) {
-      return null;
-    }
-
     return (
-      <div
+      <details
         className={cn(
-          "flex items-center gap-2 border-black/[0.06] border-y py-2 text-xs text-[var(--color-text-secondary)]",
+          "group rounded-[20px] border border-black/[0.06] bg-white/72 px-3 py-2 text-xs text-[var(--color-text-secondary)] shadow-[0_12px_40px_-34px_rgba(15,23,42,0.35)]",
           className,
         )}
+        open={defaultOpen}
       >
-        <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-[var(--color-text-tertiary)]" />
-        <span className="font-medium text-[var(--color-text)]">{summaryLabel}</span>
-        {summaryMeta ? (
-          <span className="min-w-0 truncate text-[var(--color-text-tertiary)]">{summaryMeta}</span>
-        ) : null}
-      </div>
+        <summary className="flex cursor-pointer list-none items-center gap-2 rounded-full">
+          {isRunning ? (
+            <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-[var(--color-text-tertiary)]" />
+          ) : (
+            <Check className="h-3.5 w-3.5 shrink-0 text-[var(--color-text-tertiary)]" />
+          )}
+          <span className="shrink-0 font-medium text-[var(--color-text)]">{summaryLabel}</span>
+          {summaryMeta ? (
+            <span className="min-w-0 flex-1 truncate text-[var(--color-text-tertiary)]">
+              {summaryMeta}
+            </span>
+          ) : (
+            <span className="min-w-0 flex-1" />
+          )}
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[var(--color-text-muted)] transition-transform group-open:rotate-180" />
+        </summary>
+        <p className="mt-2 border-black/[0.04] border-t px-1.5 pt-2 text-[var(--color-text-tertiary)]">
+          {isRunning ? "正在读取外部来源。" : emptyText}
+        </p>
+      </details>
     );
   }
 
   return (
     <details
       className={cn(
-        "group border-black/[0.06] border-y py-2 text-xs text-[var(--color-text-secondary)]",
+        "group rounded-[20px] border border-black/[0.06] bg-white/72 px-3 py-2 text-xs text-[var(--color-text-secondary)] shadow-[0_12px_40px_-34px_rgba(15,23,42,0.35)]",
         className,
       )}
       open={defaultOpen}
     >
-      <summary className="flex cursor-pointer list-none items-center gap-2">
+      <summary className="flex cursor-pointer list-none items-center gap-2 rounded-full">
         {isRunning ? (
           <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-[var(--color-text-tertiary)]" />
         ) : (
@@ -143,7 +154,7 @@ export function ResearchSourceStrip({
         <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[var(--color-text-muted)] transition-transform group-open:rotate-180" />
       </summary>
 
-      <div className="mt-2 space-y-1">
+      <div className="mt-2 space-y-1 border-black/[0.04] border-t pt-2">
         {visibleSources.length > 0 ? (
           visibleSources.map((source, index) => (
             <a

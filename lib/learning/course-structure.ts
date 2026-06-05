@@ -20,11 +20,13 @@ export function computeCourseOutlineVersionHash(outline: CourseOutline): string 
 export function buildCourseOutlineVersionValues(params: {
   courseId: string;
   outline: CourseOutline;
+  versionHash?: string;
+  updatedAt?: Date;
 }): NewCourseOutlineVersion {
   const { courseId, outline } = params;
   return {
     courseId,
-    versionHash: computeCourseOutlineVersionHash(outline),
+    versionHash: params.versionHash ?? computeCourseOutlineVersionHash(outline),
     title: outline.title,
     description: outline.description ?? null,
     targetAudience: outline.targetAudience ?? null,
@@ -34,7 +36,7 @@ export function buildCourseOutlineVersionValues(params: {
     prerequisites: normalizeStringList(outline.prerequisites),
     researchCitations: outline.researchCitations ?? [],
     isLatest: true,
-    updatedAt: new Date(),
+    updatedAt: params.updatedAt ?? new Date(),
   };
 }
 

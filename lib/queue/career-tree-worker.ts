@@ -1,17 +1,53 @@
 import type { Worker } from "bullmq";
 import { defaults } from "@/config/env";
+import { and, careerGenerationRuns, careerUserTreeSnapshots, db, eq, ne } from "@/db";
 import {
   recomputeAllCareerNodeAggregatesForUser,
   recomputeCareerNodesForCourse,
 } from "@/lib/career-tree/aggregation";
 import { processCareerTreeComposeJob } from "@/lib/career-tree/compose";
+import {
+  CAREER_TREE_COMPOSE_PROMPT_VERSION,
+  CAREER_TREE_SCHEMA_VERSION,
+} from "@/lib/career-tree/constants";
 import { processCareerTreeExtractJob } from "@/lib/career-tree/extract";
 import { processCareerTreeMergeJob } from "@/lib/career-tree/merge";
-import { enqueueCareerTreeCompose } from "@/lib/career-tree/queue";
+import { enqueueCareerTreeCompose, enqueueCareerTreeRefresh } from "@/lib/career-tree/queue";
 import { createNexusWorker } from "./bullmq";
 import type { CareerTreeJobData } from "./career-tree-queue";
 
 let worker: Worker<CareerTreeJobData> | null = null;
+
+async function enqueueOutdatedCareerTreeRefreshJobs(): Promise<void> {
+  const rows = await db
+    .selectDistinct({
+      userId: careerUserTreeSnapshots.userId,
+    })
+    .from(careerUserTreeSnapshots)
+    .leftJoin(
+      careerGenerationRuns,
+      eq(careerUserTreeSnapshots.composeRunId, careerGenerationRuns.id),
+    )
+    .where(
+      and(
+        eq(careerUserTreeSnapshots.isLatest, true),
+        eq(careerUserTreeSnapshots.schemaVersion, CAREER_TREE_SCHEMA_VERSION),
+        eq(careerUserTreeSnapshots.status, "ready"),
+        ne(careerGenerationRuns.promptVersion, CAREER_TREE_COMPOSE_PROMPT_VERSION),
+      ),
+    );
+
+  for (const row of rows) {
+    await enqueueCareerTreeRefresh({
+      userId: row.userId,
+      reasonKey: CAREER_TREE_COMPOSE_PROMPT_VERSION,
+    });
+  }
+
+  if (rows.length > 0) {
+    console.log(`[CareerTreeWorker] Queued outdated career tree refresh jobs: ${rows.length}`);
+  }
+}
 
 async function processCareerTreeRefreshJob(
   job: Extract<CareerTreeJobData, { type: "refresh_user_career_tree_snapshot" }>,
@@ -56,6 +92,10 @@ export function startCareerTreeWorker(): Worker<CareerTreeJobData> {
       concurrency: defaults.queue.careerTreeConcurrency,
     },
   );
+
+  void enqueueOutdatedCareerTreeRefreshJobs().catch((error) => {
+    console.error("[CareerTreeWorker] Failed to queue outdated career tree refresh jobs", error);
+  });
 
   return worker;
 }

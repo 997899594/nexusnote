@@ -1,6 +1,6 @@
 "use client";
 
-import { Search } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { ResearchSourceStrip } from "@/components/research/ResearchSourceStrip";
 import type { InterviewResearchEvent } from "@/lib/ai/interview/research-events";
 import type { ResearchEvidenceSnapshot } from "@/lib/ai/research/evidence-snapshot";
@@ -38,17 +38,33 @@ export function InterviewResearchActivity({
         | undefined
     )?.freshnessWindowDays;
   const isReady = completedEvidence?.status === "ready";
-  const statusText = isReady
-    ? `来源 ${sourceCount}`
-    : latestProgress?.stage === "reading"
-      ? `读取 ${sourceCount} 个来源`
-      : latestProgress?.stage === "ranking"
-        ? "筛选可信来源"
-        : latestProgress?.stage === "searched"
-          ? `找到 ${latestProgress.resultCount} 条结果`
-          : sourceCount > 0
-            ? `找到 ${sourceCount} 个来源`
-            : "检索外部资料";
+  const isUnavailable = completedEvidence?.status === "unavailable";
+  const unavailableReason = completedEvidence?.unavailableReason;
+  const unavailableLabel =
+    unavailableReason === "not_configured" || unavailableReason === "disabled"
+      ? "检索未启用"
+      : unavailableReason === "provider_error"
+        ? "检索服务异常"
+        : "未找到来源";
+  const unavailableText =
+    unavailableReason === "not_configured" || unavailableReason === "disabled"
+      ? "检索服务未启用。"
+      : unavailableReason === "provider_error"
+        ? "检索服务异常，本轮未完成来源校准。"
+        : "未找到可用来源。";
+  const statusText = isUnavailable
+    ? unavailableLabel
+    : isReady
+      ? `资料 ${sourceCount}`
+      : latestProgress?.stage === "reading"
+        ? `读取 ${sourceCount || "外部"} 个来源`
+        : latestProgress?.stage === "ranking"
+          ? "筛选可信来源"
+          : latestProgress?.stage === "searched"
+            ? `找到 ${latestProgress.resultCount} 条结果`
+            : sourceCount > 0
+              ? `找到 ${sourceCount} 个来源`
+              : "资料校准";
   const meta = [
     extractedCount > 0 ? `${extractedCount} 篇原文` : null,
     authoritativeCount > 0 ? `${authoritativeCount} 个优先来源` : null,
@@ -61,22 +77,28 @@ export function InterviewResearchActivity({
         sources={completedEvidence.sources}
         label={statusText}
         meta={meta}
-        defaultOpen={defaultOpen}
+        defaultOpen={defaultOpen && !isReady}
         isRunning={!isReady && isRunning}
-        className="mb-3"
+        emptyText={isUnavailable ? unavailableText : undefined}
+        className="mb-3 max-w-[min(100%,42rem)]"
       />
     );
   }
 
   return (
-    <div className="mb-3 flex items-center gap-2 border-black/[0.06] border-y py-2 text-xs text-[var(--color-text-secondary)]">
-      <Search
+    <div className="mb-3 flex max-w-[min(100%,42rem)] items-center gap-2 rounded-full border border-black/[0.06] bg-white/72 px-3 py-2 text-xs text-[var(--color-text-secondary)] shadow-[0_12px_40px_-34px_rgba(15,23,42,0.35)]">
+      {isRunning ? (
+        <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-[var(--color-text-tertiary)]" />
+      ) : (
+        <Check className="h-3.5 w-3.5 shrink-0 text-[var(--color-text-tertiary)]" />
+      )}
+      <span className="font-medium text-[var(--color-text)]">{statusText}</span>
+      <span
         className={cn(
-          "h-3.5 w-3.5 shrink-0 text-[var(--color-text-tertiary)]",
-          isRunning && "animate-pulse",
+          "h-1 w-1 rounded-full bg-[var(--color-text-muted)]",
+          !meta.some(Boolean) && "hidden",
         )}
       />
-      <span className="font-medium text-[var(--color-text)]">{statusText}</span>
       {meta.some(Boolean) ? (
         <span className="min-w-0 truncate text-[var(--color-text-tertiary)]">
           {meta.filter(Boolean).join(" · ")}

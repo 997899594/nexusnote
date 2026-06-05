@@ -1,6 +1,5 @@
 "use client";
 
-import { ArrowLeftToLine, PanelLeftClose } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useLearnStore } from "@/stores/learn";
@@ -35,13 +34,13 @@ export function LearnSidebar({ courseTitle, width, onCollapse }: LearnSidebarPro
               href="/profile"
               aria-label="回到个人中心"
               className={cn(
-                "flex h-9 w-9 items-center justify-center rounded-full",
+                "flex h-9 items-center justify-center rounded-full px-3 text-xs font-medium",
                 "text-[var(--color-text-secondary)]",
                 "hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]",
                 "transition-colors duration-200",
               )}
             >
-              <ArrowLeftToLine className="h-4.5 w-4.5" />
+              返回
             </Link>
             {onCollapse ? (
               <button
@@ -49,13 +48,13 @@ export function LearnSidebar({ courseTitle, width, onCollapse }: LearnSidebarPro
                 onClick={onCollapse}
                 aria-label="收起目录"
                 className={cn(
-                  "hidden h-9 w-9 items-center justify-center rounded-full md:flex",
+                  "hidden h-9 items-center justify-center rounded-full px-3 text-xs font-medium md:flex",
                   "text-[var(--color-text-secondary)]",
                   "hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]",
                   "transition-colors duration-200",
                 )}
               >
-                <PanelLeftClose className="h-4.5 w-4.5" />
+                收起
               </button>
             ) : null}
           </div>

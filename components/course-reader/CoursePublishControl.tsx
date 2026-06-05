@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, Globe2, Loader2, RotateCcw, Share2, XCircle } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,10 @@ interface CoursePublishControlProps {
 }
 
 type PublishState = "idle" | "publishing" | "published" | "revoking" | "error";
+
+function buildShareUrl(pathOrUrl: string): string {
+  return new URL(pathOrUrl, window.location.origin).toString();
+}
 
 export function CoursePublishControl({ courseId }: CoursePublishControlProps) {
   const { addToast } = useToast();
@@ -28,14 +32,16 @@ export function CoursePublishControl({ courseId }: CoursePublishControlProps) {
 
         const payload = (await response.json()) as {
           published?: boolean;
+          path?: string | null;
           url?: string | null;
         };
 
-        if (!active || !payload.published || !payload.url) {
+        const publicPath = payload.path ?? payload.url;
+        if (!active || !payload.published || !publicPath) {
           return;
         }
 
-        setUrl(payload.url);
+        setUrl(buildShareUrl(publicPath));
         setState("published");
       } catch {
         // Publishing remains available even if the status lookup fails.
@@ -61,15 +67,21 @@ export function CoursePublishControl({ courseId }: CoursePublishControlProps) {
         throw new Error("Failed to publish course.");
       }
 
-      const payload = (await response.json()) as { url?: string };
-      if (!payload.url) {
-        throw new Error("Missing publication URL.");
+      const payload = (await response.json()) as { path?: string; url?: string };
+      const publicPath = payload.path ?? payload.url;
+      if (!publicPath) {
+        throw new Error("Missing publication path.");
       }
+      const shareUrl = buildShareUrl(publicPath);
 
-      setUrl(payload.url);
+      setUrl(shareUrl);
       setState("published");
-      await navigator.clipboard.writeText(payload.url);
-      addToast("公开链接已生成并复制", "success");
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        addToast("公开链接已生成并复制", "success");
+      } catch {
+        addToast("公开链接已生成，复制失败", "success");
+      }
     } catch {
       setState("error");
       addToast("发布失败，请稍后重试", "error");
@@ -81,8 +93,12 @@ export function CoursePublishControl({ courseId }: CoursePublishControlProps) {
       return;
     }
 
-    await navigator.clipboard.writeText(url);
-    addToast("已复制公开链接", "success");
+    try {
+      await navigator.clipboard.writeText(url);
+      addToast("已复制公开链接", "success");
+    } catch {
+      addToast("复制失败，请手动打开链接", "error");
+    }
   };
 
   const revoke = async () => {
@@ -115,29 +131,32 @@ export function CoursePublishControl({ courseId }: CoursePublishControlProps) {
           href={url}
           target="_blank"
           rel="noreferrer"
-          className="hidden max-w-[14rem] truncate rounded-xl border border-black/8 bg-white px-3 py-2 text-xs font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-hover)] hover:text-[var(--color-text)] xl:block"
+          className="rounded-xl border border-black/8 bg-white px-3 py-2 text-xs font-medium text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]"
         >
-          {url}
+          已公开
         </a>
         <button
           type="button"
           onClick={() => void copy()}
-          className="rounded-xl border border-black/8 bg-white p-2 text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]"
+          className="rounded-xl border border-black/8 bg-white px-3 py-2 text-xs font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]"
           aria-label="复制公开链接"
         >
-          <Copy className="h-4 w-4" />
+          复制
         </button>
         <button
           type="button"
           onClick={() => void revoke()}
           disabled={isRevoking}
-          className="rounded-xl border border-black/8 bg-white p-2 text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-hover)] hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-xl border border-black/8 bg-white px-3 py-2 text-xs font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-hover)] hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-50"
           aria-label="关闭公开链接"
         >
           {isRevoking ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <>
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              关闭中
+            </>
           ) : (
-            <XCircle className="h-4 w-4" />
+            "关闭"
           )}
         </button>
       </div>
@@ -154,15 +173,8 @@ export function CoursePublishControl({ courseId }: CoursePublishControlProps) {
         state === "error" && "text-[var(--color-text)]",
       )}
     >
-      {state === "publishing" ? (
-        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-      ) : state === "error" ? (
-        <RotateCcw className="h-3.5 w-3.5" />
-      ) : (
-        <Share2 className="h-3.5 w-3.5" />
-      )}
-      <span className="hidden lg:inline">{state === "error" ? "重试发布" : "发布"}</span>
-      <Globe2 className="h-3.5 w-3.5 lg:hidden" />
+      {state === "publishing" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+      <span>{state === "publishing" ? "发布中" : state === "error" ? "重试发布" : "发布"}</span>
     </button>
   );
 }

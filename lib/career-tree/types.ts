@@ -28,6 +28,8 @@ export const visibleSkillTreeNodeSchema: z.ZodType<VisibleSkillTreeNode> = z.laz
     state: careerNodeStateSchema,
     children: z.array(visibleSkillTreeNodeSchema),
     evidenceRefs: z.array(z.string()).optional(),
+    supportingCourses: z.array(supportingCourseRefSchema).optional(),
+    supportingChapters: z.array(supportingChapterRefSchema).optional(),
   }),
 );
 
@@ -40,6 +42,8 @@ export interface VisibleSkillTreeNode {
   state: CareerNodeState;
   children: VisibleSkillTreeNode[];
   evidenceRefs?: string[];
+  supportingCourses?: SupportingCourseRef[];
+  supportingChapters?: SupportingChapterRef[];
 }
 
 export const careerProgressionRoleSchema = z.object({

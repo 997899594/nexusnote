@@ -1,7 +1,7 @@
 "use client";
 
 import type { UIMessage } from "ai";
-import { Loader2, NotebookPen, PanelRightClose, X } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChatComposer, type ChatComposerSubmitPayload } from "@/components/chat/ChatComposer";
 import { ChatMessage, LoadingDots } from "@/components/chat/ChatMessage";
@@ -312,20 +312,16 @@ export function LearnChat({ courseId, courseTitle, onCollapse }: LearnChatProps)
                   : "border border-black/8 bg-white text-[var(--color-text-secondary)] hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]",
               )}
             >
-              {isCapturingChat ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <NotebookPen className="h-3.5 w-3.5" />
-              )}
+              {isCapturingChat ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
               <span>保存</span>
             </button>
             <button
               type="button"
               onClick={onCollapse}
-              className="hidden rounded-xl border border-black/8 bg-white p-1.5 text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-hover)] hover:text-[var(--color-text)] md:block"
+              className="hidden rounded-xl border border-black/8 bg-white px-3 py-2 text-xs font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-hover)] hover:text-[var(--color-text)] md:block"
               aria-label="收起提问"
             >
-              <PanelRightClose className="h-4 w-4" />
+              收起
             </button>
             <button
               type="button"

@@ -11,12 +11,12 @@ interface RouteParams {
   id: string;
 }
 
-function buildPublicCourseUrl(request: NextRequest, slug: string): string {
-  return new URL(`/c/${slug}`, request.url).toString();
+function buildPublicCoursePath(slug: string): string {
+  return `/c/${slug}`;
 }
 
 export const GET = withDynamicAuth<unknown, RouteParams>(
-  async (request: NextRequest, { userId, params }) => {
+  async (_request: NextRequest, { userId, params }) => {
     try {
       const status = await getOwnedCoursePublicationStatus({
         courseId: params.id,
@@ -26,7 +26,7 @@ export const GET = withDynamicAuth<unknown, RouteParams>(
       return Response.json({
         ok: true,
         ...status,
-        url: status.slug ? buildPublicCourseUrl(request, status.slug) : null,
+        path: status.slug ? buildPublicCoursePath(status.slug) : null,
       });
     } catch (error) {
       if (error instanceof Error && error.message === "COURSE_PUBLICATION_FORBIDDEN") {
@@ -37,7 +37,7 @@ export const GET = withDynamicAuth<unknown, RouteParams>(
   },
 );
 
-export const POST = withDynamicAuth<unknown, RouteParams>(async (request, { userId, params }) => {
+export const POST = withDynamicAuth<unknown, RouteParams>(async (_request, { userId, params }) => {
   try {
     const publication = await publishCourse({
       courseId: params.id,
@@ -50,7 +50,7 @@ export const POST = withDynamicAuth<unknown, RouteParams>(async (request, { user
     return Response.json({
       ok: true,
       ...publication,
-      url: buildPublicCourseUrl(request, publication.slug),
+      path: buildPublicCoursePath(publication.slug),
     });
   } catch (error) {
     if (

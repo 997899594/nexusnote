@@ -2,19 +2,27 @@
 
 import { ArrowLeft, GitBranch, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { CareerPlanningMentorPanel } from "@/components/career-trees/CareerPlanningMentorPanel";
 import { CareerTreeGraph } from "@/components/career-trees/CareerTreeGraph";
 import { useToast } from "@/components/ui/Toast";
 import type { CareerGraphPatch } from "@/lib/ai/career-planning/schemas";
 import type { CareerPlanningWorkspaceData } from "@/lib/career-planning/workspace-data";
-import { buildCareerDevelopmentGraph } from "@/lib/career-tree/career-development-graph";
+import {
+  buildCareerDevelopmentGraph,
+  type CareerDevelopmentGraph,
+} from "@/lib/career-tree/career-development-graph";
 import type {
   FocusSnapshotProjection,
   ProfileSnapshotProjection,
   VisibleTreeMetrics,
 } from "@/lib/career-tree/projection-types";
-import type { CareerTreeSnapshot } from "@/lib/career-tree/types";
+import type {
+  CareerTreeSnapshot,
+  SupportingCourseRef,
+  VisibleSkillTreeNode,
+} from "@/lib/career-tree/types";
 import {
   findDefaultFocusNode,
   findNodeById,
@@ -31,6 +39,11 @@ interface CareerTreesExplorerProps {
 }
 
 const EMPTY_PLANNING_HIGHLIGHTS: string[] = [];
+
+interface CourseChoiceState {
+  node: VisibleSkillTreeNode;
+  courses: SupportingCourseRef[];
+}
 
 function getInitialDirectionKey(snapshot: CareerTreeSnapshot): string | null {
   return (
@@ -66,16 +79,24 @@ function MetricTile({ label, value }: { label: string; value: string | number })
 function DirectionRail({
   snapshot,
   currentDirectionKey,
+  developmentGraph,
   metrics,
   isSaving,
   onSelectDirection,
 }: {
   snapshot: CareerTreeSnapshot;
   currentDirectionKey: string;
+  developmentGraph: CareerDevelopmentGraph;
   metrics: VisibleTreeMetrics;
   isSaving: boolean;
   onSelectDirection: (directionKey: string) => void;
 }) {
+  const roleByDirectionKey = new Map(
+    [developmentGraph.currentCareer, ...developmentGraph.futureCareers]
+      .filter((role) => role.source === "current_tree" || role.source === "candidate_tree")
+      .map((role) => [role.key, role]),
+  );
+
   return (
     <aside className="flex h-full min-h-0 flex-col bg-white/72 safe-top safe-bottom">
       <div className="border-b border-black/[0.04] px-4 pb-5 pt-5 lg:px-5">
@@ -92,10 +113,10 @@ function DirectionRail({
             职业树
           </div>
           <h1 className="text-[1rem] font-semibold leading-snug tracking-[-0.02em] text-[var(--color-text)]">
-            成长主线
+            职业目标
           </h1>
           <p className="mt-2 text-xs leading-5 text-[var(--color-text-secondary)]">
-            从课程证据推导真实路径。
+            课程证据驱动下一步。
           </p>
         </div>
 
@@ -107,7 +128,7 @@ function DirectionRail({
 
       <div className="mobile-scroll min-h-0 flex-1 overflow-y-auto px-3 py-4">
         <div className="mb-3 flex items-center justify-between px-1 text-[0.625rem] font-semibold tracking-[0.16em] text-[var(--color-text-muted)]">
-          <span>方向</span>
+          <span>目标</span>
           {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
         </div>
 
@@ -115,6 +136,9 @@ function DirectionRail({
           {snapshot.trees.map((tree) => {
             const active = tree.directionKey === currentDirectionKey;
             const recommended = tree.directionKey === snapshot.recommendedDirectionKey;
+            const role = roleByDirectionKey.get(tree.directionKey);
+            const title = role?.title ?? tree.title;
+            const routeTitle = role?.routeTitle;
 
             return (
               <button
@@ -137,8 +161,13 @@ function DirectionRail({
                 />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-semibold tracking-[-0.02em]">
-                    {tree.title}
+                    {title}
                   </span>
+                  {routeTitle ? (
+                    <span className="mt-1 block truncate text-[0.6875rem] text-[var(--color-text-muted)]">
+                      {routeTitle}
+                    </span>
+                  ) : null}
                   <span className="mt-1 block text-[0.6875rem] text-[var(--color-text-muted)]">
                     {tree.supportingCourses.length} 门课 · {flattenVisibleNodes(tree.tree).length}{" "}
                     个能力
@@ -161,19 +190,28 @@ function DirectionRail({
 function MobileDirectionStrip({
   snapshot,
   currentDirectionKey,
+  developmentGraph,
   isSaving,
   onSelectDirection,
 }: {
   snapshot: CareerTreeSnapshot;
   currentDirectionKey: string;
+  developmentGraph: CareerDevelopmentGraph;
   isSaving: boolean;
   onSelectDirection: (directionKey: string) => void;
 }) {
+  const roleByDirectionKey = new Map(
+    [developmentGraph.currentCareer, ...developmentGraph.futureCareers]
+      .filter((role) => role.source === "current_tree" || role.source === "candidate_tree")
+      .map((role) => [role.key, role]),
+  );
+
   return (
     <div className="mobile-scroll flex gap-2 overflow-x-auto px-4 py-3 md:px-6 lg:hidden">
       {snapshot.trees.map((tree) => {
         const active = tree.directionKey === currentDirectionKey;
         const recommended = tree.directionKey === snapshot.recommendedDirectionKey;
+        const role = roleByDirectionKey.get(tree.directionKey);
 
         return (
           <button
@@ -194,7 +232,7 @@ function MobileDirectionStrip({
                 active ? "bg-white" : "bg-[var(--color-text-tertiary)]",
               )}
             />
-            <span className="max-w-[12rem] truncate">{tree.title}</span>
+            <span className="max-w-[12rem] truncate">{role?.title ?? tree.title}</span>
             {recommended && !active ? (
               <span className="text-[0.625rem] text-[var(--color-text-muted)]">推荐</span>
             ) : null}
@@ -208,10 +246,12 @@ function MobileDirectionStrip({
 function TreeHeader({
   title,
   summary,
+  routeTitle,
   generatedAt,
 }: {
   title: string;
   summary: string;
+  routeTitle: string | null;
   generatedAt: string | null;
 }) {
   return (
@@ -220,11 +260,16 @@ function TreeHeader({
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-[0.625rem] font-semibold tracking-[0.18em] text-[var(--color-text-muted)]">
             <GitBranch className="h-3.5 w-3.5" />
-            职业路径
+            职业目标
           </div>
           <h2 className="mt-2 line-clamp-2 text-2xl font-semibold leading-tight tracking-[-0.05em] text-[var(--color-text)] md:text-3xl">
             {title}
           </h2>
+          {routeTitle ? (
+            <div className="mt-1 text-xs font-medium text-[var(--color-text-muted)]">
+              {routeTitle}
+            </div>
+          ) : null}
           <p className="mt-2 line-clamp-2 max-w-3xl text-sm leading-6 text-[var(--color-text-secondary)]">
             {summary}
           </p>
@@ -234,6 +279,45 @@ function TreeHeader({
             {formatGeneratedAt(generatedAt)}
           </span>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function CourseChoicePanel({
+  choice,
+  onClose,
+}: {
+  choice: CourseChoiceState;
+  onClose: () => void;
+}) {
+  return (
+    <div className="absolute right-4 bottom-4 z-30 w-[min(22rem,calc(100%-2rem))] rounded-[24px] border border-black/[0.08] bg-white/95 p-3 shadow-[0_24px_70px_-42px_rgba(15,23,42,0.45)] backdrop-blur-xl">
+      <div className="flex items-start justify-between gap-3 px-1 pb-2">
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold tracking-[-0.02em] text-[var(--color-text)]">
+            {choice.node.title}
+          </div>
+          <div className="mt-1 text-xs text-[var(--color-text-muted)]">选择课程</div>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-full px-2 py-1 text-xs text-[var(--color-text-tertiary)] transition-colors hover:bg-slate-100 hover:text-[var(--color-text)]"
+        >
+          关闭
+        </button>
+      </div>
+      <div className="space-y-1.5">
+        {choice.courses.map((course) => (
+          <Link
+            key={course.courseId}
+            href={`/learn/${course.courseId}`}
+            className="block rounded-[16px] border border-black/[0.06] bg-white px-3 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:border-slate-300 hover:text-[var(--color-text)]"
+          >
+            {course.title}
+          </Link>
+        ))}
       </div>
     </div>
   );
@@ -272,12 +356,14 @@ export function CareerTreesExplorer({
   profileSnapshot,
   planningData,
 }: CareerTreesExplorerProps) {
+  const router = useRouter();
   const { addToast } = useToast();
   const [currentDirectionKey, setCurrentDirectionKey] = useState<string | null>(
     getInitialDirectionKey(snapshot),
   );
   const [isSaving, setIsSaving] = useState(false);
   const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
+  const [courseChoice, setCourseChoice] = useState<CourseChoiceState | null>(null);
   const [activePlanningPatch, setActivePlanningPatch] = useState<CareerGraphPatch | null>(
     planningData.planningState?.graphPatch ?? null,
   );
@@ -334,6 +420,7 @@ export function CareerTreesExplorer({
 
   const focusNode = activeNode ?? findDefaultFocusNode(currentTree.tree);
   const metrics = displayState.metrics;
+  const displayCareer = developmentGraph.currentCareer;
 
   const handleSelectDirection = async (directionKey: string) => {
     if (directionKey === currentDirectionKey || isSaving) {
@@ -373,12 +460,28 @@ export function CareerTreesExplorer({
     }
   };
 
+  const handleSelectNode = (node: VisibleSkillTreeNode) => {
+    setActiveNodeId(node.id);
+    setCourseChoice(null);
+
+    const courses = node.supportingCourses ?? [];
+    if (courses.length === 1) {
+      router.push(`/learn/${courses[0].courseId}`);
+      return;
+    }
+
+    if (courses.length > 1) {
+      setCourseChoice({ node, courses });
+    }
+  };
+
   return (
     <div className="mx-auto flex min-h-dvh max-w-[1640px] flex-col gap-3 p-3 lg:grid lg:h-dvh lg:grid-cols-[16rem_minmax(0,1fr)_22rem] lg:gap-4 lg:p-4 xl:grid-cols-[288px_minmax(0,1fr)_380px]">
       <div className="hidden overflow-hidden rounded-[28px] border border-black/[0.06] bg-white/78 shadow-[0_22px_64px_-48px_rgba(15,23,42,0.28)] backdrop-blur-xl lg:block lg:min-h-0">
         <DirectionRail
           snapshot={snapshot}
           currentDirectionKey={currentTree.directionKey}
+          developmentGraph={developmentGraph}
           metrics={metrics}
           isSaving={isSaving}
           onSelectDirection={(directionKey) => void handleSelectDirection(directionKey)}
@@ -388,22 +491,24 @@ export function CareerTreesExplorer({
       <main className="min-h-0 min-w-0 overflow-hidden rounded-[30px] border border-black/[0.04] bg-white/94 shadow-[0_24px_76px_-58px_rgba(15,23,42,0.32)]">
         <div className="flex h-full min-h-0 flex-col bg-white/72">
           <TreeHeader
-            title={displayState.displayDirection.title}
-            summary={displayState.displayDirection.summary}
+            title={displayCareer.title}
+            summary={displayCareer.summary}
+            routeTitle={displayCareer.routeTitle}
             generatedAt={snapshot.generatedAt}
           />
           <MobileDirectionStrip
             snapshot={snapshot}
             currentDirectionKey={currentTree.directionKey}
+            developmentGraph={developmentGraph}
             isSaving={isSaving}
             onSelectDirection={(directionKey) => void handleSelectDirection(directionKey)}
           />
-          <div className="mobile-scroll min-h-[30rem] flex-1 overflow-hidden p-3 md:p-4 lg:min-h-[28rem]">
+          <div className="mobile-scroll relative min-h-[30rem] flex-1 overflow-visible p-3 md:p-4 lg:min-h-[28rem]">
             <CareerTreeGraph
               graph={developmentGraph}
               activeNodeId={focusNode?.id ?? null}
               onSelectCareer={handleSelectCareer}
-              onSelectNode={setActiveNodeId}
+              onSelectNode={handleSelectNode}
               planningHighlightNodeIds={planningHighlightNodeIds}
               variant="compact"
               className="h-full min-h-[30rem] lg:hidden"
@@ -412,11 +517,14 @@ export function CareerTreesExplorer({
               graph={developmentGraph}
               activeNodeId={focusNode?.id ?? null}
               onSelectCareer={handleSelectCareer}
-              onSelectNode={setActiveNodeId}
+              onSelectNode={handleSelectNode}
               planningHighlightNodeIds={planningHighlightNodeIds}
               variant="full"
               className="hidden h-full min-h-[34rem] lg:block"
             />
+            {courseChoice ? (
+              <CourseChoicePanel choice={courseChoice} onClose={() => setCourseChoice(null)} />
+            ) : null}
           </div>
         </div>
       </main>

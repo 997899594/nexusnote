@@ -1,20 +1,5 @@
 "use client";
 
-import {
-  BaseEdge,
-  type Edge,
-  type EdgeProps,
-  getSmoothStepPath,
-  Handle,
-  type Node,
-  type NodeProps,
-  Position,
-  ReactFlow,
-  type ReactFlowInstance,
-} from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
-import { hierarchy, tree } from "d3-hierarchy";
-import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   CareerDevelopmentGraph,
   CareerRoleNode,
@@ -27,7 +12,7 @@ type CareerTreeGraphVariant = "full" | "compact";
 interface CareerTreeGraphProps {
   graph: CareerDevelopmentGraph;
   activeNodeId?: string | null;
-  onSelectNode?: (nodeId: string) => void;
+  onSelectNode?: (node: VisibleSkillTreeNode) => void;
   onSelectCareer?: (directionKey: string) => void;
   variant?: CareerTreeGraphVariant;
   maxDepth?: number;
@@ -35,42 +20,15 @@ interface CareerTreeGraphProps {
   className?: string;
 }
 
-interface SkillLayoutNode {
-  id: string;
-  skillNode?: VisibleSkillTreeNode;
-  children: SkillLayoutNode[];
-}
-
-interface CareerSkillNodeData extends Record<string, unknown> {
-  skillNode: VisibleSkillTreeNode;
+interface BranchProps {
+  node: VisibleSkillTreeNode;
+  depth: number;
+  maxDepth?: number;
+  activeNodeId?: string | null;
+  planningHighlightNodeIds: Set<string>;
   variant: CareerTreeGraphVariant;
-  active: boolean;
-  planningHighlighted: boolean;
+  onSelectNode?: (node: VisibleSkillTreeNode) => void;
 }
-
-interface CareerRoleNodeData extends Record<string, unknown> {
-  role: CareerRoleNode;
-  roleKind: "current" | "future";
-  variant: CareerTreeGraphVariant;
-  planningHighlighted: boolean;
-}
-
-interface CareerBranchEdgeData extends Record<string, unknown> {
-  state: CareerNodeState | "role";
-  active: boolean;
-  kind: "skill" | "career";
-}
-
-type CareerSkillFlowNode = Node<CareerSkillNodeData, "careerSkill">;
-type CareerRoleFlowNode = Node<CareerRoleNodeData, "careerRole">;
-type CareerFlowNode = CareerSkillFlowNode | CareerRoleFlowNode;
-type CareerFlowEdge = Edge<CareerBranchEdgeData, "careerBranch">;
-
-const SKILL_LAYOUT_ROOT_ID = "__career-skill-layout-root";
-const CURRENT_CAREER_NODE_ID = "__current-career";
-const FUTURE_CAREER_NODE_PREFIX = "__future-career:";
-const CENTER_NODE_ORIGIN: [number, number] = [0.5, 0.5];
-const FLOW_PRO_OPTIONS = { hideAttribution: true };
 
 function clampProgress(progress: number): number {
   return Math.max(0, Math.min(100, progress));
@@ -89,609 +47,183 @@ function getStateLabel(state: CareerNodeState): string {
   }
 }
 
-function getStateTone(state: CareerNodeState | "role") {
+function getStateTone(state: CareerNodeState) {
   switch (state) {
-    case "role":
-      return {
-        accent: "#111827",
-        background: "#ffffff",
-        border: "rgba(15,23,42,0.14)",
-        edge: "rgba(15,23,42,0.42)",
-        text: "text-[var(--color-text)]",
-        opacity: 1,
-        dash: undefined,
-      };
     case "mastered":
       return {
-        accent: "#15803d",
-        background: "#fbfefb",
-        border: "rgba(21,128,61,0.18)",
-        edge: "rgba(21,128,61,0.4)",
+        accent: "#166534",
+        border: "rgba(22,101,52,0.18)",
+        background: "#fbfdf9",
         text: "text-[var(--color-text)]",
+        muted: "text-emerald-800/70",
+        rail: "bg-emerald-800/35",
         opacity: 1,
-        dash: undefined,
       };
     case "in_progress":
       return {
-        accent: "#2563eb",
+        accent: "#1d4ed8",
+        border: "rgba(29,78,216,0.18)",
         background: "#fbfdff",
-        border: "rgba(37,99,235,0.18)",
-        edge: "rgba(37,99,235,0.38)",
         text: "text-[var(--color-text)]",
-        opacity: 0.94,
-        dash: undefined,
+        muted: "text-blue-800/70",
+        rail: "bg-blue-800/35",
+        opacity: 1,
       };
     case "ready":
       return {
-        accent: "#64748b",
+        accent: "#475569",
+        border: "rgba(71,85,105,0.18)",
         background: "#ffffff",
-        border: "rgba(100,116,139,0.16)",
-        edge: "rgba(100,116,139,0.32)",
         text: "text-[var(--color-text-secondary)]",
-        opacity: 0.86,
-        dash: "8 10",
+        muted: "text-slate-600",
+        rail: "bg-slate-500/35",
+        opacity: 0.92,
       };
     case "locked":
       return {
         accent: "#94a3b8",
-        background: "#ffffff",
         border: "rgba(148,163,184,0.14)",
-        edge: "rgba(148,163,184,0.28)",
+        background: "#ffffff",
         text: "text-[var(--color-text-tertiary)]",
-        opacity: 0.66,
-        dash: "4 12",
+        muted: "text-slate-400",
+        rail: "bg-slate-300",
+        opacity: 0.62,
       };
   }
 }
 
-function getLayoutMetrics(variant: CareerTreeGraphVariant) {
-  if (variant === "compact") {
-    return {
-      skillSiblingGap: 144,
-      skillDepthGap: 94,
-      futureY: 64,
-      futureTierGap: 64,
-      currentY: 164,
-      currentOnlyY: 82,
-      skillBaseY: 292,
-      currentOnlySkillBaseY: 210,
-      canvasHeight: "20rem",
-      currentOnlyCanvasHeight: "18rem",
-      fitPadding: 0.04,
-      minZoom: 0.42,
-      maxZoom: 1.9,
-    };
+function getRoleEyebrow(role: CareerRoleNode): string {
+  if (role.source === "candidate_tree") {
+    return "转向目标";
   }
 
-  return {
-    skillSiblingGap: 218,
-    skillDepthGap: 122,
-    futureY: 92,
-    futureTierGap: 90,
-    currentY: 212,
-    currentOnlyY: 126,
-    skillBaseY: 372,
-    currentOnlySkillBaseY: 304,
-    canvasHeight: "42rem",
-    currentOnlyCanvasHeight: "34rem",
-    fitPadding: 0.04,
-    minZoom: 0.36,
-    maxZoom: 2.15,
-  };
-}
-
-function getFutureCareerPosition(params: {
-  index: number;
-  count: number;
-  centerX: number;
-  variant: CareerTreeGraphVariant;
-  futureY: number;
-  tierGap: number;
-}) {
-  const compact = params.variant === "compact";
-  const horizontalGap = compact ? 176 : 258;
-  const outerGap = compact ? 286 : 424;
-
-  if (params.count <= 1) {
-    return {
-      x: params.centerX,
-      y: params.futureY + params.tierGap,
-    };
+  if (role.horizon === "next") {
+    return "下一目标";
   }
 
-  if (params.count === 2) {
-    return {
-      x: params.centerX + (params.index === 0 ? -horizontalGap * 0.72 : horizontalGap * 0.72),
-      y: params.futureY + params.tierGap * 0.72,
-    };
-  }
-
-  const canopySlots = [
-    { x: 0, y: 0 },
-    { x: -horizontalGap, y: 1 },
-    { x: horizontalGap, y: 1 },
-    { x: -outerGap, y: 2 },
-    { x: outerGap, y: 2 },
-  ];
-  const slot = canopySlots[params.index] ?? canopySlots[canopySlots.length - 1];
-
-  return {
-    x: params.centerX + slot.x,
-    y: params.futureY + slot.y * params.tierGap,
-  };
+  return "进阶目标";
 }
 
-function toSkillLayoutNode(
-  node: VisibleSkillTreeNode,
-  depth: number,
-  maxDepth: number | undefined,
-): SkillLayoutNode {
-  const children =
-    maxDepth != null && depth >= maxDepth
-      ? []
-      : node.children.map((child) => toSkillLayoutNode(child, depth + 1, maxDepth));
-
-  return {
-    id: node.id,
-    skillNode: node,
-    children,
-  };
+function getNodeCourseCount(node: VisibleSkillTreeNode): number {
+  return node.supportingCourses?.length ?? 0;
 }
 
-function buildSkillLayoutRoot(
-  nodes: VisibleSkillTreeNode[],
-  maxDepth: number | undefined,
-): SkillLayoutNode {
-  return {
-    id: SKILL_LAYOUT_ROOT_ID,
-    children: nodes.map((node) => toSkillLayoutNode(node, 0, maxDepth)),
-  };
-}
-
-function shiftElementsIntoPositiveSpace(nodes: CareerFlowNode[]) {
-  const minX = Math.min(...nodes.map((node) => node.position.x));
-  const minY = Math.min(...nodes.map((node) => node.position.y));
-  const shiftX = minX < 120 ? 120 - minX : 0;
-  const shiftY = minY < 80 ? 80 - minY : 0;
-
-  return nodes.map((node) => ({
-    ...node,
-    position: {
-      x: node.position.x + shiftX,
-      y: node.position.y + shiftY,
-    },
-  }));
-}
-
-function buildFlowElements(params: {
-  graph: CareerDevelopmentGraph;
-  activeNodeId?: string | null;
-  variant: CareerTreeGraphVariant;
-  maxDepth?: number;
-  planningHighlightNodeIds?: string[];
-}): { nodes: CareerFlowNode[]; edges: CareerFlowEdge[]; signature: string } {
-  const metrics = getLayoutMetrics(params.variant);
-  const planningHighlightNodeIds = new Set(params.planningHighlightNodeIds ?? []);
-  const hasFutureCareers = params.graph.futureCareers.length > 0;
-  const currentCareerY = hasFutureCareers ? metrics.currentY : metrics.currentOnlyY;
-  const careerToSkillClearance = params.variant === "compact" ? 118 : 176;
-  const skillBaseY = Math.max(
-    hasFutureCareers ? metrics.skillBaseY : metrics.currentOnlySkillBaseY,
-    currentCareerY + careerToSkillClearance,
-  );
-  const root = hierarchy(buildSkillLayoutRoot(params.graph.skillRoots, params.maxDepth));
-  const layout = tree<SkillLayoutNode>()
-    .nodeSize([metrics.skillSiblingGap, metrics.skillDepthGap])
-    .separation((left, right) => (left.parent === right.parent ? 1 : 1.18));
-  const positioned = layout(root);
-  const skillNodes = positioned
-    .descendants()
-    .filter((layoutNode) => layoutNode.data.skillNode)
-    .map<CareerSkillFlowNode>((layoutNode) => {
-      const skillNode = layoutNode.data.skillNode as VisibleSkillTreeNode;
-
-      return {
-        id: skillNode.id,
-        type: "careerSkill",
-        position: {
-          x: layoutNode.x,
-          y: skillBaseY + (layoutNode.depth - 1) * metrics.skillDepthGap,
-        },
-        data: {
-          skillNode,
-          variant: params.variant,
-          active: skillNode.id === params.activeNodeId,
-          planningHighlighted: planningHighlightNodeIds.has(skillNode.id),
-        },
-        selectable: false,
-        draggable: false,
-        zIndex:
-          skillNode.id === params.activeNodeId || planningHighlightNodeIds.has(skillNode.id)
-            ? 3
-            : 2,
-      };
-    });
-  const skillCenterX =
-    skillNodes.length > 0
-      ? skillNodes.reduce((total, node) => total + node.position.x, 0) / skillNodes.length
-      : 0;
-  const currentCareerNode: CareerRoleFlowNode = {
-    id: CURRENT_CAREER_NODE_ID,
-    type: "careerRole",
-    position: { x: skillCenterX, y: currentCareerY },
-    data: {
-      role: params.graph.currentCareer,
-      roleKind: "current",
-      variant: params.variant,
-      planningHighlighted:
-        planningHighlightNodeIds.has(params.graph.currentCareer.key) ||
-        planningHighlightNodeIds.has(CURRENT_CAREER_NODE_ID),
-    },
-    selectable: false,
-    draggable: false,
-    zIndex: 4,
-  };
-
-  const futureCareerNodes: CareerRoleFlowNode[] = params.graph.futureCareers.map((role, index) => {
-    const count = params.graph.futureCareers.length;
-    const position = getFutureCareerPosition({
-      index,
-      count,
-      centerX: skillCenterX,
-      variant: params.variant,
-      futureY: metrics.futureY,
-      tierGap: metrics.futureTierGap,
-    });
-
-    return {
-      id: `${FUTURE_CAREER_NODE_PREFIX}${role.key}`,
-      type: "careerRole",
-      position,
-      data: {
-        role,
-        roleKind: "future",
-        variant: params.variant,
-        planningHighlighted:
-          planningHighlightNodeIds.has(role.key) ||
-          planningHighlightNodeIds.has(`${FUTURE_CAREER_NODE_PREFIX}${role.key}`),
-      },
-      selectable: false,
-      draggable: false,
-      zIndex: 3,
-    };
-  });
-
-  const shiftedNodes = shiftElementsIntoPositiveSpace([
-    ...futureCareerNodes,
-    currentCareerNode,
-    ...skillNodes,
-  ]);
-  const shiftedNodeById = new Map(shiftedNodes.map((node) => [node.id, node]));
-  const skillNodeIds = new Set(skillNodes.map((node) => node.id));
-  const skillEdges = positioned
-    .links()
-    .filter((link) => link.source.data.skillNode && link.target.data.skillNode)
-    .map<CareerFlowEdge>((link) => {
-      const parent = link.source.data.skillNode as VisibleSkillTreeNode;
-      const child = link.target.data.skillNode as VisibleSkillTreeNode;
-      const active =
-        parent.id === params.activeNodeId ||
-        child.id === params.activeNodeId ||
-        planningHighlightNodeIds.has(parent.id) ||
-        planningHighlightNodeIds.has(child.id);
-
-      return {
-        id: `skill:${parent.id}:${child.id}`,
-        source: parent.id,
-        target: child.id,
-        type: "careerBranch",
-        data: {
-          state: child.state,
-          active,
-          kind: "skill",
-        },
-        selectable: false,
-        focusable: false,
-        reconnectable: false,
-      };
-    });
-  const rootEdges = params.graph.skillRoots
-    .filter((node) => skillNodeIds.has(node.id))
-    .map<CareerFlowEdge>((node) => ({
-      id: `career:${node.id}:${CURRENT_CAREER_NODE_ID}`,
-      source: CURRENT_CAREER_NODE_ID,
-      target: node.id,
-      type: "careerBranch",
-      data: {
-        state: "role",
-        active: node.id === params.activeNodeId || planningHighlightNodeIds.has(node.id),
-        kind: "career",
-      },
-      selectable: false,
-      focusable: false,
-      reconnectable: false,
-    }));
-  const futureCareerEdges = params.graph.futureCareers.map<CareerFlowEdge>((role) => ({
-    id: `career-future:${CURRENT_CAREER_NODE_ID}:${role.key}`,
-    source: `${FUTURE_CAREER_NODE_PREFIX}${role.key}`,
-    target: CURRENT_CAREER_NODE_ID,
-    type: "careerBranch",
-    data: {
-      state: "role",
-      active:
-        role.isSelected ||
-        role.isRecommended ||
-        planningHighlightNodeIds.has(role.key) ||
-        planningHighlightNodeIds.has(`${FUTURE_CAREER_NODE_PREFIX}${role.key}`) ||
-        planningHighlightNodeIds.has(CURRENT_CAREER_NODE_ID),
-      kind: "career",
-    },
-    selectable: false,
-    focusable: false,
-    reconnectable: false,
-  }));
-  return {
-    nodes: shiftedNodes,
-    edges: [...futureCareerEdges, ...rootEdges, ...skillEdges].filter(
-      (edge) => shiftedNodeById.has(edge.source) && shiftedNodeById.has(edge.target),
-    ),
-    signature: shiftedNodes
-      .map((node) => `${node.id}:${Math.round(node.position.x)}:${Math.round(node.position.y)}`)
-      .join("|"),
-  };
-}
-
-function CareerRoleNodeView({ data }: NodeProps<CareerRoleFlowNode>) {
-  const isCompact = data.variant === "compact";
-  const isFuture = data.roleKind === "future";
-  const nodeSizeClass = isCompact
-    ? isFuture
-      ? "h-[46px] w-[168px]"
-      : "h-[52px] w-[196px]"
-    : isFuture
-      ? "h-[54px] w-[212px]"
-      : "h-[64px] w-[268px]";
-  const statusLabel = data.role.isSelected ? "已选" : data.role.isRecommended ? "推荐" : "";
-  const tone = getStateTone("role");
-
-  return (
-    <div
-      className={cn(
-        "relative flex items-center justify-center overflow-visible text-center",
-        nodeSizeClass,
-      )}
-    >
-      <Handle className="!opacity-0" position={Position.Bottom} type="source" />
-      <Handle className="!opacity-0" position={Position.Top} type="target" />
-      <button
-        type="button"
-        style={{
-          background: tone.background,
-          borderColor: data.planningHighlighted ? "rgba(15,23,42,0.28)" : tone.border,
-        }}
-        className={cn(
-          "nodrag nowheel group relative flex h-full w-full items-center gap-3 rounded-[18px] border px-4 text-left shadow-none transition-colors duration-200",
-          isFuture
-            ? "cursor-pointer text-[var(--color-text-secondary)] hover:border-slate-300 hover:text-[var(--color-text)]"
-            : "cursor-default text-[var(--color-text)]",
-          data.planningHighlighted && "ring-2 ring-slate-900/10",
-        )}
-        aria-label={data.role.title}
-      >
-        {!isFuture ? (
-          <span
-            aria-hidden
-            className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r-full bg-slate-950/80"
-          />
-        ) : null}
-        <span
-          aria-hidden
-          className={cn(
-            "h-2 w-2 shrink-0 rounded-full",
-            isFuture ? "bg-slate-300" : "bg-slate-950",
-          )}
-        />
-        <span
-          className={cn(
-            "line-clamp-2 min-w-0 flex-1 font-semibold leading-snug tracking-[-0.03em]",
-            isCompact ? "text-xs" : isFuture ? "text-sm" : "text-base",
-          )}
-        >
-          {data.role.title}
-        </span>
-        {statusLabel ? (
-          <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[0.625rem] font-medium text-[var(--color-text-secondary)]">
-            {statusLabel}
-          </span>
-        ) : null}
-      </button>
-    </div>
-  );
-}
-
-function CareerSkillNode({ data }: NodeProps<CareerSkillFlowNode>) {
-  const { skillNode, active, planningHighlighted, variant } = data;
-  const tone = getStateTone(skillNode.state);
-  const progress = clampProgress(skillNode.progress);
-  const isCompact = variant === "compact";
-  const label = getStateLabel(skillNode.state);
-  const nodeSizeClass = isCompact ? "h-[64px] w-[168px]" : "h-[78px] w-[216px]";
-
-  return (
-    <div
-      className={cn(
-        "relative flex items-center justify-center overflow-visible text-center",
-        nodeSizeClass,
-      )}
-    >
-      <Handle className="!opacity-0" position={Position.Bottom} type="source" />
-      <Handle className="!opacity-0" position={Position.Top} type="target" />
-      <div
-        className={cn(
-          "relative flex h-full w-full shrink-0 flex-col justify-between rounded-[16px] border px-3.5 py-2.5 text-left shadow-none transition-colors duration-200",
-          active ? "ring-2 ring-slate-900/10" : "hover:border-slate-300",
-          planningHighlighted && "ring-2 ring-slate-900/10",
-        )}
-        style={{
-          background: tone.background,
-          borderColor: active || planningHighlighted ? tone.accent : tone.border,
-          opacity: tone.opacity,
-        }}
-      >
-        <span
-          aria-hidden
-          className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r-full"
-          style={{ background: tone.accent }}
-        />
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="truncate text-[0.625rem] font-medium text-[var(--color-text-tertiary)]">
-              {label}
-            </span>
-            <span className="ml-auto shrink-0 text-[0.625rem] tabular-nums text-[var(--color-text-muted)]">
-              {progress}%
-            </span>
-          </div>
-          <div
-            className={cn(
-              "mt-1.5 line-clamp-2 font-semibold leading-snug tracking-[-0.025em]",
-              isCompact ? "text-xs" : "text-sm",
-              active ? "text-[var(--color-text)]" : tone.text,
-            )}
-          >
-            {skillNode.title}
-          </div>
-        </div>
-        <div className="mt-2 h-1 overflow-hidden rounded-full bg-black/[0.06]">
-          <div
-            className="h-full rounded-full transition-[width]"
-            style={{ width: `${progress}%`, background: tone.accent }}
-          />
-        </div>
-        <div className="sr-only">
-          {label}，进度 {progress}%
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function CareerBranchEdge({
-  id,
-  sourceX,
-  sourceY,
-  targetX,
-  targetY,
-  sourcePosition,
-  targetPosition,
-  data,
-}: EdgeProps<CareerFlowEdge>) {
-  const tone = getStateTone(data?.state ?? "locked");
-  const [path] = getSmoothStepPath({
-    sourceX,
-    sourceY,
-    sourcePosition,
-    targetX,
-    targetY,
-    targetPosition,
-    borderRadius: 18,
-    offset: data?.kind === "career" ? 34 : 26,
-  });
-
-  return (
-    <BaseEdge
-      id={id}
-      interactionWidth={22}
-      path={path}
-      style={{
-        opacity: data?.active ? 1 : tone.opacity,
-        stroke: data?.active ? tone.accent : tone.edge,
-        strokeDasharray: tone.dash,
-        strokeLinecap: "round",
-        strokeWidth: data?.active ? 2.6 : data?.kind === "career" ? 1.9 : 1.6,
-      }}
-    />
-  );
-}
-
-function CompactRoleCard({
+function CareerRoleCard({
   role,
-  roleKind,
-  planningHighlighted,
+  current,
+  compact,
   onSelect,
 }: {
   role: CareerRoleNode;
-  roleKind: "current" | "future";
-  planningHighlighted: boolean;
+  current?: boolean;
+  compact?: boolean;
   onSelect?: () => void;
 }) {
-  const isFuture = roleKind === "future";
-  const statusLabel = role.isSelected ? "已选" : role.isRecommended ? "推荐" : "";
-
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      disabled={!onSelect}
-      className={cn(
-        "relative flex w-full items-center gap-2 rounded-[18px] border border-black/[0.08] bg-white px-3.5 py-3 text-left transition-colors",
-        isFuture ? "text-[var(--color-text-secondary)]" : "text-[var(--color-text)]",
-        onSelect && "hover:border-slate-300 hover:text-[var(--color-text)]",
-        planningHighlighted && "ring-2 ring-slate-900/10",
-      )}
-      aria-label={role.title}
-    >
-      {!isFuture ? (
+  const content = (
+    <>
+      <div className="flex items-start gap-3">
         <span
           aria-hidden
-          className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r-full bg-slate-950/80"
+          className={cn(
+            "mt-1.5 h-2 w-2 shrink-0 rounded-full",
+            current ? "bg-slate-950" : "bg-slate-300",
+          )}
         />
+        <div className="min-w-0 flex-1">
+          <div
+            className={cn(
+              "font-semibold leading-snug tracking-[-0.035em]",
+              compact ? "text-sm" : current ? "text-lg" : "text-sm",
+            )}
+          >
+            {role.title}
+          </div>
+          {role.routeTitle ? (
+            <div className="mt-1 truncate text-[0.6875rem] text-[var(--color-text-muted)]">
+              {role.routeTitle}
+            </div>
+          ) : null}
+        </div>
+        {role.isSelected || role.isRecommended ? (
+          <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[0.625rem] font-medium text-[var(--color-text-secondary)]">
+            {role.isSelected ? "已选" : "推荐"}
+          </span>
+        ) : null}
+      </div>
+      {!compact && current ? (
+        <p className="mt-3 line-clamp-2 text-xs leading-5 text-[var(--color-text-secondary)]">
+          {role.summary}
+        </p>
       ) : null}
-      <span
-        aria-hidden
-        className={cn("h-2 w-2 shrink-0 rounded-full", isFuture ? "bg-slate-300" : "bg-slate-950")}
-      />
-      <span className="min-w-0 flex-1 truncate text-[0.8125rem] font-semibold tracking-[-0.03em]">
-        {role.title}
-      </span>
-      {statusLabel ? (
-        <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[0.625rem] font-medium text-[var(--color-text-secondary)]">
-          {statusLabel}
-        </span>
-      ) : null}
-    </button>
+    </>
+  );
+
+  if (onSelect) {
+    return (
+      <button
+        type="button"
+        onClick={onSelect}
+        className={cn(
+          "w-full rounded-[20px] border border-black/[0.07] bg-white px-4 py-3 text-left transition-colors hover:border-slate-300 hover:text-[var(--color-text)]",
+          current
+            ? "text-[var(--color-text)]"
+            : "text-[var(--color-text-secondary)] hover:bg-white",
+        )}
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        "rounded-[22px] border bg-white px-4 py-4",
+        current
+          ? "border-slate-950/12 text-[var(--color-text)] shadow-[0_18px_50px_-44px_rgba(15,23,42,0.55)]"
+          : "border-black/[0.07] text-[var(--color-text-secondary)]",
+      )}
+    >
+      {content}
+    </div>
   );
 }
 
-function CompactSkillCard({
-  skillNode,
+function SkillNodeCard({
+  node,
   active,
-  planningHighlighted,
+  highlighted,
+  variant,
   onSelect,
 }: {
-  skillNode: VisibleSkillTreeNode;
+  node: VisibleSkillTreeNode;
   active: boolean;
-  planningHighlighted: boolean;
-  onSelect?: () => void;
+  highlighted: boolean;
+  variant: CareerTreeGraphVariant;
+  onSelect?: (node: VisibleSkillTreeNode) => void;
 }) {
-  const tone = getStateTone(skillNode.state);
-  const progress = clampProgress(skillNode.progress);
+  const tone = getStateTone(node.state);
+  const progress = clampProgress(node.progress);
+  const courseCount = getNodeCourseCount(node);
+  const compact = variant === "compact";
 
   return (
     <button
       type="button"
-      onClick={onSelect}
+      onClick={() => onSelect?.(node)}
       className={cn(
-        "relative flex w-full flex-col rounded-[16px] border bg-white px-3.5 py-2.5 text-left transition-colors",
-        active ? "ring-2 ring-slate-900/10" : "hover:border-slate-300",
-        planningHighlighted && "ring-2 ring-slate-900/10",
+        "group relative w-full rounded-[18px] border bg-white text-left transition-colors duration-200",
+        compact ? "px-3.5 py-3" : "px-4 py-3.5",
+        active || highlighted
+          ? "ring-2 ring-slate-950/10"
+          : "hover:border-slate-300 hover:text-[var(--color-text)]",
       )}
       style={{
         background: tone.background,
-        borderColor: active || planningHighlighted ? tone.accent : tone.border,
+        borderColor: active || highlighted ? tone.accent : tone.border,
         opacity: tone.opacity,
       }}
-      aria-label={skillNode.title}
+      aria-label={node.title}
     >
       <span
         aria-hidden
@@ -699,22 +231,28 @@ function CompactSkillCard({
         style={{ background: tone.accent }}
       />
       <span className="flex items-center gap-2">
-        <span className="truncate text-[0.625rem] font-medium text-[var(--color-text-tertiary)]">
-          {getStateLabel(skillNode.state)}
+        <span className={cn("text-[0.625rem] font-medium", tone.muted)}>
+          {getStateLabel(node.state)}
         </span>
+        {courseCount > 0 ? (
+          <span className="rounded-full bg-black/[0.045] px-2 py-0.5 text-[0.625rem] font-medium text-[var(--color-text-secondary)]">
+            课程
+          </span>
+        ) : null}
         <span className="ml-auto shrink-0 text-[0.625rem] tabular-nums text-[var(--color-text-muted)]">
           {progress}%
         </span>
       </span>
       <span
         className={cn(
-          "mt-1.5 line-clamp-2 text-sm font-semibold leading-snug tracking-[-0.025em]",
+          "mt-2 block line-clamp-2 font-semibold leading-snug tracking-[-0.025em]",
+          compact ? "text-sm" : "text-[0.95rem]",
           active ? "text-[var(--color-text)]" : tone.text,
         )}
       >
-        {skillNode.title}
+        {node.title}
       </span>
-      <span className="mt-1.5 h-1 overflow-hidden rounded-full bg-black/[0.06]">
+      <span className="mt-3 block h-1 overflow-hidden rounded-full bg-black/[0.055]">
         <span
           className="block h-full rounded-full transition-[width]"
           style={{ width: `${progress}%`, background: tone.accent }}
@@ -724,42 +262,48 @@ function CompactSkillCard({
   );
 }
 
-function CompactSkillBranch({
+function CareerPathBranch({
   node,
   depth,
   maxDepth,
   activeNodeId,
   planningHighlightNodeIds,
+  variant,
   onSelectNode,
-}: {
-  node: VisibleSkillTreeNode;
-  depth: number;
-  maxDepth?: number;
-  activeNodeId?: string | null;
-  planningHighlightNodeIds: Set<string>;
-  onSelectNode?: (nodeId: string) => void;
-}) {
+}: BranchProps) {
   const children = maxDepth != null && depth >= maxDepth ? [] : node.children;
+  const active = node.id === activeNodeId;
+  const highlighted = planningHighlightNodeIds.has(node.id);
+  const compact = variant === "compact";
 
   return (
     <div className="relative">
-      <span aria-hidden className="absolute top-7 -left-4 h-px w-4 bg-slate-200" />
-      <CompactSkillCard
-        active={node.id === activeNodeId}
-        planningHighlighted={planningHighlightNodeIds.has(node.id)}
-        skillNode={node}
-        onSelect={() => onSelectNode?.(node.id)}
+      {depth > 0 ? (
+        <span aria-hidden className="absolute -left-5 top-7 h-px w-5 bg-slate-200" />
+      ) : null}
+      <SkillNodeCard
+        node={node}
+        active={active}
+        highlighted={highlighted}
+        variant={variant}
+        onSelect={onSelectNode}
       />
       {children.length > 0 ? (
-        <div className="mt-2.5 ml-3 space-y-2.5 border-l border-slate-200 pl-3">
+        <div
+          className={cn(
+            "mt-3 space-y-3 border-l border-slate-200",
+            compact ? "ml-4 pl-4" : "ml-6 pl-5",
+          )}
+        >
           {children.map((child) => (
-            <CompactSkillBranch
+            <CareerPathBranch
               key={child.id}
               node={child}
               depth={depth + 1}
               maxDepth={maxDepth}
               activeNodeId={activeNodeId}
               planningHighlightNodeIds={planningHighlightNodeIds}
+              variant={variant}
               onSelectNode={onSelectNode}
             />
           ))}
@@ -769,88 +313,60 @@ function CompactSkillBranch({
   );
 }
 
-function CompactCareerTreeGraph({
+function TargetStage({
   graph,
-  activeNodeId,
-  onSelectNode,
-  onSelectCareer,
-  maxDepth,
+  variant,
   planningHighlightNodeIds,
-  className,
-}: CareerTreeGraphProps) {
-  const planningHighlightIds = new Set(planningHighlightNodeIds ?? []);
+  onSelectCareer,
+}: {
+  graph: CareerDevelopmentGraph;
+  variant: CareerTreeGraphVariant;
+  planningHighlightNodeIds: Set<string>;
+  onSelectCareer?: (directionKey: string) => void;
+}) {
+  const compact = variant === "compact";
+  const futureCareers = graph.futureCareers.slice(0, 3);
 
   return (
     <div
-      className={cn(
-        "relative min-w-0 overflow-hidden rounded-[1.25rem] border border-black/[0.06] bg-[#fbfbf8]",
-        className,
-      )}
+      className={cn("grid gap-3", compact ? "grid-cols-1" : "lg:grid-cols-[minmax(0,1fr)_18rem]")}
     >
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.28]"
-        style={{
-          backgroundImage:
-            "linear-gradient(rgba(15,23,42,0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,0.035) 1px, transparent 1px)",
-          backgroundSize: "32px 32px",
-        }}
-      />
-      <div className="relative z-10 space-y-3 p-3.5">
-        {graph.futureCareers.length > 0 ? (
-          <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2">
-            {graph.futureCareers.map((role) => (
-              <CompactRoleCard
-                key={role.key}
-                role={role}
-                roleKind="future"
-                planningHighlighted={
-                  planningHighlightIds.has(role.key) ||
-                  planningHighlightIds.has(`${FUTURE_CAREER_NODE_PREFIX}${role.key}`)
-                }
-                onSelect={() => onSelectCareer?.(role.key)}
-              />
-            ))}
-          </div>
-        ) : null}
-
-        <div className={cn(graph.futureCareers.length > 0 && "pl-4 border-l border-slate-200")}>
-          <CompactRoleCard
-            role={graph.currentCareer}
-            roleKind="current"
-            planningHighlighted={
-              planningHighlightIds.has(graph.currentCareer.key) ||
-              planningHighlightIds.has(CURRENT_CAREER_NODE_ID)
-            }
+      <div className="relative">
+        <CareerRoleCard role={graph.currentCareer} current compact={compact} />
+        {graph.skillRoots.length > 0 ? (
+          <span
+            aria-hidden
+            className="absolute left-1/2 -bottom-6 h-6 w-px bg-gradient-to-b from-slate-300 to-transparent"
           />
-        </div>
-
-        <div className="ml-3 space-y-2.5 border-l border-slate-200 pl-3">
-          {graph.skillRoots.map((node) => (
-            <CompactSkillBranch
-              key={node.id}
-              node={node}
-              depth={0}
-              maxDepth={maxDepth}
-              activeNodeId={activeNodeId}
-              planningHighlightNodeIds={planningHighlightIds}
-              onSelectNode={onSelectNode}
-            />
+        ) : null}
+      </div>
+      {futureCareers.length > 0 ? (
+        <div className={cn("grid gap-2", compact ? "grid-cols-1" : "content-start")}>
+          {futureCareers.map((role) => (
+            <div
+              key={role.key}
+              className={cn(
+                "rounded-[20px]",
+                planningHighlightNodeIds.has(role.key) && "ring-2 ring-slate-950/10",
+              )}
+            >
+              <div className="mb-1 px-1 text-[0.625rem] font-medium text-[var(--color-text-muted)]">
+                {getRoleEyebrow(role)}
+              </div>
+              <CareerRoleCard
+                role={role}
+                compact
+                onSelect={
+                  role.source === "candidate_tree" ? () => onSelectCareer?.(role.key) : undefined
+                }
+              />
+            </div>
           ))}
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }
-
-const NODE_TYPES = {
-  careerSkill: CareerSkillNode,
-  careerRole: CareerRoleNodeView,
-};
-
-const EDGE_TYPES = {
-  careerBranch: CareerBranchEdge,
-};
 
 export function CareerTreeGraph({
   graph,
@@ -862,109 +378,55 @@ export function CareerTreeGraph({
   planningHighlightNodeIds,
   className,
 }: CareerTreeGraphProps) {
-  const instanceRef = useRef<ReactFlowInstance<CareerFlowNode, CareerFlowEdge> | null>(null);
-  const [flowReadyVersion, setFlowReadyVersion] = useState(0);
-  const isCompact = variant === "compact";
-  const metrics = getLayoutMetrics(variant);
-  const hasFutureCareers = graph.futureCareers.length > 0;
-  const graphMinHeight = hasFutureCareers ? metrics.canvasHeight : metrics.currentOnlyCanvasHeight;
-  const canvasHeight = isCompact ? graphMinHeight : "100%";
-  const elements = useMemo(
-    () => buildFlowElements({ graph, activeNodeId, variant, maxDepth, planningHighlightNodeIds }),
-    [activeNodeId, graph, maxDepth, planningHighlightNodeIds, variant],
-  );
-
-  useEffect(() => {
-    if (!elements.signature || flowReadyVersion === 0) {
-      return;
-    }
-
-    const frameId = requestAnimationFrame(() => {
-      void instanceRef.current?.fitView({
-        duration: 420,
-        maxZoom: metrics.maxZoom,
-        padding: metrics.fitPadding,
-      });
-    });
-
-    return () => cancelAnimationFrame(frameId);
-  }, [elements.signature, flowReadyVersion, metrics.fitPadding, metrics.maxZoom]);
-
-  if (isCompact) {
-    return (
-      <CompactCareerTreeGraph
-        graph={graph}
-        activeNodeId={activeNodeId}
-        onSelectNode={onSelectNode}
-        onSelectCareer={onSelectCareer}
-        maxDepth={maxDepth}
-        planningHighlightNodeIds={planningHighlightNodeIds}
-        className={className}
-      />
-    );
-  }
+  const compact = variant === "compact";
+  const planningHighlightIds = new Set(planningHighlightNodeIds ?? []);
 
   return (
     <div
       className={cn(
         "relative min-w-0 overflow-hidden border border-black/[0.06] bg-[#fbfbf8]",
-        isCompact ? "rounded-[1.25rem]" : "rounded-[1.75rem]",
+        compact ? "rounded-[1.25rem]" : "rounded-[1.75rem]",
         className,
       )}
-      style={{ minHeight: graphMinHeight }}
     >
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.34]"
+        className="pointer-events-none absolute inset-0 opacity-[0.22]"
         style={{
           backgroundImage:
-            "linear-gradient(rgba(15,23,42,0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,0.035) 1px, transparent 1px)",
-          backgroundSize: isCompact ? "32px 32px" : "48px 48px",
+            "linear-gradient(rgba(15,23,42,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,0.032) 1px, transparent 1px)",
+          backgroundSize: compact ? "32px 32px" : "48px 48px",
         }}
       />
-
-      <div className="relative z-10 h-full min-w-0 w-full" style={{ height: canvasHeight }}>
-        <ReactFlow<CareerFlowNode, CareerFlowEdge>
-          className="h-full w-full"
-          colorMode="light"
-          edges={elements.edges}
-          edgeTypes={EDGE_TYPES}
-          edgesFocusable={!isCompact}
-          elementsSelectable={false}
-          fitView
-          fitViewOptions={{ maxZoom: metrics.maxZoom, padding: metrics.fitPadding }}
-          maxZoom={metrics.maxZoom}
-          minZoom={metrics.minZoom}
-          nodes={elements.nodes}
-          nodesConnectable={false}
-          nodesDraggable={false}
-          nodesFocusable={!isCompact}
-          nodeOrigin={CENTER_NODE_ORIGIN}
-          nodeTypes={NODE_TYPES}
-          onInit={(instance) => {
-            instanceRef.current = instance;
-            setFlowReadyVersion((version) => version + 1);
-          }}
-          onNodeClick={(_, node) => {
-            if (isCompact) {
-              return;
-            }
-
-            if (node.type === "careerSkill") {
-              onSelectNode?.(node.id);
-            }
-            if (node.type === "careerRole" && node.data.roleKind === "future") {
-              onSelectCareer?.(node.data.role.key);
-            }
-          }}
-          panOnDrag={!isCompact}
-          panOnScroll={false}
-          preventScrolling={false}
-          proOptions={FLOW_PRO_OPTIONS}
-          zoomOnDoubleClick={false}
-          zoomOnPinch={!isCompact}
-          zoomOnScroll={false}
+      <div className="relative z-10 flex h-full min-h-0 flex-col p-3 md:p-4">
+        <TargetStage
+          graph={graph}
+          variant={variant}
+          planningHighlightNodeIds={planningHighlightIds}
+          onSelectCareer={onSelectCareer}
         />
+
+        <div
+          className={cn(
+            "mobile-scroll mt-6 min-h-0 flex-1 overflow-y-auto rounded-[24px] border border-black/[0.045] bg-white/64",
+            compact ? "p-3" : "p-5",
+          )}
+        >
+          <div className={cn("mx-auto space-y-3", compact ? "max-w-none" : "max-w-[760px]")}>
+            {graph.skillRoots.map((node) => (
+              <CareerPathBranch
+                key={node.id}
+                node={node}
+                depth={0}
+                maxDepth={maxDepth}
+                activeNodeId={activeNodeId}
+                planningHighlightNodeIds={planningHighlightIds}
+                variant={variant}
+                onSelectNode={onSelectNode}
+              />
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

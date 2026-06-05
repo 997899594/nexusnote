@@ -7,7 +7,6 @@ import { buildInterviewAgentInstructionsWithHint } from "@/lib/ai/interview/prom
 import type { InterviewOutline } from "@/lib/ai/interview/schemas";
 import type { InterviewTimingSink } from "@/lib/ai/interview/timing";
 import type { InterviewWebResearchContext } from "@/lib/ai/interview/web-research-context";
-import { createWebSearchTool } from "@/lib/ai/tools/chat/web-search";
 import { createInterviewTools } from "@/lib/ai/tools/interview";
 
 const COURSE_INTERVIEWER_MAX_STEPS = 12;
@@ -57,11 +56,6 @@ export function createCourseInterviewerSpecialist(options: CourseInterviewerSpec
       messages: options.messages,
     }),
   );
-  const webSearchTools = createWebSearchTool(options.userId);
-  const agentTools = {
-    ...tools,
-    ...webSearchTools,
-  };
   const shouldForceOutlinePreview = options.webResearchContext?.shouldDraftOutline === true;
   const instructions = buildInterviewAgentInstructionsWithHint({
     currentOutline: options.currentOutline,
@@ -76,7 +70,7 @@ export function createCourseInterviewerSpecialist(options: CourseInterviewerSpec
       modelSeries: options.modelSeries,
     }),
     instructions,
-    tools: agentTools,
+    tools,
     prepareStep: ({ stepNumber }) => {
       if (stepNumber === 0 && shouldForceOutlinePreview) {
         return {

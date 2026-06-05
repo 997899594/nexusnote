@@ -133,9 +133,8 @@ function InterviewContent() {
   const lastMsg = chatMessages[chatMessages.length - 1];
   const isAILoading =
     (status === "submitted" || status === "streaming") && (!lastMsg || lastMsg.role === "user");
-  const shouldShowOutlinePanel =
-    Boolean(displayOutline) || Boolean(stableOutline) || isOutlineLoading || interviewCompleted;
   const activeOutline = displayOutline ?? stableOutline;
+  const shouldShowOutlinePanel = Boolean(activeOutline) || interviewCompleted;
   const stableOutlineKey = stableOutline
     ? [
         stableOutline.title,

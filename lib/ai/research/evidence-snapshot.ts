@@ -28,6 +28,7 @@ export interface ResearchEvidenceSnapshotSource {
 export interface ResearchEvidenceSnapshot {
   id: string;
   status: "ready" | "unavailable";
+  unavailableReason?: "disabled" | "not_configured" | "provider_error" | "no_results";
   generatedAt: string;
   requirement: ResearchEvidenceRequest["requirement"];
   domain: ResearchEvidenceRequest["domain"];
@@ -139,6 +140,7 @@ export function buildResearchEvidenceSnapshot(params: {
   return {
     id: getStableSnapshotId(params.request),
     status: params.retrieval.success ? "ready" : "unavailable",
+    unavailableReason: params.retrieval.unavailableReason,
     generatedAt: (params.generatedAt ?? new Date()).toISOString(),
     requirement: params.request.requirement,
     domain: params.request.domain,

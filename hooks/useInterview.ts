@@ -108,7 +108,10 @@ export function useInterview(options?: UseInterviewOptions): UseInterviewReturn 
     .find((message) => message.role === "assistant");
   const currentStableOutline = stableResult?.outline ?? stableOutline;
   const displayOutline: OutlineDisplay | null = liveOutlineResult?.outline ?? currentStableOutline;
-  const outlineIsLoading = isLoading && !currentTurnOutlineResult?.isComplete;
+  const outlineIsLoading =
+    isLoading &&
+    Boolean(liveOutlineResult?.isStarted || currentStableOutline) &&
+    !currentTurnOutlineResult?.isComplete;
   const outline: InterviewOutlineState = {
     display: displayOutline,
     stable: currentStableOutline,

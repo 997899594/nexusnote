@@ -35,6 +35,7 @@ export interface InterviewDisplayMessage {
   options?: InterviewOptionAction[];
   researchEvidence?: ResearchEvidenceSnapshot | null;
   researchEvents?: InterviewResearchEvent[];
+  isResearchActive?: boolean;
 }
 
 export type InterviewUIMessage = UIMessage<
@@ -114,6 +115,84 @@ function getResearchEventsFromMessage(message: UIMessage): InterviewResearchEven
   }
 
   return events;
+}
+
+function getResearchEventKey(event: InterviewResearchEvent): string {
+  if (event.kind === "progress") {
+    return `${event.runId}:progress:${event.progress.stage}`;
+  }
+
+  return `${event.runId}:${event.kind}`;
+}
+
+function dedupeResearchEvents(events: InterviewResearchEvent[]): InterviewResearchEvent[] {
+  const byKey = new Map<string, InterviewResearchEvent>();
+
+  for (const event of events) {
+    byKey.set(getResearchEventKey(event), event);
+  }
+
+  return Array.from(byKey.values()).sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+  );
+}
+
+function getCompletedEvidenceFromEvents(
+  events: InterviewResearchEvent[],
+): ResearchEvidenceSnapshot | null {
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index];
+    if (event.kind === "completed") {
+      return event.evidence;
+    }
+  }
+
+  return null;
+}
+
+function isResearchActivityActive(events: InterviewResearchEvent[]): boolean {
+  if (events.length === 0) {
+    return false;
+  }
+
+  const completedRunIds = new Set(
+    events.filter((event) => event.kind === "completed").map((event) => event.runId),
+  );
+  const latestRunId = events.at(-1)?.runId;
+
+  return Boolean(latestRunId && !completedRunIds.has(latestRunId));
+}
+
+interface PendingResearchActivity {
+  id: string;
+  evidence: ResearchEvidenceSnapshot | null;
+  events: InterviewResearchEvent[];
+}
+
+function mergeResearchActivity(
+  current: PendingResearchActivity | null,
+  params: {
+    id: string;
+    evidence?: ResearchEvidenceSnapshot | null;
+    events?: InterviewResearchEvent[];
+  },
+): PendingResearchActivity | null {
+  const events = dedupeResearchEvents([...(current?.events ?? []), ...(params.events ?? [])]);
+  const evidence =
+    params.evidence ??
+    current?.evidence ??
+    getCompletedEvidenceFromEvents(events) ??
+    getCompletedEvidenceFromEvents(current?.events ?? []);
+
+  if (!evidence && events.length === 0) {
+    return null;
+  }
+
+  return {
+    id: current?.id ?? params.id,
+    evidence,
+    events,
+  };
 }
 
 function findLatestOutlinePreviewPart(messages: InterviewUIMessage[], requireStableState: boolean) {
@@ -386,39 +465,92 @@ export function findLatestStableOutline(
 export function toInterviewDisplayMessages(
   messages: InterviewUIMessage[],
 ): InterviewDisplayMessage[] {
-  return messages
-    .filter(
-      (
-        message,
-      ): message is InterviewUIMessage & {
-        role: "user" | "assistant";
-      } => message.role === "user" || message.role === "assistant",
-    )
-    .map((message) => {
-      const outlineResult = message.role === "assistant" ? findLatestOutline([message]) : null;
-      const mode: InterviewDisplayMessage["mode"] =
-        message.role === "assistant" ? (outlineResult ? "outline" : "question") : undefined;
+  const displayMessages: InterviewDisplayMessage[] = [];
+  let pendingResearch: PendingResearchActivity | null = null;
 
-      return {
+  for (const message of messages) {
+    if (message.role !== "user" && message.role !== "assistant") {
+      continue;
+    }
+
+    if (message.role === "user") {
+      if (pendingResearch) {
+        displayMessages.push({
+          id: `${pendingResearch.id}-research`,
+          role: "assistant",
+          text: "",
+          mode: "question",
+          researchEvidence: pendingResearch.evidence,
+          researchEvents: pendingResearch.events,
+          isResearchActive: isResearchActivityActive(pendingResearch.events),
+        });
+        pendingResearch = null;
+      }
+
+      displayMessages.push({
         id: message.id,
-        role: message.role,
+        role: "user",
         text: getInterviewMessageText(message),
-        mode,
-        outlineComplete: outlineResult?.isComplete,
-        options: message.role === "assistant" ? getInterviewMessageOptions(message) : undefined,
-        researchEvidence:
-          message.role === "assistant" ? getResearchEvidenceFromMessage(message) : undefined,
-        researchEvents:
-          message.role === "assistant" ? getResearchEventsFromMessage(message) : undefined,
-      };
-    })
-    .filter(
-      (message) =>
-        message.text.length > 0 ||
-        (message.options?.length ?? 0) > 0 ||
-        Boolean(message.researchEvidence) ||
-        (message.researchEvents?.length ?? 0) > 0,
-    );
+      });
+      continue;
+    }
+
+    const messageResearch = mergeResearchActivity(null, {
+      id: message.id,
+      evidence: getResearchEvidenceFromMessage(message),
+      events: getResearchEventsFromMessage(message),
+    });
+    const outlineResult = findLatestOutline([message]);
+    const mode: InterviewDisplayMessage["mode"] = outlineResult ? "outline" : "question";
+    const text = getInterviewMessageText(message);
+    const options = getInterviewMessageOptions(message);
+    const hasVisibleContent =
+      text.length > 0 || options.length > 0 || Boolean(outlineResult?.outline);
+
+    if (!hasVisibleContent) {
+      pendingResearch = messageResearch
+        ? mergeResearchActivity(pendingResearch, messageResearch)
+        : pendingResearch;
+      continue;
+    }
+
+    const research = messageResearch
+      ? mergeResearchActivity(pendingResearch, messageResearch)
+      : pendingResearch;
+
+    displayMessages.push({
+      id: message.id,
+      role: "assistant",
+      text,
+      mode,
+      outlineComplete: outlineResult?.isComplete,
+      options,
+      researchEvidence: research?.evidence,
+      researchEvents: research?.events,
+      isResearchActive: research ? isResearchActivityActive(research.events) : undefined,
+    });
+    pendingResearch = null;
+  }
+
+  if (pendingResearch) {
+    displayMessages.push({
+      id: `${pendingResearch.id}-research`,
+      role: "assistant",
+      text: "",
+      mode: "question",
+      researchEvidence: pendingResearch.evidence,
+      researchEvents: pendingResearch.events,
+      isResearchActive: isResearchActivityActive(pendingResearch.events),
+    });
+  }
+
+  return displayMessages.filter(
+    (message) =>
+      message.text.length > 0 ||
+      (message.options?.length ?? 0) > 0 ||
+      Boolean(message.researchEvidence) ||
+      (message.researchEvents?.length ?? 0) > 0,
+  );
 }
 
 export function getLatestVisibleInterviewAssistantMessage(

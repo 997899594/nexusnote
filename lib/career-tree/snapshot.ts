@@ -1,6 +1,9 @@
 import { and, desc, eq } from "drizzle-orm";
 import { careerGenerationRuns, careerUserTreeSnapshots, db } from "@/db";
-import { CAREER_TREE_SCHEMA_VERSION } from "@/lib/career-tree/constants";
+import {
+  CAREER_TREE_COMPOSE_PROMPT_VERSION,
+  CAREER_TREE_SCHEMA_VERSION,
+} from "@/lib/career-tree/constants";
 import { getCareerTreePreference } from "@/lib/career-tree/preferences";
 import { hasEligibleCareerCourses } from "@/lib/career-tree/source";
 import {
@@ -19,11 +22,13 @@ export function parseCareerTreeSnapshotPayload(payload: unknown): CareerTreeSnap
 
 function isCurrentReadySnapshot(row: {
   snapshot: typeof careerUserTreeSnapshots.$inferSelect;
+  promptVersion: string | null;
   runStatus: string | null;
 }): boolean {
   if (
     row.snapshot.schemaVersion !== CAREER_TREE_SCHEMA_VERSION ||
     row.snapshot.status !== "ready" ||
+    row.promptVersion !== CAREER_TREE_COMPOSE_PROMPT_VERSION ||
     row.runStatus !== "succeeded"
   ) {
     return false;

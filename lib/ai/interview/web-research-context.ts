@@ -23,6 +23,20 @@ export interface InterviewWebResearchContext {
   evidenceAvailable: boolean;
 }
 
+function getResearchUnavailablePromptText(output: ResearchRetrievalOutput): string {
+  switch (output.unavailableReason) {
+    case "disabled":
+    case "not_configured":
+      return "本轮需要最新/前沿信息，但系统检索服务未启用。";
+    case "provider_error":
+      return "本轮需要最新/前沿信息，但检索服务异常，未完成来源校准。";
+    case "no_results":
+      return "本轮需要最新/前沿信息，但没有找到可用来源。";
+    default:
+      return "本轮需要最新/前沿信息，但未完成外部来源校准。";
+  }
+}
+
 export function shouldBuildInterviewWebResearchContext(
   messages: Array<Pick<UIMessage, "role" | "parts">>,
 ) {
@@ -71,10 +85,10 @@ export async function resolveInterviewWebResearchContext(params: {
     return {
       promptBlock: [
         "## 当前外部资料状态",
-        "本轮需要最新/前沿信息，但没有拿到可用联网证据。",
+        getResearchUnavailablePromptText(output),
         evidenceRequest.outlineReadiness === "ready"
-          ? "如果生成课程蓝图，必须明确标注“当前未完成联网核验”。"
-          : "如果访谈信息还不完整，先继续追问关键约束，不要因为检索失败而生成蓝图。",
+          ? "如果生成课程蓝图，只需简短标注“当前未完成联网核验”。"
+          : "如果访谈信息还不完整，先继续追问关键约束，不要因为检索失败而生成蓝图，也不要在正文解释检索失败。",
         output.errors.length > 0 ? `失败原因：${output.errors[0]}` : null,
       ]
         .filter((line): line is string => Boolean(line))

@@ -15,6 +15,7 @@ const DEFAULT_LIMIT = 6;
 const DEFAULT_EXTRACT_LIMIT = 8;
 const MAX_QUERY_VARIANTS = 4;
 const MAX_CACHE_VALUE_BYTES = 700_000;
+const AI_302_SEARCH_PROVIDER = "tavily";
 
 const OFFICIAL_DOC_HINTS = [
   "/docs",
@@ -116,6 +117,7 @@ export interface ResearchRetrievalOutput {
   queries: string[];
   answer: string | null;
   sources: ResearchEvidenceSource[];
+  unavailableReason?: "disabled" | "not_configured" | "provider_error" | "no_results";
   errors: string[];
   providerTrace: Array<{
     provider: ResearchSearchProvider | ResearchExtractProvider | "reranker";
@@ -304,6 +306,14 @@ function getProviderFreshnessStartDate(
 
 function getExaSearchType(query: string): "auto" | "deep-lite" {
   return hasTimeSensitiveCue(query) || hasTechnicalResearchCue(query) ? "deep-lite" : "auto";
+}
+
+function getAi302Origin(): string {
+  try {
+    return new URL(env.AI_302_BASE_URL).origin;
+  } catch {
+    return "https://api.302ai.cn";
+  }
 }
 
 function normalizeQueryList(query: string, queries?: string[]): string[] {
@@ -544,6 +554,37 @@ function mapJinaSearchResult(result: Record<string, unknown>): ResearchSearchRes
   };
 }
 
+function map302SearchResult(result: Record<string, unknown>): ResearchSearchResult | null {
+  const url = typeof result.url === "string" ? result.url : "";
+  const normalizedUrl = normalizeUrl(url);
+  if (!normalizedUrl) {
+    return null;
+  }
+
+  const content =
+    cleanText(typeof result.content === "string" ? result.content : "") ||
+    cleanText(typeof result.raw_content === "string" ? result.raw_content : "") ||
+    cleanText(typeof result.summary === "string" ? result.summary : "") ||
+    cleanText(typeof result.description === "string" ? result.description : "");
+
+  return {
+    title:
+      typeof result.title === "string" && result.title.trim() ? result.title.trim() : normalizedUrl,
+    url: normalizedUrl,
+    domain: getDomain(normalizedUrl),
+    snippet: truncateText(content, 500),
+    provider: "302-search",
+    score: typeof result.score === "number" ? clampScore(result.score * 100) : 68,
+    publishedAt:
+      typeof result.published_at === "string" && result.published_at.trim()
+        ? result.published_at
+        : typeof result.publishedAt === "string" && result.publishedAt.trim()
+          ? result.publishedAt
+          : undefined,
+    text: content.length >= MIN_EXTRACTED_CONTENT_LENGTH ? content : undefined,
+  };
+}
+
 async function searchWithTavily(
   query: string,
   limit: number,
@@ -707,6 +748,69 @@ async function searchWithJina(
   return output;
 }
 
+async function searchWith302(
+  query: string,
+  limit: number,
+  freshnessWindowDays: 30 | 90 | 180,
+): Promise<{ answer: string | null; results: ResearchSearchResult[] }> {
+  const cacheKey = buildCacheKey([
+    "search",
+    "302-search",
+    AI_302_SEARCH_PROVIDER,
+    query,
+    limit,
+    freshnessWindowDays,
+  ]);
+  const cached = await readCache<{ answer: string | null; results: ResearchSearchResult[] }>(
+    cacheKey,
+  );
+  if (cached) {
+    return cached;
+  }
+
+  const data = await fetchJson<Record<string, unknown>>(`${getAi302Origin()}/302/general/search`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${env.AI_302_API_KEY}`,
+    },
+    body: JSON.stringify({
+      query,
+      provider: AI_302_SEARCH_PROVIDER,
+      max_results: limit,
+    }),
+    timeoutMs: 20_000,
+  });
+
+  const nestedData =
+    data.data && typeof data.data === "object" ? (data.data as Record<string, unknown>) : {};
+  const rawResults = Array.isArray(data.search_results)
+    ? data.search_results
+    : Array.isArray(data.results)
+      ? data.results
+      : Array.isArray(nestedData.results)
+        ? nestedData.results
+        : [];
+  const answer =
+    typeof nestedData.answer === "string" && nestedData.answer.trim()
+      ? nestedData.answer
+      : typeof data.answer === "string" && data.answer.trim()
+        ? data.answer
+        : null;
+
+  const output = {
+    answer,
+    results: rawResults
+      .filter((item): item is Record<string, unknown> => item != null && typeof item === "object")
+      .map(map302SearchResult)
+      .filter((item): item is ResearchSearchResult => item != null)
+      .slice(0, limit),
+  };
+
+  await writeCache(cacheKey, output, getCacheTtlSeconds(freshnessWindowDays));
+  return output;
+}
+
 async function extractWithJinaReader(url: string): Promise<ExtractedDocument | null> {
   const normalizedUrl = normalizeUrl(url);
   if (!normalizedUrl) {
@@ -752,6 +856,19 @@ async function searchAcrossProviders(
     provider: ResearchSearchProvider;
     run: Promise<{ answer: string | null; results: ResearchSearchResult[] }>;
   }> = [];
+
+  if (env.AI_302_API_KEY) {
+    primaryTasks.push({
+      provider: "302-search",
+      run: searchWith302(query, limit, freshnessWindowDays),
+    });
+  } else {
+    providerTrace.push({
+      provider: "302-search",
+      status: "skipped",
+      message: "AI_302_API_KEY missing",
+    });
+  }
 
   if (env.TAVILY_API_KEY) {
     primaryTasks.push({
@@ -1340,7 +1457,7 @@ function buildEvidenceSource(params: {
 }
 
 export function hasResearchProviderConfigured(): boolean {
-  return Boolean(env.TAVILY_API_KEY || env.EXA_API_KEY || env.JINA_API_KEY);
+  return Boolean(env.AI_302_API_KEY || env.TAVILY_API_KEY || env.EXA_API_KEY || env.JINA_API_KEY);
 }
 
 export async function collectResearchEvidence(
@@ -1368,6 +1485,7 @@ export async function collectResearchEvidence(
       queries: [query],
       answer: null,
       sources: [],
+      unavailableReason: "disabled",
       errors: ["AI_ENABLE_WEB_SEARCH=false"],
       providerTrace,
     };
@@ -1385,6 +1503,7 @@ export async function collectResearchEvidence(
       queries: [query],
       answer: null,
       sources: [],
+      unavailableReason: "not_configured",
       errors: ["No web research provider configured"],
       providerTrace,
     };
@@ -1470,6 +1589,8 @@ export async function collectResearchEvidence(
     queries,
     answer,
     sources,
+    unavailableReason:
+      sources.length > 0 ? undefined : errors.length > 0 ? "provider_error" : "no_results",
     errors,
     providerTrace,
   };
