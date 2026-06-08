@@ -231,5 +231,3 @@ export function MobileEditorMoreMenu({ editor, isOpen, onClose }: MobileEditorMo
     </>
   );
 }
-
-export default MobileEditorToolbar;

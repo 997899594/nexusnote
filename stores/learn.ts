@@ -5,6 +5,7 @@
  */
 
 import { create } from "zustand";
+import { persistCurrentChapter } from "@/lib/learning/learn-progress-client";
 import type { LearnChapterProjection, LearnSectionProjection } from "@/lib/learning/projection";
 
 export type SectionOutline = LearnSectionProjection;
@@ -51,6 +52,13 @@ interface LearnState {
   toggleChat: () => void;
   setChatOpen: (open: boolean) => void;
 
+  // Notes / annotations panel
+  isNotesOpen: boolean;
+  toggleNotes: () => void;
+  setNotesOpen: (open: boolean) => void;
+  currentSectionAnnotationCount: number;
+  setCurrentSectionAnnotationCount: (count: number) => void;
+
   // Desktop panel visibility
   isDesktopSidebarCollapsed: boolean;
   toggleDesktopSidebar: () => void;
@@ -73,6 +81,8 @@ const initialState = {
   completedSections: new Set<string>(),
   isSidebarOpen: false,
   isChatOpen: false,
+  isNotesOpen: false,
+  currentSectionAnnotationCount: 0,
   isDesktopSidebarCollapsed: false,
   isDesktopChatCollapsed: false,
 };
@@ -86,11 +96,7 @@ export const useLearnStore = create<LearnState>((set) => ({
     set((state) => {
       // Persist chapter position to server when user navigates (skip initial load)
       if (state.courseId && state.currentChapterIndex !== index && state.chapters.length > 0) {
-        fetch("/api/learn/progress", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ courseId: state.courseId, currentChapter: index }),
-        }).catch(() => {});
+        persistCurrentChapter({ courseId: state.courseId, currentChapter: index }).catch(() => {});
       }
       return { currentChapterIndex: index, currentSectionIndex: 0 };
     }),
@@ -135,6 +141,13 @@ export const useLearnStore = create<LearnState>((set) => ({
   toggleChat: () => set((state) => ({ isChatOpen: !state.isChatOpen })),
 
   setChatOpen: (isChatOpen) => set({ isChatOpen }),
+
+  toggleNotes: () => set((state) => ({ isNotesOpen: !state.isNotesOpen })),
+
+  setNotesOpen: (isNotesOpen) => set({ isNotesOpen }),
+
+  setCurrentSectionAnnotationCount: (currentSectionAnnotationCount) =>
+    set({ currentSectionAnnotationCount }),
 
   toggleDesktopSidebar: () =>
     set((state) => ({ isDesktopSidebarCollapsed: !state.isDesktopSidebarCollapsed })),

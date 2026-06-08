@@ -4,113 +4,57 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { MessageSquare, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import type { Annotation } from "@/hooks/useAnnotations";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { useTextAnchorHighlights } from "@/hooks/useTextAnchorHighlights";
 
 interface AnnotationLayerProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
   annotations: Annotation[];
   onRemove: (id: string) => void;
-  onUpdateNote: (id: string, content: string) => void;
 }
 
-/**
- * Find and highlight text ranges in a container based on text-content anchoring.
- * Returns the Range for each matched annotation.
- */
-function findAnnotationRanges(
-  container: HTMLElement,
-  annotations: Annotation[],
-): Map<string, Range> {
-  const ranges = new Map<string, Range>();
-  const text = container.textContent ?? "";
-
-  for (const annotation of annotations) {
-    const { textContent, startOffset, endOffset } = annotation.anchor;
-    const contextIndex = text.indexOf(textContent);
-    if (contextIndex === -1) continue;
-
-    const absoluteStart = contextIndex + startOffset;
-    const absoluteEnd = contextIndex + endOffset;
-
-    // Walk DOM tree to find the text nodes at these absolute positions
-    const range = document.createRange();
-    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
-    let currentOffset = 0;
-    let startSet = false;
-
-    while (walker.nextNode()) {
-      const node = walker.currentNode as Text;
-      const nodeLength = node.length;
-
-      if (!startSet && currentOffset + nodeLength > absoluteStart) {
-        range.setStart(node, absoluteStart - currentOffset);
-        startSet = true;
-      }
-
-      if (startSet && currentOffset + nodeLength >= absoluteEnd) {
-        range.setEnd(node, absoluteEnd - currentOffset);
-        ranges.set(annotation.id, range);
-        break;
-      }
-
-      currentOffset += nodeLength;
-    }
-  }
-
-  return ranges;
-}
-
-export function AnnotationLayer({
-  containerRef,
-  annotations,
-  onRemove,
-  onUpdateNote: _onUpdateNote,
-}: AnnotationLayerProps) {
-  const [highlights, setHighlights] = useState<
-    Array<{
-      id: string;
-      rects: DOMRect[];
-      color: string;
-      type: "highlight" | "note";
-      noteContent?: string;
-    }>
-  >([]);
+export function AnnotationLayer({ containerRef, annotations, onRemove }: AnnotationLayerProps) {
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
   const isMobile = useIsMobile();
+  const anchoredAnnotations = useMemo(
+    () =>
+      annotations.map((annotation) => ({
+        id: annotation.id,
+        anchor: annotation.anchor,
+      })),
+    [annotations],
+  );
+  const anchorHighlights = useTextAnchorHighlights({
+    containerRef,
+    items: anchoredAnnotations,
+  });
+  const annotationsById = useMemo(
+    () => new Map(annotations.map((annotation) => [annotation.id, annotation])),
+    [annotations],
+  );
 
-  // Recalculate highlight positions
-  useEffect(() => {
-    if (!containerRef.current || annotations.length === 0) {
-      setHighlights([]);
-      return;
-    }
+  const highlights = useMemo(
+    () =>
+      anchorHighlights.flatMap((highlight) => {
+        const annotation = annotationsById.get(highlight.id);
+        if (!annotation) {
+          return [];
+        }
 
-    const ranges = findAnnotationRanges(containerRef.current, annotations);
-    const containerRect = containerRef.current.getBoundingClientRect();
-
-    const newHighlights = annotations
-      .filter((a) => ranges.has(a.id))
-      .map((a) => {
-        const range = ranges.get(a.id)!;
-        const rects = Array.from(range.getClientRects()).map((r) => ({
-          ...r.toJSON(),
-          top: r.top - containerRect.top,
-          left: r.left - containerRect.left,
-        })) as DOMRect[];
-
-        return {
-          id: a.id,
-          rects,
-          color: a.color ?? "#fef08a",
-          type: a.type,
-          noteContent: a.noteContent,
-        };
-      });
-
-    setHighlights(newHighlights);
-  }, [containerRef, annotations]);
+        return [
+          {
+            id: annotation.id,
+            rects: highlight.rects,
+            color: annotation.color ?? "#fef08a",
+            type: annotation.type,
+            noteContent: annotation.noteContent,
+          },
+        ];
+      }),
+    [anchorHighlights, annotationsById],
+  );
 
   if (highlights.length === 0) return null;
 

@@ -2,6 +2,7 @@
 
 import {
   BookOpenText,
+  ChevronDown,
   Clock3,
   Copy,
   ExternalLink,
@@ -18,147 +19,51 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { StreamdownMessage } from "@/components/chat/StreamdownMessage";
 import { useToast } from "@/components/ui/Toast";
+import { useTextAnchorHighlights } from "@/hooks/useTextAnchorHighlights";
+import { stripLeadingSectionHeading } from "@/lib/learning/content-formatting";
 import type {
   PublicCourseAnnotationProjection,
   PublicCourseReaderProjection,
 } from "@/lib/learning/course-sharing-types";
+import {
+  createPublicAnnotation,
+  mergePublicAnnotationMutation,
+  savePublicCourseToLibrary,
+  updatePublicAnnotationStatus,
+} from "@/lib/learning/public-course-client";
+import { createSelectionAnchor } from "@/lib/learning/text-anchors";
 import { cn } from "@/lib/utils";
 
 interface PublicCourseReaderProps {
   data: PublicCourseReaderProjection;
 }
 
+type PublicOutlineChapter = PublicCourseReaderProjection["content"]["outline"]["chapters"][number];
+
 interface SelectionDraft {
   sectionKey: string;
   quotedText: string;
-  anchor: {
-    textContent: string;
-    startOffset: number;
-    endOffset: number;
-  };
+  anchor: PublicCourseAnnotationProjection["anchor"];
 }
 
 function getSelectionDraft(sectionKey: string, container: HTMLElement): SelectionDraft | null {
-  const selection = window.getSelection();
-  if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
+  const selectionAnchor = createSelectionAnchor({
+    selection: window.getSelection(),
+    container,
+    contextRadius: 80,
+  });
+  if (!selectionAnchor) {
     return null;
   }
-
-  const range = selection.getRangeAt(0);
-  if (!container.contains(range.commonAncestorContainer)) {
-    return null;
-  }
-
-  const quotedText = selection.toString().trim();
-  if (!quotedText) {
-    return null;
-  }
-
-  const containerText = container.textContent ?? "";
-  const selectedStart = containerText.indexOf(quotedText);
-  if (selectedStart < 0) {
-    return null;
-  }
-
-  const contextStart = Math.max(0, selectedStart - 80);
-  const contextEnd = Math.min(containerText.length, selectedStart + quotedText.length + 80);
-  const textContent = containerText.slice(contextStart, contextEnd);
 
   return {
     sectionKey,
-    quotedText,
-    anchor: {
-      textContent,
-      startOffset: selectedStart - contextStart,
-      endOffset: selectedStart - contextStart + quotedText.length,
-    },
+    quotedText: selectionAnchor.selectedText,
+    anchor: selectionAnchor.anchor,
   };
 }
 
-interface PublicAnnotationHighlight {
-  annotationId: string;
-  rects: Array<{
-    top: number;
-    left: number;
-    width: number;
-    height: number;
-  }>;
-}
-
 const EMPTY_PUBLIC_ANNOTATIONS: PublicCourseAnnotationProjection[] = [];
-
-function findAnnotationRange(
-  container: HTMLElement,
-  annotation: PublicCourseAnnotationProjection,
-): Range | null {
-  const text = container.textContent ?? "";
-  const contextIndex = text.indexOf(annotation.anchor.textContent);
-  const quoteIndex = text.indexOf(annotation.quotedText);
-
-  const absoluteStart =
-    contextIndex >= 0 ? contextIndex + annotation.anchor.startOffset : quoteIndex;
-  const absoluteEnd =
-    contextIndex >= 0
-      ? contextIndex + annotation.anchor.endOffset
-      : quoteIndex + annotation.quotedText.length;
-
-  if (absoluteStart < 0 || absoluteEnd <= absoluteStart) {
-    return null;
-  }
-
-  const range = document.createRange();
-  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
-  let currentOffset = 0;
-  let startSet = false;
-
-  while (walker.nextNode()) {
-    const node = walker.currentNode as Text;
-    const nodeLength = node.length;
-
-    if (!startSet && currentOffset + nodeLength > absoluteStart) {
-      range.setStart(node, absoluteStart - currentOffset);
-      startSet = true;
-    }
-
-    if (startSet && currentOffset + nodeLength >= absoluteEnd) {
-      range.setEnd(node, absoluteEnd - currentOffset);
-      return range;
-    }
-
-    currentOffset += nodeLength;
-  }
-
-  return null;
-}
-
-function getAnnotationHighlights(
-  container: HTMLElement,
-  annotations: PublicCourseAnnotationProjection[],
-): PublicAnnotationHighlight[] {
-  const containerRect = container.getBoundingClientRect();
-
-  return annotations.flatMap((annotation) => {
-    const range = findAnnotationRange(container, annotation);
-    if (!range) {
-      return [];
-    }
-
-    const rects = Array.from(range.getClientRects())
-      .filter((rect) => rect.width > 0 && rect.height > 0)
-      .map((rect) => ({
-        top: rect.top - containerRect.top,
-        left: rect.left - containerRect.left,
-        width: rect.width,
-        height: rect.height,
-      }));
-
-    if (rects.length === 0) {
-      return [];
-    }
-
-    return [{ annotationId: annotation.id, rects }];
-  });
-}
 
 function formatDifficulty(value: string | null): string {
   switch (value) {
@@ -185,38 +90,20 @@ function formatEstimatedMinutes(value: number | null): string {
   return `${value} 分钟`;
 }
 
-function normalizeHeadingText(value: string): string {
-  return value
-    .replace(/^[\s#*\-`~]+/, "")
-    .replace(/^[\d.、\s]+/, "")
-    .replace(/[*_`]/g, "")
-    .replace(/[：:｜|\-—–]+/g, " ")
-    .replace(/\s+/g, "")
-    .toLowerCase();
+function getChapterKey(chapterTitle: string, chapterIndex: number): string {
+  return `${chapterIndex}:${chapterTitle}`;
 }
 
-function stripLeadingSectionHeading(content: string, sectionTitle: string | null): string {
-  if (!sectionTitle) {
-    return content;
+function getSectionChapterKey(chapters: PublicOutlineChapter[], sectionKey: string): string | null {
+  const chapterIndex = chapters.findIndex((chapter) =>
+    chapter.sections.some((section) => section.nodeId === sectionKey),
+  );
+
+  if (chapterIndex < 0) {
+    return null;
   }
 
-  const trimmed = content.trimStart();
-  const match = trimmed.match(/^#{1,3}\s+([^\n\r]+)(?:\r?\n|$)/);
-  if (!match?.[1]) {
-    return content;
-  }
-
-  const heading = normalizeHeadingText(match[1]);
-  const title = normalizeHeadingText(sectionTitle);
-  if (!heading || !title) {
-    return content;
-  }
-
-  if (heading.includes(title) || title.includes(heading)) {
-    return trimmed.slice(match[0].length).trimStart();
-  }
-
-  return content;
+  return getChapterKey(chapters[chapterIndex].title, chapterIndex);
 }
 
 export function PublicCourseReader({ data }: PublicCourseReaderProps) {
@@ -229,11 +116,18 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
   const [selectionDraft, setSelectionDraft] = useState<SelectionDraft | null>(null);
   const [annotationBody, setAnnotationBody] = useState("");
   const [activeAnnotationId, setActiveAnnotationId] = useState<string | null>(null);
-  const [annotationHighlights, setAnnotationHighlights] = useState<PublicAnnotationHighlight[]>([]);
   const [isSubmittingAnnotation, setIsSubmittingAnnotation] = useState(false);
   const [isSavingCourse, setIsSavingCourse] = useState(false);
   const [moderatingAnnotationId, setModeratingAnnotationId] = useState<string | null>(null);
   const [mobilePanel, setMobilePanel] = useState<"outline" | "annotations" | null>(null);
+  const [expandedChapterKeys, setExpandedChapterKeys] = useState<Set<string>>(
+    () =>
+      new Set(
+        data.content.outline.chapters[0]
+          ? [getChapterKey(data.content.outline.chapters[0].title, 0)]
+          : [],
+      ),
+  );
   const sectionRefs = useRef(new Map<string, HTMLElement>());
   const articleContentRef = useRef<HTMLDivElement | null>(null);
   const isOwnerView = data.capabilities.canModeratePublicAnnotations;
@@ -276,49 +170,39 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
     (annotation) => annotation.status === "hidden",
   ).length;
   const totalSections = data.content.sections.length;
+  const activeChapterIndex = data.content.outline.chapters.findIndex((chapter) =>
+    chapter.sections.some((section) => section.nodeId === activeSectionKey),
+  );
+  const activeSectionOrderByKey = useMemo(() => {
+    const map = new Map<string, number>();
+    let order = 1;
+
+    for (const chapter of data.content.outline.chapters) {
+      for (const section of chapter.sections) {
+        map.set(section.nodeId, order);
+        order += 1;
+      }
+    }
+
+    return map;
+  }, [data.content.outline.chapters]);
+  const activeSectionOrder = activeSectionOrderByKey.get(activeSectionKey) ?? 0;
   const activeSectionContent = activeSection?.content
     ? stripLeadingSectionHeading(activeSection.content, activeSection.title)
     : "";
-
-  useEffect(() => {
-    const container = articleContentRef.current;
-    if (!container || activeVisibleAnnotations.length === 0) {
-      setAnnotationHighlights([]);
-      return;
-    }
-
-    const updateHighlights = () => {
-      setAnnotationHighlights(getAnnotationHighlights(container, activeVisibleAnnotations));
-    };
-
-    updateHighlights();
-    const animationFrameId = requestAnimationFrame(() => {
-      requestAnimationFrame(updateHighlights);
-    });
-
-    const resizeObserver = new ResizeObserver(updateHighlights);
-    resizeObserver.observe(container);
-    const mutationObserver = new MutationObserver(updateHighlights);
-    mutationObserver.observe(container, {
-      childList: true,
-      characterData: true,
-      subtree: true,
-    });
-    const timeoutIds = [250, 750, 1500, 3000].map((delay) =>
-      window.setTimeout(updateHighlights, delay),
-    );
-    window.addEventListener("resize", updateHighlights);
-
-    return () => {
-      cancelAnimationFrame(animationFrameId);
-      resizeObserver.disconnect();
-      mutationObserver.disconnect();
-      for (const timeoutId of timeoutIds) {
-        window.clearTimeout(timeoutId);
-      }
-      window.removeEventListener("resize", updateHighlights);
-    };
-  }, [activeVisibleAnnotations]);
+  const annotationHighlightItems = useMemo(
+    () =>
+      activeVisibleAnnotations.map((annotation) => ({
+        id: annotation.id,
+        anchor: annotation.anchor,
+        quotedText: annotation.quotedText,
+      })),
+    [activeVisibleAnnotations],
+  );
+  const annotationHighlights = useTextAnchorHighlights({
+    containerRef: articleContentRef,
+    items: annotationHighlightItems,
+  });
 
   useEffect(() => {
     if (!mobilePanel) {
@@ -357,7 +241,25 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
 
   const selectSection = (sectionKey: string) => {
     setActiveSectionKey(sectionKey);
+    const chapterKey = getSectionChapterKey(data.content.outline.chapters, sectionKey);
+    if (chapterKey) {
+      setExpandedChapterKeys((current) => {
+        if (current.has(chapterKey)) {
+          return current;
+        }
+
+        return new Set([...current, chapterKey]);
+      });
+    }
     setMobilePanel(null);
+  };
+
+  const selectChapter = (chapterKey: string, sectionKey?: string) => {
+    if (sectionKey && sectionKey !== activeSectionKey) {
+      setActiveSectionKey(sectionKey);
+    }
+
+    setExpandedChapterKeys(new Set([chapterKey]));
   };
 
   const handleAddAnnotation = (sectionKey: string) => {
@@ -396,22 +298,9 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
     setIsSavingCourse(true);
 
     try {
-      const response = await fetch(`/api/public/courses/${data.publication.slug}/save`, {
-        method: "POST",
+      const payload = await savePublicCourseToLibrary({
+        publicationSlug: data.publication.slug,
       });
-
-      if (!response.ok) {
-        throw new Error("Failed to save public course.");
-      }
-
-      const payload = (await response.json()) as {
-        courseId?: string;
-        learnUrl?: string;
-        alreadySaved?: boolean;
-      };
-      if (!payload.learnUrl) {
-        throw new Error("Missing saved course URL.");
-      }
 
       if (payload.courseId) {
         setSavedCourseId(payload.courseId);
@@ -431,23 +320,12 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
     setModeratingAnnotationId(annotation.id);
 
     try {
-      const response = await fetch(
-        `/api/public/courses/${data.publication.slug}/annotations/${annotation.id}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status }),
-        },
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to update public annotation.");
-      }
-
-      const payload = (await response.json()) as {
-        annotation?: PublicCourseAnnotationProjection;
-      };
-      const nextAnnotation = payload.annotation ?? { ...annotation, status };
+      const payload = await updatePublicAnnotationStatus<PublicCourseAnnotationProjection>({
+        publicationSlug: data.publication.slug,
+        annotationId: annotation.id,
+        status,
+      });
+      const nextAnnotation = mergePublicAnnotationMutation(annotation, payload, status);
 
       setAnnotations((current) =>
         current.map((item) => (item.id === annotation.id ? nextAnnotation : item)),
@@ -468,22 +346,11 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
     setIsSubmittingAnnotation(true);
 
     try {
-      const response = await fetch(`/api/public/courses/${data.publication.slug}/annotations`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...selectionDraft,
-          body: annotationBody.trim(),
-        }),
+      const payload = await createPublicAnnotation<PublicCourseAnnotationProjection>({
+        publicationSlug: data.publication.slug,
+        ...selectionDraft,
+        body: annotationBody.trim(),
       });
-
-      if (!response.ok) {
-        throw new Error("Failed to create public annotation.");
-      }
-
-      const payload = (await response.json()) as {
-        annotation?: PublicCourseAnnotationProjection;
-      };
       if (payload.annotation) {
         setAnnotations((current) => [
           ...current,
@@ -503,69 +370,174 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
 
   const outlinePanel = (
     <>
-      <div className="border-b border-black/[0.06] px-5 py-4">
+      <div className="border-b border-black/[0.04] px-4 pb-5 pt-5 lg:px-5">
         <div className="flex items-center justify-between gap-3">
           <Link
             href="/"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)]"
+            className="inline-flex h-9 items-center justify-center rounded-full px-3 text-xs font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]"
             aria-label="返回首页"
           >
-            <BookOpenText className="h-4 w-4" />
+            首页
           </Link>
-          <span className="text-[0.6875rem] font-medium text-[var(--color-text-tertiary)]">
-            NexusNote
+          <span className="rounded-full bg-black/[0.035] px-2.5 py-1 text-[0.625rem] font-medium text-[var(--color-text-tertiary)]">
+            公开课
           </span>
         </div>
-        <h1 className="mt-4 line-clamp-3 text-[0.95rem] font-semibold leading-snug text-[var(--color-text)]">
-          {data.content.course.title}
-        </h1>
-        {data.content.course.description ? (
-          <p className="mt-2 line-clamp-2 text-xs leading-5 text-[var(--color-text-secondary)]">
-            {data.content.course.description}
-          </p>
-        ) : null}
+
+        <div className="mt-5">
+          <div className="mb-2 text-[0.625rem] font-semibold tracking-[0.18em] text-[var(--color-text-muted)]">
+            课程
+          </div>
+          <h1 className="line-clamp-3 text-[0.98rem] font-semibold leading-snug text-[var(--color-text)]">
+            {data.content.course.title}
+          </h1>
+          {data.content.course.description ? (
+            <p className="mt-2 line-clamp-2 text-xs leading-5 text-[var(--color-text-secondary)]">
+              {data.content.course.description}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="mt-4 flex items-center rounded-full bg-[var(--color-panel-soft)] px-3 py-2 text-[0.6875rem] leading-none text-[var(--color-text-tertiary)]">
+          <span>{data.content.outline.chapters.length} 章</span>
+          <span className="mx-2 h-3 w-px bg-black/[0.08]" aria-hidden="true" />
+          <span>{totalSections} 节</span>
+          {activeSectionOrder > 0 ? (
+            <>
+              <span className="mx-2 h-3 w-px bg-black/[0.08]" aria-hidden="true" />
+              <span>
+                当前 {activeSectionOrder}/{totalSections}
+              </span>
+            </>
+          ) : null}
+        </div>
       </div>
 
       <div className="mobile-scroll min-h-0 flex-1 overflow-y-auto px-3 py-4">
-        <div className="mb-3 px-2 text-[0.625rem] font-semibold text-[var(--color-text-muted)]">
-          目录
+        <div className="mb-3 flex items-center justify-between px-2">
+          <div className="text-[0.625rem] font-semibold tracking-[0.16em] text-[var(--color-text-muted)]">
+            目录
+          </div>
+          {visibleAnnotations.length > 0 ? (
+            <div className="text-[0.625rem] text-[var(--color-text-tertiary)]">
+              {visibleAnnotations.length} 批注
+            </div>
+          ) : null}
         </div>
-        <div className="space-y-4">
-          {data.content.outline.chapters.map((chapter, chapterIndex) => (
-            <section key={`${chapterIndex}-${chapter.title}`}>
-              <h2 className="px-2 text-[0.75rem] font-semibold text-[var(--color-text-secondary)]">
-                {chapter.title}
-              </h2>
-              <div className="mt-1">
-                {chapter.sections.map((section) => {
-                  const active = section.nodeId === activeSectionKey;
-                  const annotationCount =
-                    visibleAnnotationsBySection.get(section.nodeId)?.length ?? 0;
+        <div className="space-y-0.5">
+          {data.content.outline.chapters.map((chapter, chapterIndex) => {
+            const chapterKey = getChapterKey(chapter.title, chapterIndex);
+            const isExpanded = expandedChapterKeys.has(chapterKey);
+            const isCurrentChapter = chapterIndex === activeChapterIndex;
+            const chapterAnnotationCount = chapter.sections.reduce(
+              (total, section) =>
+                total + (visibleAnnotationsBySection.get(section.nodeId)?.length ?? 0),
+              0,
+            );
 
-                  return (
-                    <button
-                      key={section.nodeId}
-                      type="button"
-                      onClick={() => selectSection(section.nodeId)}
+            return (
+              <section key={chapterKey}>
+                <button
+                  type="button"
+                  onClick={() => selectChapter(chapterKey, chapter.sections[0]?.nodeId)}
+                  className={cn(
+                    "group w-full rounded-2xl px-2.5 py-2.5 text-left transition-colors duration-200",
+                    isCurrentChapter
+                      ? "bg-[var(--color-panel-soft)] text-[var(--color-text)]"
+                      : "text-[var(--color-text-secondary)] hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)]",
+                  )}
+                >
+                  <div className="flex items-start gap-2.5">
+                    <span
                       className={cn(
-                        "flex w-full items-center justify-between gap-2 border-l-2 px-3 py-2 text-left text-sm transition-colors",
-                        active
-                          ? "border-[var(--color-text)] bg-black/[0.035] text-[var(--color-text)]"
-                          : "border-transparent text-[var(--color-text-secondary)] hover:bg-black/[0.025] hover:text-[var(--color-text)]",
+                        "mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full transition-colors",
+                        isCurrentChapter ? "bg-[var(--color-text)]" : "bg-black/10",
                       )}
-                    >
-                      <span className="line-clamp-2">{section.title}</span>
-                      {annotationCount > 0 ? (
-                        <span className="rounded-md border border-black/[0.06] bg-white px-1.5 py-0.5 text-[0.625rem] text-[var(--color-text-tertiary)]">
-                          {annotationCount}
-                        </span>
-                      ) : null}
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-          ))}
+                      aria-hidden="true"
+                    />
+
+                    <div className="min-w-0 flex-1">
+                      <div
+                        className={cn(
+                          "line-clamp-2 text-[0.84rem] leading-snug",
+                          isCurrentChapter ? "font-semibold" : "font-medium",
+                        )}
+                      >
+                        {chapter.title}
+                      </div>
+                      <div className="mt-1 flex items-center gap-1.5 text-[0.625rem] leading-none text-[var(--color-text-muted)]">
+                        <span>{chapter.sections.length} 节</span>
+                        {chapterAnnotationCount > 0 ? (
+                          <>
+                            <span className="h-0.5 w-0.5 rounded-full bg-black/20" />
+                            <span>{chapterAnnotationCount} 批注</span>
+                          </>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[var(--color-text-tertiary)] transition-colors group-hover:text-[var(--color-text-secondary)]">
+                      <ChevronDown
+                        className={cn(
+                          "h-3.5 w-3.5 transition-transform duration-200",
+                          !isExpanded && "-rotate-90",
+                        )}
+                      />
+                    </span>
+                  </div>
+                </button>
+
+                {isExpanded ? (
+                  <div className="ml-[1.1rem] overflow-hidden border-l border-black/[0.06] py-1 pl-3">
+                    <div className="space-y-px">
+                      {chapter.sections.map((section) => {
+                        const active = section.nodeId === activeSectionKey;
+                        const annotationCount =
+                          visibleAnnotationsBySection.get(section.nodeId)?.length ?? 0;
+
+                        return (
+                          <button
+                            key={section.nodeId}
+                            type="button"
+                            onClick={() => selectSection(section.nodeId)}
+                            className={cn(
+                              "relative w-full rounded-xl px-2.5 py-2 text-left text-[0.8125rem] transition-colors",
+                              active
+                                ? "bg-white text-[var(--color-text)] shadow-[inset_0_0_0_1px_rgba(15,23,42,0.05)]"
+                                : "text-[var(--color-text-secondary)] hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)]",
+                            )}
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <span
+                                className="absolute -left-3 top-1/2 h-px w-2 bg-black/[0.08]"
+                                aria-hidden="true"
+                              />
+                              <span
+                                className={cn(
+                                  "h-1 w-1 shrink-0 rounded-full",
+                                  active ? "bg-[var(--color-text)]" : "bg-black/10",
+                                )}
+                                aria-hidden="true"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <span className="block truncate font-medium">{section.title}</span>
+                              </div>
+                              {annotationCount > 0 ? (
+                                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-black/[0.035] px-1.5 py-0.5 text-[0.625rem] leading-none text-[var(--color-text-tertiary)]">
+                                  <MessageSquareText className="h-3 w-3" />
+                                  {annotationCount}
+                                </span>
+                              ) : null}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+              </section>
+            );
+          })}
         </div>
       </div>
     </>
@@ -760,7 +732,7 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
                           sectionRefs.current.set(activeSection.nodeId, node);
                         }
                       }}
-                      className="learn-prose border-b border-black/[0.05] pb-10 md:pb-12"
+                      className="learn-prose pb-10 md:pb-12"
                     >
                       {activeSectionContent ? (
                         <StreamdownMessage content={activeSectionContent} />
@@ -775,14 +747,14 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
                         {annotationHighlights.map((highlight) =>
                           highlight.rects.map((rect, rectIndex) => (
                             <button
-                              key={`${highlight.annotationId}-${rectIndex}`}
+                              key={`${highlight.id}-${rectIndex}`}
                               type="button"
-                              data-public-annotation-id={highlight.annotationId}
-                              onClick={() => focusAnnotation(highlight.annotationId)}
+                              data-public-annotation-id={highlight.id}
+                              onClick={() => focusAnnotation(highlight.id)}
                               aria-label="查看公共批注"
                               className={cn(
                                 "pointer-events-auto absolute cursor-pointer rounded-[3px] border-none bg-amber-200/55 p-0 transition-colors hover:bg-amber-200/75",
-                                activeAnnotationId === highlight.annotationId &&
+                                activeAnnotationId === highlight.id &&
                                   "bg-amber-300/75 ring-1 ring-amber-500/30",
                               )}
                               style={{

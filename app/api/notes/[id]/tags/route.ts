@@ -57,7 +57,7 @@ export const POST = withDynamicAuth<unknown, { id: string }>(
       throw notFound("笔记不存在或无权访问", "NOTE_NOT_FOUND");
     }
 
-    await tagGenerationService.generateTags(noteId);
-    return Response.json({ success: true });
+    const result = await tagGenerationService.generateTags(noteId);
+    return Response.json({ success: true, result });
   },
 );

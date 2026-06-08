@@ -1,3 +1,4 @@
+import type { ResearchCitationRef } from "@/lib/ai/research/source-types";
 import { getOwnedCourseWithOutline } from "@/lib/learning/course-repository";
 import { createLearnTrace } from "@/lib/learning/observability";
 
@@ -19,6 +20,7 @@ export interface LearningGuidance {
     learningOutcome: string | null;
     skillIds: string[];
     totalChapters: number;
+    researchCitations: ResearchCitationRef[];
   };
   chapter: {
     index: number;
@@ -68,6 +70,7 @@ export function buildLearningGuidance(input: {
       learningOutcome: input.course.outline.learningOutcome ?? null,
       skillIds: courseSkillIds,
       totalChapters: input.course.outline.chapters.length,
+      researchCitations: input.course.outline.researchCitations ?? [],
     },
     chapter: {
       index: input.chapterIndex,

@@ -30,8 +30,10 @@ export function TagGenerationTrigger({ noteId, content }: TagGenerationTriggerPr
     // 延迟 5 秒触发，避免频繁请求
     timeoutRef.current = setTimeout(async () => {
       try {
-        await fetch(`/api/notes/${noteId}/tags`, { method: "POST" });
-        console.log("[Tags] 触发标签生成");
+        const response = await fetch(`/api/notes/${noteId}/tags`, { method: "POST" });
+        if (!response.ok) {
+          throw new Error("Failed to generate tags");
+        }
       } catch (error) {
         console.error("[Tags] 生成失败:", error);
       }

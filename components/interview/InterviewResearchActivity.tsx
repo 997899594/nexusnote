@@ -55,7 +55,7 @@ export function InterviewResearchActivity({
   const statusText = isUnavailable
     ? unavailableLabel
     : isReady
-      ? `资料 ${sourceCount}`
+      ? `已检索 ${sourceCount} 个来源`
       : latestProgress?.stage === "reading"
         ? `读取 ${sourceCount || "外部"} 个来源`
         : latestProgress?.stage === "ranking"
@@ -80,13 +80,14 @@ export function InterviewResearchActivity({
         defaultOpen={defaultOpen && !isReady}
         isRunning={!isReady && isRunning}
         emptyText={isUnavailable ? unavailableText : undefined}
-        className="mb-3 max-w-[min(100%,42rem)]"
+        variant="compact"
+        className="mb-2 max-w-[min(100%,42rem)]"
       />
     );
   }
 
   return (
-    <div className="mb-3 flex max-w-[min(100%,42rem)] items-center gap-2 rounded-full border border-black/[0.06] bg-white/72 px-3 py-2 text-xs text-[var(--color-text-secondary)] shadow-[0_12px_40px_-34px_rgba(15,23,42,0.35)]">
+    <div className="mb-2 flex max-w-[min(100%,42rem)] items-center gap-2 py-1 text-xs text-[var(--color-text-tertiary)]">
       {isRunning ? (
         <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-[var(--color-text-tertiary)]" />
       ) : (

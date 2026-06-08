@@ -1,4 +1,4 @@
-import type { Annotation } from "@/hooks/useAnnotations";
+import type { Annotation } from "@/lib/learning/learn-annotations-client";
 import { escapeHtml } from "@/lib/notes/content";
 
 export interface CourseCaptureInput {

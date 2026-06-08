@@ -3,14 +3,22 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Loader2, RefreshCw } from "lucide-react";
+import { ExternalLink, EyeOff, Loader2, RefreshCw, RotateCcw, X } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StreamdownMessage } from "@/components/chat/StreamdownMessage";
 import { useToast } from "@/components/ui/Toast";
 import type { Annotation } from "@/hooks/useAnnotations";
 import { useAnnotations } from "@/hooks/useAnnotations";
 import type { SectionState } from "@/hooks/useChapterSections";
-import type { LearnSectionDocProjection } from "@/lib/learning/projection";
+import { persistCompletedSection } from "@/lib/learning/learn-progress-client";
+import type {
+  LearnPublicAnnotationProjection,
+  LearnSectionDocProjection,
+} from "@/lib/learning/projection";
+import {
+  mergePublicAnnotationMutation,
+  updatePublicAnnotationStatus,
+} from "@/lib/learning/public-course-client";
 import { cn } from "@/lib/utils";
 import { useLearnStore } from "@/stores/learn";
 import { AnnotationLayer } from "./AnnotationLayer";
@@ -22,6 +30,7 @@ interface SectionReaderProps {
   currentGenerating: number | null;
   generateSection: (index: number) => void;
   sectionDocs: LearnSectionDocProjection[];
+  publicAnnotations: LearnPublicAnnotationProjection[];
   scrollToSectionId?: string | null;
 }
 
@@ -82,6 +91,192 @@ function CaptureNoteDialog({
   );
 }
 
+function formatAnnotationTime(value: string): string {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return date.toLocaleString("zh-CN", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function SectionNotesPanel({
+  privateAnnotations,
+  publicAnnotations,
+  moderatingAnnotationId,
+  onModeratePublicAnnotation,
+  onClose,
+}: {
+  privateAnnotations: Annotation[];
+  publicAnnotations: LearnPublicAnnotationProjection[];
+  moderatingAnnotationId: string | null;
+  onModeratePublicAnnotation: (
+    annotation: LearnPublicAnnotationProjection,
+    status: LearnPublicAnnotationProjection["status"],
+  ) => void;
+  onClose: () => void;
+}) {
+  const totalCount = privateAnnotations.length + publicAnnotations.length;
+  const noteCount = privateAnnotations.filter(
+    (annotation) => annotation.type === "note" || annotation.noteContent?.trim(),
+  ).length;
+
+  return (
+    <div className="fixed inset-0 z-50">
+      <button
+        type="button"
+        aria-label="关闭评注"
+        className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <aside className="safe-bottom absolute inset-y-0 right-0 flex w-[min(88vw,23rem)] flex-col overflow-hidden border-l border-black/[0.08] bg-white shadow-[0_24px_84px_-42px_rgba(15,23,42,0.45)] md:w-[22.5rem]">
+        <div className="safe-top flex shrink-0 items-center justify-between border-b border-black/[0.06] px-4 py-3">
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold text-[var(--color-text)]">评注</h2>
+            <p className="mt-0.5 text-xs text-[var(--color-text-tertiary)]">
+              公共 {publicAnnotations.length} · 我的 {privateAnnotations.length}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)]"
+            aria-label="关闭"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="mobile-scroll min-h-0 flex-1 overflow-y-auto px-4 py-4">
+          {totalCount > 0 ? (
+            <div className="space-y-5">
+              <section>
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <h3 className="text-xs font-semibold text-[var(--color-text)]">公共评注</h3>
+                  {publicAnnotations[0]?.publicationSlug ? (
+                    <a
+                      href={`/c/${publicAnnotations[0].publicationSlug}`}
+                      className="inline-flex items-center gap-1 text-xs text-[var(--color-text-tertiary)] transition-colors hover:text-[var(--color-text)]"
+                    >
+                      公开页
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  ) : null}
+                </div>
+                {publicAnnotations.length > 0 ? (
+                  <div className="space-y-1">
+                    {publicAnnotations.map((annotation) => (
+                      <article
+                        key={annotation.id}
+                        className={cn(
+                          "border-l-2 px-3 py-3",
+                          annotation.status === "hidden"
+                            ? "border-black/[0.12] bg-black/[0.018] opacity-75"
+                            : "border-black/[0.08]",
+                        )}
+                      >
+                        <p className="line-clamp-2 text-xs leading-5 text-[var(--color-text-secondary)]">
+                          “{annotation.quotedText}”
+                        </p>
+                        <p className="mt-2 text-sm leading-6 text-[var(--color-text)]">
+                          {annotation.body}
+                        </p>
+                        <div className="mt-2 flex items-center justify-between gap-2">
+                          <p className="min-w-0 truncate text-[0.625rem] text-[var(--color-text-tertiary)]">
+                            {annotation.author.name ? `${annotation.author.name} · ` : ""}
+                            {formatAnnotationTime(annotation.createdAt)}
+                            {annotation.status === "hidden" ? " · 已隐藏" : ""}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onModeratePublicAnnotation(
+                                annotation,
+                                annotation.status === "hidden" ? "visible" : "hidden",
+                              )
+                            }
+                            disabled={moderatingAnnotationId === annotation.id}
+                            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-50"
+                            aria-label={
+                              annotation.status === "hidden" ? "恢复公共评注" : "隐藏公共评注"
+                            }
+                          >
+                            {annotation.status === "hidden" ? (
+                              <RotateCcw className="h-3.5 w-3.5" />
+                            ) : (
+                              <EyeOff className="h-3.5 w-3.5" />
+                            )}
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="px-1 py-4 text-sm leading-6 text-[var(--color-text-secondary)]">
+                    这一节还没有读者评注。
+                  </p>
+                )}
+              </section>
+
+              <section>
+                <h3 className="mb-2 text-xs font-semibold text-[var(--color-text)]">我的标注</h3>
+                {privateAnnotations.length > 0 ? (
+                  <div className="space-y-2">
+                    {privateAnnotations.map((annotation) => (
+                      <article
+                        key={annotation.id}
+                        className="rounded-xl border border-black/[0.06] bg-[var(--color-panel-soft)] px-3 py-3"
+                      >
+                        <div className="flex items-start gap-2">
+                          <span
+                            className="mt-1 h-2 w-2 shrink-0 rounded-full"
+                            style={{ backgroundColor: annotation.color ?? "#fef08a" }}
+                            aria-hidden="true"
+                          />
+                          <p className="line-clamp-3 text-sm leading-6 text-[var(--color-text-secondary)]">
+                            “{annotation.anchor.textContent}”
+                          </p>
+                        </div>
+                        {annotation.noteContent ? (
+                          <p className="mt-2 border-t border-black/[0.05] pt-2 text-sm leading-6 text-[var(--color-text)]">
+                            {annotation.noteContent}
+                          </p>
+                        ) : null}
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="px-1 py-4 text-sm leading-6 text-[var(--color-text-secondary)]">
+                    选中正文后可以高亮或保存到笔记。
+                  </p>
+                )}
+                {noteCount > 0 ? null : privateAnnotations.length > 0 ? (
+                  <p className="mt-3 px-1 text-xs leading-5 text-[var(--color-text-tertiary)]">
+                    当前只有高亮标注。选中文本后点“记一笔”可以补充个人理解。
+                  </p>
+                ) : null}
+              </section>
+            </div>
+          ) : (
+            <div className="px-1 py-8 text-sm leading-6 text-[var(--color-text-secondary)]">
+              这一节还没有评注。读者在公开页留下的评注会同步出现在这里。
+            </div>
+          )}
+        </div>
+      </aside>
+    </div>
+  );
+}
+
 function SectionStateBlock({
   title,
   description,
@@ -97,10 +292,7 @@ function SectionStateBlock({
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className={cn(
-        "border-b border-black/[0.05] px-1 py-8 md:px-2 md:py-10",
-        tone === "error" && "border-rose-200/70",
-      )}
+      className="px-1 py-8 md:px-2 md:py-10"
     >
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="max-w-xl">
@@ -120,12 +312,36 @@ function SectionStateBlock({
   );
 }
 
+function SectionLoadingBlock({ title, label }: { title: string; label: string }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="px-1 py-7 md:px-2 md:py-8"
+    >
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="min-w-0">
+          <h3 className="truncate text-base font-semibold text-[var(--color-text)]">{title}</h3>
+          <p className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">
+            正在生成内容，完成后会自动展开。
+          </p>
+        </div>
+        <div className="inline-flex shrink-0 items-center gap-2 text-xs text-[var(--color-text-secondary)]">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          {label}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 function SectionBlock({
   nodeId,
   sectionIndex,
   sectionTitle,
   state,
   sectionDoc,
+  publicAnnotations,
   courseId,
   generateSection,
   isHighlighted,
@@ -135,6 +351,7 @@ function SectionBlock({
   sectionTitle: string;
   state: SectionState;
   sectionDoc: LearnSectionDocProjection | undefined;
+  publicAnnotations: LearnPublicAnnotationProjection[];
   courseId: string;
   generateSection: (index: number) => void;
   isHighlighted: boolean;
@@ -145,11 +362,16 @@ function SectionBlock({
     anchor: Annotation["anchor"];
     selectedText: string;
   } | null>(null);
+  const [sectionPublicAnnotations, setSectionPublicAnnotations] = useState(publicAnnotations);
+  const [moderatingAnnotationId, setModeratingAnnotationId] = useState<string | null>(null);
   const markSectionComplete = useLearnStore((s) => s.markSectionComplete);
   const completedSections = useLearnStore((s) => s.completedSections);
+  const isNotesOpen = useLearnStore((s) => s.isNotesOpen);
+  const setNotesOpen = useLearnStore((s) => s.setNotesOpen);
+  const setCurrentSectionAnnotationCount = useLearnStore((s) => s.setCurrentSectionAnnotationCount);
   const { addToast } = useToast();
 
-  const { annotations, addHighlight, removeAnnotation, updateNote } = useAnnotations({
+  const { annotations, addHighlight, removeAnnotation } = useAnnotations({
     sectionId: sectionDoc?.id,
     initialAnnotations: sectionDoc?.annotations ?? [],
   });
@@ -157,6 +379,21 @@ function SectionBlock({
   const isComplete = state.status === "complete";
   const anchorId = nodeId;
   const isAlreadyRead = completedSections.has(anchorId);
+  const canShowFocusMarker = isHighlighted && (isComplete || state.content.length > 0);
+
+  useEffect(() => {
+    setSectionPublicAnnotations(publicAnnotations);
+  }, [publicAnnotations]);
+
+  useEffect(() => {
+    setCurrentSectionAnnotationCount(annotations.length + sectionPublicAnnotations.length);
+  }, [annotations.length, sectionPublicAnnotations.length, setCurrentSectionAnnotationCount]);
+
+  useEffect(() => {
+    return () => {
+      setCurrentSectionAnnotationCount(0);
+    };
+  }, [setCurrentSectionAnnotationCount]);
 
   // Scroll-based completion detection: sentinel at section bottom
   useEffect(() => {
@@ -172,12 +409,7 @@ function SectionBlock({
             debounceTimer = setTimeout(() => {
               markSectionComplete(anchorId);
 
-              // Persist to server
-              fetch("/api/learn/progress", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ courseId, sectionNodeId: anchorId }),
-              }).catch((err) => {
+              persistCompletedSection({ courseId, sectionNodeId: anchorId }).catch((err) => {
                 console.error("[SectionReader] Failed to persist progress:", err);
               });
             }, 800);
@@ -227,16 +459,43 @@ function SectionBlock({
     [addToast, pendingCapture, sectionDoc?.id],
   );
 
+  const handleModeratePublicAnnotation = useCallback(
+    async (
+      annotation: LearnPublicAnnotationProjection,
+      status: LearnPublicAnnotationProjection["status"],
+    ) => {
+      setModeratingAnnotationId(annotation.id);
+
+      try {
+        const payload = await updatePublicAnnotationStatus<LearnPublicAnnotationProjection>({
+          publicationSlug: annotation.publicationSlug,
+          annotationId: annotation.id,
+          status,
+        });
+        const nextAnnotation = mergePublicAnnotationMutation(annotation, payload, status);
+        setSectionPublicAnnotations((current) =>
+          current.map((item) => (item.id === annotation.id ? nextAnnotation : item)),
+        );
+        addToast(status === "hidden" ? "已隐藏公共评注" : "已恢复公共评注", "success");
+      } catch {
+        addToast("更新公共评注失败，请稍后重试", "error");
+      } finally {
+        setModeratingAnnotationId(null);
+      }
+    },
+    [addToast],
+  );
+
   return (
     <div
       id={anchorId}
       className={cn(
         "relative scroll-mt-4 rounded-[28px] transition-colors duration-300 md:scroll-mt-6",
-        isHighlighted && "bg-[var(--color-panel-soft)] ring-1 ring-black/8",
+        canShowFocusMarker && "bg-[var(--color-panel-soft)] ring-1 ring-black/8",
       )}
     >
       <div ref={containerRef} className="relative">
-        {isHighlighted && (
+        {canShowFocusMarker && (
           <div className="mb-3 flex items-center gap-2 px-1">
             <span
               className={cn(
@@ -269,35 +528,15 @@ function SectionBlock({
           />
         )}
 
-        {state.status === "queued" && (
-          <SectionStateBlock
-            title={sectionTitle}
-            description="这一节正在准备中。"
-            action={
-              <div className="inline-flex items-center gap-2 text-xs text-[var(--color-text-secondary)]">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                准备中
-              </div>
-            }
-          />
-        )}
+        {state.status === "queued" && <SectionLoadingBlock title={sectionTitle} label="准备中" />}
 
         {state.status === "generating" && state.content.length === 0 && (
-          <SectionStateBlock
-            title={sectionTitle}
-            description="内容准备好后会自动出现。"
-            action={
-              <div className="inline-flex items-center gap-2 text-xs text-[var(--color-text-secondary)]">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                生成中
-              </div>
-            }
-          />
+          <SectionLoadingBlock title={sectionTitle} label="生成中" />
         )}
 
         {(state.status === "generating" || state.status === "complete") && state.content && (
           <article className="px-1 py-1 md:px-2">
-            <div className="learn-prose border-b border-black/[0.05] pb-10 md:pb-12">
+            <div className="learn-prose pb-10 md:pb-12">
               <StreamdownMessage
                 content={state.content}
                 isStreaming={state.status === "generating"}
@@ -334,7 +573,6 @@ function SectionBlock({
               containerRef={containerRef}
               annotations={annotations}
               onRemove={removeAnnotation}
-              onUpdateNote={updateNote}
             />
             <TextSelectionToolbar
               containerRef={containerRef}
@@ -345,6 +583,18 @@ function SectionBlock({
             />
           </>
         )}
+
+        {isNotesOpen ? (
+          <SectionNotesPanel
+            privateAnnotations={annotations}
+            publicAnnotations={sectionPublicAnnotations}
+            moderatingAnnotationId={moderatingAnnotationId}
+            onModeratePublicAnnotation={(annotation, status) => {
+              void handleModeratePublicAnnotation(annotation, status);
+            }}
+            onClose={() => setNotesOpen(false)}
+          />
+        ) : null}
 
         {/* Scroll sentinel for read-completion detection */}
         {isComplete && !isAlreadyRead && (
@@ -376,7 +626,7 @@ function SectionBoundary({
   onNext: () => void;
 }) {
   return (
-    <section className="mt-10 border-t border-black/[0.06] pt-4 md:mt-12 md:pt-5">
+    <section className="mt-8 border-t border-black/[0.04] pt-4 md:mt-10 md:pt-5">
       <div className="flex items-center justify-between gap-3">
         <button
           type="button"
@@ -416,6 +666,7 @@ export function SectionReader({
   currentGenerating,
   generateSection,
   sectionDocs,
+  publicAnnotations,
   scrollToSectionId,
 }: SectionReaderProps) {
   const {
@@ -558,6 +809,13 @@ export function SectionReader({
     content: "",
     status: "idle" as const,
   };
+  const currentSectionPublicAnnotations = useMemo(
+    () =>
+      currentSection
+        ? publicAnnotations.filter((annotation) => annotation.sectionKey === currentSection.nodeId)
+        : [],
+    [currentSection, publicAnnotations],
+  );
 
   useEffect(() => {
     if (
@@ -600,6 +858,7 @@ export function SectionReader({
             sectionTitle={currentSection.title}
             state={currentSectionState}
             sectionDoc={sectionDocs.find((doc) => doc.outlineNodeKey === currentSection.nodeId)}
+            publicAnnotations={currentSectionPublicAnnotations}
             courseId={courseId}
             generateSection={generateSection}
             isHighlighted={highlightedSectionId === currentSection.nodeId}

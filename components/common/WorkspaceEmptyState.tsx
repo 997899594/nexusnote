@@ -74,5 +74,3 @@ export function WorkspaceEmptyState({
     </motion.div>
   );
 }
-
-export default WorkspaceEmptyState;

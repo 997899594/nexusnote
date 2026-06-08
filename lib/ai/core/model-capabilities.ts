@@ -1,6 +1,6 @@
 import type { AIModelSeries } from "./model-series";
 
-export interface ModelToolCallingCapabilities {
+interface ModelToolCallingCapabilities {
   modelSeries: AIModelSeries | "unknown";
   namedToolChoice: {
     requiresNonThinkingMode: boolean;
@@ -89,9 +89,7 @@ export function parseModelGatewayJsonBody(
   }
 }
 
-export function resolveModelToolCallingCapabilities(
-  modelId: unknown,
-): ModelToolCallingCapabilities {
+function resolveModelToolCallingCapabilities(modelId: unknown): ModelToolCallingCapabilities {
   if (typeof modelId !== "string") {
     return UNKNOWN_TOOL_CALLING_CAPABILITIES;
   }

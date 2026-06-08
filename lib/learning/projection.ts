@@ -1,4 +1,4 @@
-import type { Annotation } from "@/hooks/useAnnotations";
+import type { Annotation } from "@/lib/learning/learn-annotations-client";
 import { buildSectionOutlineNodeKey } from "@/lib/learning/outline-node-key";
 import type { getOwnedCourseWithOutline } from "./course-repository";
 
@@ -24,6 +24,20 @@ export interface LearnSectionDocProjection {
   annotations: Annotation[];
 }
 
+export interface LearnPublicAnnotationProjection {
+  id: string;
+  sectionKey: string;
+  quotedText: string;
+  body: string;
+  status: "visible" | "hidden";
+  createdAt: string;
+  author: {
+    name: string | null;
+    image: string | null;
+  };
+  publicationSlug: string;
+}
+
 export interface LearnProgressProjection {
   currentChapter: number;
   completedSections: string[];
@@ -39,6 +53,7 @@ export interface LearnPageProjection {
   targetAudience: string | null;
   chapters: LearnChapterProjection[];
   sectionDocs: LearnSectionDocProjection[];
+  publicAnnotations: LearnPublicAnnotationProjection[];
   progressRecord: LearnProgressProjection | null;
 }
 
@@ -63,6 +78,18 @@ export interface LearnProjectionAnnotationRow {
   color: string | null;
   noteContent: string | null;
   createdAt: Date | null;
+}
+
+export interface LearnProjectionPublicAnnotationRow {
+  id: string;
+  sectionKey: string;
+  quotedText: string;
+  body: string;
+  status: "visible" | "hidden";
+  createdAt: Date | null;
+  authorName: string | null;
+  authorImage: string | null;
+  publicationSlug: string;
 }
 
 function buildLearnChapters(courseSession: OwnedCourseWithOutline): LearnChapterProjection[] {
@@ -115,15 +142,35 @@ function buildSectionDocs(
   }));
 }
 
+function buildPublicAnnotations(
+  rows: LearnProjectionPublicAnnotationRow[],
+): LearnPublicAnnotationProjection[] {
+  return rows.map((row) => ({
+    id: row.id,
+    sectionKey: row.sectionKey,
+    quotedText: row.quotedText,
+    body: row.body,
+    status: row.status,
+    createdAt: row.createdAt?.toISOString() ?? "",
+    author: {
+      name: row.authorName,
+      image: row.authorImage,
+    },
+    publicationSlug: row.publicationSlug,
+  }));
+}
+
 export function buildLearnPageProjection(input: {
   courseSession: OwnedCourseWithOutline;
   progressRecord: LearnProgressProjection | null;
   sectionDocRows: LearnProjectionSectionDocRow[];
   annotationRows: LearnProjectionAnnotationRow[];
+  publicAnnotationRows: LearnProjectionPublicAnnotationRow[];
 }): LearnPageProjection {
   const chapters = buildLearnChapters(input.courseSession);
   const annotationsBySectionId = buildAnnotationsBySectionId(input.annotationRows);
   const sectionDocs = buildSectionDocs(input.sectionDocRows, annotationsBySectionId);
+  const publicAnnotations = buildPublicAnnotations(input.publicAnnotationRows);
 
   return {
     courseTitle: input.courseSession.title ?? "Untitled Course",
@@ -135,6 +182,7 @@ export function buildLearnPageProjection(input: {
     targetAudience: input.courseSession.outline.targetAudience ?? null,
     chapters,
     sectionDocs,
+    publicAnnotations,
     progressRecord: input.progressRecord,
   };
 }

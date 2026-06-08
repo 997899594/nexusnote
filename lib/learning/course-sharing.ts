@@ -56,6 +56,16 @@ interface PublicCourseSnapshotProjection {
   visibleAnnotations: PublicCourseAnnotationProjection[];
 }
 
+interface PublicCourseAnnotationMutationResult {
+  annotation: PublicCourseAnnotationProjection;
+  publication: {
+    id: string;
+    slug: string;
+    ownerUserId: string;
+    sourceCourseId: string;
+  };
+}
+
 function createPublicationSlug(): string {
   return randomBytes(6).toString("base64url");
 }
@@ -489,7 +499,7 @@ export async function createPublicCourseAnnotation(params: {
   anchor: CoursePublicAnnotationAnchor;
   quotedText: string;
   body: string;
-}): Promise<PublicCourseAnnotationProjection> {
+}): Promise<PublicCourseAnnotationMutationResult> {
   const publication = await db.query.coursePublications.findFirst({
     where: and(
       eq(coursePublications.slug, params.slug),
@@ -540,16 +550,24 @@ export async function createPublicCourseAnnotation(params: {
   const createdAt = new Date().toISOString();
 
   return {
-    id: annotation.id,
-    sectionKey: params.sectionKey,
-    quotedText: params.quotedText,
-    body: params.body,
-    anchor: params.anchor,
-    status: "visible",
-    createdAt,
-    author: {
-      name: user?.name ?? null,
-      image: user?.image ?? null,
+    annotation: {
+      id: annotation.id,
+      sectionKey: params.sectionKey,
+      quotedText: params.quotedText,
+      body: params.body,
+      anchor: params.anchor,
+      status: "visible",
+      createdAt,
+      author: {
+        name: user?.name ?? null,
+        image: user?.image ?? null,
+      },
+    },
+    publication: {
+      id: publication.id,
+      slug: publication.slug,
+      ownerUserId: publication.ownerUserId,
+      sourceCourseId: publication.sourceCourseId,
     },
   };
 }
@@ -559,7 +577,7 @@ export async function updatePublicCourseAnnotationStatus(params: {
   annotationId: string;
   userId: string;
   status: CoursePublicAnnotationStatus;
-}): Promise<PublicCourseAnnotationProjection> {
+}): Promise<PublicCourseAnnotationMutationResult> {
   const publication = await db.query.coursePublications.findFirst({
     where: and(
       eq(coursePublications.slug, params.slug),
@@ -607,11 +625,19 @@ export async function updatePublicCourseAnnotationStatus(params: {
     where: eq(users.id, updated.userId),
   });
 
-  return mapAnnotationRow({
-    ...updated,
-    authorName: user?.name ?? null,
-    authorImage: user?.image ?? null,
-  });
+  return {
+    annotation: mapAnnotationRow({
+      ...updated,
+      authorName: user?.name ?? null,
+      authorImage: user?.image ?? null,
+    }),
+    publication: {
+      id: publication.id,
+      slug: publication.slug,
+      ownerUserId: publication.ownerUserId,
+      sourceCourseId: publication.sourceCourseId,
+    },
+  };
 }
 
 function buildOutlineFromSnapshot(content: CoursePublicationSnapshotContent): CourseOutline {

@@ -1,6 +1,7 @@
 import type { Queue } from "bullmq";
 import { defaults } from "@/config/env";
 import { createNexusQueue } from "@/lib/queue/bullmq";
+import { buildSafeJobId } from "@/lib/queue/job-id";
 
 export type CourseProductionJobData = {
   type: "materialize_section";
@@ -42,7 +43,12 @@ function buildSectionJobId(params: {
   chapterIndex: number;
   sectionIndex: number;
 }) {
-  return ["course-section", params.courseId, params.chapterIndex, params.sectionIndex].join("-");
+  return buildSafeJobId([
+    "course-section",
+    params.courseId,
+    params.chapterIndex,
+    params.sectionIndex,
+  ]);
 }
 
 export async function enqueueCourseSectionMaterialization(params: {

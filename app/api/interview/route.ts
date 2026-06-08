@@ -97,6 +97,7 @@ export async function POST(request: NextRequest) {
         const webResearchContext = await resolveInterviewWebResearchContext({
           userId,
           messages: validatedMessages,
+          modelSeries,
           onRequest: (evidenceRequest) => {
             writeData({
               type: "data-researchEvent",
@@ -128,6 +129,7 @@ export async function POST(request: NextRequest) {
             evidenceRequired: Boolean(webResearchContext.evidenceRequest),
             evidenceDomain: webResearchContext.evidenceRequest?.domain ?? null,
             evidenceReasons: webResearchContext.evidenceRequest?.reasonCodes ?? [],
+            evidenceDecisionSource: webResearchContext.evidenceRequest?.decisionSource ?? null,
             evidenceAvailable: webResearchContext.evidenceAvailable,
             evidenceSourceCount: webResearchContext.retrieval?.sources.length ?? 0,
           },

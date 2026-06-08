@@ -122,7 +122,7 @@ export const defaults = {
  * 必需变量：DATABASE_URL, REDIS_URL, AUTH_SECRET, AI gateway key
  * 其余均有合理默认值，不写也能跑
  */
-export const serverEnvSchema = z.object({
+const serverEnvSchema = z.object({
   // Database (必需)
   DATABASE_URL: z.string().url().describe("PostgreSQL Connection String"),
 
@@ -358,23 +358,7 @@ export const serverEnvSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
 });
 
-export type ServerEnv = z.infer<typeof serverEnvSchema>;
-
-/**
- * Client environment schema (NEXT_PUBLIC_ variables)
- */
-export const clientEnvSchema = z.object({
-  // AI Features (client can override via user preference)
-  NEXT_PUBLIC_AI_ENABLE_WEB_SEARCH: z
-    .string()
-    .default("true")
-    .transform((v) => v === "true"),
-
-  // Environment
-  NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
-});
-
-export type ClientEnv = z.infer<typeof clientEnvSchema>;
+type ServerEnv = z.infer<typeof serverEnvSchema>;
 
 // ============================================
 // Parse Functions
@@ -383,7 +367,7 @@ export type ClientEnv = z.infer<typeof clientEnvSchema>;
 /**
  * Parse and validate server environment
  */
-export function parseServerEnv(env: NodeJS.ProcessEnv = process.env): ServerEnv {
+function parseServerEnv(env: NodeJS.ProcessEnv = process.env): ServerEnv {
   // Build-time check bypass for Next.js 16
   if (
     process.env.SKIP_ENV_VALIDATION === "true" ||
@@ -409,32 +393,7 @@ export function parseServerEnv(env: NodeJS.ProcessEnv = process.env): ServerEnv 
   return result.data;
 }
 
-/**
- * Parse and validate client environment
- */
-export function parseClientEnv(env: Record<string, string | undefined> = {}): ClientEnv {
-  const processEnv = {
-    NEXT_PUBLIC_AI_ENABLE_WEB_SEARCH: process.env.NEXT_PUBLIC_AI_ENABLE_WEB_SEARCH ?? "true",
-    NODE_ENV: process.env.NODE_ENV,
-  };
-
-  const merged = { ...processEnv, ...env };
-
-  const result = clientEnvSchema.safeParse(merged);
-
-  if (!result.success) {
-    console.error("❌ Client environment validation failed:");
-    for (const issue of result.error.issues) {
-      console.error(`  - ${issue.path.join(".")}: ${issue.message}`);
-    }
-    throw new Error("Invalid client environment configuration");
-  }
-
-  return result.data;
-}
-
 let cachedServerEnv: ServerEnv | null = null;
-let cachedClientEnv: ClientEnv | null = null;
 
 export const env = new Proxy({} as ServerEnv, {
   get(_target, prop) {
@@ -463,61 +422,3 @@ export const env = new Proxy({} as ServerEnv, {
     return Reflect.get(cachedServerEnv, prop);
   },
 });
-
-export const clientEnv = new Proxy({} as ClientEnv, {
-  get(_target, prop) {
-    if (typeof prop !== "string") return undefined;
-    if (!cachedClientEnv) {
-      cachedClientEnv = parseClientEnv();
-    }
-    return Reflect.get(cachedClientEnv, prop);
-  },
-});
-
-// ============================================
-// Logging
-// ============================================
-
-/**
- * Log server config (hiding sensitive values)
- */
-export function logServerConfig(env: ServerEnv): void {
-  const maskSecret = (val: string | undefined) => (val ? "***" : "(not set)");
-
-  console.log("[Config] Server environment validated:");
-  console.log(`  NODE_ENV: ${env.NODE_ENV}`);
-  console.log(`  DATABASE_URL: ${env.DATABASE_URL.replace(/\/\/[^@]+@/, "//***@")}`);
-  console.log(`  REDIS_URL: ${env.REDIS_URL}`);
-  console.log(`  AI_302_API_KEY: ${maskSecret(env.AI_302_API_KEY)}`);
-  console.log(`  AI_QWEN_MODEL_INTERACTIVE: ${env.AI_QWEN_MODEL_INTERACTIVE}`);
-  console.log(`  AI_QWEN_MODEL_OUTLINE: ${env.AI_QWEN_MODEL_OUTLINE}`);
-  console.log(`  AI_QWEN_MODEL_SECTION_DRAFT: ${env.AI_QWEN_MODEL_SECTION_DRAFT}`);
-  console.log(`  AI_QWEN_MODEL_EXTRACT: ${env.AI_QWEN_MODEL_EXTRACT}`);
-  console.log(`  AI_QWEN_MODEL_REVIEW: ${env.AI_QWEN_MODEL_REVIEW}`);
-  console.log(`  AI_QWEN_MODEL_WEB_SEARCH: ${env.AI_QWEN_MODEL_WEB_SEARCH}`);
-  console.log(`  AI_DEEPSEEK_MODEL_INTERACTIVE: ${env.AI_DEEPSEEK_MODEL_INTERACTIVE}`);
-  console.log(`  AI_DEEPSEEK_MODEL_OUTLINE: ${env.AI_DEEPSEEK_MODEL_OUTLINE}`);
-  console.log(`  AI_GEMINI_MODEL_INTERACTIVE: ${env.AI_GEMINI_MODEL_INTERACTIVE}`);
-  console.log(`  AI_OPENAI_MODEL_INTERACTIVE: ${env.AI_OPENAI_MODEL_INTERACTIVE}`);
-  console.log(`  AI_MODEL_PRICING_CONFIGURED: ${Object.keys(env.AI_MODEL_PRICING_JSON).length}`);
-  console.log(`  AI_ENABLE_WEB_SEARCH: ${env.AI_ENABLE_WEB_SEARCH}`);
-  console.log(`  TAVILY_API_KEY: ${maskSecret(env.TAVILY_API_KEY)}`);
-  console.log(`  EXA_API_KEY: ${maskSecret(env.EXA_API_KEY)}`);
-  console.log(`  FIRECRAWL_API_KEY: ${maskSecret(env.FIRECRAWL_API_KEY)}`);
-  console.log(`  JINA_API_KEY: ${maskSecret(env.JINA_API_KEY)}`);
-  console.log(`  EMBEDDING_MODEL: ${env.EMBEDDING_MODEL}`);
-  console.log(`  EMBEDDING_DIMENSIONS: ${env.EMBEDDING_DIMENSIONS}`);
-  console.log(`  RERANKER_ENABLED: ${env.RERANKER_ENABLED}`);
-  console.log(`  BILLING_PROVIDER: ${env.BILLING_PROVIDER}`);
-  console.log(
-    `  BILLING_CHECKOUT_CONFIGURED: ${Boolean(
-      env.BILLING_CHECKOUT_BASE_URL || env.BILLING_302PAY_API_KEY,
-    )}`,
-  );
-}
-
-// ============================================
-// Re-exports for convenience
-// ============================================
-
-export { z } from "zod";

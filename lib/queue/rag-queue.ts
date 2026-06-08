@@ -9,6 +9,7 @@ import type { Queue } from "bullmq";
 import { defaults } from "@/config/env";
 import { buildKnowledgeContentHash } from "@/lib/knowledge/content-hash";
 import { createNexusQueue } from "@/lib/queue/bullmq";
+import { buildSafeJobId } from "@/lib/queue/job-id";
 
 export interface RagIndexJobData {
   type: "course_section";
@@ -65,7 +66,7 @@ export async function enqueueCourseSectionRagIndex(params: {
       contentHash,
     },
     {
-      jobId: `course-section-${params.documentId}-${contentHash}`,
+      jobId: buildSafeJobId(["course-section", params.documentId, contentHash]),
     },
   );
 

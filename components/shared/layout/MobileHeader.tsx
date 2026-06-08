@@ -141,5 +141,3 @@ export function MobileHeader({
     </motion.header>
   );
 }
-
-export default MobileHeader;

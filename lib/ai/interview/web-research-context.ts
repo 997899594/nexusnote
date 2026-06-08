@@ -1,8 +1,7 @@
 import type { UIMessage } from "ai";
-import {
-  type ResearchEvidenceRequest,
-  resolveResearchEvidenceRequestFromMessages,
-} from "@/lib/ai/research/evidence-request";
+import type { AIModelSeries } from "@/lib/ai/core/model-series";
+import { resolveResearchEvidenceRequestFromMessagesWithPlanner } from "@/lib/ai/research/evidence-planner";
+import type { ResearchEvidenceRequest } from "@/lib/ai/research/evidence-request";
 import {
   buildResearchEvidenceSnapshot,
   type ResearchEvidenceSnapshot,
@@ -37,20 +36,17 @@ function getResearchUnavailablePromptText(output: ResearchRetrievalOutput): stri
   }
 }
 
-export function shouldBuildInterviewWebResearchContext(
-  messages: Array<Pick<UIMessage, "role" | "parts">>,
-) {
-  return Boolean(resolveResearchEvidenceRequestFromMessages({ messages }));
-}
-
 export async function resolveInterviewWebResearchContext(params: {
   userId: string;
   messages: Array<Pick<UIMessage, "role" | "parts">>;
+  modelSeries?: AIModelSeries;
   onRequest?: (request: ResearchEvidenceRequest) => void | Promise<void>;
   onProgress?: (progress: ResearchEvidenceProgress) => void | Promise<void>;
 }): Promise<InterviewWebResearchContext> {
-  const evidenceRequest = resolveResearchEvidenceRequestFromMessages({
+  const evidenceRequest = await resolveResearchEvidenceRequestFromMessagesWithPlanner({
     messages: params.messages,
+    userId: params.userId,
+    modelSeries: params.modelSeries,
   });
 
   if (!evidenceRequest) {
@@ -112,6 +108,7 @@ export async function resolveInterviewWebResearchContext(params: {
       "以下来源已完成多路检索、页面正文读取、去重和重排。它们是本轮事实校准材料，不代表访谈信息已经足够。",
       `检索时间：${new Date().toISOString()}`,
       `Evidence Request: domain=${evidenceRequest.domain}; reasons=${evidenceRequest.reasonCodes.join(",")}`,
+      `Evidence Plan: freshness=${evidenceRequest.plan.freshnessProfile}; mode=${evidenceRequest.plan.retrievalMode}; sourceTypes=${evidenceRequest.plan.sourceTypes.join(",")}`,
       `查询：${output.queries.join(" | ")}`,
       "",
       formatResearchEvidenceForPrompt(output.sources),
@@ -129,12 +126,4 @@ export async function resolveInterviewWebResearchContext(params: {
     shouldDraftOutline: evidenceRequest.outlineReadiness === "ready",
     evidenceAvailable: true,
   };
-}
-
-export async function buildInterviewWebResearchContext(params: {
-  userId: string;
-  messages: Array<Pick<UIMessage, "role" | "parts">>;
-}) {
-  const context = await resolveInterviewWebResearchContext(params);
-  return context.promptBlock;
 }

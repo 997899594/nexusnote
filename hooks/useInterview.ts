@@ -1,6 +1,5 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { nanoid } from "nanoid";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { type AIDegradationKind, createAIDegradationAwareFetch } from "@/lib/ai/core/degradation";
@@ -40,7 +39,7 @@ interface UseInterviewReturn {
 
 export function useInterview(options?: UseInterviewOptions): UseInterviewReturn {
   const { addToast } = useToast();
-  const [sessionId] = useState(() => nanoid());
+  const [sessionId] = useState(() => crypto.randomUUID());
   const [aiDegradedKind, setAIDegradedKind] = useState<AIDegradationKind | null>(null);
   const [stableOutline, setStableOutlineState] = useState<InterviewOutline | null>(null);
   const [courseId, setCourseIdState] = useState<string | null>(null);

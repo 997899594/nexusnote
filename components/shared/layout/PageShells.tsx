@@ -34,27 +34,6 @@ export function LandingPageShell({
   );
 }
 
-export function WorkspacePageShell({
-  header,
-  children,
-  frameClassName,
-  shellClassName,
-}: PageFamilyShellProps) {
-  return (
-    <main className={cn("ui-page-shell min-h-dvh", shellClassName)}>
-      {header}
-      <div
-        className={cn(
-          "ui-page-frame ui-floating-header-offset ui-bottom-breathing-room",
-          frameClassName,
-        )}
-      >
-        {children}
-      </div>
-    </main>
-  );
-}
-
 export function LibraryAnalysisPageShell({
   header,
   children,

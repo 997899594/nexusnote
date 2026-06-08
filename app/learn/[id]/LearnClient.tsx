@@ -3,7 +3,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeftToLine, List, MessageSquare } from "lucide-react";
+import { ArrowLeftToLine, List, MessageSquare, MessageSquareText } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo } from "react";
 import { CoursePublishControl } from "@/components/course-reader/CoursePublishControl";
@@ -28,6 +28,7 @@ export interface LearnClientProps
       | "targetAudience"
       | "chapters"
       | "sectionDocs"
+      | "publicAnnotations"
     >,
     Pick<
       LearnResumeState,
@@ -43,6 +44,7 @@ export function LearnClient({
   courseTitle,
   chapters,
   sectionDocs,
+  publicAnnotations,
   initialChapterIndex,
   initialCompletedSections,
   scrollToSectionId,
@@ -57,6 +59,9 @@ export function LearnClient({
   const setSidebarOpen = useLearnStore((s) => s.setSidebarOpen);
   const isChatOpen = useLearnStore((s) => s.isChatOpen);
   const setChatOpen = useLearnStore((s) => s.setChatOpen);
+  const isNotesOpen = useLearnStore((s) => s.isNotesOpen);
+  const setNotesOpen = useLearnStore((s) => s.setNotesOpen);
+  const currentSectionAnnotationCount = useLearnStore((s) => s.currentSectionAnnotationCount);
   const isDesktopSidebarCollapsed = useLearnStore((s) => s.isDesktopSidebarCollapsed);
   const setDesktopSidebarCollapsed = useLearnStore((s) => s.setDesktopSidebarCollapsed);
   const isDesktopChatCollapsed = useLearnStore((s) => s.isDesktopChatCollapsed);
@@ -73,6 +78,7 @@ export function LearnClient({
     setChapters(chapters);
     setSidebarOpen(false);
     setChatOpen(false);
+    setNotesOpen(false);
     setDesktopSidebarCollapsed(false);
     setDesktopChatCollapsed(true);
 
@@ -111,22 +117,23 @@ export function LearnClient({
       if (e.key === "Escape") {
         setSidebarOpen(false);
         setChatOpen(false);
+        setNotesOpen(false);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [setChatOpen, setSidebarOpen]);
+  }, [setChatOpen, setNotesOpen, setSidebarOpen]);
 
   // Lock body scroll when overlay is open (mobile)
   useEffect(() => {
     if (!isMobile) return;
-    if (isSidebarOpen || isChatOpen) {
+    if (isSidebarOpen || isChatOpen || isNotesOpen) {
       document.body.style.overflow = "hidden";
       return () => {
         document.body.style.overflow = "";
       };
     }
-  }, [isMobile, isSidebarOpen, isChatOpen]);
+  }, [isMobile, isSidebarOpen, isChatOpen, isNotesOpen]);
 
   // ─── Mobile layout ───
   if (isMobile) {
@@ -155,36 +162,58 @@ export function LearnClient({
             currentGenerating={currentGenerating}
             generateSection={generateSection}
             sectionDocs={sectionDocs}
+            publicAnnotations={publicAnnotations}
             scrollToSectionId={scrollToSectionId}
           />
         </div>
 
-        <nav className="safe-bottom fixed inset-x-4 bottom-3 z-30 flex rounded-full border border-black/[0.06] bg-white/88 p-1.5 shadow-[0_18px_46px_-28px_rgba(15,23,42,0.32)] backdrop-blur-xl">
+        <nav className="safe-bottom fixed right-3 bottom-4 z-30 flex flex-col gap-2 md:hidden">
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}
             className={cn(
-              "flex h-11 flex-1 items-center justify-center gap-2 rounded-full text-sm font-medium transition-colors",
+              "inline-flex h-11 w-11 items-center justify-center rounded-xl border border-black/[0.08] bg-white/92 text-[var(--color-text-secondary)] shadow-[0_14px_38px_-26px_rgba(15,23,42,0.42)] backdrop-blur-xl transition-colors",
               isSidebarOpen
                 ? "bg-[var(--color-panel-strong)] text-white"
-                : "text-[var(--color-text-secondary)] hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)]",
+                : "hover:text-[var(--color-text)]",
             )}
+            aria-label="打开目录"
+            title="目录"
           >
-            <List className="h-4 w-4" />
-            目录
+            <List className="h-4.5 w-4.5" />
           </button>
           <button
             type="button"
             onClick={() => setChatOpen(true)}
             className={cn(
-              "flex h-11 flex-1 items-center justify-center gap-2 rounded-full text-sm font-medium transition-colors",
+              "inline-flex h-11 w-11 items-center justify-center rounded-xl border border-black/[0.08] bg-white/92 text-[var(--color-text-secondary)] shadow-[0_14px_38px_-26px_rgba(15,23,42,0.42)] backdrop-blur-xl transition-colors",
               isChatOpen
                 ? "bg-[var(--color-panel-strong)] text-white"
-                : "text-[var(--color-text-secondary)] hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)]",
+                : "hover:text-[var(--color-text)]",
             )}
+            aria-label="打开对话"
+            title="对话"
           >
-            <MessageSquare className="h-4 w-4" />
-            提问
+            <MessageSquare className="h-4.5 w-4.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setNotesOpen(true)}
+            className={cn(
+              "relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-black/[0.08] bg-white/92 text-[var(--color-text-secondary)] shadow-[0_14px_38px_-26px_rgba(15,23,42,0.42)] backdrop-blur-xl transition-colors",
+              isNotesOpen
+                ? "bg-[var(--color-panel-strong)] text-white"
+                : "hover:text-[var(--color-text)]",
+            )}
+            aria-label="打开评注"
+            title="评注"
+          >
+            <MessageSquareText className="h-4.5 w-4.5" />
+            {currentSectionAnnotationCount > 0 ? (
+              <span className="absolute -top-1 -right-1 min-w-4 rounded-md bg-[var(--color-panel-strong)] px-1 text-[0.625rem] leading-4 text-white">
+                {currentSectionAnnotationCount}
+              </span>
+            ) : null}
           </button>
         </nav>
 
@@ -297,6 +326,19 @@ export function LearnClient({
                   提问
                 </button>
               ) : null}
+              <button
+                type="button"
+                onClick={() => setNotesOpen(true)}
+                className="relative rounded-xl border border-black/8 bg-white px-3 py-2 text-xs font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]"
+                aria-label="打开评注"
+              >
+                评注
+                {currentSectionAnnotationCount > 0 ? (
+                  <span className="ml-1.5 text-[var(--color-text-tertiary)]">
+                    {currentSectionAnnotationCount}
+                  </span>
+                ) : null}
+              </button>
             </div>
           </header>
           <div className="min-h-0 flex-1">
@@ -306,6 +348,7 @@ export function LearnClient({
               currentGenerating={currentGenerating}
               generateSection={generateSection}
               sectionDocs={sectionDocs}
+              publicAnnotations={publicAnnotations}
               scrollToSectionId={scrollToSectionId}
             />
           </div>

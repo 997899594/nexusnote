@@ -1,6 +1,6 @@
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 
-export function isTextCompositionEvent(event: ReactKeyboardEvent<Element>): boolean {
+function isTextCompositionEvent(event: ReactKeyboardEvent<Element>): boolean {
   const nativeEvent = event.nativeEvent as KeyboardEvent & { keyCode?: number };
   return nativeEvent.isComposing || nativeEvent.keyCode === 229 || event.key === "Process";
 }

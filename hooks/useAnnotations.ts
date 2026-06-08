@@ -2,19 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/ui/Toast";
+import {
+  type Annotation,
+  persistSectionAnnotations,
+} from "@/lib/learning/learn-annotations-client";
 
-export interface Annotation {
-  id: string;
-  type: "highlight" | "note";
-  anchor: {
-    textContent: string; // ~50 chars surrounding the selection
-    startOffset: number;
-    endOffset: number;
-  };
-  color?: string;
-  noteContent?: string;
-  createdAt: string;
-}
+export type { Annotation } from "@/lib/learning/learn-annotations-client";
 
 interface UseAnnotationsOptions {
   sectionId: string | undefined;
@@ -24,9 +17,7 @@ interface UseAnnotationsOptions {
 interface UseAnnotationsReturn {
   annotations: Annotation[];
   addHighlight: (anchor: Annotation["anchor"], color?: string) => void;
-  addNote: (anchor: Annotation["anchor"], noteContent: string, color?: string) => void;
   removeAnnotation: (id: string) => void;
-  updateNote: (id: string, noteContent: string) => void;
 }
 
 export function useAnnotations({
@@ -61,14 +52,7 @@ export function useAnnotations({
 
       saveTimerRef.current = setTimeout(async () => {
         try {
-          const response = await fetch("/api/learn/annotations", {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ sectionId, annotations: updated }),
-          });
-          if (!response.ok) {
-            throw new Error("保存失败");
-          }
+          await persistSectionAnnotations({ sectionId, annotations: updated });
         } catch {
           addToast("笔记保存失败，请稍后重试", "error");
         }
@@ -95,25 +79,6 @@ export function useAnnotations({
     [scheduleSave],
   );
 
-  const addNote = useCallback(
-    (anchor: Annotation["anchor"], noteContent: string, color = "#bbf7d0") => {
-      const newAnnotation: Annotation = {
-        id: crypto.randomUUID(),
-        type: "note",
-        anchor,
-        noteContent,
-        color,
-        createdAt: new Date().toISOString(),
-      };
-      setAnnotations((prev) => {
-        const updated = [...prev, newAnnotation];
-        scheduleSave(updated);
-        return updated;
-      });
-    },
-    [scheduleSave],
-  );
-
   const removeAnnotation = useCallback(
     (id: string) => {
       setAnnotations((prev) => {
@@ -125,16 +90,5 @@ export function useAnnotations({
     [scheduleSave],
   );
 
-  const updateNote = useCallback(
-    (id: string, noteContent: string) => {
-      setAnnotations((prev) => {
-        const updated = prev.map((a) => (a.id === id ? { ...a, noteContent } : a));
-        scheduleSave(updated);
-        return updated;
-      });
-    },
-    [scheduleSave],
-  );
-
-  return { annotations, addHighlight, addNote, removeAnnotation, updateNote };
+  return { annotations, addHighlight, removeAnnotation };
 }

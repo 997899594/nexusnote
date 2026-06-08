@@ -67,7 +67,7 @@ export function InterviewMessage({ message, onSendReply, isStreaming }: Intervie
                 <InterviewResearchActivity
                   evidence={message.researchEvidence}
                   events={message.researchEvents}
-                  defaultOpen={message.isResearchActive ?? Boolean(isStreaming)}
+                  defaultOpen={false}
                   isRunning={message.isResearchActive ?? Boolean(isStreaming)}
                 />
               ) : null}

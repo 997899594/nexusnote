@@ -41,6 +41,11 @@ const TagGenerationResultSchema = z
 
 type TagGenerationResult = z.infer<typeof TagGenerationResultSchema>;
 
+interface GenerateTagsResult {
+  status: "skipped" | "generated";
+  generatedTagCount: number;
+}
+
 function buildTagGenerationUserPrompt(content: string): string {
   return renderPromptResource("tag-generation-user.md", {
     content: content.slice(0, 3000),
@@ -51,12 +56,14 @@ class TagGenerationService {
   /**
    * 为笔记生成标签
    */
-  async generateTags(noteId: string): Promise<void> {
+  async generateTags(noteId: string): Promise<GenerateTagsResult> {
     // 1. 获取笔记内容
     const content = await this.getNoteContent(noteId);
     if (!content || content.length < 50) {
-      console.log(`[Tags] 笔记 ${noteId} 内容过短，跳过标签生成`);
-      return;
+      return {
+        status: "skipped",
+        generatedTagCount: 0,
+      };
     }
 
     // 2. AI 生成标签
@@ -75,7 +82,10 @@ class TagGenerationService {
       }
     }
 
-    console.log(`[Tags] 笔记 ${noteId} 生成 ${result.tags.length} 个标签`);
+    return {
+      status: "generated",
+      generatedTagCount: result.tags.length,
+    };
   }
 
   /**
@@ -183,7 +193,6 @@ class TagGenerationService {
         .limit(1);
 
       if (similarTag) {
-        console.log(`[Tags] 标签 "${normalizedName}" 合并到相似标签 "${similarTag.name}"`);
         return similarTag;
       }
     }

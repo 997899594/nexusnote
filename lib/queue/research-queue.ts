@@ -1,6 +1,7 @@
 import type { Queue } from "bullmq";
 import { defaults } from "@/config/env";
 import { createNexusQueue } from "@/lib/queue/bullmq";
+import { buildSafeJobId } from "@/lib/queue/job-id";
 
 export type ResearchJobData = {
   type: "run_background_research";
@@ -52,7 +53,7 @@ export async function enqueueBackgroundResearch(params: {
       modelSeries: params.modelSeries ?? null,
     },
     {
-      jobId: params.runId,
+      jobId: buildSafeJobId(["research", params.runId]),
     },
   );
 

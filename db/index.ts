@@ -53,20 +53,11 @@ export async function closeDbConnection(): Promise<void> {
 // Re-export common drizzle-orm operators for consistency
 export {
   and,
-  asc,
-  count,
   desc,
   eq,
-  gt,
-  gte,
-  type InferInsertModel,
-  type InferSelectModel,
   inArray,
   lt,
-  lte,
   ne,
-  notInArray,
-  or,
   sql,
 } from "drizzle-orm";
 // Re-export drizzle function for creating database instances

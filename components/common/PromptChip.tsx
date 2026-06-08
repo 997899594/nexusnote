@@ -28,5 +28,3 @@ export function PromptChip({ label, onClick, icon: Icon, className, disabled }: 
     </button>
   );
 }
-
-export default PromptChip;

@@ -14,7 +14,7 @@ type TunableGenerationSettings = Pick<
   | "topP"
 >;
 
-export interface ModelGenerationCapabilities {
+interface ModelGenerationCapabilities {
   model: string;
   supportsSamplingControls: boolean;
 }
@@ -28,7 +28,7 @@ function isOpenAIReasoningFamily(model: string): boolean {
   return /(^|[/:\s])(?:gpt-5|o[1-9])(?:[.\-/:_\s]|$)/.test(normalized);
 }
 
-export function getGenerationCapabilitiesForPolicy(
+function getGenerationCapabilitiesForPolicy(
   policy: ModelPolicy,
   modelSeries?: AIModelSeries,
 ): ModelGenerationCapabilities {

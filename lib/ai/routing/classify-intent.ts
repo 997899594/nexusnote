@@ -143,7 +143,7 @@ function buildClassificationFromCapabilityMode(params: {
   };
 }
 
-export function isDeepResearchRequest(message: string): boolean {
+function isDeepResearchRequest(message: string): boolean {
   const normalizedMessage = normalizeText(message);
   const researchMatches = collectCueMatches(normalizedMessage, RESEARCH_CUES);
   const deepMatches = collectCueMatches(normalizedMessage, DEEP_RESEARCH_CUES);

@@ -66,7 +66,7 @@ export function classifyAIDegradation(error: unknown): AIDegradationState | null
   return null;
 }
 
-export function parseAIDegradationKind(value: string | null | undefined): AIDegradationKind | null {
+function parseAIDegradationKind(value: string | null | undefined): AIDegradationKind | null {
   if (
     value === "chat_unavailable" ||
     value === "structured_unavailable" ||

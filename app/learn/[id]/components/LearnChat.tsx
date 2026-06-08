@@ -295,18 +295,18 @@ export function LearnChat({ courseId, courseTitle, onCollapse }: LearnChatProps)
       {/* Header */}
       <div className="safe-top border-b border-black/[0.04] bg-white/82 px-4 pb-3 pt-3 backdrop-blur-xl md:px-5 md:py-4">
         <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="truncate text-xs text-[var(--color-text-secondary)]">
               {currentSection?.title ?? currentChapter?.title ?? courseTitle}
             </p>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex shrink-0 items-center gap-2">
             <button
               type="button"
               onClick={handleCaptureChat}
               disabled={captureDisabled}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs transition-colors md:px-3 md:py-2",
+                "inline-flex h-9 min-w-14 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-3 text-xs font-medium transition-colors",
                 captureDisabled
                   ? "cursor-not-allowed bg-[var(--color-active)] text-[var(--color-text-muted)]"
                   : "border border-black/8 bg-white text-[var(--color-text-secondary)] hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]",
@@ -318,7 +318,7 @@ export function LearnChat({ courseId, courseTitle, onCollapse }: LearnChatProps)
             <button
               type="button"
               onClick={onCollapse}
-              className="hidden rounded-xl border border-black/8 bg-white px-3 py-2 text-xs font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-hover)] hover:text-[var(--color-text)] md:block"
+              className="hidden h-9 min-w-14 shrink-0 whitespace-nowrap rounded-full border border-black/8 bg-white px-3 text-xs font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-hover)] hover:text-[var(--color-text)] md:inline-flex md:items-center md:justify-center"
               aria-label="收起提问"
             >
               收起

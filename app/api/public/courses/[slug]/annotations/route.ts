@@ -1,8 +1,11 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
-import { badRequest, notFound, parseJsonBodyAs, withDynamicAuth } from "@/lib/api";
-import { revalidateCoursePublicationViews } from "@/lib/cache/domain-events";
+import { badRequest, parseJsonBodyAs, withDynamicAuth } from "@/lib/api";
 import { createPublicCourseAnnotation } from "@/lib/learning/course-sharing";
+import {
+  handlePublicAnnotationMutationError,
+  revalidatePublicAnnotationMutation,
+} from "./annotation-route-helpers";
 
 interface RouteParams {
   slug: string;
@@ -28,7 +31,7 @@ export const POST = withDynamicAuth<unknown, RouteParams>(
     }
 
     try {
-      const annotation = await createPublicCourseAnnotation({
+      const result = await createPublicCourseAnnotation({
         slug: params.slug,
         userId,
         sectionKey: input.sectionKey,
@@ -37,17 +40,11 @@ export const POST = withDynamicAuth<unknown, RouteParams>(
         body: input.body,
       });
 
-      revalidateCoursePublicationViews(params.slug);
+      revalidatePublicAnnotationMutation(params.slug, result);
 
-      return Response.json({ ok: true, annotation });
+      return Response.json({ ok: true, annotation: result.annotation });
     } catch (error) {
-      if (error instanceof Error && error.message === "COURSE_PUBLICATION_NOT_FOUND") {
-        throw notFound("公开课程不存在", "COURSE_PUBLICATION_NOT_FOUND");
-      }
-      if (error instanceof Error && error.message === "COURSE_PUBLICATION_SECTION_NOT_FOUND") {
-        throw badRequest("批注小节不存在", "COURSE_PUBLICATION_SECTION_NOT_FOUND");
-      }
-      throw error;
+      handlePublicAnnotationMutationError(error);
     }
   },
 );

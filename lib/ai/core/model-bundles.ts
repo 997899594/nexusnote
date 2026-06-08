@@ -18,7 +18,7 @@ export type ModelType =
 
 export type LanguageModelType = Exclude<ModelType, "embedding">;
 
-export interface AIModelBundle {
+interface AIModelBundle {
   modelSeries: AIModelSeries;
   label: string;
   models: Record<ModelType, string>;
@@ -33,7 +33,7 @@ function buildModelMap(config: LanguageModelBundleConfig): Record<ModelType, str
   };
 }
 
-export function getAIModelBundles(): Record<AIModelSeries, AIModelBundle> {
+function getAIModelBundles(): Record<AIModelSeries, AIModelBundle> {
   return {
     qwen: {
       modelSeries: "qwen",
@@ -94,7 +94,7 @@ export function getAIModelBundles(): Record<AIModelSeries, AIModelBundle> {
   };
 }
 
-export function getAIModelBundle(modelSeries?: AIModelSeries): AIModelBundle {
+function getAIModelBundle(modelSeries?: AIModelSeries): AIModelBundle {
   const series = normalizeAIModelSeries(modelSeries ?? DEFAULT_AI_MODEL_SERIES);
   return getAIModelBundles()[series];
 }

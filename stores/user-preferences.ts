@@ -165,7 +165,6 @@ export const useUserPreferencesStore = create<UserPreferencesState>()(
 
           if (!response.ok) {
             if (response.status === 401) {
-              console.log("[UserPreferences] Skin change is local-only (not logged in)");
               return;
             }
             throw new Error("Failed to update skin preference");

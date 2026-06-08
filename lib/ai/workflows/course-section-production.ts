@@ -5,6 +5,10 @@ import { getModelForPolicy } from "@/lib/ai/core/model-policy";
 import { getUserAIModelSeries } from "@/lib/ai/core/model-series-preferences";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { renderPromptResource } from "@/lib/ai/prompts/load-prompt";
+import {
+  type CourseSectionEvidenceContext,
+  resolveCourseSectionEvidenceContext,
+} from "@/lib/ai/research/course-section-evidence";
 import { notFound } from "@/lib/api";
 import { invalidateChapterCache } from "@/lib/cache/course-context";
 import { revalidateCourseContentViews } from "@/lib/cache/domain-events";
@@ -107,9 +111,33 @@ function formatSkillIds(skillIds?: string[]) {
   return Array.isArray(skillIds) && skillIds.length > 0 ? skillIds.join("、") : "未指定";
 }
 
+function formatResearchCitationContext(guidance: LearningGuidance): string {
+  const citations = guidance.course.researchCitations.slice(0, 8);
+  if (citations.length === 0) {
+    return "无外部来源。";
+  }
+
+  return citations
+    .map((citation, index) => {
+      const details = [
+        citation.domain,
+        citation.sourceType,
+        citation.qualityTier,
+        citation.publishedAt ? `published=${citation.publishedAt}` : null,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      const snippet = citation.snippet ? `\n  摘要：${citation.snippet}` : "";
+
+      return `[S${index + 1}] ${citation.title}\n  URL：${citation.url}\n  来源：${details || "未标注"}${snippet}`;
+    })
+    .join("\n");
+}
+
 export function buildCourseSectionSystemPrompt(params: {
   guidance: LearningGuidance;
   sectionIndex: number;
+  sectionEvidenceContext?: CourseSectionEvidenceContext | null;
 }): string {
   const { guidance, sectionIndex } = params;
   const section = guidance.chapter.sections[sectionIndex];
@@ -140,6 +168,10 @@ export function buildCourseSectionSystemPrompt(params: {
     total_chapters: guidance.course.totalChapters,
     learning_outcome: guidance.course.learningOutcome ?? "未提供",
     course_skill_ids: formatSkillIds(guidance.course.skillIds),
+    research_citations: formatResearchCitationContext(guidance),
+    section_research_evidence:
+      params.sectionEvidenceContext?.promptBlock ??
+      "本小节未触发额外实时检索；不要主动写未经核验的最新事实。",
     chapter_number: guidance.chapter.index + 1,
     chapter_title: guidance.chapter.title,
     chapter_description: guidance.chapter.description,
@@ -497,6 +529,7 @@ async function streamCourseSectionDraft(params: {
   input: ResolvedCourseSectionProductionInput;
   target: CourseSectionProductionTarget;
   modelSeries: Awaited<ReturnType<typeof getUserAIModelSeries>>;
+  sectionEvidenceContext: CourseSectionEvidenceContext | null;
   trace: ReturnType<typeof createLearnTrace>;
   onTextChange: (text: string) => void;
 }): Promise<CourseSectionStreamingDraftResult> {
@@ -512,6 +545,7 @@ async function streamCourseSectionDraft(params: {
       system: buildCourseSectionSystemPrompt({
         guidance: params.input.guidance,
         sectionIndex: params.target.sectionIndex,
+        sectionEvidenceContext: params.sectionEvidenceContext,
       }),
       prompt,
       ...buildGenerationSettingsForPolicy(
@@ -656,10 +690,27 @@ export async function materializeCourseSectionInBackground(
       outlineNodeId: input.outlineNodeId,
     });
 
+    const sectionEvidenceContext = await resolveCourseSectionEvidenceContext({
+      guidance: input.guidance,
+      sectionIndex: target.sectionIndex,
+      userId: target.userId,
+      modelSeries,
+    });
+    trace.step("section-evidence-resolved", {
+      outlineNodeId: input.outlineNodeId,
+      evidenceRequired: Boolean(sectionEvidenceContext.evidenceRequest),
+      evidenceAvailable: sectionEvidenceContext.evidenceAvailable,
+      evidenceSourceCount: sectionEvidenceContext.retrieval?.sources.length ?? 0,
+      evidenceDomain: sectionEvidenceContext.evidenceRequest?.domain ?? null,
+      evidenceDecisionSource: sectionEvidenceContext.evidenceRequest?.decisionSource ?? null,
+      evidenceError: sectionEvidenceContext.error,
+    });
+
     const draft = await streamCourseSectionDraft({
       input,
       target,
       modelSeries,
+      sectionEvidenceContext,
       trace,
       onTextChange: (text) => {
         generatedText = text;
@@ -709,6 +760,9 @@ export async function materializeCourseSectionInBackground(
         outlineNodeId: input.outlineNodeId,
         sectionDocumentId: persisted.sectionDocumentId,
         indexJobId: persisted.indexJobId,
+        evidenceRequired: Boolean(sectionEvidenceContext.evidenceRequest),
+        evidenceAvailable: sectionEvidenceContext.evidenceAvailable,
+        evidenceSourceCount: sectionEvidenceContext.retrieval?.sources.length ?? 0,
       },
     });
 

@@ -1,5 +1,6 @@
 import type { CareerTreeJobData } from "@/lib/queue/career-tree-queue";
 import { getCareerTreeQueue } from "@/lib/queue/career-tree-queue";
+import { buildSafeJobId } from "@/lib/queue/job-id";
 
 export interface QueuedCareerTreeJob {
   id: string | null;
@@ -10,20 +11,25 @@ export interface QueuedCareerTreeJob {
 function getCareerTreeJobId(job: CareerTreeJobData): string {
   switch (job.type) {
     case "compose_user_career_trees":
-      return `career-tree:compose:${job.userId}`;
+      return buildSafeJobId(["career-tree", "compose", job.userId]);
     case "refresh_user_career_tree_snapshot":
-      return [
-        "career-tree:refresh",
+      return buildSafeJobId([
+        "career-tree",
+        "refresh",
         job.userId,
         job.courseId ?? "all",
         job.reasonKey ?? "manual",
-      ].join(":");
+      ]);
     case "extract_course_evidence":
-      return `career-tree:extract:${job.userId}:${job.courseId}`;
+      return buildSafeJobId(["career-tree", "extract", job.userId, job.courseId]);
     case "merge_user_skill_graph":
-      return ["career-tree:merge", job.userId, job.courseId, job.extractRunId ?? "latest"].join(
-        ":",
-      );
+      return buildSafeJobId([
+        "career-tree",
+        "merge",
+        job.userId,
+        job.courseId,
+        job.extractRunId ?? "latest",
+      ]);
   }
 }
 

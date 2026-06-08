@@ -7,6 +7,7 @@ import { BookPlus, Highlighter } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Annotation } from "@/hooks/useAnnotations";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { createSelectionAnchor } from "@/lib/learning/text-anchors";
 import { cn } from "@/lib/utils";
 
 interface TextSelectionToolbarProps {
@@ -22,30 +23,6 @@ const HIGHLIGHT_COLORS = [
   { name: "蓝色", value: "#bfdbfe" },
   { name: "粉色", value: "#fecdd3" },
 ];
-
-function getSelectionAnchor(
-  selection: Selection,
-  containerEl: HTMLElement,
-): Annotation["anchor"] | null {
-  if (selection.rangeCount === 0) return null;
-  const selectedText = selection.toString().trim();
-  if (!selectedText) return null;
-
-  // Get surrounding context (~50 chars)
-  const containerText = containerEl.textContent ?? "";
-  const selectedStart = containerText.indexOf(selectedText);
-  if (selectedStart === -1) return null;
-
-  const contextStart = Math.max(0, selectedStart - 25);
-  const contextEnd = Math.min(containerText.length, selectedStart + selectedText.length + 25);
-  const textContent = containerText.slice(contextStart, contextEnd);
-
-  return {
-    textContent,
-    startOffset: selectedStart - contextStart,
-    endOffset: selectedStart - contextStart + selectedText.length,
-  };
-}
 
 export function TextSelectionToolbar({
   containerRef,
@@ -91,9 +68,14 @@ export function TextSelectionToolbar({
     const rect = range.getBoundingClientRect();
     const containerRect = containerRef.current.getBoundingClientRect();
 
-    anchorRef.current = getSelectionAnchor(selection, containerRef.current);
-    selectedTextRef.current = selection.toString().trim();
-    setSelectionPreview(selection.toString().trim().replace(/\s+/g, " ").slice(0, 42));
+    const selectionAnchor = createSelectionAnchor({
+      selection,
+      container: containerRef.current,
+      contextRadius: 25,
+    });
+    anchorRef.current = selectionAnchor?.anchor ?? null;
+    selectedTextRef.current = selectionAnchor?.selectedText ?? "";
+    setSelectionPreview((selectionAnchor?.selectedText ?? "").replace(/\s+/g, " ").slice(0, 42));
 
     if (!isMobile) {
       setPosition({
