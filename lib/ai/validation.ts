@@ -11,6 +11,14 @@ const BaseConversationRequestSchema = z.object({
   sessionId: z.string().optional(),
 });
 
+export const LearnSelectionContextSchema = z.object({
+  text: z.string().trim().min(1).max(4000),
+  chapterIndex: z.number().int().min(0),
+  sectionIndex: z.number().int().min(0),
+  chapterTitle: z.string().trim().max(200).optional(),
+  sectionTitle: z.string().trim().max(200).optional(),
+});
+
 export const ChatApiRequestSchema = BaseConversationRequestSchema.extend({
   intent: z.literal("CHAT").optional(),
   skinSlug: z
@@ -20,6 +28,7 @@ export const ChatApiRequestSchema = BaseConversationRequestSchema.extend({
     .optional(),
   courseId: z.string().uuid().nullish(), // 允许 null 或 undefined
   metadata: RequestMetadataSchema.optional(),
+  learnSelectionContext: LearnSelectionContextSchema.optional(),
 });
 
 export const InterviewApiRequestSchema = BaseConversationRequestSchema.extend({

@@ -11,6 +11,15 @@ import type { LearnChapterProjection, LearnSectionProjection } from "@/lib/learn
 export type SectionOutline = LearnSectionProjection;
 export type ChapterOutline = LearnChapterProjection;
 
+export interface LearnChatSelectionContext {
+  id: string;
+  text: string;
+  chapterIndex: number;
+  sectionIndex: number;
+  chapterTitle?: string;
+  sectionTitle?: string;
+}
+
 interface LearnState {
   // Course session ID (for persisting progress)
   courseId: string;
@@ -51,6 +60,8 @@ interface LearnState {
   isChatOpen: boolean;
   toggleChat: () => void;
   setChatOpen: (open: boolean) => void;
+  chatSelectionContext: LearnChatSelectionContext | null;
+  setChatSelectionContext: (context: LearnChatSelectionContext | null) => void;
 
   // Notes / annotations panel
   isNotesOpen: boolean;
@@ -81,6 +92,7 @@ const initialState = {
   completedSections: new Set<string>(),
   isSidebarOpen: false,
   isChatOpen: false,
+  chatSelectionContext: null as LearnChatSelectionContext | null,
   isNotesOpen: false,
   currentSectionAnnotationCount: 0,
   isDesktopSidebarCollapsed: false,
@@ -141,6 +153,8 @@ export const useLearnStore = create<LearnState>((set) => ({
   toggleChat: () => set((state) => ({ isChatOpen: !state.isChatOpen })),
 
   setChatOpen: (isChatOpen) => set({ isChatOpen }),
+
+  setChatSelectionContext: (chatSelectionContext) => set({ chatSelectionContext }),
 
   toggleNotes: () => set((state) => ({ isNotesOpen: !state.isNotesOpen })),
 

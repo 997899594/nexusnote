@@ -23,6 +23,7 @@ import {
   getPersistableConversationMetadata,
   touchChatConversation,
 } from "@/lib/ai/runtime/chat-session";
+import type { RouteDecision } from "@/lib/ai/runtime/contracts";
 import { orchestrateRequest } from "@/lib/ai/runtime/orchestrate-request";
 import { resolveRequestContext } from "@/lib/ai/runtime/resolve-request-context";
 import {
@@ -39,6 +40,39 @@ import { checkRateLimitOrThrow } from "@/lib/api/rate-limit";
 import { auth } from "@/lib/auth";
 
 export const maxDuration = 300;
+
+function escapePromptXml(value: string): string {
+  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+}
+
+function formatLearnSelectionContext(
+  selectionContext:
+    | {
+        text: string;
+        chapterIndex: number;
+        sectionIndex: number;
+        chapterTitle?: string;
+        sectionTitle?: string;
+      }
+    | undefined,
+): string | null {
+  if (!selectionContext) {
+    return null;
+  }
+
+  return [
+    "## 用户当前划线引用",
+    `位置：第 ${selectionContext.chapterIndex + 1} 章，第 ${selectionContext.sectionIndex + 1} 节`,
+    selectionContext.chapterTitle ? `章节标题：${selectionContext.chapterTitle}` : "",
+    selectionContext.sectionTitle ? `小节标题：${selectionContext.sectionTitle}` : "",
+    "用户接下来这条消息优先围绕下面这段划线内容回答；如果问题没有明说，就解释这段内容在当前小节中的意思、作用和容易误解的点。",
+    "<quoted_selection>",
+    escapePromptXml(selectionContext.text),
+    "</quoted_selection>",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
@@ -59,10 +93,8 @@ export async function POST(request: NextRequest) {
     // Rate Limiting
     await checkRateLimitOrThrow(userId, 100, 60 * 1000, "请求过于频繁，请稍后再试");
 
-    const { messages, sessionId, skinSlug, courseId, metadata } = await parseJsonBodyAs(
-      request,
-      ChatApiRequestSchema,
-    );
+    const { messages, sessionId, skinSlug, courseId, metadata, learnSelectionContext } =
+      await parseJsonBodyAs(request, ChatApiRequestSchema);
 
     const uiMessages = messages as UIMessage[];
     const modelSeries = await getUserAIModelSeries(userId);
@@ -75,11 +107,27 @@ export async function POST(request: NextRequest) {
       modelSeries,
       skinSlug,
     });
-    const routeDecision = await orchestrateRequest({
-      userId,
-      messages: uiMessages,
-      requestContext,
-    });
+    const routeDecision: RouteDecision =
+      learnSelectionContext &&
+      requestContext.surface === "learn" &&
+      requestContext.hasLearningGuidance
+        ? {
+            intent: "learn_explanation" as const,
+            capabilityMode: "learn_coach" as const,
+            resolvedCapabilityMode: "learn_coach" as const,
+            executionMode: "tool_loop" as const,
+            requiredScopes: ["course"],
+            confidence: 1,
+            reasons: ["learn selection context supplied by course reader"],
+            handoffTarget: null,
+            arbiterNotes: ["learn selection context pins this request to learn_coach"],
+            assistantInstruction: null,
+          }
+        : await orchestrateRequest({
+            userId,
+            messages: uiMessages,
+            requestContext,
+          });
     const specialist = getConversationSpecialistSpec(routeDecision.resolvedCapabilityMode);
     const resolvedCourseId = requestContext.resourceContext.courseId;
     const resolvedMetadata = requestContext.metadata;
@@ -103,6 +151,7 @@ export async function POST(request: NextRequest) {
         surface: requestContext.surface,
         context: resolvedMetadata?.context ?? null,
         hasLearningGuidance: requestContext.hasLearningGuidance,
+        hasLearnSelectionContext: Boolean(learnSelectionContext),
         hasCareerTreeSnapshot: requestContext.hasCareerTreeSnapshot,
         recentMessageCount: requestContext.recentMessages.length,
         modelSeries,
@@ -126,6 +175,9 @@ export async function POST(request: NextRequest) {
       skinSlug,
       assistantInstruction: routeDecision.assistantInstruction,
     });
+    const requestUserContext = [userContext, formatLearnSelectionContext(learnSelectionContext)]
+      .filter(Boolean)
+      .join("\n\n");
 
     await touchChatConversation({
       userId,
@@ -156,7 +208,7 @@ export async function POST(request: NextRequest) {
         userId,
         behaviorPrompt,
         skinPrompt,
-        userContext,
+        userContext: requestUserContext,
         learningGuidance,
         courseId: resolvedCourseId,
         metadata: resolvedMetadata,

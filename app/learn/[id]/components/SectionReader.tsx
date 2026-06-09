@@ -9,6 +9,7 @@ import {
   EyeOff,
   Highlighter,
   Loader2,
+  MessageSquareQuote,
   RefreshCw,
   RotateCcw,
   X,
@@ -384,6 +385,11 @@ function SectionBlock({
   const completedSections = useLearnStore((s) => s.completedSections);
   const isNotesOpen = useLearnStore((s) => s.isNotesOpen);
   const setNotesOpen = useLearnStore((s) => s.setNotesOpen);
+  const setChatOpen = useLearnStore((s) => s.setChatOpen);
+  const setDesktopChatCollapsed = useLearnStore((s) => s.setDesktopChatCollapsed);
+  const setChatSelectionContext = useLearnStore((s) => s.setChatSelectionContext);
+  const currentChapterIndex = useLearnStore((s) => s.currentChapterIndex);
+  const currentChapter = useLearnStore((s) => s.chapters[s.currentChapterIndex]);
   const setCurrentSectionAnnotationCount = useLearnStore((s) => s.setCurrentSectionAnnotationCount);
   const { addToast } = useToast();
 
@@ -602,6 +608,22 @@ function SectionBlock({
                   variant: "primary",
                   onSelect: ({ anchor, selectedText }) => {
                     setPendingCapture({ anchor, selectedText });
+                  },
+                },
+                {
+                  label: "对话",
+                  icon: MessageSquareQuote,
+                  onSelect: ({ selectedText }) => {
+                    setChatSelectionContext({
+                      id: crypto.randomUUID(),
+                      text: selectedText,
+                      chapterIndex: currentChapterIndex,
+                      sectionIndex,
+                      chapterTitle: currentChapter?.title,
+                      sectionTitle,
+                    });
+                    setChatOpen(true);
+                    setDesktopChatCollapsed(false);
                   },
                 },
               ]}

@@ -46,7 +46,9 @@ function buildEmailLinkHtml(params: { host: string; magicLinkUrl: string }): str
         <h1 style="margin:0 0 14px;font-size:24px;line-height:1.35;">登录 NexusNote</h1>
         <p style="margin:0 0 18px;font-size:14px;line-height:1.8;color:#666;">点击下面按钮即可登录。如果 QQ 邮箱、微信或安全扫描先打开了链接，10 分钟内复制同一链接到默认浏览器仍可继续使用。</p>
         <a href="${magicLinkUrl}" style="display:inline-block;margin:4px 0 18px;padding:12px 18px;border-radius:999px;background:#111;color:#fff;text-decoration:none;font-size:14px;font-weight:600;">直接登录</a>
-        <p style="margin:4px 0 10px;font-size:13px;line-height:1.8;color:#777;">需要换浏览器时，复制下面的登录链接：</p>
+        <div style="margin:4px 0 10px;">
+          <span style="display:inline-block;padding:10px 14px;border-radius:999px;background:#f3f1ea;color:#111;font-size:13px;font-weight:600;">复制登录链接</span>
+        </div>
         <div style="margin:0 0 18px;padding:14px 16px;border-radius:16px;background:#f3f1ea;color:#333;font-size:12px;line-height:1.7;word-break:break-all;">${magicLinkUrl}</div>
         <p style="margin:0;font-size:12px;line-height:1.8;color:#8a8a8a;">这封邮件来自 ${host}。如果不是你本人操作，可以忽略。</p>
       </div>

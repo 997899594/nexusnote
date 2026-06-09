@@ -60,6 +60,7 @@ export function LearnClient({
   const setSidebarOpen = useLearnStore((s) => s.setSidebarOpen);
   const isChatOpen = useLearnStore((s) => s.isChatOpen);
   const setChatOpen = useLearnStore((s) => s.setChatOpen);
+  const setChatSelectionContext = useLearnStore((s) => s.setChatSelectionContext);
   const isNotesOpen = useLearnStore((s) => s.isNotesOpen);
   const setNotesOpen = useLearnStore((s) => s.setNotesOpen);
   const currentSectionAnnotationCount = useLearnStore((s) => s.currentSectionAnnotationCount);
@@ -79,6 +80,7 @@ export function LearnClient({
     setChapters(chapters);
     setSidebarOpen(false);
     setChatOpen(false);
+    setChatSelectionContext(null);
     setNotesOpen(false);
     setDesktopSidebarCollapsed(false);
     setDesktopChatCollapsed(true);

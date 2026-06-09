@@ -1,7 +1,7 @@
 "use client";
 
 import type { UIMessage } from "ai";
-import { Loader2, X } from "lucide-react";
+import { Loader2, MessageSquareQuote, X } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChatComposer, type ChatComposerSubmitPayload } from "@/components/chat/ChatComposer";
 import { ChatMessage, LoadingDots } from "@/components/chat/ChatMessage";
@@ -45,7 +45,14 @@ function ChatEmptyState({
 
 export function LearnChat({ courseId, courseTitle, onCollapse }: LearnChatProps) {
   const { addToast } = useToast();
-  const { currentChapterIndex, currentSectionIndex, chapters, setChatOpen } = useLearnStore();
+  const {
+    currentChapterIndex,
+    currentSectionIndex,
+    chapters,
+    chatSelectionContext,
+    setChatOpen,
+    setChatSelectionContext,
+  } = useLearnStore();
   const [input, setInput] = useState("");
   const [isCapturingChat, setIsCapturingChat] = useState(false);
   const [resolvedSessionId, setResolvedSessionId] = useState<string | null>(null);
@@ -145,7 +152,32 @@ export function LearnChat({ courseId, courseTitle, onCollapse }: LearnChatProps)
   }, [resolveLearnSession]);
 
   const handleComposerSubmit = async ({ text }: ChatComposerSubmitPayload) => {
-    await sendMessage({ text });
+    const selectionContext = chatSelectionContext;
+    await sendMessage(
+      { text },
+      selectionContext
+        ? {
+            body: {
+              metadata: {
+                context: "learn",
+                courseId,
+                chapterIndex: selectionContext.chapterIndex,
+                sectionIndex: selectionContext.sectionIndex,
+              },
+              learnSelectionContext: {
+                text: selectionContext.text,
+                chapterIndex: selectionContext.chapterIndex,
+                sectionIndex: selectionContext.sectionIndex,
+                chapterTitle: selectionContext.chapterTitle,
+                sectionTitle: selectionContext.sectionTitle,
+              },
+            },
+          }
+        : undefined,
+    );
+    if (selectionContext?.id === useLearnStore.getState().chatSelectionContext?.id) {
+      setChatSelectionContext(null);
+    }
   };
 
   const handleQuickPrompt = useCallback(
@@ -253,6 +285,7 @@ export function LearnChat({ courseId, courseTitle, onCollapse }: LearnChatProps)
     ) : null;
 
   const pinnedContextArea = chatMessages.length === 0 ? <div>{quickPromptBlock}</div> : null;
+  const selectionContextPreview = chatSelectionContext?.text.replace(/\s+/g, " ").trim();
 
   const renderEmptyState = () => {
     if (isResolvingSession) {
@@ -359,6 +392,31 @@ export function LearnChat({ courseId, courseTitle, onCollapse }: LearnChatProps)
 
       {/* Input */}
       <div className="safe-bottom border-t border-black/[0.04] bg-white/84 px-4 pb-4 pt-3 backdrop-blur-xl md:px-5 md:pb-5 md:pt-4">
+        {chatSelectionContext && selectionContextPreview ? (
+          <div className="mb-2 rounded-2xl border border-black/[0.06] bg-[var(--color-panel-soft)] px-3 py-2">
+            <div className="flex items-start gap-2">
+              <MessageSquareQuote className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--color-text-tertiary)]" />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="truncate text-[0.625rem] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
+                    引用划线
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setChatSelectionContext(null)}
+                    className="rounded-md p-0.5 text-[var(--color-text-tertiary)] transition-colors hover:bg-white/70 hover:text-[var(--color-text)]"
+                    aria-label="取消引用"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+                <p className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--color-text-secondary)]">
+                  “{selectionContextPreview}”
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : null}
         <ChatComposer
           value={input}
           onValueChange={setInput}
@@ -366,7 +424,13 @@ export function LearnChat({ courseId, courseTitle, onCollapse }: LearnChatProps)
           onSubmitError={(error) => {
             console.error("[LearnChat] send failed", error);
           }}
-          placeholder={sessionError ? "学习对话暂不可用" : "针对这一节提问..."}
+          placeholder={
+            sessionError
+              ? "学习对话暂不可用"
+              : chatSelectionContext
+                ? "针对这段提问..."
+                : "针对这一节提问..."
+          }
           isLoading={isLoading}
           inputDisabled={!resolvedSessionId || isResolvingSession || !!sessionError}
           submitDisabled={!resolvedSessionId || !!sessionError}
