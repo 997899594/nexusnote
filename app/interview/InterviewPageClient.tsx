@@ -2,7 +2,6 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowLeft,
   BookOpen,
   CheckCircle2,
   GraduationCap,
@@ -10,7 +9,6 @@ import {
   MessageCircle,
   Sparkles,
 } from "lucide-react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { ChatComposer, type ChatComposerSubmitPayload } from "@/components/chat/ChatComposer";
@@ -18,8 +16,10 @@ import { LoadingDots } from "@/components/chat/ChatMessage";
 import { AIDegradationBanner, PromptChip, WorkspaceEmptyState } from "@/components/common";
 import { InterviewMessage } from "@/components/interview/InterviewMessage";
 import { OutlinePanel } from "@/components/interview/OutlinePanel";
+import { AppBackLink } from "@/components/shared/layout";
 import { useInterview } from "@/hooks/useInterview";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { PAGE_BACK_TARGETS } from "@/lib/navigation/app-navigation";
 
 const panelVariants = {
   hidden: {
@@ -114,7 +114,6 @@ function InterviewContent() {
   const isOutlineLoading = interview.outline.isLoading;
   const interviewCompleted = interview.outline.isReady;
   const courseId = interview.course.id;
-  const setCourseId = interview.course.setId;
 
   const chatMessages = messages;
 
@@ -328,7 +327,6 @@ function InterviewContent() {
           actionOptions={outlineActions}
           isLoading={isOutlineLoading}
           courseId={courseId ?? undefined}
-          onCourseCreated={setCourseId}
           onSelectAction={handleSelectOutlineAction}
           headerAction={
             <button
@@ -436,7 +434,6 @@ function InterviewContent() {
                   actionOptions={outlineActions}
                   isLoading={isOutlineLoading}
                   courseId={courseId ?? undefined}
-                  onCourseCreated={setCourseId}
                   onSelectAction={(option) => sendMessage({ text: option.action || option.label })}
                 />
               </motion.div>
@@ -452,13 +449,10 @@ function InterviewContent() {
         className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-white"
       >
         <header className="ui-page-frame safe-top flex shrink-0 items-center gap-4 pb-4 pt-5 md:pb-5 md:pt-6">
-          <Link
-            href="/"
-            className="ui-control-surface rounded-xl p-2 text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)]"
-            aria-label="返回"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
+          <AppBackLink
+            target={PAGE_BACK_TARGETS.interview}
+            className="ui-control-surface rounded-xl"
+          />
           <div className="flex items-center gap-3">
             <div className="ui-primary-button flex h-10 w-10 items-center justify-center rounded-xl">
               <GraduationCap className="w-5 h-5 text-white" />

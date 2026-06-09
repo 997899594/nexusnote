@@ -48,8 +48,8 @@ const CHAT_COMMANDS: Command[] = [
     icon: Search,
     modeLabel: "搜索笔记",
     modeIcon: Search,
-    targetPath: "/search",
-    getQueryParams: (input: string) => ({ q: input.trim() }),
+    action: "submit",
+    buildText: (input: string) => `搜索我的笔记：${input.trim()}`,
   },
   {
     id: "create-note",
@@ -57,6 +57,7 @@ const CHAT_COMMANDS: Command[] = [
     icon: Plus,
     modeLabel: "查看笔记",
     modeIcon: Plus,
+    action: "navigate",
     targetPath: "/editor",
     getQueryParams: () => ({}),
   },
@@ -66,6 +67,7 @@ const CHAT_COMMANDS: Command[] = [
     icon: MessageCircle,
     modeLabel: "课程访谈",
     modeIcon: MessageCircle,
+    action: "navigate",
     targetPath: "/interview",
     getQueryParams: (input: string) => ({ msg: input.trim() }),
   },
@@ -75,6 +77,7 @@ const CHAT_COMMANDS: Command[] = [
     icon: GraduationCap,
     modeLabel: "生成课程",
     modeIcon: GraduationCap,
+    action: "navigate",
     targetPath: "/interview",
     getQueryParams: (input: string) => ({ msg: input.trim() }),
   },
@@ -84,8 +87,8 @@ const CHAT_COMMANDS: Command[] = [
     icon: Globe,
     modeLabel: "联网搜索",
     modeIcon: Globe,
-    targetPath: "/search",
-    getQueryParams: (input: string) => ({ web: input.trim() }),
+    action: "submit",
+    buildText: (input: string) => `联网搜索：${input.trim()}`,
   },
 ];
 
@@ -358,7 +361,14 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
 
   const handleComposerSubmit = async ({ text, rawText }: ChatComposerSubmitPayload) => {
     if (selectedCommand) {
-      const params = selectedCommand.getQueryParams(rawText);
+      if (selectedCommand.action === "submit") {
+        await sendChatMessage(selectedCommand.buildText(rawText));
+        setSelectedCommand(null);
+        setShowCommands(false);
+        return;
+      }
+
+      const params = selectedCommand.getQueryParams?.(rawText) ?? {};
       const queryString = new URLSearchParams(params).toString();
       const path = queryString
         ? `${selectedCommand.targetPath}?${queryString}`

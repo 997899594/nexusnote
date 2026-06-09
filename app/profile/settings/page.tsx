@@ -1,10 +1,11 @@
-import { ArrowLeft, BarChart3, User } from "lucide-react";
+import { BarChart3, User } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { AIPreferencesPanel } from "@/components/profile/AIPreferencesPanel";
 import { BillingPanel } from "@/components/profile/BillingPanel";
-import { FloatingHeader, LibraryAnalysisPageShell } from "@/components/shared/layout";
+import { AppBackLink, FloatingHeader, LibraryAnalysisPageShell } from "@/components/shared/layout";
 import { redirectIfUnauthenticated } from "@/lib/auth/page";
+import { PAGE_BACK_TARGETS } from "@/lib/navigation/app-navigation";
 import { getProfileAvatarLabel, getProfileDisplayName } from "@/lib/profile/avatar";
 import { ProfileSignOut } from "../profile-client";
 
@@ -15,7 +16,16 @@ async function ProfileSettingsPageContent() {
 
   return (
     <LibraryAnalysisPageShell
-      header={<FloatingHeader showBackHint title="偏好设置" variant="compact" />}
+      header={
+        <FloatingHeader
+          showBackHint
+          backHref={PAGE_BACK_TARGETS.profileSettings.href}
+          backLabel={PAGE_BACK_TARGETS.profileSettings.label}
+          backAriaLabel={PAGE_BACK_TARGETS.profileSettings.ariaLabel}
+          title="偏好设置"
+          variant="compact"
+        />
+      }
     >
       <section className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
@@ -26,13 +36,7 @@ async function ProfileSettingsPageContent() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <Link
-            href="/profile"
-            className="ui-surface-soft inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-active)] hover:text-[var(--color-text)]"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            个人中心
-          </Link>
+          <AppBackLink target={PAGE_BACK_TARGETS.profileSettings} variant="soft" />
           <Link
             href="/profile/insights"
             className="ui-surface-soft inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-active)] hover:text-[var(--color-text)]"

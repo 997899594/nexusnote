@@ -7,10 +7,11 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Editor } from "@/components/editor/Editor";
 import { MobileEditorMoreMenu, MobileEditorToolbar } from "@/components/editor/MobileEditorToolbar";
-import { MobileHeader } from "@/components/shared/layout";
+import { AppBackLink, MobileHeader } from "@/components/shared/layout";
 import { TagBar, TagGenerationTrigger } from "@/components/tags";
 import { useToast } from "@/components/ui/Toast";
 import type { notes } from "@/db";
+import { PAGE_BACK_TARGETS } from "@/lib/navigation/app-navigation";
 
 type NoteSourceContext = typeof notes.$inferSelect.sourceContext;
 type SaveStatus = "saved" | "unsaved" | "saving" | "error";
@@ -226,6 +227,7 @@ export default function EditorPageClient({
       <MobileHeader
         title={title || "无标题"}
         showBack
+        backHref={PAGE_BACK_TARGETS.editorDetail.href}
         backConfirm={isDirty}
         rightAction="custom"
         rightLabel={saveStatus === "saving" ? "保存中..." : "保存"}
@@ -242,6 +244,7 @@ export default function EditorPageClient({
         <div className="ui-message-card rounded-[28px] px-8 py-8">
           <header className="mb-6 flex items-start justify-between gap-6">
             <div className="min-w-0 flex-1 space-y-3">
+              <AppBackLink target={PAGE_BACK_TARGETS.editorDetail} variant="soft" />
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}

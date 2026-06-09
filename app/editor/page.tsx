@@ -19,6 +19,7 @@ import { getCareerNodeStateLabel } from "@/lib/career-tree/presentation";
 import { buildKnowledgeExcerpt, getKnowledgeInsightKindLabel } from "@/lib/knowledge/presentation";
 import { getNotesWorkbenchCached } from "@/lib/knowledge/workbench-data";
 import type { NoteWorkbenchItem, NoteWorkbenchKind } from "@/lib/knowledge/workbench-projection";
+import { PAGE_BACK_TARGETS } from "@/lib/navigation/app-navigation";
 
 function formatDate(date: Date | null) {
   if (!date) return "刚刚更新";
@@ -33,7 +34,7 @@ function formatDate(date: Date | null) {
 
 const KIND_LABELS: Record<NoteWorkbenchKind, string> = {
   all: "全部",
-  highlight: "高亮",
+  highlight: "标记",
   note: "笔记",
   capture: "对话",
   manual: "新建",
@@ -49,7 +50,7 @@ const KIND_META = {
 function getNoteSourceLabel(note: NoteWorkbenchItem): string {
   switch (note.kind) {
     case "highlight":
-      return "课程高亮";
+      return "课程标记";
     case "note":
       return "课程笔记";
     case "capture":
@@ -192,7 +193,16 @@ async function NotesIndexPageContent({
 
   return (
     <LibraryAnalysisPageShell
-      header={<FloatingHeader showBackHint title="知识工作台" variant="workspace" />}
+      header={
+        <FloatingHeader
+          showBackHint
+          backHref={PAGE_BACK_TARGETS.editor.href}
+          backLabel={PAGE_BACK_TARGETS.editor.label}
+          backAriaLabel={PAGE_BACK_TARGETS.editor.ariaLabel}
+          title="知识工作台"
+          variant="workspace"
+        />
+      }
       frameClassName="max-w-5xl"
     >
       <header className="mb-8 max-w-3xl md:mb-10">
@@ -225,7 +235,7 @@ async function NotesIndexPageContent({
             <div>
               <h2 className="text-xl font-medium text-[var(--color-text)]">还没有学习笔记</h2>
               <p className="mt-2 text-sm leading-7 text-[var(--color-text-secondary)]">
-                在课程里选中重点内容，点击“记一笔”，就会保存成带来源的学习笔记。
+                在课程里选中重点内容，点击“笔记”，就会保存成带来源的学习笔记。
               </p>
             </div>
             <Link

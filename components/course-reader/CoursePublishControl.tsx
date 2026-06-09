@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/utils";
+import { copyTextToClipboard } from "@/lib/utils/clipboard";
 
 interface CoursePublishControlProps {
   courseId: string;
@@ -76,12 +77,13 @@ export function CoursePublishControl({ courseId }: CoursePublishControlProps) {
 
       setUrl(shareUrl);
       setState("published");
-      try {
-        await navigator.clipboard.writeText(shareUrl);
-        addToast("公开链接已生成并复制", "success");
-      } catch {
-        addToast("公开链接已生成，复制失败", "success");
+      const copyResult = await copyTextToClipboard(shareUrl);
+      if (copyResult === "failed") {
+        addToast("公开链接已生成。浏览器限制了复制，可点“复制”重试。", "warning");
+        return;
       }
+
+      addToast("公开链接已生成并复制", "success");
     } catch {
       setState("error");
       addToast("发布失败，请稍后重试", "error");
@@ -93,12 +95,13 @@ export function CoursePublishControl({ courseId }: CoursePublishControlProps) {
       return;
     }
 
-    try {
-      await navigator.clipboard.writeText(url);
-      addToast("已复制公开链接", "success");
-    } catch {
-      addToast("复制失败，请手动打开链接", "error");
+    const copyResult = await copyTextToClipboard(url);
+    if (copyResult === "failed") {
+      addToast("复制受浏览器限制，请从公开页地址栏复制链接", "warning");
+      return;
     }
+
+    addToast("已复制公开链接", "success");
   };
 
   const revoke = async () => {

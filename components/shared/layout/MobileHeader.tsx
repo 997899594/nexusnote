@@ -20,6 +20,10 @@ export interface MobileHeaderProps {
   title?: string;
   /** 是否显示返回按钮 */
   showBack?: boolean;
+  /** 稳定返回目的地；不使用浏览器历史作为默认返回 */
+  backHref?: string;
+  /** 自定义返回动作，优先级高于 backHref */
+  onBack?: () => void;
   /** 返回确认提示 (有未保存内容时) */
   backConfirm?: boolean;
   /** 右侧操作按钮 */
@@ -39,6 +43,8 @@ export interface MobileHeaderProps {
 export function MobileHeader({
   title,
   showBack = false,
+  backHref = "/",
+  onBack,
   backConfirm = false,
   rightAction,
   onRightAction,
@@ -52,12 +58,21 @@ export function MobileHeader({
   const springY = useSpring(scrollY, { stiffness: 300, damping: 30 });
 
   const handleBack = () => {
+    const navigateBack = () => {
+      if (onBack) {
+        onBack();
+        return;
+      }
+
+      router.push(backHref);
+    };
+
     if (backConfirm) {
       if (confirm("有未保存的内容，确定要离开吗？")) {
-        router.back();
+        navigateBack();
       }
     } else {
-      router.back();
+      navigateBack();
     }
   };
 

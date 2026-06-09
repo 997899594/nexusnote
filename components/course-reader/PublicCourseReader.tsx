@@ -9,15 +9,16 @@ import {
   EyeOff,
   Link2,
   List,
-  MessageSquarePlus,
+  MessageSquare,
   MessageSquareText,
   RotateCcw,
   Send,
   X,
 } from "lucide-react";
-import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { StreamdownMessage } from "@/components/chat/StreamdownMessage";
+import { TextSelectionActionBar } from "@/components/course-reader/TextSelectionActionBar";
+import { AppBackLink } from "@/components/shared/layout";
 import { useToast } from "@/components/ui/Toast";
 import { useTextAnchorHighlights } from "@/hooks/useTextAnchorHighlights";
 import { stripLeadingSectionHeading } from "@/lib/learning/content-formatting";
@@ -31,8 +32,9 @@ import {
   savePublicCourseToLibrary,
   updatePublicAnnotationStatus,
 } from "@/lib/learning/public-course-client";
-import { createSelectionAnchor } from "@/lib/learning/text-anchors";
+import { PAGE_BACK_TARGETS } from "@/lib/navigation/app-navigation";
 import { cn } from "@/lib/utils";
+import { copyTextToClipboard } from "@/lib/utils/clipboard";
 
 interface PublicCourseReaderProps {
   data: PublicCourseReaderProjection;
@@ -44,23 +46,6 @@ interface SelectionDraft {
   sectionKey: string;
   quotedText: string;
   anchor: PublicCourseAnnotationProjection["anchor"];
-}
-
-function getSelectionDraft(sectionKey: string, container: HTMLElement): SelectionDraft | null {
-  const selectionAnchor = createSelectionAnchor({
-    selection: window.getSelection(),
-    container,
-    contextRadius: 80,
-  });
-  if (!selectionAnchor) {
-    return null;
-  }
-
-  return {
-    sectionKey,
-    quotedText: selectionAnchor.selectedText,
-    anchor: selectionAnchor.anchor,
-  };
 }
 
 const EMPTY_PUBLIC_ANNOTATIONS: PublicCourseAnnotationProjection[] = [];
@@ -128,7 +113,6 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
           : [],
       ),
   );
-  const sectionRefs = useRef(new Map<string, HTMLElement>());
   const articleContentRef = useRef<HTMLDivElement | null>(null);
   const isOwnerView = data.capabilities.canModeratePublicAnnotations;
   const visibleAnnotations = useMemo(
@@ -225,7 +209,12 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
   }, [mobilePanel]);
 
   const copyLink = async () => {
-    await navigator.clipboard.writeText(window.location.href);
+    const result = await copyTextToClipboard(window.location.href);
+    if (result === "failed") {
+      addToast("复制受浏览器限制，请从地址栏复制链接", "warning");
+      return;
+    }
+
     addToast("已复制公开链接", "success");
   };
 
@@ -262,36 +251,26 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
     setExpandedChapterKeys(new Set([chapterKey]));
   };
 
-  const handleAddAnnotation = (sectionKey: string) => {
-    const container = sectionRefs.current.get(sectionKey);
-    if (!container) {
-      return;
-    }
-
-    const draft = getSelectionDraft(sectionKey, container);
-    if (!draft) {
-      addToast("先选中一段正文再添加批注", "info");
-      return;
-    }
-
+  const startComment = (draft: SelectionDraft) => {
     if (!data.capabilities.canAnnotatePublicly) {
-      addToast("登录后可以添加公共批注", "info");
+      addToast("登录后可以发表评论", "info");
       return;
     }
 
     setSelectionDraft(draft);
     setAnnotationBody("");
-    window.getSelection()?.removeAllRanges();
   };
 
   const saveToLibrary = async () => {
     if (savedCourseId) {
-      window.location.href = `/learn/${savedCourseId}`;
+      window.location.assign(`/learn/${savedCourseId}`);
       return;
     }
 
     if (!data.viewer.userId) {
-      window.location.href = `/login?callbackUrl=${encodeURIComponent(`/c/${data.publication.slug}`)}`;
+      window.location.assign(
+        `/login?callbackUrl=${encodeURIComponent(`/c/${data.publication.slug}`)}`,
+      );
       return;
     }
 
@@ -306,7 +285,7 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
         setSavedCourseId(payload.courseId);
       }
 
-      window.location.href = payload.learnUrl;
+      window.location.replace(payload.learnUrl);
     } catch {
       addToast("保存课程失败，请稍后重试", "error");
       setIsSavingCourse(false);
@@ -330,9 +309,9 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
       setAnnotations((current) =>
         current.map((item) => (item.id === annotation.id ? nextAnnotation : item)),
       );
-      addToast(status === "hidden" ? "公共批注已隐藏" : "公共批注已恢复", "success");
+      addToast(status === "hidden" ? "评论已隐藏" : "评论已恢复", "success");
     } catch {
-      addToast("更新公共批注失败，请稍后重试", "error");
+      addToast("更新评论失败，请稍后重试", "error");
     } finally {
       setModeratingAnnotationId(null);
     }
@@ -358,11 +337,11 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
         ]);
       }
 
-      addToast("公共批注已发布", "success");
+      addToast("评论已发布", "success");
       setSelectionDraft(null);
       setAnnotationBody("");
     } catch {
-      addToast("发布批注失败，请稍后重试", "error");
+      addToast("发布评论失败，请稍后重试", "error");
     } finally {
       setIsSubmittingAnnotation(false);
     }
@@ -372,13 +351,7 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
     <>
       <div className="border-b border-black/[0.04] px-4 pb-5 pt-5 lg:px-5">
         <div className="flex items-center justify-between gap-3">
-          <Link
-            href="/"
-            className="inline-flex h-9 items-center justify-center rounded-full px-3 text-xs font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]"
-            aria-label="返回首页"
-          >
-            首页
-          </Link>
+          <AppBackLink target={PAGE_BACK_TARGETS.publicCourse} variant="pill" />
           <span className="rounded-full bg-black/[0.035] px-2.5 py-1 text-[0.625rem] font-medium text-[var(--color-text-tertiary)]">
             公开课
           </span>
@@ -420,7 +393,7 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
           </div>
           {visibleAnnotations.length > 0 ? (
             <div className="text-[0.625rem] text-[var(--color-text-tertiary)]">
-              {visibleAnnotations.length} 批注
+              {visibleAnnotations.length} 评论
             </div>
           ) : null}
         </div>
@@ -470,7 +443,7 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
                         {chapterAnnotationCount > 0 ? (
                           <>
                             <span className="h-0.5 w-0.5 rounded-full bg-black/20" />
-                            <span>{chapterAnnotationCount} 批注</span>
+                            <span>{chapterAnnotationCount} 评论</span>
                           </>
                         ) : null}
                       </div>
@@ -547,7 +520,7 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
     <>
       <div className="border-b border-black/[0.06] px-5 py-4">
         <div className="flex items-baseline justify-between gap-3">
-          <h2 className="text-sm font-semibold text-[var(--color-text)]">批注</h2>
+          <h2 className="text-sm font-semibold text-[var(--color-text)]">评论</h2>
           <span className="text-xs text-[var(--color-text-tertiary)]">
             {activeSectionAnnotations.length}/{visibleAnnotations.length}
           </span>
@@ -603,7 +576,7 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
                     }
                     disabled={moderatingAnnotationId === annotation.id}
                     className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-[var(--color-text-tertiary)] transition-colors hover:bg-white hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-50"
-                    aria-label={annotation.status === "hidden" ? "恢复公共批注" : "隐藏公共批注"}
+                    aria-label={annotation.status === "hidden" ? "恢复评论" : "隐藏评论"}
                   >
                     {annotation.status === "hidden" ? (
                       <RotateCcw className="h-3.5 w-3.5" />
@@ -618,7 +591,7 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
 
           {activeSectionAnnotations.length === 0 ? (
             <div className="px-3 py-8 text-sm leading-6 text-[var(--color-text-secondary)]">
-              这一节还没有批注。
+              这一节还没有评论。
             </div>
           ) : null}
         </div>
@@ -696,14 +669,6 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
                         </p>
                       ) : null}
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleAddAnnotation(activeSection.nodeId)}
-                      className="hidden shrink-0 items-center gap-2 rounded-lg border border-black/8 bg-white px-3 py-2 text-xs font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-hover)] hover:text-[var(--color-text)] sm:inline-flex"
-                    >
-                      <MessageSquarePlus className="h-3.5 w-3.5" />
-                      批注
-                    </button>
                   </div>
                   {activeVisibleAnnotations.length > 0 ? (
                     <div className="mb-5 flex gap-2 overflow-x-auto pb-1">
@@ -725,15 +690,7 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
                     </div>
                   ) : null}
                   <div className="relative">
-                    <div
-                      ref={(node) => {
-                        articleContentRef.current = node;
-                        if (node) {
-                          sectionRefs.current.set(activeSection.nodeId, node);
-                        }
-                      }}
-                      className="learn-prose pb-10 md:pb-12"
-                    >
+                    <div ref={articleContentRef} className="learn-prose pb-10 md:pb-12">
                       {activeSectionContent ? (
                         <StreamdownMessage content={activeSectionContent} />
                       ) : (
@@ -751,7 +708,7 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
                               type="button"
                               data-public-annotation-id={highlight.id}
                               onClick={() => focusAnnotation(highlight.id)}
-                              aria-label="查看公共批注"
+                              aria-label="查看评论"
                               className={cn(
                                 "pointer-events-auto absolute cursor-pointer rounded-[3px] border-none bg-amber-200/55 p-0 transition-colors hover:bg-amber-200/75",
                                 activeAnnotationId === highlight.id &&
@@ -768,6 +725,24 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
                         )}
                       </div>
                     ) : null}
+                    <TextSelectionActionBar
+                      containerRef={articleContentRef}
+                      contextRadius={80}
+                      actions={[
+                        {
+                          label: "评论",
+                          icon: MessageSquare,
+                          variant: "primary",
+                          onSelect: ({ anchor, selectedText }) => {
+                            startComment({
+                              sectionKey: activeSection.nodeId,
+                              quotedText: selectedText,
+                              anchor,
+                            });
+                          },
+                        },
+                      ]}
+                    />
                   </div>
                 </section>
               ) : (
@@ -813,19 +788,6 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
         <div className="safe-bottom fixed right-3 bottom-4 z-40 flex flex-col gap-2 lg:hidden">
           <button
             type="button"
-            onClick={() => {
-              if (activeSection) {
-                handleAddAnnotation(activeSection.nodeId);
-              }
-            }}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-black/[0.08] bg-white/92 text-[var(--color-text-secondary)] shadow-[0_14px_38px_-26px_rgba(15,23,42,0.42)] backdrop-blur-xl transition-colors hover:text-[var(--color-text)]"
-            aria-label="添加批注"
-            title="添加批注"
-          >
-            <MessageSquarePlus className="h-4.5 w-4.5" />
-          </button>
-          <button
-            type="button"
             onClick={() => setMobilePanel("outline")}
             className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-black/[0.08] bg-white/92 text-[var(--color-text-secondary)] shadow-[0_14px_38px_-26px_rgba(15,23,42,0.42)] backdrop-blur-xl transition-colors hover:text-[var(--color-text)]"
             aria-label="打开目录"
@@ -837,8 +799,8 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
             type="button"
             onClick={() => setMobilePanel("annotations")}
             className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-black/[0.08] bg-white/92 text-[var(--color-text-secondary)] shadow-[0_14px_38px_-26px_rgba(15,23,42,0.42)] backdrop-blur-xl transition-colors hover:text-[var(--color-text)]"
-            aria-label="打开批注"
-            title="批注"
+            aria-label="打开评论"
+            title="评论"
           >
             <MessageSquareText className="h-4.5 w-4.5" />
             {activeSectionAnnotations.length > 0 ? (
@@ -860,7 +822,7 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
             <aside className="safe-bottom absolute inset-y-0 right-0 flex w-[min(88vw,23rem)] flex-col overflow-hidden border-l border-black/[0.08] bg-white shadow-[0_24px_84px_-42px_rgba(15,23,42,0.45)]">
               <div className="safe-top flex shrink-0 items-center justify-between border-b border-black/[0.06] px-4 py-3">
                 <h2 className="text-sm font-semibold text-[var(--color-text)]">
-                  {mobilePanel === "outline" ? "目录" : "批注"}
+                  {mobilePanel === "outline" ? "目录" : "评论"}
                 </h2>
                 <button
                   type="button"
@@ -880,7 +842,7 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
       {selectionDraft ? (
         <div className="ui-scrim fixed inset-0 z-50 flex items-end justify-center px-3 pb-3 pt-6 md:items-center md:px-0 md:pb-0 md:pt-0">
           <div className="ui-message-card safe-bottom w-[min(34rem,calc(100vw-1.5rem))] rounded-xl p-4">
-            <h3 className="text-sm font-semibold text-[var(--color-text)]">添加公共批注</h3>
+            <h3 className="text-sm font-semibold text-[var(--color-text)]">发表评论</h3>
             <p className="mt-3 rounded-xl bg-[var(--color-panel-soft)] px-3 py-2 text-sm leading-6 text-[var(--color-text-secondary)]">
               “{selectionDraft.quotedText}”
             </p>

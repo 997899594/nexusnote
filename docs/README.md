@@ -17,6 +17,7 @@
 - [RAG Performance and Observability](/Users/findbiao/projects/nexusnote/docs/RAG_PERFORMANCE_AND_OBSERVABILITY.md)
 - [Career Growth Workbench Plan](/Users/findbiao/projects/nexusnote/docs/plans/2026-05-29-career-growth-workbench.md)
 - [Research Evidence Boundary ADR](/Users/findbiao/projects/nexusnote/docs/adr/2026-05-27-research-evidence-boundary.md)
+- [Stable App Navigation ADR](/Users/findbiao/projects/nexusnote/docs/adr/2026-06-09-stable-app-navigation.md)
 
 原则：
 

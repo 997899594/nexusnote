@@ -5,16 +5,28 @@
  */
 
 import type { LucideProps } from "lucide-react";
+import type { ComponentType } from "react";
 
-export interface Command {
+interface CommandBase {
   id: string;
   label: string;
-  icon: React.FC<LucideProps>;
+  icon: ComponentType<LucideProps>;
   modeLabel: string;
-  modeIcon: React.FC<LucideProps>;
+  modeIcon: ComponentType<LucideProps>;
+}
+
+export interface NavigateCommand extends CommandBase {
+  action: "navigate";
   targetPath: string;
   getQueryParams: (input: string) => Record<string, string>;
 }
+
+export interface SubmitCommand extends CommandBase {
+  action: "submit";
+  buildText: (input: string) => string;
+}
+
+export type Command = NavigateCommand | SubmitCommand;
 
 /**
  * 会话列表项

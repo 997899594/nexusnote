@@ -1,13 +1,12 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, Brain, CheckCircle2, Loader2, Mail, Wrench } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Loader2, Mail, Wrench } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getProviders, signIn, useSession } from "next-auth/react";
 import { Suspense, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
-const EMAIL_LOGIN_CODE_LENGTH = 8;
 const IS_DEV_LOGIN_ENABLED = process.env.NODE_ENV !== "production";
 
 function getSafeCallbackUrl(callbackUrl: string | null): string {
@@ -20,16 +19,13 @@ function LoginForm() {
   const router = useRouter();
   const { status } = useSession();
   const isVerifyPage = searchParams.get("verify") === "1";
-  const emailFromLink = searchParams.get("email");
   const callbackUrl = getSafeCallbackUrl(searchParams.get("callbackUrl"));
 
   const [providerIds, setProviderIds] = useState<Set<string> | null>(null);
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [sentEmail, setSentEmail] = useState("");
-  const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
-  const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState("");
   const isResendLoginEnabled = providerIds?.has("resend") ?? false;
 
@@ -46,13 +42,6 @@ function LoginForm() {
       active = false;
     };
   }, []);
-
-  useEffect(() => {
-    if (!emailFromLink || !emailFromLink.includes("@")) {
-      return;
-    }
-    setEmail((current) => current || emailFromLink);
-  }, [emailFromLink]);
 
   useEffect(() => {
     setSent(isVerifyPage && isResendLoginEnabled);
@@ -81,7 +70,6 @@ function LoginForm() {
       } else {
         setEmail(normalizedEmail);
         setSentEmail(normalizedEmail);
-        setCode("");
         setSent(true);
       }
     } catch {
@@ -89,27 +77,6 @@ function LoginForm() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleVerifyCode = (e: React.FormEvent) => {
-    e.preventDefault();
-    const normalizedCode = code.replace(/\D/g, "");
-    const targetEmail = (sentEmail || email).trim().toLowerCase();
-
-    if (normalizedCode.length !== EMAIL_LOGIN_CODE_LENGTH || !targetEmail) {
-      setError(`请输入邮件里的 ${EMAIL_LOGIN_CODE_LENGTH} 位验证码`);
-      return;
-    }
-
-    setVerifying(true);
-    setError("");
-
-    const params = new URLSearchParams({
-      callbackUrl,
-      token: normalizedCode,
-      email: targetEmail,
-    });
-    window.location.assign(`/api/auth/callback/resend?${params.toString()}`);
   };
 
   const handleDevLogin = () => {
@@ -123,20 +90,9 @@ function LoginForm() {
         initial={{ opacity: 0, y: 20, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.4, ease: "easeOut" }}
-        className="ui-surface-card-lg w-full max-w-md overflow-hidden rounded-3xl"
+        className="ui-surface-card-lg w-full max-w-md overflow-hidden rounded-[28px]"
       >
-        <div className="p-8">
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.15, type: "spring", stiffness: 200 }}
-            className="flex justify-center mb-6"
-          >
-            <div className="ui-primary-button rounded-2xl p-3">
-              <Brain className="w-8 h-8 text-white" />
-            </div>
-          </motion.div>
-
+        <div className="p-7 sm:p-8">
           <AnimatePresence mode="wait">
             {sent ? (
               <motion.div
@@ -146,73 +102,34 @@ function LoginForm() {
                 exit={{ opacity: 0, y: -10 }}
                 className="text-center"
               >
-                <div className="flex justify-center mb-4">
-                  <div className="ui-surface-soft flex h-16 w-16 items-center justify-center rounded-full">
-                    <CheckCircle2 className="w-8 h-8 text-[var(--color-text)]" />
+                <div className="mb-5 flex justify-center">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--color-panel-soft)] text-[var(--color-text)]">
+                    <CheckCircle2 className="h-5 w-5" />
                   </div>
                 </div>
-                <h2 className="mb-2 font-bold text-[var(--color-text)] text-xl">查收登录邮件</h2>
-                <p className="mb-1 text-[var(--color-text-secondary)] text-sm">
-                  可以点击邮件里的登录按钮，也可以输入验证码
+                <h2 className="mb-2 text-xl font-semibold tracking-[-0.03em] text-[var(--color-text)]">
+                  查收登录邮件
+                </h2>
+                <p className="mx-auto max-w-sm text-sm leading-7 text-[var(--color-text-secondary)]">
+                  点击邮件里的登录按钮即可进入。链接短时间内可重复使用，邮件客户端或安全扫描先打开也不会立刻失效。
                 </p>
-                <p className="mb-5 break-all font-medium text-[var(--color-text)] text-sm">
+                <p className="mt-3 break-all rounded-2xl bg-[var(--color-panel-soft)] px-4 py-3 text-sm font-medium text-[var(--color-text)]">
                   {sentEmail || email}
                 </p>
-                <form onSubmit={handleVerifyCode} className="space-y-3 text-left">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    pattern={`[0-9]{${EMAIL_LOGIN_CODE_LENGTH}}`}
-                    maxLength={EMAIL_LOGIN_CODE_LENGTH}
-                    value={code}
-                    onChange={(event) => {
-                      setCode(
-                        event.target.value.replace(/\D/g, "").slice(0, EMAIL_LOGIN_CODE_LENGTH),
-                      );
-                    }}
-                    placeholder={`${EMAIL_LOGIN_CODE_LENGTH} 位验证码`}
-                    className={cn(
-                      "w-full rounded-2xl bg-[var(--color-panel-soft)] px-4 py-3 text-center",
-                      "font-semibold text-[1.35rem] tracking-[0.24em] text-[var(--color-text)]",
-                      "placeholder:font-medium placeholder:tracking-normal placeholder:text-[var(--color-text-muted)]",
-                      "outline-none transition-all focus:ring-2 focus:ring-[var(--color-accent)]/15",
-                    )}
-                  />
 
-                  {error && <p className="px-1 text-red-500 text-xs">{error}</p>}
-
-                  <motion.button
-                    whileHover={code.length === EMAIL_LOGIN_CODE_LENGTH ? { scale: 1.01 } : {}}
-                    whileTap={code.length === EMAIL_LOGIN_CODE_LENGTH ? { scale: 0.99 } : {}}
-                    type="submit"
-                    disabled={verifying || code.length !== EMAIL_LOGIN_CODE_LENGTH}
-                    className={cn(
-                      "ui-primary-button flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 font-medium text-sm transition-all",
-                      "disabled:cursor-not-allowed disabled:opacity-50",
-                    )}
-                  >
-                    {verifying ? <Loader2 className="h-4 w-4 animate-spin" /> : "完成登录"}
-                  </motion.button>
-
-                  <p className="pt-2 text-center text-[var(--color-text-muted)] text-xs leading-6">
-                    如果邮件客户端先打开了链接，10 分钟内复制同一链接到默认浏览器仍可继续使用。
-                    不想点链接时，输入验证码即可。
-                  </p>
-
+                <div className="mt-6 flex justify-center">
                   <button
                     type="button"
                     onClick={() => {
                       setSent(false);
-                      setCode("");
                       setError("");
                     }}
-                    className="mx-auto inline-flex items-center gap-1.5 text-[var(--color-text-secondary)] text-sm transition-colors hover:text-[var(--color-text)]"
+                    className="inline-flex items-center gap-1.5 text-sm text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)]"
                   >
                     <ArrowLeft className="h-4 w-4" />
                     换邮箱或重新发送
                   </button>
-                </form>
+                </div>
               </motion.div>
             ) : (
               <motion.div
@@ -222,15 +139,14 @@ function LoginForm() {
                 exit={{ opacity: 0, y: -10 }}
               >
                 <div className="mb-8 text-center">
-                  <div className="ui-surface-soft ui-page-eyebrow inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] uppercase tracking-[0.22em]">
-                    <span className="ui-strong-chip h-1.5 w-1.5 rounded-full" />
-                    账户登录
-                  </div>
-                  <h1 className="mt-5 text-2xl font-semibold tracking-[-0.04em] text-[var(--color-text)]">
+                  <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.2em] text-[var(--color-text-muted)]">
+                    NexusNote
+                  </p>
+                  <h1 className="mt-4 text-2xl font-semibold tracking-[-0.04em] text-[var(--color-text)]">
                     登录后继续学习
                   </h1>
                   <p className="mt-2 text-sm leading-7 text-[var(--color-text-tertiary)]">
-                    输入邮箱获取登录链接和验证码，继续课程、笔记和学习进度。
+                    输入邮箱获取登录链接，继续课程、笔记和学习进度。
                   </p>
                 </div>
 

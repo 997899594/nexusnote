@@ -1,6 +1,7 @@
 "use client";
 
-import Link from "next/link";
+import { AppBackLink } from "@/components/shared/layout";
+import { PAGE_BACK_TARGETS } from "@/lib/navigation/app-navigation";
 import { cn } from "@/lib/utils";
 import { useLearnStore } from "@/stores/learn";
 import { ChapterList } from "./ChapterList";
@@ -30,18 +31,7 @@ export function LearnSidebar({ courseTitle, width, onCollapse }: LearnSidebarPro
       <div className="flex h-full flex-col">
         <div className="border-b border-black/[0.04] px-4 pb-5 pt-5 lg:px-5">
           <div className="flex items-center justify-between gap-2">
-            <Link
-              href="/profile"
-              aria-label="回到个人中心"
-              className={cn(
-                "flex h-9 items-center justify-center rounded-full px-3 text-xs font-medium",
-                "text-[var(--color-text-secondary)]",
-                "hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]",
-                "transition-colors duration-200",
-              )}
-            >
-              返回
-            </Link>
+            <AppBackLink target={PAGE_BACK_TARGETS.learn} variant="pill" />
             {onCollapse ? (
               <button
                 type="button"

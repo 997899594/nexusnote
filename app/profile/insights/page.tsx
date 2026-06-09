@@ -15,6 +15,7 @@ import { FloatingHeader, LibraryAnalysisPageShell } from "@/components/shared/la
 import { redirectIfUnauthenticated } from "@/lib/auth/page";
 import { getCareerNodeStateLabel } from "@/lib/career-tree/presentation";
 import { buildKnowledgeExcerpt } from "@/lib/knowledge/presentation";
+import { PAGE_BACK_TARGETS } from "@/lib/navigation/app-navigation";
 import { getProfileInsightsPageDataCached } from "@/lib/profile/insights-page-data";
 import { getProfileStatsWindowStart } from "@/lib/profile/stats-data";
 
@@ -26,7 +27,16 @@ async function ProfileInsightsPageContent() {
 
   return (
     <LibraryAnalysisPageShell
-      header={<FloatingHeader showBackHint title="学习洞察" variant="compact" />}
+      header={
+        <FloatingHeader
+          showBackHint
+          backHref={PAGE_BACK_TARGETS.profileInsights.href}
+          backLabel={PAGE_BACK_TARGETS.profileInsights.label}
+          backAriaLabel={PAGE_BACK_TARGETS.profileInsights.ariaLabel}
+          title="学习洞察"
+          variant="compact"
+        />
+      }
     >
       <section className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>

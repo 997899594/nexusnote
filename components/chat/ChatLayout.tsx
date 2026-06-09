@@ -11,10 +11,12 @@
  * - 当前会话 ID 由客户端路由参数提供
  */
 
-import { ArrowLeft, Compass, FileText, GraduationCap, MessageSquare, Search } from "lucide-react";
+import { Compass, FileText, GraduationCap, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { AppBackLink } from "@/components/shared/layout";
+import { PAGE_BACK_TARGETS } from "@/lib/navigation/app-navigation";
 import { useChatStore } from "@/stores/chat";
 import { ChatHistory } from "./ChatHistory";
 
@@ -23,7 +25,6 @@ interface ChatLayoutProps {
 }
 
 const WORKSPACE_LINKS = [
-  { href: "/search", label: "搜索", icon: Search },
   { href: "/editor", label: "笔记", icon: FileText },
   { href: "/interview", label: "课程", icon: GraduationCap },
   { href: "/career-trees", label: "职业树", icon: Compass },
@@ -144,14 +145,7 @@ export function ChatLayout({ children }: ChatLayoutProps) {
       <div className="flex h-dvh flex-col">
         <header className="safe-top sticky top-0 z-30 shrink-0 border-b border-black/[0.04] bg-white/90 px-4 pb-3 pt-3 backdrop-blur-xl">
           <div className="flex items-center justify-between gap-3">
-            <button
-              type="button"
-              onClick={() => router.push("/")}
-              aria-label="返回首页"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)]"
-            >
-              <ArrowLeft className="h-4.5 w-4.5" />
-            </button>
+            <AppBackLink target={PAGE_BACK_TARGETS.chat} />
             <div className="min-w-0 text-center">
               <p className="text-[0.625rem] font-semibold tracking-[0.18em] text-[var(--color-text-muted)]">
                 对话

@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/Toast";
 import type { OutlineDisplay } from "@/lib/ai/interview/models";
 import type { InterviewOutline } from "@/lib/ai/interview/schemas";
 import type { ResearchEvidenceSnapshot } from "@/lib/ai/research/evidence-snapshot";
+import { isUnauthorizedError, parseApiError, redirectToLogin } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
 interface OutlinePanelProps {
@@ -20,7 +21,6 @@ interface OutlinePanelProps {
   actionOptions?: Option[];
   isLoading?: boolean;
   courseId?: string;
-  onCourseCreated: (courseId: string) => void;
   onSelectAction?: (action: Option) => void;
   showHeader?: boolean;
   headerAction?: ReactNode;
@@ -48,7 +48,6 @@ export function OutlinePanel({
   actionOptions = [],
   isLoading,
   courseId,
-  onCourseCreated,
   onSelectAction,
   showHeader = true,
   headerAction,
@@ -56,16 +55,24 @@ export function OutlinePanel({
 }: OutlinePanelProps) {
   const router = useRouter();
   const [isStarting, setIsStarting] = useState(false);
+  const [startStatus, setStartStatus] = useState<string | null>(null);
   const { addToast } = useToast();
   const canStartLearning = Boolean(stableOutline) && !isLoading;
 
   const handleStartLearning = async () => {
-    setIsStarting(true);
-    try {
-      if (!stableOutline) {
-        return;
-      }
+    if (isStarting) {
+      return;
+    }
 
+    if (!stableOutline) {
+      addToast("课程蓝图还没准备好", "error");
+      return;
+    }
+
+    setIsStarting(true);
+    setStartStatus("正在创建课程...");
+    let isNavigating = false;
+    try {
       const response = await fetch("/api/interview/create-course", {
         method: "POST",
         headers: {
@@ -78,20 +85,30 @@ export function OutlinePanel({
       });
 
       if (!response.ok) {
-        throw new Error("课程生成失败");
+        throw response;
       }
 
       const data = (await response.json()) as { courseId?: string };
       if (!data.courseId) {
-        throw new Error("课程生成失败");
+        throw new Error("课程已创建，但没有返回课程 ID");
       }
 
-      onCourseCreated(data.courseId);
-      router.push(`/learn/${data.courseId}`);
+      setStartStatus("正在进入学习页...");
+      isNavigating = true;
+      router.replace(`/learn/${data.courseId}`);
     } catch (error) {
-      addToast(error instanceof Error ? error.message : "课程生成失败", "error");
+      const { message, status, code } = await parseApiError(error);
+      if (isUnauthorizedError(status, code)) {
+        redirectToLogin();
+        return;
+      }
+
+      setStartStatus(null);
+      addToast(message || "课程生成失败", "error");
     } finally {
-      setIsStarting(false);
+      if (!isNavigating) {
+        setIsStarting(false);
+      }
     }
   };
 
@@ -293,6 +310,9 @@ export function OutlinePanel({
                         : "等待蓝图"}
                 </span>
               </button>
+              {startStatus ? (
+                <p className="mt-2 text-xs text-[var(--color-text-tertiary)]">{startStatus}</p>
+              ) : null}
               {isLoading && stableOutline ? (
                 <p className="mt-2 text-xs text-[var(--color-text-tertiary)]">
                   蓝图正在更新，完成后再开始学习，避免进入旧版本课程。

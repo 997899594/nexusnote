@@ -1,11 +1,12 @@
 "use client";
 
-import { ArrowLeft, GitBranch, Loader2 } from "lucide-react";
+import { GitBranch, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { CareerPlanningMentorPanel } from "@/components/career-trees/CareerPlanningMentorPanel";
 import { CareerTreeGraph } from "@/components/career-trees/CareerTreeGraph";
+import { AppBackLink } from "@/components/shared/layout";
 import { useToast } from "@/components/ui/Toast";
 import type { CareerGraphPatch } from "@/lib/ai/career-planning/schemas";
 import type { CareerPlanningWorkspaceData } from "@/lib/career-planning/workspace-data";
@@ -29,6 +30,7 @@ import {
   flattenVisibleNodes,
   resolveCareerTreeDisplayState,
 } from "@/lib/career-tree/view-model";
+import { PAGE_BACK_TARGETS } from "@/lib/navigation/app-navigation";
 import { cn } from "@/lib/utils";
 
 interface CareerTreesExplorerProps {
@@ -100,13 +102,7 @@ function DirectionRail({
   return (
     <aside className="flex h-full min-h-0 flex-col bg-white/72 safe-top safe-bottom">
       <div className="border-b border-black/[0.04] px-4 pb-5 pt-5 lg:px-5">
-        <Link
-          href="/profile"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-full text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)]"
-          aria-label="返回个人中心"
-        >
-          <ArrowLeft className="h-4.5 w-4.5" />
-        </Link>
+        <AppBackLink target={PAGE_BACK_TARGETS.careerTrees} />
 
         <div className="mt-5">
           <div className="mb-2 text-[0.625rem] font-semibold tracking-[0.18em] text-[var(--color-text-muted)]">
@@ -328,13 +324,10 @@ function EmptyWorkbench({ planningData }: { planningData: CareerPlanningWorkspac
     <div className="flex h-dvh min-h-0 overflow-hidden bg-white">
       <section className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         <header className="ui-page-frame safe-top flex shrink-0 items-center gap-4 pb-4 pt-5 md:pb-5 md:pt-6">
-          <Link
-            href="/profile"
-            className="ui-control-surface rounded-xl p-2 text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)]"
-            aria-label="返回个人中心"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
+          <AppBackLink
+            target={PAGE_BACK_TARGETS.careerTrees}
+            className="ui-control-surface rounded-xl"
+          />
           <div>
             <h1 className="font-semibold text-[var(--color-text)]">职业规划导师</h1>
           </div>

@@ -3,13 +3,14 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeftToLine, List, MessageSquare, MessageSquareText } from "lucide-react";
-import Link from "next/link";
+import { List, MessageSquare, MessageSquareText } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { CoursePublishControl } from "@/components/course-reader/CoursePublishControl";
+import { AppBackLink } from "@/components/shared/layout";
 import { useChapterSections } from "@/hooks/useChapterSections";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import type { LearnPageProjection, LearnResumeState } from "@/lib/learning/projection";
+import { PAGE_BACK_TARGETS } from "@/lib/navigation/app-navigation";
 import { cn } from "@/lib/utils";
 import { useLearnStore } from "@/stores/learn";
 
@@ -141,13 +142,7 @@ export function LearnClient({
       <div className="ui-page-shell flex min-h-dvh flex-col safe-bottom">
         {/* Mobile header */}
         <header className="safe-top sticky top-0 z-30 flex shrink-0 items-center justify-between gap-3 bg-white/90 px-4 pb-2 pt-3 backdrop-blur-xl">
-          <Link
-            href="/profile"
-            aria-label="回到个人中心"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)]"
-          >
-            <ArrowLeftToLine className="h-4.5 w-4.5" />
-          </Link>
+          <AppBackLink target={PAGE_BACK_TARGETS.learn} />
           <div className="min-w-0 flex-1 text-center text-sm font-semibold tracking-[-0.02em] text-[var(--color-text)]">
             <span className="line-clamp-1">{courseTitle}</span>
           </div>
@@ -205,8 +200,8 @@ export function LearnClient({
                 ? "bg-[var(--color-panel-strong)] text-white"
                 : "hover:text-[var(--color-text)]",
             )}
-            aria-label="打开评注"
-            title="评注"
+            aria-label="打开评论"
+            title="评论"
           >
             <MessageSquareText className="h-4.5 w-4.5" />
             {currentSectionAnnotationCount > 0 ? (
@@ -330,9 +325,9 @@ export function LearnClient({
                 type="button"
                 onClick={() => setNotesOpen(true)}
                 className="relative rounded-xl border border-black/8 bg-white px-3 py-2 text-xs font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]"
-                aria-label="打开评注"
+                aria-label="打开评论"
               >
-                评注
+                评论
                 {currentSectionAnnotationCount > 0 ? (
                   <span className="ml-1.5 text-[var(--color-text-tertiary)]">
                     {currentSectionAnnotationCount}

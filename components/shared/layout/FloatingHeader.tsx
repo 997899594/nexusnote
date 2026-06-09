@@ -5,11 +5,15 @@ import { ArrowLeft, Zap } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { createLoginPath, getCurrentCallbackUrl } from "@/lib/auth/redirect";
+import { NAV_TARGETS } from "@/lib/navigation/app-navigation";
 import { cn } from "@/lib/utils";
 import { UserAvatar } from "./UserAvatar";
 
 interface FloatingHeaderProps {
   showBackHint?: boolean;
+  backHref?: string;
+  backLabel?: string;
+  backAriaLabel?: string;
   onLogoClick?: () => void;
   title?: string;
   subtitle?: string;
@@ -18,6 +22,9 @@ interface FloatingHeaderProps {
 
 export function FloatingHeader({
   showBackHint = false,
+  backHref,
+  backLabel,
+  backAriaLabel,
   onLogoClick,
   title,
   subtitle,
@@ -28,7 +35,10 @@ export function FloatingHeader({
   const resolvedTitle =
     title ?? (variant === "brand" ? "开始学习" : variant === "workspace" ? "工作台" : "返回");
   const resolvedSubtitle = subtitle ?? (variant === "brand" ? "NexusNote" : null);
-  const handleShellClick = onLogoClick ?? (showBackHint ? () => router.back() : undefined);
+  const resolvedBackHref = backHref ?? NAV_TARGETS.home.href;
+  const resolvedBackLabel = backLabel ?? "返回";
+  const handleShellClick =
+    onLogoClick ?? (showBackHint ? () => router.push(resolvedBackHref) : undefined);
 
   const handleAccountClick = () => {
     if (status === "loading") {
@@ -70,7 +80,7 @@ export function FloatingHeader({
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           className={cn(leftShellClassName, !handleShellClick && "cursor-default")}
-          aria-label={showBackHint ? "返回上一页" : resolvedTitle}
+          aria-label={showBackHint ? (backAriaLabel ?? `返回${resolvedBackLabel}`) : resolvedTitle}
         >
           <div className={badgeClassName}>
             <Zap
@@ -104,7 +114,7 @@ export function FloatingHeader({
                 className="ui-soft-button flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px]"
               >
                 <ArrowLeft className="h-3 w-3" />
-                <span>返回</span>
+                <span>{resolvedBackLabel}</span>
               </motion.div>
             )}
           </div>

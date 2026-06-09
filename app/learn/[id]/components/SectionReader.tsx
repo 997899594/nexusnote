@@ -3,9 +3,19 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ExternalLink, EyeOff, Loader2, RefreshCw, RotateCcw, X } from "lucide-react";
+import {
+  BookPlus,
+  ExternalLink,
+  EyeOff,
+  Highlighter,
+  Loader2,
+  RefreshCw,
+  RotateCcw,
+  X,
+} from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StreamdownMessage } from "@/components/chat/StreamdownMessage";
+import { TextSelectionActionBar } from "@/components/course-reader/TextSelectionActionBar";
 import { useToast } from "@/components/ui/Toast";
 import type { Annotation } from "@/hooks/useAnnotations";
 import { useAnnotations } from "@/hooks/useAnnotations";
@@ -22,7 +32,6 @@ import {
 import { cn } from "@/lib/utils";
 import { useLearnStore } from "@/stores/learn";
 import { AnnotationLayer } from "./AnnotationLayer";
-import { TextSelectionToolbar } from "./TextSelectionToolbar";
 
 interface SectionReaderProps {
   courseId: string;
@@ -40,6 +49,13 @@ interface SectionTarget {
   nodeId: string;
   title: string;
 }
+
+const HIGHLIGHT_COLORS = [
+  { label: "黄色标记", value: "#fef08a" },
+  { label: "绿色标记", value: "#bbf7d0" },
+  { label: "蓝色标记", value: "#bfdbfe" },
+  { label: "粉色标记", value: "#fecdd3" },
+];
 
 function CaptureNoteDialog({
   selectedText,
@@ -134,14 +150,14 @@ function SectionNotesPanel({
     <div className="fixed inset-0 z-50">
       <button
         type="button"
-        aria-label="关闭评注"
+        aria-label="关闭评论"
         className="absolute inset-0 bg-black/20 backdrop-blur-sm"
         onClick={onClose}
       />
       <aside className="safe-bottom absolute inset-y-0 right-0 flex w-[min(88vw,23rem)] flex-col overflow-hidden border-l border-black/[0.08] bg-white shadow-[0_24px_84px_-42px_rgba(15,23,42,0.45)] md:w-[22.5rem]">
         <div className="safe-top flex shrink-0 items-center justify-between border-b border-black/[0.06] px-4 py-3">
           <div className="min-w-0">
-            <h2 className="text-sm font-semibold text-[var(--color-text)]">评注</h2>
+            <h2 className="text-sm font-semibold text-[var(--color-text)]">评论</h2>
             <p className="mt-0.5 text-xs text-[var(--color-text-tertiary)]">
               公共 {publicAnnotations.length} · 我的 {privateAnnotations.length}
             </p>
@@ -161,7 +177,7 @@ function SectionNotesPanel({
             <div className="space-y-5">
               <section>
                 <div className="mb-2 flex items-center justify-between gap-3">
-                  <h3 className="text-xs font-semibold text-[var(--color-text)]">公共评注</h3>
+                  <h3 className="text-xs font-semibold text-[var(--color-text)]">公共评论</h3>
                   {publicAnnotations[0]?.publicationSlug ? (
                     <a
                       href={`/c/${publicAnnotations[0].publicationSlug}`}
@@ -207,7 +223,7 @@ function SectionNotesPanel({
                             disabled={moderatingAnnotationId === annotation.id}
                             className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-50"
                             aria-label={
-                              annotation.status === "hidden" ? "恢复公共评注" : "隐藏公共评注"
+                              annotation.status === "hidden" ? "恢复公共评论" : "隐藏公共评论"
                             }
                           >
                             {annotation.status === "hidden" ? (
@@ -222,7 +238,7 @@ function SectionNotesPanel({
                   </div>
                 ) : (
                   <p className="px-1 py-4 text-sm leading-6 text-[var(--color-text-secondary)]">
-                    这一节还没有读者评注。
+                    这一节还没有读者评论。
                   </p>
                 )}
               </section>
@@ -256,19 +272,19 @@ function SectionNotesPanel({
                   </div>
                 ) : (
                   <p className="px-1 py-4 text-sm leading-6 text-[var(--color-text-secondary)]">
-                    选中正文后可以高亮或保存到笔记。
+                    选中正文后可以标记或保存为笔记。
                   </p>
                 )}
                 {noteCount > 0 ? null : privateAnnotations.length > 0 ? (
                   <p className="mt-3 px-1 text-xs leading-5 text-[var(--color-text-tertiary)]">
-                    当前只有高亮标注。选中文本后点“记一笔”可以补充个人理解。
+                    当前只有文本标记。选中文本后点“笔记”可以补充个人理解。
                   </p>
                 ) : null}
               </section>
             </div>
           ) : (
             <div className="px-1 py-8 text-sm leading-6 text-[var(--color-text-secondary)]">
-              这一节还没有评注。读者在公开页留下的评注会同步出现在这里。
+              这一节还没有评论。读者在公开页留下的评论会同步出现在这里。
             </div>
           )}
         </div>
@@ -476,9 +492,9 @@ function SectionBlock({
         setSectionPublicAnnotations((current) =>
           current.map((item) => (item.id === annotation.id ? nextAnnotation : item)),
         );
-        addToast(status === "hidden" ? "已隐藏公共评注" : "已恢复公共评注", "success");
+        addToast(status === "hidden" ? "已隐藏公共评论" : "已恢复公共评论", "success");
       } catch {
-        addToast("更新公共评注失败，请稍后重试", "error");
+        addToast("更新公共评论失败，请稍后重试", "error");
       } finally {
         setModeratingAnnotationId(null);
       }
@@ -574,12 +590,21 @@ function SectionBlock({
               annotations={annotations}
               onRemove={removeAnnotation}
             />
-            <TextSelectionToolbar
+            <TextSelectionActionBar
               containerRef={containerRef}
-              onHighlight={addHighlight}
-              onCapture={(anchor, selectedText) => {
-                setPendingCapture({ anchor, selectedText });
-              }}
+              swatchAction={{ label: "标记", icon: Highlighter }}
+              swatches={HIGHLIGHT_COLORS}
+              onSwatchSelect={addHighlight}
+              actions={[
+                {
+                  label: "笔记",
+                  icon: BookPlus,
+                  variant: "primary",
+                  onSelect: ({ anchor, selectedText }) => {
+                    setPendingCapture({ anchor, selectedText });
+                  },
+                },
+              ]}
             />
           </>
         )}
