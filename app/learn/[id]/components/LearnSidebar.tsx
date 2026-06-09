@@ -3,33 +3,21 @@
 import { AppBackLink } from "@/components/shared/layout";
 import { PAGE_BACK_TARGETS } from "@/lib/navigation/app-navigation";
 import { cn } from "@/lib/utils";
-import { useLearnStore } from "@/stores/learn";
 import { ChapterList } from "./ChapterList";
 
 interface LearnSidebarProps {
-  courseTitle: string;
   width: number;
   onCollapse?: () => void;
 }
 
-export function LearnSidebar({ courseTitle, width, onCollapse }: LearnSidebarProps) {
-  const chapters = useLearnStore((s) => s.chapters);
-  const completedSections = useLearnStore((s) => s.completedSections);
-  const totalSections = chapters.reduce((total, chapter) => total + chapter.sections.length, 0);
-  const completedCount = chapters.reduce(
-    (total, chapter) =>
-      total + chapter.sections.filter((section) => completedSections.has(section.nodeId)).length,
-    0,
-  );
-  const progress = totalSections > 0 ? Math.round((completedCount / totalSections) * 100) : 0;
-
+export function LearnSidebar({ width, onCollapse }: LearnSidebarProps) {
   return (
     <div
       className="flex h-full w-full flex-col bg-white/72 safe-top safe-bottom"
       style={{ maxWidth: width }}
     >
       <div className="flex h-full flex-col">
-        <div className="border-b border-black/[0.04] px-4 pb-5 pt-5 lg:px-5">
+        <div className="border-b border-black/[0.04] px-4 pb-4 pt-5 lg:px-5">
           <div className="flex items-center justify-between gap-2">
             <AppBackLink target={PAGE_BACK_TARGETS.learn} variant="pill" />
             {onCollapse ? (
@@ -49,28 +37,8 @@ export function LearnSidebar({ courseTitle, width, onCollapse }: LearnSidebarPro
             ) : null}
           </div>
 
-          <div className="mt-5">
-            <div className="mb-2 text-[0.625rem] font-semibold tracking-[0.18em] text-[var(--color-text-muted)]">
-              课程
-            </div>
-            <h1 className="line-clamp-3 text-[0.98rem] font-semibold leading-snug tracking-[-0.02em] text-[var(--color-text)]">
-              {courseTitle}
-            </h1>
-          </div>
-
-          <div className="mt-5 space-y-2">
-            <div className="flex items-center justify-between text-[0.6875rem] text-[var(--color-text-tertiary)]">
-              <span>
-                {completedCount}/{totalSections || 0}
-              </span>
-              <span>{progress}%</span>
-            </div>
-            <div className="h-1 overflow-hidden rounded-full bg-black/[0.06]">
-              <div
-                className="h-full rounded-full bg-[var(--color-panel-strong)] transition-[width] duration-500"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
+          <div className="mt-4 text-[0.625rem] font-semibold tracking-[0.16em] text-[var(--color-text-muted)]">
+            目录
           </div>
         </div>
 

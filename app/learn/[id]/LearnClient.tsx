@@ -232,7 +232,7 @@ export function LearnClient({
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 className="ui-page-shell fixed inset-y-0 left-0 z-50 w-[min(88vw,288px)] overflow-hidden rounded-r-[28px] shadow-xl"
               >
-                <LearnSidebar courseTitle={courseTitle} width={SIDEBAR_WIDTH} />
+                <LearnSidebar width={SIDEBAR_WIDTH} />
               </motion.div>
             </>
           )}
@@ -266,42 +266,31 @@ export function LearnClient({
   }
 
   return (
-    <div className="ui-page-shell min-h-dvh overflow-hidden">
+    <div className="min-h-dvh overflow-hidden bg-[#f4f5f5] text-[var(--color-text)]">
       <div
         className={cn(
-          "mx-auto grid h-dvh max-w-[1640px] gap-3 p-3 transition-[grid-template-columns] duration-200 lg:gap-4 lg:p-4",
+          "grid h-dvh grid-cols-1 overflow-hidden transition-[grid-template-columns] duration-200",
           isDesktopSidebarCollapsed && isDesktopChatCollapsed
             ? "grid-cols-[minmax(0,1fr)]"
             : isDesktopSidebarCollapsed
-              ? "grid-cols-[minmax(0,1fr)_minmax(17rem,19rem)] lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_344px]"
+              ? "lg:grid-cols-[minmax(0,1fr)_21.5rem]"
               : isDesktopChatCollapsed
-                ? "grid-cols-[minmax(13.5rem,15.5rem)_minmax(0,1fr)] lg:grid-cols-[16rem_minmax(0,1fr)] xl:grid-cols-[288px_minmax(0,1fr)]"
-                : "grid-cols-[minmax(13.5rem,15.5rem)_minmax(0,1fr)_minmax(17rem,19rem)] lg:grid-cols-[16rem_minmax(0,1fr)_20rem] xl:grid-cols-[288px_minmax(0,1fr)_344px]",
+                ? "lg:grid-cols-[17.5rem_minmax(0,1fr)]"
+                : "lg:grid-cols-[17.5rem_minmax(0,1fr)_21.5rem]",
         )}
       >
         {!isDesktopSidebarCollapsed ? (
-          <aside className="min-h-0 overflow-hidden rounded-[28px] border border-black/[0.06] bg-white/78 shadow-[0_22px_64px_-48px_rgba(15,23,42,0.28)] backdrop-blur-xl">
+          <aside className="min-h-0 border-black/[0.06] bg-white/95 lg:flex lg:h-full lg:flex-col lg:border-r">
             <LearnSidebar
-              courseTitle={courseTitle}
               width={SIDEBAR_WIDTH}
               onCollapse={() => setDesktopSidebarCollapsed(true)}
             />
           </aside>
         ) : null}
 
-        <main className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-[30px] border border-black/[0.04] bg-white/94 shadow-[0_24px_76px_-58px_rgba(15,23,42,0.32)]">
-          <header className="flex shrink-0 items-center justify-between gap-4 border-b border-black/[0.04] bg-white/86 px-5 py-3 backdrop-blur-xl lg:px-6">
-            <div className="min-w-0">
-              <h1 className="truncate text-lg font-semibold tracking-[-0.02em] text-[var(--color-text)]">
-                {courseTitle}
-              </h1>
-              {currentChapter ? (
-                <p className="mt-0.5 truncate text-xs text-[var(--color-text-muted)]">
-                  {currentChapter.title}
-                </p>
-              ) : null}
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
+        <main className="flex h-dvh min-h-0 min-w-0 flex-col overflow-hidden bg-white">
+          <header className="safe-top flex shrink-0 justify-end border-b border-black/[0.04] bg-white/92 px-4 py-3 backdrop-blur-xl lg:px-7">
+            <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
               <CoursePublishControl courseId={sessionId} />
               {isDesktopSidebarCollapsed ? (
                 <button
@@ -352,7 +341,7 @@ export function LearnClient({
         </main>
 
         {!isDesktopChatCollapsed ? (
-          <aside className="min-h-0 overflow-hidden rounded-[28px] border border-black/[0.06] bg-white/82 shadow-[0_22px_64px_-50px_rgba(15,23,42,0.3)] backdrop-blur-xl">
+          <aside className="min-h-0 border-black/[0.06] bg-[#fafafa] lg:flex lg:h-full lg:flex-col lg:border-l">
             <LearnChat
               courseId={sessionId}
               courseTitle={courseTitle}

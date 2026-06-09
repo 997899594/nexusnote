@@ -15,7 +15,7 @@ export function ChapterList() {
   const setCurrentChapterIndex = useLearnStore((s) => s.setCurrentChapterIndex);
   const setCurrentSectionIndex = useLearnStore((s) => s.setCurrentSectionIndex);
   const requestSectionFocus = useLearnStore((s) => s.requestSectionFocus);
-  const toggleChapterExpanded = useLearnStore((s) => s.toggleChapterExpanded);
+  const setExpandedChapterOnly = useLearnStore((s) => s.setExpandedChapterOnly);
   const setSidebarOpen = useLearnStore((s) => s.setSidebarOpen);
 
   if (chapters.length === 0) {
@@ -41,7 +41,7 @@ export function ChapterList() {
             <button
               type="button"
               onClick={() => {
-                toggleChapterExpanded(chIdx);
+                setExpandedChapterOnly(chIdx);
                 if (chIdx !== currentChapterIndex) {
                   setCurrentChapterIndex(chIdx);
                 }
@@ -76,7 +76,7 @@ export function ChapterList() {
                     {chapter.title}
                   </div>
                   <div className="mt-1 text-[0.625rem] leading-none text-[var(--color-text-muted)]">
-                    {chapterCompletedCount}/{chapter.sections.length || 0}
+                    {chapter.sections.length} 节
                   </div>
                 </div>
 

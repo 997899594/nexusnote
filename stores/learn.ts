@@ -45,6 +45,7 @@ interface LearnState {
   // Expanded chapters in sidebar
   expandedChapters: Set<number>;
   expandChapter: (index: number) => void;
+  setExpandedChapterOnly: (index: number) => void;
   toggleChapterExpanded: (index: number) => void;
 
   // Completed sections (Set of nodeId strings like "section-1-1")
@@ -127,6 +128,8 @@ export const useLearnStore = create<LearnState>((set) => ({
       expanded.add(index);
       return { expandedChapters: expanded };
     }),
+
+  setExpandedChapterOnly: (index) => set({ expandedChapters: new Set([index]) }),
 
   toggleChapterExpanded: (index) =>
     set((state) => {

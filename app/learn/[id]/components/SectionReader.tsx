@@ -143,9 +143,6 @@ function SectionNotesPanel({
   onClose: () => void;
 }) {
   const totalCount = privateAnnotations.length + publicAnnotations.length;
-  const noteCount = privateAnnotations.filter(
-    (annotation) => annotation.type === "note" || annotation.noteContent?.trim(),
-  ).length;
 
   return (
     <div className="fixed inset-0 z-50">
@@ -160,7 +157,7 @@ function SectionNotesPanel({
           <div className="min-w-0">
             <h2 className="text-sm font-semibold text-[var(--color-text)]">评论</h2>
             <p className="mt-0.5 text-xs text-[var(--color-text-tertiary)]">
-              公共 {publicAnnotations.length} · 我的 {privateAnnotations.length}
+              {totalCount > 0 ? `${totalCount} 条当前小节记录` : "当前小节暂无记录"}
             </p>
           </div>
           <button
@@ -175,117 +172,93 @@ function SectionNotesPanel({
 
         <div className="mobile-scroll min-h-0 flex-1 overflow-y-auto px-4 py-4">
           {totalCount > 0 ? (
-            <div className="space-y-5">
-              <section>
-                <div className="mb-2 flex items-center justify-between gap-3">
-                  <h3 className="text-xs font-semibold text-[var(--color-text)]">公共评论</h3>
-                  {publicAnnotations[0]?.publicationSlug ? (
-                    <a
-                      href={`/c/${publicAnnotations[0].publicationSlug}`}
-                      className="inline-flex items-center gap-1 text-xs text-[var(--color-text-tertiary)] transition-colors hover:text-[var(--color-text)]"
-                    >
-                      公开页
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  ) : null}
-                </div>
-                {publicAnnotations.length > 0 ? (
-                  <div className="space-y-1">
-                    {publicAnnotations.map((annotation) => (
-                      <article
-                        key={annotation.id}
-                        className={cn(
-                          "border-l-2 px-3 py-3",
-                          annotation.status === "hidden"
-                            ? "border-black/[0.12] bg-black/[0.018] opacity-75"
-                            : "border-black/[0.08]",
-                        )}
-                      >
-                        <p className="line-clamp-2 text-xs leading-5 text-[var(--color-text-secondary)]">
-                          “{annotation.quotedText}”
-                        </p>
-                        <p className="mt-2 text-sm leading-6 text-[var(--color-text)]">
-                          {annotation.body}
-                        </p>
-                        <div className="mt-2 flex items-center justify-between gap-2">
-                          <p className="min-w-0 truncate text-[0.625rem] text-[var(--color-text-tertiary)]">
-                            {annotation.author.name ? `${annotation.author.name} · ` : ""}
-                            {formatAnnotationTime(annotation.createdAt)}
-                            {annotation.status === "hidden" ? " · 已隐藏" : ""}
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              onModeratePublicAnnotation(
-                                annotation,
-                                annotation.status === "hidden" ? "visible" : "hidden",
-                              )
-                            }
-                            disabled={moderatingAnnotationId === annotation.id}
-                            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-50"
-                            aria-label={
-                              annotation.status === "hidden" ? "恢复公共评论" : "隐藏公共评论"
-                            }
-                          >
-                            {annotation.status === "hidden" ? (
-                              <RotateCcw className="h-3.5 w-3.5" />
-                            ) : (
-                              <EyeOff className="h-3.5 w-3.5" />
-                            )}
-                          </button>
-                        </div>
-                      </article>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="px-1 py-4 text-sm leading-6 text-[var(--color-text-secondary)]">
-                    这一节还没有读者评论。
-                  </p>
-                )}
-              </section>
+            <div className="space-y-2">
+              {publicAnnotations[0]?.publicationSlug ? (
+                <a
+                  href={`/c/${publicAnnotations[0].publicationSlug}`}
+                  className="mb-2 inline-flex items-center gap-1 rounded-full bg-[var(--color-panel-soft)] px-3 py-1.5 text-xs text-[var(--color-text-tertiary)] transition-colors hover:text-[var(--color-text)]"
+                >
+                  查看公开页
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              ) : null}
 
-              <section>
-                <h3 className="mb-2 text-xs font-semibold text-[var(--color-text)]">我的标注</h3>
-                {privateAnnotations.length > 0 ? (
-                  <div className="space-y-2">
-                    {privateAnnotations.map((annotation) => (
-                      <article
-                        key={annotation.id}
-                        className="rounded-xl border border-black/[0.06] bg-[var(--color-panel-soft)] px-3 py-3"
-                      >
-                        <div className="flex items-start gap-2">
-                          <span
-                            className="mt-1 h-2 w-2 shrink-0 rounded-full"
-                            style={{ backgroundColor: annotation.color ?? "#fef08a" }}
-                            aria-hidden="true"
-                          />
-                          <p className="line-clamp-3 text-sm leading-6 text-[var(--color-text-secondary)]">
-                            “{annotation.anchor.textContent}”
-                          </p>
-                        </div>
-                        {annotation.noteContent ? (
-                          <p className="mt-2 border-t border-black/[0.05] pt-2 text-sm leading-6 text-[var(--color-text)]">
-                            {annotation.noteContent}
-                          </p>
-                        ) : null}
-                      </article>
-                    ))}
+              {publicAnnotations.map((annotation) => (
+                <article
+                  key={annotation.id}
+                  className={cn(
+                    "border-l-2 px-3 py-3",
+                    annotation.status === "hidden"
+                      ? "border-black/[0.12] bg-black/[0.018] opacity-75"
+                      : "border-black/[0.08]",
+                  )}
+                >
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="text-[0.625rem] font-medium text-[var(--color-text-tertiary)]">
+                      读者评论
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onModeratePublicAnnotation(
+                          annotation,
+                          annotation.status === "hidden" ? "visible" : "hidden",
+                        )
+                      }
+                      disabled={moderatingAnnotationId === annotation.id}
+                      className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-50"
+                      aria-label={annotation.status === "hidden" ? "恢复评论" : "隐藏评论"}
+                    >
+                      {annotation.status === "hidden" ? (
+                        <RotateCcw className="h-3.5 w-3.5" />
+                      ) : (
+                        <EyeOff className="h-3.5 w-3.5" />
+                      )}
+                    </button>
                   </div>
-                ) : (
-                  <p className="px-1 py-4 text-sm leading-6 text-[var(--color-text-secondary)]">
-                    选中正文后可以标记或保存为笔记。
+                  <p className="line-clamp-2 text-xs leading-5 text-[var(--color-text-secondary)]">
+                    “{annotation.quotedText}”
                   </p>
-                )}
-                {noteCount > 0 ? null : privateAnnotations.length > 0 ? (
-                  <p className="mt-3 px-1 text-xs leading-5 text-[var(--color-text-tertiary)]">
-                    当前只有文本标记。选中文本后点“笔记”可以补充个人理解。
+                  <p className="mt-2 text-sm leading-6 text-[var(--color-text)]">
+                    {annotation.body}
                   </p>
-                ) : null}
-              </section>
+                  <p className="mt-2 min-w-0 truncate text-[0.625rem] text-[var(--color-text-tertiary)]">
+                    {annotation.author.name ? `${annotation.author.name} · ` : ""}
+                    {formatAnnotationTime(annotation.createdAt)}
+                    {annotation.status === "hidden" ? " · 已隐藏" : ""}
+                  </p>
+                </article>
+              ))}
+
+              {privateAnnotations.map((annotation) => (
+                <article
+                  key={annotation.id}
+                  className="rounded-xl border border-black/[0.06] bg-[var(--color-panel-soft)] px-3 py-3"
+                >
+                  <div className="mb-2 flex items-center gap-2">
+                    <span
+                      className="h-2 w-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: annotation.color ?? "#fef08a" }}
+                      aria-hidden="true"
+                    />
+                    <span className="text-[0.625rem] font-medium text-[var(--color-text-tertiary)]">
+                      我的笔记
+                    </span>
+                  </div>
+                  <p className="line-clamp-3 text-sm leading-6 text-[var(--color-text-secondary)]">
+                    “{annotation.anchor.textContent}”
+                  </p>
+                  {annotation.noteContent ? (
+                    <p className="mt-2 border-t border-black/[0.05] pt-2 text-sm leading-6 text-[var(--color-text)]">
+                      {annotation.noteContent}
+                    </p>
+                  ) : null}
+                </article>
+              ))}
             </div>
           ) : (
             <div className="px-1 py-8 text-sm leading-6 text-[var(--color-text-secondary)]">
-              这一节还没有评论。读者在公开页留下的评论会同步出现在这里。
+              暂无评论。选中正文可以标记、保存笔记或发起对话。
             </div>
           )}
         </div>

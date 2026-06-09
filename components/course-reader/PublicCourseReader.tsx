@@ -533,7 +533,23 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
       </div>
 
       <div className="mobile-scroll min-h-0 flex-1 overflow-y-auto px-4 py-4">
-        <div className="space-y-1">
+        <div className="space-y-2">
+          <div className="rounded-xl border border-black/[0.06] bg-white px-3 py-3 text-xs leading-5 text-[var(--color-text-secondary)]">
+            加入我的学习后可针对划线内容发起右侧对话。
+            <button
+              type="button"
+              onClick={() => void saveToLibrary()}
+              disabled={isSavingCourse || data.viewer.role === "owner"}
+              className="ml-2 font-medium text-[var(--color-text)] underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:text-[var(--color-text-tertiary)] disabled:no-underline"
+            >
+              {data.viewer.role === "owner"
+                ? "作者已可在学习页对话"
+                : savedCourseId
+                  ? "进入学习"
+                  : "开通后使用"}
+            </button>
+          </div>
+
           {activeSectionAnnotations.map((annotation) => (
             <article
               key={annotation.id}
@@ -808,6 +824,16 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
                 {activeSectionAnnotations.length}
               </span>
             ) : null}
+          </button>
+          <button
+            type="button"
+            onClick={() => void saveToLibrary()}
+            disabled={isSavingCourse || data.viewer.role === "owner"}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-black/[0.08] bg-white/92 text-[var(--color-text-secondary)] shadow-[0_14px_38px_-26px_rgba(15,23,42,0.42)] backdrop-blur-xl transition-colors hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-55"
+            aria-label="加入学习后对话"
+            title="加入学习后对话"
+          >
+            <MessageSquare className="h-4.5 w-4.5" />
           </button>
         </div>
 
