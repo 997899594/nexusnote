@@ -24,10 +24,10 @@ import { conversationMessages, conversations } from "./schema/conversations";
 import {
   coursePublicAnnotations,
   coursePublicationLikes,
-  coursePublicationUrges,
   coursePublicationSaves,
   coursePublicationSnapshots,
   coursePublications,
+  coursePublicationUrges,
 } from "./schema/course-sharing";
 import {
   courseOutlineNodes,
@@ -357,7 +357,6 @@ export const coursePublicationSavesRelations = relations(coursePublicationSaves,
     references: [courses.id],
   }),
 }));
-
 
 export const coursePublicationLikesRelations = relations(coursePublicationLikes, ({ one }) => ({
   publication: one(coursePublications, {

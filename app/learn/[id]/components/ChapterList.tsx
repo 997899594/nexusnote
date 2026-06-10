@@ -2,8 +2,8 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { stripSectionNumber } from "@/lib/learning/content-formatting";
+import { cn } from "@/lib/utils";
 import { useLearnStore } from "@/stores/learn";
 
 export function ChapterList() {
@@ -149,7 +149,9 @@ export function ChapterList() {
                                   aria-hidden="true"
                                 />
                                 <div className="min-w-0 flex-1">
-                                  <span className="block truncate font-medium">{stripSectionNumber(sec.title)}</span>
+                                  <span className="block truncate font-medium">
+                                    {stripSectionNumber(sec.title)}
+                                  </span>
                                 </div>
                               </div>
                             </button>

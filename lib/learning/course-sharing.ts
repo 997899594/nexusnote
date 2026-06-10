@@ -9,10 +9,10 @@ import {
   courseProgress,
   coursePublicAnnotations,
   coursePublicationLikes,
-  coursePublicationUrges,
   coursePublicationSaves,
   coursePublicationSnapshots,
   coursePublications,
+  coursePublicationUrges,
   courseSections,
   courses,
   db,
@@ -450,7 +450,6 @@ function getPublicCourseViewerRole(
   return viewerUserId === ownerUserId ? "owner" : "reader";
 }
 
-
 async function loadEngagementData(
   publicationId: string,
   userId: string | null,
@@ -471,13 +470,23 @@ async function loadEngagementData(
   const [likeRow] = await db
     .select({ id: coursePublicationLikes.id })
     .from(coursePublicationLikes)
-    .where(and(eq(coursePublicationLikes.publicationId, publicationId), eq(coursePublicationLikes.userId, userId)))
+    .where(
+      and(
+        eq(coursePublicationLikes.publicationId, publicationId),
+        eq(coursePublicationLikes.userId, userId),
+      ),
+    )
     .limit(1);
 
   const [urgeRow] = await db
     .select({ id: coursePublicationUrges.id })
     .from(coursePublicationUrges)
-    .where(and(eq(coursePublicationUrges.publicationId, publicationId), eq(coursePublicationUrges.userId, userId)))
+    .where(
+      and(
+        eq(coursePublicationUrges.publicationId, publicationId),
+        eq(coursePublicationUrges.userId, userId),
+      ),
+    )
     .limit(1);
 
   return { likesCount, urgesCount, userLiked: !!likeRow, userUrged: !!urgeRow };
@@ -838,7 +847,10 @@ export async function togglePublicCourseLike(params: {
   userId: string;
 }): Promise<{ liked: boolean }> {
   const publication = await db.query.coursePublications.findFirst({
-    where: and(eq(coursePublications.slug, params.slug), eq(coursePublications.status, "published")),
+    where: and(
+      eq(coursePublications.slug, params.slug),
+      eq(coursePublications.status, "published"),
+    ),
   });
 
   if (!publication) {
@@ -853,9 +865,7 @@ export async function togglePublicCourseLike(params: {
   });
 
   if (existing) {
-    await db
-      .delete(coursePublicationLikes)
-      .where(eq(coursePublicationLikes.id, existing.id));
+    await db.delete(coursePublicationLikes).where(eq(coursePublicationLikes.id, existing.id));
     revalidateCoursePublication(publication.slug);
     return { liked: false };
   }
@@ -874,7 +884,10 @@ export async function submitPublicCourseUrge(params: {
   userId: string;
 }): Promise<{ urged: boolean }> {
   const publication = await db.query.coursePublications.findFirst({
-    where: and(eq(coursePublications.slug, params.slug), eq(coursePublications.status, "published")),
+    where: and(
+      eq(coursePublications.slug, params.slug),
+      eq(coursePublications.status, "published"),
+    ),
   });
 
   if (!publication) {
@@ -889,9 +902,7 @@ export async function submitPublicCourseUrge(params: {
   });
 
   if (existing) {
-    await db
-      .delete(coursePublicationUrges)
-      .where(eq(coursePublicationUrges.id, existing.id));
+    await db.delete(coursePublicationUrges).where(eq(coursePublicationUrges.id, existing.id));
     revalidateCoursePublication(publication.slug);
     return { urged: false };
   }
@@ -904,4 +915,3 @@ export async function submitPublicCourseUrge(params: {
   revalidateCoursePublication(publication.slug);
   return { urged: true };
 }
-

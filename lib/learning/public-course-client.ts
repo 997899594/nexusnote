@@ -130,4 +130,3 @@ export async function submitPublicCourseUrge(params: {
     "Failed to submit urge.",
   );
 }
-

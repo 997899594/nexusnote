@@ -529,7 +529,9 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
                                 aria-hidden="true"
                               />
                               <div className="min-w-0 flex-1">
-                                <span className="block truncate font-medium">{stripSectionNumber(section.title)}</span>
+                                <span className="block truncate font-medium">
+                                  {stripSectionNumber(section.title)}
+                                </span>
                               </div>
                               {annotationCount > 0 ? (
                                 <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-black/[0.035] px-1.5 py-0.5 text-[0.625rem] leading-none text-[var(--color-text-tertiary)]">
@@ -729,7 +731,9 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
                         <div className="mb-3 flex flex-wrap items-center gap-2 text-[0.6875rem] font-medium text-[var(--color-text-tertiary)]">
                           <span>第 {activeChapterIndex + 1} 章</span>
                           <span className="h-1 w-1 rounded-full bg-black/20" aria-hidden="true" />
-                          <span className="line-clamp-1">{stripSectionNumber(activeChapter.title)}</span>
+                          <span className="line-clamp-1">
+                            {stripSectionNumber(activeChapter.title)}
+                          </span>
                         </div>
                       ) : null}
                       <h1 className="text-[2rem] font-semibold leading-tight text-[var(--color-text)] md:text-[2.15rem]">
