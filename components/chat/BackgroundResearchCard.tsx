@@ -71,7 +71,7 @@ export function BackgroundResearchCard({
   const quality = summarizeQuality(research.citations);
 
   return (
-    <div className="border-black/[0.06] border-y py-2 text-xs text-[var(--color-text-secondary)]">
+    <div className="rounded-2xl border border-black/[0.06] bg-white/64 px-3 py-2 text-xs text-[var(--color-text-secondary)]">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
@@ -107,7 +107,8 @@ export function BackgroundResearchCard({
             quality.high > 0 ? `${quality.high} 个高质量` : null,
           ]}
           isRunning={isRunning}
-          className="mt-2 border-b-0"
+          variant="compact"
+          className="mt-1.5"
         />
       ) : null}
 
@@ -146,7 +147,11 @@ export function BackgroundResearchCard({
         </div>
       )}
 
-      {children ? <div className="mt-2">{children}</div> : null}
+      {children ? (
+        <div className="mt-2 max-h-80 overflow-y-auto border-black/[0.04] border-t pt-2">
+          {children}
+        </div>
+      ) : null}
     </div>
   );
 }

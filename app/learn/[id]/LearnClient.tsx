@@ -3,8 +3,8 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { List, MessageSquare, MessageSquareText } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { List, MessageSquare, MessageSquareText, MoreHorizontal, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { CoursePublishControl } from "@/components/course-reader/CoursePublishControl";
 import { AppBackLink } from "@/components/shared/layout";
 import { useChapterSections } from "@/hooks/useChapterSections";
@@ -56,6 +56,7 @@ export function LearnClient({
   const markSectionComplete = useLearnStore((s) => s.markSectionComplete);
   const expandChapter = useLearnStore((s) => s.expandChapter);
   const currentChapterIndex = useLearnStore((s) => s.currentChapterIndex);
+  const currentSectionIndex = useLearnStore((s) => s.currentSectionIndex);
   const isSidebarOpen = useLearnStore((s) => s.isSidebarOpen);
   const setSidebarOpen = useLearnStore((s) => s.setSidebarOpen);
   const isChatOpen = useLearnStore((s) => s.isChatOpen);
@@ -70,6 +71,7 @@ export function LearnClient({
   const setDesktopChatCollapsed = useLearnStore((s) => s.setDesktopChatCollapsed);
 
   const isMobile = useIsMobile();
+  const [isMobileToolsOpen, setIsMobileToolsOpen] = useState(false);
 
   // Initialize store on mount
   // biome-ignore lint/correctness/useExhaustiveDependencies: initialization effect, runs once on mount
@@ -95,6 +97,8 @@ export function LearnClient({
   }, []); // Run once on mount
 
   const currentChapter = chapters[currentChapterIndex];
+  const currentSection = currentChapter?.sections[currentSectionIndex] ?? null;
+  const mobileHeaderTitle = currentSection?.title ?? currentChapter?.title ?? courseTitle;
 
   // Build initialContent map for the current chapter's sections
   const initialContent = useMemo(() => {
@@ -130,13 +134,13 @@ export function LearnClient({
   // Lock body scroll when overlay is open (mobile)
   useEffect(() => {
     if (!isMobile) return;
-    if (isSidebarOpen || isChatOpen || isNotesOpen) {
+    if (isSidebarOpen || isChatOpen || isNotesOpen || isMobileToolsOpen) {
       document.body.style.overflow = "hidden";
       return () => {
         document.body.style.overflow = "";
       };
     }
-  }, [isMobile, isSidebarOpen, isChatOpen, isNotesOpen]);
+  }, [isMobile, isMobileToolsOpen, isSidebarOpen, isChatOpen, isNotesOpen]);
 
   // ─── Mobile layout ───
   if (isMobile) {
@@ -145,8 +149,8 @@ export function LearnClient({
         {/* Mobile header */}
         <header className="safe-top sticky top-0 z-30 flex shrink-0 items-center justify-between gap-3 bg-white/90 px-4 pb-2 pt-3 backdrop-blur-xl">
           <AppBackLink target={PAGE_BACK_TARGETS.learn} />
-          <div className="min-w-0 flex-1 text-center text-sm font-semibold tracking-[-0.02em] text-[var(--color-text)]">
-            <span className="line-clamp-1">{courseTitle}</span>
+          <div className="min-w-0 flex-1 text-center text-sm font-semibold text-[var(--color-text)]">
+            <span className="line-clamp-1">{mobileHeaderTitle}</span>
           </div>
           <div className="h-9 w-9" />
         </header>
@@ -164,48 +168,20 @@ export function LearnClient({
           />
         </div>
 
-        <nav className="safe-bottom fixed right-3 bottom-4 z-30 flex flex-col gap-2 md:hidden">
+        <nav className="safe-bottom fixed right-3 bottom-4 z-30 md:hidden">
           <button
             type="button"
-            onClick={() => setSidebarOpen(true)}
+            onClick={() => setIsMobileToolsOpen(true)}
             className={cn(
-              "inline-flex h-11 w-11 items-center justify-center rounded-xl border border-black/[0.08] bg-white/92 text-[var(--color-text-secondary)] shadow-[0_14px_38px_-26px_rgba(15,23,42,0.42)] backdrop-blur-xl transition-colors",
-              isSidebarOpen
+              "relative inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-black/[0.08] bg-white/92 text-[var(--color-text-secondary)] shadow-[0_14px_38px_-26px_rgba(15,23,42,0.42)] backdrop-blur-xl transition-colors",
+              isMobileToolsOpen
                 ? "bg-[var(--color-panel-strong)] text-white"
                 : "hover:text-[var(--color-text)]",
             )}
-            aria-label="打开目录"
-            title="目录"
+            aria-label="打开工具"
+            title="工具"
           >
-            <List className="h-4.5 w-4.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setChatOpen(true)}
-            className={cn(
-              "inline-flex h-11 w-11 items-center justify-center rounded-xl border border-black/[0.08] bg-white/92 text-[var(--color-text-secondary)] shadow-[0_14px_38px_-26px_rgba(15,23,42,0.42)] backdrop-blur-xl transition-colors",
-              isChatOpen
-                ? "bg-[var(--color-panel-strong)] text-white"
-                : "hover:text-[var(--color-text)]",
-            )}
-            aria-label="打开对话"
-            title="对话"
-          >
-            <MessageSquare className="h-4.5 w-4.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setNotesOpen(true)}
-            className={cn(
-              "relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-black/[0.08] bg-white/92 text-[var(--color-text-secondary)] shadow-[0_14px_38px_-26px_rgba(15,23,42,0.42)] backdrop-blur-xl transition-colors",
-              isNotesOpen
-                ? "bg-[var(--color-panel-strong)] text-white"
-                : "hover:text-[var(--color-text)]",
-            )}
-            aria-label="打开评论"
-            title="评论"
-          >
-            <MessageSquareText className="h-4.5 w-4.5" />
+            <MoreHorizontal className="h-5 w-5" />
             {currentSectionAnnotationCount > 0 ? (
               <span className="absolute -top-1 -right-1 min-w-4 rounded-md bg-[var(--color-panel-strong)] px-1 text-[0.625rem] leading-4 text-white">
                 {currentSectionAnnotationCount}
@@ -213,6 +189,90 @@ export function LearnClient({
             ) : null}
           </button>
         </nav>
+
+        <AnimatePresence>
+          {isMobileToolsOpen ? (
+            <div className="fixed inset-0 z-50 md:hidden">
+              <motion.button
+                type="button"
+                aria-label="关闭工具"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+                onClick={() => setIsMobileToolsOpen(false)}
+              />
+              <motion.div
+                initial={{ opacity: 0, y: 24, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 24, scale: 0.98 }}
+                transition={{ type: "spring", stiffness: 320, damping: 30 }}
+                className="ui-message-card safe-bottom absolute inset-x-3 bottom-3 rounded-[28px] p-3"
+              >
+                <div className="mb-2 flex items-center justify-between px-1">
+                  <div className="text-xs font-semibold tracking-[0.16em] text-[var(--color-text-muted)]">
+                    工具
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsMobileToolsOpen(false)}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-xl text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)]"
+                    aria-label="关闭"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="grid gap-2">
+                  {[
+                    {
+                      label: "目录",
+                      meta: "章节与进度",
+                      icon: List,
+                      onClick: () => setSidebarOpen(true),
+                    },
+                    {
+                      label: "提问",
+                      meta: "围绕当前小节",
+                      icon: MessageSquare,
+                      onClick: () => setChatOpen(true),
+                    },
+                    {
+                      label: "评论",
+                      meta:
+                        currentSectionAnnotationCount > 0
+                          ? `${currentSectionAnnotationCount} 条记录`
+                          : "当前小节",
+                      icon: MessageSquareText,
+                      onClick: () => setNotesOpen(true),
+                    },
+                  ].map((item) => (
+                    <button
+                      key={item.label}
+                      type="button"
+                      onClick={() => {
+                        setIsMobileToolsOpen(false);
+                        item.onClick();
+                      }}
+                      className="flex items-center gap-3 rounded-2xl px-3 py-3 text-left transition-colors hover:bg-[var(--color-panel-soft)]"
+                    >
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--color-panel-soft)] text-[var(--color-text-secondary)]">
+                        <item.icon className="h-4 w-4" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold text-[var(--color-text)]">
+                          {item.label}
+                        </span>
+                        <span className="mt-0.5 block text-xs text-[var(--color-text-tertiary)]">
+                          {item.meta}
+                        </span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
+            </div>
+          ) : null}
+        </AnimatePresence>
 
         {/* Sidebar overlay - slide from left */}
         <AnimatePresence>

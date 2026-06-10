@@ -21,8 +21,10 @@ import { useToast } from "@/components/ui/Toast";
 import type { Annotation } from "@/hooks/useAnnotations";
 import { useAnnotations } from "@/hooks/useAnnotations";
 import type { SectionState } from "@/hooks/useChapterSections";
+import { stripLeadingSectionHeading } from "@/lib/learning/content-formatting";
 import { persistCompletedSection } from "@/lib/learning/learn-progress-client";
 import type {
+  LearnChapterProjection,
   LearnPublicAnnotationProjection,
   LearnSectionDocProjection,
 } from "@/lib/learning/projection";
@@ -302,7 +304,7 @@ function SectionStateBlock({
   );
 }
 
-function SectionLoadingBlock({ title, label }: { title: string; label: string }) {
+function SectionLoadingBlock({ label }: { label: string }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
@@ -311,7 +313,7 @@ function SectionLoadingBlock({ title, label }: { title: string; label: string })
     >
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="min-w-0">
-          <h3 className="truncate text-base font-semibold text-[var(--color-text)]">{title}</h3>
+          <h3 className="text-base font-semibold text-[var(--color-text)]">内容准备中</h3>
           <p className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">
             正在生成内容，完成后会自动展开。
           </p>
@@ -325,10 +327,47 @@ function SectionLoadingBlock({ title, label }: { title: string; label: string })
   );
 }
 
+function SectionIntro({
+  chapterIndex,
+  chapterTitle,
+  sectionTitle,
+  sectionDescription,
+  chapterDescription,
+}: {
+  chapterIndex: number;
+  chapterTitle: string;
+  sectionTitle: string;
+  sectionDescription: string;
+  chapterDescription: string;
+}) {
+  const intro = sectionDescription.trim() || chapterDescription.trim();
+
+  return (
+    <header className="mb-7 md:mb-8">
+      <div className="mb-3 flex flex-wrap items-center gap-2 text-[0.6875rem] font-medium text-[var(--color-text-tertiary)]">
+        <span>第 {chapterIndex + 1} 章</span>
+        <span className="h-1 w-1 rounded-full bg-black/20" aria-hidden="true" />
+        <span className="line-clamp-1">{chapterTitle}</span>
+      </div>
+      <h1 className="text-[1.9rem] font-semibold leading-tight text-[var(--color-text)] md:text-[2.35rem]">
+        {sectionTitle}
+      </h1>
+      {intro ? (
+        <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--color-text-secondary)]">
+          {intro}
+        </p>
+      ) : null}
+    </header>
+  );
+}
+
 function SectionBlock({
   nodeId,
+  chapterIndex,
+  chapter,
   sectionIndex,
   sectionTitle,
+  sectionDescription,
   state,
   sectionDoc,
   publicAnnotations,
@@ -337,8 +376,11 @@ function SectionBlock({
   isHighlighted,
 }: {
   nodeId: string;
+  chapterIndex: number;
+  chapter: LearnChapterProjection;
   sectionIndex: number;
   sectionTitle: string;
+  sectionDescription: string;
   state: SectionState;
   sectionDoc: LearnSectionDocProjection | undefined;
   publicAnnotations: LearnPublicAnnotationProjection[];
@@ -375,6 +417,9 @@ function SectionBlock({
   const anchorId = nodeId;
   const isAlreadyRead = completedSections.has(anchorId);
   const canShowFocusMarker = isHighlighted && (isComplete || state.content.length > 0);
+  const readableContent = state.content
+    ? stripLeadingSectionHeading(state.content, sectionTitle)
+    : "";
 
   useEffect(() => {
     setSectionPublicAnnotations(publicAnnotations);
@@ -503,9 +548,17 @@ function SectionBlock({
           </div>
         )}
 
+        <SectionIntro
+          chapterIndex={chapterIndex}
+          chapterTitle={chapter.title}
+          sectionTitle={sectionTitle}
+          sectionDescription={sectionDescription}
+          chapterDescription={chapter.description}
+        />
+
         {state.status === "idle" && (
           <SectionStateBlock
-            title={sectionTitle}
+            title="这一节还没有内容"
             description="这一节还没有内容。"
             action={
               <button
@@ -523,17 +576,17 @@ function SectionBlock({
           />
         )}
 
-        {state.status === "queued" && <SectionLoadingBlock title={sectionTitle} label="准备中" />}
+        {state.status === "queued" && <SectionLoadingBlock label="准备中" />}
 
-        {state.status === "generating" && state.content.length === 0 && (
-          <SectionLoadingBlock title={sectionTitle} label="生成中" />
+        {state.status === "generating" && !readableContent && (
+          <SectionLoadingBlock label="生成中" />
         )}
 
-        {(state.status === "generating" || state.status === "complete") && state.content && (
+        {(state.status === "generating" || state.status === "complete") && readableContent && (
           <article className="px-1 py-1 md:px-2">
             <div className="learn-prose pb-10 md:pb-12">
               <StreamdownMessage
-                content={state.content}
+                content={readableContent}
                 isStreaming={state.status === "generating"}
               />
             </div>
@@ -874,8 +927,11 @@ export function SectionReader({
           <SectionBlock
             key={currentSection.nodeId}
             nodeId={currentSection.nodeId}
+            chapterIndex={currentChapterIndex}
+            chapter={currentChapter}
             sectionIndex={currentSectionIndex}
             sectionTitle={currentSection.title}
+            sectionDescription={currentSection.description}
             state={currentSectionState}
             sectionDoc={sectionDocs.find((doc) => doc.outlineNodeKey === currentSection.nodeId)}
             publicAnnotations={currentSectionPublicAnnotations}

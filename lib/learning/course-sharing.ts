@@ -644,7 +644,8 @@ function buildOutlineFromSnapshot(content: CoursePublicationSnapshotContent): Co
   return {
     title: content.course.title,
     description: content.course.description ?? "从公开课程保存的学习内容。",
-    targetAudience: content.course.targetAudience ?? "自主学习者",
+    targetAudience:
+      content.course.targetAudience ?? `面向《${content.course.title}》的公开学习路径`,
     difficulty: (content.course.difficulty ?? "intermediate") as CourseOutline["difficulty"],
     courseSkillIds: [],
     learningOutcome:

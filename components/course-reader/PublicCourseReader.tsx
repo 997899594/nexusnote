@@ -3,7 +3,6 @@
 import {
   BookOpenText,
   ChevronDown,
-  Clock3,
   Copy,
   ExternalLink,
   EyeOff,
@@ -11,6 +10,7 @@ import {
   List,
   MessageSquare,
   MessageSquareText,
+  MoreHorizontal,
   RotateCcw,
   Send,
   X,
@@ -50,31 +50,6 @@ interface SelectionDraft {
 
 const EMPTY_PUBLIC_ANNOTATIONS: PublicCourseAnnotationProjection[] = [];
 
-function formatDifficulty(value: string | null): string {
-  switch (value) {
-    case "beginner":
-      return "入门";
-    case "intermediate":
-      return "进阶";
-    case "advanced":
-      return "高级";
-    default:
-      return value ?? "课程";
-  }
-}
-
-function formatEstimatedMinutes(value: number | null): string {
-  if (!value) {
-    return "结构化课程";
-  }
-
-  if (value >= 60) {
-    return `${Math.round(value / 60)} 小时`;
-  }
-
-  return `${value} 分钟`;
-}
-
 function getChapterKey(chapterTitle: string, chapterIndex: number): string {
   return `${chapterIndex}:${chapterTitle}`;
 }
@@ -105,6 +80,7 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
   const [isSavingCourse, setIsSavingCourse] = useState(false);
   const [moderatingAnnotationId, setModeratingAnnotationId] = useState<string | null>(null);
   const [mobilePanel, setMobilePanel] = useState<"outline" | "annotations" | null>(null);
+  const [isMobileToolsOpen, setIsMobileToolsOpen] = useState(false);
   const [expandedChapterKeys, setExpandedChapterKeys] = useState<Set<string>>(
     () =>
       new Set(
@@ -157,6 +133,13 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
   const activeChapterIndex = data.content.outline.chapters.findIndex((chapter) =>
     chapter.sections.some((section) => section.nodeId === activeSectionKey),
   );
+  const activeChapter =
+    activeChapterIndex >= 0 ? data.content.outline.chapters[activeChapterIndex] : null;
+  const activeOutlineSection =
+    activeChapter?.sections.find((section) => section.nodeId === activeSectionKey) ?? null;
+  const activeSectionTitle = activeOutlineSection?.title ?? activeSection?.title ?? "未命名小节";
+  const activeSectionIntro =
+    activeOutlineSection?.description.trim() || activeChapter?.description.trim() || "";
   const activeSectionOrderByKey = useMemo(() => {
     const map = new Map<string, number>();
     let order = 1;
@@ -172,7 +155,7 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
   }, [data.content.outline.chapters]);
   const activeSectionOrder = activeSectionOrderByKey.get(activeSectionKey) ?? 0;
   const activeSectionContent = activeSection?.content
-    ? stripLeadingSectionHeading(activeSection.content, activeSection.title)
+    ? stripLeadingSectionHeading(activeSection.content, activeSectionTitle)
     : "";
   const annotationHighlightItems = useMemo(
     () =>
@@ -189,7 +172,7 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
   });
 
   useEffect(() => {
-    if (!mobilePanel) {
+    if (!mobilePanel && !isMobileToolsOpen) {
       return;
     }
 
@@ -206,7 +189,7 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
       document.body.style.overflow = "";
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [mobilePanel]);
+  }, [isMobileToolsOpen, mobilePanel]);
 
   const copyLink = async () => {
     const result = await copyTextToClipboard(window.location.href);
@@ -359,28 +342,35 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
 
         <div className="mt-5">
           <div className="mb-2 text-[0.625rem] font-semibold tracking-[0.18em] text-[var(--color-text-muted)]">
-            课程
+            当前小节
           </div>
-          <h1 className="line-clamp-3 text-[0.98rem] font-semibold leading-snug text-[var(--color-text)]">
-            {data.content.course.title}
-          </h1>
-          {data.content.course.description ? (
+          <div className="line-clamp-3 text-[0.98rem] font-semibold leading-snug text-[var(--color-text)]">
+            {activeSectionTitle}
+          </div>
+          {activeChapter ? (
             <p className="mt-2 line-clamp-2 text-xs leading-5 text-[var(--color-text-secondary)]">
-              {data.content.course.description}
+              第 {activeChapterIndex + 1} 章 · {activeChapter.title}
             </p>
           ) : null}
+          <p className="mt-2 line-clamp-1 text-[0.6875rem] leading-5 text-[var(--color-text-tertiary)]">
+            来自 {data.content.course.title}
+          </p>
         </div>
 
         <div className="mt-4 flex items-center rounded-full bg-[var(--color-panel-soft)] px-3 py-2 text-[0.6875rem] leading-none text-[var(--color-text-tertiary)]">
-          <span>{data.content.outline.chapters.length} 章</span>
-          <span className="mx-2 h-3 w-px bg-black/[0.08]" aria-hidden="true" />
-          <span>{totalSections} 节</span>
+          <span>{activeChapterIndex >= 0 ? `第 ${activeChapterIndex + 1} 章` : "章节"}</span>
           {activeSectionOrder > 0 ? (
             <>
               <span className="mx-2 h-3 w-px bg-black/[0.08]" aria-hidden="true" />
               <span>
-                当前 {activeSectionOrder}/{totalSections}
+                第 {activeSectionOrder}/{totalSections} 节
               </span>
+            </>
+          ) : null}
+          {activeSectionAnnotations.length > 0 ? (
+            <>
+              <span className="mx-2 h-3 w-px bg-black/[0.08]" aria-hidden="true" />
+              <span>{activeSectionAnnotations.length} 评论</span>
             </>
           ) : null}
         </div>
@@ -534,22 +524,6 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
 
       <div className="mobile-scroll min-h-0 flex-1 overflow-y-auto px-4 py-4">
         <div className="space-y-2">
-          <div className="rounded-xl border border-black/[0.06] bg-white px-3 py-3 text-xs leading-5 text-[var(--color-text-secondary)]">
-            加入我的学习后可针对划线内容发起右侧对话。
-            <button
-              type="button"
-              onClick={() => void saveToLibrary()}
-              disabled={isSavingCourse || data.viewer.role === "owner"}
-              className="ml-2 font-medium text-[var(--color-text)] underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:text-[var(--color-text-tertiary)] disabled:no-underline"
-            >
-              {data.viewer.role === "owner"
-                ? "作者已可在学习页对话"
-                : savedCourseId
-                  ? "进入学习"
-                  : "开通后使用"}
-            </button>
-          </div>
-
           {activeSectionAnnotations.map((annotation) => (
             <article
               key={annotation.id}
@@ -625,19 +599,22 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
         <section className="flex h-dvh min-h-0 min-w-0 flex-col overflow-hidden bg-white">
           <header className="safe-top sticky top-0 z-20 flex shrink-0 flex-col gap-3 border-b border-black/[0.06] bg-white/96 px-5 py-3 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between lg:static lg:px-7">
             <div className="min-w-0">
-              <h1 className="line-clamp-1 text-sm font-semibold text-[var(--color-text)] lg:hidden">
-                {data.content.course.title}
-              </h1>
+              <div className="line-clamp-1 text-sm font-semibold text-[var(--color-text)] lg:hidden">
+                {activeSectionTitle}
+              </div>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-[0.6875rem] font-medium text-[var(--color-text-tertiary)] lg:mt-0">
                 <span className="inline-flex items-center gap-1.5">
                   <BookOpenText className="h-3.5 w-3.5" />
-                  {data.content.outline.chapters.length} 章 · {totalSections} 节
+                  {activeChapterIndex >= 0 ? `第 ${activeChapterIndex + 1} 章` : "章节"}
                 </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <Clock3 className="h-3.5 w-3.5" />
-                  {formatEstimatedMinutes(data.content.course.estimatedMinutes)}
-                </span>
-                <span>{formatDifficulty(data.content.course.difficulty)}</span>
+                {activeSectionOrder > 0 ? (
+                  <span>
+                    第 {activeSectionOrder}/{totalSections} 节
+                  </span>
+                ) : null}
+                {activeSectionAnnotations.length > 0 ? (
+                  <span>{activeSectionAnnotations.length} 条评论</span>
+                ) : null}
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
@@ -676,12 +653,19 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
                 <section key={activeSection.nodeId} className="relative">
                   <div className="mb-7 flex items-start justify-between gap-5">
                     <div className="min-w-0">
-                      <h2 className="text-[2rem] font-semibold leading-tight text-[var(--color-text)] md:text-[2.15rem]">
-                        {activeSection.title}
-                      </h2>
-                      {data.content.course.learningOutcome ? (
+                      {activeChapter ? (
+                        <div className="mb-3 flex flex-wrap items-center gap-2 text-[0.6875rem] font-medium text-[var(--color-text-tertiary)]">
+                          <span>第 {activeChapterIndex + 1} 章</span>
+                          <span className="h-1 w-1 rounded-full bg-black/20" aria-hidden="true" />
+                          <span className="line-clamp-1">{activeChapter.title}</span>
+                        </div>
+                      ) : null}
+                      <h1 className="text-[2rem] font-semibold leading-tight text-[var(--color-text)] md:text-[2.15rem]">
+                        {activeSectionTitle}
+                      </h1>
+                      {activeSectionIntro ? (
                         <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--color-text-secondary)]">
-                          {data.content.course.learningOutcome}
+                          {activeSectionIntro}
                         </p>
                       ) : null}
                     </div>
@@ -801,41 +785,104 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
           {annotationsPanel}
         </aside>
 
-        <div className="safe-bottom fixed right-3 bottom-4 z-40 flex flex-col gap-2 lg:hidden">
+        <div className="safe-bottom fixed right-3 bottom-4 z-40 lg:hidden">
           <button
             type="button"
-            onClick={() => setMobilePanel("outline")}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-black/[0.08] bg-white/92 text-[var(--color-text-secondary)] shadow-[0_14px_38px_-26px_rgba(15,23,42,0.42)] backdrop-blur-xl transition-colors hover:text-[var(--color-text)]"
-            aria-label="打开目录"
-            title="目录"
+            onClick={() => setIsMobileToolsOpen(true)}
+            className="relative inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-black/[0.08] bg-white/92 text-[var(--color-text-secondary)] shadow-[0_14px_38px_-26px_rgba(15,23,42,0.42)] backdrop-blur-xl transition-colors hover:text-[var(--color-text)]"
+            aria-label="打开工具"
+            title="工具"
           >
-            <List className="h-4.5 w-4.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setMobilePanel("annotations")}
-            className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-black/[0.08] bg-white/92 text-[var(--color-text-secondary)] shadow-[0_14px_38px_-26px_rgba(15,23,42,0.42)] backdrop-blur-xl transition-colors hover:text-[var(--color-text)]"
-            aria-label="打开评论"
-            title="评论"
-          >
-            <MessageSquareText className="h-4.5 w-4.5" />
+            <MoreHorizontal className="h-5 w-5" />
             {activeSectionAnnotations.length > 0 ? (
               <span className="absolute -top-1 -right-1 min-w-4 rounded-md bg-[var(--color-panel-strong)] px-1 text-[0.625rem] leading-4 text-white">
                 {activeSectionAnnotations.length}
               </span>
             ) : null}
           </button>
-          <button
-            type="button"
-            onClick={() => void saveToLibrary()}
-            disabled={isSavingCourse || data.viewer.role === "owner"}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-black/[0.08] bg-white/92 text-[var(--color-text-secondary)] shadow-[0_14px_38px_-26px_rgba(15,23,42,0.42)] backdrop-blur-xl transition-colors hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-55"
-            aria-label="加入学习后对话"
-            title="加入学习后对话"
-          >
-            <MessageSquare className="h-4.5 w-4.5" />
-          </button>
         </div>
+
+        {isMobileToolsOpen ? (
+          <div className="fixed inset-0 z-50 lg:hidden">
+            <button
+              type="button"
+              aria-label="关闭工具"
+              className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+              onClick={() => setIsMobileToolsOpen(false)}
+            />
+            <aside className="ui-message-card safe-bottom absolute inset-x-3 bottom-3 rounded-[28px] p-3">
+              <div className="mb-2 flex items-center justify-between px-1">
+                <div className="text-xs font-semibold tracking-[0.16em] text-[var(--color-text-muted)]">
+                  工具
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsMobileToolsOpen(false)}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-xl text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)]"
+                  aria-label="关闭"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="grid gap-2">
+                {[
+                  {
+                    label: "目录",
+                    meta: "章节",
+                    icon: List,
+                    onClick: () => setMobilePanel("outline"),
+                    disabled: false,
+                  },
+                  {
+                    label: "评论",
+                    meta:
+                      activeSectionAnnotations.length > 0
+                        ? `${activeSectionAnnotations.length} 条`
+                        : "当前小节",
+                    icon: MessageSquareText,
+                    onClick: () => setMobilePanel("annotations"),
+                    disabled: false,
+                  },
+                  {
+                    label:
+                      data.viewer.role === "owner"
+                        ? "作者视图"
+                        : savedCourseId
+                          ? "进入学习"
+                          : "加入学习",
+                    meta: savedCourseId ? "继续学习页" : "保存到我的课程",
+                    icon: MessageSquare,
+                    onClick: () => void saveToLibrary(),
+                    disabled: isSavingCourse || data.viewer.role === "owner",
+                  },
+                ].map((item) => (
+                  <button
+                    key={item.label}
+                    type="button"
+                    disabled={item.disabled}
+                    onClick={() => {
+                      setIsMobileToolsOpen(false);
+                      item.onClick();
+                    }}
+                    className="flex items-center gap-3 rounded-2xl px-3 py-3 text-left transition-colors hover:bg-[var(--color-panel-soft)] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--color-panel-soft)] text-[var(--color-text-secondary)]">
+                      <item.icon className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold text-[var(--color-text)]">
+                        {item.label}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-[var(--color-text-tertiary)]">
+                        {item.meta}
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </aside>
+          </div>
+        ) : null}
 
         {mobilePanel ? (
           <div className="fixed inset-0 z-50 lg:hidden">

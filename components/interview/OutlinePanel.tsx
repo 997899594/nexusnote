@@ -1,17 +1,13 @@
 "use client";
 
 import { BookOpen, Loader2, Play } from "lucide-react";
-import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import { useState } from "react";
-import { WorkspaceEmptyState } from "@/components/common";
 import { InterviewOptions, type Option } from "@/components/interview/InterviewOptions";
 import { ResearchSourceStrip } from "@/components/research/ResearchSourceStrip";
-import { useToast } from "@/components/ui/Toast";
+import { useStartCourseFromOutline } from "@/hooks/useStartCourseFromOutline";
 import type { OutlineDisplay } from "@/lib/ai/interview/models";
 import type { InterviewOutline } from "@/lib/ai/interview/schemas";
 import type { ResearchEvidenceSnapshot } from "@/lib/ai/research/evidence-snapshot";
-import { isUnauthorizedError, parseApiError, redirectToLogin } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
 interface OutlinePanelProps {
@@ -53,63 +49,15 @@ export function OutlinePanel({
   headerAction,
   className,
 }: OutlinePanelProps) {
-  const router = useRouter();
-  const [isStarting, setIsStarting] = useState(false);
-  const [startStatus, setStartStatus] = useState<string | null>(null);
-  const { addToast } = useToast();
-  const canStartLearning = Boolean(stableOutline) && !isLoading;
+  const { canStartLearning, isStarting, startStatus, startCourse } = useStartCourseFromOutline({
+    outline: stableOutline,
+    courseId,
+  });
+  const visibleActions = actionOptions.filter((action) => action.intent !== "start_course");
+  const canUseStartButton = canStartLearning && !isLoading;
 
   const handleStartLearning = async () => {
-    if (isStarting) {
-      return;
-    }
-
-    if (!stableOutline) {
-      addToast("课程蓝图还没准备好", "error");
-      return;
-    }
-
-    setIsStarting(true);
-    setStartStatus("正在创建课程...");
-    let isNavigating = false;
-    try {
-      const response = await fetch("/api/interview/create-course", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          outline: stableOutline,
-          courseId,
-        }),
-      });
-
-      if (!response.ok) {
-        throw response;
-      }
-
-      const data = (await response.json()) as { courseId?: string };
-      if (!data.courseId) {
-        throw new Error("课程已创建，但没有返回课程 ID");
-      }
-
-      setStartStatus("正在进入学习页...");
-      isNavigating = true;
-      router.replace(`/learn/${data.courseId}`);
-    } catch (error) {
-      const { message, status, code } = await parseApiError(error);
-      if (isUnauthorizedError(status, code)) {
-        redirectToLogin();
-        return;
-      }
-
-      setStartStatus(null);
-      addToast(message || "课程生成失败", "error");
-    } finally {
-      if (!isNavigating) {
-        setIsStarting(false);
-      }
-    }
+    await startCourse();
   };
 
   const handleSelectAction = (action: Option) => {
@@ -125,12 +73,12 @@ export function OutlinePanel({
     <div className={cn("ui-page-shell flex h-full flex-col", className)}>
       {/* Header */}
       {showHeader ? (
-        <div className="flex items-center justify-between gap-3 px-5 pb-4 pt-5">
+        <div className="flex items-center justify-between gap-3 px-5 pb-3 pt-5">
           <div className="flex items-center gap-2">
-            <div className="ui-primary-button flex h-9 w-9 items-center justify-center rounded-xl">
-              <BookOpen className="h-4 w-4 text-white" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--color-panel-soft)] text-[var(--color-text-secondary)]">
+              <BookOpen className="h-4 w-4" />
             </div>
-            <h2 className="text-base font-semibold text-[var(--color-text)]">课程蓝图</h2>
+            <h2 className="text-sm font-semibold text-[var(--color-text)]">蓝图</h2>
           </div>
           {headerAction}
         </div>
@@ -139,48 +87,40 @@ export function OutlinePanel({
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-5">
         {!outline && isLoading ? (
-          <WorkspaceEmptyState
-            title="正在生成课程蓝图"
-            description="我在整理课程目标、章节结构和学习成果，马上给你一版可确认的蓝图。"
-            loading
-            className="mt-10"
-          />
+          <div className="mt-10 flex items-center justify-center gap-2 text-sm text-[var(--color-text-tertiary)]">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            生成蓝图
+          </div>
         ) : !outline ? (
-          <WorkspaceEmptyState
-            icon={BookOpen}
-            title="暂无课程蓝图"
-            description="开始对话后，我会根据你的目标生成一版个性化课程蓝图。"
-            className="mt-10"
-          />
+          <div className="mt-10 text-center text-sm text-[var(--color-text-tertiary)]">
+            暂无蓝图
+          </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-5">
             {/* Course Title & Description */}
-            <div className="space-y-2">
-              <h3 className="text-lg font-bold text-[var(--color-text)]">{outline.title}</h3>
+            <div className="space-y-3">
+              <h3 className="text-xl font-semibold leading-tight tracking-[-0.04em] text-[var(--color-text)]">
+                {outline.title}
+              </h3>
               {outline.description ? (
-                <p className="text-sm leading-6 text-[var(--color-text-secondary)]">
+                <p className="line-clamp-2 text-sm leading-6 text-[var(--color-text-secondary)]">
                   {outline.description}
                 </p>
               ) : (
                 <div className="h-5 w-full animate-pulse rounded bg-[var(--color-active)]" />
               )}
-              <p className="text-xs text-[var(--color-text-tertiary)]">
-                难度：{getDifficultyLabel(outline.difficulty)}
-              </p>
-              <div className="ui-message-card rounded-2xl p-3 text-xs text-[var(--color-text-secondary)]">
-                <p>
-                  <span className="font-semibold text-[var(--color-text)]">适合人群：</span>
-                  {outline.targetAudience ?? "正在补充适合人群..."}
-                </p>
-                <p className="mt-2">
-                  <span className="font-semibold text-[var(--color-text)]">完成后你将获得：</span>
-                  {outline.learningOutcome ?? "正在补充学习成果..."}
-                </p>
+              <div className="flex flex-wrap gap-2 text-xs text-[var(--color-text-secondary)]">
+                <span className="rounded-full bg-[var(--color-panel-soft)] px-2.5 py-1">
+                  {getDifficultyLabel(outline.difficulty)}
+                </span>
+                <span className="rounded-full bg-[var(--color-panel-soft)] px-2.5 py-1">
+                  {outline.chapters.length} 章
+                </span>
               </div>
               {isLoading && (
                 <div className="flex items-center gap-2 text-xs text-[var(--color-text-tertiary)]">
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  <span>正在更新蓝图...</span>
+                  <span>更新中</span>
                 </div>
               )}
               {(outline.researchCitations?.length ?? 0) > 0 ? (
@@ -195,14 +135,10 @@ export function OutlinePanel({
                   maxVisible={4}
                 />
               ) : null}
-              {actionOptions.length > 0 ? (
-                <div className="ui-control-surface rounded-2xl p-3">
-                  <p className="text-xs font-medium text-[var(--color-text)]">快速调整</p>
-                  <p className="mt-1 text-[11px] leading-5 text-[var(--color-text-tertiary)]">
-                    可以点建议，也可以直接在输入框描述你想怎么改。
-                  </p>
+              {visibleActions.length > 0 ? (
+                <div className="rounded-2xl bg-[var(--color-panel-soft)] p-3">
                   <InterviewOptions
-                    options={actionOptions}
+                    options={visibleActions}
                     onSelect={handleSelectAction}
                     isStreaming={isLoading || isStarting}
                   />
@@ -215,49 +151,27 @@ export function OutlinePanel({
               {outline.chapters.map((chapter, index) => (
                 <div key={`${chapter.title}-${index}`} className="ui-message-card rounded-xl p-3">
                   <div className="flex items-start gap-3">
-                    {/* Chapter Number */}
                     <div
                       className={cn(
-                        "flex h-7 w-7 shrink-0 items-center justify-center rounded-full",
-                        "ui-primary-button",
-                        "text-xs font-bold",
+                        "flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--color-panel-soft)] text-xs font-semibold text-[var(--color-text-secondary)]",
                       )}
                     >
                       {index + 1}
                     </div>
 
-                    {/* Chapter Content */}
                     <div className="flex-1 min-w-0">
                       <h4 className="text-sm font-semibold text-[var(--color-text)]">
                         {chapter.title}
                       </h4>
-                      {chapter.description ? (
-                        <p className="mt-1 text-xs leading-5 text-[var(--color-text-secondary)]">
-                          {chapter.description}
-                        </p>
-                      ) : null}
                       {chapter.sections && chapter.sections.length > 0 && (
-                        <div className="mt-2 space-y-1.5">
+                        <div className="mt-2 space-y-1">
                           {chapter.sections.map((section, secIndex) => (
                             <div
                               key={`${section.title}-${secIndex}`}
-                              className="rounded-xl bg-[var(--color-panel-soft)] px-3 py-2"
+                              className="flex items-center gap-2 text-xs leading-5 text-[var(--color-text-secondary)]"
                             >
-                              <div className="flex items-start gap-2">
-                                <span className="mt-0.5 shrink-0 text-xs text-[var(--color-text-tertiary)]">
-                                  {index + 1}.{secIndex + 1}
-                                </span>
-                                <div className="min-w-0">
-                                  <p className="text-xs font-medium text-[var(--color-text)]">
-                                    {section.title}
-                                  </p>
-                                  {section.description ? (
-                                    <p className="mt-1 text-[11px] leading-5 text-[var(--color-text-tertiary)]">
-                                      {section.description}
-                                    </p>
-                                  ) : null}
-                                </div>
-                              </div>
+                              <span className="h-1 w-1 shrink-0 rounded-full bg-black/20" />
+                              <span className="line-clamp-1">{section.title}</span>
                             </div>
                           ))}
                         </div>
@@ -284,7 +198,7 @@ export function OutlinePanel({
               <button
                 type="button"
                 onClick={handleStartLearning}
-                disabled={isStarting || !canStartLearning}
+                disabled={isStarting || !canUseStartButton}
                 className={cn(
                   "w-full flex items-center justify-center gap-2 rounded-xl px-4 py-3",
                   "ui-primary-button",
@@ -300,23 +214,18 @@ export function OutlinePanel({
                 )}
                 <span>
                   {isStarting
-                    ? "生成中..."
-                    : canStartLearning
+                    ? startStatus || "生成中"
+                    : canUseStartButton
                       ? "生成课程并开始学习"
                       : isLoading
                         ? stableOutline
-                          ? "正在更新蓝图..."
-                          : "正在生成蓝图..."
+                          ? "更新中"
+                          : "生成中"
                         : "等待蓝图"}
                 </span>
               </button>
               {startStatus ? (
                 <p className="mt-2 text-xs text-[var(--color-text-tertiary)]">{startStatus}</p>
-              ) : null}
-              {isLoading && stableOutline ? (
-                <p className="mt-2 text-xs text-[var(--color-text-tertiary)]">
-                  蓝图正在更新，完成后再开始学习，避免进入旧版本课程。
-                </p>
               ) : null}
             </div>
           </div>

@@ -62,6 +62,12 @@ export function LearnChat({ courseId, courseTitle, onCollapse }: LearnChatProps)
 
   const currentChapter = chapters[currentChapterIndex];
   const currentSection = currentChapter?.sections[currentSectionIndex];
+  const chatContextTitle = currentSection?.title ?? currentChapter?.title ?? courseTitle;
+  const chatContextMeta = currentSection
+    ? currentChapter?.title
+    : currentChapter
+      ? courseTitle
+      : "当前课程";
   const quickPrompts = useMemo(
     () =>
       buildLearnQuickPrompts({
@@ -329,8 +335,11 @@ export function LearnChat({ courseId, courseTitle, onCollapse }: LearnChatProps)
       <div className="safe-top border-b border-black/[0.04] bg-white/82 px-4 pb-3 pt-3 backdrop-blur-xl md:px-5 md:py-4">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <p className="truncate text-xs text-[var(--color-text-secondary)]">
-              {currentSection?.title ?? currentChapter?.title ?? courseTitle}
+            <p className="truncate text-sm font-medium text-[var(--color-text)]">
+              {chatContextTitle}
+            </p>
+            <p className="mt-0.5 truncate text-[0.6875rem] text-[var(--color-text-tertiary)]">
+              {chatContextMeta}
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
