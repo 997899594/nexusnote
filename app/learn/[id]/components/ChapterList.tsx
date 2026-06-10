@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { stripSectionNumber } from "@/lib/learning/content-formatting";
 import { useLearnStore } from "@/stores/learn";
 
 export function ChapterList() {
@@ -73,7 +74,7 @@ export function ChapterList() {
                       isCurrent ? "font-semibold" : "font-medium",
                     )}
                   >
-                    {chapter.title}
+                    {stripSectionNumber(chapter.title)}
                   </div>
                   <div className="mt-1 text-[0.625rem] leading-none text-[var(--color-text-muted)]">
                     {chapter.sections.length} 节
@@ -148,7 +149,7 @@ export function ChapterList() {
                                   aria-hidden="true"
                                 />
                                 <div className="min-w-0 flex-1">
-                                  <span className="block truncate font-medium">{sec.title}</span>
+                                  <span className="block truncate font-medium">{stripSectionNumber(sec.title)}</span>
                                 </div>
                               </div>
                             </button>

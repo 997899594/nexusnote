@@ -23,6 +23,8 @@ import {
 import { conversationMessages, conversations } from "./schema/conversations";
 import {
   coursePublicAnnotations,
+  coursePublicationLikes,
+  coursePublicationUrges,
   coursePublicationSaves,
   coursePublicationSnapshots,
   coursePublications,
@@ -94,6 +96,8 @@ export const usersRelations = relations(users, ({ many }) => ({
   ownedCoursePublications: many(coursePublications),
   coursePublicAnnotations: many(coursePublicAnnotations),
   coursePublicationSaves: many(coursePublicationSaves),
+  coursePublicationLikes: many(coursePublicationLikes),
+  coursePublicationUrges: many(coursePublicationUrges),
   researchRuns: many(researchRuns),
   billingOrders: many(billingOrders),
   entitlements: many(userEntitlements),
@@ -296,6 +300,8 @@ export const coursePublicationsRelations = relations(coursePublications, ({ one,
   snapshots: many(coursePublicationSnapshots),
   annotations: many(coursePublicAnnotations),
   saves: many(coursePublicationSaves),
+  likes: many(coursePublicationLikes),
+  urges: many(coursePublicationUrges),
 }));
 
 export const coursePublicationSnapshotsRelations = relations(
@@ -349,6 +355,29 @@ export const coursePublicationSavesRelations = relations(coursePublicationSaves,
   savedCourse: one(courses, {
     fields: [coursePublicationSaves.savedCourseId],
     references: [courses.id],
+  }),
+}));
+
+
+export const coursePublicationLikesRelations = relations(coursePublicationLikes, ({ one }) => ({
+  publication: one(coursePublications, {
+    fields: [coursePublicationLikes.publicationId],
+    references: [coursePublications.id],
+  }),
+  user: one(users, {
+    fields: [coursePublicationLikes.userId],
+    references: [users.id],
+  }),
+}));
+
+export const coursePublicationUrgesRelations = relations(coursePublicationUrges, ({ one }) => ({
+  publication: one(coursePublications, {
+    fields: [coursePublicationUrges.publicationId],
+    references: [coursePublications.id],
+  }),
+  user: one(users, {
+    fields: [coursePublicationUrges.userId],
+    references: [users.id],
   }),
 }));
 

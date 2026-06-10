@@ -187,3 +187,48 @@ export type CoursePublicAnnotation = typeof coursePublicAnnotations.$inferSelect
 export type NewCoursePublicAnnotation = typeof coursePublicAnnotations.$inferInsert;
 export type CoursePublicationSave = typeof coursePublicationSaves.$inferSelect;
 export type NewCoursePublicationSave = typeof coursePublicationSaves.$inferInsert;
+
+export const coursePublicationLikes = pgTable(
+  "course_publication_likes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    publicationId: uuid("publication_id")
+      .references(() => coursePublications.id, { onDelete: "cascade" })
+      .notNull(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    userPublicationUniqueIdx: uniqueIndex(
+      "course_publication_likes_user_publication_unique_idx",
+    ).on(table.userId, table.publicationId),
+    publicationIdx: index("course_publication_likes_publication_idx").on(table.publicationId),
+  }),
+);
+
+export const coursePublicationUrges = pgTable(
+  "course_publication_urges",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    publicationId: uuid("publication_id")
+      .references(() => coursePublications.id, { onDelete: "cascade" })
+      .notNull(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    userPublicationUniqueIdx: uniqueIndex(
+      "course_publication_urges_user_publication_unique_idx",
+    ).on(table.userId, table.publicationId),
+    publicationIdx: index("course_publication_urges_publication_idx").on(table.publicationId),
+  }),
+);
+
+export type CoursePublicationLike = typeof coursePublicationLikes.$inferSelect;
+export type NewCoursePublicationLike = typeof coursePublicationLikes.$inferInsert;
+export type CoursePublicationUrge = typeof coursePublicationUrges.$inferSelect;
+export type NewCoursePublicationUrge = typeof coursePublicationUrges.$inferInsert;

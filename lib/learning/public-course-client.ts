@@ -104,3 +104,30 @@ export function mergePublicAnnotationMutation<
     status: result.annotation?.status ?? fallbackStatus,
   };
 }
+
+export interface ToggleLikeResult {
+  liked: boolean;
+}
+
+export interface SubmitUrgeResult {
+  urged: boolean;
+}
+
+export async function togglePublicCourseLike(params: {
+  publicationSlug: string;
+}): Promise<ToggleLikeResult> {
+  return readJsonResponse<ToggleLikeResult>(
+    await fetch(publicCourseApiPath(params.publicationSlug, "/like"), { method: "POST" }),
+    "Failed to toggle like.",
+  );
+}
+
+export async function submitPublicCourseUrge(params: {
+  publicationSlug: string;
+}): Promise<SubmitUrgeResult> {
+  return readJsonResponse<SubmitUrgeResult>(
+    await fetch(publicCourseApiPath(params.publicationSlug, "/urge"), { method: "POST" }),
+    "Failed to submit urge.",
+  );
+}
+

@@ -1,11 +1,13 @@
 "use client";
 
 import {
+  Bell,
   BookOpenText,
   ChevronDown,
   Copy,
   ExternalLink,
   EyeOff,
+  Heart,
   Link2,
   List,
   MessageSquare,
@@ -21,7 +23,7 @@ import { TextSelectionActionBar } from "@/components/course-reader/TextSelection
 import { AppBackLink } from "@/components/shared/layout";
 import { useToast } from "@/components/ui/Toast";
 import { useTextAnchorHighlights } from "@/hooks/useTextAnchorHighlights";
-import { stripLeadingSectionHeading } from "@/lib/learning/content-formatting";
+import { stripLeadingSectionHeading, stripSectionNumber } from "@/lib/learning/content-formatting";
 import type {
   PublicCourseAnnotationProjection,
   PublicCourseReaderProjection,
@@ -30,6 +32,8 @@ import {
   createPublicAnnotation,
   mergePublicAnnotationMutation,
   savePublicCourseToLibrary,
+  submitPublicCourseUrge,
+  togglePublicCourseLike,
   updatePublicAnnotationStatus,
 } from "@/lib/learning/public-course-client";
 import { PAGE_BACK_TARGETS } from "@/lib/navigation/app-navigation";
@@ -73,6 +77,10 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
   );
   const [annotations, setAnnotations] = useState(data.annotations);
   const [savedCourseId, setSavedCourseId] = useState(data.savedCourseId);
+  const [liked, setLiked] = useState(data.viewer.liked);
+  const [urged, setUrged] = useState(data.viewer.urged);
+  const [likesCount, setLikesCount] = useState(data.engagement.likesCount);
+  const [urgesCount, setUrgesCount] = useState(data.engagement.urgesCount);
   const [selectionDraft, setSelectionDraft] = useState<SelectionDraft | null>(null);
   const [annotationBody, setAnnotationBody] = useState("");
   const [activeAnnotationId, setActiveAnnotationId] = useState<string | null>(null);
@@ -244,6 +252,44 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
     setAnnotationBody("");
   };
 
+  const toggleLike = async () => {
+    if (!data.viewer.userId) {
+      window.location.assign(
+        `/login?callbackUrl=${encodeURIComponent(`/c/${data.publication.slug}`)}`,
+      );
+      return;
+    }
+
+    try {
+      const result = await togglePublicCourseLike({
+        publicationSlug: data.publication.slug,
+      });
+      setLiked(result.liked);
+      setLikesCount((c) => c + (result.liked ? 1 : -1));
+    } catch {
+      addToast("\u64cd\u4f5c\u5931\u8d25\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5", "error");
+    }
+  };
+
+  const toggleUrge = async () => {
+    if (!data.viewer.userId) {
+      window.location.assign(
+        `/login?callbackUrl=${encodeURIComponent(`/c/${data.publication.slug}`)}`,
+      );
+      return;
+    }
+
+    try {
+      const result = await submitPublicCourseUrge({
+        publicationSlug: data.publication.slug,
+      });
+      setUrged(result.urged);
+      setUrgesCount((c) => c + (result.urged ? 1 : -1));
+    } catch {
+      addToast("\u64cd\u4f5c\u5931\u8d25\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5", "error");
+    }
+  };
+
   const saveToLibrary = async () => {
     if (savedCourseId) {
       window.location.assign(`/learn/${savedCourseId}`);
@@ -345,11 +391,11 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
             当前小节
           </div>
           <div className="line-clamp-3 text-[0.98rem] font-semibold leading-snug text-[var(--color-text)]">
-            {activeSectionTitle}
+            {stripSectionNumber(activeSectionTitle)}
           </div>
           {activeChapter ? (
             <p className="mt-2 line-clamp-2 text-xs leading-5 text-[var(--color-text-secondary)]">
-              第 {activeChapterIndex + 1} 章 · {activeChapter.title}
+              第 {activeChapterIndex + 1} 章 · {stripSectionNumber(activeChapter.title)}
             </p>
           ) : null}
           <p className="mt-2 line-clamp-1 text-[0.6875rem] leading-5 text-[var(--color-text-tertiary)]">
@@ -426,7 +472,7 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
                           isCurrentChapter ? "font-semibold" : "font-medium",
                         )}
                       >
-                        {chapter.title}
+                        {stripSectionNumber(chapter.title)}
                       </div>
                       <div className="mt-1 flex items-center gap-1.5 text-[0.625rem] leading-none text-[var(--color-text-muted)]">
                         <span>{chapter.sections.length} 节</span>
@@ -483,7 +529,7 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
                                 aria-hidden="true"
                               />
                               <div className="min-w-0 flex-1">
-                                <span className="block truncate font-medium">{section.title}</span>
+                                <span className="block truncate font-medium">{stripSectionNumber(section.title)}</span>
                               </div>
                               {annotationCount > 0 ? (
                                 <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-black/[0.035] px-1.5 py-0.5 text-[0.625rem] leading-none text-[var(--color-text-tertiary)]">
@@ -600,7 +646,7 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
           <header className="safe-top sticky top-0 z-20 flex shrink-0 flex-col gap-3 border-b border-black/[0.06] bg-white/96 px-5 py-3 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between lg:static lg:px-7">
             <div className="min-w-0">
               <div className="line-clamp-1 text-sm font-semibold text-[var(--color-text)] lg:hidden">
-                {activeSectionTitle}
+                {stripSectionNumber(activeSectionTitle)}
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-[0.6875rem] font-medium text-[var(--color-text-tertiary)] lg:mt-0">
                 <span className="inline-flex items-center gap-1.5">
@@ -626,6 +672,32 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
                 title="复制公开链接"
               >
                 <Copy className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => void toggleLike()}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition-colors",
+                  liked
+                    ? "border-red-200 bg-red-50 text-red-600"
+                    : "border-black/8 bg-white text-[var(--color-text-secondary)] hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]",
+                )}
+              >
+                <Heart className={cn("h-3.5 w-3.5", liked && "fill-red-500")} />
+                <span>{likesCount > 0 ? likesCount : "\u70b9\u8d5e"}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => void toggleUrge()}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition-colors",
+                  urged
+                    ? "border-amber-200 bg-amber-50 text-amber-700"
+                    : "border-black/8 bg-white text-[var(--color-text-secondary)] hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]",
+                )}
+              >
+                <Bell className={cn("h-3.5 w-3.5", urged && "fill-amber-500")} />
+                <span>{urgesCount > 0 ? urgesCount : "\u50ac\u66f4"}</span>
               </button>
               <button
                 type="button"
@@ -657,11 +729,11 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
                         <div className="mb-3 flex flex-wrap items-center gap-2 text-[0.6875rem] font-medium text-[var(--color-text-tertiary)]">
                           <span>第 {activeChapterIndex + 1} 章</span>
                           <span className="h-1 w-1 rounded-full bg-black/20" aria-hidden="true" />
-                          <span className="line-clamp-1">{activeChapter.title}</span>
+                          <span className="line-clamp-1">{stripSectionNumber(activeChapter.title)}</span>
                         </div>
                       ) : null}
                       <h1 className="text-[2rem] font-semibold leading-tight text-[var(--color-text)] md:text-[2.15rem]">
-                        {activeSectionTitle}
+                        {stripSectionNumber(activeSectionTitle)}
                       </h1>
                       {activeSectionIntro ? (
                         <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--color-text-secondary)]">

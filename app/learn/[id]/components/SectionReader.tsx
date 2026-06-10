@@ -21,7 +21,7 @@ import { useToast } from "@/components/ui/Toast";
 import type { Annotation } from "@/hooks/useAnnotations";
 import { useAnnotations } from "@/hooks/useAnnotations";
 import type { SectionState } from "@/hooks/useChapterSections";
-import { stripLeadingSectionHeading } from "@/lib/learning/content-formatting";
+import { stripLeadingSectionHeading, stripSectionNumber } from "@/lib/learning/content-formatting";
 import { persistCompletedSection } from "@/lib/learning/learn-progress-client";
 import type {
   LearnChapterProjection,
@@ -550,7 +550,7 @@ function SectionBlock({
 
         <SectionIntro
           chapterIndex={chapterIndex}
-          chapterTitle={chapter.title}
+          chapterTitle={stripSectionNumber(chapter.title)}
           sectionTitle={sectionTitle}
           sectionDescription={sectionDescription}
           chapterDescription={chapter.description}
@@ -930,7 +930,7 @@ export function SectionReader({
             chapterIndex={currentChapterIndex}
             chapter={currentChapter}
             sectionIndex={currentSectionIndex}
-            sectionTitle={currentSection.title}
+            sectionTitle={stripSectionNumber(currentSection.title)}
             sectionDescription={currentSection.description}
             state={currentSectionState}
             sectionDoc={sectionDocs.find((doc) => doc.outlineNodeKey === currentSection.nodeId)}

@@ -11,6 +11,7 @@ import { useChapterSections } from "@/hooks/useChapterSections";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import type { LearnPageProjection, LearnResumeState } from "@/lib/learning/projection";
 import { PAGE_BACK_TARGETS } from "@/lib/navigation/app-navigation";
+import { stripSectionNumber } from "@/lib/learning/content-formatting";
 import { cn } from "@/lib/utils";
 import { useLearnStore } from "@/stores/learn";
 
@@ -98,7 +99,7 @@ export function LearnClient({
 
   const currentChapter = chapters[currentChapterIndex];
   const currentSection = currentChapter?.sections[currentSectionIndex] ?? null;
-  const mobileHeaderTitle = currentSection?.title ?? currentChapter?.title ?? courseTitle;
+  const mobileHeaderTitle = stripSectionNumber(currentSection?.title ?? currentChapter?.title ?? courseTitle);
 
   // Build initialContent map for the current chapter's sections
   const initialContent = useMemo(() => {

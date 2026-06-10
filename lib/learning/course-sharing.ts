@@ -8,6 +8,8 @@ import {
   courseOutlineVersions,
   courseProgress,
   coursePublicAnnotations,
+  coursePublicationLikes,
+  coursePublicationUrges,
   coursePublicationSaves,
   coursePublicationSnapshots,
   coursePublications,
@@ -25,7 +27,7 @@ import type {
   CoursePublicAnnotationStatus,
   CoursePublicationSnapshotContent,
 } from "@/db/schema/course-sharing";
-import { getCoursePublicationTag } from "@/lib/cache/tags";
+import { getCoursePublicationTag, revalidateCoursePublication } from "@/lib/cache/tags";
 import type { CourseOutline } from "@/lib/learning/course-outline";
 import { getOwnedCourseWithOutline } from "@/lib/learning/course-repository";
 import type {
@@ -448,6 +450,39 @@ function getPublicCourseViewerRole(
   return viewerUserId === ownerUserId ? "owner" : "reader";
 }
 
+
+async function loadEngagementData(
+  publicationId: string,
+  userId: string | null,
+): Promise<{ likesCount: number; urgesCount: number; userLiked: boolean; userUrged: boolean }> {
+  const [counts] = await db.execute(
+    sql`select
+      (select count(*) from course_publication_likes where publication_id = ${publicationId}::uuid)::int as likes_count,
+      (select count(*) from course_publication_urges where publication_id = ${publicationId}::uuid)::int as urges_count`,
+  );
+  const row = counts as unknown as { likes_count: number; urges_count: number };
+  const likesCount = row?.likes_count ?? 0;
+  const urgesCount = row?.urges_count ?? 0;
+
+  if (!userId) {
+    return { likesCount, urgesCount, userLiked: false, userUrged: false };
+  }
+
+  const [likeRow] = await db
+    .select({ id: coursePublicationLikes.id })
+    .from(coursePublicationLikes)
+    .where(and(eq(coursePublicationLikes.publicationId, publicationId), eq(coursePublicationLikes.userId, userId)))
+    .limit(1);
+
+  const [urgeRow] = await db
+    .select({ id: coursePublicationUrges.id })
+    .from(coursePublicationUrges)
+    .where(and(eq(coursePublicationUrges.publicationId, publicationId), eq(coursePublicationUrges.userId, userId)))
+    .limit(1);
+
+  return { likesCount, urgesCount, userLiked: !!likeRow, userUrged: !!urgeRow };
+}
+
 export async function getPublicCourseReaderData(
   slug: string,
   viewerUserId: string | null,
@@ -458,13 +493,14 @@ export async function getPublicCourseReaderData(
   }
 
   const role = getPublicCourseViewerRole(snapshot.publication.ownerUserId, viewerUserId);
-  const [annotations, savedCourseId] = await Promise.all([
+  const [annotations, savedCourseId, engagement] = await Promise.all([
     role === "owner"
       ? loadAnnotations(snapshot.publication.id, snapshot.snapshotId, ["visible", "hidden"])
       : Promise.resolve(snapshot.visibleAnnotations),
     role === "owner"
       ? Promise.resolve(null)
       : loadSavedCourseId(snapshot.publication.id, viewerUserId),
+    loadEngagementData(snapshot.publication.id, viewerUserId),
   ]);
 
   return {
@@ -483,6 +519,12 @@ export async function getPublicCourseReaderData(
     viewer: {
       userId: viewerUserId,
       role,
+      liked: engagement.userLiked,
+      urged: engagement.userUrged,
+    },
+    engagement: {
+      likesCount: engagement.likesCount,
+      urgesCount: engagement.urgesCount,
     },
     capabilities: {
       canAnnotatePublicly: Boolean(viewerUserId && snapshot.publication.allowAnnotations),
@@ -790,3 +832,76 @@ export async function savePublicCourseToLibrary(params: {
     return { courseId: createdCourse.id, alreadySaved: false };
   });
 }
+
+export async function togglePublicCourseLike(params: {
+  slug: string;
+  userId: string;
+}): Promise<{ liked: boolean }> {
+  const publication = await db.query.coursePublications.findFirst({
+    where: and(eq(coursePublications.slug, params.slug), eq(coursePublications.status, "published")),
+  });
+
+  if (!publication) {
+    throw new Error("COURSE_PUBLICATION_NOT_FOUND");
+  }
+
+  const existing = await db.query.coursePublicationLikes.findFirst({
+    where: and(
+      eq(coursePublicationLikes.publicationId, publication.id),
+      eq(coursePublicationLikes.userId, params.userId),
+    ),
+  });
+
+  if (existing) {
+    await db
+      .delete(coursePublicationLikes)
+      .where(eq(coursePublicationLikes.id, existing.id));
+    revalidateCoursePublication(publication.slug);
+    return { liked: false };
+  }
+
+  await db.insert(coursePublicationLikes).values({
+    publicationId: publication.id,
+    userId: params.userId,
+  });
+
+  revalidateCoursePublication(publication.slug);
+  return { liked: true };
+}
+
+export async function submitPublicCourseUrge(params: {
+  slug: string;
+  userId: string;
+}): Promise<{ urged: boolean }> {
+  const publication = await db.query.coursePublications.findFirst({
+    where: and(eq(coursePublications.slug, params.slug), eq(coursePublications.status, "published")),
+  });
+
+  if (!publication) {
+    throw new Error("COURSE_PUBLICATION_NOT_FOUND");
+  }
+
+  const existing = await db.query.coursePublicationUrges.findFirst({
+    where: and(
+      eq(coursePublicationUrges.publicationId, publication.id),
+      eq(coursePublicationUrges.userId, params.userId),
+    ),
+  });
+
+  if (existing) {
+    await db
+      .delete(coursePublicationUrges)
+      .where(eq(coursePublicationUrges.id, existing.id));
+    revalidateCoursePublication(publication.slug);
+    return { urged: false };
+  }
+
+  await db.insert(coursePublicationUrges).values({
+    publicationId: publication.id,
+    userId: params.userId,
+  });
+
+  revalidateCoursePublication(publication.slug);
+  return { urged: true };
+}
+

@@ -33,6 +33,12 @@ export interface PublicCourseReaderProjection {
   viewer: {
     userId: string | null;
     role: "owner" | "reader" | "guest";
+    liked: boolean;
+    urged: boolean;
+  };
+  engagement: {
+    likesCount: number;
+    urgesCount: number;
   };
   capabilities: {
     canAnnotatePublicly: boolean;
