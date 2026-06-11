@@ -590,57 +590,35 @@
 
 /* Lists */
 .learn-prose ul {
-  list-style: none;
-  padding-left: 1.5rem;
-  margin-bottom: 1rem;
-}
-
-.learn-prose ul li {
-  position: relative;
-  margin-bottom: 0.5rem;
-  padding-left: 0.25rem;
-}
-
-.learn-prose ul li::before {
-  content: "";
-  position: absolute;
-  left: -1rem;
-  top: 0.65em;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: oklch(50% 0.03 250 / 50%);
+  list-style: disc;
+  margin: 1rem 0 1.15rem;
+  padding-left: 1.35rem;
 }
 
 .learn-prose ol {
-  list-style: none;
-  padding-left: 1.5rem;
-  margin-bottom: 1rem;
-  counter-reset: item;
+  list-style: decimal;
+  margin: 1rem 0 1.15rem;
+  padding-left: 1.45rem;
 }
 
-.learn-prose ol li {
-  position: relative;
-  margin-bottom: 0.5rem;
-  padding-left: 0.25rem;
-  counter-increment: item;
+.learn-prose li {
+  margin: 0.45rem 0;
+  padding-left: 0.3rem;
 }
 
-.learn-prose ol li::before {
-  content: counter(item);
-  position: absolute;
-  left: -1.5rem;
-  top: 0.1em;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: oklch(50% 0.03 250);
-  background: oklch(95% 0.01 250);
-  width: 1.25rem;
-  height: 1.25rem;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.learn-prose li::marker {
+  color: oklch(48% 0.018 250 / 68%);
+  font-size: 0.82em;
+  font-weight: 650;
+}
+
+.learn-prose ul li::marker {
+  font-size: 0.65em;
+}
+
+.learn-prose li > ul,
+.learn-prose li > ol {
+  margin: 0.35rem 0 0.5rem;
 }
 
 /* Blockquote */
@@ -671,14 +649,37 @@
 }
 
 /* Code block */
-.learn-prose pre {
-  background: linear-gradient(180deg, oklch(18% 0.012 250), oklch(16% 0.012 250));
-  border-radius: 1rem;
-  padding: 1rem 1.1rem;
+.learn-prose [data-streamdown="code-block"] {
   margin: 1.25rem 0;
-  overflow-x: auto;
-  border: 1px solid oklch(26% 0.015 250);
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid oklch(28% 0.012 250);
+  border-radius: 1rem;
+  background: oklch(16% 0.012 250);
+  padding: 0;
   box-shadow: 0 22px 40px -34px rgba(15, 23, 42, 0.38);
+}
+
+.learn-prose [data-streamdown="code-block-header"],
+.learn-prose [data-streamdown="code-block-actions"] {
+  display: none;
+}
+
+.learn-prose [data-streamdown="code-block-body"] {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.learn-prose pre {
+  margin: 0;
+  background: transparent;
+  border-radius: 0;
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  border: 0;
+  box-shadow: none;
 }
 
 .learn-prose pre code {

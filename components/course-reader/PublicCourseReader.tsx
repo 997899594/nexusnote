@@ -433,7 +433,7 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
             </div>
           ) : null}
         </div>
-        <div className="space-y-0.5">
+        <div className="space-y-1">
           {data.content.outline.chapters.map((chapter, chapterIndex) => {
             const chapterKey = getChapterKey(chapter.title, chapterIndex);
             const isExpanded = expandedChapterKeys.has(chapterKey);
@@ -450,17 +450,19 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
                   type="button"
                   onClick={() => selectChapter(chapterKey, chapter.sections[0]?.nodeId)}
                   className={cn(
-                    "group w-full rounded-2xl px-2.5 py-2.5 text-left transition-colors duration-200",
+                    "group w-full rounded-xl px-2 py-2 text-left transition-colors duration-200",
                     isCurrentChapter
-                      ? "bg-[var(--color-panel-soft)] text-[var(--color-text)]"
+                      ? "text-[var(--color-text)]"
                       : "text-[var(--color-text-secondary)] hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)]",
                   )}
                 >
-                  <div className="flex items-start gap-2.5">
+                  <div className="flex items-center gap-2.5">
                     <span
                       className={cn(
-                        "mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full transition-colors",
-                        isCurrentChapter ? "bg-[var(--color-text)]" : "bg-black/10",
+                        "h-5 w-px shrink-0 rounded-full transition-colors",
+                        isCurrentChapter
+                          ? "bg-[var(--color-text)]"
+                          : "bg-transparent group-hover:bg-black/10",
                       )}
                       aria-hidden="true"
                     />
@@ -474,18 +476,13 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
                       >
                         {stripSectionNumber(chapter.title)}
                       </div>
-                      <div className="mt-1 flex items-center gap-1.5 text-[0.625rem] leading-none text-[var(--color-text-muted)]">
-                        <span>{chapter.sections.length} 节</span>
-                        {chapterAnnotationCount > 0 ? (
-                          <>
-                            <span className="h-0.5 w-0.5 rounded-full bg-black/20" />
-                            <span>{chapterAnnotationCount} 评论</span>
-                          </>
-                        ) : null}
+                      <div className="mt-1 text-[0.625rem] leading-none text-[var(--color-text-muted)]">
+                        {chapter.sections.length} 节
+                        {chapterAnnotationCount > 0 ? ` · ${chapterAnnotationCount} 评论` : ""}
                       </div>
                     </div>
 
-                    <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[var(--color-text-tertiary)] transition-colors group-hover:text-[var(--color-text-secondary)]">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center text-[var(--color-text-tertiary)] transition-colors group-hover:text-[var(--color-text-secondary)]">
                       <ChevronDown
                         className={cn(
                           "h-3.5 w-3.5 transition-transform duration-200",
@@ -497,8 +494,8 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
                 </button>
 
                 {isExpanded ? (
-                  <div className="ml-[1.1rem] overflow-hidden border-l border-black/[0.06] py-1 pl-3">
-                    <div className="space-y-px">
+                  <div className="ml-[0.5rem] overflow-hidden border-l border-black/[0.06] py-1 pl-3">
+                    <div className="space-y-0.5">
                       {chapter.sections.map((section) => {
                         const active = section.nodeId === activeSectionKey;
                         const annotationCount =
@@ -510,31 +507,30 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
                             type="button"
                             onClick={() => selectSection(section.nodeId)}
                             className={cn(
-                              "relative w-full rounded-xl px-2.5 py-2 text-left text-[0.8125rem] transition-colors",
+                              "relative w-full rounded-lg px-2 py-1.5 text-left text-[0.8125rem] transition-colors",
                               active
-                                ? "bg-white text-[var(--color-text)] shadow-[inset_0_0_0_1px_rgba(15,23,42,0.05)]"
+                                ? "text-[var(--color-text)]"
                                 : "text-[var(--color-text-secondary)] hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)]",
                             )}
                           >
-                            <div className="flex items-center gap-2.5">
-                              <span
-                                className="absolute -left-3 top-1/2 h-px w-2 bg-black/[0.08]"
-                                aria-hidden="true"
-                              />
+                            <span
+                              className={cn(
+                                "absolute -left-[13px] top-2 bottom-2 w-px rounded-full transition-colors",
+                                active ? "bg-[var(--color-text)]" : "bg-transparent",
+                              )}
+                              aria-hidden="true"
+                            />
+                            <div className="flex items-center gap-2">
                               <span
                                 className={cn(
-                                  "h-1 w-1 shrink-0 rounded-full",
-                                  active ? "bg-[var(--color-text)]" : "bg-black/10",
+                                  "block min-w-0 flex-1 truncate",
+                                  active ? "font-semibold" : "font-medium",
                                 )}
-                                aria-hidden="true"
-                              />
-                              <div className="min-w-0 flex-1">
-                                <span className="block truncate font-medium">
-                                  {stripSectionNumber(section.title)}
-                                </span>
-                              </div>
+                              >
+                                {stripSectionNumber(section.title)}
+                              </span>
                               {annotationCount > 0 ? (
-                                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-black/[0.035] px-1.5 py-0.5 text-[0.625rem] leading-none text-[var(--color-text-tertiary)]">
+                                <span className="inline-flex shrink-0 items-center gap-1 text-[0.625rem] leading-none text-[var(--color-text-muted)]">
                                   <MessageSquareText className="h-3 w-3" />
                                   {annotationCount}
                                 </span>
@@ -768,7 +764,10 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
                   <div className="relative">
                     <div ref={articleContentRef} className="learn-prose pb-10 md:pb-12">
                       {activeSectionContent ? (
-                        <StreamdownMessage content={activeSectionContent} />
+                        <StreamdownMessage
+                          content={activeSectionContent}
+                          controls={{ code: false }}
+                        />
                       ) : (
                         <p className="text-sm text-[var(--color-text-secondary)]">
                           这一节还没有公开内容。

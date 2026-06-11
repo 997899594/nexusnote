@@ -28,7 +28,7 @@ export function ChapterList() {
   }
 
   return (
-    <div className="space-y-0.5">
+    <div className="space-y-1">
       {chapters.map((chapter, chIdx) => {
         const isExpanded = expandedChapters.has(chIdx);
         const isCurrent = chIdx === currentChapterIndex;
@@ -48,21 +48,21 @@ export function ChapterList() {
                 }
               }}
               className={cn(
-                "group w-full rounded-2xl px-2.5 py-2.5 text-left transition-colors duration-200",
+                "group w-full rounded-xl px-2 py-2 text-left transition-colors duration-200",
                 isCurrent
-                  ? "bg-[var(--color-panel-soft)] text-[var(--color-text)]"
+                  ? "text-[var(--color-text)]"
                   : "text-[var(--color-text-secondary)] hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)]",
               )}
             >
-              <div className="flex items-start gap-2.5">
+              <div className="flex items-center gap-2.5">
                 <span
                   className={cn(
-                    "mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full transition-colors",
+                    "h-5 w-px shrink-0 rounded-full transition-colors",
                     isCurrent
                       ? "bg-[var(--color-text)]"
                       : isChapterComplete
-                        ? "bg-[var(--color-text-muted)]"
-                        : "bg-black/10",
+                        ? "bg-black/20"
+                        : "bg-transparent group-hover:bg-black/10",
                   )}
                   aria-hidden="true"
                 />
@@ -83,7 +83,7 @@ export function ChapterList() {
 
                 <span
                   className={cn(
-                    "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-colors",
+                    "flex h-6 w-6 shrink-0 items-center justify-center transition-colors",
                     "text-[var(--color-text-tertiary)] group-hover:text-[var(--color-text-secondary)]",
                   )}
                 >
@@ -106,8 +106,8 @@ export function ChapterList() {
                   transition={{ duration: 0.2 }}
                   className="overflow-hidden"
                 >
-                  <div className="ml-[1.1rem] border-l border-black/[0.06] py-1 pl-3">
-                    <div className="space-y-px">
+                  <div className="ml-[0.5rem] border-l border-black/[0.06] py-1 pl-3">
+                    <div className="space-y-0.5">
                       {chapter.sections.map((sec, secIdx) => {
                         const isCompleted = completedSections.has(sec.nodeId);
                         const isCurrentSection = isCurrent && secIdx === currentSectionIndex;
@@ -126,33 +126,34 @@ export function ChapterList() {
                                 setSidebarOpen(false);
                               }}
                               className={cn(
-                                "relative w-full rounded-xl px-2.5 py-2 text-left text-[0.8125rem] transition-colors",
+                                "relative w-full rounded-lg px-2 py-1.5 text-left text-[0.8125rem] transition-colors",
                                 isCurrentSection || isRequestedSection
-                                  ? "bg-white text-[var(--color-text)] shadow-[inset_0_0_0_1px_rgba(15,23,42,0.05)]"
+                                  ? "text-[var(--color-text)]"
                                   : "text-[var(--color-text-secondary)] hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)]",
                               )}
                             >
-                              <div className="flex items-center gap-2.5">
-                                <span
-                                  className="absolute -left-3 top-1/2 h-px w-2 bg-black/[0.08]"
-                                  aria-hidden="true"
-                                />
+                              <span
+                                className={cn(
+                                  "absolute -left-[13px] top-2 bottom-2 w-px rounded-full transition-colors",
+                                  isCurrentSection || isRequestedSection
+                                    ? "bg-[var(--color-text)]"
+                                    : isCompleted
+                                      ? "bg-black/16"
+                                      : "bg-transparent",
+                                )}
+                                aria-hidden="true"
+                              />
+                              <div className="flex items-center">
                                 <span
                                   className={cn(
-                                    "h-1 w-1 shrink-0 rounded-full",
+                                    "block min-w-0 flex-1 truncate",
                                     isCurrentSection || isRequestedSection
-                                      ? "bg-[var(--color-text)]"
-                                      : isCompleted
-                                        ? "bg-[var(--color-text-muted)]"
-                                        : "bg-black/10",
+                                      ? "font-semibold"
+                                      : "font-medium",
                                   )}
-                                  aria-hidden="true"
-                                />
-                                <div className="min-w-0 flex-1">
-                                  <span className="block truncate font-medium">
-                                    {stripSectionNumber(sec.title)}
-                                  </span>
-                                </div>
+                                >
+                                  {stripSectionNumber(sec.title)}
+                                </span>
                               </div>
                             </button>
                           </div>

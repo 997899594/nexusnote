@@ -11,13 +11,14 @@ import { cjk } from "@streamdown/cjk";
 import { code } from "@streamdown/code";
 import { math } from "@streamdown/math";
 import { mermaid } from "@streamdown/mermaid";
-import { Streamdown } from "streamdown";
+import { type ControlsConfig, Streamdown } from "streamdown";
 import "katex/dist/katex.min.css";
 
 interface StreamdownMessageProps {
   content: string;
   isStreaming?: boolean;
   className?: string;
+  controls?: ControlsConfig;
 }
 
 /**
@@ -28,16 +29,19 @@ function SafeStreamdown({
   content,
   isStreaming,
   className,
+  controls,
 }: {
   content: string;
   isStreaming?: boolean;
   className?: string;
+  controls?: ControlsConfig;
 }) {
   try {
     return (
       <Streamdown
         plugins={{ code, math, mermaid, cjk }}
         isAnimating={isStreaming}
+        controls={controls}
         className={className}
       >
         {content}
@@ -58,6 +62,7 @@ export function StreamdownMessage({
   content,
   isStreaming = false,
   className = "",
+  controls,
 }: StreamdownMessageProps) {
   if (!content) return null;
 
@@ -65,7 +70,7 @@ export function StreamdownMessage({
     <div
       className={`prose prose-sm max-w-none break-words dark:prose-invert [overflow-wrap:anywhere] prose-pre:max-w-full prose-pre:overflow-x-auto ${className}`}
     >
-      <SafeStreamdown content={content} isStreaming={isStreaming} />
+      <SafeStreamdown content={content} isStreaming={isStreaming} controls={controls} />
     </div>
   );
 }

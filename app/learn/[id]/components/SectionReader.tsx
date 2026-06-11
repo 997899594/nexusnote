@@ -588,6 +588,7 @@ function SectionBlock({
               <StreamdownMessage
                 content={readableContent}
                 isStreaming={state.status === "generating"}
+                controls={{ code: false }}
               />
             </div>
           </article>
