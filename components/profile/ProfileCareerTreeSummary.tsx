@@ -1,4 +1,4 @@
-import { ArrowRight, Compass, Sparkles } from "lucide-react";
+import { ArrowRight, Compass, type LucideIcon, Sparkles } from "lucide-react";
 import Link from "next/link";
 import {
   buildCareerDevelopmentGraph,
@@ -106,6 +106,54 @@ function FocusCard({
   );
 }
 
+function CareerTreeStatusCard({
+  eyebrow,
+  title,
+  description,
+  href,
+  cta,
+  icon: Icon,
+  primary = false,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+  href: string;
+  cta: string;
+  icon: LucideIcon;
+  primary?: boolean;
+}) {
+  return (
+    <section className="ui-surface-card-lg rounded-3xl border border-black/6 p-5 md:p-7">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-[var(--color-text-muted)]">
+            <Icon className="h-4 w-4" />
+            {eyebrow}
+          </div>
+          <h2 className="mt-3 text-xl font-semibold text-[var(--color-text)] md:text-2xl">
+            {title}
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm leading-7 text-[var(--color-text-tertiary)]">
+            {description}
+          </p>
+        </div>
+        <Link
+          href={href}
+          className={
+            primary
+              ? "ui-primary-button inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors"
+              : "inline-flex items-center gap-2 rounded-full border border-black/8 bg-white px-4 py-2 text-sm font-medium text-[var(--color-text)] transition-colors hover:bg-[var(--color-hover)]"
+          }
+        >
+          {cta}
+          <ArrowRight className="h-4 w-4" />
+        </Link>
+      </div>
+    </section>
+  );
+}
+
 export async function ProfileCareerTreeSummary({ userId }: ProfileCareerTreeSummaryProps) {
   const { snapshot, profileSnapshot, focusSnapshot } = await getCareerTreeWorkspaceDataCached(
     userId,
@@ -114,63 +162,56 @@ export async function ProfileCareerTreeSummary({ userId }: ProfileCareerTreeSumm
 
   if (snapshot.status === "empty") {
     return (
-      <section className="ui-surface-card-lg rounded-3xl p-5 md:p-7">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-[var(--color-text-muted)]">
-              <Compass className="h-4 w-4" />
-              成长主线
-            </div>
-            <h2 className="mt-3 text-xl font-semibold text-[var(--color-text)] md:text-2xl">
-              还没有形成稳定职业树
-            </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-7 text-[var(--color-text-tertiary)]">
-              先通过访谈生成课程，成长主线和候选职业方向会逐步形成。
-            </p>
-          </div>
-          <Link
-            href="/interview"
-            className="ui-primary-button inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors"
-          >
-            开始课程访谈
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
-      </section>
+      <CareerTreeStatusCard
+        eyebrow="成长主线"
+        title="还没有形成稳定职业树"
+        description="先通过访谈生成课程，成长主线和候选职业方向会逐步形成。"
+        href="/interview"
+        cta="开始课程访谈"
+        icon={Compass}
+        primary
+      />
     );
   }
 
   if (snapshot.status === "pending") {
     return (
-      <section className="ui-surface-card-lg rounded-3xl p-5 md:p-7">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-[var(--color-text-muted)]">
-              <Sparkles className="h-4 w-4" />
-              生成中
-            </div>
-            <h2 className="mt-3 text-xl font-semibold text-[var(--color-text)] md:text-2xl">
-              正在整理职业方向
-            </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-7 text-[var(--color-text-tertiary)]">
-              已保存的课程会被整理成候选职业树，完成后可以直接查看。
-            </p>
-          </div>
-          <Link
-            href="/career-trees"
-            className="inline-flex items-center gap-2 rounded-full border border-black/8 bg-white px-4 py-2 text-sm font-medium text-[var(--color-text)] transition-colors hover:bg-[var(--color-hover)]"
-          >
-            查看职业树
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
-      </section>
+      <CareerTreeStatusCard
+        eyebrow="生成中"
+        title="正在整理职业方向"
+        description="已保存的课程会被整理成候选职业树，完成后可以直接查看。"
+        href="/career-trees"
+        cta="查看职业树"
+        icon={Sparkles}
+      />
+    );
+  }
+
+  if (snapshot.status === "failed") {
+    return (
+      <CareerTreeStatusCard
+        eyebrow="职业树"
+        title="职业树需要重新生成"
+        description="进入职业树页面后可以重新整理课程信号。"
+        href="/career-trees"
+        cta="查看职业树"
+        icon={Compass}
+      />
     );
   }
 
   const currentTree = getCurrentCareerTree(snapshot);
   if (!currentTree) {
-    return null;
+    return (
+      <CareerTreeStatusCard
+        eyebrow="职业树"
+        title="还没有可展示的职业树"
+        description="继续课程学习或进入职业规划后，会形成更稳定的方向。"
+        href="/career-trees"
+        cta="查看职业树"
+        icon={Compass}
+      />
+    );
   }
 
   const displayState = resolveCareerTreeDisplayState({
@@ -181,7 +222,16 @@ export async function ProfileCareerTreeSummary({ userId }: ProfileCareerTreeSumm
   });
 
   if (!displayState) {
-    return null;
+    return (
+      <CareerTreeStatusCard
+        eyebrow="职业树"
+        title="职业树正在等待校准"
+        description="进入职业树页面后可以选择方向并继续校准。"
+        href="/career-trees"
+        cta="查看职业树"
+        icon={Compass}
+      />
+    );
   }
 
   const { displayDirection, metrics, preferredFocusNode: focus } = displayState;

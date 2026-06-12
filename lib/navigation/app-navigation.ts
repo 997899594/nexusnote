@@ -29,6 +29,7 @@ export const PAGE_BACK_TARGETS = {
   editorDetail: NAV_TARGETS.editor,
   interview: NAV_TARGETS.home,
   learn: NAV_TARGETS.profile,
+  profile: NAV_TARGETS.home,
   profileInsights: NAV_TARGETS.profile,
   profileSettings: NAV_TARGETS.profile,
   publicCourse: NAV_TARGETS.home,
