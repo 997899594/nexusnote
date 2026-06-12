@@ -13,7 +13,7 @@ import {
   db,
 } from "@/db";
 import { buildGenerationSettingsForPolicy } from "@/lib/ai/core/generation-settings";
-import { getModelNameForPolicy, getPlainModelForPolicy } from "@/lib/ai/core/model-policy";
+import { getModelNameForPolicy, getToolCallingModelForPolicy } from "@/lib/ai/core/model-policy";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { renderPromptResource } from "@/lib/ai/prompts/load-prompt";
 import { revalidateCareerTreeViews } from "@/lib/cache/domain-events";
@@ -172,23 +172,21 @@ function validateComposerOutput(params: {
   );
 
   for (const tree of normalizedOutput.trees) {
+    const anchorRefs = collectAnchorRefs(tree.tree);
+    const supportingNodeRefs = new Set([...tree.supportingNodeRefs, ...anchorRefs]);
+    tree.supportingNodeRefs = [...supportingNodeRefs];
     ensureUniqueValues(tree.supportingNodeRefs, `supporting refs for ${tree.keySeed}`);
-    const supportingNodeRefs = new Set(tree.supportingNodeRefs);
     for (const nodeRef of tree.supportingNodeRefs) {
       if (!params.nodeIds.has(nodeRef)) {
         throw new Error(`Career compose returned unknown supporting node ref: ${nodeRef}`);
       }
     }
 
-    const anchorRefs = collectAnchorRefs(tree.tree);
     ensureUniqueValues(anchorRefs, `anchor refs for ${tree.keySeed}`);
     const anchorRefSet = new Set(anchorRefs);
     for (const anchorRef of anchorRefs) {
       if (!params.nodeIds.has(anchorRef)) {
         throw new Error(`Career compose returned unknown anchor ref: ${anchorRef}`);
-      }
-      if (!supportingNodeRefs.has(anchorRef)) {
-        throw new Error(`Career compose used anchorRef outside supporting refs: ${anchorRef}`);
       }
     }
 
@@ -615,7 +613,7 @@ async function runCareerTreeComposer(params: {
 
   try {
     const result = await generateText({
-      model: getPlainModelForPolicy("outline-architect", {
+      model: getToolCallingModelForPolicy("outline-architect", {
         modelSeries: CAREER_TREE_COMPOSE_MODEL_SERIES,
       }),
       output: Output.object({ schema: treeComposerOutputSchema }),

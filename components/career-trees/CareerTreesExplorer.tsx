@@ -319,7 +319,42 @@ function CourseChoicePanel({
   );
 }
 
-function EmptyWorkbench({ planningData }: { planningData: CareerPlanningWorkspaceData }) {
+function EmptyWorkbench({
+  snapshot,
+  planningData,
+}: {
+  snapshot: CareerTreeSnapshot;
+  planningData: CareerPlanningWorkspaceData;
+}) {
+  const router = useRouter();
+  const { addToast } = useToast();
+  const [isRetrying, setIsRetrying] = useState(false);
+  const failure = snapshot.status === "failed" ? snapshot.failure : null;
+
+  const handleRetry = async () => {
+    if (isRetrying) {
+      return;
+    }
+
+    setIsRetrying(true);
+    try {
+      const response = await fetch("/api/user/career-trees", {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        throw new Error("retry_failed");
+      }
+
+      addToast("已重新开始生成职业树", "success");
+      router.refresh();
+    } catch {
+      addToast("重新生成失败，请稍后重试", "error");
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
   return (
     <div className="flex h-dvh min-h-0 overflow-hidden bg-white">
       <section className="relative flex min-h-0 min-w-0 flex-1 flex-col">
@@ -332,6 +367,25 @@ function EmptyWorkbench({ planningData }: { planningData: CareerPlanningWorkspac
             <h1 className="font-semibold text-[var(--color-text)]">职业规划导师</h1>
           </div>
         </header>
+
+        {failure ? (
+          <div className="ui-page-frame pb-4">
+            <div className="rounded-[24px] border border-red-950/[0.08] bg-red-50/70 px-4 py-3 text-sm text-red-950">
+              <div className="font-medium">职业树生成失败</div>
+              <p className="mt-1 text-xs leading-5 text-red-950/70">
+                {failure.stage} · {failure.message}
+              </p>
+              <button
+                type="button"
+                onClick={() => void handleRetry()}
+                disabled={isRetrying}
+                className="mt-3 rounded-full bg-red-950 px-3 py-1.5 text-xs font-medium text-white transition-opacity disabled:opacity-50"
+              >
+                {isRetrying ? "重新生成中" : "重新生成"}
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         <CareerPlanningMentorPanel
           data={planningData}
@@ -403,12 +457,16 @@ export function CareerTreesExplorer({
     setActivePlanningPatch(planningData.planningState?.graphPatch ?? null);
   }, [planningData.planningState?.graphPatch]);
 
-  if (snapshot.status === "empty" || snapshot.status === "pending") {
-    return <EmptyWorkbench planningData={planningData} />;
+  if (
+    snapshot.status === "empty" ||
+    snapshot.status === "pending" ||
+    snapshot.status === "failed"
+  ) {
+    return <EmptyWorkbench snapshot={snapshot} planningData={planningData} />;
   }
 
   if (!displayState || !currentTree || !developmentGraph) {
-    return <EmptyWorkbench planningData={planningData} />;
+    return <EmptyWorkbench snapshot={snapshot} planningData={planningData} />;
   }
 
   const focusNode = activeNode ?? findDefaultFocusNode(currentTree.tree);

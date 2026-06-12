@@ -71,11 +71,19 @@ export type CandidateCareerTree = z.infer<typeof candidateCareerTreeSchema>;
 
 export const careerTreeSnapshotSchema = z.object({
   schemaVersion: z.literal(CAREER_TREE_SCHEMA_VERSION),
-  status: z.enum(["empty", "pending", "ready"]),
+  status: z.enum(["empty", "pending", "ready", "failed"]),
   recommendedDirectionKey: z.string().nullable(),
   selectedDirectionKey: z.string().nullable(),
   trees: z.array(candidateCareerTreeSchema),
   generatedAt: z.string().nullable(),
+  failure: z
+    .object({
+      stage: z.enum(["extract", "merge", "compose"]),
+      message: z.string().min(1).max(240),
+      failedAt: z.string().nullable(),
+    })
+    .nullable()
+    .optional(),
 });
 export type CareerTreeSnapshot = z.infer<typeof careerTreeSnapshotSchema>;
 
@@ -87,6 +95,7 @@ export function createEmptyCareerTreeSnapshot(): CareerTreeSnapshot {
     selectedDirectionKey: null,
     trees: [],
     generatedAt: null,
+    failure: null,
   };
 }
 
@@ -100,5 +109,27 @@ export function createPendingCareerTreeSnapshot(
     selectedDirectionKey,
     trees: [],
     generatedAt: null,
+    failure: null,
+  };
+}
+
+export function createFailedCareerTreeSnapshot(params: {
+  selectedDirectionKey: string | null;
+  stage: "extract" | "merge" | "compose";
+  message: string;
+  failedAt: string | null;
+}): CareerTreeSnapshot {
+  return {
+    schemaVersion: CAREER_TREE_SCHEMA_VERSION,
+    status: "failed",
+    recommendedDirectionKey: null,
+    selectedDirectionKey: params.selectedDirectionKey,
+    trees: [],
+    generatedAt: null,
+    failure: {
+      stage: params.stage,
+      message: params.message,
+      failedAt: params.failedAt,
+    },
   };
 }

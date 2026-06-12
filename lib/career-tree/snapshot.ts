@@ -1,16 +1,16 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { careerGenerationRuns, careerUserTreeSnapshots, db } from "@/db";
 import {
   CAREER_TREE_COMPOSE_PROMPT_VERSION,
   CAREER_TREE_SCHEMA_VERSION,
 } from "@/lib/career-tree/constants";
-import { buildCourseSeedCareerTreeSnapshot } from "@/lib/career-tree/course-seed-snapshot";
 import { getCareerTreePreference } from "@/lib/career-tree/preferences";
 import { hasEligibleCareerCourses } from "@/lib/career-tree/source";
 import {
   type CareerTreeSnapshot,
   careerTreeSnapshotSchema,
   createEmptyCareerTreeSnapshot,
+  createFailedCareerTreeSnapshot,
   createPendingCareerTreeSnapshot,
 } from "@/lib/career-tree/types";
 
@@ -66,6 +66,45 @@ async function getRecentCareerTreeSnapshotRows(userId: string) {
 export async function getLatestCareerTreeSnapshotRow(userId: string) {
   const rows = await getRecentCareerTreeSnapshotRows(userId);
   return rows.find(isCurrentReadySnapshot)?.snapshot ?? null;
+}
+
+async function getLatestUnsuccessfulCareerRun(userId: string) {
+  return db.query.careerGenerationRuns.findFirst({
+    where: and(
+      eq(careerGenerationRuns.userId, userId),
+      inArray(careerGenerationRuns.kind, ["extract", "merge", "compose"]),
+      inArray(careerGenerationRuns.status, ["running", "failed"]),
+    ),
+    orderBy: desc(careerGenerationRuns.createdAt),
+  });
+}
+
+function normalizeFailureStage(kind: string): "extract" | "merge" | "compose" {
+  if (kind === "extract" || kind === "merge" || kind === "compose") {
+    return kind;
+  }
+
+  return "compose";
+}
+
+function getPublicFailureMessage(message: string | null): string {
+  if (!message) {
+    return "职业树生成失败。";
+  }
+
+  if (/bad request/i.test(message)) {
+    return "模型请求格式不被当前供应商接受。";
+  }
+
+  if (/timed out|timeout/i.test(message)) {
+    return "模型生成超时。";
+  }
+
+  if (/unknown|anchorRef|supporting refs|node ref/i.test(message)) {
+    return "模型返回的职业树结构没有通过校验。";
+  }
+
+  return message.slice(0, 240);
 }
 
 export async function restoreLatestCareerTreeSnapshotForComposeRun(params: {
@@ -143,10 +182,11 @@ function applySelectedDirectionPreference(
 }
 
 export async function getCareerTreeSnapshot(userId: string): Promise<CareerTreeSnapshot> {
-  const [eligibleCoursesExist, preference, latestSnapshot] = await Promise.all([
+  const [eligibleCoursesExist, preference, latestSnapshot, latestRun] = await Promise.all([
     hasEligibleCareerCourses(userId),
     getCareerTreePreference(userId),
     getLatestCareerTreeSnapshotRow(userId),
+    getLatestUnsuccessfulCareerRun(userId),
   ]);
 
   if (!eligibleCoursesExist) {
@@ -160,13 +200,13 @@ export async function getCareerTreeSnapshot(userId: string): Promise<CareerTreeS
     }
   }
 
-  const courseSeedSnapshot = await buildCourseSeedCareerTreeSnapshot({
-    userId,
-    selectedDirectionKey: preference.selectedDirectionKey,
-  });
-
-  if (courseSeedSnapshot) {
-    return applySelectedDirectionPreference(courseSeedSnapshot, preference.selectedDirectionKey);
+  if (latestRun?.status === "failed") {
+    return createFailedCareerTreeSnapshot({
+      selectedDirectionKey: preference.selectedDirectionKey,
+      stage: normalizeFailureStage(latestRun.kind),
+      message: getPublicFailureMessage(latestRun.errorMessage),
+      failedAt: latestRun.finishedAt?.toISOString() ?? null,
+    });
   }
 
   return createPendingCareerTreeSnapshot(preference.selectedDirectionKey);

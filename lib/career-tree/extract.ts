@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { careerCourseChapterEvidence, careerCourseSkillEvidence, db } from "@/db";
 import { buildGenerationSettingsForPolicy } from "@/lib/ai/core/generation-settings";
-import { getModelNameForPolicy, getPlainModelForPolicy } from "@/lib/ai/core/model-policy";
+import { getModelNameForPolicy, getToolCallingModelForPolicy } from "@/lib/ai/core/model-policy";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { renderPromptResource } from "@/lib/ai/prompts/load-prompt";
 import {
@@ -119,7 +119,7 @@ async function runCareerCourseExtractor(params: {
 
   try {
     const result = await generateText({
-      model: getPlainModelForPolicy("extract-fast"),
+      model: getToolCallingModelForPolicy("extract-fast"),
       output: Output.object({ schema: careerCourseExtractorOutputSchema }),
       prompt: renderPromptResource("career-tree/extract.md", {
         course_context: buildCourseContext(params),

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { conflict, parseJsonBodyAs, withAuth } from "@/lib/api";
 import { revalidateCareerTreeViews } from "@/lib/cache/domain-events";
 import { setSelectedCareerTreeDirection } from "@/lib/career-tree/preferences";
-import { enqueueCareerTreeCompose } from "@/lib/career-tree/queue";
+import { enqueueCareerTreeCompose, enqueueCareerTreeRefresh } from "@/lib/career-tree/queue";
 import { getCareerTreeSnapshot } from "@/lib/career-tree/snapshot";
 import { ingestEvidenceEvent } from "@/lib/knowledge/events";
 
@@ -12,6 +12,16 @@ const selectCareerTreeDirectionSchema = z.object({
 
 export const GET = withAuth(async (_request, { userId }) => {
   return Response.json(await getCareerTreeSnapshot(userId));
+});
+
+export const POST = withAuth(async (_request, { userId }) => {
+  await enqueueCareerTreeRefresh({
+    userId,
+    reasonKey: "manual-retry",
+  });
+  revalidateCareerTreeViews(userId);
+
+  return Response.json({ accepted: true }, { status: 202 });
 });
 
 export const PUT = withAuth(async (request, { userId }) => {
