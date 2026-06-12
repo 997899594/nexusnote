@@ -766,7 +766,8 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
                       {activeSectionContent ? (
                         <StreamdownMessage
                           content={activeSectionContent}
-                          controls={{ code: false }}
+                          variant="reader"
+                          controls={{ code: false, mermaid: false, table: false }}
                         />
                       ) : (
                         <p className="text-sm text-[var(--color-text-secondary)]">

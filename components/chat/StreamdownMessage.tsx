@@ -13,12 +13,14 @@ import { math } from "@streamdown/math";
 import { mermaid } from "@streamdown/mermaid";
 import { type ControlsConfig, Streamdown } from "streamdown";
 import "katex/dist/katex.min.css";
+import { cn } from "@/lib/utils";
 
 interface StreamdownMessageProps {
   content: string;
   isStreaming?: boolean;
   className?: string;
   controls?: ControlsConfig;
+  variant?: "chat" | "reader";
 }
 
 /**
@@ -63,12 +65,18 @@ export function StreamdownMessage({
   isStreaming = false,
   className = "",
   controls,
+  variant = "chat",
 }: StreamdownMessageProps) {
   if (!content) return null;
 
   return (
     <div
-      className={`prose prose-sm max-w-none break-words dark:prose-invert [overflow-wrap:anywhere] prose-pre:max-w-full prose-pre:overflow-x-auto ${className}`}
+      className={cn(
+        "max-w-none break-words [overflow-wrap:anywhere]",
+        variant === "chat" &&
+          "prose prose-sm dark:prose-invert prose-pre:max-w-full prose-pre:overflow-x-auto",
+        className,
+      )}
     >
       <SafeStreamdown content={content} isStreaming={isStreaming} controls={controls} />
     </div>
