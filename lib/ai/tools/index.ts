@@ -69,6 +69,7 @@ export function buildToolsForCapabilityMode(
         ...createCareerPlanningTools(),
         ...createSearchTools(ctx.userId),
         ...createRagTools(ctx.userId),
+        ...createWebSearchTool(ctx.userId),
       };
     }
   }

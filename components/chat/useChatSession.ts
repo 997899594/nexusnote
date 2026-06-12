@@ -23,6 +23,7 @@ import { useUserPreferencesStore } from "@/stores/user-preferences";
 
 interface UseChatSessionOptions {
   sessionId: string | null;
+  localId?: string;
   body?: Record<string, unknown> | (() => Record<string, unknown>);
 }
 
@@ -34,7 +35,7 @@ function resolveBody(body: UseChatSessionOptions["body"]): Record<string, unknow
   return typeof body === "function" ? body() : body;
 }
 
-export function useChatSession({ sessionId, body }: UseChatSessionOptions) {
+export function useChatSession({ sessionId, localId, body }: UseChatSessionOptions) {
   const currentSkinSlug = useUserPreferencesStore((state) => state.currentSkinSlug);
   const { addToast } = useToast();
   const [aiDegradedKind, setAIDegradedKind] = useState<AIDegradationKind | null>(null);
@@ -54,7 +55,7 @@ export function useChatSession({ sessionId, body }: UseChatSessionOptions) {
   }, [currentSkinSlug]);
 
   const chat = useChat({
-    ...(sessionId ? { id: sessionId, resume: true } : {}),
+    ...(sessionId ? { id: sessionId, resume: true } : localId ? { id: localId } : {}),
     transport: new DefaultChatTransport({
       api: "/api/chat",
       fetch: createAIDegradationAwareFetch({

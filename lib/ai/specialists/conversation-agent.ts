@@ -118,28 +118,11 @@ export async function createConversationToolLoopSpecialist(
         modelSeries: options.modelSeries,
       })
     : getModelForPolicy(spec.modelPolicy, { modelSeries: options.modelSeries });
-  const shouldPrimeCareerGraphPatch =
-    spec.mode === "career_guide" &&
-    isCareerRequestMetadata(options.metadata) &&
-    options.metadata.entry === "planning";
-
   return new ToolLoopAgent({
     id: `nexusnote-${spec.mode}`,
     model,
     instructions,
     tools,
-    prepareStep: ({ stepNumber }) => {
-      if (stepNumber === 0 && shouldPrimeCareerGraphPatch) {
-        return {
-          toolChoice: {
-            type: "tool",
-            toolName: "presentCareerGraphPatch",
-          },
-        };
-      }
-
-      return undefined;
-    },
     stopWhen: stepCountIs(spec.maxSteps),
     onFinish: ({ totalUsage, steps, finishReason }) => {
       if (!options.telemetry) {

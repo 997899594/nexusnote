@@ -87,6 +87,40 @@ export const careerGraphPatchNextQuestionSchema = z.object({
   options: z.array(z.string().min(1).max(80)).min(2).max(4).optional(),
 });
 
+export const careerMentorDirectionSchema = z.object({
+  title: z.string().min(1).max(80),
+  reason: z.string().min(1).max(160),
+  fit: z.string().min(1).max(120),
+  upside: z.string().min(1).max(120),
+  growth: z.string().min(1).max(120),
+  tradeoff: z.string().min(1).max(140),
+  source: z.enum(["course", "skill_tree", "interview", "research", "mixed"]).default("mixed"),
+});
+
+export const careerMentorSkillPrioritySchema = z.object({
+  title: z.string().min(1).max(80),
+  why: z.string().min(1).max(140),
+  source: z.enum(["course", "skill_tree", "interview", "research", "mixed"]).default("mixed"),
+});
+
+export const careerMentorResearchSourceSchema = z.object({
+  sourceId: z.string().min(1).max(140).optional(),
+  title: z.string().min(1).max(120),
+  url: z.string().url(),
+  domain: z.string().min(1).max(80).optional(),
+  provider: z.string().min(1).max(40).optional(),
+  qualityTier: z.string().min(1).max(40).optional(),
+});
+
+export const careerMentorBriefSchema = z.object({
+  greeting: z.string().min(1).max(80).optional(),
+  openingObservation: z.string().min(1).max(220),
+  recommendedDirections: z.array(careerMentorDirectionSchema).min(1).max(4),
+  skillPriorities: z.array(careerMentorSkillPrioritySchema).min(1).max(5),
+  marketContext: z.string().min(1).max(220).optional(),
+  researchSources: z.array(careerMentorResearchSourceSchema).max(5).default([]),
+});
+
 export const careerGraphPatchSchema = z.object({
   intent: z.string().min(1).max(140),
   operation: careerGraphPatchOperationSchema,
@@ -101,6 +135,7 @@ export const careerGraphPatchSchema = z.object({
   diagnosis: careerGraphPatchDiagnosisSchema,
   interviewTechnique: careerGraphPatchInterviewTechniqueSchema,
   qualityGate: careerGraphPatchQualityGateSchema,
+  mentorBrief: careerMentorBriefSchema.optional(),
   nextQuestion: careerGraphPatchNextQuestionSchema,
 });
 

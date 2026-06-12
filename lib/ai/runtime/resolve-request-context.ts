@@ -3,6 +3,7 @@ import type { AIModelSeries } from "@/lib/ai/core/model-series";
 import { extractUIMessageText } from "@/lib/ai/message-text";
 import { notFound } from "@/lib/api";
 import { getLatestCareerTreeSnapshotRow } from "@/lib/career-tree/snapshot";
+import { hasEligibleCareerCourses } from "@/lib/career-tree/source";
 import { getOwnedConversation } from "@/lib/chat/conversation-repository";
 import { isUuidString } from "@/lib/chat/session-id";
 import { getLearningGuidance, type LearningGuidance } from "@/lib/learning/guidance";
@@ -130,7 +131,7 @@ export async function resolveRequestContext(params: {
     metadata: effectiveMetadata,
   });
 
-  const [learningGuidance, latestCareerTreeSnapshot] = await Promise.all([
+  const [learningGuidance, careerTreeAvailability] = await Promise.all([
     requestedLearnContext
       ? getLearningGuidance({
           userId: params.userId,
@@ -138,7 +139,10 @@ export async function resolveRequestContext(params: {
           chapterIndex: requestedLearnContext.chapterIndex,
         })
       : Promise.resolve(null),
-    getLatestCareerTreeSnapshotRow(params.userId),
+    Promise.all([
+      getLatestCareerTreeSnapshotRow(params.userId),
+      hasEligibleCareerCourses(params.userId),
+    ]),
   ]);
 
   if (requestedLearnContext && !learningGuidance) {
@@ -171,7 +175,7 @@ export async function resolveRequestContext(params: {
           }
         : {},
     hasLearningGuidance: Boolean(learningGuidance),
-    hasCareerTreeSnapshot: Boolean(latestCareerTreeSnapshot),
+    hasCareerTreeSnapshot: Boolean(careerTreeAvailability[0]) || careerTreeAvailability[1],
     hasEditorContext: isEditorRequestMetadata(effectiveMetadata),
     userPolicy: {
       modelSeries: params.modelSeries,

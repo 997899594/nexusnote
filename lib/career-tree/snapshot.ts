@@ -4,6 +4,7 @@ import {
   CAREER_TREE_COMPOSE_PROMPT_VERSION,
   CAREER_TREE_SCHEMA_VERSION,
 } from "@/lib/career-tree/constants";
+import { buildCourseSeedCareerTreeSnapshot } from "@/lib/career-tree/course-seed-snapshot";
 import { getCareerTreePreference } from "@/lib/career-tree/preferences";
 import { hasEligibleCareerCourses } from "@/lib/career-tree/source";
 import {
@@ -152,14 +153,21 @@ export async function getCareerTreeSnapshot(userId: string): Promise<CareerTreeS
     return createEmptyCareerTreeSnapshot();
   }
 
-  if (!latestSnapshot) {
-    return createPendingCareerTreeSnapshot(preference.selectedDirectionKey);
+  if (latestSnapshot) {
+    const parsedSnapshot = parseCareerTreeSnapshotPayload(latestSnapshot.payload);
+    if (parsedSnapshot) {
+      return applySelectedDirectionPreference(parsedSnapshot, preference.selectedDirectionKey);
+    }
   }
 
-  const parsedSnapshot = parseCareerTreeSnapshotPayload(latestSnapshot.payload);
-  if (!parsedSnapshot) {
-    return createPendingCareerTreeSnapshot(preference.selectedDirectionKey);
+  const courseSeedSnapshot = await buildCourseSeedCareerTreeSnapshot({
+    userId,
+    selectedDirectionKey: preference.selectedDirectionKey,
+  });
+
+  if (courseSeedSnapshot) {
+    return applySelectedDirectionPreference(courseSeedSnapshot, preference.selectedDirectionKey);
   }
 
-  return applySelectedDirectionPreference(parsedSnapshot, preference.selectedDirectionKey);
+  return createPendingCareerTreeSnapshot(preference.selectedDirectionKey);
 }

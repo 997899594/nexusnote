@@ -8,6 +8,7 @@ import { StreamdownMessage } from "@/components/chat/StreamdownMessage";
 import { useChatSession } from "@/components/chat/useChatSession";
 import { useInputProtection } from "@/components/common/useInputProtection";
 import { InterviewOptions } from "@/components/interview/InterviewOptions";
+import { ResearchSourceStrip } from "@/components/research/ResearchSourceStrip";
 import { type CareerGraphPatch, careerGraphPatchSchema } from "@/lib/ai/career-planning/schemas";
 import type { CareerPlanningWorkspaceData } from "@/lib/career-planning/workspace-data";
 import { cn } from "@/lib/utils";
@@ -20,7 +21,6 @@ interface CareerPlanningMentorPanelProps {
 }
 
 const AI_MENTOR_BOOTSTRAP_TEXT = "__career_planning_mentor_bootstrap__";
-const mentorBootstrapInFlightKeys = new Set<string>();
 
 function getLatestCareerGraphPatch(messages: UIMessage[]): CareerGraphPatch | null {
   for (let messageIndex = messages.length - 1; messageIndex >= 0; messageIndex--) {
@@ -88,6 +88,161 @@ function getRestoredPatch(data: CareerPlanningWorkspaceData): CareerGraphPatch |
     : null;
 }
 
+function getDomainLabel(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./u, "");
+  } catch {
+    return url;
+  }
+}
+
+function getSourceLabel(source: string): string {
+  switch (source) {
+    case "course":
+      return "课程";
+    case "skill_tree":
+      return "职业树";
+    case "interview":
+      return "访谈";
+    case "research":
+      return "研究";
+    case "mixed":
+      return "综合";
+    default:
+      return source;
+  }
+}
+
+function SourceBadge({ source }: { source: string }) {
+  return (
+    <span className="rounded-full bg-black/[0.035] px-2 py-1 text-[0.625rem] font-medium text-[var(--color-text-tertiary)]">
+      {getSourceLabel(source)}
+    </span>
+  );
+}
+
+function MentorBriefCard({
+  patch,
+  showOptions,
+  isLoading,
+  onSelectOption,
+}: {
+  patch: CareerGraphPatch;
+  showOptions: boolean;
+  isLoading: boolean;
+  onSelectOption: (value: string) => void;
+}) {
+  const brief = patch.mentorBrief;
+  const options = patch.nextQuestion.options ?? [];
+
+  if (!brief) {
+    return (
+      <>
+        <p className="text-sm leading-7">{patch.nextQuestion.question}</p>
+        {showOptions ? (
+          <InterviewOptions
+            options={options}
+            onSelect={(option) => onSelectOption(option.action || option.label)}
+            isStreaming={isLoading}
+            showWhileStreaming
+          />
+        ) : null}
+      </>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        {brief.greeting ? (
+          <p className="mb-2 text-[0.6875rem] font-medium text-[var(--color-text-tertiary)]">
+            {brief.greeting}
+          </p>
+        ) : null}
+        <p className="text-sm leading-7 text-[var(--color-text)]">{brief.openingObservation}</p>
+      </div>
+
+      <div className="space-y-2.5">
+        {brief.recommendedDirections.map((direction) => (
+          <div
+            key={`${direction.title}-${direction.reason}`}
+            className="rounded-[20px] border border-black/[0.055] bg-white/78 p-3"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-sm font-semibold tracking-[-0.02em] text-[var(--color-text)]">
+                  {direction.title}
+                </div>
+                <p className="mt-1 text-xs leading-5 text-[var(--color-text-secondary)]">
+                  {direction.reason}
+                </p>
+              </div>
+              <SourceBadge source={direction.source} />
+            </div>
+            <div className="mt-3 grid gap-1.5 text-[0.6875rem] leading-5 text-[var(--color-text-tertiary)]">
+              <div>匹配：{direction.fit}</div>
+              <div>价值：{direction.upside}</div>
+              <div>成长：{direction.growth}</div>
+              <div>取舍：{direction.tradeoff}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {brief.skillPriorities.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {brief.skillPriorities.map((skill) => (
+            <span
+              key={`${skill.title}-${skill.why}`}
+              className="rounded-full border border-black/[0.06] bg-white/72 px-3 py-1.5 text-[0.6875rem] text-[var(--color-text-secondary)]"
+              title={skill.why}
+            >
+              {skill.title}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      {brief.marketContext ? (
+        <p className="border-black/[0.06] border-y py-2 text-xs leading-5 text-[var(--color-text-tertiary)]">
+          {brief.marketContext}
+        </p>
+      ) : null}
+
+      {brief.researchSources.length > 0 ? (
+        <ResearchSourceStrip
+          sources={brief.researchSources.map((source, index) => ({
+            id: source.sourceId ?? `S${index + 1}`,
+            title: source.title,
+            url: source.url,
+            domain: source.domain ?? getDomainLabel(source.url),
+            provider: source.provider,
+            qualityTier: source.qualityTier,
+          }))}
+          label={`来源 ${brief.researchSources.length}`}
+          meta={brief.researchSources
+            .slice(0, 2)
+            .map((source) => source.domain ?? getDomainLabel(source.url))}
+          defaultOpen={false}
+          variant="compact"
+        />
+      ) : null}
+
+      <div className="rounded-[18px] bg-[var(--color-panel-soft)] px-3 py-3">
+        <p className="text-sm leading-6 text-[var(--color-text)]">{patch.nextQuestion.question}</p>
+        {showOptions ? (
+          <InterviewOptions
+            options={options}
+            onSelect={(option) => onSelectOption(option.action || option.label)}
+            isStreaming={isLoading}
+            showWhileStreaming
+          />
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 export function CareerPlanningMentorPanel({
   data,
   onPatchChange,
@@ -102,6 +257,7 @@ export function CareerPlanningMentorPanel({
   const { handlePaste } = useInputProtection();
   const chat = useChatSession({
     sessionId: null,
+    localId: `career-planning:${planningSessionId}`,
     body: () => ({
       metadata: {
         context: "career" as const,
@@ -117,7 +273,6 @@ export function CareerPlanningMentorPanel({
   const streamedPatch = useMemo(() => getLatestCareerGraphPatch(messages), [messages]);
   const restoredPatch = useMemo(() => getRestoredPatch(data), [data]);
   const patch = streamedPatch ?? restoredPatch;
-  const bootstrapKey = selectedDirectionKey ?? "__empty_career_tree__";
   const status = chat.status;
   const hasError = status === "error" || Boolean(chat.error);
   const isLoading = status === "submitted" || status === "streaming";
@@ -157,38 +312,22 @@ export function CareerPlanningMentorPanel({
     ?.message.id;
 
   useEffect(() => {
-    if (
-      patch ||
-      hasError ||
-      isLoading ||
-      messages.length > 0 ||
-      bootstrapSentRef.current ||
-      mentorBootstrapInFlightKeys.has(bootstrapKey)
-    ) {
+    if (patch || hasError || isLoading || messages.length > 0 || bootstrapSentRef.current) {
       return;
     }
 
     bootstrapSentRef.current = true;
-    mentorBootstrapInFlightKeys.add(bootstrapKey);
     void chat.sendMessage({ text: AI_MENTOR_BOOTSTRAP_TEXT }).catch((error) => {
       console.error("[CareerPlanningMentorPanel] bootstrap failed", error);
       bootstrapSentRef.current = false;
-      mentorBootstrapInFlightKeys.delete(bootstrapKey);
     });
-  }, [bootstrapKey, chat, hasError, isLoading, messages.length, patch]);
-
-  useEffect(() => {
-    if (patch) {
-      mentorBootstrapInFlightKeys.delete(bootstrapKey);
-    }
-  }, [bootstrapKey, patch]);
+  }, [chat, hasError, isLoading, messages.length, patch]);
 
   useEffect(() => {
     if (hasError) {
       bootstrapSentRef.current = false;
-      mentorBootstrapInFlightKeys.delete(bootstrapKey);
     }
-  }, [bootstrapKey, hasError]);
+  }, [hasError]);
 
   const retryBootstrap = async () => {
     if (isLoading) {
@@ -197,14 +336,12 @@ export function CareerPlanningMentorPanel({
 
     chat.clearError();
     bootstrapSentRef.current = true;
-    mentorBootstrapInFlightKeys.add(bootstrapKey);
 
     try {
       await chat.sendMessage({ text: AI_MENTOR_BOOTSTRAP_TEXT });
     } catch (error) {
       console.error("[CareerPlanningMentorPanel] retry bootstrap failed", error);
       bootstrapSentRef.current = false;
-      mentorBootstrapInFlightKeys.delete(bootstrapKey);
     }
   };
 
@@ -279,15 +416,12 @@ export function CareerPlanningMentorPanel({
             <div className="flex justify-start">
               <div className={assistantBubbleClassName}>
                 {question ? (
-                  <>
-                    <p className="text-sm leading-7">{question}</p>
-                    <InterviewOptions
-                      options={options}
-                      onSelect={(option) => void sendCareerMessage(option.action || option.label)}
-                      isStreaming={isLoading}
-                      showWhileStreaming
-                    />
-                  </>
+                  <MentorBriefCard
+                    patch={patch as CareerGraphPatch}
+                    showOptions={options.length > 0}
+                    isLoading={isLoading}
+                    onSelectOption={(value) => void sendCareerMessage(value)}
+                  />
                 ) : showEmptyError ? (
                   <div className="space-y-3">
                     <p className="text-sm leading-7">刚才没有连上模型服务。</p>
@@ -334,19 +468,12 @@ export function CareerPlanningMentorPanel({
                       {text}
                     </p>
                   ) : messagePatch ? (
-                    <>
-                      <p className="text-sm leading-7">{messagePatch.nextQuestion.question}</p>
-                      {showPatchOptions ? (
-                        <InterviewOptions
-                          options={messagePatch.nextQuestion.options ?? []}
-                          onSelect={(option) =>
-                            void sendCareerMessage(option.action || option.label)
-                          }
-                          isStreaming={isLoading}
-                          showWhileStreaming
-                        />
-                      ) : null}
-                    </>
+                    <MentorBriefCard
+                      patch={messagePatch}
+                      showOptions={showPatchOptions}
+                      isLoading={isLoading}
+                      onSelectOption={(value) => void sendCareerMessage(value)}
+                    />
                   ) : (
                     <StreamdownMessage content={text} />
                   )}
@@ -380,7 +507,7 @@ export function CareerPlanningMentorPanel({
               console.error("[CareerPlanningMentorPanel] send failed", error);
             }}
             onPaste={handlePaste}
-            placeholder="直接回答..."
+            placeholder="说说你的取舍..."
             isLoading={isLoading}
             className={cn(isWorkspace && "rounded-2xl md:p-3")}
             inputRowClassName={cn(isWorkspace && "md:gap-3")}
