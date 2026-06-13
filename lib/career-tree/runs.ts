@@ -3,9 +3,45 @@ import { careerGenerationRuns, db } from "@/db";
 
 type CareerRunExecutor = Pick<typeof db, "update">;
 type CareerRunStatus = typeof careerGenerationRuns.$inferSelect.status;
+type CareerGenerationRun = typeof careerGenerationRuns.$inferSelect;
+
+export interface CareerRunFailureOptions {
+  final: boolean;
+  attemptNumber?: number;
+  maxAttempts?: number;
+}
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Unknown error";
+}
+
+function getErrorStack(error: unknown): string | null {
+  return error instanceof Error ? (error.stack ?? null) : null;
+}
+
+function logCareerRunFailure(
+  run: CareerGenerationRun | null,
+  error: unknown,
+  options: CareerRunFailureOptions,
+) {
+  const payload = {
+    level: "error",
+    event: "career_tree_run_failed",
+    final: options.final,
+    attemptNumber: options.attemptNumber ?? null,
+    maxAttempts: options.maxAttempts ?? null,
+    runId: run?.id ?? null,
+    kind: run?.kind ?? null,
+    userId: run?.userId ?? null,
+    courseId: run?.courseId ?? null,
+    model: run?.model ?? null,
+    promptVersion: run?.promptVersion ?? null,
+    inputHash: run?.inputHash ?? null,
+    errorMessage: getErrorMessage(error),
+    errorStack: getErrorStack(error),
+  };
+
+  console.error(JSON.stringify(payload));
 }
 
 async function getCareerRunByIdempotencyKey(idempotencyKey: string) {
@@ -134,11 +170,34 @@ export async function markCareerRunSucceeded(
   });
 }
 
-export async function markCareerRunFailed(runId: string, error: unknown) {
+export async function markCareerRunFailed(
+  runId: string,
+  error: unknown,
+  options: CareerRunFailureOptions = { final: true },
+) {
+  if (options.final) {
+    try {
+      const run = await getCareerRunById(runId);
+      logCareerRunFailure(run ?? null, error, options);
+    } catch (logError) {
+      console.error(
+        JSON.stringify({
+          level: "error",
+          event: "career_tree_run_failure_log_failed",
+          runId,
+          attemptNumber: options.attemptNumber ?? null,
+          maxAttempts: options.maxAttempts ?? null,
+          errorMessage: getErrorMessage(logError),
+          originalErrorMessage: getErrorMessage(error),
+        }),
+      );
+    }
+  }
+
   await updateCareerRunStatus(db, {
     runId,
-    status: "failed",
-    finishedAt: new Date(),
+    status: options.final ? "failed" : "running",
+    finishedAt: options.final ? new Date() : null,
     errorCode: "JOB_FAILED",
     errorMessage: getErrorMessage(error),
   });

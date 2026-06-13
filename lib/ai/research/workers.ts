@@ -1,6 +1,6 @@
-import { generateText, Output } from "ai";
 import { buildGenerationSettingsForPolicy } from "@/lib/ai/core/generation-settings";
 import { getPlainModelForPolicy } from "@/lib/ai/core/model-policy";
+import { generateStructuredObject } from "@/lib/ai/core/structured-output";
 import { renderPromptResource } from "@/lib/ai/prompts/load-prompt";
 import type { AIModelSeries } from "../core/model-series";
 import type { ResearchWorkerProvider } from "./a2a";
@@ -24,11 +24,11 @@ async function runLocalResearchWorker(input: {
   });
   const sources = retrieval.sources;
 
-  const summaryResult = await generateText({
+  const summaryResult = await generateStructuredObject({
     model: getPlainModelForPolicy("interactive-fast", {
       modelSeries: input.modelSeries,
     }),
-    output: Output.object({ schema: researchWorkerSummarySchema }),
+    schema: researchWorkerSummarySchema,
     prompt: renderPromptResource("research/worker-summary.md", {
       user_prompt: input.userPrompt,
       task_title: input.task.title,

@@ -1,4 +1,3 @@
-import { generateText, Output } from "ai";
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import {
@@ -10,7 +9,8 @@ import {
   db,
 } from "@/db";
 import { buildGenerationSettingsForPolicy } from "@/lib/ai/core/generation-settings";
-import { getModelNameForPolicy, getToolCallingModelForPolicy } from "@/lib/ai/core/model-policy";
+import { getModelNameForPolicy, getPlainModelForPolicy } from "@/lib/ai/core/model-policy";
+import { generateStructuredObject } from "@/lib/ai/core/structured-output";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { renderPromptResource } from "@/lib/ai/prompts/load-prompt";
 import {
@@ -22,6 +22,7 @@ import {
 import { bumpCareerGraphState } from "@/lib/career-tree/graph-state";
 import { enqueueCareerTreeCompose } from "@/lib/career-tree/queue";
 import {
+  type CareerRunFailureOptions,
   getCareerRunById,
   getLatestSucceededCareerRun,
   getOrCreateCareerRun,
@@ -133,9 +134,11 @@ async function planCareerMerge(params: {
   });
 
   try {
-    const result = await generateText({
-      model: getToolCallingModelForPolicy("extract-fast"),
-      output: Output.object({ schema: careerMergePlannerOutputSchema }),
+    const result = await generateStructuredObject({
+      model: getPlainModelForPolicy("extract-fast"),
+      schema: careerMergePlannerOutputSchema,
+      name: "careerMergePlan",
+      description: "课程证据合并到用户职业技能图谱的计划",
       prompt: renderPromptResource("career-tree/merge.md", {
         merge_context: buildMergeContext(params),
       }),
@@ -440,6 +443,7 @@ export async function processCareerTreeMergeJob(job: {
   courseId: string;
   extractRunId?: string;
   enqueueFollowups?: boolean;
+  failure?: CareerRunFailureOptions;
 }): Promise<void> {
   const extractRun = await loadExtractRun(job);
   if (!extractRun || extractRun.status !== "succeeded") {
@@ -522,7 +526,7 @@ export async function processCareerTreeMergeJob(job: {
       await enqueueCareerTreeCompose(job.userId);
     }
   } catch (error) {
-    await markCareerRunFailed(mergeRun.id, error);
+    await markCareerRunFailed(mergeRun.id, error, job.failure);
     throw error;
   }
 }

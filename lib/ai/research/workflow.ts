@@ -1,7 +1,8 @@
 import type { UIMessage } from "ai";
-import { generateText, Output } from "ai";
+import { generateText } from "ai";
 import { buildGenerationSettingsForPolicy } from "@/lib/ai/core/generation-settings";
 import { getPlainModelForPolicy } from "@/lib/ai/core/model-policy";
+import { generateStructuredObject } from "@/lib/ai/core/structured-output";
 import { renderPromptResource } from "@/lib/ai/prompts/load-prompt";
 import { syncConversationKnowledge } from "@/lib/chat/conversation-knowledge";
 import { loadConversationMessages } from "@/lib/chat/conversation-messages";
@@ -266,11 +267,11 @@ export async function runBackgroundResearchWorkflow(params: {
   );
   await assertResearchRunStillActive(params.runId);
 
-  const managerResult = await generateText({
+  const managerResult = await generateStructuredObject({
     model: getPlainModelForPolicy("interactive-fast", {
       modelSeries: params.modelSeries,
     }),
-    output: Output.object({ schema: researchPlanSchema }),
+    schema: researchPlanSchema,
     prompt: renderPromptResource("research/manager-plan.md", {
       user_prompt: params.userPrompt,
     }),

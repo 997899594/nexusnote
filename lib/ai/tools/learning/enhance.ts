@@ -4,10 +4,11 @@
  * 工厂模式：绑定 userId 用于用量追踪和日志归属
  */
 
-import { generateText, Output, tool } from "ai";
+import { tool } from "ai";
 import { z } from "zod";
 import { buildGenerationSettingsForPolicy } from "@/lib/ai/core/generation-settings";
 import { getPlainModelForPolicy } from "@/lib/ai/core/model-policy";
+import { generateStructuredObject } from "@/lib/ai/core/structured-output";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { renderPromptResource } from "@/lib/ai/prompts/load-prompt";
 
@@ -264,14 +265,14 @@ export function createEnhanceTools(userId: string) {
       });
 
       try {
-        const result = await generateText({
+        const result = await generateStructuredObject({
           model: getPlainModelForPolicy("section-draft"),
+          schema: MindMapDataSchema,
           prompt,
           ...buildGenerationSettingsForPolicy("section-draft", {
             temperature: 0.3,
           }),
           timeout: 45_000,
-          output: Output.object({ schema: MindMapDataSchema }),
         });
 
         await recordAIUsage({
@@ -389,14 +390,14 @@ export function createEnhanceTools(userId: string) {
       });
 
       try {
-        const result = await generateText({
+        const result = await generateStructuredObject({
           model: getPlainModelForPolicy("section-draft"),
+          schema: SummaryDataSchema,
           prompt,
           ...buildGenerationSettingsForPolicy("section-draft", {
             temperature: 0.3,
           }),
           timeout: 20_000,
-          output: Output.object({ schema: SummaryDataSchema }),
         });
 
         await recordAIUsage({

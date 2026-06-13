@@ -7,7 +7,7 @@
  * - 自动合并语义相同的标签
  */
 
-import { embed, generateText, Output } from "ai";
+import { embed } from "ai";
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
@@ -15,6 +15,7 @@ import { notes, noteTags, tags } from "@/db/schema";
 import { buildGenerationSettingsForPolicy } from "@/lib/ai/core/generation-settings";
 import { aiModelGateway } from "@/lib/ai/core/model-gateway";
 import { getPlainModelForPolicy } from "@/lib/ai/core/model-policy";
+import { generateStructuredObject } from "@/lib/ai/core/structured-output";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { loadPromptResource, renderPromptResource } from "@/lib/ai/prompts/load-prompt";
 import { syncTagUsageCount } from "@/lib/tags/usage-count";
@@ -121,9 +122,9 @@ class TagGenerationService {
     });
 
     try {
-      const result = await generateText({
+      const result = await generateStructuredObject({
         model: getPlainModelForPolicy("extract-fast"),
-        output: Output.object({ schema: TagGenerationResultSchema }),
+        schema: TagGenerationResultSchema,
         system: TAG_GENERATION_SYSTEM_PROMPT,
         prompt: buildTagGenerationUserPrompt(content),
         ...buildGenerationSettingsForPolicy("extract-fast", {

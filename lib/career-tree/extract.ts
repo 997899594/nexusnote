@@ -1,9 +1,9 @@
-import { generateText, Output } from "ai";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { careerCourseChapterEvidence, careerCourseSkillEvidence, db } from "@/db";
 import { buildGenerationSettingsForPolicy } from "@/lib/ai/core/generation-settings";
-import { getModelNameForPolicy, getToolCallingModelForPolicy } from "@/lib/ai/core/model-policy";
+import { getModelNameForPolicy, getPlainModelForPolicy } from "@/lib/ai/core/model-policy";
+import { generateStructuredObject } from "@/lib/ai/core/structured-output";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { renderPromptResource } from "@/lib/ai/prompts/load-prompt";
 import {
@@ -17,7 +17,12 @@ import {
   getCareerCourseSource,
   type NormalizedCareerOutline,
 } from "@/lib/career-tree/source";
-import { getOrCreateCareerRun, markCareerRunFailed, markCareerRunSucceeded } from "./runs";
+import {
+  type CareerRunFailureOptions,
+  getOrCreateCareerRun,
+  markCareerRunFailed,
+  markCareerRunSucceeded,
+} from "./runs";
 
 export const careerEvidenceKindSchema = z.enum(["skill", "theme", "tool", "workflow", "concept"]);
 
@@ -118,9 +123,11 @@ async function runCareerCourseExtractor(params: {
   });
 
   try {
-    const result = await generateText({
-      model: getToolCallingModelForPolicy("extract-fast"),
-      output: Output.object({ schema: careerCourseExtractorOutputSchema }),
+    const result = await generateStructuredObject({
+      model: getPlainModelForPolicy("extract-fast"),
+      schema: careerCourseExtractorOutputSchema,
+      name: "careerCourseEvidence",
+      description: "课程职业能力证据抽取结果",
       prompt: renderPromptResource("career-tree/extract.md", {
         course_context: buildCourseContext(params),
       }),
@@ -239,6 +246,7 @@ export async function processCareerTreeExtractJob(job: {
   userId: string;
   courseId: string;
   enqueueFollowups?: boolean;
+  failure?: CareerRunFailureOptions;
 }): Promise<void> {
   const course = await getCareerCourseSource(job.userId, job.courseId);
   if (!course) {
@@ -293,7 +301,7 @@ export async function processCareerTreeExtractJob(job: {
       await enqueueCareerTreeMerge(job.userId, job.courseId, run.id);
     }
   } catch (error) {
-    await markCareerRunFailed(run.id, error);
+    await markCareerRunFailed(run.id, error, job.failure);
     throw error;
   }
 }

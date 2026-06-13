@@ -64,6 +64,17 @@ async function processCareerTreeRefreshJob(
   await enqueueCareerTreeCompose(job.userId);
 }
 
+function getCareerTreeFailureOptions(job: { attemptsMade: number; opts: { attempts?: number } }) {
+  const attemptNumber = job.attemptsMade + 1;
+  const maxAttempts = job.opts.attempts ?? 1;
+
+  return {
+    final: attemptNumber >= maxAttempts,
+    attemptNumber,
+    maxAttempts,
+  };
+}
+
 export function startCareerTreeWorker(): Worker<CareerTreeJobData> {
   if (worker) {
     return worker;
@@ -72,15 +83,17 @@ export function startCareerTreeWorker(): Worker<CareerTreeJobData> {
   worker = createNexusWorker<CareerTreeJobData>(
     "career-tree",
     async (job) => {
+      const failure = getCareerTreeFailureOptions(job);
+
       switch (job.data.type) {
         case "extract_course_evidence":
-          await processCareerTreeExtractJob(job.data);
+          await processCareerTreeExtractJob({ ...job.data, failure });
           break;
         case "merge_user_skill_graph":
-          await processCareerTreeMergeJob(job.data);
+          await processCareerTreeMergeJob({ ...job.data, failure });
           break;
         case "compose_user_career_trees":
-          await processCareerTreeComposeJob(job.data);
+          await processCareerTreeComposeJob({ ...job.data, failure });
           break;
         case "refresh_user_career_tree_snapshot":
           await processCareerTreeRefreshJob(job.data);

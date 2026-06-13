@@ -1,8 +1,8 @@
-import { generateText, Output } from "ai";
 import { z } from "zod";
 import { buildGenerationSettingsForPolicy } from "@/lib/ai/core/generation-settings";
 import { getPlainModelForPolicy } from "@/lib/ai/core/model-policy";
 import type { AIModelSeries } from "@/lib/ai/core/model-series";
+import { generateStructuredObject } from "@/lib/ai/core/structured-output";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { renderPromptResource } from "@/lib/ai/prompts/load-prompt";
 import {
@@ -68,9 +68,9 @@ export async function resolveModelFreshnessDecision(params: {
   const startedAt = Date.now();
 
   try {
-    const result = await generateText({
+    const result = await generateStructuredObject({
       model: getPlainModelForPolicy("interactive-fast", { modelSeries: params.modelSeries }),
-      output: Output.object({ schema: freshnessDecisionSchema }),
+      schema: freshnessDecisionSchema,
       system: renderPromptResource("research/freshness-decision-system.md", {}),
       prompt: renderPromptResource("research/freshness-decision-user.md", {
         current_date: (params.currentDate ?? new Date()).toISOString().slice(0, 10),

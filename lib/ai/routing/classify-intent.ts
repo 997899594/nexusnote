@@ -1,6 +1,7 @@
-import { generateText, Output, type UIMessage } from "ai";
+import type { UIMessage } from "ai";
 import { buildGenerationSettingsForPolicy } from "@/lib/ai/core/generation-settings";
 import { getPlainModelForPolicy } from "@/lib/ai/core/model-policy";
+import { generateStructuredObject } from "@/lib/ai/core/structured-output";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { extractUIMessageText } from "@/lib/ai/message-text";
 import { renderPromptResource } from "@/lib/ai/prompts/load-prompt";
@@ -403,9 +404,9 @@ export async function classifyIntent(params: {
   }
 
   try {
-    const result = await generateText({
+    const result = await generateStructuredObject({
       model: getPlainModelForPolicy("interactive-fast", { modelSeries }),
-      output: Output.object({ schema: intentClassificationSchema }),
+      schema: intentClassificationSchema,
       system: renderPromptResource("routing/intent-classifier-system.md", {}),
       prompt: renderPromptResource("routing/intent-classifier-user.md", {
         latest_user_message: latestUserMessage,

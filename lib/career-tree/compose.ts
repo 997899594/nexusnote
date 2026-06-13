@@ -1,5 +1,4 @@
 import { createHash } from "node:crypto";
-import { generateText, Output } from "ai";
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import {
@@ -13,7 +12,8 @@ import {
   db,
 } from "@/db";
 import { buildGenerationSettingsForPolicy } from "@/lib/ai/core/generation-settings";
-import { getModelNameForPolicy, getToolCallingModelForPolicy } from "@/lib/ai/core/model-policy";
+import { getModelNameForPolicy, getPlainModelForPolicy } from "@/lib/ai/core/model-policy";
+import { generateStructuredObject } from "@/lib/ai/core/structured-output";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { renderPromptResource } from "@/lib/ai/prompts/load-prompt";
 import { revalidateCareerTreeViews } from "@/lib/cache/domain-events";
@@ -27,6 +27,7 @@ import { getCareerGraphStateRow } from "@/lib/career-tree/graph-state";
 import { getCareerTreePreference } from "@/lib/career-tree/preferences";
 import { isRealisticProgressionRoleTitle } from "@/lib/career-tree/realistic-roles";
 import {
+  type CareerRunFailureOptions,
   getOrCreateCareerRun,
   markCareerRunFailed,
   markCareerRunSucceeded,
@@ -612,11 +613,13 @@ async function runCareerTreeComposer(params: {
   });
 
   try {
-    const result = await generateText({
-      model: getToolCallingModelForPolicy("outline-architect", {
+    const result = await generateStructuredObject({
+      model: getPlainModelForPolicy("outline-architect", {
         modelSeries: CAREER_TREE_COMPOSE_MODEL_SERIES,
       }),
-      output: Output.object({ schema: treeComposerOutputSchema }),
+      schema: treeComposerOutputSchema,
+      name: "careerTreeSnapshot",
+      description: "用户职业方向树候选结果",
       prompt: renderPromptResource("career-tree/compose.md", {
         compose_context: buildComposeContext(params),
       }),
@@ -671,7 +674,10 @@ function buildComposeInputHash(params: {
     .digest("hex");
 }
 
-export async function processCareerTreeComposeJob(job: { userId: string }): Promise<void> {
+export async function processCareerTreeComposeJob(job: {
+  userId: string;
+  failure?: CareerRunFailureOptions;
+}): Promise<void> {
   const eligibleCoursesExist = await hasEligibleCareerCourses(job.userId);
   if (!eligibleCoursesExist) {
     return;
@@ -800,7 +806,7 @@ export async function processCareerTreeComposeJob(job: { userId: string }): Prom
 
     revalidateCareerTreeViews(job.userId);
   } catch (error) {
-    await markCareerRunFailed(composeRun.id, error);
+    await markCareerRunFailed(composeRun.id, error, job.failure);
     throw error;
   }
 }
