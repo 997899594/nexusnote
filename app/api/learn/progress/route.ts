@@ -1,6 +1,6 @@
 // app/api/learn/progress/route.ts
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { after, type NextRequest } from "next/server";
 import { z } from "zod";
 import { courseProgress, db } from "@/db";
@@ -41,6 +41,7 @@ async function getOwnedCourseOrThrow(userId: string, courseId: string) {
 
 async function getPersistedCourseProgress(
   courseId: string,
+  userId: string,
 ): Promise<PersistedCourseProgressRecord | null> {
   const [progressRecord] = await db
     .select({
@@ -52,7 +53,7 @@ async function getPersistedCourseProgress(
       completedAt: courseProgress.completedAt,
     })
     .from(courseProgress)
-    .where(eq(courseProgress.courseId, courseId))
+    .where(and(eq(courseProgress.courseId, courseId), eq(courseProgress.userId, userId)))
     .limit(1);
 
   return progressRecord ?? null;
@@ -88,7 +89,7 @@ export const POST = withAuth(async (request: NextRequest, { userId }) => {
   const { courseId, sectionNodeId } = await parseJsonBodyAs(request, RequestSchema);
 
   const course = await getOwnedCourseOrThrow(userId, courseId);
-  const progressRecord = await getPersistedCourseProgress(courseId);
+  const progressRecord = await getPersistedCourseProgress(courseId, userId);
 
   const existing: Partial<CourseProgress> = progressRecord ?? {};
   const completedSections = existing.completedSections ?? [];
@@ -226,7 +227,7 @@ export const PATCH = withAuth(async (request: NextRequest, { userId }) => {
   const { courseId, currentChapter } = await parseJsonBodyAs(request, ChapterSchema);
 
   await getOwnedCourseOrThrow(userId, courseId);
-  const progressRecord = await getPersistedCourseProgress(courseId);
+  const progressRecord = await getPersistedCourseProgress(courseId, userId);
 
   const existing: Partial<CourseProgress> = progressRecord ?? {};
   const updatedProgress: CourseProgress = {

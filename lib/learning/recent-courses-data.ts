@@ -1,8 +1,15 @@
 import "server-only";
 
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
-import { courseProgress, courses, db } from "@/db";
+import {
+  courseProgress,
+  coursePublicationProgress,
+  coursePublicationSubscriptions,
+  coursePublications,
+  courses,
+  db,
+} from "@/db";
 import { getRecentCoursesTag } from "@/lib/cache/tags";
 
 export type RecentItem = {
@@ -25,6 +32,17 @@ type RecentCourseRow = {
 type ProgressRow = {
   courseId: string;
   currentChapter: number | null;
+};
+
+type PublicSubscriptionRow = {
+  publicationId: string;
+  slug: string;
+  title: string;
+  description: string | null;
+  subscriptionUpdatedAt: Date | null;
+  publishedAt: Date | null;
+  currentChapter: number | null;
+  progressUpdatedAt: Date | null;
 };
 
 function formatTime(date: Date | null): string {
@@ -60,13 +78,31 @@ function buildRecentItem(
   };
 }
 
+function buildPublicSubscriptionItem(subscription: PublicSubscriptionRow): RecentItem {
+  const currentChapter = subscription.currentChapter ?? 0;
+  const sortDate =
+    subscription.progressUpdatedAt ??
+    subscription.subscriptionUpdatedAt ??
+    subscription.publishedAt;
+
+  return {
+    id: `public:${subscription.publicationId}`,
+    type: "course",
+    title: subscription.title || "未命名公开课",
+    desc: subscription.description?.slice(0, 30) || formatProgress(currentChapter),
+    time: formatTime(sortDate),
+    url: `/c/${subscription.slug}/learn`,
+    sortAt: sortDate?.getTime() ?? 0,
+  };
+}
+
 export async function getRecentItemsCached(userId: string, limit = 6): Promise<RecentItem[]> {
   "use cache";
 
   cacheLife("minutes");
   cacheTag(getRecentCoursesTag(userId));
 
-  const [recentCourses, progressRows] = await Promise.all([
+  const [recentCourses, progressRows, publicSubscriptions] = await Promise.all([
     db
       .select({
         id: courses.id,
@@ -86,9 +122,41 @@ export async function getRecentItemsCached(userId: string, limit = 6): Promise<R
       })
       .from(courseProgress)
       .where(eq(courseProgress.userId, userId)),
+
+    db
+      .select({
+        publicationId: coursePublications.id,
+        slug: coursePublications.slug,
+        title: coursePublications.title,
+        description: coursePublications.description,
+        subscriptionUpdatedAt: coursePublicationSubscriptions.updatedAt,
+        publishedAt: coursePublications.publishedAt,
+        currentChapter: coursePublicationProgress.currentChapter,
+        progressUpdatedAt: coursePublicationProgress.updatedAt,
+      })
+      .from(coursePublicationSubscriptions)
+      .innerJoin(
+        coursePublications,
+        eq(coursePublicationSubscriptions.publicationId, coursePublications.id),
+      )
+      .leftJoin(
+        coursePublicationProgress,
+        and(
+          eq(coursePublicationProgress.publicationId, coursePublications.id),
+          eq(coursePublicationProgress.userId, userId),
+        ),
+      )
+      .where(eq(coursePublicationSubscriptions.userId, userId))
+      .orderBy(desc(coursePublicationSubscriptions.updatedAt))
+      .limit(limit),
   ]);
 
   const progressByCourseId = buildProgressMap(progressRows);
 
-  return recentCourses.map((course) => buildRecentItem(course, progressByCourseId));
+  return [
+    ...recentCourses.map((course) => buildRecentItem(course, progressByCourseId)),
+    ...publicSubscriptions.map(buildPublicSubscriptionItem),
+  ]
+    .sort((left, right) => right.sortAt - left.sortAt)
+    .slice(0, limit);
 }

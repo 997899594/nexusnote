@@ -31,8 +31,8 @@ import type {
 import {
   createPublicAnnotation,
   mergePublicAnnotationMutation,
-  savePublicCourseToLibrary,
   submitPublicCourseUrge,
+  subscribePublicCourse,
   togglePublicCourseLike,
   updatePublicAnnotationStatus,
 } from "@/lib/learning/public-course-client";
@@ -76,7 +76,7 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
     () => data.content.outline.chapters[0]?.sections[0]?.nodeId ?? "",
   );
   const [annotations, setAnnotations] = useState(data.annotations);
-  const [savedCourseId, setSavedCourseId] = useState(data.savedCourseId);
+  const [subscription, setSubscription] = useState(data.subscription);
   const [liked, setLiked] = useState(data.viewer.liked);
   const [urged, setUrged] = useState(data.viewer.urged);
   const [likesCount, setLikesCount] = useState(data.engagement.likesCount);
@@ -85,7 +85,7 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
   const [annotationBody, setAnnotationBody] = useState("");
   const [activeAnnotationId, setActiveAnnotationId] = useState<string | null>(null);
   const [isSubmittingAnnotation, setIsSubmittingAnnotation] = useState(false);
-  const [isSavingCourse, setIsSavingCourse] = useState(false);
+  const [isSubscribingCourse, setIsSubscribingCourse] = useState(false);
   const [moderatingAnnotationId, setModeratingAnnotationId] = useState<string | null>(null);
   const [mobilePanel, setMobilePanel] = useState<"outline" | "annotations" | null>(null);
   const [isMobileToolsOpen, setIsMobileToolsOpen] = useState(false);
@@ -290,9 +290,9 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
     }
   };
 
-  const saveToLibrary = async () => {
-    if (savedCourseId) {
-      window.location.assign(`/learn/${savedCourseId}`);
+  const subscribeAndStart = async () => {
+    if (subscription.learnUrl) {
+      window.location.assign(subscription.learnUrl);
       return;
     }
 
@@ -303,21 +303,22 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
       return;
     }
 
-    setIsSavingCourse(true);
+    setIsSubscribingCourse(true);
 
     try {
-      const payload = await savePublicCourseToLibrary({
+      const payload = await subscribePublicCourse({
         publicationSlug: data.publication.slug,
       });
 
-      if (payload.courseId) {
-        setSavedCourseId(payload.courseId);
-      }
+      setSubscription({
+        active: true,
+        learnUrl: payload.learnUrl,
+      });
 
       window.location.replace(payload.learnUrl);
     } catch {
-      addToast("保存课程失败，请稍后重试", "error");
-      setIsSavingCourse(false);
+      addToast("订阅失败，请稍后重试", "error");
+      setIsSubscribingCourse(false);
     }
   };
 
@@ -699,19 +700,19 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
               </button>
               <button
                 type="button"
-                onClick={() => void saveToLibrary()}
-                disabled={isSavingCourse || data.viewer.role === "owner"}
+                onClick={() => void subscribeAndStart()}
+                disabled={isSubscribingCourse || data.viewer.role === "owner"}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-panel-strong)] px-3 py-2 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-55"
               >
-                {savedCourseId ? <ExternalLink className="h-3.5 w-3.5" /> : null}
+                {subscription.active ? <ExternalLink className="h-3.5 w-3.5" /> : null}
                 <span>
-                  {isSavingCourse
-                    ? "保存中"
+                  {isSubscribingCourse
+                    ? "订阅中"
                     : data.viewer.role === "owner"
                       ? "作者视图"
-                      : savedCourseId
+                      : subscription.active
                         ? "进入学习"
-                        : "加入我的学习"}
+                        : "订阅学习"}
                 </span>
               </button>
             </div>
@@ -923,13 +924,13 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
                     label:
                       data.viewer.role === "owner"
                         ? "作者视图"
-                        : savedCourseId
+                        : subscription.active
                           ? "进入学习"
-                          : "加入学习",
-                    meta: savedCourseId ? "继续学习页" : "保存到我的课程",
+                          : "订阅学习",
+                    meta: subscription.active ? "最新公开版本" : "同步作者更新",
                     icon: MessageSquare,
-                    onClick: () => void saveToLibrary(),
-                    disabled: isSavingCourse || data.viewer.role === "owner",
+                    onClick: () => void subscribeAndStart(),
+                    disabled: isSubscribingCourse || data.viewer.role === "owner",
                   },
                 ].map((item) => (
                   <button

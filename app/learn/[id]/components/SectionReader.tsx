@@ -22,7 +22,10 @@ import type { Annotation } from "@/hooks/useAnnotations";
 import { useAnnotations } from "@/hooks/useAnnotations";
 import type { SectionState } from "@/hooks/useChapterSections";
 import { stripLeadingSectionHeading, stripSectionNumber } from "@/lib/learning/content-formatting";
-import { persistCompletedSection } from "@/lib/learning/learn-progress-client";
+import {
+  type LearningProgressTarget,
+  persistCompletedSection,
+} from "@/lib/learning/learn-progress-client";
 import type {
   LearnChapterProjection,
   LearnPublicAnnotationProjection,
@@ -37,7 +40,9 @@ import { useLearnStore } from "@/stores/learn";
 import { AnnotationLayer } from "./AnnotationLayer";
 
 interface SectionReaderProps {
-  courseId: string;
+  progressTarget: LearningProgressTarget;
+  learningMode?: "course" | "publication";
+  canModeratePublicAnnotations?: boolean;
   sections: Map<number, SectionState>;
   currentGenerating: number | null;
   generateSection: (index: number) => void;
@@ -132,12 +137,14 @@ function SectionNotesPanel({
   privateAnnotations,
   publicAnnotations,
   moderatingAnnotationId,
+  canModeratePublicAnnotations,
   onModeratePublicAnnotation,
   onClose,
 }: {
   privateAnnotations: Annotation[];
   publicAnnotations: LearnPublicAnnotationProjection[];
   moderatingAnnotationId: string | null;
+  canModeratePublicAnnotations: boolean;
   onModeratePublicAnnotation: (
     annotation: LearnPublicAnnotationProjection,
     status: LearnPublicAnnotationProjection["status"],
@@ -199,24 +206,26 @@ function SectionNotesPanel({
                     <span className="text-[0.625rem] font-medium text-[var(--color-text-tertiary)]">
                       读者评论
                     </span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        onModeratePublicAnnotation(
-                          annotation,
-                          annotation.status === "hidden" ? "visible" : "hidden",
-                        )
-                      }
-                      disabled={moderatingAnnotationId === annotation.id}
-                      className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-50"
-                      aria-label={annotation.status === "hidden" ? "恢复评论" : "隐藏评论"}
-                    >
-                      {annotation.status === "hidden" ? (
-                        <RotateCcw className="h-3.5 w-3.5" />
-                      ) : (
-                        <EyeOff className="h-3.5 w-3.5" />
-                      )}
-                    </button>
+                    {canModeratePublicAnnotations ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onModeratePublicAnnotation(
+                            annotation,
+                            annotation.status === "hidden" ? "visible" : "hidden",
+                          )
+                        }
+                        disabled={moderatingAnnotationId === annotation.id}
+                        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-50"
+                        aria-label={annotation.status === "hidden" ? "恢复评论" : "隐藏评论"}
+                      >
+                        {annotation.status === "hidden" ? (
+                          <RotateCcw className="h-3.5 w-3.5" />
+                        ) : (
+                          <EyeOff className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                    ) : null}
                   </div>
                   <p className="line-clamp-2 text-xs leading-5 text-[var(--color-text-secondary)]">
                     “{annotation.quotedText}”
@@ -371,9 +380,11 @@ function SectionBlock({
   state,
   sectionDoc,
   publicAnnotations,
-  courseId,
+  progressTarget,
   generateSection,
   isHighlighted,
+  isReadOnly,
+  canModeratePublicAnnotations,
 }: {
   nodeId: string;
   chapterIndex: number;
@@ -384,9 +395,11 @@ function SectionBlock({
   state: SectionState;
   sectionDoc: LearnSectionDocProjection | undefined;
   publicAnnotations: LearnPublicAnnotationProjection[];
-  courseId: string;
+  progressTarget: LearningProgressTarget;
   generateSection: (index: number) => void;
   isHighlighted: boolean;
+  isReadOnly: boolean;
+  canModeratePublicAnnotations: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -449,9 +462,11 @@ function SectionBlock({
             debounceTimer = setTimeout(() => {
               markSectionComplete(anchorId);
 
-              persistCompletedSection({ courseId, sectionNodeId: anchorId }).catch((err) => {
-                console.error("[SectionReader] Failed to persist progress:", err);
-              });
+              persistCompletedSection({ target: progressTarget, sectionNodeId: anchorId }).catch(
+                (err) => {
+                  console.error("[SectionReader] Failed to persist progress:", err);
+                },
+              );
             }, 800);
           } else if (debounceTimer) {
             clearTimeout(debounceTimer);
@@ -467,7 +482,7 @@ function SectionBlock({
       observer.disconnect();
       if (debounceTimer) clearTimeout(debounceTimer);
     };
-  }, [isComplete, isAlreadyRead, anchorId, courseId, markSectionComplete]);
+  }, [isComplete, isAlreadyRead, anchorId, progressTarget, markSectionComplete]);
 
   const handleCapture = useCallback(
     async (noteContent: string) => {
@@ -617,7 +632,7 @@ function SectionBlock({
         )}
 
         {/* Annotation layer — only for completed sections */}
-        {isComplete && (
+        {isComplete && !isReadOnly && (
           <>
             <AnnotationLayer
               containerRef={containerRef}
@@ -664,6 +679,7 @@ function SectionBlock({
             privateAnnotations={annotations}
             publicAnnotations={sectionPublicAnnotations}
             moderatingAnnotationId={moderatingAnnotationId}
+            canModeratePublicAnnotations={canModeratePublicAnnotations}
             onModeratePublicAnnotation={(annotation, status) => {
               void handleModeratePublicAnnotation(annotation, status);
             }}
@@ -736,7 +752,9 @@ function SectionBoundary({
 }
 
 export function SectionReader({
-  courseId,
+  progressTarget,
+  learningMode = "course",
+  canModeratePublicAnnotations = true,
   sections,
   currentGenerating,
   generateSection,
@@ -759,6 +777,7 @@ export function SectionReader({
   const previousSectionIdRef = useRef<string | null>(null);
   const hasScrolledToResume = useRef(false);
   const [highlightedSectionId, setHighlightedSectionId] = useState<string | null>(null);
+  const isReadOnlyLearning = learningMode === "publication";
 
   const sectionTargets = useMemo(
     () =>
@@ -937,9 +956,11 @@ export function SectionReader({
             state={currentSectionState}
             sectionDoc={sectionDocs.find((doc) => doc.outlineNodeKey === currentSection.nodeId)}
             publicAnnotations={currentSectionPublicAnnotations}
-            courseId={courseId}
+            progressTarget={progressTarget}
             generateSection={generateSection}
             isHighlighted={highlightedSectionId === currentSection.nodeId}
+            isReadOnly={isReadOnlyLearning}
+            canModeratePublicAnnotations={canModeratePublicAnnotations}
           />
         ) : (
           <SectionStateBlock title="暂无小节" description="这一章还没有可阅读的小节。" />

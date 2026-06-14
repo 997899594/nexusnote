@@ -24,8 +24,9 @@ import { conversationMessages, conversations } from "./schema/conversations";
 import {
   coursePublicAnnotations,
   coursePublicationLikes,
-  coursePublicationSaves,
+  coursePublicationProgress,
   coursePublicationSnapshots,
+  coursePublicationSubscriptions,
   coursePublications,
   coursePublicationUrges,
 } from "./schema/course-sharing";
@@ -95,7 +96,8 @@ export const usersRelations = relations(users, ({ many }) => ({
   careerPlanRevisions: many(careerPlanRevisions),
   ownedCoursePublications: many(coursePublications),
   coursePublicAnnotations: many(coursePublicAnnotations),
-  coursePublicationSaves: many(coursePublicationSaves),
+  coursePublicationSubscriptions: many(coursePublicationSubscriptions),
+  coursePublicationProgress: many(coursePublicationProgress),
   coursePublicationLikes: many(coursePublicationLikes),
   coursePublicationUrges: many(coursePublicationUrges),
   researchRuns: many(researchRuns),
@@ -299,7 +301,8 @@ export const coursePublicationsRelations = relations(coursePublications, ({ one,
   }),
   snapshots: many(coursePublicationSnapshots),
   annotations: many(coursePublicAnnotations),
-  saves: many(coursePublicationSaves),
+  subscriptions: many(coursePublicationSubscriptions),
+  progress: many(coursePublicationProgress),
   likes: many(coursePublicationLikes),
   urges: many(coursePublicationUrges),
 }));
@@ -320,7 +323,7 @@ export const coursePublicationSnapshotsRelations = relations(
       references: [courseOutlineVersions.id],
     }),
     annotations: many(coursePublicAnnotations),
-    saves: many(coursePublicationSaves),
+    subscriptions: many(coursePublicationSubscriptions),
   }),
 );
 
@@ -339,24 +342,37 @@ export const coursePublicAnnotationsRelations = relations(coursePublicAnnotation
   }),
 }));
 
-export const coursePublicationSavesRelations = relations(coursePublicationSaves, ({ one }) => ({
-  publication: one(coursePublications, {
-    fields: [coursePublicationSaves.publicationId],
-    references: [coursePublications.id],
+export const coursePublicationSubscriptionsRelations = relations(
+  coursePublicationSubscriptions,
+  ({ one }) => ({
+    publication: one(coursePublications, {
+      fields: [coursePublicationSubscriptions.publicationId],
+      references: [coursePublications.id],
+    }),
+    user: one(users, {
+      fields: [coursePublicationSubscriptions.userId],
+      references: [users.id],
+    }),
+    lastSeenSnapshot: one(coursePublicationSnapshots, {
+      fields: [coursePublicationSubscriptions.lastSeenSnapshotId],
+      references: [coursePublicationSnapshots.id],
+    }),
   }),
-  snapshot: one(coursePublicationSnapshots, {
-    fields: [coursePublicationSaves.snapshotId],
-    references: [coursePublicationSnapshots.id],
+);
+
+export const coursePublicationProgressRelations = relations(
+  coursePublicationProgress,
+  ({ one }) => ({
+    publication: one(coursePublications, {
+      fields: [coursePublicationProgress.publicationId],
+      references: [coursePublications.id],
+    }),
+    user: one(users, {
+      fields: [coursePublicationProgress.userId],
+      references: [users.id],
+    }),
   }),
-  user: one(users, {
-    fields: [coursePublicationSaves.userId],
-    references: [users.id],
-  }),
-  savedCourse: one(courses, {
-    fields: [coursePublicationSaves.savedCourseId],
-    references: [courses.id],
-  }),
-}));
+);
 
 export const coursePublicationLikesRelations = relations(coursePublicationLikes, ({ one }) => ({
   publication: one(coursePublications, {

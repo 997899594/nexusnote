@@ -1,6 +1,7 @@
 import {
   boolean,
   index,
+  integer,
   jsonb,
   pgTable,
   text,
@@ -151,42 +152,72 @@ export const coursePublicAnnotations = pgTable(
   }),
 );
 
-export const coursePublicationSaves = pgTable(
-  "course_publication_saves",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    publicationId: uuid("publication_id")
-      .references(() => coursePublications.id, { onDelete: "cascade" })
-      .notNull(),
-    snapshotId: uuid("snapshot_id")
-      .references(() => coursePublicationSnapshots.id, { onDelete: "cascade" })
-      .notNull(),
-    userId: uuid("user_id")
-      .references(() => users.id, { onDelete: "cascade" })
-      .notNull(),
-    savedCourseId: uuid("saved_course_id")
-      .references(() => courses.id, { onDelete: "cascade" })
-      .notNull(),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  },
-  (table) => ({
-    userPublicationUniqueIdx: uniqueIndex(
-      "course_publication_saves_user_publication_unique_idx",
-    ).on(table.userId, table.publicationId),
-    publicationIdx: index("course_publication_saves_publication_idx").on(table.publicationId),
-    savedCourseIdx: index("course_publication_saves_saved_course_idx").on(table.savedCourseId),
-  }),
-);
-
 export type CoursePublication = typeof coursePublications.$inferSelect;
 export type NewCoursePublication = typeof coursePublications.$inferInsert;
 export type CoursePublicationSnapshot = typeof coursePublicationSnapshots.$inferSelect;
 export type NewCoursePublicationSnapshot = typeof coursePublicationSnapshots.$inferInsert;
 export type CoursePublicAnnotation = typeof coursePublicAnnotations.$inferSelect;
 export type NewCoursePublicAnnotation = typeof coursePublicAnnotations.$inferInsert;
-export type CoursePublicationSave = typeof coursePublicationSaves.$inferSelect;
-export type NewCoursePublicationSave = typeof coursePublicationSaves.$inferInsert;
+
+export const coursePublicationSubscriptions = pgTable(
+  "course_publication_subscriptions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    publicationId: uuid("publication_id")
+      .references(() => coursePublications.id, { onDelete: "cascade" })
+      .notNull(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    lastSeenSnapshotId: uuid("last_seen_snapshot_id").references(
+      () => coursePublicationSnapshots.id,
+      { onDelete: "set null" },
+    ),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    userPublicationUniqueIdx: uniqueIndex(
+      "course_publication_subscriptions_user_publication_unique_idx",
+    ).on(table.userId, table.publicationId),
+    publicationIdx: index("course_publication_subscriptions_publication_idx").on(
+      table.publicationId,
+    ),
+    userIdx: index("course_publication_subscriptions_user_idx").on(table.userId),
+  }),
+);
+
+export const coursePublicationProgress = pgTable(
+  "course_publication_progress",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    publicationId: uuid("publication_id")
+      .references(() => coursePublications.id, { onDelete: "cascade" })
+      .notNull(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    currentChapter: integer("current_chapter").notNull().default(0),
+    completedChapters: jsonb("completed_chapters").$type<number[]>().notNull().default([]),
+    completedSections: jsonb("completed_sections").$type<string[]>().notNull().default([]),
+    startedAt: timestamp("started_at"),
+    completedAt: timestamp("completed_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    userPublicationUniqueIdx: uniqueIndex(
+      "course_publication_progress_user_publication_unique_idx",
+    ).on(table.userId, table.publicationId),
+    publicationIdx: index("course_publication_progress_publication_idx").on(table.publicationId),
+    userIdx: index("course_publication_progress_user_idx").on(table.userId),
+  }),
+);
+
+export type CoursePublicationSubscription = typeof coursePublicationSubscriptions.$inferSelect;
+export type NewCoursePublicationSubscription = typeof coursePublicationSubscriptions.$inferInsert;
+export type CoursePublicationProgress = typeof coursePublicationProgress.$inferSelect;
+export type NewCoursePublicationProgress = typeof coursePublicationProgress.$inferInsert;
 
 export const coursePublicationLikes = pgTable(
   "course_publication_likes",

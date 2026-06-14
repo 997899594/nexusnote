@@ -1,7 +1,18 @@
 # Course Sharing And Public Annotations
 
 Date: 2026-05-30
-Status: implemented
+Status: superseded by `docs/adr/2026-06-13-public-course-live-subscriptions.md`
+
+This document is retained as historical context only. The original save-to-library design copied
+public snapshots into private `courses` rows through `course_publication_saves`, which made
+subscriber content stale after the author updated the source course. The current architecture uses
+live subscriptions:
+
+- Readers subscribe through `course_publication_subscriptions`.
+- Reader progress lives in `course_publication_progress`.
+- The learning URL is `/c/[slug]/learn`.
+- Owner course updates automatically advance `course_publications.current_snapshot_id`.
+- Runtime code must not create copied private courses for public subscriptions.
 
 ## Goal
 

@@ -9,6 +9,10 @@ import {
 } from "@/db";
 import { getOwnedCourse } from "@/lib/learning/course-repository";
 import {
+  refreshPublishedCoursePublication,
+  revalidateCoursePublicationRefresh,
+} from "@/lib/learning/course-sharing";
+import {
   buildCourseOutlineNodeValues,
   buildCourseOutlineVersionValues,
   computeCourseOutlineVersionHash,
@@ -117,7 +121,7 @@ export async function saveCourseFromOutline({
   outline,
   courseId,
 }: SaveCourseFromOutlineOptions): Promise<{ courseId: string }> {
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const now = new Date();
     const outlineVersionHash = computeCourseOutlineVersionHash(outline);
     const courseValues = {
@@ -179,7 +183,14 @@ export async function saveCourseFromOutline({
         });
       }
 
-      return { courseId: persistedCourseId };
+      const publicationRefresh = await refreshPublishedCoursePublication({
+        courseId: persistedCourseId,
+        userId,
+        executor: tx,
+        revalidate: false,
+      });
+
+      return { courseId: persistedCourseId, publicationRefresh };
     }
 
     await tx
@@ -225,7 +236,14 @@ export async function saveCourseFromOutline({
           .where(eq(courseOutlineVersions.id, racedOutlineVersion.id));
       }
 
-      return { courseId: persistedCourseId };
+      const publicationRefresh = await refreshPublishedCoursePublication({
+        courseId: persistedCourseId,
+        userId,
+        executor: tx,
+        revalidate: false,
+      });
+
+      return { courseId: persistedCourseId, publicationRefresh };
     }
 
     await replaceCourseStructureFromOutline({
@@ -236,6 +254,17 @@ export async function saveCourseFromOutline({
       outline,
     });
 
-    return { courseId: persistedCourseId };
+    const publicationRefresh = await refreshPublishedCoursePublication({
+      courseId: persistedCourseId,
+      userId,
+      executor: tx,
+      revalidate: false,
+    });
+
+    return { courseId: persistedCourseId, publicationRefresh };
   });
+
+  revalidateCoursePublicationRefresh(result.publicationRefresh);
+
+  return { courseId: result.courseId };
 }

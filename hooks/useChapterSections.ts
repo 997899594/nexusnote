@@ -17,6 +17,7 @@ interface UseChapterSectionsOptions {
   sectionCount: number;
   /** Pre-loaded content from server (nodeId → { content, documentId }) */
   initialContent: Map<string, { content: string; documentId: string }>;
+  readOnly?: boolean;
 }
 
 interface UseChapterSectionsReturn {
@@ -30,6 +31,7 @@ export function useChapterSections({
   chapterIndex,
   sectionCount,
   initialContent,
+  readOnly = false,
 }: UseChapterSectionsOptions): UseChapterSectionsReturn {
   const { addToast } = useToast();
   const [sections, setSections] = useState<Map<number, SectionState>>(new Map());
@@ -53,16 +55,22 @@ export function useChapterSections({
           status: "complete",
           documentId: existing.documentId,
         });
+      } else if (readOnly) {
+        initial.set(i, { content: "", status: "complete" });
       } else {
         initial.set(i, { content: "", status: "idle" });
       }
     }
     setSections(initial);
-  }, [chapterIndex, sectionCount, initialContent]);
+  }, [chapterIndex, sectionCount, initialContent, readOnly]);
 
   // Core generate function
   const doGenerate = useCallback(
     async (sectionIndex: number) => {
+      if (readOnly) {
+        return;
+      }
+
       // Skip if already complete or already in progress.
       const current = sections.get(sectionIndex);
       if (
@@ -168,11 +176,15 @@ export function useChapterSections({
         // No backlog: the visible section decides whether another generation should start.
       }
     },
-    [courseId, chapterIndex, sections, addToast],
+    [courseId, chapterIndex, readOnly, sections, addToast],
   );
 
   const generateSection = useCallback(
     (sectionIndex: number) => {
+      if (readOnly) {
+        return;
+      }
+
       const s = sections.get(sectionIndex);
       if (s?.status === "complete" || s?.status === "queued" || s?.status === "generating") {
         return;
@@ -184,7 +196,7 @@ export function useChapterSections({
 
       doGenerate(sectionIndex);
     },
-    [sections, doGenerate],
+    [readOnly, sections, doGenerate],
   );
 
   return { sections, currentGenerating, generateSection };

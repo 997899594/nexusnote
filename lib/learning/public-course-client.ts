@@ -20,10 +20,9 @@ export interface UpdatePublicAnnotationStatusParams {
   status: PublicAnnotationStatus;
 }
 
-export interface SavePublicCourseResult {
-  courseId?: string;
+export interface SubscribePublicCourseResult {
   learnUrl: string;
-  alreadySaved?: boolean;
+  alreadySubscribed?: boolean;
 }
 
 function publicCourseApiPath(publicationSlug: string, path = ""): string {
@@ -38,22 +37,21 @@ async function readJsonResponse<T>(response: Response, errorMessage: string): Pr
   return response.json() as Promise<T>;
 }
 
-export async function savePublicCourseToLibrary(params: {
+export async function subscribePublicCourse(params: {
   publicationSlug: string;
-}): Promise<SavePublicCourseResult> {
-  const payload = await readJsonResponse<Partial<SavePublicCourseResult>>(
+}): Promise<SubscribePublicCourseResult> {
+  const payload = await readJsonResponse<Partial<SubscribePublicCourseResult>>(
     await fetch(publicCourseApiPath(params.publicationSlug, "/save"), { method: "POST" }),
-    "Failed to save public course.",
+    "Failed to subscribe public course.",
   );
 
   if (!payload.learnUrl) {
-    throw new Error("Missing saved course URL.");
+    throw new Error("Missing public course learning URL.");
   }
 
   return {
     learnUrl: payload.learnUrl,
-    courseId: payload.courseId,
-    alreadySaved: payload.alreadySaved,
+    alreadySubscribed: payload.alreadySubscribed,
   };
 }
 

@@ -3,7 +3,7 @@ import type { CourseOutline } from "@/lib/learning/course-outline";
 import { materializeCourseOutline } from "@/lib/learning/course-structure";
 
 type CourseRecord = typeof courses.$inferSelect;
-type CourseLookupExecutor = Pick<typeof db, "select">;
+type CourseLookupExecutor = Pick<typeof db, "query" | "select">;
 
 export interface OwnedCourseWithOutline extends CourseRecord {
   outline: CourseOutline;
@@ -13,8 +13,9 @@ export interface OwnedCourseWithOutline extends CourseRecord {
 
 async function loadCourseWithLatestOutline(
   course: CourseRecord,
+  executor: CourseLookupExecutor = db,
 ): Promise<OwnedCourseWithOutline | null> {
-  const outlineVersion = await db.query.courseOutlineVersions.findFirst({
+  const outlineVersion = await executor.query.courseOutlineVersions.findFirst({
     where: and(
       eq(courseOutlineVersions.courseId, course.id),
       eq(courseOutlineVersions.isLatest, true),
@@ -25,7 +26,7 @@ async function loadCourseWithLatestOutline(
     return null;
   }
 
-  const nodes = await db
+  const nodes = await executor
     .select()
     .from(courseOutlineNodes)
     .where(eq(courseOutlineNodes.outlineVersionId, outlineVersion.id));
@@ -58,9 +59,10 @@ export async function getOwnedCourse(
 export async function getOwnedCourseWithOutline(
   courseId: string,
   userId: string,
+  executor: CourseLookupExecutor = db,
 ): Promise<OwnedCourseWithOutline | null> {
-  const course = await getOwnedCourse(courseId, userId);
-  return course ? loadCourseWithLatestOutline(course) : null;
+  const course = await getOwnedCourse(courseId, userId, executor);
+  return course ? loadCourseWithLatestOutline(course, executor) : null;
 }
 
 export async function getCourseWithOutline(

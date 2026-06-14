@@ -5,7 +5,10 @@
  */
 
 import { create } from "zustand";
-import { persistCurrentChapter } from "@/lib/learning/learn-progress-client";
+import {
+  type LearningProgressTarget,
+  persistCurrentChapter,
+} from "@/lib/learning/learn-progress-client";
 import type { LearnChapterProjection, LearnSectionProjection } from "@/lib/learning/projection";
 
 export type SectionOutline = LearnSectionProjection;
@@ -24,6 +27,8 @@ interface LearnState {
   // Course session ID (for persisting progress)
   courseId: string;
   setCourseId: (id: string) => void;
+  progressTarget: LearningProgressTarget | null;
+  setProgressTarget: (target: LearningProgressTarget) => void;
 
   // Current chapter index
   currentChapterIndex: number;
@@ -85,6 +90,7 @@ interface LearnState {
 
 const initialState = {
   courseId: "",
+  progressTarget: null as LearningProgressTarget | null,
   currentChapterIndex: 0,
   currentSectionIndex: 0,
   requestedSectionId: null,
@@ -104,12 +110,19 @@ export const useLearnStore = create<LearnState>((set) => ({
   ...initialState,
 
   setCourseId: (courseId) => set({ courseId }),
+  setProgressTarget: (progressTarget) => set({ progressTarget }),
 
   setCurrentChapterIndex: (index) =>
     set((state) => {
       // Persist chapter position to server when user navigates (skip initial load)
-      if (state.courseId && state.currentChapterIndex !== index && state.chapters.length > 0) {
-        persistCurrentChapter({ courseId: state.courseId, currentChapter: index }).catch(() => {});
+      if (
+        state.progressTarget &&
+        state.currentChapterIndex !== index &&
+        state.chapters.length > 0
+      ) {
+        persistCurrentChapter({ target: state.progressTarget, currentChapter: index }).catch(
+          () => {},
+        );
       }
       return { currentChapterIndex: index, currentSectionIndex: 0 };
     }),

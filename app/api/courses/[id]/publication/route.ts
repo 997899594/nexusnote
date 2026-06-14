@@ -47,9 +47,15 @@ export const POST = withDynamicAuth<unknown, RouteParams>(async (_request, { use
     revalidateCoursePublicationViews(publication.slug);
     revalidateCoursePublicationViews(publication.publicationId);
 
+    const status = await getOwnedCoursePublicationStatus({
+      courseId: params.id,
+      userId,
+    });
+
     return Response.json({
       ok: true,
       ...publication,
+      engagement: status.engagement,
       path: buildPublicCoursePath(publication.slug),
     });
   } catch (error) {

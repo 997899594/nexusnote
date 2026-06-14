@@ -13,6 +13,10 @@ import { notFound } from "@/lib/api";
 import { invalidateChapterCache } from "@/lib/cache/course-context";
 import { revalidateCourseContentViews } from "@/lib/cache/domain-events";
 import { getOwnedCourseWithOutline } from "@/lib/learning/course-repository";
+import {
+  refreshPublishedCoursePublication,
+  revalidateCoursePublicationRefresh,
+} from "@/lib/learning/course-sharing";
 import { buildLearningGuidance, type LearningGuidance } from "@/lib/learning/guidance";
 import { createLearnTrace } from "@/lib/learning/observability";
 import { buildSectionOutlineNodeKey } from "@/lib/learning/outline-node-key";
@@ -246,31 +250,53 @@ export async function persistGeneratedCourseSection(params: {
     throw new Error("Generated section content is empty");
   }
 
-  let sectionDocumentId = params.existingSection?.id ?? "";
-  let indexJobId: string | null = null;
+  const { sectionDocumentId, publicationRefresh } = await db.transaction(async (tx) => {
+    let persistedSectionDocumentId = params.existingSection?.id ?? "";
 
-  if (params.existingSection) {
-    await db
-      .update(courseSections)
-      .set({
-        contentMarkdown: text,
-        plainText: text,
-        updatedAt: new Date(),
-      })
-      .where(eq(courseSections.id, params.existingSection.id));
-  } else {
-    const [inserted] = await db
-      .insert(courseSections)
-      .values({
-        title: params.sectionTitle,
-        courseId: params.courseId,
-        outlineNodeKey: params.outlineNodeId,
-        contentMarkdown: text,
-        plainText: text,
-      })
-      .returning({ id: courseSections.id });
-    sectionDocumentId = inserted?.id ?? "";
-  }
+    if (params.existingSection) {
+      await tx
+        .update(courseSections)
+        .set({
+          contentMarkdown: text,
+          plainText: text,
+          updatedAt: new Date(),
+        })
+        .where(eq(courseSections.id, params.existingSection.id));
+    } else {
+      const [inserted] = await tx
+        .insert(courseSections)
+        .values({
+          title: params.sectionTitle,
+          courseId: params.courseId,
+          outlineNodeKey: params.outlineNodeId,
+          contentMarkdown: text,
+          plainText: text,
+        })
+        .returning({ id: courseSections.id });
+      persistedSectionDocumentId = inserted?.id ?? "";
+    }
+
+    if (!persistedSectionDocumentId) {
+      return {
+        sectionDocumentId: null,
+        publicationRefresh: null,
+      };
+    }
+
+    const refreshedPublication = await refreshPublishedCoursePublication({
+      courseId: params.courseId,
+      userId: params.userId,
+      executor: tx,
+      revalidate: false,
+    });
+
+    return {
+      sectionDocumentId: persistedSectionDocumentId,
+      publicationRefresh: refreshedPublication,
+    };
+  });
+
+  let indexJobId: string | null = null;
 
   if (sectionDocumentId) {
     const indexJob = await enqueueCourseSectionRagIndex({
@@ -287,6 +313,7 @@ export async function persistGeneratedCourseSection(params: {
 
     await invalidateChapterCache(params.courseId, params.chapterIndex);
     revalidateCourseContentViews(params.userId, params.courseId);
+    revalidateCoursePublicationRefresh(publicationRefresh);
   }
 
   return {
@@ -659,6 +686,11 @@ export async function materializeCourseSectionInBackground(
 
   try {
     if (input.existingSection?.content) {
+      const publicationRefresh = await refreshPublishedCoursePublication({
+        courseId: target.courseId,
+        userId: target.userId,
+      });
+
       await startCourseSectionLiveStream({
         courseId: target.courseId,
         outlineNodeId: input.outlineNodeId,
@@ -677,6 +709,8 @@ export async function materializeCourseSectionInBackground(
         status: "exists",
         outlineNodeId: input.outlineNodeId,
         sectionDocumentId: input.existingSection.id,
+        refreshedPublicationId: publicationRefresh?.publicationId ?? null,
+        refreshedSnapshotId: publicationRefresh?.snapshotId ?? null,
       });
       return {
         status: "exists",

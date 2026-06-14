@@ -29,7 +29,10 @@ export interface PublicCourseReaderProjection {
   snapshotId: string;
   content: CoursePublicationSnapshotContent;
   annotations: PublicCourseAnnotationProjection[];
-  savedCourseId: string | null;
+  subscription: {
+    active: boolean;
+    learnUrl: string | null;
+  };
   viewer: {
     userId: string | null;
     role: "owner" | "reader" | "guest";

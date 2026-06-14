@@ -3,7 +3,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { List, MessageSquare, MessageSquareText, MoreHorizontal, X } from "lucide-react";
+import { Globe2, List, MessageSquare, MessageSquareText, MoreHorizontal, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { CoursePublishControl } from "@/components/course-reader/CoursePublishControl";
 import { AppBackLink } from "@/components/shared/layout";
@@ -37,12 +37,19 @@ export interface LearnClientProps
       "initialChapterIndex" | "initialCompletedSections" | "scrollToSectionId"
     > {
   sessionId: string;
+  learningSource?: {
+    kind: "course" | "publication";
+    slug?: string;
+  };
+  canModeratePublicAnnotations?: boolean;
 }
 
 const SIDEBAR_WIDTH = 288;
 
 export function LearnClient({
   sessionId,
+  learningSource = { kind: "course" },
+  canModeratePublicAnnotations = true,
   courseTitle,
   chapters,
   sectionDocs,
@@ -52,6 +59,7 @@ export function LearnClient({
   scrollToSectionId,
 }: LearnClientProps) {
   const setCourseId = useLearnStore((s) => s.setCourseId);
+  const setProgressTarget = useLearnStore((s) => s.setProgressTarget);
   const setChapters = useLearnStore((s) => s.setChapters);
   const setCurrentChapterIndex = useLearnStore((s) => s.setCurrentChapterIndex);
   const markSectionComplete = useLearnStore((s) => s.markSectionComplete);
@@ -70,6 +78,11 @@ export function LearnClient({
   const setDesktopSidebarCollapsed = useLearnStore((s) => s.setDesktopSidebarCollapsed);
   const isDesktopChatCollapsed = useLearnStore((s) => s.isDesktopChatCollapsed);
   const setDesktopChatCollapsed = useLearnStore((s) => s.setDesktopChatCollapsed);
+  const isPublicLearning = learningSource.kind === "publication";
+  const progressTarget =
+    learningSource.kind === "publication" && learningSource.slug
+      ? { kind: "publication" as const, slug: learningSource.slug }
+      : { kind: "course" as const, id: sessionId };
 
   const isMobile = useIsMobile();
   const [isMobileToolsOpen, setIsMobileToolsOpen] = useState(false);
@@ -80,6 +93,7 @@ export function LearnClient({
     // Set chapter index BEFORE loading chapters to avoid triggering PATCH
     setCurrentChapterIndex(initialChapterIndex);
     setCourseId(sessionId);
+    setProgressTarget(progressTarget);
     setChapters(chapters);
     setSidebarOpen(false);
     setChatOpen(false);
@@ -119,6 +133,7 @@ export function LearnClient({
     chapterIndex: currentChapterIndex,
     sectionCount: currentChapter?.sections.length ?? 0,
     initialContent,
+    readOnly: isPublicLearning,
   });
 
   // Close transient panels on ESC without changing the reading layout.
@@ -161,7 +176,9 @@ export function LearnClient({
         {/* Content area */}
         <div className="flex-1 overflow-hidden bg-white">
           <SectionReader
-            courseId={sessionId}
+            progressTarget={progressTarget}
+            learningMode={learningSource.kind}
+            canModeratePublicAnnotations={canModeratePublicAnnotations}
             sections={sections}
             currentGenerating={currentGenerating}
             generateSection={generateSection}
@@ -226,6 +243,15 @@ export function LearnClient({
                   </button>
                 </div>
                 <div className="grid gap-2">
+                  {!isPublicLearning ? (
+                    <div className="px-1 pb-1">
+                      <div className="mb-2 flex items-center gap-2 px-1 text-[0.6875rem] font-semibold tracking-[0.16em] text-[var(--color-text-muted)]">
+                        <Globe2 className="h-3.5 w-3.5" />
+                        公开
+                      </div>
+                      <CoursePublishControl courseId={sessionId} variant="panel" />
+                    </div>
+                  ) : null}
                   {[
                     {
                       label: "目录",
@@ -238,6 +264,7 @@ export function LearnClient({
                       meta: "围绕当前小节",
                       icon: MessageSquare,
                       onClick: () => setChatOpen(true),
+                      disabled: isPublicLearning,
                     },
                     {
                       label: "评论",
@@ -256,7 +283,8 @@ export function LearnClient({
                         setIsMobileToolsOpen(false);
                         item.onClick();
                       }}
-                      className="flex items-center gap-3 rounded-2xl px-3 py-3 text-left transition-colors hover:bg-[var(--color-panel-soft)]"
+                      disabled={item.disabled}
+                      className="flex items-center gap-3 rounded-2xl px-3 py-3 text-left transition-colors hover:bg-[var(--color-panel-soft)] disabled:cursor-not-allowed disabled:opacity-45"
                     >
                       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--color-panel-soft)] text-[var(--color-text-secondary)]">
                         <item.icon className="h-4 w-4" />
@@ -303,7 +331,7 @@ export function LearnClient({
 
         {/* Chat overlay - slide from right */}
         <AnimatePresence>
-          {isChatOpen && (
+          {isChatOpen && !isPublicLearning && (
             <>
               <motion.div
                 initial={{ opacity: 0 }}
@@ -354,7 +382,7 @@ export function LearnClient({
         <main className="flex h-dvh min-h-0 min-w-0 flex-col overflow-hidden bg-white">
           <header className="safe-top flex shrink-0 justify-end border-b border-black/[0.04] bg-white/92 px-4 py-3 backdrop-blur-xl lg:px-7">
             <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
-              <CoursePublishControl courseId={sessionId} />
+              {!isPublicLearning ? <CoursePublishControl courseId={sessionId} /> : null}
               {isDesktopSidebarCollapsed ? (
                 <button
                   type="button"
@@ -365,7 +393,7 @@ export function LearnClient({
                   目录
                 </button>
               ) : null}
-              {isDesktopChatCollapsed ? (
+              {isDesktopChatCollapsed && !isPublicLearning ? (
                 <button
                   type="button"
                   onClick={() => setDesktopChatCollapsed(false)}
@@ -392,7 +420,9 @@ export function LearnClient({
           </header>
           <div className="min-h-0 flex-1">
             <SectionReader
-              courseId={sessionId}
+              progressTarget={progressTarget}
+              learningMode={learningSource.kind}
+              canModeratePublicAnnotations={canModeratePublicAnnotations}
               sections={sections}
               currentGenerating={currentGenerating}
               generateSection={generateSection}
@@ -403,7 +433,7 @@ export function LearnClient({
           </div>
         </main>
 
-        {!isDesktopChatCollapsed ? (
+        {!isDesktopChatCollapsed && !isPublicLearning ? (
           <aside className="min-h-0 border-black/[0.06] bg-[#fafafa] lg:flex lg:h-full lg:flex-col lg:border-l">
             <LearnChat
               courseId={sessionId}
