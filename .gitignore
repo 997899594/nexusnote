@@ -53,6 +53,7 @@ secrets-operator.tgz
 
 .codex-artifacts
 .docker-runtime
+.worker-runtime
 
 # Juanie generated delivery artifacts
 .juanie-deliverables.json

@@ -39,7 +39,7 @@ services:
       context: .
       target: worker
     run:
-      command: bun run worker:all
+      command: bun .worker-runtime/start-workers.js
     scaling:
       min: 1
     resources:
@@ -100,5 +100,6 @@ deliverables:
           format: tar.gz
         checks:
           - command: test -f "$JUANIE_ARTIFACT_STAGE/package.json"
-          - command: test -f "$JUANIE_ARTIFACT_STAGE/scripts/start-workers.ts"
-          - command: test -d "$JUANIE_ARTIFACT_STAGE/lib"
+          - command: test -f "$JUANIE_ARTIFACT_STAGE/.worker-runtime/start-workers.js"
+          - command: test -d "$JUANIE_ARTIFACT_STAGE/lib/ai/prompts/resources"
+          - command: test ! -d "$JUANIE_ARTIFACT_STAGE/app"

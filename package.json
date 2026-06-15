@@ -11,6 +11,7 @@
     "typecheck": "bun ./node_modules/.bin/next typegen && tsc --noEmit",
     "check:research-routing": "bun scripts/check-research-routing.ts",
     "check:worker-runtime": "bun scripts/check-worker-runtime-boundary.ts",
+    "build:worker-runtime": "bun scripts/build-worker-runtime.ts",
     "ai:eval": "bun scripts/run-ai-evals.ts",
     "ai:eval:interview-speed": "bun scripts/run-interview-speed-eval.ts",
     "billing:create-code": "bun scripts/create-redeem-code.ts",

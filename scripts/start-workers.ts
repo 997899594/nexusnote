@@ -5,6 +5,11 @@ import { startRagWorker } from "@/lib/queue/rag-worker";
 import { startResearchWorker } from "@/lib/queue/research-worker";
 import { startWorkerRuntime } from "./worker-runtime";
 
+if (process.env.WORKER_RUNTIME_SMOKE === "1") {
+  console.log("[QueueWorkersRuntime] Smoke import passed");
+  process.exit(0);
+}
+
 startWorkerRuntime("QueueWorkersRuntime", [
   {
     name: "course-production",
