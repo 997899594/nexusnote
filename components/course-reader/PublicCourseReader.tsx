@@ -265,7 +265,7 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
         publicationSlug: data.publication.slug,
       });
       setLiked(result.liked);
-      setLikesCount((c) => c + (result.liked ? 1 : -1));
+      setLikesCount((count) => Math.max(0, count + (result.liked ? 1 : -1)));
     } catch {
       addToast("\u64cd\u4f5c\u5931\u8d25\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5", "error");
     }
@@ -284,7 +284,7 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
         publicationSlug: data.publication.slug,
       });
       setUrged(result.urged);
-      setUrgesCount((c) => c + (result.urged ? 1 : -1));
+      setUrgesCount((count) => Math.max(0, count + (result.urged ? 1 : -1)));
     } catch {
       addToast("\u64cd\u4f5c\u5931\u8d25\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5", "error");
     }
@@ -675,28 +675,34 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
               <button
                 type="button"
                 onClick={() => void toggleLike()}
+                aria-pressed={liked}
+                aria-label={liked ? "取消点赞" : "点赞"}
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition-colors",
+                  "inline-flex min-w-9 items-center justify-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-medium transition-colors",
                   liked
                     ? "border-red-200 bg-red-50 text-red-600"
                     : "border-black/8 bg-white text-[var(--color-text-secondary)] hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]",
                 )}
+                title={liked ? "取消点赞" : "点赞"}
               >
                 <Heart className={cn("h-3.5 w-3.5", liked && "fill-red-500")} />
-                <span>{likesCount > 0 ? likesCount : "\u70b9\u8d5e"}</span>
+                {likesCount > 0 ? <span>{likesCount}</span> : null}
               </button>
               <button
                 type="button"
                 onClick={() => void toggleUrge()}
+                aria-pressed={urged}
+                aria-label={urged ? "取消催更" : "催更"}
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition-colors",
+                  "inline-flex min-w-9 items-center justify-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-medium transition-colors",
                   urged
                     ? "border-amber-200 bg-amber-50 text-amber-700"
                     : "border-black/8 bg-white text-[var(--color-text-secondary)] hover:bg-[var(--color-hover)] hover:text-[var(--color-text)]",
                 )}
+                title={urged ? "取消催更" : "催更"}
               >
                 <Bell className={cn("h-3.5 w-3.5", urged && "fill-amber-500")} />
-                <span>{urgesCount > 0 ? urgesCount : "\u50ac\u66f4"}</span>
+                {urgesCount > 0 ? <span>{urgesCount}</span> : null}
               </button>
               <button
                 type="button"
@@ -902,6 +908,44 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
                 </button>
               </div>
               <div className="grid gap-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMobileToolsOpen(false);
+                      void toggleLike();
+                    }}
+                    aria-pressed={liked}
+                    aria-label={liked ? "取消点赞" : "点赞"}
+                    className={cn(
+                      "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-2xl border px-3 py-3 text-xs font-medium transition-colors",
+                      liked
+                        ? "border-red-200 bg-red-50 text-red-600"
+                        : "border-black/8 bg-white text-[var(--color-text-secondary)]",
+                    )}
+                  >
+                    <Heart className={cn("h-3.5 w-3.5", liked && "fill-red-500")} />
+                    {likesCount > 0 ? <span>{likesCount}</span> : null}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMobileToolsOpen(false);
+                      void toggleUrge();
+                    }}
+                    aria-pressed={urged}
+                    aria-label={urged ? "取消催更" : "催更"}
+                    className={cn(
+                      "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-2xl border px-3 py-3 text-xs font-medium transition-colors",
+                      urged
+                        ? "border-amber-200 bg-amber-50 text-amber-700"
+                        : "border-black/8 bg-white text-[var(--color-text-secondary)]",
+                    )}
+                  >
+                    <Bell className={cn("h-3.5 w-3.5", urged && "fill-amber-500")} />
+                    {urgesCount > 0 ? <span>{urgesCount}</span> : null}
+                  </button>
+                </div>
                 {[
                   {
                     label: "目录",
