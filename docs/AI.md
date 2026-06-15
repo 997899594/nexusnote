@@ -4,7 +4,7 @@
 
 ## 核心原则
 
-- 用户可选模型系列：前台聊天、访谈、课程蓝图、章节生成按用户偏好选择 Qwen / DeepSeek / Gemini / OpenAI
+- 用户可选模型系列：前台聊天、访谈、课程蓝图、章节生成按用户偏好选择 Qwen / DeepSeek / OpenAI
 - 模型网关只负责运行时接入：底层上游是实现细节，产品层不展示 provider
 - AI SDK v6 原生：以 `useChat`、route handlers、`UIMessage.parts`、agents、workflows 为主
 - code-driven：流程由代码控制，prompt 负责表达，不负责弥补架构缺陷
@@ -49,7 +49,7 @@
 - career-tree evidence / merge / compose
 - 标签、质量评审等后台任务
 
-这条边界避免“用户想试 Gemini”时把索引、职业树和长期知识图一起改掉。
+这条边界避免“用户切换模型系列”时把索引、职业树和长期知识图一起改掉。
 
 ### Prompt 层
 

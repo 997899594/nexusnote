@@ -124,7 +124,7 @@ const SPEED_EXTRA_CASES: InterviewSpeedCase[] = [
 const DEFAULT_REPEATS = 3;
 const DEFAULT_TIMEOUT_MS = 45_000;
 const OUTPUT_DIR = "artifacts/evals/interview-speed";
-const SPEED_MODEL_SERIES: SpeedModelSeries[] = ["qwen", "gemini", "openai"];
+const SPEED_MODEL_SERIES: SpeedModelSeries[] = ["qwen", "deepseek", "openai"];
 
 function parsePositiveInt(value: string | undefined, defaultValue: number): number {
   if (!value) {

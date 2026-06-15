@@ -63,20 +63,6 @@ function getAIModelBundles(): Record<AIModelSeries, AIModelBundle> {
         webSearch: env.AI_DEEPSEEK_MODEL_WEB_SEARCH,
       }),
     },
-    gemini: {
-      modelSeries: "gemini",
-      label: "Gemini",
-      models: buildModelMap({
-        chat: env.AI_GEMINI_MODEL_INTERACTIVE,
-        toolCalling: env.AI_GEMINI_MODEL_INTERACTIVE,
-        pro: env.AI_GEMINI_MODEL_REVIEW,
-        outline: env.AI_GEMINI_MODEL_OUTLINE,
-        sectionDraft: env.AI_GEMINI_MODEL_SECTION_DRAFT,
-        extract: env.AI_GEMINI_MODEL_EXTRACT,
-        review: env.AI_GEMINI_MODEL_REVIEW,
-        webSearch: env.AI_GEMINI_MODEL_WEB_SEARCH,
-      }),
-    },
     openai: {
       modelSeries: "openai",
       label: "OpenAI",

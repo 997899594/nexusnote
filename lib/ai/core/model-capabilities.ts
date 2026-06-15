@@ -45,17 +45,6 @@ const MODEL_TOOL_CALLING_CAPABILITIES: Array<
     },
   },
   {
-    modelSeries: "gemini",
-    modelIdPatterns: [/gemini/iu],
-    namedToolChoice: {
-      requiresNonThinkingMode: false,
-    },
-    structuredOutput: {
-      mode: "json_schema",
-      requiresNonThinkingMode: false,
-    },
-  },
-  {
     modelSeries: "openai",
     modelIdPatterns: [/gpt-|o[1345]|chatgpt/iu],
     namedToolChoice: {

@@ -55,7 +55,6 @@ const WORKFLOW_LABELS: Record<string, string> = {
 const MODEL_SERIES_LABELS: Record<string, string> = {
   qwen: "Qwen",
   deepseek: "DeepSeek",
-  gemini: "Gemini",
   openai: "OpenAI",
 };
 
