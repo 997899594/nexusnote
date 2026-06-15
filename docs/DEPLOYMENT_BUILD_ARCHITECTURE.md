@@ -24,15 +24,16 @@ The builder stage installs dependencies with Bun and runs `bun run build` inside
 The same Dockerfile now emits two explicit runtime targets:
 
 - `web`: copies the built `standalone` output and static assets for the page/API server
-- `worker`: copies the queue/runtime source and Bun dependencies needed for `bun run worker:*`
+- `worker`: copies the bundled queue runtime and the prompt resources it needs at runtime
 
 A managed deployment platform can inspect `drizzle.config.mjs` at the target repo revision and
 apply schema changes from its injected deployment contract, so neither runtime image needs to
 carry deployment-time schema execution behavior.
-A small start wrapper keeps `npm start` valid in both the repo root
-and the standalone image root. This removes host-specific packaging logic, stops background
-queues from hiding inside the web process, and keeps deployment behavior aligned with what actually
-runs in production.
+The web service command must execute the standalone server directly with `node server.js`.
+`npm start` is only a repository-root development/runtime convenience and must not be used as the
+Juanie web runtime command because the standalone image intentionally does not carry repository
+scripts. This removes host-specific packaging logic, stops background queues from hiding inside the
+web process, and keeps deployment behavior aligned with what actually runs in production.
 
 ## Tradeoffs
 

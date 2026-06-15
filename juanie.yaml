@@ -11,7 +11,7 @@ services:
       context: .
       target: web
     run:
-      command: npm start
+      command: node server.js
       port: 3000
     healthcheck:
       path: /api/health
@@ -86,6 +86,7 @@ deliverables:
           - command: test -f "$JUANIE_ARTIFACT_STAGE/server.js"
           - command: test -d "$JUANIE_ARTIFACT_STAGE/.next"
           - command: test -d "$JUANIE_ARTIFACT_STAGE/public"
+          - command: test ! -f "$JUANIE_ARTIFACT_STAGE/scripts/start.mjs"
   - name: nexusnote-worker-runtime
     type: archive
     source:
