@@ -67,6 +67,26 @@ interface PublicCourseLearningProjection {
   publicAnnotations: PublicCourseAnnotationProjection[];
 }
 
+interface PublicCoursePublicationPointer {
+  publication: {
+    id: string;
+    slug: string;
+    ownerUserId: string;
+    sourceCourseId: string;
+    title: string;
+    description: string | null;
+    allowAnnotations: boolean;
+    publishedAt: string | null;
+  };
+  snapshotId: string;
+}
+
+interface PublicCourseSnapshotContentProjection {
+  snapshotId: string;
+  content: CoursePublicationSnapshotContent;
+  visibleAnnotations: PublicCourseAnnotationProjection[];
+}
+
 export interface SubscribedPublicCourseLearnPageData {
   snapshot: LearnPageProjection;
   canModeratePublicAnnotations: boolean;
@@ -157,71 +177,15 @@ async function loadAnnotations(
   return rows.map(mapAnnotationRow);
 }
 
-async function getPublicCourseSnapshotCached(
+async function getPublishedCoursePublicationPointer(
   slug: string,
-): Promise<PublicCourseSnapshotProjection | null> {
-  "use cache";
-
-  cacheLife("days");
-  cacheTag(getCoursePublicationTag(slug));
-
+): Promise<PublicCoursePublicationPointer | null> {
   const publication = await db.query.coursePublications.findFirst({
     where: and(eq(coursePublications.slug, slug), eq(coursePublications.status, "published")),
   });
   if (!publication?.currentSnapshotId) {
     return null;
   }
-  cacheTag(getCoursePublicationTag(publication.id));
-
-  const snapshot = await db.query.coursePublicationSnapshots.findFirst({
-    where: eq(coursePublicationSnapshots.id, publication.currentSnapshotId),
-  });
-  if (!snapshot) {
-    return null;
-  }
-
-  const visibleAnnotations = await loadAnnotations(publication.id, snapshot.id, ["visible"]);
-
-  return {
-    publication: {
-      id: publication.id,
-      slug: publication.slug,
-      ownerUserId: publication.ownerUserId,
-      title: publication.title,
-      description: publication.description,
-      allowAnnotations: publication.allowAnnotations,
-      publishedAt: publication.publishedAt?.toISOString() ?? null,
-    },
-    snapshotId: snapshot.id,
-    content: snapshot.contentJson,
-    visibleAnnotations,
-  };
-}
-
-async function getPublicCourseLearningSnapshotCached(
-  slug: string,
-): Promise<Omit<PublicCourseLearningProjection, "progressRecord"> | null> {
-  "use cache";
-
-  cacheLife("days");
-  cacheTag(getCoursePublicationTag(slug));
-
-  const publication = await db.query.coursePublications.findFirst({
-    where: and(eq(coursePublications.slug, slug), eq(coursePublications.status, "published")),
-  });
-  if (!publication?.currentSnapshotId) {
-    return null;
-  }
-  cacheTag(getCoursePublicationTag(publication.id));
-
-  const snapshot = await db.query.coursePublicationSnapshots.findFirst({
-    where: eq(coursePublicationSnapshots.id, publication.currentSnapshotId),
-  });
-  if (!snapshot) {
-    return null;
-  }
-
-  const publicAnnotations = await loadAnnotations(publication.id, snapshot.id, ["visible"]);
 
   return {
     publication: {
@@ -229,10 +193,97 @@ async function getPublicCourseLearningSnapshotCached(
       slug: publication.slug,
       ownerUserId: publication.ownerUserId,
       sourceCourseId: publication.sourceCourseId,
+      title: publication.title,
+      description: publication.description,
+      allowAnnotations: publication.allowAnnotations,
+      publishedAt: publication.publishedAt?.toISOString() ?? null,
     },
+    snapshotId: publication.currentSnapshotId,
+  };
+}
+
+async function getPublicCourseSnapshotContentCached(params: {
+  slug: string;
+  publicationId: string;
+  snapshotId: string;
+}): Promise<PublicCourseSnapshotContentProjection | null> {
+  "use cache";
+
+  cacheLife("days");
+  cacheTag(getCoursePublicationTag(params.slug));
+  cacheTag(getCoursePublicationTag(params.publicationId));
+
+  const snapshot = await db.query.coursePublicationSnapshots.findFirst({
+    where: and(
+      eq(coursePublicationSnapshots.id, params.snapshotId),
+      eq(coursePublicationSnapshots.publicationId, params.publicationId),
+    ),
+  });
+  if (!snapshot) {
+    return null;
+  }
+
+  const visibleAnnotations = await loadAnnotations(params.publicationId, snapshot.id, ["visible"]);
+
+  return {
     snapshotId: snapshot.id,
     content: snapshot.contentJson,
-    publicAnnotations,
+    visibleAnnotations,
+  };
+}
+
+async function getPublicCourseSnapshot(
+  slug: string,
+): Promise<PublicCourseSnapshotProjection | null> {
+  const pointer = await getPublishedCoursePublicationPointer(slug);
+  if (!pointer) {
+    return null;
+  }
+
+  const snapshot = await getPublicCourseSnapshotContentCached({
+    slug: pointer.publication.slug,
+    publicationId: pointer.publication.id,
+    snapshotId: pointer.snapshotId,
+  });
+  if (!snapshot) {
+    return null;
+  }
+
+  return {
+    publication: pointer.publication,
+    snapshotId: snapshot.snapshotId,
+    content: snapshot.content,
+    visibleAnnotations: snapshot.visibleAnnotations,
+  };
+}
+
+async function getPublicCourseLearningSnapshot(
+  slug: string,
+): Promise<Omit<PublicCourseLearningProjection, "progressRecord"> | null> {
+  const pointer = await getPublishedCoursePublicationPointer(slug);
+  if (!pointer) {
+    return null;
+  }
+
+  const snapshot = await getPublicCourseSnapshotContentCached({
+    slug: pointer.publication.slug,
+    publicationId: pointer.publication.id,
+    snapshotId: pointer.snapshotId,
+  });
+  if (!snapshot) {
+    return null;
+  }
+
+  return {
+    publication: {
+      id: pointer.publication.id,
+      slug: pointer.publication.slug,
+      ownerUserId: pointer.publication.ownerUserId,
+      sourceCourseId: pointer.publication.sourceCourseId,
+    },
+    snapshotId: snapshot.snapshotId,
+    content: snapshot.content,
+    publicAnnotations: snapshot.visibleAnnotations,
   };
 }
 
@@ -331,7 +382,7 @@ export async function getPublicCourseReaderData(
   slug: string,
   viewerUserId: string | null,
 ): Promise<PublicCourseReaderProjection | null> {
-  const snapshot = await getPublicCourseSnapshotCached(slug);
+  const snapshot = await getPublicCourseSnapshot(slug);
   if (!snapshot) {
     return null;
   }
@@ -385,7 +436,7 @@ export async function getSubscribedPublicCourseLearnPage(params: {
   slug: string;
   userId: string;
 }): Promise<SubscribedPublicCourseLearnPageData | null> {
-  const snapshot = await getPublicCourseLearningSnapshotCached(params.slug);
+  const snapshot = await getPublicCourseLearningSnapshot(params.slug);
   if (!snapshot) {
     return null;
   }
