@@ -9,14 +9,9 @@ import {
   type CourseSectionEvidenceContext,
   resolveCourseSectionEvidenceContext,
 } from "@/lib/ai/research/course-section-evidence";
-import { notFound } from "@/lib/api";
 import { invalidateChapterCache } from "@/lib/cache/course-context";
-import { revalidateCourseContentViews } from "@/lib/cache/domain-events";
+import { refreshPublishedCoursePublication } from "@/lib/learning/course-publication-service";
 import { getOwnedCourseWithOutline } from "@/lib/learning/course-repository";
-import {
-  refreshPublishedCoursePublication,
-  revalidateCoursePublicationRefresh,
-} from "@/lib/learning/course-sharing";
 import { buildLearningGuidance, type LearningGuidance } from "@/lib/learning/guidance";
 import { createLearnTrace } from "@/lib/learning/observability";
 import { buildSectionOutlineNodeKey } from "@/lib/learning/outline-node-key";
@@ -207,7 +202,7 @@ export async function resolveCourseSectionProductionInput(
 ): Promise<ResolvedCourseSectionProductionInput> {
   const course = await getOwnedCourseWithOutline(params.courseId, params.userId);
   if (!course) {
-    throw notFound("课程不存在", "COURSE_NOT_FOUND");
+    throw new Error("COURSE_NOT_FOUND");
   }
 
   const guidance = buildLearningGuidance({
@@ -215,12 +210,12 @@ export async function resolveCourseSectionProductionInput(
     chapterIndex: params.chapterIndex,
   });
   if (!guidance) {
-    throw notFound("章节不存在", "CHAPTER_NOT_FOUND");
+    throw new Error("CHAPTER_NOT_FOUND");
   }
 
   const section = guidance.chapter.sections[params.sectionIndex];
   if (!section) {
-    throw notFound("小节不存在", "SECTION_NOT_FOUND");
+    throw new Error("SECTION_NOT_FOUND");
   }
 
   const outlineNodeId = buildSectionOutlineNodeKey(params.chapterIndex, params.sectionIndex);
@@ -250,7 +245,7 @@ export async function persistGeneratedCourseSection(params: {
     throw new Error("Generated section content is empty");
   }
 
-  const { sectionDocumentId, publicationRefresh } = await db.transaction(async (tx) => {
+  const sectionDocumentId = await db.transaction(async (tx) => {
     let persistedSectionDocumentId = params.existingSection?.id ?? "";
 
     if (params.existingSection) {
@@ -277,23 +272,16 @@ export async function persistGeneratedCourseSection(params: {
     }
 
     if (!persistedSectionDocumentId) {
-      return {
-        sectionDocumentId: null,
-        publicationRefresh: null,
-      };
+      return null;
     }
 
-    const refreshedPublication = await refreshPublishedCoursePublication({
+    await refreshPublishedCoursePublication({
       courseId: params.courseId,
       userId: params.userId,
       executor: tx,
-      revalidate: false,
     });
 
-    return {
-      sectionDocumentId: persistedSectionDocumentId,
-      publicationRefresh: refreshedPublication,
-    };
+    return persistedSectionDocumentId;
   });
 
   let indexJobId: string | null = null;
@@ -312,8 +300,6 @@ export async function persistGeneratedCourseSection(params: {
     });
 
     await invalidateChapterCache(params.courseId, params.chapterIndex);
-    revalidateCourseContentViews(params.userId, params.courseId);
-    revalidateCoursePublicationRefresh(publicationRefresh);
   }
 
   return {

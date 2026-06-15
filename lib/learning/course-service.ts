@@ -7,11 +7,11 @@ import {
   courses,
   db,
 } from "@/db";
-import { getOwnedCourse } from "@/lib/learning/course-repository";
 import {
+  type CoursePublicationRefreshResult,
   refreshPublishedCoursePublication,
-  revalidateCoursePublicationRefresh,
-} from "@/lib/learning/course-sharing";
+} from "@/lib/learning/course-publication-service";
+import { getOwnedCourse } from "@/lib/learning/course-repository";
 import {
   buildCourseOutlineNodeValues,
   buildCourseOutlineVersionValues,
@@ -24,6 +24,11 @@ interface SaveCourseFromOutlineOptions {
   userId: string;
   outline: CourseOutline;
   courseId?: string;
+}
+
+export interface SaveCourseFromOutlineResult {
+  courseId: string;
+  publicationRefresh: CoursePublicationRefreshResult | null;
 }
 
 type CourseSaveTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -120,7 +125,7 @@ export async function saveCourseFromOutline({
   userId,
   outline,
   courseId,
-}: SaveCourseFromOutlineOptions): Promise<{ courseId: string }> {
+}: SaveCourseFromOutlineOptions): Promise<SaveCourseFromOutlineResult> {
   const result = await db.transaction(async (tx) => {
     const now = new Date();
     const outlineVersionHash = computeCourseOutlineVersionHash(outline);
@@ -187,7 +192,6 @@ export async function saveCourseFromOutline({
         courseId: persistedCourseId,
         userId,
         executor: tx,
-        revalidate: false,
       });
 
       return { courseId: persistedCourseId, publicationRefresh };
@@ -240,7 +244,6 @@ export async function saveCourseFromOutline({
         courseId: persistedCourseId,
         userId,
         executor: tx,
-        revalidate: false,
       });
 
       return { courseId: persistedCourseId, publicationRefresh };
@@ -258,13 +261,10 @@ export async function saveCourseFromOutline({
       courseId: persistedCourseId,
       userId,
       executor: tx,
-      revalidate: false,
     });
 
     return { courseId: persistedCourseId, publicationRefresh };
   });
 
-  revalidateCoursePublicationRefresh(result.publicationRefresh);
-
-  return { courseId: result.courseId };
+  return result;
 }

@@ -7,7 +7,6 @@ import {
   knowledgeInsightEvidence,
   knowledgeInsights,
 } from "@/db";
-import { revalidateKnowledgeWorkspaceViews } from "@/lib/cache/domain-events";
 import {
   deriveKnowledgeInsights,
   hashKnowledgeInsightInputs,
@@ -254,6 +253,4 @@ export async function processKnowledgeInsightsJob(job: KnowledgeInsightsJobData)
     await markGenerationRunFailed(run.id, error);
     throw error;
   }
-
-  revalidateKnowledgeWorkspaceViews(job.userId);
 }

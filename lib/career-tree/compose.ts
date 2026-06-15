@@ -16,7 +16,6 @@ import { getModelNameForPolicy, getPlainModelForPolicy } from "@/lib/ai/core/mod
 import { generateStructuredObject } from "@/lib/ai/core/structured-output";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { renderPromptResource } from "@/lib/ai/prompts/load-prompt";
-import { revalidateCareerTreeViews } from "@/lib/cache/domain-events";
 import {
   CAREER_TREE_COMPOSE_PROMPT_VERSION,
   CAREER_TREE_COMPOSE_TIMEOUT_MS,
@@ -731,7 +730,6 @@ export async function processCareerTreeComposeJob(job: {
       );
     }
 
-    revalidateCareerTreeViews(job.userId);
     return;
   }
 
@@ -803,8 +801,6 @@ export async function processCareerTreeComposeJob(job: {
         trees: resolvedTrees,
       });
     });
-
-    revalidateCareerTreeViews(job.userId);
   } catch (error) {
     await markCareerRunFailed(composeRun.id, error, job.failure);
     throw error;

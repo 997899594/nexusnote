@@ -6,6 +6,7 @@ import { notFound, parseJsonBodyAs, withAuth } from "@/lib/api";
 import {
   revalidateCareerTreeViews,
   revalidateCourseCreationViews,
+  revalidateCoursePublicationViews,
 } from "@/lib/cache/domain-events";
 import { syncCourseOutlineKnowledgePipeline } from "@/lib/learning/course-knowledge-pipeline";
 import { getOwnedCourse } from "@/lib/learning/course-repository";
@@ -32,6 +33,11 @@ export const POST = withAuth(async (request: NextRequest, { userId }) => {
   });
 
   revalidateCourseCreationViews(userId, result.courseId);
+  if (result.publicationRefresh) {
+    revalidateCoursePublicationViews(result.publicationRefresh.slug);
+    revalidateCoursePublicationViews(result.publicationRefresh.publicationId);
+  }
+
   after(async () => {
     try {
       await syncCourseOutlineKnowledgePipeline({
