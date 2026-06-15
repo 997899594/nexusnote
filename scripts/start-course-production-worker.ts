@@ -1,5 +1,5 @@
 import { startCourseProductionWorker } from "@/lib/queue/course-production-worker";
-import { startWorkerRuntime } from "./worker-runtime";
+import { startWorkerRuntime } from "@/lib/worker-runtime/runtime";
 
 startWorkerRuntime("CourseProductionRuntime", [
   {

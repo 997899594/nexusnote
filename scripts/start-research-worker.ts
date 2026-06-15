@@ -1,5 +1,5 @@
 import { startResearchWorker } from "@/lib/queue/research-worker";
-import { startWorkerRuntime } from "./worker-runtime";
+import { startWorkerRuntime } from "@/lib/worker-runtime/runtime";
 
 startWorkerRuntime("ResearchRuntime", [
   {

@@ -1,13 +1,6 @@
 import { closeDbConnection } from "@/db";
 import { closeRedisConnection } from "@/lib/redis";
-
-type WorkerStarter = {
-  name: string;
-  start: () => {
-    pause?: (doNotWaitActive?: boolean) => Promise<void>;
-    close: (force?: boolean) => Promise<void>;
-  };
-};
+import type { WorkerStarter } from "./types";
 
 const WORKER_GRACEFUL_SHUTDOWN_TIMEOUT_MS = 10_000;
 

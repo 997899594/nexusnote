@@ -1,26 +1,39 @@
 import { mkdir, rm } from "node:fs/promises";
-import { join } from "node:path";
+import { basename, extname, join } from "node:path";
 
-const outdir = ".worker-runtime";
-const entrypoint = "scripts/start-workers.ts";
+type BuildWorkerRuntimeOptions = {
+  entrypoint?: string;
+  outdir?: string;
+};
 
-await rm(outdir, { recursive: true, force: true });
-await mkdir(outdir, { recursive: true });
+export async function buildWorkerRuntime(options: BuildWorkerRuntimeOptions = {}): Promise<void> {
+  const outdir = options.outdir ?? ".worker-runtime";
+  const entrypoint = options.entrypoint ?? "scripts/start-workers.ts";
 
-const result = await Bun.build({
-  entrypoints: [entrypoint],
-  outdir,
-  target: "bun",
-  minify: false,
-  sourcemap: "external",
-});
+  await rm(outdir, { recursive: true, force: true });
+  await mkdir(outdir, { recursive: true });
 
-if (!result.success) {
-  for (const log of result.logs) {
-    console.error(log);
+  const result = await Bun.build({
+    entrypoints: [entrypoint],
+    outdir,
+    target: "bun",
+    minify: false,
+    sourcemap: "external",
+  });
+
+  if (!result.success) {
+    for (const log of result.logs) {
+      console.error(log);
+    }
+    process.exitCode = 1;
+    throw new Error("Worker runtime build failed.");
   }
-  process.exitCode = 1;
-  throw new Error("Worker runtime build failed.");
+
+  const outputFile = `${basename(entrypoint, extname(entrypoint))}.js`;
+
+  console.log(`worker runtime built: ${join(outdir, outputFile)}`);
 }
 
-console.log(`worker runtime built: ${join(outdir, "start-workers.js")}`);
+if (import.meta.main) {
+  await buildWorkerRuntime();
+}

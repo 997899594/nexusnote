@@ -1,5 +1,6 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { buildWorkerRuntime } from "./build-worker-runtime";
 
 const workerOwnedSources = [
   "scripts/start-workers.ts",
@@ -8,7 +9,11 @@ const workerOwnedSources = [
   "scripts/start-knowledge-insights-worker.ts",
   "scripts/start-rag-worker.ts",
   "scripts/start-research-worker.ts",
-  "scripts/worker-runtime.ts",
+  "scripts/probe-worker-runtime.ts",
+  "lib/worker-runtime/queue-runtime.ts",
+  "lib/worker-runtime/registry.ts",
+  "lib/worker-runtime/runtime.ts",
+  "lib/worker-runtime/types.ts",
   "lib/queue/career-tree-worker.ts",
   "lib/queue/course-production-worker.ts",
   "lib/queue/knowledge-insights-worker.ts",
@@ -67,7 +72,8 @@ async function checkStaticWorkerImports() {
 }
 
 const workerRuntimeOutdir = ".worker-runtime";
-const workerRuntimeEntrypoint = "start-workers.js";
+const workerRuntimeProbeOutdir = ".worker-runtime-probe";
+const workerRuntimeProbeEntrypoint = "probe-worker-runtime.js";
 
 async function listJavaScriptFiles(dir: string): Promise<string[]> {
   const entries = await readdir(dir, { withFileTypes: true });
@@ -86,10 +92,8 @@ async function listJavaScriptFiles(dir: string): Promise<string[]> {
   return files.flat();
 }
 
-function createSmokeEnv(): Record<string, string> {
-  const env: Record<string, string> = {
-    WORKER_RUNTIME_SMOKE: "1",
-  };
+function createProbeEnv(): Record<string, string> {
+  const env: Record<string, string> = {};
   const inheritedKeys = ["PATH", "HOME", "TMPDIR", "TEMP", "TMP", "BUN_INSTALL"] as const;
 
   for (const key of inheritedKeys) {
@@ -104,9 +108,19 @@ function createSmokeEnv(): Record<string, string> {
 
 await checkStaticWorkerImports();
 
-await import("./build-worker-runtime");
+await buildWorkerRuntime({
+  entrypoint: "scripts/start-workers.ts",
+  outdir: workerRuntimeOutdir,
+});
+await buildWorkerRuntime({
+  entrypoint: "scripts/probe-worker-runtime.ts",
+  outdir: workerRuntimeProbeOutdir,
+});
 
-const bundleFiles = await listJavaScriptFiles(workerRuntimeOutdir);
+const bundleFiles = [
+  ...(await listJavaScriptFiles(workerRuntimeOutdir)),
+  ...(await listJavaScriptFiles(workerRuntimeProbeOutdir)),
+];
 const violations: Array<{ file: string; pattern: string }> = [];
 
 for (const file of bundleFiles) {
@@ -127,20 +141,20 @@ if (violations.length > 0) {
   throw new Error("Worker runtime boundary check failed.");
 }
 
-const smoke = Bun.spawnSync({
-  cmd: [process.execPath, workerRuntimeEntrypoint],
-  cwd: workerRuntimeOutdir,
-  env: createSmokeEnv(),
+const probe = Bun.spawnSync({
+  cmd: [process.execPath, workerRuntimeProbeEntrypoint],
+  cwd: workerRuntimeProbeOutdir,
+  env: createProbeEnv(),
   stdout: "pipe",
   stderr: "pipe",
 });
 
-if (!smoke.success) {
-  console.error("Worker runtime smoke failed:");
-  console.error(new TextDecoder().decode(smoke.stdout));
-  console.error(new TextDecoder().decode(smoke.stderr));
-  process.exitCode = smoke.exitCode || 1;
-  throw new Error("Worker runtime smoke failed.");
+if (!probe.success) {
+  console.error("Worker runtime probe failed:");
+  console.error(new TextDecoder().decode(probe.stdout));
+  console.error(new TextDecoder().decode(probe.stderr));
+  process.exitCode = probe.exitCode || 1;
+  throw new Error("Worker runtime probe failed.");
 }
 
 console.log("worker runtime boundary check passed");

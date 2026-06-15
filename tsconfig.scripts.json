@@ -3,6 +3,6 @@
   "compilerOptions": {
     "types": ["node", "bun-types"]
   },
-  "include": ["scripts/**/*.ts"],
+  "include": ["scripts/**/*.ts", "lib/worker-runtime/**/*.ts"],
   "exclude": ["node_modules"]
 }

@@ -1,5 +1,5 @@
 import { startCareerTreeWorker } from "@/lib/queue/career-tree-worker";
-import { startWorkerRuntime } from "./worker-runtime";
+import { startWorkerRuntime } from "@/lib/worker-runtime/runtime";
 
 startWorkerRuntime("CareerTreeRuntime", [
   {
