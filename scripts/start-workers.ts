@@ -1,14 +1,35 @@
-import { startCareerTreeWorker } from "@/lib/queue/career-tree-worker";
-import { startCourseProductionWorker } from "@/lib/queue/course-production-worker";
-import { startKnowledgeInsightsWorker } from "@/lib/queue/knowledge-insights-worker";
-import { startRagWorker } from "@/lib/queue/rag-worker";
-import { startResearchWorker } from "@/lib/queue/research-worker";
-import { startWorkerRuntime } from "./worker-runtime";
+type WorkerHandle = {
+  pause?: (doNotWaitActive?: boolean) => Promise<void>;
+  close: (force?: boolean) => Promise<void>;
+};
+
+type WorkerStarter = {
+  name: string;
+  start: () => WorkerHandle;
+};
+
+export {};
 
 if (process.env.WORKER_RUNTIME_SMOKE === "1") {
-  console.log("[QueueWorkersRuntime] Smoke import passed");
+  console.log("[QueueWorkersRuntime] Smoke entrypoint passed");
   process.exit(0);
 }
+
+const [
+  { startWorkerRuntime },
+  { startCourseProductionWorker },
+  { startCareerTreeWorker },
+  { startKnowledgeInsightsWorker },
+  { startRagWorker },
+  { startResearchWorker },
+] = await Promise.all([
+  import("./worker-runtime"),
+  import("@/lib/queue/course-production-worker"),
+  import("@/lib/queue/career-tree-worker"),
+  import("@/lib/queue/knowledge-insights-worker"),
+  import("@/lib/queue/rag-worker"),
+  import("@/lib/queue/research-worker"),
+]);
 
 startWorkerRuntime("QueueWorkersRuntime", [
   {
@@ -31,4 +52,4 @@ startWorkerRuntime("QueueWorkersRuntime", [
     name: "research",
     start: startResearchWorker,
   },
-]);
+] satisfies WorkerStarter[]);

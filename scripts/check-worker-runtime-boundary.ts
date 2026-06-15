@@ -1,4 +1,5 @@
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
+import { join } from "node:path";
 
 const workerOwnedSources = [
   "scripts/start-workers.ts",
@@ -65,30 +66,71 @@ async function checkStaticWorkerImports() {
   throw new Error("Worker static import boundary check failed.");
 }
 
-const workerRuntimeBundle = ".worker-runtime/start-workers.js";
+const workerRuntimeOutdir = ".worker-runtime";
+const workerRuntimeEntrypoint = "start-workers.js";
+
+async function listJavaScriptFiles(dir: string): Promise<string[]> {
+  const entries = await readdir(dir, { withFileTypes: true });
+  const files = await Promise.all(
+    entries.map(async (entry) => {
+      const path = join(dir, entry.name);
+
+      if (entry.isDirectory()) {
+        return listJavaScriptFiles(path);
+      }
+
+      return entry.isFile() && entry.name.endsWith(".js") ? [path] : [];
+    }),
+  );
+
+  return files.flat();
+}
+
+function createSmokeEnv(): Record<string, string> {
+  const env: Record<string, string> = {
+    WORKER_RUNTIME_SMOKE: "1",
+  };
+  const inheritedKeys = ["PATH", "HOME", "TMPDIR", "TEMP", "TMP", "BUN_INSTALL"] as const;
+
+  for (const key of inheritedKeys) {
+    const value = process.env[key];
+    if (value) {
+      env[key] = value;
+    }
+  }
+
+  return env;
+}
 
 await checkStaticWorkerImports();
 
 await import("./build-worker-runtime");
 
-const bundle = await readFile(workerRuntimeBundle, "utf8");
-const violations = forbiddenPatterns.filter((pattern) => bundle.includes(pattern));
+const bundleFiles = await listJavaScriptFiles(workerRuntimeOutdir);
+const violations: Array<{ file: string; pattern: string }> = [];
+
+for (const file of bundleFiles) {
+  const bundle = await readFile(file, "utf8");
+  for (const pattern of forbiddenPatterns) {
+    if (bundle.includes(pattern)) {
+      violations.push({ file, pattern });
+    }
+  }
+}
 
 if (violations.length > 0) {
   console.error("Worker runtime bundle imports Next.js web-runtime-only modules:");
   for (const violation of violations) {
-    console.error(`- ${violation}`);
+    console.error(`- ${violation.file}: ${violation.pattern}`);
   }
   process.exitCode = 1;
   throw new Error("Worker runtime boundary check failed.");
 }
 
 const smoke = Bun.spawnSync({
-  cmd: ["bun", workerRuntimeBundle],
-  env: {
-    ...process.env,
-    WORKER_RUNTIME_SMOKE: "1",
-  },
+  cmd: [process.execPath, workerRuntimeEntrypoint],
+  cwd: workerRuntimeOutdir,
+  env: createSmokeEnv(),
   stdout: "pipe",
   stderr: "pipe",
 });
