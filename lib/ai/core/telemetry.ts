@@ -3,6 +3,7 @@ import { env } from "@/config/env";
 import { aiUsage, db } from "@/db";
 import type { CapabilityMode } from "@/lib/ai/runtime/contracts";
 import { isUuidString } from "@/lib/chat/session-id";
+import { getAIErrorMessage } from "./ai-errors";
 import { getModelNameForPolicy, type ModelPolicy } from "./model-policy";
 import type { AIModelSeries } from "./model-series";
 
@@ -65,11 +66,7 @@ export function createTelemetryContext(
 }
 
 export function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return "Unknown error";
+  return getAIErrorMessage(error);
 }
 
 export async function recordAIUsage(input: RecordAIUsageInput): Promise<void> {

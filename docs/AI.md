@@ -30,6 +30,8 @@
 - 通过 model series 隔离用户偏好和具体模型组合；界面只展示模型系列，不展示底层 provider
 - 把不可用状态分类为可处理的降级结果
 - 默认模型矩阵只保留当前网关支持的新模型：Qwen 走 `qwen3.6-plus` / `qwen3.7-max`，DeepSeek 走 `deepseek-v4-flash` / `deepseek-v4-pro`，OpenAI 走 `gpt-5.5`
+- 302 `/models` 列表不是唯一权威；部分最新模型以别名或隐藏路由存在，运行判断以实际 chat / structured output / tool calling 能力探测为准
+- structured output 由网关层做模型能力适配：Qwen 保持 `json_schema` 并关闭 thinking，DeepSeek v4 使用 `json_object` 加本地 Zod 强校验，OpenAI/GPT 保持 `json_schema`
 
 ### Model Series 层
 

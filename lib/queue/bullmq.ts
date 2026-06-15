@@ -1,4 +1,5 @@
 import { type Job, Queue, Worker } from "bullmq";
+import { buildErrorLogFields, writeStructuredLog } from "@/lib/observability/structured-log";
 import { getRedis } from "@/lib/redis";
 
 interface QueueRetryOptions {
@@ -50,6 +51,16 @@ export function createNexusWorker<T, R = unknown>(
 
   worker.on("failed", (job, err) => {
     console.error(`[${options.label}] Failed: ${job?.id}`, err.message);
+    writeStructuredLog("error", "queue_job_failed", {
+      queue: name,
+      label: options.label,
+      jobId: job?.id ?? null,
+      jobName: job?.name ?? null,
+      attemptsMade: job?.attemptsMade ?? null,
+      maxAttempts: job?.opts.attempts ?? null,
+      data: job?.data ?? null,
+      ...buildErrorLogFields(err),
+    });
   });
 
   console.log(`[${options.label}] Started with concurrency:`, options.concurrency);

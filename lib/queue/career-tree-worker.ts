@@ -12,7 +12,12 @@ import {
 } from "@/lib/career-tree/constants";
 import { processCareerTreeExtractJob } from "@/lib/career-tree/extract";
 import { processCareerTreeMergeJob } from "@/lib/career-tree/merge";
-import { enqueueCareerTreeCompose, enqueueCareerTreeRefresh } from "@/lib/career-tree/queue";
+import {
+  enqueueCareerTreeCompose,
+  enqueueCareerTreeExtract,
+  enqueueCareerTreeRefresh,
+} from "@/lib/career-tree/queue";
+import { listCareerCourseSourcesForUser } from "@/lib/career-tree/source";
 import { createNexusWorker } from "./bullmq";
 import type { CareerTreeJobData } from "./career-tree-queue";
 
@@ -52,6 +57,11 @@ async function enqueueOutdatedCareerTreeRefreshJobs(): Promise<void> {
 async function processCareerTreeRefreshJob(
   job: Extract<CareerTreeJobData, { type: "refresh_user_career_tree_snapshot" }>,
 ): Promise<void> {
+  const courseSources = await listCareerCourseSourcesForUser({
+    userId: job.userId,
+    courseId: job.courseId,
+  });
+
   if (job.courseId) {
     await recomputeCareerNodesForCourse({
       userId: job.userId,
@@ -61,7 +71,14 @@ async function processCareerTreeRefreshJob(
     await recomputeAllCareerNodeAggregatesForUser(job.userId);
   }
 
-  await enqueueCareerTreeCompose(job.userId);
+  if (courseSources.length === 0) {
+    await enqueueCareerTreeCompose(job.userId, job.requestKey);
+    return;
+  }
+
+  for (const source of courseSources) {
+    await enqueueCareerTreeExtract(source.userId, source.courseId, job.requestKey);
+  }
 }
 
 function getCareerTreeFailureOptions(job: { attemptsMade: number; opts: { attempts?: number } }) {

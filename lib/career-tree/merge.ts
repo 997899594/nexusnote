@@ -442,6 +442,7 @@ export async function processCareerTreeMergeJob(job: {
   userId: string;
   courseId: string;
   extractRunId?: string;
+  requestKey?: string;
   enqueueFollowups?: boolean;
   failure?: CareerRunFailureOptions;
 }): Promise<void> {
@@ -450,20 +451,21 @@ export async function processCareerTreeMergeJob(job: {
     return;
   }
 
+  const model = getModelNameForPolicy("extract-fast");
   const mergeRun = await getOrCreateCareerRun({
     userId: job.userId,
     courseId: job.courseId,
     kind: "merge",
-    idempotencyKey: `merge:user:${job.userId}:course:${job.courseId}:extract_run:${extractRun.id}:prompt:${CAREER_TREE_MERGE_PROMPT_VERSION}`,
+    idempotencyKey: `merge:user:${job.userId}:course:${job.courseId}:extract_run:${extractRun.id}:prompt:${CAREER_TREE_MERGE_PROMPT_VERSION}:model:${model}`,
     inputHash: extractRun.inputHash,
-    model: getModelNameForPolicy("extract-fast"),
+    model,
     promptVersion: CAREER_TREE_MERGE_PROMPT_VERSION,
     reuseCompleted: true,
   });
 
   if (mergeRun.status === "succeeded") {
     if (job.enqueueFollowups !== false) {
-      await enqueueCareerTreeCompose(job.userId);
+      await enqueueCareerTreeCompose(job.userId, job.requestKey);
     }
     return;
   }
@@ -523,7 +525,7 @@ export async function processCareerTreeMergeJob(job: {
     });
 
     if (job.enqueueFollowups !== false) {
-      await enqueueCareerTreeCompose(job.userId);
+      await enqueueCareerTreeCompose(job.userId, job.requestKey);
     }
   } catch (error) {
     await markCareerRunFailed(mergeRun.id, error, job.failure);

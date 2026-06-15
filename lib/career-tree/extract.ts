@@ -77,8 +77,9 @@ export function buildCareerExtractionIdempotencyKey(
   userId: string,
   courseId: string,
   outlineHash: string,
+  model: string,
 ): string {
-  return `extract:user:${userId}:course:${courseId}:outline:${outlineHash}:prompt:${CAREER_TREE_EXTRACT_PROMPT_VERSION}`;
+  return `extract:user:${userId}:course:${courseId}:outline:${outlineHash}:prompt:${CAREER_TREE_EXTRACT_PROMPT_VERSION}:model:${model}`;
 }
 
 function validateExtractedEvidence(params: {
@@ -245,6 +246,7 @@ async function replaceExtractedCareerEvidence(params: {
 export async function processCareerTreeExtractJob(job: {
   userId: string;
   courseId: string;
+  requestKey?: string;
   enqueueFollowups?: boolean;
   failure?: CareerRunFailureOptions;
 }): Promise<void> {
@@ -254,20 +256,26 @@ export async function processCareerTreeExtractJob(job: {
   }
 
   const outlineHash = computeCareerOutlineHash(course.outline);
+  const model = getModelNameForPolicy("extract-fast");
   const run = await getOrCreateCareerRun({
     userId: job.userId,
     courseId: job.courseId,
     kind: "extract",
-    idempotencyKey: buildCareerExtractionIdempotencyKey(job.userId, job.courseId, outlineHash),
+    idempotencyKey: buildCareerExtractionIdempotencyKey(
+      job.userId,
+      job.courseId,
+      outlineHash,
+      model,
+    ),
     inputHash: outlineHash,
-    model: getModelNameForPolicy("extract-fast"),
+    model,
     promptVersion: CAREER_TREE_EXTRACT_PROMPT_VERSION,
     reuseCompleted: true,
   });
 
   if (run.status === "succeeded") {
     if (job.enqueueFollowups !== false) {
-      await enqueueCareerTreeMerge(job.userId, job.courseId, run.id);
+      await enqueueCareerTreeMerge(job.userId, job.courseId, run.id, job.requestKey);
     }
     return;
   }
@@ -298,7 +306,7 @@ export async function processCareerTreeExtractJob(job: {
     await markCareerRunSucceeded(db, run.id, extracted);
 
     if (job.enqueueFollowups !== false) {
-      await enqueueCareerTreeMerge(job.userId, job.courseId, run.id);
+      await enqueueCareerTreeMerge(job.userId, job.courseId, run.id, job.requestKey);
     }
   } catch (error) {
     await markCareerRunFailed(run.id, error, job.failure);

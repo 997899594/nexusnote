@@ -9,7 +9,11 @@ import type { EmbeddingModelV3, LanguageModelV3 } from "@ai-sdk/provider";
 import { extractReasoningMiddleware, wrapLanguageModel } from "ai";
 import { env } from "@/config/env";
 import { getAIModelId, type LanguageModelType, type ModelType } from "./model-bundles";
-import { adapt302ToolCallingRequest, parseModelGatewayJsonBody } from "./model-capabilities";
+import {
+  adapt302StructuredOutputRequest,
+  adapt302ToolCallingRequest,
+  parseModelGatewayJsonBody,
+} from "./model-capabilities";
 import type { AIModelSeries } from "./model-series";
 
 type OpenAIProviderOptions = NonNullable<Parameters<typeof createOpenAI>[0]>;
@@ -29,12 +33,16 @@ function create302CompatibleFetch(): OpenAIProviderFetch {
       return fetch(input, init);
     }
 
-    const adapted = adapt302ToolCallingRequest({
+    const structuredOutputAdapted = adapt302StructuredOutputRequest({
       body,
       headers,
     });
+    const adapted = adapt302ToolCallingRequest({
+      body: structuredOutputAdapted.body,
+      headers: structuredOutputAdapted.headers,
+    });
 
-    if (!adapted.changed) {
+    if (!structuredOutputAdapted.changed && !adapted.changed) {
       return fetch(input, init);
     }
 

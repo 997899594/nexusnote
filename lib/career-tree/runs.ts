@@ -1,5 +1,11 @@
 import { and, desc, eq } from "drizzle-orm";
 import { careerGenerationRuns, db } from "@/db";
+import { normalizeAIError } from "@/lib/ai/core/ai-errors";
+import {
+  buildErrorLogFields,
+  getErrorMessage,
+  writeStructuredLog,
+} from "@/lib/observability/structured-log";
 
 type CareerRunExecutor = Pick<typeof db, "update">;
 type CareerRunStatus = typeof careerGenerationRuns.$inferSelect.status;
@@ -11,12 +17,34 @@ export interface CareerRunFailureOptions {
   maxAttempts?: number;
 }
 
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "Unknown error";
+function buildCareerRunLogFields(run: CareerGenerationRun | null): Record<string, unknown> {
+  return {
+    runId: run?.id ?? null,
+    kind: run?.kind ?? null,
+    status: run?.status ?? null,
+    userId: run?.userId ?? null,
+    courseId: run?.courseId ?? null,
+    model: run?.model ?? null,
+    promptVersion: run?.promptVersion ?? null,
+    inputHash: run?.inputHash ?? null,
+    startedAt: run?.startedAt?.toISOString() ?? null,
+    finishedAt: run?.finishedAt?.toISOString() ?? null,
+    createdAt: run?.createdAt?.toISOString() ?? null,
+  };
 }
 
-function getErrorStack(error: unknown): string | null {
-  return error instanceof Error ? (error.stack ?? null) : null;
+function logCareerRunStarted(
+  run: CareerGenerationRun | null,
+  params: { previousStatus?: CareerRunStatus | null },
+) {
+  writeStructuredLog("info", "career_tree_run_started", {
+    ...buildCareerRunLogFields(run),
+    previousStatus: params.previousStatus ?? null,
+  });
+}
+
+function logCareerRunSucceeded(run: CareerGenerationRun | null) {
+  writeStructuredLog("info", "career_tree_run_succeeded", buildCareerRunLogFields(run));
 }
 
 function logCareerRunFailure(
@@ -24,24 +52,13 @@ function logCareerRunFailure(
   error: unknown,
   options: CareerRunFailureOptions,
 ) {
-  const payload = {
-    level: "error",
-    event: "career_tree_run_failed",
+  writeStructuredLog("error", "career_tree_run_failed", {
+    ...buildCareerRunLogFields(run),
     final: options.final,
     attemptNumber: options.attemptNumber ?? null,
     maxAttempts: options.maxAttempts ?? null,
-    runId: run?.id ?? null,
-    kind: run?.kind ?? null,
-    userId: run?.userId ?? null,
-    courseId: run?.courseId ?? null,
-    model: run?.model ?? null,
-    promptVersion: run?.promptVersion ?? null,
-    inputHash: run?.inputHash ?? null,
-    errorMessage: getErrorMessage(error),
-    errorStack: getErrorStack(error),
-  };
-
-  console.error(JSON.stringify(payload));
+    ...buildErrorLogFields(error),
+  });
 }
 
 async function getCareerRunByIdempotencyKey(idempotencyKey: string) {
@@ -61,8 +78,8 @@ async function updateCareerRunStatus(
     startedAt?: Date | null;
     finishedAt?: Date | null;
   },
-) {
-  await executor
+): Promise<CareerGenerationRun | null> {
+  const [updated] = await executor
     .update(careerGenerationRuns)
     .set({
       status: params.status,
@@ -72,7 +89,10 @@ async function updateCareerRunStatus(
       ...(params.errorCode !== undefined && { errorCode: params.errorCode }),
       ...(params.errorMessage !== undefined && { errorMessage: params.errorMessage }),
     })
-    .where(eq(careerGenerationRuns.id, params.runId));
+    .where(eq(careerGenerationRuns.id, params.runId))
+    .returning();
+
+  return updated ?? null;
 }
 
 export async function getCareerRunById(runId: string) {
@@ -124,6 +144,7 @@ export async function getOrCreateCareerRun(params: {
     .returning();
 
   if (created) {
+    logCareerRunStarted(created, { previousStatus: null });
     return created;
   }
 
@@ -137,19 +158,28 @@ export async function getOrCreateCareerRun(params: {
   }
 
   if (existing.status !== "running") {
-    await updateCareerRunStatus(db, {
+    const startedAt = new Date();
+    const updated = await updateCareerRunStatus(db, {
       runId: existing.id,
       status: "running",
-      startedAt: new Date(),
+      startedAt,
       finishedAt: null,
       errorCode: null,
       errorMessage: null,
     });
 
-    return {
+    const restarted = updated ?? {
       ...existing,
       status: "running" as const,
+      startedAt,
+      finishedAt: null,
+      errorCode: null,
+      errorMessage: null,
     };
+
+    logCareerRunStarted(restarted, { previousStatus: existing.status });
+
+    return restarted;
   }
 
   return existing;
@@ -160,7 +190,7 @@ export async function markCareerRunSucceeded(
   runId: string,
   outputJson: unknown,
 ) {
-  await updateCareerRunStatus(executor, {
+  const updated = await updateCareerRunStatus(executor, {
     runId,
     status: "succeeded",
     outputJson,
@@ -168,6 +198,8 @@ export async function markCareerRunSucceeded(
     errorCode: null,
     errorMessage: null,
   });
+
+  logCareerRunSucceeded(updated);
 }
 
 export async function markCareerRunFailed(
@@ -198,7 +230,7 @@ export async function markCareerRunFailed(
     runId,
     status: options.final ? "failed" : "running",
     finishedAt: options.final ? new Date() : null,
-    errorCode: "JOB_FAILED",
+    errorCode: normalizeAIError(error).code,
     errorMessage: getErrorMessage(error),
   });
 }

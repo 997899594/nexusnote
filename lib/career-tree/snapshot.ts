@@ -1,7 +1,10 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { careerGenerationRuns, careerUserTreeSnapshots, db } from "@/db";
+import { getModelNameForPolicy } from "@/lib/ai/core/model-policy";
 import {
   CAREER_TREE_COMPOSE_PROMPT_VERSION,
+  CAREER_TREE_EXTRACT_PROMPT_VERSION,
+  CAREER_TREE_MERGE_PROMPT_VERSION,
   CAREER_TREE_SCHEMA_VERSION,
 } from "@/lib/career-tree/constants";
 import { getCareerTreePreference } from "@/lib/career-tree/preferences";
@@ -15,7 +18,6 @@ import {
 } from "@/lib/career-tree/types";
 
 const CURRENT_SNAPSHOT_CANDIDATE_LIMIT = 20;
-
 export function parseCareerTreeSnapshotPayload(payload: unknown): CareerTreeSnapshot | null {
   const parsed = careerTreeSnapshotSchema.safeParse(payload);
   return parsed.success ? parsed.data : null;
@@ -105,6 +107,40 @@ function getPublicFailureMessage(message: string | null): string {
   }
 
   return message.slice(0, 240);
+}
+
+function shouldSurfaceCareerRunFailure(run: {
+  kind: string;
+  status: string;
+  model: string;
+  promptVersion: string;
+}): boolean {
+  if (run.status !== "failed") {
+    return false;
+  }
+
+  if (run.kind === "extract") {
+    return (
+      run.promptVersion === CAREER_TREE_EXTRACT_PROMPT_VERSION &&
+      run.model === getModelNameForPolicy("extract-fast")
+    );
+  }
+
+  if (run.kind === "merge") {
+    return (
+      run.promptVersion === CAREER_TREE_MERGE_PROMPT_VERSION &&
+      run.model === getModelNameForPolicy("extract-fast")
+    );
+  }
+
+  if (run.kind === "compose") {
+    return (
+      run.promptVersion === CAREER_TREE_COMPOSE_PROMPT_VERSION &&
+      run.model === getModelNameForPolicy("outline-architect", { modelSeries: "openai" })
+    );
+  }
+
+  return false;
 }
 
 export async function restoreLatestCareerTreeSnapshotForComposeRun(params: {
@@ -200,7 +236,7 @@ export async function getCareerTreeSnapshot(userId: string): Promise<CareerTreeS
     }
   }
 
-  if (latestRun?.status === "failed") {
+  if (latestRun?.status === "failed" && shouldSurfaceCareerRunFailure(latestRun)) {
     return createFailedCareerTreeSnapshot({
       selectedDirectionKey: preference.selectedDirectionKey,
       stage: normalizeFailureStage(latestRun.kind),

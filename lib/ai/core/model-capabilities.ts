@@ -5,9 +5,13 @@ interface ModelToolCallingCapabilities {
   namedToolChoice: {
     requiresNonThinkingMode: boolean;
   };
+  structuredOutput: {
+    mode: "json_schema" | "json_object";
+    requiresNonThinkingMode: boolean;
+  };
 }
 
-export interface ToolCallingRequestAdaptation {
+export interface ModelRequestAdaptation {
   headers: Headers;
   body: Record<string, unknown>;
   changed: boolean;
@@ -24,11 +28,19 @@ const MODEL_TOOL_CALLING_CAPABILITIES: Array<
     namedToolChoice: {
       requiresNonThinkingMode: true,
     },
+    structuredOutput: {
+      mode: "json_schema",
+      requiresNonThinkingMode: true,
+    },
   },
   {
     modelSeries: "deepseek",
     modelIdPatterns: [/deepseek/iu],
     namedToolChoice: {
+      requiresNonThinkingMode: false,
+    },
+    structuredOutput: {
+      mode: "json_object",
       requiresNonThinkingMode: false,
     },
   },
@@ -38,11 +50,19 @@ const MODEL_TOOL_CALLING_CAPABILITIES: Array<
     namedToolChoice: {
       requiresNonThinkingMode: false,
     },
+    structuredOutput: {
+      mode: "json_schema",
+      requiresNonThinkingMode: false,
+    },
   },
   {
     modelSeries: "openai",
     modelIdPatterns: [/gpt-|o[1345]|chatgpt/iu],
     namedToolChoice: {
+      requiresNonThinkingMode: false,
+    },
+    structuredOutput: {
+      mode: "json_schema",
       requiresNonThinkingMode: false,
     },
   },
@@ -51,6 +71,10 @@ const MODEL_TOOL_CALLING_CAPABILITIES: Array<
 const UNKNOWN_TOOL_CALLING_CAPABILITIES: ModelToolCallingCapabilities = {
   modelSeries: "unknown",
   namedToolChoice: {
+    requiresNonThinkingMode: false,
+  },
+  structuredOutput: {
+    mode: "json_schema",
     requiresNonThinkingMode: false,
   },
 };
@@ -72,6 +96,73 @@ function hasNamedToolChoice(body: Record<string, unknown>): boolean {
     typeof toolChoice.function.name === "string" &&
     toolChoice.function.name.length > 0
   );
+}
+
+function hasJsonSchemaResponseFormat(body: Record<string, unknown>): boolean {
+  return isRecord(body.response_format) && body.response_format.type === "json_schema";
+}
+
+function getStructuredOutputSchema(body: Record<string, unknown>): unknown {
+  if (!isRecord(body.response_format) || !isRecord(body.response_format.json_schema)) {
+    return null;
+  }
+
+  return body.response_format.json_schema.schema ?? null;
+}
+
+function buildStructuredOutputSchemaInstruction(body: Record<string, unknown>): string | null {
+  const schema = getStructuredOutputSchema(body);
+  if (!schema) {
+    return null;
+  }
+
+  const schemaText = JSON.stringify(schema);
+  return [
+    "The response must be a JSON object that conforms to this JSON Schema.",
+    "Return JSON only. Do not include markdown, prose, or code fences.",
+    schemaText,
+  ].join("\n");
+}
+
+function withStructuredOutputSchemaInstruction(
+  messages: unknown,
+  instruction: string | null,
+): unknown {
+  if (!instruction || !Array.isArray(messages)) {
+    return messages;
+  }
+
+  const systemMessageIndex = messages.findIndex(
+    (message) =>
+      isRecord(message) &&
+      (message.role === "system" || message.role === "developer") &&
+      typeof message.content === "string",
+  );
+
+  if (systemMessageIndex >= 0) {
+    return messages.map((message, index) => {
+      if (
+        index !== systemMessageIndex ||
+        !isRecord(message) ||
+        typeof message.content !== "string"
+      ) {
+        return message;
+      }
+
+      return {
+        ...message,
+        content: `${message.content}\n\n${instruction}`,
+      };
+    });
+  }
+
+  return [
+    {
+      role: "system",
+      content: instruction,
+    },
+    ...messages,
+  ];
 }
 
 export function parseModelGatewayJsonBody(
@@ -104,7 +195,7 @@ function resolveModelToolCallingCapabilities(modelId: unknown): ModelToolCalling
 export function adapt302ToolCallingRequest(params: {
   body: Record<string, unknown>;
   headers: Headers;
-}): ToolCallingRequestAdaptation {
+}): ModelRequestAdaptation {
   if (!hasTools(params.body)) {
     return {
       body: params.body,
@@ -132,5 +223,41 @@ export function adapt302ToolCallingRequest(params: {
     body: params.body,
     headers,
     changed: true,
+  };
+}
+
+export function adapt302StructuredOutputRequest(params: {
+  body: Record<string, unknown>;
+  headers: Headers;
+}): ModelRequestAdaptation {
+  if (!hasJsonSchemaResponseFormat(params.body)) {
+    return {
+      body: params.body,
+      headers: params.headers,
+      changed: false,
+    };
+  }
+
+  const capabilities = resolveModelToolCallingCapabilities(params.body.model);
+  const adaptedBody = { ...params.body };
+
+  if (capabilities.structuredOutput.mode === "json_object") {
+    adaptedBody.response_format = { type: "json_object" };
+    adaptedBody.messages = withStructuredOutputSchemaInstruction(
+      params.body.messages,
+      buildStructuredOutputSchemaInstruction(params.body),
+    );
+  }
+
+  if (capabilities.structuredOutput.requiresNonThinkingMode) {
+    adaptedBody.enable_thinking = false;
+  }
+
+  return {
+    body: adaptedBody,
+    headers: params.headers,
+    changed:
+      capabilities.structuredOutput.mode !== "json_schema" ||
+      capabilities.structuredOutput.requiresNonThinkingMode,
   };
 }

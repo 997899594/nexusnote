@@ -8,10 +8,20 @@ export interface QueuedCareerTreeJob {
   type: CareerTreeJobData["type"];
 }
 
+export function createCareerTreeRequestKey(prefix = "manual"): string {
+  return `${prefix}:${crypto.randomUUID()}`;
+}
+
+function getCareerTreeJobRequestPart(job: CareerTreeJobData): string | undefined {
+  return job.requestKey;
+}
+
 function getCareerTreeJobId(job: CareerTreeJobData): string {
+  const requestPart = getCareerTreeJobRequestPart(job);
+
   switch (job.type) {
     case "compose_user_career_trees":
-      return buildSafeJobId(["career-tree", "compose", job.userId]);
+      return buildSafeJobId(["career-tree", "compose", job.userId, requestPart]);
     case "refresh_user_career_tree_snapshot":
       return buildSafeJobId([
         "career-tree",
@@ -19,9 +29,10 @@ function getCareerTreeJobId(job: CareerTreeJobData): string {
         job.userId,
         job.courseId ?? "all",
         job.reasonKey ?? "manual",
+        requestPart,
       ]);
     case "extract_course_evidence":
-      return buildSafeJobId(["career-tree", "extract", job.userId, job.courseId]);
+      return buildSafeJobId(["career-tree", "extract", job.userId, job.courseId, requestPart]);
     case "merge_user_skill_graph":
       return buildSafeJobId([
         "career-tree",
@@ -29,6 +40,7 @@ function getCareerTreeJobId(job: CareerTreeJobData): string {
         job.userId,
         job.courseId,
         job.extractRunId ?? "latest",
+        requestPart,
       ]);
   }
 }
@@ -48,11 +60,13 @@ async function enqueueCareerTreeJob(job: CareerTreeJobData): Promise<QueuedCaree
 export async function enqueueCareerTreeExtract(
   userId: string,
   courseId: string,
+  requestKey?: string,
 ): Promise<QueuedCareerTreeJob> {
   return enqueueCareerTreeJob({
     type: "extract_course_evidence",
     userId,
     courseId,
+    requestKey,
   });
 }
 
@@ -60,19 +74,25 @@ export async function enqueueCareerTreeMerge(
   userId: string,
   courseId: string,
   extractRunId?: string,
+  requestKey?: string,
 ): Promise<QueuedCareerTreeJob> {
   return enqueueCareerTreeJob({
     type: "merge_user_skill_graph",
     userId,
     courseId,
     extractRunId,
+    requestKey,
   });
 }
 
-export async function enqueueCareerTreeCompose(userId: string): Promise<QueuedCareerTreeJob> {
+export async function enqueueCareerTreeCompose(
+  userId: string,
+  requestKey?: string,
+): Promise<QueuedCareerTreeJob> {
   return enqueueCareerTreeJob({
     type: "compose_user_career_trees",
     userId,
+    requestKey,
   });
 }
 
@@ -80,11 +100,13 @@ export async function enqueueCareerTreeRefresh(params: {
   userId: string;
   courseId?: string;
   reasonKey?: string;
+  requestKey?: string;
 }): Promise<QueuedCareerTreeJob> {
   return enqueueCareerTreeJob({
     type: "refresh_user_career_tree_snapshot",
     userId: params.userId,
     courseId: params.courseId,
     reasonKey: params.reasonKey,
+    requestKey: params.requestKey,
   });
 }

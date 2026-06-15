@@ -675,6 +675,7 @@ function buildComposeInputHash(params: {
 
 export async function processCareerTreeComposeJob(job: {
   userId: string;
+  requestKey?: string;
   failure?: CareerRunFailureOptions;
 }): Promise<void> {
   const eligibleCoursesExist = await hasEligibleCareerCourses(job.userId);
@@ -706,14 +707,15 @@ export async function processCareerTreeComposeJob(job: {
     progressHash,
     nodeIds: nodes.map((node) => node.id),
   });
+  const model = getModelNameForPolicy("outline-architect", {
+    modelSeries: CAREER_TREE_COMPOSE_MODEL_SERIES,
+  });
   const composeRun = await getOrCreateCareerRun({
     userId: job.userId,
     kind: "compose",
-    idempotencyKey: `compose:user:${job.userId}:graph:${graphVersion}:pref:${preference.preferenceVersion}:progress:${progressHash}:prompt:${CAREER_TREE_COMPOSE_PROMPT_VERSION}`,
+    idempotencyKey: `compose:user:${job.userId}:graph:${graphVersion}:pref:${preference.preferenceVersion}:progress:${progressHash}:prompt:${CAREER_TREE_COMPOSE_PROMPT_VERSION}:model:${model}`,
     inputHash,
-    model: getModelNameForPolicy("outline-architect", {
-      modelSeries: CAREER_TREE_COMPOSE_MODEL_SERIES,
-    }),
+    model,
     promptVersion: CAREER_TREE_COMPOSE_PROMPT_VERSION,
     reuseCompleted: true,
   });
