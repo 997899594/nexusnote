@@ -1,5 +1,5 @@
 export const CAREER_TREE_SCHEMA_VERSION = 2;
-export const CAREER_TREE_EXTRACT_PROMPT_VERSION = "career-tree-extract@v1";
+export const CAREER_TREE_EXTRACT_PROMPT_VERSION = "career-tree-extract@v2";
 export const CAREER_TREE_MERGE_PROMPT_VERSION = "career-tree-merge@v1";
 export const CAREER_TREE_COMPOSE_PROMPT_VERSION = "career-tree-compose@v5";
 

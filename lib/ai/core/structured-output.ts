@@ -1,6 +1,6 @@
 import type { LanguageModelV3 } from "@ai-sdk/provider";
 import { asSchema, generateText, type LanguageModelUsage, Output, type ToolSet } from "ai";
-import type { z } from "zod";
+import { z } from "zod";
 
 type GenerateTextInput = Parameters<typeof generateText>[0];
 type StructuredObjectFinishReason = Awaited<ReturnType<typeof generateText>>["finishReason"];
@@ -35,10 +35,17 @@ export interface GenerateStructuredObjectResult<TOutput> {
 
 function withStructuredJsonInstruction(
   system: GenerateTextInput["system"],
+  schema: z.ZodType,
 ): GenerateTextInput["system"] {
-  return system
-    ? `${system}\n\n${STRUCTURED_JSON_SYSTEM_INSTRUCTION}`
-    : STRUCTURED_JSON_SYSTEM_INSTRUCTION;
+  const jsonSchema = JSON.stringify(z.toJSONSchema(schema));
+  const instruction = [
+    STRUCTURED_JSON_SYSTEM_INSTRUCTION,
+    "The root object and every property name must match this JSON Schema exactly. Do not rename, group, or replace required fields with similar business terms.",
+    "JSON Schema:",
+    jsonSchema,
+  ].join("\n");
+
+  return system ? `${system}\n\n${instruction}` : instruction;
 }
 
 export async function generateStructuredObject<TSchema extends z.ZodType>(
@@ -51,7 +58,7 @@ export async function generateStructuredObject<TSchema extends z.ZodType>(
   });
   const result = await generateText<ToolSet, typeof output>({
     model: options.model,
-    system: withStructuredJsonInstruction(options.system),
+    system: withStructuredJsonInstruction(options.system, options.schema),
     prompt: options.prompt,
     output,
     temperature: options.temperature,

@@ -8,6 +8,9 @@
 - explicitCourseSkillIds 与 chapter.skillIds 是高置信上下文，但你可以补充大纲中明确出现的能力证据。
 - chapterRefs 只能使用输入里出现的 chapterKey。
 - 输出应少而准，避免把同一能力拆成大量近义项。
+- 顶层必须只输出 `items` 数组。不要输出 `skills`、`abilities`、`topics`、`tools`、`workflows`、`concepts` 这类并列顶层字段。
+- 每个 `items` 条目必须包含 `title`、`kind`、`summary`、`confidence`、`chapterRefs`、`prerequisiteHints`、`relatedHints`、`evidenceSnippets`。
+- `kind` 只能是 `skill`、`theme`、`tool`、`workflow`、`concept`。
 
 输入：
 {{course_context}}
