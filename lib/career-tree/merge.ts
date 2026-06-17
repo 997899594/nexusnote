@@ -20,6 +20,10 @@ import {
   MAX_CAREER_NEW_NODES_PER_COURSE,
 } from "@/lib/career-tree/constants";
 import { bumpCareerGraphState } from "@/lib/career-tree/graph-state";
+import {
+  logCareerTreePipelineEvent,
+  logCareerTreePipelineSkip,
+} from "@/lib/career-tree/pipeline-log";
 import { enqueueCareerTreeCompose } from "@/lib/career-tree/queue";
 import {
   type CareerRunFailureOptions,
@@ -446,8 +450,24 @@ export async function processCareerTreeMergeJob(job: {
   enqueueFollowups?: boolean;
   failure?: CareerRunFailureOptions;
 }): Promise<void> {
+  logCareerTreePipelineEvent("career_tree_pipeline_started", {
+    stage: "merge",
+    userId: job.userId,
+    courseId: job.courseId,
+    requestKey: job.requestKey ?? null,
+    extractRunId: job.extractRunId ?? null,
+  });
   const extractRun = await loadExtractRun(job);
   if (!extractRun || extractRun.status !== "succeeded") {
+    logCareerTreePipelineSkip({
+      stage: "merge",
+      reason: "succeeded_extract_run_missing",
+      userId: job.userId,
+      courseId: job.courseId,
+      requestKey: job.requestKey ?? null,
+      extractRunId: job.extractRunId ?? null,
+      extractRunStatus: extractRun?.status ?? null,
+    });
     return;
   }
 
@@ -464,6 +484,15 @@ export async function processCareerTreeMergeJob(job: {
   });
 
   if (mergeRun.status === "succeeded") {
+    logCareerTreePipelineEvent("career_tree_pipeline_succeeded", {
+      stage: "merge",
+      userId: job.userId,
+      courseId: job.courseId,
+      requestKey: job.requestKey ?? null,
+      runId: mergeRun.id,
+      extractRunId: extractRun.id,
+      reused: true,
+    });
     if (job.enqueueFollowups !== false) {
       await enqueueCareerTreeCompose(job.userId, job.requestKey);
     }
@@ -480,6 +509,15 @@ export async function processCareerTreeMergeJob(job: {
   ]);
 
   if (evidenceRows.length === 0) {
+    logCareerTreePipelineSkip({
+      stage: "merge",
+      reason: "extract_run_has_no_evidence",
+      userId: job.userId,
+      courseId: job.courseId,
+      requestKey: job.requestKey ?? null,
+      runId: mergeRun.id,
+      extractRunId: extractRun.id,
+    });
     return;
   }
 
@@ -522,6 +560,18 @@ export async function processCareerTreeMergeJob(job: {
         priorMergeRunIds,
       });
       await markCareerRunSucceeded(tx, mergeRun.id, validated);
+    });
+    logCareerTreePipelineEvent("career_tree_pipeline_succeeded", {
+      stage: "merge",
+      userId: job.userId,
+      courseId: job.courseId,
+      requestKey: job.requestKey ?? null,
+      runId: mergeRun.id,
+      extractRunId: extractRun.id,
+      reused: false,
+      evidenceCount: evidenceRows.length,
+      decisionCount: validated.decisions.length,
+      edgeCount: validated.edgeDecisions.length,
     });
 
     if (job.enqueueFollowups !== false) {

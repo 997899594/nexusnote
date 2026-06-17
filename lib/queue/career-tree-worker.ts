@@ -13,6 +13,10 @@ import {
 import { processCareerTreeExtractJob } from "@/lib/career-tree/extract";
 import { processCareerTreeMergeJob } from "@/lib/career-tree/merge";
 import {
+  logCareerTreePipelineEvent,
+  logCareerTreePipelineSkip,
+} from "@/lib/career-tree/pipeline-log";
+import {
   enqueueCareerTreeCompose,
   enqueueCareerTreeExtract,
   enqueueCareerTreeRefresh,
@@ -57,6 +61,13 @@ async function enqueueOutdatedCareerTreeRefreshJobs(): Promise<void> {
 async function processCareerTreeRefreshJob(
   job: Extract<CareerTreeJobData, { type: "refresh_user_career_tree_snapshot" }>,
 ): Promise<void> {
+  logCareerTreePipelineEvent("career_tree_pipeline_started", {
+    stage: "refresh",
+    userId: job.userId,
+    courseId: job.courseId ?? null,
+    requestKey: job.requestKey ?? null,
+    reasonKey: job.reasonKey ?? null,
+  });
   const courseSources = await listCareerCourseSourcesForUser({
     userId: job.userId,
     courseId: job.courseId,
@@ -72,6 +83,13 @@ async function processCareerTreeRefreshJob(
   }
 
   if (courseSources.length === 0) {
+    logCareerTreePipelineSkip({
+      stage: "refresh",
+      reason: "no_course_sources",
+      userId: job.userId,
+      courseId: job.courseId ?? null,
+      requestKey: job.requestKey ?? null,
+    });
     await enqueueCareerTreeCompose(job.userId, job.requestKey);
     return;
   }
@@ -79,6 +97,13 @@ async function processCareerTreeRefreshJob(
   for (const source of courseSources) {
     await enqueueCareerTreeExtract(source.userId, source.courseId, job.requestKey);
   }
+  logCareerTreePipelineEvent("career_tree_pipeline_succeeded", {
+    stage: "refresh",
+    userId: job.userId,
+    courseId: job.courseId ?? null,
+    requestKey: job.requestKey ?? null,
+    enqueuedExtractCount: courseSources.length,
+  });
 }
 
 function getCareerTreeFailureOptions(job: { attemptsMade: number; opts: { attempts?: number } }) {

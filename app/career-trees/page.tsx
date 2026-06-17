@@ -4,6 +4,7 @@ import { CareerTreesExplorer } from "@/components/career-trees/CareerTreesExplor
 import { getDynamicPageSession } from "@/lib/auth/page";
 import { getLatestCareerPlanningState } from "@/lib/career-planning/state";
 import { buildCareerPlanningWorkspaceDataFromCareerWorkspace } from "@/lib/career-planning/workspace-data";
+import { getCareerTreePipelineStatus } from "@/lib/career-tree/pipeline-status";
 import { getCareerTreeWorkspaceDataFresh } from "@/lib/career-tree/workspace-data";
 
 async function CareerTreesPageContent() {
@@ -13,8 +14,9 @@ async function CareerTreesPageContent() {
     redirect("/login?callbackUrl=%2Fcareer-trees");
   }
 
-  const [careerTrees, planningState] = await Promise.all([
+  const [careerTrees, pipeline, planningState] = await Promise.all([
     getCareerTreeWorkspaceDataFresh(session.user.id, 4),
+    getCareerTreePipelineStatus(session.user.id),
     getLatestCareerPlanningState(session.user.id),
   ]);
   const planningData = await buildCareerPlanningWorkspaceDataFromCareerWorkspace({
@@ -26,6 +28,7 @@ async function CareerTreesPageContent() {
     <main className="ui-page-shell min-h-dvh overflow-x-hidden lg:overflow-hidden">
       <CareerTreesExplorer
         snapshot={careerTrees.snapshot}
+        pipeline={pipeline}
         focusSnapshot={careerTrees.focusSnapshot}
         profileSnapshot={careerTrees.profileSnapshot}
         planningData={planningData}

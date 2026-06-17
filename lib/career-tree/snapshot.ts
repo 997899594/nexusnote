@@ -122,7 +122,7 @@ function shouldSurfaceCareerRunFailure(run: {
   if (run.kind === "extract") {
     return (
       run.promptVersion === CAREER_TREE_EXTRACT_PROMPT_VERSION &&
-      run.model === getModelNameForPolicy("extract-fast")
+      run.model.includes(getModelNameForPolicy("extract-fast"))
     );
   }
 

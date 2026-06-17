@@ -1,6 +1,6 @@
 "use client";
 
-import { GitBranch, Loader2 } from "lucide-react";
+import { GitBranch, Loader2, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -14,6 +14,7 @@ import {
   buildCareerDevelopmentGraph,
   type CareerDevelopmentGraph,
 } from "@/lib/career-tree/career-development-graph";
+import type { CareerTreePipelineStatus } from "@/lib/career-tree/pipeline-status";
 import type {
   FocusSnapshotProjection,
   ProfileSnapshotProjection,
@@ -35,9 +36,15 @@ import { cn } from "@/lib/utils";
 
 interface CareerTreesExplorerProps {
   snapshot: CareerTreeSnapshot;
+  pipeline: CareerTreePipelineStatus;
   focusSnapshot: FocusSnapshotProjection | null;
   profileSnapshot: ProfileSnapshotProjection | null;
   planningData: CareerPlanningWorkspaceData;
+}
+
+interface CareerTreeEnvelope {
+  snapshot: CareerTreeSnapshot;
+  pipeline: CareerTreePipelineStatus;
 }
 
 const EMPTY_PLANNING_HIGHLIGHTS: string[] = [];
@@ -76,6 +83,125 @@ function MetricTile({ label, value }: { label: string; value: string | number })
       </div>
     </div>
   );
+}
+
+function shouldPollPipeline(pipeline: CareerTreePipelineStatus): boolean {
+  return (
+    pipeline.state === "queued" || pipeline.state === "running" || pipeline.state === "stalled"
+  );
+}
+
+function getPipelineStageLabel(stage: CareerTreePipelineStatus["stage"]): string {
+  switch (stage) {
+    case "refresh":
+      return "同步课程";
+    case "extract":
+      return "提取证据";
+    case "merge":
+      return "合并能力";
+    case "compose":
+      return "生成职业树";
+    default:
+      return "等待生成";
+  }
+}
+
+function getPipelineStateLabel(state: CareerTreePipelineStatus["state"]): string {
+  switch (state) {
+    case "queued":
+      return "排队中";
+    case "running":
+      return "生成中";
+    case "stalled":
+      return "无进展";
+    case "failed":
+      return "失败";
+    case "ready":
+      return "已完成";
+    default:
+      return "未开始";
+  }
+}
+
+function PipelineStatusBar({
+  pipeline,
+  compact = false,
+  onRetry,
+  isRetrying,
+}: {
+  pipeline: CareerTreePipelineStatus;
+  compact?: boolean;
+  onRetry?: () => void;
+  isRetrying?: boolean;
+}) {
+  if (pipeline.state === "ready" && compact) {
+    return null;
+  }
+
+  const activeWorkCount = pipeline.queue.active + pipeline.runs.running.length;
+  const queuedWorkCount =
+    pipeline.queue.waiting + pipeline.queue.delayed + pipeline.queue.prioritized;
+  const showRetry = pipeline.state === "failed" || pipeline.state === "stalled";
+
+  return (
+    <div
+      className={cn(
+        "rounded-[20px] border px-3 py-3 text-sm",
+        pipeline.state === "failed" || pipeline.state === "stalled"
+          ? "border-red-950/[0.08] bg-red-50/70 text-red-950"
+          : "border-black/[0.06] bg-white/72 text-[var(--color-text)]",
+      )}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 text-xs font-semibold">
+            {pipeline.state === "running" || pipeline.state === "queued" ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : null}
+            <span>{getPipelineStateLabel(pipeline.state)}</span>
+            <span className="text-[var(--color-text-muted)]">
+              {getPipelineStageLabel(pipeline.stage)}
+            </span>
+          </div>
+          <p className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--color-text-secondary)]">
+            {pipeline.message}
+          </p>
+        </div>
+        {showRetry && onRetry ? (
+          <button
+            type="button"
+            onClick={onRetry}
+            disabled={isRetrying}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-slate-950 px-3 py-1.5 text-xs font-medium text-white transition-opacity disabled:opacity-50"
+          >
+            <RefreshCw className={cn("h-3.5 w-3.5", isRetrying && "animate-spin")} />
+            重新生成
+          </button>
+        ) : null}
+      </div>
+      {!compact ? (
+        <div className="mt-3 grid grid-cols-3 gap-2 text-[0.6875rem] text-[var(--color-text-muted)]">
+          <span>运行 {activeWorkCount}</span>
+          <span>排队 {queuedWorkCount}</span>
+          <span>
+            最近 {pipeline.lastActivityAt ? formatGeneratedAt(pipeline.lastActivityAt) : "无"}
+          </span>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+async function fetchCareerTreeEnvelope(): Promise<CareerTreeEnvelope | null> {
+  const response = await fetch("/api/user/career-trees", {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  return (await response.json()) as CareerTreeEnvelope;
 }
 
 function DirectionRail({
@@ -321,39 +447,18 @@ function CourseChoicePanel({
 
 function EmptyWorkbench({
   snapshot,
+  pipeline,
   planningData,
+  onRetry,
+  isRetrying,
 }: {
   snapshot: CareerTreeSnapshot;
+  pipeline: CareerTreePipelineStatus;
   planningData: CareerPlanningWorkspaceData;
+  onRetry: () => void;
+  isRetrying: boolean;
 }) {
-  const router = useRouter();
-  const { addToast } = useToast();
-  const [isRetrying, setIsRetrying] = useState(false);
   const failure = snapshot.status === "failed" ? snapshot.failure : null;
-
-  const handleRetry = async () => {
-    if (isRetrying) {
-      return;
-    }
-
-    setIsRetrying(true);
-    try {
-      const response = await fetch("/api/user/career-trees", {
-        method: "POST",
-      });
-
-      if (!response.ok) {
-        throw new Error("retry_failed");
-      }
-
-      addToast("已重新开始生成职业树", "success");
-      router.refresh();
-    } catch {
-      addToast("重新生成失败，请稍后重试", "error");
-    } finally {
-      setIsRetrying(false);
-    }
-  };
 
   return (
     <div className="flex h-dvh min-h-0 overflow-hidden bg-white">
@@ -377,13 +482,18 @@ function EmptyWorkbench({
               </p>
               <button
                 type="button"
-                onClick={() => void handleRetry()}
+                onClick={onRetry}
                 disabled={isRetrying}
                 className="mt-3 rounded-full bg-red-950 px-3 py-1.5 text-xs font-medium text-white transition-opacity disabled:opacity-50"
               >
                 {isRetrying ? "重新生成中" : "重新生成"}
               </button>
             </div>
+          </div>
+        ) : null}
+        {!failure ? (
+          <div className="ui-page-frame pb-4">
+            <PipelineStatusBar pipeline={pipeline} onRetry={onRetry} isRetrying={isRetrying} />
           </div>
         ) : null}
 
@@ -399,14 +509,18 @@ function EmptyWorkbench({
 
 export function CareerTreesExplorer({
   snapshot,
+  pipeline,
   focusSnapshot,
   profileSnapshot,
   planningData,
 }: CareerTreesExplorerProps) {
   const router = useRouter();
   const { addToast } = useToast();
+  const [liveSnapshot, setLiveSnapshot] = useState(snapshot);
+  const [livePipeline, setLivePipeline] = useState(pipeline);
+  const [isRetrying, setIsRetrying] = useState(false);
   const [currentDirectionKey, setCurrentDirectionKey] = useState<string | null>(
-    getInitialDirectionKey(snapshot),
+    getInitialDirectionKey(liveSnapshot),
   );
   const [isSaving, setIsSaving] = useState(false);
   const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
@@ -418,17 +532,18 @@ export function CareerTreesExplorer({
   const displayState = useMemo(
     () =>
       resolveCareerTreeDisplayState({
-        snapshot,
+        snapshot: liveSnapshot,
         directionKey: currentDirectionKey,
         focusSnapshot,
         profileSnapshot,
       }),
-    [currentDirectionKey, focusSnapshot, profileSnapshot, snapshot],
+    [currentDirectionKey, focusSnapshot, liveSnapshot, profileSnapshot],
   );
   const currentTree = displayState?.currentTree ?? null;
   const developmentGraph = useMemo(
-    () => buildCareerDevelopmentGraph(snapshot, currentTree?.directionKey ?? currentDirectionKey),
-    [currentDirectionKey, currentTree?.directionKey, snapshot],
+    () =>
+      buildCareerDevelopmentGraph(liveSnapshot, currentTree?.directionKey ?? currentDirectionKey),
+    [currentDirectionKey, currentTree?.directionKey, liveSnapshot],
   );
   const activeNode = useMemo(
     () => (currentTree ? findNodeById(currentTree.tree, activeNodeId) : null),
@@ -439,15 +554,51 @@ export function CareerTreesExplorer({
     activePlanningPatch?.highlightNodeIds ?? EMPTY_PLANNING_HIGHLIGHTS;
 
   useEffect(() => {
+    setLiveSnapshot(snapshot);
+  }, [snapshot]);
+
+  useEffect(() => {
+    setLivePipeline(pipeline);
+  }, [pipeline]);
+
+  useEffect(() => {
+    if (!shouldPollPipeline(livePipeline)) {
+      return;
+    }
+
+    let cancelled = false;
+    const interval = window.setInterval(async () => {
+      try {
+        const envelope = await fetchCareerTreeEnvelope();
+        if (cancelled) {
+          return;
+        }
+
+        if (envelope) {
+          setLiveSnapshot(envelope.snapshot);
+          setLivePipeline(envelope.pipeline);
+        }
+      } catch {
+        // The next poll will retry; user-facing failure is represented by pipeline state.
+      }
+    }, 5000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [livePipeline]);
+
+  useEffect(() => {
     if (
       currentDirectionKey &&
-      snapshot.trees.some((tree) => tree.directionKey === currentDirectionKey)
+      liveSnapshot.trees.some((tree) => tree.directionKey === currentDirectionKey)
     ) {
       return;
     }
 
-    setCurrentDirectionKey(getInitialDirectionKey(snapshot));
-  }, [currentDirectionKey, snapshot]);
+    setCurrentDirectionKey(getInitialDirectionKey(liveSnapshot));
+  }, [currentDirectionKey, liveSnapshot]);
 
   useEffect(() => {
     setActiveNodeId(preferredFocusNode?.id ?? null);
@@ -457,16 +608,61 @@ export function CareerTreesExplorer({
     setActivePlanningPatch(planningData.planningState?.graphPatch ?? null);
   }, [planningData.planningState?.graphPatch]);
 
+  const handleRetryGeneration = async () => {
+    if (isRetrying) {
+      return;
+    }
+
+    setIsRetrying(true);
+    try {
+      const response = await fetch("/api/user/career-trees", {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        throw new Error("retry_failed");
+      }
+
+      addToast("已重新开始生成职业树", "success");
+      const envelope = await fetchCareerTreeEnvelope();
+      if (envelope) {
+        setLiveSnapshot(envelope.snapshot);
+        setLivePipeline(envelope.pipeline);
+      }
+      router.refresh();
+    } catch {
+      addToast("重新生成失败，请稍后重试", "error");
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
   if (
-    snapshot.status === "empty" ||
-    snapshot.status === "pending" ||
-    snapshot.status === "failed"
+    liveSnapshot.status === "empty" ||
+    liveSnapshot.status === "pending" ||
+    liveSnapshot.status === "failed"
   ) {
-    return <EmptyWorkbench snapshot={snapshot} planningData={planningData} />;
+    return (
+      <EmptyWorkbench
+        snapshot={liveSnapshot}
+        pipeline={livePipeline}
+        planningData={planningData}
+        onRetry={() => void handleRetryGeneration()}
+        isRetrying={isRetrying}
+      />
+    );
   }
 
   if (!displayState || !currentTree || !developmentGraph) {
-    return <EmptyWorkbench snapshot={snapshot} planningData={planningData} />;
+    return (
+      <EmptyWorkbench
+        snapshot={liveSnapshot}
+        pipeline={livePipeline}
+        planningData={planningData}
+        onRetry={() => void handleRetryGeneration()}
+        isRetrying={isRetrying}
+      />
+    );
   }
 
   const focusNode = activeNode ?? findDefaultFocusNode(currentTree.tree);
@@ -506,7 +702,7 @@ export function CareerTreesExplorer({
   };
 
   const handleSelectCareer = (directionKey: string) => {
-    if (snapshot.trees.some((tree) => tree.directionKey === directionKey)) {
+    if (liveSnapshot.trees.some((tree) => tree.directionKey === directionKey)) {
       void handleSelectDirection(directionKey);
     }
   };
@@ -530,7 +726,7 @@ export function CareerTreesExplorer({
     <div className="mx-auto flex min-h-dvh max-w-[1640px] flex-col gap-3 p-3 lg:grid lg:h-dvh lg:grid-cols-[16rem_minmax(0,1fr)_22rem] lg:gap-4 lg:p-4 xl:grid-cols-[288px_minmax(0,1fr)_380px]">
       <div className="hidden overflow-hidden rounded-[28px] border border-black/[0.06] bg-white/78 shadow-[0_22px_64px_-48px_rgba(15,23,42,0.28)] backdrop-blur-xl lg:block lg:min-h-0">
         <DirectionRail
-          snapshot={snapshot}
+          snapshot={liveSnapshot}
           currentDirectionKey={currentTree.directionKey}
           developmentGraph={developmentGraph}
           metrics={metrics}
@@ -545,10 +741,20 @@ export function CareerTreesExplorer({
             title={displayCareer.title}
             summary={displayCareer.summary}
             routeTitle={displayCareer.routeTitle}
-            generatedAt={snapshot.generatedAt}
+            generatedAt={liveSnapshot.generatedAt}
           />
+          {livePipeline.state !== "ready" ? (
+            <div className="border-b border-black/[0.04] bg-white/80 px-4 py-3 md:px-6">
+              <PipelineStatusBar
+                pipeline={livePipeline}
+                compact
+                onRetry={() => void handleRetryGeneration()}
+                isRetrying={isRetrying}
+              />
+            </div>
+          ) : null}
           <MobileDirectionStrip
-            snapshot={snapshot}
+            snapshot={liveSnapshot}
             currentDirectionKey={currentTree.directionKey}
             developmentGraph={developmentGraph}
             isSaving={isSaving}

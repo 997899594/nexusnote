@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { conflict, parseJsonBodyAs, withAuth } from "@/lib/api";
 import { revalidateCareerTreeViews } from "@/lib/cache/domain-events";
+import { getCareerTreePipelineStatus } from "@/lib/career-tree/pipeline-status";
 import { setSelectedCareerTreeDirection } from "@/lib/career-tree/preferences";
 import {
   createCareerTreeRequestKey,
@@ -15,7 +16,12 @@ const selectCareerTreeDirectionSchema = z.object({
 });
 
 export const GET = withAuth(async (_request, { userId }) => {
-  return Response.json(await getCareerTreeSnapshot(userId));
+  const [snapshot, pipeline] = await Promise.all([
+    getCareerTreeSnapshot(userId),
+    getCareerTreePipelineStatus(userId),
+  ]);
+
+  return Response.json({ snapshot, pipeline });
 });
 
 export const POST = withAuth(async (_request, { userId }) => {

@@ -23,6 +23,10 @@ import {
   MAX_CAREER_TREES,
 } from "@/lib/career-tree/constants";
 import { getCareerGraphStateRow } from "@/lib/career-tree/graph-state";
+import {
+  logCareerTreePipelineEvent,
+  logCareerTreePipelineSkip,
+} from "@/lib/career-tree/pipeline-log";
 import { getCareerTreePreference } from "@/lib/career-tree/preferences";
 import { isRealisticProgressionRoleTitle } from "@/lib/career-tree/realistic-roles";
 import {
@@ -678,8 +682,19 @@ export async function processCareerTreeComposeJob(job: {
   requestKey?: string;
   failure?: CareerRunFailureOptions;
 }): Promise<void> {
+  logCareerTreePipelineEvent("career_tree_pipeline_started", {
+    stage: "compose",
+    userId: job.userId,
+    requestKey: job.requestKey ?? null,
+  });
   const eligibleCoursesExist = await hasEligibleCareerCourses(job.userId);
   if (!eligibleCoursesExist) {
+    logCareerTreePipelineSkip({
+      stage: "compose",
+      reason: "no_eligible_courses",
+      userId: job.userId,
+      requestKey: job.requestKey ?? null,
+    });
     return;
   }
 
@@ -692,6 +707,13 @@ export async function processCareerTreeComposeJob(job: {
   ]);
 
   if (nodes.length === 0) {
+    logCareerTreePipelineSkip({
+      stage: "compose",
+      reason: "skill_graph_has_no_nodes",
+      userId: job.userId,
+      requestKey: job.requestKey ?? null,
+      graphVersion: graphState?.graphVersion ?? 0,
+    });
     return;
   }
 
@@ -732,6 +754,14 @@ export async function processCareerTreeComposeJob(job: {
       );
     }
 
+    logCareerTreePipelineEvent("career_tree_pipeline_succeeded", {
+      stage: "compose",
+      userId: job.userId,
+      requestKey: job.requestKey ?? null,
+      runId: composeRun.id,
+      reused: true,
+      snapshotId: restoredSnapshot.id,
+    });
     return;
   }
 
@@ -802,6 +832,18 @@ export async function processCareerTreeComposeJob(job: {
         recommendedDirectionHint: validated.recommendedDirectionHint ?? null,
         trees: resolvedTrees,
       });
+    });
+    logCareerTreePipelineEvent("career_tree_pipeline_succeeded", {
+      stage: "compose",
+      userId: job.userId,
+      requestKey: job.requestKey ?? null,
+      runId: composeRun.id,
+      reused: false,
+      graphVersion,
+      treeCount: resolvedTrees.length,
+      nodeCount: nodes.length,
+      supportingEvidenceCount: supportingRows.length,
+      recommendedDirectionKey,
     });
   } catch (error) {
     await markCareerRunFailed(composeRun.id, error, job.failure);

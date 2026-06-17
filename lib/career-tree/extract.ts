@@ -3,6 +3,7 @@ import { z } from "zod";
 import { careerCourseChapterEvidence, careerCourseSkillEvidence, db } from "@/db";
 import { buildGenerationSettingsForPolicy } from "@/lib/ai/core/generation-settings";
 import { getModelNameForPolicy, getPlainModelForPolicy } from "@/lib/ai/core/model-policy";
+import type { AIModelSeries } from "@/lib/ai/core/model-series";
 import { generateStructuredObject } from "@/lib/ai/core/structured-output";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { renderPromptResource } from "@/lib/ai/prompts/load-prompt";
@@ -17,6 +18,7 @@ import {
   getCareerCourseSource,
   type NormalizedCareerOutline,
 } from "@/lib/career-tree/source";
+import { logCareerTreePipelineEvent, logCareerTreePipelineSkip } from "./pipeline-log";
 import {
   type CareerRunFailureOptions,
   getOrCreateCareerRun,
@@ -43,6 +45,16 @@ export const careerCourseExtractorOutputSchema = z.object({
 
 export type ExtractedCareerEvidenceItem = z.infer<typeof extractedCareerEvidenceItemSchema>;
 export type CareerCourseExtractorOutput = z.infer<typeof careerCourseExtractorOutputSchema>;
+
+interface CareerExtractionModelCandidate {
+  modelSeries: AIModelSeries;
+  label: string;
+}
+
+const CAREER_EXTRACTION_MODEL_CANDIDATES: CareerExtractionModelCandidate[] = [
+  { modelSeries: "qwen", label: "fast" },
+  { modelSeries: "openai", label: "structured-fallback" },
+];
 
 function buildCourseContext(params: {
   title: string;
@@ -109,53 +121,64 @@ async function runCareerCourseExtractor(params: {
   description: string | null;
   outline: NormalizedCareerOutline;
 }): Promise<CareerCourseExtractorOutput> {
-  const startedAt = Date.now();
-  const telemetry = createTelemetryContext({
-    endpoint: "career-tree:extract",
-    intent: "career-tree-extract",
-    workflow: "career-tree",
-    modelPolicy: "extract-fast",
-    promptVersion: CAREER_TREE_EXTRACT_PROMPT_VERSION,
-    userId: params.userId,
-    metadata: {
-      courseId: params.courseId,
-      chapterCount: params.outline.chapters.length,
-    },
-  });
+  let lastError: unknown = null;
 
-  try {
-    const result = await generateStructuredObject({
-      model: getPlainModelForPolicy("extract-fast"),
-      schema: careerCourseExtractorOutputSchema,
-      name: "careerCourseEvidence",
-      description: "课程职业能力证据抽取结果",
-      prompt: renderPromptResource("career-tree/extract.md", {
-        course_context: buildCourseContext(params),
-      }),
-      ...buildGenerationSettingsForPolicy("extract-fast", {
-        temperature: 0.1,
-        maxOutputTokens: 3_000,
-      }),
-      timeout: CAREER_TREE_EXTRACT_TIMEOUT_MS,
+  for (const [index, candidate] of CAREER_EXTRACTION_MODEL_CANDIDATES.entries()) {
+    const telemetry = createTelemetryContext({
+      endpoint: "career-tree:extract",
+      intent: "career-tree-extract",
+      workflow: "career-tree",
+      modelPolicy: "extract-fast",
+      modelSeries: candidate.modelSeries,
+      promptVersion: CAREER_TREE_EXTRACT_PROMPT_VERSION,
+      userId: params.userId,
+      metadata: {
+        courseId: params.courseId,
+        chapterCount: params.outline.chapters.length,
+        candidate: candidate.label,
+        fallbackAttempt: index,
+      },
     });
 
-    await recordAIUsage({
-      ...telemetry,
-      usage: result.usage,
-      durationMs: Date.now() - startedAt,
-      success: true,
-    });
+    const attemptStartedAt = Date.now();
+    try {
+      const result = await generateStructuredObject({
+        model: getPlainModelForPolicy("extract-fast", {
+          modelSeries: candidate.modelSeries,
+        }),
+        schema: careerCourseExtractorOutputSchema,
+        name: "careerCourseEvidence",
+        description: "课程职业能力证据抽取结果",
+        prompt: renderPromptResource("career-tree/extract.md", {
+          course_context: buildCourseContext(params),
+        }),
+        ...buildGenerationSettingsForPolicy("extract-fast", {
+          temperature: 0.1,
+          maxOutputTokens: 3_000,
+        }),
+        timeout: CAREER_TREE_EXTRACT_TIMEOUT_MS,
+      });
 
-    return result.output;
-  } catch (error) {
-    await recordAIUsage({
-      ...telemetry,
-      durationMs: Date.now() - startedAt,
-      success: false,
-      errorMessage: getErrorMessage(error),
-    });
-    throw error;
+      await recordAIUsage({
+        ...telemetry,
+        usage: result.usage,
+        durationMs: Date.now() - attemptStartedAt,
+        success: true,
+      });
+
+      return result.output;
+    } catch (error) {
+      lastError = error;
+      await recordAIUsage({
+        ...telemetry,
+        durationMs: Date.now() - attemptStartedAt,
+        success: false,
+        errorMessage: getErrorMessage(error),
+      });
+    }
   }
+
+  throw lastError ?? new Error("Career course extraction failed without an error");
 }
 
 async function replaceExtractedCareerEvidence(params: {
@@ -250,13 +273,28 @@ export async function processCareerTreeExtractJob(job: {
   enqueueFollowups?: boolean;
   failure?: CareerRunFailureOptions;
 }): Promise<void> {
+  logCareerTreePipelineEvent("career_tree_pipeline_started", {
+    stage: "extract",
+    userId: job.userId,
+    courseId: job.courseId,
+    requestKey: job.requestKey ?? null,
+  });
   const course = await getCareerCourseSource(job.userId, job.courseId);
   if (!course) {
+    logCareerTreePipelineSkip({
+      stage: "extract",
+      reason: "course_source_missing",
+      userId: job.userId,
+      courseId: job.courseId,
+      requestKey: job.requestKey ?? null,
+    });
     return;
   }
 
   const outlineHash = computeCareerOutlineHash(course.outline);
-  const model = getModelNameForPolicy("extract-fast");
+  const model = CAREER_EXTRACTION_MODEL_CANDIDATES.map((candidate) =>
+    getModelNameForPolicy("extract-fast", { modelSeries: candidate.modelSeries }),
+  ).join(">");
   const run = await getOrCreateCareerRun({
     userId: job.userId,
     courseId: job.courseId,
@@ -274,6 +312,14 @@ export async function processCareerTreeExtractJob(job: {
   });
 
   if (run.status === "succeeded") {
+    logCareerTreePipelineEvent("career_tree_pipeline_succeeded", {
+      stage: "extract",
+      userId: job.userId,
+      courseId: job.courseId,
+      requestKey: job.requestKey ?? null,
+      runId: run.id,
+      reused: true,
+    });
     if (job.enqueueFollowups !== false) {
       await enqueueCareerTreeMerge(job.userId, job.courseId, run.id, job.requestKey);
     }
@@ -304,6 +350,15 @@ export async function processCareerTreeExtractJob(job: {
     });
 
     await markCareerRunSucceeded(db, run.id, extracted);
+    logCareerTreePipelineEvent("career_tree_pipeline_succeeded", {
+      stage: "extract",
+      userId: job.userId,
+      courseId: job.courseId,
+      requestKey: job.requestKey ?? null,
+      runId: run.id,
+      reused: false,
+      evidenceItemCount: extracted.items.length,
+    });
 
     if (job.enqueueFollowups !== false) {
       await enqueueCareerTreeMerge(job.userId, job.courseId, run.id, job.requestKey);
