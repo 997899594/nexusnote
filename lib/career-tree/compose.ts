@@ -62,9 +62,22 @@ interface ComposerVisibleNode {
   children: ComposerVisibleNode[];
 }
 
+interface ComposerOutputRepairStats {
+  droppedAnchorRefs: number;
+  droppedDuplicateAnchorRefs: number;
+  droppedRoleSupportingRefs: number;
+  droppedRoles: number;
+  droppedSupportingRefs: number;
+  droppedTrees: number;
+  normalizedEmptyMatchKeys: number;
+  normalizedRecommendedDirectionHint: boolean;
+  renamedDuplicateKeySeeds: number;
+  unknownPreviousDirectionKeys: number;
+}
+
 const composerVisibleNodeSchema: z.ZodType<ComposerVisibleNode> = z.lazy(() =>
   z.object({
-    anchorRef: z.string().trim().min(1),
+    anchorRef: z.string(),
     title: z.string().trim().min(1),
     summary: z.string().trim().min(1),
     children: z.array(composerVisibleNodeSchema).default([]),
@@ -72,13 +85,13 @@ const composerVisibleNodeSchema: z.ZodType<ComposerVisibleNode> = z.lazy(() =>
 );
 
 const composerTreeSchema = z.object({
-  matchPreviousDirectionKey: z.string().trim().min(1).optional(),
+  matchPreviousDirectionKey: z.string().nullable().optional(),
   keySeed: z.string().trim().min(1),
   title: z.string().trim().min(1),
   summary: z.string().trim().min(1),
   confidence: z.number().min(0).max(1),
   whyThisDirection: z.string().trim().min(1),
-  supportingNodeRefs: z.array(z.string().trim().min(1)).min(1),
+  supportingNodeRefs: z.array(z.string()).default([]),
   progressionRoles: z
     .array(
       z.object({
@@ -87,16 +100,16 @@ const composerTreeSchema = z.object({
         summary: z.string().trim().min(1),
         horizon: z.enum(["next", "later"]),
         confidence: z.number().min(0).max(1),
-        supportingNodeRefs: z.array(z.string().trim().min(1)).min(1),
+        supportingNodeRefs: z.array(z.string()).default([]),
       }),
     )
     .max(3)
     .default([]),
-  tree: z.array(composerVisibleNodeSchema).min(1),
+  tree: z.array(composerVisibleNodeSchema).default([]),
 });
 
 const treeComposerOutputSchema = z.object({
-  recommendedDirectionHint: z.string().trim().min(1).nullable().optional(),
+  recommendedDirectionHint: z.string().nullable().optional(),
   trees: z.array(composerTreeSchema).min(1).max(MAX_CAREER_TREES),
 });
 
@@ -145,6 +158,11 @@ function collectVisibleAnchorRefs(nodes: VisibleSkillTreeNode[]): string[] {
   return nodes.flatMap((node) => [node.anchorRef, ...collectVisibleAnchorRefs(node.children)]);
 }
 
+function normalizeOptionalNonEmptyString(value: string | null | undefined): string | undefined {
+  const normalized = value?.trim();
+  return normalized ? normalized : undefined;
+}
+
 function ensureUniqueValues(values: string[], label: string) {
   const seen = new Set<string>();
   for (const value of values) {
@@ -155,20 +173,309 @@ function ensureUniqueValues(values: string[], label: string) {
   }
 }
 
+function createComposerOutputRepairStats(): ComposerOutputRepairStats {
+  return {
+    droppedAnchorRefs: 0,
+    droppedDuplicateAnchorRefs: 0,
+    droppedRoleSupportingRefs: 0,
+    droppedRoles: 0,
+    droppedSupportingRefs: 0,
+    droppedTrees: 0,
+    normalizedEmptyMatchKeys: 0,
+    normalizedRecommendedDirectionHint: false,
+    renamedDuplicateKeySeeds: 0,
+    unknownPreviousDirectionKeys: 0,
+  };
+}
+
+function didRepairComposerOutput(stats: ComposerOutputRepairStats): boolean {
+  return (
+    stats.droppedAnchorRefs > 0 ||
+    stats.droppedDuplicateAnchorRefs > 0 ||
+    stats.droppedRoleSupportingRefs > 0 ||
+    stats.droppedRoles > 0 ||
+    stats.droppedSupportingRefs > 0 ||
+    stats.droppedTrees > 0 ||
+    stats.normalizedEmptyMatchKeys > 0 ||
+    stats.normalizedRecommendedDirectionHint ||
+    stats.renamedDuplicateKeySeeds > 0 ||
+    stats.unknownPreviousDirectionKeys > 0
+  );
+}
+
+function normalizeKnownNodeRefs(
+  refs: string[],
+  nodeIds: Set<string>,
+  stats: ComposerOutputRepairStats,
+) {
+  const knownRefs: string[] = [];
+  const seen = new Set<string>();
+
+  for (const ref of refs) {
+    const normalizedRef = ref.trim();
+    if (!normalizedRef) {
+      stats.droppedSupportingRefs += 1;
+      continue;
+    }
+    if (!nodeIds.has(normalizedRef)) {
+      stats.droppedSupportingRefs += 1;
+      continue;
+    }
+    if (seen.has(normalizedRef)) {
+      continue;
+    }
+
+    seen.add(normalizedRef);
+    knownRefs.push(normalizedRef);
+  }
+
+  return knownRefs;
+}
+
+function sanitizeComposerVisibleNodes(params: {
+  nodes: ComposerVisibleNode[];
+  nodeIds: Set<string>;
+  stats: ComposerOutputRepairStats;
+  seenAnchorRefs: Set<string>;
+}): ComposerVisibleNode[] {
+  return params.nodes.flatMap((node) => {
+    const anchorRef = node.anchorRef.trim();
+
+    if (!anchorRef || !params.nodeIds.has(anchorRef)) {
+      params.stats.droppedAnchorRefs += 1;
+      return sanitizeComposerVisibleNodes({
+        nodes: node.children,
+        nodeIds: params.nodeIds,
+        stats: params.stats,
+        seenAnchorRefs: params.seenAnchorRefs,
+      });
+    }
+
+    if (params.seenAnchorRefs.has(anchorRef)) {
+      params.stats.droppedDuplicateAnchorRefs += 1;
+      return sanitizeComposerVisibleNodes({
+        nodes: node.children,
+        nodeIds: params.nodeIds,
+        stats: params.stats,
+        seenAnchorRefs: params.seenAnchorRefs,
+      });
+    }
+
+    params.seenAnchorRefs.add(anchorRef);
+
+    return {
+      ...node,
+      anchorRef,
+      children: sanitizeComposerVisibleNodes({
+        nodes: node.children,
+        nodeIds: params.nodeIds,
+        stats: params.stats,
+        seenAnchorRefs: params.seenAnchorRefs,
+      }),
+    };
+  });
+}
+
+function sanitizeProgressionRoles(params: {
+  roles: TreeComposerOutput["trees"][number]["progressionRoles"];
+  anchorRefSet: Set<string>;
+  stats: ComposerOutputRepairStats;
+}): TreeComposerOutput["trees"][number]["progressionRoles"] {
+  return params.roles.flatMap((role) => {
+    const seen = new Set<string>();
+    const supportingNodeRefs: string[] = [];
+    for (const ref of role.supportingNodeRefs) {
+      const normalizedRef = ref.trim();
+      if (!params.anchorRefSet.has(normalizedRef)) {
+        params.stats.droppedRoleSupportingRefs += 1;
+        continue;
+      }
+      if (seen.has(normalizedRef)) {
+        continue;
+      }
+
+      seen.add(normalizedRef);
+      supportingNodeRefs.push(normalizedRef);
+    }
+
+    if (supportingNodeRefs.length === 0) {
+      params.stats.droppedRoles += 1;
+      return [];
+    }
+
+    return {
+      ...role,
+      supportingNodeRefs,
+    };
+  });
+}
+
+function normalizeDuplicateKeySeeds(
+  trees: TreeComposerOutput["trees"],
+  stats: ComposerOutputRepairStats,
+): TreeComposerOutput["trees"] {
+  const seen = new Set<string>();
+
+  return trees.map((tree) => {
+    if (!seen.has(tree.keySeed)) {
+      seen.add(tree.keySeed);
+      return tree;
+    }
+
+    let suffix = 2;
+    let keySeed = `${tree.keySeed}-${suffix}`;
+    while (seen.has(keySeed)) {
+      suffix += 1;
+      keySeed = `${tree.keySeed}-${suffix}`;
+    }
+
+    seen.add(keySeed);
+    stats.renamedDuplicateKeySeeds += 1;
+    return {
+      ...tree,
+      keySeed,
+    };
+  });
+}
+
+function sanitizePreviousSnapshotForCompose(
+  previousSnapshot: CareerTreeSnapshot | null,
+  nodeIds: Set<string>,
+): CareerTreeSnapshot | null {
+  if (!previousSnapshot) {
+    return null;
+  }
+
+  const trees = previousSnapshot.trees.flatMap((tree) => {
+    const sanitizedTree = sanitizeVisibleSnapshotNodes(tree.tree, nodeIds);
+    if (sanitizedTree.length === 0) {
+      return [];
+    }
+
+    return {
+      ...tree,
+      tree: sanitizedTree,
+    };
+  });
+
+  if (trees.length === 0) {
+    return null;
+  }
+
+  return {
+    ...previousSnapshot,
+    recommendedDirectionKey: trees.some(
+      (tree) => tree.directionKey === previousSnapshot.recommendedDirectionKey,
+    )
+      ? previousSnapshot.recommendedDirectionKey
+      : null,
+    selectedDirectionKey: trees.some(
+      (tree) => tree.directionKey === previousSnapshot.selectedDirectionKey,
+    )
+      ? previousSnapshot.selectedDirectionKey
+      : null,
+    trees,
+  };
+}
+
+function sanitizeVisibleSnapshotNodes(
+  nodes: VisibleSkillTreeNode[],
+  nodeIds: Set<string>,
+): VisibleSkillTreeNode[] {
+  return nodes.flatMap((node) => {
+    const children = sanitizeVisibleSnapshotNodes(node.children, nodeIds);
+    if (!nodeIds.has(node.anchorRef)) {
+      return children;
+    }
+
+    return {
+      ...node,
+      children,
+    };
+  });
+}
+
 function validateComposerOutput(params: {
   output: TreeComposerOutput;
   nodeIds: Set<string>;
   previousDirectionKeys: Set<string>;
+  userId: string;
+  runId: string;
 }): TreeComposerOutput {
+  const stats = createComposerOutputRepairStats();
+  const recommendedDirectionHint = normalizeOptionalNonEmptyString(
+    params.output.recommendedDirectionHint,
+  );
   const normalizedOutput: TreeComposerOutput = {
     ...params.output,
-    trees: params.output.trees.map((tree) =>
-      tree.matchPreviousDirectionKey &&
-      !params.previousDirectionKeys.has(tree.matchPreviousDirectionKey)
-        ? { ...tree, matchPreviousDirectionKey: undefined }
-        : tree,
+    recommendedDirectionHint: recommendedDirectionHint ?? null,
+    trees: normalizeDuplicateKeySeeds(
+      params.output.trees.flatMap((tree) => {
+        const matchPreviousDirectionKey = normalizeOptionalNonEmptyString(
+          tree.matchPreviousDirectionKey,
+        );
+        if (tree.matchPreviousDirectionKey !== undefined && !matchPreviousDirectionKey) {
+          stats.normalizedEmptyMatchKeys += 1;
+        }
+
+        const knownPreviousDirectionKey =
+          matchPreviousDirectionKey && params.previousDirectionKeys.has(matchPreviousDirectionKey)
+            ? matchPreviousDirectionKey
+            : undefined;
+        if (matchPreviousDirectionKey && !knownPreviousDirectionKey) {
+          stats.unknownPreviousDirectionKeys += 1;
+        }
+
+        const treeNodes = sanitizeComposerVisibleNodes({
+          nodes: tree.tree,
+          nodeIds: params.nodeIds,
+          stats,
+          seenAnchorRefs: new Set<string>(),
+        });
+        const anchorRefs = collectAnchorRefs(treeNodes);
+        const anchorRefSet = new Set(anchorRefs);
+        const supportingNodeRefs = normalizeKnownNodeRefs(
+          [...tree.supportingNodeRefs, ...anchorRefs],
+          params.nodeIds,
+          stats,
+        );
+
+        if (treeNodes.length === 0 || supportingNodeRefs.length === 0) {
+          stats.droppedTrees += 1;
+          return [];
+        }
+
+        return {
+          ...tree,
+          matchPreviousDirectionKey: knownPreviousDirectionKey,
+          supportingNodeRefs,
+          progressionRoles: sanitizeProgressionRoles({
+            roles: tree.progressionRoles,
+            anchorRefSet,
+            stats,
+          }),
+          tree: treeNodes,
+        };
+      }),
+      stats,
     ),
   };
+  if (params.output.recommendedDirectionHint !== undefined && !recommendedDirectionHint) {
+    stats.normalizedRecommendedDirectionHint = true;
+  }
+
+  if (normalizedOutput.trees.length === 0) {
+    throw new Error("Career compose returned no trees with known graph node refs");
+  }
+
+  if (didRepairComposerOutput(stats)) {
+    logCareerTreePipelineEvent("career_tree_compose_output_repaired", {
+      stage: "compose",
+      userId: params.userId,
+      runId: params.runId,
+      ...stats,
+    });
+  }
 
   ensureUniqueValues(
     normalizedOutput.trees.map((tree) => tree.keySeed),
@@ -765,9 +1072,11 @@ export async function processCareerTreeComposeJob(job: {
     return;
   }
 
+  const nodeIds = new Set(nodes.map((node) => node.id));
   const previousSnapshot = latestSnapshot
     ? parseCareerTreeSnapshotPayload(latestSnapshot.payload)
     : null;
+  const sanitizedPreviousSnapshot = sanitizePreviousSnapshotForCompose(previousSnapshot, nodeIds);
 
   try {
     const composed = await runCareerTreeComposer({
@@ -775,16 +1084,18 @@ export async function processCareerTreeComposeJob(job: {
       nodes,
       edges,
       preference,
-      previousSnapshot,
+      previousSnapshot: sanitizedPreviousSnapshot,
       supportingRows,
     });
     const previousDirectionKeys = new Set(
-      previousSnapshot?.trees.map((tree) => tree.directionKey) ?? [],
+      sanitizedPreviousSnapshot?.trees.map((tree) => tree.directionKey) ?? [],
     );
     const validated = validateComposerOutput({
       output: composed,
-      nodeIds: new Set(nodes.map((node) => node.id)),
+      nodeIds,
       previousDirectionKeys,
+      userId: job.userId,
+      runId: composeRun.id,
     });
     const resolvedTrees = sortTreesByPreference({
       trees: resolveDirectionKeys({

@@ -5,6 +5,7 @@ export type CareerTreePipelineStage = "refresh" | "extract" | "merge" | "compose
 
 export type CareerTreePipelineEvent =
   | "career_tree_job_enqueued"
+  | "career_tree_compose_output_repaired"
   | "career_tree_pipeline_started"
   | "career_tree_pipeline_succeeded"
   | "career_tree_pipeline_skipped"
