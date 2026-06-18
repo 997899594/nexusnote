@@ -19,6 +19,15 @@ export interface LearnChatCaptureInput {
   messages: LearnChatCaptureMessage[];
 }
 
+async function sha256Hex(value: string): Promise<string> {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 function truncate(value: string, max: number) {
   return value.length > max ? `${value.slice(0, max).trim()}...` : value;
 }
@@ -82,6 +91,28 @@ export function serializeCaptureAnchor(anchor: Annotation["anchor"]) {
   };
 }
 
+export async function buildCourseCaptureKey({
+  sectionId,
+  selectionText,
+  anchor,
+  noteContent,
+}: {
+  sectionId: string;
+  selectionText: string;
+  anchor: Annotation["anchor"];
+  noteContent?: string;
+}) {
+  return sha256Hex(
+    JSON.stringify({
+      type: "course_selection_capture",
+      sectionId,
+      selectionText: selectionText.replace(/\s+/g, " ").trim(),
+      anchor: serializeCaptureAnchor(anchor),
+      noteContent: noteContent?.trim() ?? "",
+    }),
+  );
+}
+
 export function buildLearnChatCapturedNoteTitle({
   chapterTitle,
   messages,
@@ -139,4 +170,26 @@ export function buildLearnChatCapturedHtml({
   ]
     .filter(Boolean)
     .join("");
+}
+
+export async function buildLearnChatCaptureKey({
+  courseId,
+  chapterIndex,
+  messages,
+}: {
+  courseId: string;
+  chapterIndex: number;
+  messages: LearnChatCaptureMessage[];
+}) {
+  return sha256Hex(
+    JSON.stringify({
+      type: "learn_chat_capture",
+      courseId,
+      chapterIndex,
+      messages: messages.map((message) => ({
+        role: message.role,
+        text: message.text.replace(/\s+/g, " ").trim(),
+      })),
+    }),
+  );
 }

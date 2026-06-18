@@ -17,6 +17,7 @@ const workerOwnedSources = [
   "lib/queue/career-tree-worker.ts",
   "lib/queue/course-production-worker.ts",
   "lib/queue/knowledge-insights-worker.ts",
+  "lib/queue/note-followups-worker.ts",
   "lib/queue/rag-worker.ts",
   "lib/queue/research-worker.ts",
   "lib/ai/workflows/course-section-production.ts",

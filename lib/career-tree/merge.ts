@@ -9,7 +9,7 @@ import {
   db,
 } from "@/db";
 import { buildGenerationSettingsForPolicy } from "@/lib/ai/core/generation-settings";
-import { getModelNameForPolicy, getPlainModelForPolicy } from "@/lib/ai/core/model-policy";
+import { getPlainModelForPolicy } from "@/lib/ai/core/model-policy";
 import { generateStructuredObject } from "@/lib/ai/core/structured-output";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { renderPromptResource } from "@/lib/ai/prompts/load-prompt";
@@ -20,6 +20,10 @@ import {
   MAX_CAREER_NEW_NODES_PER_COURSE,
 } from "@/lib/career-tree/constants";
 import { bumpCareerGraphState } from "@/lib/career-tree/graph-state";
+import {
+  CAREER_TREE_MERGE_MODEL_CANDIDATES,
+  getCareerTreeRunModelName,
+} from "@/lib/career-tree/model-candidates";
 import {
   logCareerTreePipelineEvent,
   logCareerTreePipelineSkip,
@@ -38,7 +42,7 @@ import { recomputeCareerNodeAggregates } from "./aggregation";
 const mergeDecisionSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("attach"),
-    targetNodeId: z.string().uuid(),
+    targetNodeId: z.string().trim().min(1),
     evidenceIds: z.array(z.string().uuid()).min(1),
     confidence: z.number().min(0).max(1),
     reason: z.string().min(1),
@@ -72,6 +76,18 @@ export const careerMergePlannerOutputSchema = z.object({
 type CareerMergePlannerOutput = z.infer<typeof careerMergePlannerOutputSchema>;
 type ValidatedCareerMerge = ReturnType<typeof validateCareerMergePlan>;
 type CareerMergeTransaction = Pick<typeof db, "delete" | "insert" | "select" | "update">;
+type MergeDecision = CareerMergePlannerOutput["decisions"][number];
+type MergeEdgeDecision = CareerMergePlannerOutput["edgeDecisions"][number];
+type NormalizedCreateDecision = Extract<MergeDecision, { action: "create" }> & {
+  tempNodeRef: string;
+};
+type NormalizedMergeDecision =
+  | Extract<MergeDecision, { action: "attach" }>
+  | NormalizedCreateDecision;
+type NormalizedMergeEdgeDecision = MergeEdgeDecision & {
+  from: string;
+  to: string;
+};
 
 function buildMergeContext(params: {
   existingNodes: Array<typeof careerUserSkillNodes.$inferSelect>;
@@ -122,54 +138,71 @@ async function planCareerMerge(params: {
   existingEdges: Array<typeof careerUserSkillEdges.$inferSelect>;
   evidenceRows: Array<typeof careerCourseSkillEvidence.$inferSelect>;
 }): Promise<CareerMergePlannerOutput> {
-  const startedAt = Date.now();
-  const telemetry = createTelemetryContext({
-    endpoint: "career-tree:merge",
-    intent: "career-tree-merge",
-    workflow: "career-tree",
-    modelPolicy: "extract-fast",
-    promptVersion: CAREER_TREE_MERGE_PROMPT_VERSION,
-    userId: params.userId,
-    metadata: {
-      courseId: params.courseId,
-      nodeCount: params.existingNodes.length,
-      evidenceCount: params.evidenceRows.length,
-    },
-  });
+  let lastError: unknown = null;
 
-  try {
-    const result = await generateStructuredObject({
-      model: getPlainModelForPolicy("extract-fast"),
-      schema: careerMergePlannerOutputSchema,
-      name: "careerMergePlan",
-      description: "课程证据合并到用户职业技能图谱的计划",
-      prompt: renderPromptResource("career-tree/merge.md", {
-        merge_context: buildMergeContext(params),
-      }),
-      ...buildGenerationSettingsForPolicy("extract-fast", {
-        temperature: 0.1,
-        maxOutputTokens: 4_000,
-      }),
-      timeout: CAREER_TREE_MERGE_TIMEOUT_MS,
+  for (const [index, candidate] of CAREER_TREE_MERGE_MODEL_CANDIDATES.entries()) {
+    const telemetry = createTelemetryContext({
+      endpoint: "career-tree:merge",
+      intent: "career-tree-merge",
+      workflow: "career-tree",
+      modelPolicy: "extract-fast",
+      modelSeries: candidate.modelSeries,
+      promptVersion: CAREER_TREE_MERGE_PROMPT_VERSION,
+      userId: params.userId,
+      metadata: {
+        courseId: params.courseId,
+        nodeCount: params.existingNodes.length,
+        evidenceCount: params.evidenceRows.length,
+        candidate: candidate.label,
+        fallbackAttempt: index,
+      },
     });
 
-    await recordAIUsage({
-      ...telemetry,
-      usage: result.usage,
-      durationMs: Date.now() - startedAt,
-      success: true,
-    });
+    const attemptStartedAt = Date.now();
+    try {
+      const result = await generateStructuredObject({
+        model: getPlainModelForPolicy("extract-fast", {
+          modelSeries: candidate.modelSeries,
+        }),
+        schema: careerMergePlannerOutputSchema,
+        name: "careerMergePlan",
+        description: "课程证据合并到用户职业技能图谱的计划",
+        prompt: renderPromptResource("career-tree/merge.md", {
+          merge_context: buildMergeContext(params),
+        }),
+        ...buildGenerationSettingsForPolicy(
+          "extract-fast",
+          {
+            temperature: 0.1,
+            maxOutputTokens: 4_000,
+          },
+          {
+            modelSeries: candidate.modelSeries,
+          },
+        ),
+        timeout: CAREER_TREE_MERGE_TIMEOUT_MS,
+      });
 
-    return result.output;
-  } catch (error) {
-    await recordAIUsage({
-      ...telemetry,
-      durationMs: Date.now() - startedAt,
-      success: false,
-      errorMessage: getErrorMessage(error),
-    });
-    throw error;
+      await recordAIUsage({
+        ...telemetry,
+        usage: result.usage,
+        durationMs: Date.now() - attemptStartedAt,
+        success: true,
+      });
+
+      return result.output;
+    } catch (error) {
+      lastError = error;
+      await recordAIUsage({
+        ...telemetry,
+        durationMs: Date.now() - attemptStartedAt,
+        success: false,
+        errorMessage: getErrorMessage(error),
+      });
+    }
   }
+
+  throw lastError ?? new Error("Career merge planning failed without an error");
 }
 
 function createTempNodeRef(decisionIndex: number, evidenceIds: string[]): string {
@@ -203,26 +236,35 @@ function hasPrerequisitePath(
   return false;
 }
 
+function resolvePlannedNodeRef(params: {
+  ref: string;
+  allowedTargetNodeIds: Set<string>;
+  createRefsByAlias: Map<string, string>;
+}): string | null {
+  if (params.allowedTargetNodeIds.has(params.ref)) {
+    return params.ref;
+  }
+
+  return params.createRefsByAlias.get(params.ref) ?? null;
+}
+
 function validateCareerMergePlan(params: {
   output: CareerMergePlannerOutput;
   allowedTargetNodeIds: Set<string>;
   allowedEvidenceIds: Set<string>;
   existingPrerequisiteEdges: Array<{ fromNodeId: string; toNodeId: string }>;
 }) {
-  const validDecisions = [];
+  const validDecisions: NormalizedMergeDecision[] = [];
   let createdCount = 0;
+  const createRefsByAlias = new Map<string, string>();
 
   for (const [index, decision] of params.output.decisions.entries()) {
-    const evidenceIdsValid = decision.evidenceIds.every((id) => params.allowedEvidenceIds.has(id));
-    if (!evidenceIdsValid) {
+    if (decision.action !== "create") {
       continue;
     }
 
-    if (decision.action === "attach") {
-      if (!params.allowedTargetNodeIds.has(decision.targetNodeId)) {
-        continue;
-      }
-      validDecisions.push(decision);
+    const evidenceIdsValid = decision.evidenceIds.every((id) => params.allowedEvidenceIds.has(id));
+    if (!evidenceIdsValid) {
       continue;
     }
 
@@ -232,18 +274,39 @@ function validateCareerMergePlan(params: {
 
     const tempNodeRef = decision.tempNodeRef ?? createTempNodeRef(index, decision.evidenceIds);
     createdCount += 1;
+    createRefsByAlias.set(tempNodeRef, tempNodeRef);
+    createRefsByAlias.set(decision.newNode.canonicalLabel.trim(), tempNodeRef);
     validDecisions.push({
       ...decision,
       tempNodeRef,
     });
   }
 
-  const knownRefs = new Set([
-    ...params.allowedTargetNodeIds,
-    ...validDecisions
-      .filter((decision) => decision.action === "create")
-      .map((decision) => decision.tempNodeRef),
-  ]);
+  for (const decision of params.output.decisions) {
+    if (decision.action !== "attach") {
+      continue;
+    }
+
+    const evidenceIdsValid = decision.evidenceIds.every((id) => params.allowedEvidenceIds.has(id));
+    if (!evidenceIdsValid) {
+      continue;
+    }
+
+    const targetNodeId = resolvePlannedNodeRef({
+      ref: decision.targetNodeId,
+      allowedTargetNodeIds: params.allowedTargetNodeIds,
+      createRefsByAlias,
+    });
+    if (!targetNodeId) {
+      continue;
+    }
+
+    validDecisions.push({
+      ...decision,
+      targetNodeId,
+    });
+  }
+
   const prerequisiteAdjacency = new Map<string, Set<string>>();
 
   for (const edge of params.existingPrerequisiteEdges) {
@@ -252,27 +315,42 @@ function validateCareerMergePlan(params: {
     prerequisiteAdjacency.set(edge.fromNodeId, next);
   }
 
-  const validEdges = [];
+  const validEdges: NormalizedMergeEdgeDecision[] = [];
   for (const edge of params.output.edgeDecisions) {
     if (validEdges.length >= MAX_CAREER_MERGE_EDGES_PER_COURSE) {
       break;
     }
 
-    if (edge.from === edge.to || !knownRefs.has(edge.from) || !knownRefs.has(edge.to)) {
+    const from = resolvePlannedNodeRef({
+      ref: edge.from,
+      allowedTargetNodeIds: params.allowedTargetNodeIds,
+      createRefsByAlias,
+    });
+    const to = resolvePlannedNodeRef({
+      ref: edge.to,
+      allowedTargetNodeIds: params.allowedTargetNodeIds,
+      createRefsByAlias,
+    });
+
+    if (!from || !to || from === to) {
       continue;
     }
 
     if (edge.type === "prerequisite") {
-      if (hasPrerequisitePath(prerequisiteAdjacency, edge.to, edge.from)) {
+      if (hasPrerequisitePath(prerequisiteAdjacency, to, from)) {
         continue;
       }
 
-      const next = prerequisiteAdjacency.get(edge.from) ?? new Set<string>();
-      next.add(edge.to);
-      prerequisiteAdjacency.set(edge.from, next);
+      const next = prerequisiteAdjacency.get(from) ?? new Set<string>();
+      next.add(to);
+      prerequisiteAdjacency.set(from, next);
     }
 
-    validEdges.push(edge);
+    validEdges.push({
+      ...edge,
+      from,
+      to,
+    });
   }
 
   return {
@@ -344,13 +422,14 @@ async function applyCareerMerge(params: {
 
   for (const decision of params.validated.decisions) {
     if (decision.action === "attach") {
-      touchedNodeIds.add(decision.targetNodeId);
+      const nodeId = tempNodeRefMap.get(decision.targetNodeId) ?? decision.targetNodeId;
+      touchedNodeIds.add(nodeId);
       await params.tx
         .insert(careerUserSkillNodeEvidence)
         .values(
           decision.evidenceIds.map((evidenceId) => ({
             userId: params.userId,
-            nodeId: decision.targetNodeId,
+            nodeId,
             courseSkillEvidenceId: evidenceId,
             mergeRunId: params.mergeRunId,
             weight: decision.confidence.toFixed(3),
@@ -471,7 +550,7 @@ export async function processCareerTreeMergeJob(job: {
     return;
   }
 
-  const model = getModelNameForPolicy("extract-fast");
+  const model = getCareerTreeRunModelName("merge");
   const mergeRun = await getOrCreateCareerRun({
     userId: job.userId,
     courseId: job.courseId,

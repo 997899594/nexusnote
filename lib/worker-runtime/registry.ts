@@ -3,6 +3,7 @@ import type { WorkerRuntimeDefinition } from "./types";
 export type QueueWorkerId =
   | "course-production"
   | "career-tree"
+  | "note-followups"
   | "knowledge-insights"
   | "rag-index"
   | "research";
@@ -17,6 +18,10 @@ export const queueWorkerRuntimeDefinition = {
     {
       id: "career-tree",
       name: "career-tree",
+    },
+    {
+      id: "note-followups",
+      name: "note-followups",
     },
     {
       id: "knowledge-insights",

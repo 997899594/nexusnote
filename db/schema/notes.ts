@@ -41,6 +41,7 @@ export const notes = pgTable(
       .notNull(),
     title: text("title").notNull().default("Untitled"),
     sourceType: text("source_type").notNull().default("manual"),
+    idempotencyKey: text("idempotency_key"),
     sourceContext: jsonb("source_context").$type<NoteSourceContext>(),
     contentHtml: text("content_html"),
     plainText: text("plain_text"),
@@ -50,6 +51,10 @@ export const notes = pgTable(
   (table) => ({
     userIdIdx: index("notes_user_id_idx").on(table.userId),
     sourceTypeIdx: index("notes_source_type_idx").on(table.sourceType),
+    idempotencyKeyUniqueIdx: uniqueIndex("notes_user_id_idempotency_key_unique_idx").on(
+      table.userId,
+      table.idempotencyKey,
+    ),
   }),
 );
 

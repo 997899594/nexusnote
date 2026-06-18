@@ -2,6 +2,7 @@ import { and, db, eq, notes } from "@/db";
 import type { NoteSourceContext } from "@/db/schema/notes";
 import { revalidateNoteWorkspaceViews } from "@/lib/cache/domain-events";
 import { htmlToPlainText, plainTextToHtml } from "@/lib/notes/content";
+import { syncNoteCreateKnowledge } from "@/lib/notes/followups";
 import { clearNoteKnowledge, syncNoteKnowledge } from "@/lib/notes/knowledge";
 import { getOwnedNote, type NoteRecord } from "@/lib/notes/repository";
 
@@ -16,6 +17,13 @@ interface CreateOwnedNoteParams {
   content: NoteContentInput;
   sourceType?: string;
   sourceContext?: NoteSourceContext | null;
+  followups?: "sync" | "deferred";
+  dedupeKey?: string;
+}
+
+interface CreateOwnedNoteResult {
+  note: NoteRecord;
+  created: boolean;
 }
 
 interface UpdateOwnedNoteParams {
@@ -68,26 +76,96 @@ function appendPlainTextAsParagraph(existingHtml: string, plainText: string): st
   return `${existingHtml}${addition}`;
 }
 
-export async function createOwnedNote(params: CreateOwnedNoteParams): Promise<NoteRecord> {
-  const { userId, title, content, sourceType, sourceContext } = params;
+async function getNoteByDedupeKey(userId: string, dedupeKey: string): Promise<NoteRecord | null> {
+  const [note] = await db
+    .select()
+    .from(notes)
+    .where(and(eq(notes.userId, userId), eq(notes.idempotencyKey, dedupeKey)))
+    .limit(1);
+
+  return note ?? null;
+}
+
+export async function createOwnedNoteWithResult(
+  params: CreateOwnedNoteParams,
+): Promise<CreateOwnedNoteResult> {
+  const {
+    userId,
+    title,
+    content,
+    sourceType,
+    sourceContext,
+    followups = "sync",
+    dedupeKey,
+  } = params;
   const resolvedContent = resolveNoteContent(content);
 
-  const [note] = await db
-    .insert(notes)
-    .values({
-      userId,
-      title,
-      ...(sourceType !== undefined && { sourceType }),
-      ...(sourceContext !== undefined && { sourceContext }),
-      contentHtml: resolvedContent.contentHtml,
-      plainText: resolvedContent.plainText,
-    })
-    .returning();
+  if (dedupeKey) {
+    const existingNote = await getNoteByDedupeKey(userId, dedupeKey);
+    if (existingNote) {
+      return {
+        note: existingNote,
+        created: false,
+      };
+    }
+  }
 
-  await syncNoteKnowledge(note);
-  revalidateNoteWorkspaceViews(userId, note.id);
+  const insertQuery = db.insert(notes).values({
+    userId,
+    title,
+    ...(sourceType !== undefined && { sourceType }),
+    ...(dedupeKey !== undefined && { idempotencyKey: dedupeKey }),
+    ...(sourceContext !== undefined && { sourceContext }),
+    contentHtml: resolvedContent.contentHtml,
+    plainText: resolvedContent.plainText,
+  });
 
-  return note;
+  const [note] = dedupeKey
+    ? await insertQuery
+        .onConflictDoNothing({
+          target: [notes.userId, notes.idempotencyKey],
+        })
+        .returning()
+    : await insertQuery.returning();
+
+  if (!note && dedupeKey) {
+    const existingNote = await getNoteByDedupeKey(userId, dedupeKey);
+    if (existingNote) {
+      return {
+        note: existingNote,
+        created: false,
+      };
+    }
+  }
+
+  if (!note) {
+    throw new Error("Failed to create note.");
+  }
+
+  if (followups === "deferred") {
+    return {
+      note,
+      created: true,
+    };
+  }
+
+  await runNoteCreateFollowups(note);
+
+  return {
+    note,
+    created: true,
+  };
+}
+
+export async function createOwnedNote(params: CreateOwnedNoteParams): Promise<NoteRecord> {
+  const result = await createOwnedNoteWithResult(params);
+
+  return result.note;
+}
+
+export async function runNoteCreateFollowups(note: NoteRecord): Promise<void> {
+  await syncNoteCreateKnowledge(note);
+  revalidateNoteWorkspaceViews(note.userId, note.id);
 }
 
 export async function updateOwnedNote(params: UpdateOwnedNoteParams): Promise<NoteRecord | null> {

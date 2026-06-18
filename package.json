@@ -21,6 +21,7 @@
     "worker:career-tree": "bun scripts/start-career-tree-worker.ts",
     "worker:course-production": "bun scripts/start-course-production-worker.ts",
     "worker:knowledge-insights": "bun scripts/start-knowledge-insights-worker.ts",
+    "worker:note-followups": "bun scripts/start-note-followups-worker.ts",
     "worker:rag": "bun scripts/start-rag-worker.ts",
     "worker:research": "bun scripts/start-research-worker.ts",
     "db:push": "drizzle-kit push --config drizzle.config.mjs",

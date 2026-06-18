@@ -4,16 +4,17 @@ import type { UIMessage } from "ai";
 import { Loader2, MessageSquareQuote, X } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChatComposer, type ChatComposerSubmitPayload } from "@/components/chat/ChatComposer";
-import { ChatMessage, LoadingDots } from "@/components/chat/ChatMessage";
 import { useChatSession } from "@/components/chat/useChatSession";
 import { AIDegradationBanner } from "@/components/common";
 import { useToast } from "@/components/ui/Toast";
 import { extractUIMessageText } from "@/lib/ai/message-text";
 import { isUnauthorizedError, parseApiError, redirectToLogin } from "@/lib/api/client";
+import { toChatDisplayMessages } from "@/lib/chat/message-ui";
 import { buildLearnQuickPrompts } from "@/lib/learning/alignment";
 import { cn } from "@/lib/utils";
 import { useChatSessionStateStore } from "@/stores/chat-session-state";
 import { useLearnStore } from "@/stores/learn";
+import { LearnChatMessage } from "./LearnChatMessage";
 
 interface LearnChatProps {
   courseId: string;
@@ -59,6 +60,7 @@ export function LearnChat({ courseId, courseTitle, onCollapse }: LearnChatProps)
   const [isResolvingSession, setIsResolvingSession] = useState(true);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const isCapturingChatRef = useRef(false);
 
   const currentChapter = chapters[currentChapterIndex];
   const currentSection = currentChapter?.sections[currentSectionIndex];
@@ -67,7 +69,7 @@ export function LearnChat({ courseId, courseTitle, onCollapse }: LearnChatProps)
     ? currentChapter?.title
     : currentChapter
       ? courseTitle
-      : "当前课程";
+      : null;
   const quickPrompts = useMemo(
     () =>
       buildLearnQuickPrompts({
@@ -95,15 +97,6 @@ export function LearnChat({ courseId, courseTitle, onCollapse }: LearnChatProps)
   const chatMessages = messages.filter((m: UIMessage) => m.role !== "system");
 
   const getMessageText = useCallback((message: UIMessage) => extractUIMessageText(message), []);
-
-  // Auto-scroll
-  useEffect(() => {
-    if (chatMessages.length === 0 && !isLoading) {
-      return;
-    }
-
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chatMessages.length, isLoading]);
 
   const resolveLearnSession = useCallback(async () => {
     setIsResolvingSession(true);
@@ -204,15 +197,22 @@ export function LearnChat({ courseId, courseTitle, onCollapse }: LearnChatProps)
   );
 
   const handleCaptureChat = useCallback(async () => {
-    if (isCapturingChat) {
+    if (isCapturingChatRef.current) {
       return;
     }
 
+    const latestMessage = chatMessages[chatMessages.length - 1];
     const captureMessages = chatMessages
-      .filter((message) => message.role === "user" || message.role === "assistant")
+      .filter((message) => {
+        if (message.role !== "user" && message.role !== "assistant") {
+          return false;
+        }
+
+        return !(isLoading && message.role === "assistant" && message.id === latestMessage?.id);
+      })
       .map((message) => ({
         role: message.role,
-        text: getMessageText(message),
+        text: getMessageText(message).slice(0, 20_000),
       }))
       .filter((message) => message.text.length > 0);
 
@@ -221,6 +221,7 @@ export function LearnChat({ courseId, courseTitle, onCollapse }: LearnChatProps)
       return;
     }
 
+    isCapturingChatRef.current = true;
     setIsCapturingChat(true);
 
     try {
@@ -241,14 +242,16 @@ export function LearnChat({ courseId, courseTitle, onCollapse }: LearnChatProps)
       }
 
       if (!response.ok) {
-        throw new Error("保存失败");
+        const { message } = await parseApiError(response);
+        throw new Error(message);
       }
 
       await response.json();
       addToast("学习对话已保存到笔记", "success");
-    } catch {
-      addToast("保存失败，请稍后重试", "error");
+    } catch (error) {
+      addToast(error instanceof Error ? error.message : "保存失败，请稍后重试", "error");
     } finally {
+      isCapturingChatRef.current = false;
       setIsCapturingChat(false);
     }
   }, [
@@ -258,16 +261,31 @@ export function LearnChat({ courseId, courseTitle, onCollapse }: LearnChatProps)
     currentChapterIndex,
     currentSectionIndex,
     getMessageText,
-    isCapturingChat,
+    isLoading,
   ]);
 
   const lastMsg = chatMessages[chatMessages.length - 1];
-  const isAILoading =
+  const shouldAppendAssistantActivity =
     !isResolvingSession &&
     (status === "submitted" || status === "streaming") &&
     (!lastMsg || lastMsg.role === "user");
+  const displayMessages = toChatDisplayMessages(chatMessages, {
+    activeAssistantMessageId:
+      !isResolvingSession && isLoading && lastMsg?.role === "assistant" ? lastMsg.id : null,
+    appendAssistantActivity: shouldAppendAssistantActivity,
+    assistantActivityId: "learn-assistant-activity",
+  });
   const captureDisabled =
     isLoading || isCapturingChat || chatMessages.length === 0 || !resolvedSessionId;
+
+  // Auto-scroll follows projected UI messages, including transient assistant activity.
+  useEffect(() => {
+    if (displayMessages.length === 0 && !isLoading) {
+      return;
+    }
+
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [displayMessages.length, isLoading]);
 
   const quickPromptBlock =
     quickPrompts.length > 0 ? (
@@ -338,9 +356,11 @@ export function LearnChat({ courseId, courseTitle, onCollapse }: LearnChatProps)
             <p className="truncate text-sm font-medium text-[var(--color-text)]">
               {chatContextTitle}
             </p>
-            <p className="mt-0.5 truncate text-[0.6875rem] text-[var(--color-text-tertiary)]">
-              {chatContextMeta}
-            </p>
+            {chatContextMeta ? (
+              <p className="mt-0.5 truncate text-[0.6875rem] text-[var(--color-text-tertiary)]">
+                {chatContextMeta}
+              </p>
+            ) : null}
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <button
@@ -382,18 +402,11 @@ export function LearnChat({ courseId, courseTitle, onCollapse }: LearnChatProps)
         <div className="space-y-4">
           <AIDegradationBanner kind={aiDegradedKind} className="mb-4" />
 
-          {chatMessages.length === 0 && !isAILoading && renderEmptyState()}
+          {displayMessages.length === 0 && !isLoading && renderEmptyState()}
 
-          {chatMessages.map((msg) => (
-            <ChatMessage
-              key={msg.id}
-              message={msg}
-              onSendReply={(text) => sendMessage({ text })}
-              variant="learning"
-            />
+          {displayMessages.map((msg) => (
+            <LearnChatMessage key={msg.id} message={msg} />
           ))}
-
-          {isAILoading && <LoadingDots variant="learning" />}
 
           <div ref={messagesEndRef} />
         </div>

@@ -966,6 +966,16 @@
   font-family: var(--font-instrument-serif, serif), "Songti SC", "Noto Serif SC", serif;
 }
 
+@keyframes section-focus {
+  0% {
+    background-color: color-mix(in oklch, var(--color-panel-soft) 72%, transparent);
+  }
+
+  100% {
+    background-color: transparent;
+  }
+}
+
 /* 技能节点 Lv.5 光晕脉冲动画 */
 @keyframes skill-pulse {
   0%,

@@ -2,8 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { careerCourseChapterEvidence, careerCourseSkillEvidence, db } from "@/db";
 import { buildGenerationSettingsForPolicy } from "@/lib/ai/core/generation-settings";
-import { getModelNameForPolicy, getPlainModelForPolicy } from "@/lib/ai/core/model-policy";
-import type { AIModelSeries } from "@/lib/ai/core/model-series";
+import { getPlainModelForPolicy } from "@/lib/ai/core/model-policy";
 import { generateStructuredObject } from "@/lib/ai/core/structured-output";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { renderPromptResource } from "@/lib/ai/prompts/load-prompt";
@@ -12,6 +11,10 @@ import {
   CAREER_TREE_EXTRACT_TIMEOUT_MS,
   MAX_CAREER_EVIDENCE_ITEMS_PER_COURSE,
 } from "@/lib/career-tree/constants";
+import {
+  CAREER_TREE_EXTRACTION_MODEL_CANDIDATES,
+  getCareerTreeRunModelName,
+} from "@/lib/career-tree/model-candidates";
 import { enqueueCareerTreeMerge } from "@/lib/career-tree/queue";
 import {
   computeCareerOutlineHash,
@@ -45,16 +48,6 @@ export const careerCourseExtractorOutputSchema = z.object({
 
 export type ExtractedCareerEvidenceItem = z.infer<typeof extractedCareerEvidenceItemSchema>;
 export type CareerCourseExtractorOutput = z.infer<typeof careerCourseExtractorOutputSchema>;
-
-interface CareerExtractionModelCandidate {
-  modelSeries: AIModelSeries;
-  label: string;
-}
-
-const CAREER_EXTRACTION_MODEL_CANDIDATES: CareerExtractionModelCandidate[] = [
-  { modelSeries: "qwen", label: "fast" },
-  { modelSeries: "openai", label: "structured-fallback" },
-];
 
 function buildCourseContext(params: {
   title: string;
@@ -123,7 +116,7 @@ async function runCareerCourseExtractor(params: {
 }): Promise<CareerCourseExtractorOutput> {
   let lastError: unknown = null;
 
-  for (const [index, candidate] of CAREER_EXTRACTION_MODEL_CANDIDATES.entries()) {
+  for (const [index, candidate] of CAREER_TREE_EXTRACTION_MODEL_CANDIDATES.entries()) {
     const telemetry = createTelemetryContext({
       endpoint: "career-tree:extract",
       intent: "career-tree-extract",
@@ -292,9 +285,7 @@ export async function processCareerTreeExtractJob(job: {
   }
 
   const outlineHash = computeCareerOutlineHash(course.outline);
-  const model = CAREER_EXTRACTION_MODEL_CANDIDATES.map((candidate) =>
-    getModelNameForPolicy("extract-fast", { modelSeries: candidate.modelSeries }),
-  ).join(">");
+  const model = getCareerTreeRunModelName("extract");
   const run = await getOrCreateCareerRun({
     userId: job.userId,
     courseId: job.courseId,

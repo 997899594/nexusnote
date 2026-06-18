@@ -7,6 +7,10 @@ import {
   CAREER_TREE_SCHEMA_VERSION,
 } from "@/lib/career-tree/constants";
 import {
+  getCareerTreeRunModelName,
+  isCurrentCareerTreeRun,
+} from "@/lib/career-tree/model-candidates";
+import {
   type CareerTreePipelineStage,
   getCareerTreeStageForJobType,
 } from "@/lib/career-tree/pipeline-log";
@@ -132,7 +136,14 @@ function normalizeQueueState(state: string): CareerPipelineQueueState {
 
 function isCurrentCareerRun(run: typeof careerGenerationRuns.$inferSelect): boolean {
   const kind = run.kind as CareerRunKind;
-  return promptVersionByRunKind[kind] === run.promptVersion;
+  return (
+    promptVersionByRunKind[kind] === run.promptVersion &&
+    isCurrentCareerTreeRun({
+      kind: run.kind,
+      model: run.model,
+      promptVersion: run.promptVersion,
+    })
+  );
 }
 
 function summarizeRun(run: typeof careerGenerationRuns.$inferSelect): CareerTreePipelineRunSummary {
@@ -197,6 +208,7 @@ async function getCurrentReadySnapshotSummary(userId: string) {
         eq(careerUserTreeSnapshots.schemaVersion, CAREER_TREE_SCHEMA_VERSION),
         eq(careerUserTreeSnapshots.status, "ready"),
         eq(careerGenerationRuns.status, "succeeded"),
+        eq(careerGenerationRuns.model, getCareerTreeRunModelName("compose")),
         eq(careerGenerationRuns.promptVersion, CAREER_TREE_COMPOSE_PROMPT_VERSION),
       ),
     )

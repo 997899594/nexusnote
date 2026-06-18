@@ -1,15 +1,16 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
-import { tagGenerationService } from "@/lib/ai/services/tag-generation-service";
 import { badRequest, notFound, parseJsonBodyAs, withAuth } from "@/lib/api";
 import { getLearningGuidance } from "@/lib/learning/guidance";
 import {
   buildLearnChatCapturedHtml,
   buildLearnChatCapturedNoteTitle,
   buildLearnChatCapturedPlainText,
+  buildLearnChatCaptureKey,
   type LearnChatCaptureMessage,
 } from "@/lib/notes/capture";
-import { createOwnedNote } from "@/lib/notes/write-service";
+import { scheduleCapturedNoteFollowups } from "@/lib/notes/capture-followups";
+import { createOwnedNoteWithResult } from "@/lib/notes/write-service";
 
 const CaptureChatNoteSchema = z.object({
   courseId: z.string().uuid(),
@@ -18,18 +19,30 @@ const CaptureChatNoteSchema = z.object({
     .array(
       z.object({
         role: z.enum(["user", "assistant"]),
-        text: z.string().min(1).max(5000),
+        text: z.string().min(1).max(20_000),
       }),
     )
     .min(1)
     .max(40),
 });
 
+const CAPTURED_CHAT_MESSAGE_TEXT_LIMIT = 5000;
+
+function truncateMessageText(value: string): string {
+  const normalized = value.trim();
+
+  if (normalized.length <= CAPTURED_CHAT_MESSAGE_TEXT_LIMIT) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, CAPTURED_CHAT_MESSAGE_TEXT_LIMIT).trim()}...`;
+}
+
 function normalizeMessages(messages: LearnChatCaptureMessage[]) {
   return messages
     .map((item) => ({
       role: item.role,
-      text: item.text.trim(),
+      text: truncateMessageText(item.text),
     }))
     .filter((item) => item.text.length > 0)
     .slice(-20);
@@ -66,8 +79,13 @@ export const POST = withAuth(async (request: NextRequest, { userId }) => {
     chapterTitle: learningGuidance.chapter.title,
     messages: normalizedMessages,
   });
+  const captureKey = await buildLearnChatCaptureKey({
+    courseId,
+    chapterIndex,
+    messages: normalizedMessages,
+  });
 
-  const note = await createOwnedNote({
+  const { note, created } = await createOwnedNoteWithResult({
     userId,
     title: buildLearnChatCapturedNoteTitle({
       chapterTitle: learningGuidance.chapter.title,
@@ -84,17 +102,17 @@ export const POST = withAuth(async (request: NextRequest, { userId }) => {
       latestExcerpt: normalizedMessages[normalizedMessages.length - 1]?.text,
       source: "learn_chat_capture",
     },
+    dedupeKey: captureKey,
     content: {
       kind: "both",
       contentHtml,
       plainText,
     },
+    followups: "deferred",
   });
 
-  try {
-    await tagGenerationService.generateTags(note.id);
-  } catch (error) {
-    console.error("[Notes Capture Chat] Failed to generate tags:", error);
+  if (created) {
+    await scheduleCapturedNoteFollowups({ userId, noteId: note.id });
   }
 
   return Response.json({

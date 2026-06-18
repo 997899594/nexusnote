@@ -8,10 +8,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AIDegradationBanner } from "@/components/common";
 import { useInputProtection } from "@/components/common/useInputProtection";
 import type { ResearchRunSnapshot } from "@/lib/ai/research/contracts";
+import { toChatDisplayMessages } from "@/lib/chat/message-ui";
 import type { Command } from "@/types/chat";
 import { BackgroundResearchCard, type BackgroundResearchCardState } from "./BackgroundResearchCard";
 import { ChatComposer, type ChatComposerSubmitPayload } from "./ChatComposer";
-import { ChatMessage, LoadingDots } from "./ChatMessage";
+import { ChatMessage } from "./ChatMessage";
 import { CommandMenu } from "./CommandMenu";
 import { StreamdownMessage } from "./StreamdownMessage";
 import { useChatSession } from "./useChatSession";
@@ -147,6 +148,13 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
   const { handlePaste } = useInputProtection();
 
   const chatMessages = messages.filter((m: UIMessage) => m.role !== "system");
+  const lastMsg = chatMessages[chatMessages.length - 1];
+  const shouldAppendAssistantActivity =
+    (status === "submitted" || status === "streaming") && (!lastMsg || lastMsg.role === "user");
+  const displayMessages = toChatDisplayMessages(chatMessages, {
+    activeAssistantMessageId: isLoading && lastMsg?.role === "assistant" ? lastMsg.id : null,
+    appendAssistantActivity: shouldAppendAssistantActivity,
+  });
 
   useEffect(() => {
     if (previousSessionIdRef.current === sessionId) {
@@ -158,12 +166,12 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
   }, [sessionId]);
 
   useEffect(() => {
-    if (chatMessages.length === 0 && !isLoading) {
+    if (displayMessages.length === 0 && !isLoading) {
       return;
     }
 
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chatMessages.length, isLoading]);
+  }, [displayMessages.length, isLoading]);
 
   useEffect(() => {
     if (!sessionId || !launchMessage || didSendLaunchMessageRef.current) {
@@ -422,10 +430,6 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
       ? "搜索快捷动作..."
       : "输入问题，或 / 调出动作...";
 
-  const lastMsg = chatMessages[chatMessages.length - 1];
-  const isAILoading =
-    (status === "submitted" || status === "streaming") && (!lastMsg || lastMsg.role === "user");
-
   if (!sessionId) {
     return (
       <div className="flex h-full items-center justify-center bg-white/72 text-[var(--color-text-muted)]">
@@ -456,7 +460,7 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
         <div className="mx-auto max-w-[calc(100vw-32px)] space-y-4 md:max-w-[780px]">
           <AIDegradationBanner kind={aiDegradedKind} />
 
-          {chatMessages.length === 0 && !isLoading && (
+          {displayMessages.length === 0 && !isLoading && !backgroundResearch && (
             <div className="mx-auto flex max-w-sm flex-col items-center px-4 py-16 text-center">
               <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-panel-soft)] text-[var(--color-text-secondary)]">
                 <MessageCircle className="h-4 w-4" />
@@ -470,13 +474,8 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
             </div>
           )}
 
-          {chatMessages.map((msg) => (
-            <ChatMessage
-              key={msg.id}
-              message={msg}
-              onSendReply={sendChatMessage}
-              isStreaming={isLoading && msg.id === lastMsg?.id}
-            />
+          {displayMessages.map((msg) => (
+            <ChatMessage key={msg.id} message={msg} />
           ))}
 
           {backgroundResearch && (
@@ -489,8 +488,6 @@ export function ChatPanel({ sessionId }: ChatPanelProps) {
               )}
             </BackgroundResearchCard>
           )}
-
-          {isAILoading && <LoadingDots />}
 
           <div ref={messagesEndRef} />
         </div>

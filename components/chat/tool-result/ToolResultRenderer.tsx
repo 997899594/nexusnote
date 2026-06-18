@@ -26,11 +26,9 @@ function getOutput<T extends keyof ToolOutputMap>(part: ToolPart): ToolOutputMap
 
 interface ToolResultRendererProps {
   toolPart: ToolPart;
-  onSendReply?: (text: string) => void;
-  isStreaming?: boolean;
 }
 
-export function ToolResultRenderer({ toolPart, isStreaming }: ToolResultRendererProps) {
+export function ToolResultRenderer({ toolPart }: ToolResultRendererProps) {
   if (toolPart.state !== "output-available") {
     return null;
   }
@@ -55,7 +53,7 @@ export function ToolResultRenderer({ toolPart, isStreaming }: ToolResultRenderer
       if (!output?.success) {
         return <GenericToolResult output={output} />;
       }
-      return <SearchResults output={output} type={toolName} defaultOpen={Boolean(isStreaming)} />;
+      return <SearchResults output={output} type={toolName} defaultOpen={false} />;
     }
 
     case "summarize": {

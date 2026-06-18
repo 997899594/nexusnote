@@ -14,6 +14,9 @@ const queueWorkerResolvers = {
   "career-tree": async () => ({
     start: (await import("@/lib/queue/career-tree-worker")).startCareerTreeWorker,
   }),
+  "note-followups": async () => ({
+    start: (await import("@/lib/queue/note-followups-worker")).startNoteFollowupsWorker,
+  }),
   "knowledge-insights": async () => ({
     start: (await import("@/lib/queue/knowledge-insights-worker")).startKnowledgeInsightsWorker,
   }),

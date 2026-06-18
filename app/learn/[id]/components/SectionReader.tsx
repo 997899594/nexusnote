@@ -21,6 +21,7 @@ import { useToast } from "@/components/ui/Toast";
 import type { Annotation } from "@/hooks/useAnnotations";
 import { useAnnotations } from "@/hooks/useAnnotations";
 import type { SectionState } from "@/hooks/useChapterSections";
+import { parseApiError } from "@/lib/api/client";
 import { stripLeadingSectionHeading, stripSectionNumber } from "@/lib/learning/content-formatting";
 import {
   type LearningProgressTarget,
@@ -69,10 +70,12 @@ function CaptureNoteDialog({
   selectedText,
   onSubmit,
   onCancel,
+  isSubmitting,
 }: {
   selectedText: string;
   onSubmit: (noteContent: string) => void;
   onCancel: () => void;
+  isSubmitting: boolean;
 }) {
   const [text, setText] = useState("");
 
@@ -92,22 +95,25 @@ function CaptureNoteDialog({
           onChange={(e) => setText(e.target.value)}
           placeholder="补充你的理解、疑问或行动项（可选）"
           rows={4}
+          disabled={isSubmitting}
           className="mt-3 w-full resize-none rounded-xl border border-[var(--color-border)] p-3 text-sm text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-muted)] focus:ring-2 focus:ring-[var(--color-accent-ring)]"
         />
         <div className="mt-3 flex justify-end gap-2">
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-lg px-3 py-1.5 text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-panel-soft)]"
+            disabled={isSubmitting}
+            className="rounded-lg px-3 py-1.5 text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-panel-soft)] disabled:cursor-not-allowed disabled:opacity-45"
           >
             取消
           </button>
           <button
             type="button"
             onClick={() => onSubmit(text.trim())}
-            className="ui-primary-button rounded-lg px-3 py-1.5 text-xs"
+            disabled={isSubmitting}
+            className="ui-primary-button inline-flex min-w-14 items-center justify-center rounded-lg px-3 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-60"
           >
-            保存
+            {isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "保存"}
           </button>
         </div>
       </motion.div>
@@ -407,6 +413,8 @@ function SectionBlock({
     anchor: Annotation["anchor"];
     selectedText: string;
   } | null>(null);
+  const [isSubmittingCapture, setIsSubmittingCapture] = useState(false);
+  const isSubmittingCaptureRef = useRef(false);
   const [sectionPublicAnnotations, setSectionPublicAnnotations] = useState(publicAnnotations);
   const [moderatingAnnotationId, setModeratingAnnotationId] = useState<string | null>(null);
   const markSectionComplete = useLearnStore((s) => s.markSectionComplete);
@@ -429,7 +437,6 @@ function SectionBlock({
   const isComplete = state.status === "complete";
   const anchorId = nodeId;
   const isAlreadyRead = completedSections.has(anchorId);
-  const canShowFocusMarker = isHighlighted && (isComplete || state.content.length > 0);
   const readableContent = state.content
     ? stripLeadingSectionHeading(state.content, sectionTitle)
     : "";
@@ -486,8 +493,10 @@ function SectionBlock({
 
   const handleCapture = useCallback(
     async (noteContent: string) => {
-      if (!pendingCapture || !sectionDoc?.id) return;
+      if (!pendingCapture || !sectionDoc?.id || isSubmittingCaptureRef.current) return;
 
+      isSubmittingCaptureRef.current = true;
+      setIsSubmittingCapture(true);
       try {
         const response = await fetch("/api/notes/capture", {
           method: "POST",
@@ -501,14 +510,18 @@ function SectionBlock({
         });
 
         if (!response.ok) {
-          throw new Error("创建笔记失败");
+          const { message } = await parseApiError(response);
+          throw new Error(message);
         }
 
         await response.json();
         addToast("已保存到笔记", "success");
         setPendingCapture(null);
-      } catch {
-        addToast("保存笔记失败，请稍后重试", "error");
+      } catch (error) {
+        addToast(error instanceof Error ? error.message : "保存笔记失败，请稍后重试", "error");
+      } finally {
+        isSubmittingCaptureRef.current = false;
+        setIsSubmittingCapture(false);
       }
     },
     [addToast, pendingCapture, sectionDoc?.id],
@@ -546,23 +559,10 @@ function SectionBlock({
       id={anchorId}
       className={cn(
         "relative scroll-mt-4 rounded-[28px] transition-colors duration-300 md:scroll-mt-6",
-        canShowFocusMarker && "bg-[var(--color-panel-soft)] ring-1 ring-black/8",
+        isHighlighted && "animate-[section-focus_1.2s_ease-out]",
       )}
     >
       <div ref={containerRef} className="relative">
-        {canShowFocusMarker && (
-          <div className="mb-3 flex items-center gap-2 px-1">
-            <span
-              className={cn(
-                "inline-flex items-center rounded-full px-2.5 py-1 text-[0.625rem] font-semibold tracking-[0.14em]",
-                "ui-primary-button",
-              )}
-            >
-              当前小节
-            </span>
-          </div>
-        )}
-
         <SectionIntro
           chapterIndex={chapterIndex}
           chapterTitle={stripSectionNumber(chapter.title)}
@@ -698,7 +698,12 @@ function SectionBlock({
         <CaptureNoteDialog
           selectedText={pendingCapture.selectedText}
           onSubmit={handleCapture}
-          onCancel={() => setPendingCapture(null)}
+          onCancel={() => {
+            if (!isSubmittingCapture) {
+              setPendingCapture(null);
+            }
+          }}
+          isSubmitting={isSubmittingCapture}
         />
       )}
     </div>

@@ -12,7 +12,7 @@ import {
   db,
 } from "@/db";
 import { buildGenerationSettingsForPolicy } from "@/lib/ai/core/generation-settings";
-import { getModelNameForPolicy, getPlainModelForPolicy } from "@/lib/ai/core/model-policy";
+import { getPlainModelForPolicy } from "@/lib/ai/core/model-policy";
 import { generateStructuredObject } from "@/lib/ai/core/structured-output";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
 import { renderPromptResource } from "@/lib/ai/prompts/load-prompt";
@@ -23,6 +23,10 @@ import {
   MAX_CAREER_TREES,
 } from "@/lib/career-tree/constants";
 import { getCareerGraphStateRow } from "@/lib/career-tree/graph-state";
+import {
+  CAREER_TREE_COMPOSE_MODEL_CANDIDATES,
+  getCareerTreeRunModelName,
+} from "@/lib/career-tree/model-candidates";
 import {
   logCareerTreePipelineEvent,
   logCareerTreePipelineSkip,
@@ -52,8 +56,6 @@ import {
   careerTreeSnapshotSchema,
   type VisibleSkillTreeNode,
 } from "@/lib/career-tree/types";
-
-const CAREER_TREE_COMPOSE_MODEL_SERIES = "openai" as const;
 
 interface ComposerVisibleNode {
   anchorRef: string;
@@ -907,62 +909,71 @@ async function runCareerTreeComposer(params: {
   previousSnapshot: CareerTreeSnapshot | null;
   supportingRows: SupportingEvidenceRow[];
 }): Promise<TreeComposerOutput> {
-  const startedAt = Date.now();
-  const telemetry = createTelemetryContext({
-    endpoint: "career-tree:compose",
-    intent: "career-tree-compose",
-    workflow: "career-tree",
-    modelPolicy: "outline-architect",
-    promptVersion: CAREER_TREE_COMPOSE_PROMPT_VERSION,
-    userId: params.userId,
-    metadata: {
-      nodeCount: params.nodes.length,
-      edgeCount: params.edges.length,
-      previousTreeCount: params.previousSnapshot?.trees.length ?? 0,
-    },
-  });
+  let lastError: unknown = null;
 
-  try {
-    const result = await generateStructuredObject({
-      model: getPlainModelForPolicy("outline-architect", {
-        modelSeries: CAREER_TREE_COMPOSE_MODEL_SERIES,
-      }),
-      schema: treeComposerOutputSchema,
-      name: "careerTreeSnapshot",
-      description: "用户职业方向树候选结果",
-      prompt: renderPromptResource("career-tree/compose.md", {
-        compose_context: buildComposeContext(params),
-      }),
-      ...buildGenerationSettingsForPolicy(
-        "outline-architect",
-        {
-          temperature: 0.2,
-          maxOutputTokens: 8_000,
-        },
-        {
-          modelSeries: CAREER_TREE_COMPOSE_MODEL_SERIES,
-        },
-      ),
-      timeout: CAREER_TREE_COMPOSE_TIMEOUT_MS,
+  for (const [index, candidate] of CAREER_TREE_COMPOSE_MODEL_CANDIDATES.entries()) {
+    const telemetry = createTelemetryContext({
+      endpoint: "career-tree:compose",
+      intent: "career-tree-compose",
+      workflow: "career-tree",
+      modelPolicy: "outline-architect",
+      modelSeries: candidate.modelSeries,
+      promptVersion: CAREER_TREE_COMPOSE_PROMPT_VERSION,
+      userId: params.userId,
+      metadata: {
+        nodeCount: params.nodes.length,
+        edgeCount: params.edges.length,
+        previousTreeCount: params.previousSnapshot?.trees.length ?? 0,
+        candidate: candidate.label,
+        fallbackAttempt: index,
+      },
     });
 
-    await recordAIUsage({
-      ...telemetry,
-      usage: result.usage,
-      durationMs: Date.now() - startedAt,
-      success: true,
-    });
+    const attemptStartedAt = Date.now();
+    try {
+      const result = await generateStructuredObject({
+        model: getPlainModelForPolicy("outline-architect", {
+          modelSeries: candidate.modelSeries,
+        }),
+        schema: treeComposerOutputSchema,
+        name: "careerTreeSnapshot",
+        description: "用户职业方向树候选结果",
+        prompt: renderPromptResource("career-tree/compose.md", {
+          compose_context: buildComposeContext(params),
+        }),
+        ...buildGenerationSettingsForPolicy(
+          "outline-architect",
+          {
+            temperature: 0.2,
+            maxOutputTokens: 8_000,
+          },
+          {
+            modelSeries: candidate.modelSeries,
+          },
+        ),
+        timeout: CAREER_TREE_COMPOSE_TIMEOUT_MS,
+      });
 
-    return result.output;
-  } catch (error) {
-    await recordAIUsage({
-      ...telemetry,
-      durationMs: Date.now() - startedAt,
-      success: false,
-      errorMessage: getErrorMessage(error),
-    });
-    throw error;
+      await recordAIUsage({
+        ...telemetry,
+        usage: result.usage,
+        durationMs: Date.now() - attemptStartedAt,
+        success: true,
+      });
+
+      return result.output;
+    } catch (error) {
+      lastError = error;
+      await recordAIUsage({
+        ...telemetry,
+        durationMs: Date.now() - attemptStartedAt,
+        success: false,
+        errorMessage: getErrorMessage(error),
+      });
+    }
   }
+
+  throw lastError ?? new Error("Career tree compose failed without an error");
 }
 
 function buildComposeInputHash(params: {
@@ -1036,9 +1047,7 @@ export async function processCareerTreeComposeJob(job: {
     progressHash,
     nodeIds: nodes.map((node) => node.id),
   });
-  const model = getModelNameForPolicy("outline-architect", {
-    modelSeries: CAREER_TREE_COMPOSE_MODEL_SERIES,
-  });
+  const model = getCareerTreeRunModelName("compose");
   const composeRun = await getOrCreateCareerRun({
     userId: job.userId,
     kind: "compose",

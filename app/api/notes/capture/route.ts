@@ -2,16 +2,17 @@ import { and, eq } from "drizzle-orm";
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { courseSections, courses, db } from "@/db";
-import { tagGenerationService } from "@/lib/ai/services/tag-generation-service";
 import { notFound, parseJsonBodyAs, withAuth } from "@/lib/api";
 import { parseSectionOutlineNodeKey } from "@/lib/learning/outline-node-key";
 import {
   buildCapturedNoteHtml,
   buildCapturedNotePlainText,
   buildCapturedNoteTitle,
+  buildCourseCaptureKey,
   serializeCaptureAnchor,
 } from "@/lib/notes/capture";
-import { createOwnedNote } from "@/lib/notes/write-service";
+import { scheduleCapturedNoteFollowups } from "@/lib/notes/capture-followups";
+import { createOwnedNoteWithResult } from "@/lib/notes/write-service";
 
 const CaptureNoteSchema = z.object({
   sectionId: z.string().uuid(),
@@ -63,8 +64,14 @@ export const POST = withAuth(async (request: NextRequest, { userId }) => {
     selectionText,
     noteContent,
   });
+  const captureKey = await buildCourseCaptureKey({
+    sectionId,
+    selectionText,
+    anchor,
+    noteContent,
+  });
 
-  const note = await createOwnedNote({
+  const { note, created } = await createOwnedNoteWithResult({
     userId,
     title: buildCapturedNoteTitle({
       sectionTitle: section.sectionTitle,
@@ -82,17 +89,17 @@ export const POST = withAuth(async (request: NextRequest, { userId }) => {
       annotationId,
       noteContent: noteContent?.trim() || undefined,
     },
+    dedupeKey: captureKey,
     content: {
       kind: "both",
       contentHtml,
       plainText,
     },
+    followups: "deferred",
   });
 
-  try {
-    await tagGenerationService.generateTags(note.id);
-  } catch (error) {
-    console.error("[Notes Capture] Failed to generate tags:", error);
+  if (created) {
+    await scheduleCapturedNoteFollowups({ userId, noteId: note.id });
   }
 
   return Response.json({

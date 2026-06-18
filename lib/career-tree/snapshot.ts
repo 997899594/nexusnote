@@ -1,12 +1,13 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { careerGenerationRuns, careerUserTreeSnapshots, db } from "@/db";
-import { getModelNameForPolicy } from "@/lib/ai/core/model-policy";
 import {
   CAREER_TREE_COMPOSE_PROMPT_VERSION,
-  CAREER_TREE_EXTRACT_PROMPT_VERSION,
-  CAREER_TREE_MERGE_PROMPT_VERSION,
   CAREER_TREE_SCHEMA_VERSION,
 } from "@/lib/career-tree/constants";
+import {
+  getCareerTreeRunModelName,
+  isCurrentCareerTreeRun,
+} from "@/lib/career-tree/model-candidates";
 import { getCareerTreePreference } from "@/lib/career-tree/preferences";
 import { hasEligibleCareerCourses } from "@/lib/career-tree/source";
 import {
@@ -25,12 +26,14 @@ export function parseCareerTreeSnapshotPayload(payload: unknown): CareerTreeSnap
 
 function isCurrentReadySnapshot(row: {
   snapshot: typeof careerUserTreeSnapshots.$inferSelect;
+  model: string | null;
   promptVersion: string | null;
   runStatus: string | null;
 }): boolean {
   if (
     row.snapshot.schemaVersion !== CAREER_TREE_SCHEMA_VERSION ||
     row.snapshot.status !== "ready" ||
+    row.model !== getCareerTreeRunModelName("compose") ||
     row.promptVersion !== CAREER_TREE_COMPOSE_PROMPT_VERSION ||
     row.runStatus !== "succeeded"
   ) {
@@ -45,6 +48,7 @@ async function getRecentCareerTreeSnapshotRows(userId: string) {
   return db
     .select({
       snapshot: careerUserTreeSnapshots,
+      model: careerGenerationRuns.model,
       promptVersion: careerGenerationRuns.promptVersion,
       runStatus: careerGenerationRuns.status,
     })
@@ -71,14 +75,17 @@ export async function getLatestCareerTreeSnapshotRow(userId: string) {
 }
 
 async function getLatestUnsuccessfulCareerRun(userId: string) {
-  return db.query.careerGenerationRuns.findFirst({
+  const rows = await db.query.careerGenerationRuns.findMany({
     where: and(
       eq(careerGenerationRuns.userId, userId),
       inArray(careerGenerationRuns.kind, ["extract", "merge", "compose"]),
       inArray(careerGenerationRuns.status, ["running", "failed"]),
     ),
     orderBy: desc(careerGenerationRuns.createdAt),
+    limit: CURRENT_SNAPSHOT_CANDIDATE_LIMIT,
   });
+
+  return rows.find(isCurrentUnsuccessfulCareerRun) ?? null;
 }
 
 function normalizeFailureStage(kind: string): "extract" | "merge" | "compose" {
@@ -109,38 +116,17 @@ function getPublicFailureMessage(message: string | null): string {
   return message.slice(0, 240);
 }
 
-function shouldSurfaceCareerRunFailure(run: {
+function isCurrentUnsuccessfulCareerRun(run: {
   kind: string;
   status: string;
   model: string;
   promptVersion: string;
 }): boolean {
-  if (run.status !== "failed") {
+  if (run.status !== "running" && run.status !== "failed") {
     return false;
   }
 
-  if (run.kind === "extract") {
-    return (
-      run.promptVersion === CAREER_TREE_EXTRACT_PROMPT_VERSION &&
-      run.model.includes(getModelNameForPolicy("extract-fast"))
-    );
-  }
-
-  if (run.kind === "merge") {
-    return (
-      run.promptVersion === CAREER_TREE_MERGE_PROMPT_VERSION &&
-      run.model === getModelNameForPolicy("extract-fast")
-    );
-  }
-
-  if (run.kind === "compose") {
-    return (
-      run.promptVersion === CAREER_TREE_COMPOSE_PROMPT_VERSION &&
-      run.model === getModelNameForPolicy("outline-architect", { modelSeries: "openai" })
-    );
-  }
-
-  return false;
+  return isCurrentCareerTreeRun(run);
 }
 
 export async function restoreLatestCareerTreeSnapshotForComposeRun(params: {
@@ -150,6 +136,7 @@ export async function restoreLatestCareerTreeSnapshotForComposeRun(params: {
   const rows = await db
     .select({
       snapshot: careerUserTreeSnapshots,
+      model: careerGenerationRuns.model,
       promptVersion: careerGenerationRuns.promptVersion,
       runStatus: careerGenerationRuns.status,
     })
@@ -236,7 +223,7 @@ export async function getCareerTreeSnapshot(userId: string): Promise<CareerTreeS
     }
   }
 
-  if (latestRun?.status === "failed" && shouldSurfaceCareerRunFailure(latestRun)) {
+  if (latestRun?.status === "failed") {
     return createFailedCareerTreeSnapshot({
       selectedDirectionKey: preference.selectedDirectionKey,
       stage: normalizeFailureStage(latestRun.kind),

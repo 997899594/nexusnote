@@ -1,18 +1,18 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { ChatActivityIndicator } from "@/components/chat/ChatActivityIndicator";
+import { StreamdownMessage } from "@/components/chat/StreamdownMessage";
+import { ToolResultRenderer } from "@/components/chat/tool-result/ToolResultRenderer";
 import { ResearchSourceStrip } from "@/components/research/ResearchSourceStrip";
 import type { ChatDisplayMessage } from "@/lib/chat/message-ui";
 import { cn } from "@/lib/utils";
-import { ChatActivityIndicator } from "./ChatActivityIndicator";
-import { StreamdownMessage } from "./StreamdownMessage";
-import { ToolResultRenderer } from "./tool-result/ToolResultRenderer";
 
-interface ChatMessageProps {
+interface LearnChatMessageProps {
   message: ChatDisplayMessage;
 }
 
-export function ChatMessage({ message }: ChatMessageProps) {
+export function LearnChatMessage({ message }: LearnChatMessageProps) {
   const isUser = message.role === "user";
   const toolParts = message.toolParts ?? [];
 
@@ -28,7 +28,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
           "min-w-0 break-words text-sm [overflow-wrap:anywhere]",
           isUser
             ? "ui-primary-button max-w-[min(78%,var(--message-max-width))] rounded-3xl rounded-br-md px-4 py-3"
-            : "ui-message-card max-w-[var(--message-max-width)] rounded-[26px] px-4 py-3.5 text-[var(--color-text)]",
+            : "ui-message-card max-w-[var(--message-max-width)] rounded-[26px] px-4 py-3.5",
         )}
       >
         {isUser ? (
@@ -40,7 +40,8 @@ export function ChatMessage({ message }: ChatMessageProps) {
                 sources={message.researchSources.sources}
                 label={`来源 ${message.researchSources.sourceCount}`}
                 defaultOpen={false}
-                className={message.text ? "mb-3" : undefined}
+                variant="compact"
+                className={message.text ? "mb-2" : undefined}
               />
             ) : null}
             {message.activity ? <ChatActivityIndicator label={message.activity.label} /> : null}
@@ -50,42 +51,6 @@ export function ChatMessage({ message }: ChatMessageProps) {
             ))}
           </>
         )}
-      </div>
-    </motion.div>
-  );
-}
-
-interface LoadingDotsProps {
-  className?: string;
-  variant?: "default" | "learning";
-}
-
-export function LoadingDots({ className, variant = "default" }: LoadingDotsProps) {
-  const isLearning = variant === "learning";
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={cn("flex justify-start", className)}
-    >
-      <div
-        className={cn(
-          isLearning
-            ? "ui-message-card rounded-[26px] px-4 py-3.5"
-            : "ui-message-card rounded-[26px] px-4 py-3.5",
-        )}
-      >
-        <div className="flex gap-1">
-          {[0, 1, 2].map((i) => (
-            <motion.span
-              key={i}
-              animate={{ y: [0, -4, 0] }}
-              transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15 }}
-              className="w-1.5 h-1.5 bg-[var(--color-text-muted)] rounded-full"
-            />
-          ))}
-        </div>
       </div>
     </motion.div>
   );
