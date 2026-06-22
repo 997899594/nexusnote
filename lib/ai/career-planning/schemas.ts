@@ -88,12 +88,21 @@ export const careerGraphPatchNextQuestionSchema = z.object({
 });
 
 export const careerMentorDirectionSchema = z.object({
-  title: z.string().min(1).max(80),
-  reason: z.string().min(1).max(160),
-  fit: z.string().min(1).max(120),
-  upside: z.string().min(1).max(120),
-  growth: z.string().min(1).max(120),
-  tradeoff: z.string().min(1).max(140),
+  title: z
+    .string()
+    .min(1)
+    .max(80)
+    .describe("现实职业名称，不是课程名、能力路线、抽象方向或营销标题。"),
+  counselorTake: z
+    .string()
+    .min(1)
+    .max(180)
+    .describe("像职业规划导师一样，用一句自然判断说明为什么这个方向值得进入候选。"),
+  decisionPressure: z
+    .string()
+    .min(1)
+    .max(160)
+    .describe("这个方向真正要用户面对的验证点、代价或取舍，用自然语言表达，不写标签。"),
   source: z.enum(["course", "skill_tree", "interview", "research", "mixed"]).default("mixed"),
 });
 
@@ -114,7 +123,11 @@ export const careerMentorResearchSourceSchema = z.object({
 
 export const careerMentorBriefSchema = z.object({
   greeting: z.string().min(1).max(80).optional(),
-  openingObservation: z.string().min(1).max(220),
+  openingObservation: z
+    .string()
+    .min(1)
+    .max(260)
+    .describe("用户可见的导师判断。必须专业、克制、有人味，禁止伪口语、训斥或测评腔。"),
   recommendedDirections: z.array(careerMentorDirectionSchema).min(1).max(4),
   skillPriorities: z.array(careerMentorSkillPrioritySchema).min(1).max(5),
   marketContext: z.string().min(1).max(220).optional(),
@@ -140,3 +153,6 @@ export const careerGraphPatchSchema = z.object({
 });
 
 export type CareerGraphPatch = z.infer<typeof careerGraphPatchSchema>;
+export type CareerMentorBrief = z.infer<typeof careerMentorBriefSchema>;
+export type CareerMentorDirection = z.infer<typeof careerMentorDirectionSchema>;
+export type CareerMentorSkillPriority = z.infer<typeof careerMentorSkillPrioritySchema>;

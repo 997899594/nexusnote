@@ -707,6 +707,13 @@ export function CareerTreesExplorer({
     }
   };
 
+  const handleSelectNodeId = (nodeId: string) => {
+    const node = currentTree ? findNodeById(currentTree.tree, nodeId) : null;
+    if (node) {
+      handleSelectNode(node);
+    }
+  };
+
   const handleSelectNode = (node: VisibleSkillTreeNode) => {
     setActiveNodeId(node.id);
     setCourseChoice(null);
@@ -765,7 +772,7 @@ export function CareerTreesExplorer({
               graph={developmentGraph}
               activeNodeId={focusNode?.id ?? null}
               onSelectCareer={handleSelectCareer}
-              onSelectNode={handleSelectNode}
+              onSelectNode={handleSelectNodeId}
               planningHighlightNodeIds={planningHighlightNodeIds}
               variant="compact"
               className="h-full min-h-[30rem] lg:hidden"
@@ -774,7 +781,7 @@ export function CareerTreesExplorer({
               graph={developmentGraph}
               activeNodeId={focusNode?.id ?? null}
               onSelectCareer={handleSelectCareer}
-              onSelectNode={handleSelectNode}
+              onSelectNode={handleSelectNodeId}
               planningHighlightNodeIds={planningHighlightNodeIds}
               variant="full"
               className="hidden h-full min-h-[34rem] lg:block"

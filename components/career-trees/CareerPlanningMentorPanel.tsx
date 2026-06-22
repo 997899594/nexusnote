@@ -10,6 +10,7 @@ import { useInputProtection } from "@/components/common/useInputProtection";
 import { InterviewOptions } from "@/components/interview/InterviewOptions";
 import { ResearchSourceStrip } from "@/components/research/ResearchSourceStrip";
 import { type CareerGraphPatch, careerGraphPatchSchema } from "@/lib/ai/career-planning/schemas";
+import { buildCareerMentorPresentation } from "@/lib/career-planning/mentor-presentation";
 import type { CareerPlanningWorkspaceData } from "@/lib/career-planning/workspace-data";
 import { cn } from "@/lib/utils";
 
@@ -96,31 +97,6 @@ function getDomainLabel(url: string): string {
   }
 }
 
-function getSourceLabel(source: string): string {
-  switch (source) {
-    case "course":
-      return "课程";
-    case "skill_tree":
-      return "职业树";
-    case "interview":
-      return "访谈";
-    case "research":
-      return "研究";
-    case "mixed":
-      return "综合";
-    default:
-      return source;
-  }
-}
-
-function SourceBadge({ source }: { source: string }) {
-  return (
-    <span className="rounded-full bg-black/[0.035] px-2 py-1 text-[0.625rem] font-medium text-[var(--color-text-tertiary)]">
-      {getSourceLabel(source)}
-    </span>
-  );
-}
-
 function MentorBriefCard({
   patch,
   showOptions,
@@ -132,69 +108,45 @@ function MentorBriefCard({
   isLoading: boolean;
   onSelectOption: (value: string) => void;
 }) {
-  const brief = patch.mentorBrief;
-  const options = patch.nextQuestion.options ?? [];
-
-  if (!brief) {
-    return (
-      <>
-        <p className="text-sm leading-7">{patch.nextQuestion.question}</p>
-        {showOptions ? (
-          <InterviewOptions
-            options={options}
-            onSelect={(option) => onSelectOption(option.action || option.label)}
-            isStreaming={isLoading}
-            showWhileStreaming
-          />
-        ) : null}
-      </>
-    );
-  }
+  const presentation = buildCareerMentorPresentation(patch);
 
   return (
     <div className="space-y-4">
-      <div>
-        {brief.greeting ? (
-          <p className="mb-2 text-[0.6875rem] font-medium text-[var(--color-text-tertiary)]">
-            {brief.greeting}
-          </p>
-        ) : null}
-        <p className="text-sm leading-7 text-[var(--color-text)]">{brief.openingObservation}</p>
-      </div>
+      {presentation.observation ? (
+        <p className="text-[0.9375rem] leading-7 tracking-[-0.01em] text-[var(--color-text)]">
+          {presentation.observation}
+        </p>
+      ) : null}
 
-      <div className="space-y-2.5">
-        {brief.recommendedDirections.map((direction) => (
-          <div
-            key={`${direction.title}-${direction.reason}`}
-            className="rounded-[20px] border border-black/[0.055] bg-white/78 p-3"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-sm font-semibold tracking-[-0.02em] text-[var(--color-text)]">
-                  {direction.title}
-                </div>
-                <p className="mt-1 text-xs leading-5 text-[var(--color-text-secondary)]">
-                  {direction.reason}
-                </p>
+      {presentation.directions.length > 0 ? (
+        <div className="space-y-2">
+          {presentation.directions.map((direction) => (
+            <div
+              key={`${direction.title}-${direction.counselorTake}`}
+              className="rounded-[22px] border border-black/[0.055] bg-white/72 px-3.5 py-3"
+            >
+              <div className="text-sm font-semibold tracking-[-0.02em] text-[var(--color-text)]">
+                {direction.title}
               </div>
-              <SourceBadge source={direction.source} />
+              <p className="mt-1.5 text-xs leading-5 text-[var(--color-text-secondary)]">
+                {direction.counselorTake}
+              </p>
+              {direction.decisionPressure ? (
+                <p className="mt-2 border-black/[0.05] border-t pt-2 text-[0.6875rem] leading-5 text-[var(--color-text-tertiary)]">
+                  {direction.decisionPressure}
+                </p>
+              ) : null}
             </div>
-            <div className="mt-3 grid gap-1.5 text-[0.6875rem] leading-5 text-[var(--color-text-tertiary)]">
-              <div>匹配：{direction.fit}</div>
-              <div>价值：{direction.upside}</div>
-              <div>成长：{direction.growth}</div>
-              <div>取舍：{direction.tradeoff}</div>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : null}
 
-      {brief.skillPriorities.length > 0 ? (
+      {presentation.skillPriorities.length > 0 ? (
         <div className="flex flex-wrap gap-2">
-          {brief.skillPriorities.map((skill) => (
+          {presentation.skillPriorities.map((skill) => (
             <span
               key={`${skill.title}-${skill.why}`}
-              className="rounded-full border border-black/[0.06] bg-white/72 px-3 py-1.5 text-[0.6875rem] text-[var(--color-text-secondary)]"
+              className="rounded-full border border-black/[0.06] bg-white/68 px-3 py-1.5 text-[0.6875rem] text-[var(--color-text-secondary)]"
               title={skill.why}
             >
               {skill.title}
@@ -203,15 +155,15 @@ function MentorBriefCard({
         </div>
       ) : null}
 
-      {brief.marketContext ? (
-        <p className="border-black/[0.06] border-y py-2 text-xs leading-5 text-[var(--color-text-tertiary)]">
-          {brief.marketContext}
+      {presentation.marketContext ? (
+        <p className="text-xs leading-5 text-[var(--color-text-tertiary)]">
+          {presentation.marketContext}
         </p>
       ) : null}
 
-      {brief.researchSources.length > 0 ? (
+      {presentation.researchSources.length > 0 ? (
         <ResearchSourceStrip
-          sources={brief.researchSources.map((source, index) => ({
+          sources={presentation.researchSources.map((source, index) => ({
             id: source.sourceId ?? `S${index + 1}`,
             title: source.title,
             url: source.url,
@@ -219,8 +171,8 @@ function MentorBriefCard({
             provider: source.provider,
             qualityTier: source.qualityTier,
           }))}
-          label={`来源 ${brief.researchSources.length}`}
-          meta={brief.researchSources
+          label={`来源 ${presentation.researchSources.length}`}
+          meta={presentation.researchSources
             .slice(0, 2)
             .map((source) => source.domain ?? getDomainLabel(source.url))}
           defaultOpen={false}
@@ -228,11 +180,11 @@ function MentorBriefCard({
         />
       ) : null}
 
-      <div className="rounded-[18px] bg-[var(--color-panel-soft)] px-3 py-3">
-        <p className="text-sm leading-6 text-[var(--color-text)]">{patch.nextQuestion.question}</p>
+      <div className="rounded-[20px] bg-[var(--color-panel-soft)] px-3.5 py-3">
+        <p className="text-sm leading-6 text-[var(--color-text)]">{presentation.question}</p>
         {showOptions ? (
           <InterviewOptions
-            options={options}
+            options={presentation.options}
             onSelect={(option) => onSelectOption(option.action || option.label)}
             isStreaming={isLoading}
             showWhileStreaming
@@ -507,7 +459,7 @@ export function CareerPlanningMentorPanel({
               console.error("[CareerPlanningMentorPanel] send failed", error);
             }}
             onPaste={handlePaste}
-            placeholder="说说你的取舍..."
+            placeholder="直接回复导师..."
             isLoading={isLoading}
             className={cn(isWorkspace && "rounded-2xl md:p-3")}
             inputRowClassName={cn(isWorkspace && "md:gap-3")}
