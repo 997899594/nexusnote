@@ -2,8 +2,8 @@
 
 import { getToolName, isToolUIPart, type UIMessage } from "ai";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ChatActivityIndicator } from "@/components/chat/ChatActivityIndicator";
 import { ChatComposer, type ChatComposerSubmitPayload } from "@/components/chat/ChatComposer";
-import { LoadingDots } from "@/components/chat/ChatMessage";
 import { StreamdownMessage } from "@/components/chat/StreamdownMessage";
 import { useChatSession } from "@/components/chat/useChatSession";
 import { useInputProtection } from "@/components/common/useInputProtection";
@@ -95,6 +95,22 @@ function getDomainLabel(url: string): string {
   } catch {
     return url;
   }
+}
+
+function MentorThinkingState({ showSlowHint }: { showSlowHint: boolean }) {
+  return (
+    <div className="space-y-2">
+      <ChatActivityIndicator label="正在分析职业路径..." />
+      <p className="text-xs leading-5 text-[var(--color-text-tertiary)]">
+        正在整理课程、能力和市场信号，完成后会直接给出导师判断。
+      </p>
+      {showSlowHint ? (
+        <p className="text-xs leading-5 text-[var(--color-text-tertiary)]">
+          涉及前沿岗位时会先做联网研究，可能多等几秒。
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 function MentorBriefCard({
@@ -203,6 +219,7 @@ export function CareerPlanningMentorPanel({
 }: CareerPlanningMentorPanelProps) {
   const [planningSessionId] = useState(() => crypto.randomUUID());
   const [input, setInput] = useState("");
+  const [showSlowThinkingHint, setShowSlowThinkingHint] = useState(false);
   const bootstrapSentRef = useRef(false);
   const savedPatchSignatureRef = useRef<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -242,6 +259,8 @@ export function CareerPlanningMentorPanel({
     isLoading &&
     (renderedMessages.length === 0 ||
       renderedMessages[renderedMessages.length - 1]?.message.role === "user");
+  const showInitialAssistantShell = renderedMessages.length === 0;
+  const showFollowupAssistantLoading = isAILoading && renderedMessages.length > 0;
   const showEmptyError = renderedMessages.length === 0 && !patch && hasError;
 
   const sendCareerMessage = async (text: string) => {
@@ -280,6 +299,19 @@ export function CareerPlanningMentorPanel({
       bootstrapSentRef.current = false;
     }
   }, [hasError]);
+
+  useEffect(() => {
+    if (!isAILoading || patch) {
+      setShowSlowThinkingHint(false);
+      return;
+    }
+
+    const timerId = window.setTimeout(() => {
+      setShowSlowThinkingHint(true);
+    }, 6000);
+
+    return () => window.clearTimeout(timerId);
+  }, [isAILoading, patch]);
 
   const retryBootstrap = async () => {
     if (isLoading) {
@@ -364,7 +396,7 @@ export function CareerPlanningMentorPanel({
             isWorkspace && "mx-auto max-w-[calc(100vw-32px)] md:max-w-[var(--message-max-width)]",
           )}
         >
-          {renderedMessages.length === 0 ? (
+          {showInitialAssistantShell ? (
             <div className="flex justify-start">
               <div className={assistantBubbleClassName}>
                 {question ? (
@@ -386,7 +418,7 @@ export function CareerPlanningMentorPanel({
                     </button>
                   </div>
                 ) : (
-                  <LoadingDots />
+                  <MentorThinkingState showSlowHint={showSlowThinkingHint} />
                 )}
               </div>
             </div>
@@ -434,7 +466,13 @@ export function CareerPlanningMentorPanel({
             );
           })}
 
-          {isAILoading ? <LoadingDots /> : null}
+          {showFollowupAssistantLoading ? (
+            <div className="flex justify-start">
+              <div className={assistantBubbleClassName}>
+                <MentorThinkingState showSlowHint={showSlowThinkingHint} />
+              </div>
+            </div>
+          ) : null}
 
           <div ref={messagesEndRef} />
         </div>

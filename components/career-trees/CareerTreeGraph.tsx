@@ -71,8 +71,6 @@ const CURRENT_CAREER_NODE_ID = "__current-career";
 const FUTURE_CAREER_NODE_PREFIX = "__future-career:";
 const CENTER_NODE_ORIGIN: [number, number] = [0.5, 0.5];
 const FLOW_PRO_OPTIONS = { hideAttribution: true };
-const OCTAGON_CLIP_PATH =
-  "polygon(50% 0%, 82% 12%, 100% 50%, 82% 88%, 50% 100%, 18% 88%, 0% 50%, 18% 12%)";
 
 function clampProgress(progress: number): number {
   return Math.max(0, Math.min(100, progress));
@@ -95,53 +93,53 @@ function getStateTone(state: CareerNodeState | "role") {
   switch (state) {
     case "role":
       return {
-        edge: "rgba(51,65,85,0.78)",
-        glow: "rgba(15,23,42,0.18)",
-        halo: "rgba(148,163,184,0.18)",
-        metal: "#334155",
+        edge: "rgba(15,23,42,0.72)",
+        glow: "rgba(15,23,42,0.12)",
+        halo: "rgba(15,23,42,0.07)",
+        metal: "#0f172a",
         text: "text-[var(--color-text)]",
         opacity: 1,
         dash: undefined,
       };
     case "mastered":
       return {
-        edge: "rgba(22,101,52,0.68)",
-        glow: "rgba(22,101,52,0.16)",
-        halo: "rgba(34,197,94,0.12)",
-        metal: "#166534",
+        edge: "rgba(21,128,61,0.7)",
+        glow: "rgba(21,128,61,0.12)",
+        halo: "rgba(21,128,61,0.08)",
+        metal: "#15803d",
         text: "text-[var(--color-text)]",
         opacity: 1,
         dash: undefined,
       };
     case "in_progress":
       return {
-        edge: "rgba(37,99,235,0.62)",
-        glow: "rgba(37,99,235,0.16)",
-        halo: "rgba(59,130,246,0.12)",
+        edge: "rgba(37,99,235,0.72)",
+        glow: "rgba(37,99,235,0.14)",
+        halo: "rgba(37,99,235,0.09)",
         metal: "#2563eb",
         text: "text-[var(--color-text)]",
-        opacity: 0.94,
+        opacity: 0.96,
         dash: undefined,
       };
     case "ready":
       return {
-        edge: "rgba(100,116,139,0.52)",
-        glow: "rgba(100,116,139,0.12)",
-        halo: "rgba(148,163,184,0.1)",
+        edge: "rgba(71,85,105,0.48)",
+        glow: "rgba(71,85,105,0.08)",
+        halo: "rgba(71,85,105,0.06)",
         metal: "#64748b",
         text: "text-[var(--color-text-secondary)]",
-        opacity: 0.86,
-        dash: "8 10",
+        opacity: 0.82,
+        dash: "7 9",
       };
     case "locked":
       return {
-        edge: "rgba(148,163,184,0.4)",
-        glow: "rgba(148,163,184,0.08)",
-        halo: "rgba(148,163,184,0.08)",
+        edge: "rgba(148,163,184,0.34)",
+        glow: "rgba(148,163,184,0.06)",
+        halo: "rgba(148,163,184,0.05)",
         metal: "#94a3b8",
         text: "text-[var(--color-text-tertiary)]",
-        opacity: 0.66,
-        dash: "4 12",
+        opacity: 0.58,
+        dash: "3 10",
       };
   }
 }
@@ -149,16 +147,16 @@ function getStateTone(state: CareerNodeState | "role") {
 function getLayoutMetrics(variant: CareerTreeGraphVariant) {
   if (variant === "compact") {
     return {
-      skillSiblingGap: 96,
-      skillDepthGap: 82,
-      futureY: 72,
-      futureTierGap: 76,
-      currentY: 236,
-      currentOnlyY: 148,
-      skillBaseY: 520,
-      currentOnlySkillBaseY: 420,
-      canvasHeight: "18rem",
-      currentOnlyCanvasHeight: "18rem",
+      skillSiblingGap: 104,
+      skillDepthGap: 78,
+      futureY: 62,
+      futureTierGap: 78,
+      currentY: 206,
+      currentOnlyY: 140,
+      skillBaseY: 444,
+      currentOnlySkillBaseY: 362,
+      canvasHeight: "17.5rem",
+      currentOnlyCanvasHeight: "17.5rem",
       fitPadding: 0.14,
       minZoom: 0.34,
       maxZoom: 1.2,
@@ -166,17 +164,17 @@ function getLayoutMetrics(variant: CareerTreeGraphVariant) {
   }
 
   return {
-    skillSiblingGap: 184,
-    skillDepthGap: 166,
-    futureY: 112,
-    futureTierGap: 138,
-    currentY: 414,
-    currentOnlyY: 238,
-    skillBaseY: 900,
-    currentOnlySkillBaseY: 650,
-    canvasHeight: "58rem",
-    currentOnlyCanvasHeight: "43rem",
-    fitPadding: 0.16,
+    skillSiblingGap: 260,
+    skillDepthGap: 132,
+    futureY: 104,
+    futureTierGap: 130,
+    currentY: 330,
+    currentOnlyY: 218,
+    skillBaseY: 560,
+    currentOnlySkillBaseY: 430,
+    canvasHeight: "42rem",
+    currentOnlyCanvasHeight: "32rem",
+    fitPadding: 0.18,
     minZoom: 0.22,
     maxZoom: 1.32,
   };
@@ -191,8 +189,8 @@ function getFutureCareerPosition(params: {
   tierGap: number;
 }) {
   const compact = params.variant === "compact";
-  const horizontalGap = compact ? 128 : 310;
-  const outerGap = compact ? 178 : 460;
+  const horizontalGap = compact ? 142 : 340;
+  const outerGap = compact ? 190 : 500;
 
   if (params.count <= 1) {
     return {
@@ -321,7 +319,7 @@ function buildFlowElements(params: {
   const skillDepth = getVisibleSkillDepth(params.graph.skillRoots, params.maxDepth);
   const hasFutureCareers = params.graph.futureCareers.length > 0;
   const currentCareerY = hasFutureCareers ? metrics.currentY : metrics.currentOnlyY;
-  const careerToSkillClearance = params.variant === "compact" ? 96 : 260;
+  const careerToSkillClearance = params.variant === "compact" ? 96 : 180;
   const skillBaseY = Math.max(
     hasFutureCareers ? metrics.skillBaseY : metrics.currentOnlySkillBaseY,
     currentCareerY + careerToSkillClearance + skillDepth * metrics.skillDepthGap,
@@ -488,13 +486,42 @@ function buildFlowElements(params: {
   };
 }
 
-function CareerProgressMark({ progress }: { progress: number }) {
+function SkillStationMark({
+  progress,
+  color,
+  muted,
+}: {
+  progress: number;
+  color: string;
+  muted: boolean;
+}) {
+  const circumference = 113.1;
+  const progressLength = (progress / 100) * circumference;
+
   return (
-    <span className="flex flex-col items-center justify-center leading-none">
-      <span className="text-base font-semibold tracking-[-0.06em]">{progress}</span>
-      <span className="mt-0.5 text-[8px] font-medium uppercase tracking-[0.16em] opacity-60">
-        %
-      </span>
+    <span className="absolute inset-0 flex items-center justify-center">
+      <svg aria-hidden className="absolute inset-0 -rotate-90" viewBox="0 0 44 44">
+        <title>能力进度</title>
+        <circle cx="22" cy="22" fill="none" r="18" stroke="rgba(15,23,42,0.08)" strokeWidth="3" />
+        <circle
+          cx="22"
+          cy="22"
+          fill="none"
+          r="18"
+          stroke={color}
+          strokeDasharray={`${progressLength} ${circumference}`}
+          strokeLinecap="round"
+          strokeWidth="3.5"
+        />
+      </svg>
+      <span
+        aria-hidden
+        className={cn("relative h-2.5 w-2.5 rounded-full", muted && "h-2 w-2")}
+        style={{
+          background: color,
+          boxShadow: muted ? undefined : `0 0 0 5px color-mix(in srgb, ${color} 12%, transparent)`,
+        }}
+      />
     </span>
   );
 }
@@ -512,12 +539,11 @@ function CareerRoleNodeView({ data }: NodeProps<CareerRoleFlowNode>) {
   const isFuture = data.roleKind === "future";
   const nodeSizeClass = isCompact
     ? isFuture
-      ? "h-[44px] w-[44px]"
-      : "h-[58px] w-[58px]"
+      ? "h-[44px] w-[128px]"
+      : "h-[52px] w-[158px]"
     : isFuture
-      ? "h-[68px] w-[68px] sm:h-[76px] sm:w-[76px]"
-      : "h-[98px] w-[98px] sm:h-[116px] sm:w-[116px]";
-  const labelWidthClass = isCompact ? "w-32" : isFuture ? "w-52" : "w-44 sm:w-56 md:w-72";
+      ? "h-[58px] w-[184px] sm:h-[62px] sm:w-[204px]"
+      : "h-[78px] w-[244px] sm:w-[292px]";
   const statusLabel = data.role.isSelected ? "已选" : data.role.isRecommended ? "推荐" : "";
   const roleLabel = isFuture
     ? data.role.source === "candidate_tree"
@@ -527,9 +553,13 @@ function CareerRoleNodeView({ data }: NodeProps<CareerRoleFlowNode>) {
         : "可发展岗位"
     : "当前方向";
   const signalLabel = formatRoleSignal(data.role);
-  const labelPositionClass = isFuture
-    ? "bottom-full mb-3"
-    : "top-full mt-4 min-[520px]:top-1/2 min-[520px]:left-full min-[520px]:mt-0 min-[520px]:ml-3 min-[520px]:translate-x-0 min-[520px]:-translate-y-1/2 min-[520px]:text-left";
+  const accentColor = isFuture
+    ? data.role.isSelected
+      ? "#2563eb"
+      : data.role.isRecommended
+        ? "#0f766e"
+        : "#64748b"
+    : "#0f172a";
 
   return (
     <div
@@ -542,89 +572,54 @@ function CareerRoleNodeView({ data }: NodeProps<CareerRoleFlowNode>) {
       <Handle className="!opacity-0" position={Position.Bottom} type="target" />
       <button
         type="button"
+        aria-label={`${roleLabel}，${data.role.title}，${signalLabel}`}
         className={cn(
-          "nodrag nowheel group relative isolate flex h-full w-full items-center justify-center rounded-full text-[var(--color-text)] transition duration-300",
-          isFuture ? "cursor-pointer hover:scale-[1.03]" : "cursor-default",
-          data.planningHighlighted && "scale-[1.035]",
+          "nodrag nowheel group relative isolate flex h-full w-full flex-col items-start justify-center overflow-hidden rounded-full border bg-white px-5 text-left text-[var(--color-text)] transition duration-300",
+          isCompact ? "px-4" : isFuture ? "px-5" : "px-6",
+          isFuture ? "cursor-pointer hover:-translate-y-0.5" : "cursor-default",
+          data.planningHighlighted && "translate-y-[-1px]",
+          data.planningHighlighted
+            ? "border-slate-900/24 shadow-[0_18px_38px_-30px_rgba(15,23,42,0.46)]"
+            : "border-black/[0.08] shadow-[0_14px_32px_-30px_rgba(15,23,42,0.34)]",
         )}
       >
         <span
           aria-hidden
-          className={cn(
-            "absolute rounded-full blur-2xl transition-opacity duration-300",
-            data.planningHighlighted
-              ? "-inset-8 bg-slate-500/20 opacity-100"
-              : isFuture
-                ? "-inset-5 bg-slate-400/16 opacity-55 group-hover:opacity-85"
-                : "-inset-9 bg-slate-400/16",
-          )}
+          className="absolute inset-y-2 left-2 w-1 rounded-full transition-opacity duration-300"
+          style={{
+            background: accentColor,
+            opacity: data.planningHighlighted || isFuture ? 1 : 0.7,
+          }}
         />
         <span
           aria-hidden
-          className={cn(
-            "absolute inset-0 rounded-full border bg-white shadow-[inset_0_0_0_1px_rgba(15,23,42,0.03)] transition duration-300",
-            data.planningHighlighted
-              ? "border-slate-500/35 shadow-[0_24px_48px_-32px_rgba(15,23,42,0.42)]"
-              : isFuture
-                ? "border-black/10 shadow-[0_18px_34px_-28px_rgba(15,23,42,0.3)] group-hover:border-black/18"
-                : "border-black/16 shadow-[0_22px_42px_-30px_rgba(15,23,42,0.36)]",
-          )}
+          className="absolute inset-0 rounded-full opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+          style={{
+            background:
+              "linear-gradient(90deg, rgba(15,23,42,0.045), transparent 42%, rgba(255,255,255,0.72))",
+          }}
         />
-        <span
-          aria-hidden
-          className={cn(
-            "absolute inset-[9px] rounded-full border border-black/6",
-            isCompact && "inset-[6px]",
-          )}
-        />
-        <span
-          aria-hidden
-          className={cn(
-            "absolute inset-[10px] rotate-45 border border-black/10",
-            isCompact && "inset-[7px]",
-          )}
-        />
-        <span className="absolute inset-0 flex items-center justify-center text-[var(--color-text)]">
-          <span
-            className={cn(
-              "rounded-full bg-[var(--color-panel-strong)]",
-              isFuture ? "h-1.5 w-1.5" : "h-2.5 w-2.5",
-              isCompact && "h-1.5 w-1.5",
-            )}
-          />
+        <span className="relative z-10 flex w-full min-w-0 items-center gap-2 text-[10px] font-medium text-[var(--color-text-tertiary)]">
+          <span className="h-1.5 w-1.5 rounded-full" style={{ background: accentColor }} />
+          <span className="truncate">{roleLabel}</span>
+          {statusLabel ? (
+            <span className="text-[var(--color-text-secondary)]">{statusLabel}</span>
+          ) : null}
         </span>
-      </button>
-
-      <div
-        className={cn(
-          "pointer-events-none absolute left-1/2 -translate-x-1/2 text-center leading-none",
-          labelWidthClass,
-          labelPositionClass,
-          isCompact && "sr-only",
-        )}
-      >
         <span
           className={cn(
-            "block text-[9px] uppercase tracking-[0.2em] text-[var(--color-text-tertiary)]",
+            "relative z-10 mt-1 block w-full truncate font-display font-semibold leading-tight text-[var(--color-text)]",
+            isCompact ? "text-xs" : isFuture ? "text-sm" : "text-base sm:text-lg",
           )}
         >
-          {roleLabel}
+          {data.role.title}
         </span>
-        <span className="mt-1.5 block">
-          <span
-            className={cn(
-              "block max-w-full whitespace-normal font-display font-semibold leading-tight tracking-[-0.055em]",
-              isFuture ? "text-[15px]" : "text-[1.2rem] sm:text-[1.5rem] md:text-[1.65rem]",
-            )}
-          >
-            {data.role.title}
-          </span>
-          <span className="mt-1.5 block text-[10px] tracking-[0.08em] text-[var(--color-text-tertiary)]">
-            {statusLabel ? `${statusLabel} · ` : ""}
+        {!isCompact ? (
+          <span className="relative z-10 mt-1 block w-full truncate text-[11px] text-[var(--color-text-tertiary)]">
             {signalLabel}
           </span>
-        </span>
-      </div>
+        ) : null}
+      </button>
     </div>
   );
 }
@@ -636,9 +631,9 @@ function CareerSkillNode({ data }: NodeProps<CareerSkillFlowNode>) {
   const isCompact = variant === "compact";
   const label = getStateLabel(skillNode.state);
   const emphasized = active || planningHighlighted;
-  const nodeSizeClass = isCompact
-    ? "h-[58px] w-[58px]"
-    : "h-[82px] w-[82px] sm:h-[98px] sm:w-[98px]";
+  const nodeSizeClass = isCompact ? "h-[42px] w-[42px]" : "h-[64px] w-[214px]";
+  const stationSizeClass = isCompact ? "h-[26px] w-[26px]" : "h-[38px] w-[38px]";
+  const muted = skillNode.state === "locked" || skillNode.state === "ready";
 
   return (
     <div
@@ -649,83 +644,77 @@ function CareerSkillNode({ data }: NodeProps<CareerSkillFlowNode>) {
     >
       <Handle className="!opacity-0" position={Position.Top} type="source" />
       <Handle className="!opacity-0" position={Position.Bottom} type="target" />
-      <div
+      <button
+        type="button"
+        aria-label={`${skillNode.title}，${label}，进度 ${progress}%`}
         className={cn(
-          "relative flex h-full w-full shrink-0 items-center justify-center transition duration-300",
-          active ? "scale-110" : planningHighlighted ? "scale-[1.07]" : "hover:scale-105",
+          "nodrag nowheel group relative flex h-full w-full shrink-0 items-center rounded-full transition duration-300",
+          isCompact
+            ? "justify-center"
+            : "justify-start gap-3 border border-black/[0.06] bg-white/80 px-3.5 text-left shadow-[0_14px_32px_-30px_rgba(15,23,42,0.34)] backdrop-blur",
+          active ? "scale-[1.12]" : planningHighlighted ? "scale-[1.08]" : "hover:scale-[1.06]",
         )}
         style={{ color: tone.metal, opacity: tone.opacity }}
       >
         <span
-          aria-hidden
-          className="absolute -inset-5 rounded-full blur-2xl transition-opacity duration-300"
-          style={{
-            background: `radial-gradient(circle, ${tone.halo}, transparent 66%)`,
-            opacity: emphasized ? 1 : 0.72,
-          }}
-        />
-        {planningHighlighted ? (
+          className={cn("relative flex shrink-0 items-center justify-center", stationSizeClass)}
+        >
           <span
             aria-hidden
-            className="absolute -inset-2 rotate-45 rounded-[1.55rem] border border-slate-900/18"
+            className="absolute rounded-full transition-opacity duration-300"
+            style={{
+              background: tone.halo,
+              inset: emphasized ? "-12px" : "-8px",
+              opacity: emphasized ? 1 : 0,
+            }}
           />
-        ) : null}
-        <span
-          aria-hidden
-          className="absolute inset-0 rotate-45 rounded-[1.35rem] border bg-white shadow-[inset_0_0_0_1px_rgba(15,23,42,0.03)]"
-          style={{
-            borderColor: planningHighlighted ? "rgba(51,65,85,0.46)" : tone.edge,
-            boxShadow: emphasized
-              ? `0 0 34px ${tone.glow}, 0 18px 34px -28px rgba(15,23,42,0.32)`
-              : `0 0 18px ${tone.glow}, 0 14px 28px -26px rgba(15,23,42,0.22)`,
-          }}
-        />
-        <span
-          aria-hidden
-          className="absolute inset-[8px] border bg-[var(--color-panel-soft)]"
-          style={{ borderColor: "rgba(15,23,42,0.08)", clipPath: OCTAGON_CLIP_PATH }}
-        />
-        <svg aria-hidden className="absolute inset-[5px] -rotate-90" viewBox="0 0 100 100">
-          <title>能力进度</title>
-          <circle cx="50" cy="50" fill="none" r="45" stroke="rgba(15,23,42,0.08)" strokeWidth="3" />
-          <circle
-            cx="50"
-            cy="50"
-            fill="none"
-            r="45"
-            stroke={tone.metal}
-            strokeDasharray={`${progress * 2.827} 282.7`}
-            strokeLinecap="round"
-            strokeWidth="3.5"
+          {planningHighlighted ? (
+            <span
+              aria-hidden
+              className="absolute -inset-1 rounded-full border border-slate-900/20"
+            />
+          ) : null}
+          <span
+            aria-hidden
+            className="absolute inset-0 rounded-full border bg-white transition duration-300"
+            style={{
+              borderColor: planningHighlighted ? "rgba(51,65,85,0.46)" : tone.edge,
+              boxShadow: emphasized
+                ? `0 0 0 6px ${tone.glow}, 0 14px 28px -24px rgba(15,23,42,0.32)`
+                : `0 10px 24px -24px rgba(15,23,42,0.28)`,
+            }}
           />
-        </svg>
-        <span className="relative z-10 flex h-full w-full items-center justify-center">
-          <CareerProgressMark progress={progress} />
+          <SkillStationMark color={tone.metal} muted={muted} progress={progress} />
         </span>
-      </div>
-      <div
-        className={cn(
-          "pointer-events-none absolute top-full left-1/2 mt-3 -translate-x-1/2 text-center leading-5",
-          isCompact ? "w-28 text-[11px]" : "w-32 sm:w-44",
-        )}
-      >
+        {!isCompact ? (
+          <span className="relative z-10 flex min-w-0 flex-col">
+            <span
+              className={cn(
+                "line-clamp-2 text-sm font-semibold leading-snug tracking-normal",
+                active ? "text-[var(--color-text)]" : tone.text,
+              )}
+            >
+              {skillNode.title}
+            </span>
+            <span className="mt-0.5 text-[10px] tracking-normal text-[var(--color-text-tertiary)]">
+              {progress}% · {label}
+            </span>
+          </span>
+        ) : null}
+      </button>
+      {isCompact ? (
         <div
           className={cn(
-            "line-clamp-2 font-semibold tracking-[-0.04em]",
-            isCompact ? "text-[11px]" : "text-sm",
-            active ? "text-[var(--color-text)]" : tone.text,
+            "pointer-events-none absolute top-full left-1/2 mt-2 w-28 -translate-x-1/2 text-center text-[11px] leading-5",
           )}
         >
-          {skillNode.title}
-        </div>
-        {!isCompact ? (
-          <div className="mt-0.5 text-[10px] tracking-[0.14em] text-[var(--color-text-tertiary)]">
-            {progress}% · {label}
+          <div className={cn("line-clamp-2 font-semibold tracking-normal", tone.text)}>
+            {skillNode.title}
           </div>
-        ) : null}
-        <div className="sr-only">
-          {label}，进度 {progress}%
         </div>
+      ) : null}
+      <div className="sr-only">
+        {label}，进度 {progress}%
       </div>
     </div>
   );
@@ -765,9 +754,9 @@ function CareerBranchEdge({
         interactionWidth={22}
         path={path}
         style={{
-          stroke: "rgba(148,163,184,0.18)",
+          stroke: "rgba(15,23,42,0.08)",
           strokeLinecap: "round",
-          strokeWidth: data?.kind === "career" ? 13 : 10,
+          strokeWidth: data?.kind === "career" ? 9 : 7,
         }}
       />
       <BaseEdge
@@ -775,12 +764,12 @@ function CareerBranchEdge({
         interactionWidth={22}
         path={path}
         style={{
-          filter: data?.active ? "drop-shadow(0 0 10px rgba(37,99,235,0.22))" : undefined,
+          filter: data?.active ? "drop-shadow(0 0 7px rgba(37,99,235,0.18))" : undefined,
           opacity: data?.active ? 1 : tone.opacity,
           stroke: tone.edge,
           strokeDasharray: tone.dash,
           strokeLinecap: "round",
-          strokeWidth: data?.active ? 5.4 : data?.kind === "career" ? 4 : 3.3,
+          strokeWidth: data?.active ? 4.8 : data?.kind === "career" ? 3.6 : 2.8,
         }}
       />
     </>
@@ -842,12 +831,11 @@ export function CareerTreeGraph({
     >
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.36]"
+        className="pointer-events-none absolute inset-0 opacity-[0.22]"
         style={{
           backgroundImage:
-            "radial-gradient(circle at 20% 10%, rgba(15,23,42,0.08) 0 1px, transparent 1.5px), radial-gradient(circle at 74% 42%, rgba(15,23,42,0.05) 0 1px, transparent 1.8px)",
-          backgroundSize: "38px 46px, 62px 58px",
-          maskImage: "radial-gradient(circle at center, black 12%, transparent 82%)",
+            "linear-gradient(rgba(15,23,42,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,0.06) 1px, transparent 1px)",
+          backgroundSize: isCompact ? "36px 36px" : "64px 64px",
         }}
       />
       <div
@@ -860,22 +848,25 @@ export function CareerTreeGraph({
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-[8%] bottom-8 h-28 bg-[radial-gradient(ellipse_at_bottom,rgba(15,23,42,0.06),transparent_70%)]"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-[linear-gradient(0deg,rgba(255,255,255,0.6),transparent)]"
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.14]"
+        className="pointer-events-none absolute inset-y-0 left-1/2 w-[42%] -translate-x-1/2 border-x border-black/[0.035]"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-[0.08]"
         style={{
           backgroundImage:
-            "linear-gradient(rgba(15,23,42,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,0.08) 1px, transparent 1px)",
-          backgroundSize: isCompact ? "34px 34px" : "56px 56px",
-          maskImage: "radial-gradient(circle at 50% 42%, black 0%, transparent 74%)",
+            "linear-gradient(120deg, transparent 0 48%, rgba(15,23,42,0.18) 48% 48.5%, transparent 48.5% 100%)",
+          backgroundSize: isCompact ? "130px 130px" : "220px 220px",
         }}
       />
       {!isCompact ? (
-        <div className="pointer-events-none absolute inset-x-6 top-5 z-20 flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-[var(--color-text-tertiary)]">
-          <span>{hasFutureCareers ? "未来职业" : "当前主树"}</span>
-          <span>能力根系</span>
+        <div className="pointer-events-none absolute inset-x-6 top-5 z-20 flex items-center justify-between text-[10px] font-medium tracking-normal text-[var(--color-text-tertiary)]">
+          <span>{hasFutureCareers ? "职业方向" : "当前路线"}</span>
+          <span>能力站点</span>
         </div>
       ) : null}
 
