@@ -81,11 +81,18 @@ export const careerGraphPatchEvidenceSchema = z.object({
   summary: z.string().min(1).max(220),
 });
 
-export const careerGraphPatchNextQuestionSchema = z.object({
-  question: z.string().min(1).max(180),
-  rationale: z.string().min(1).max(180).optional(),
-  options: z.array(z.string().min(1).max(80)).min(2).max(4).optional(),
-});
+export const careerGraphPatchNextQuestionSchema = z
+  .object({
+    question: z
+      .string()
+      .min(1)
+      .max(180)
+      .describe(
+        "只问一个开放式职业校准问题。问题必须校准职业动机、约束、工作方式、风险承受或长期取舍；禁止项目交付选择题、考试题和资料表式问题。",
+      ),
+    rationale: z.string().min(1).max(180).optional(),
+  })
+  .strict();
 
 export const careerMentorDirectionSchema = z.object({
   title: z

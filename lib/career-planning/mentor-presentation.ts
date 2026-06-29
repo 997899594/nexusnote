@@ -25,7 +25,6 @@ export interface CareerMentorPresentation {
   marketContext: string | null;
   researchSources: CareerMentorBrief["researchSources"];
   question: string;
-  options: string[];
 }
 
 const ROBOTIC_SENTENCE_PATTERNS = [
@@ -123,6 +122,5 @@ export function buildCareerMentorPresentation(patch: CareerGraphPatch): CareerMe
     marketContext: cleanUserVisibleText(brief?.marketContext) || null,
     researchSources: brief?.researchSources ?? [],
     question: cleanUserVisibleText(patch.nextQuestion.question) || patch.nextQuestion.question,
-    options: patch.nextQuestion.options ?? [],
   };
 }

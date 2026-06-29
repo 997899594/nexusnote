@@ -84,7 +84,7 @@ Required fields:
 - `diagnosis`: hidden professional diagnosis frame for this turn.
 - `interviewTechnique`: the counselor technique used for the next question.
 - `qualityGate`: self-check that the patch changes the graph and reduces uncertainty.
-- `nextQuestion`: the next mentor question and optional answer choices.
+- `nextQuestion`: one open-ended mentor calibration question.
 
 Rules:
 
@@ -269,10 +269,11 @@ Do not:
 - parse JSON from assistant text;
 - require the user to see tool output;
 - rely only on prompt wording to enforce product behavior.
-- hard-code mentor questions, options, or interview branches in frontend/backend code.
+- hard-code mentor questions, option buttons, or interview branches in frontend/backend code.
 
 The frontend may send an internal bootstrap message to start the mentor, but the mentor question,
-options, graph nodes, evidence, and next action must come from AI through `presentCareerGraphPatch`.
+graph nodes, evidence, and next action must come from AI through `presentCareerGraphPatch`.
+The career mentor must not generate or render multiple-choice answer buttons.
 
 ## 8. Implementation Tasks
 

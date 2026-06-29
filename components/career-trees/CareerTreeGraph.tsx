@@ -66,6 +66,11 @@ type CareerRoleFlowNode = Node<CareerRoleNodeData, "careerRole">;
 type CareerFlowNode = CareerSkillFlowNode | CareerRoleFlowNode;
 type CareerFlowEdge = Edge<CareerBranchEdgeData, "careerBranch">;
 
+interface FlowNodeDimensions {
+  width: number;
+  height: number;
+}
+
 const SKILL_LAYOUT_ROOT_ID = "__career-skill-layout-root";
 const CURRENT_CAREER_NODE_ID = "__current-career";
 const FUTURE_CAREER_NODE_PREFIX = "__future-career:";
@@ -164,16 +169,16 @@ function getLayoutMetrics(variant: CareerTreeGraphVariant) {
   }
 
   return {
-    skillSiblingGap: 260,
-    skillDepthGap: 132,
+    skillSiblingGap: 272,
+    skillDepthGap: 116,
     futureY: 104,
     futureTierGap: 130,
     currentY: 330,
     currentOnlyY: 218,
-    skillBaseY: 560,
-    currentOnlySkillBaseY: 430,
+    skillBaseY: 570,
+    currentOnlySkillBaseY: 450,
     canvasHeight: "42rem",
-    currentOnlyCanvasHeight: "32rem",
+    currentOnlyCanvasHeight: "36rem",
     fitPadding: 0.18,
     minZoom: 0.22,
     maxZoom: 1.32,
@@ -219,6 +224,21 @@ function getFutureCareerPosition(params: {
     x: params.centerX + slot.x,
     y: params.futureY + slot.y * params.tierGap,
   };
+}
+
+function getRoleNodeDimensions(
+  variant: CareerTreeGraphVariant,
+  roleKind: CareerRoleNodeData["roleKind"],
+): FlowNodeDimensions {
+  if (variant === "compact") {
+    return roleKind === "future" ? { width: 128, height: 44 } : { width: 158, height: 52 };
+  }
+
+  return roleKind === "future" ? { width: 204, height: 62 } : { width: 360, height: 104 };
+}
+
+function getSkillNodeDimensions(variant: CareerTreeGraphVariant): FlowNodeDimensions {
+  return variant === "compact" ? { width: 42, height: 42 } : { width: 214, height: 64 };
 }
 
 function toSkillLayoutNode(
@@ -319,7 +339,7 @@ function buildFlowElements(params: {
   const skillDepth = getVisibleSkillDepth(params.graph.skillRoots, params.maxDepth);
   const hasFutureCareers = params.graph.futureCareers.length > 0;
   const currentCareerY = hasFutureCareers ? metrics.currentY : metrics.currentOnlyY;
-  const careerToSkillClearance = params.variant === "compact" ? 96 : 180;
+  const careerToSkillClearance = params.variant === "compact" ? 96 : 174;
   const skillBaseY = Math.max(
     hasFutureCareers ? metrics.skillBaseY : metrics.currentOnlySkillBaseY,
     currentCareerY + careerToSkillClearance + skillDepth * metrics.skillDepthGap,
@@ -329,6 +349,7 @@ function buildFlowElements(params: {
     .nodeSize([metrics.skillSiblingGap, metrics.skillDepthGap])
     .separation((left, right) => (left.parent === right.parent ? 1.18 : 1.46));
   const positioned = layout(root);
+  const skillNodeDimensions = getSkillNodeDimensions(params.variant);
   const skillNodes = positioned
     .descendants()
     .filter((layoutNode) => layoutNode.data.skillNode)
@@ -342,6 +363,8 @@ function buildFlowElements(params: {
           x: layoutNode.x,
           y: skillBaseY - layoutNode.depth * metrics.skillDepthGap,
         },
+        initialHeight: skillNodeDimensions.height,
+        initialWidth: skillNodeDimensions.width,
         data: {
           skillNode,
           variant: params.variant,
@@ -360,10 +383,13 @@ function buildFlowElements(params: {
     skillNodes.length > 0
       ? skillNodes.reduce((total, node) => total + node.position.x, 0) / skillNodes.length
       : 0;
+  const currentCareerNodeDimensions = getRoleNodeDimensions(params.variant, "current");
   const currentCareerNode: CareerRoleFlowNode = {
     id: CURRENT_CAREER_NODE_ID,
     type: "careerRole",
     position: { x: skillCenterX, y: currentCareerY },
+    initialHeight: currentCareerNodeDimensions.height,
+    initialWidth: currentCareerNodeDimensions.width,
     data: {
       role: params.graph.currentCareer,
       roleKind: "current",
@@ -387,11 +413,14 @@ function buildFlowElements(params: {
       futureY: metrics.futureY,
       tierGap: metrics.futureTierGap,
     });
+    const dimensions = getRoleNodeDimensions(params.variant, "future");
 
     return {
       id: `${FUTURE_CAREER_NODE_PREFIX}${role.key}`,
       type: "careerRole",
       position,
+      initialHeight: dimensions.height,
+      initialWidth: dimensions.width,
       data: {
         role,
         roleKind: "future",
@@ -537,13 +566,14 @@ function formatRoleSignal(role: CareerRoleNode): string {
 function CareerRoleNodeView({ data }: NodeProps<CareerRoleFlowNode>) {
   const isCompact = data.variant === "compact";
   const isFuture = data.roleKind === "future";
+  const isCurrent = data.roleKind === "current";
   const nodeSizeClass = isCompact
     ? isFuture
       ? "h-[44px] w-[128px]"
       : "h-[52px] w-[158px]"
     : isFuture
       ? "h-[58px] w-[184px] sm:h-[62px] sm:w-[204px]"
-      : "h-[78px] w-[244px] sm:w-[292px]";
+      : "h-[104px] w-[304px] sm:w-[360px]";
   const statusLabel = data.role.isSelected ? "已选" : data.role.isRecommended ? "推荐" : "";
   const roleLabel = isFuture
     ? data.role.source === "candidate_tree"
@@ -574,48 +604,80 @@ function CareerRoleNodeView({ data }: NodeProps<CareerRoleFlowNode>) {
         type="button"
         aria-label={`${roleLabel}，${data.role.title}，${signalLabel}`}
         className={cn(
-          "nodrag nowheel group relative isolate flex h-full w-full flex-col items-start justify-center overflow-hidden rounded-full border bg-white px-5 text-left text-[var(--color-text)] transition duration-300",
+          "nodrag nowheel group relative isolate flex h-full w-full flex-col items-start justify-center overflow-hidden border text-left transition duration-300",
+          isCurrent
+            ? "rounded-[28px] bg-[var(--color-panel-strong)] text-[var(--color-panel-strong-fg)]"
+            : "rounded-full bg-white text-[var(--color-text)]",
           isCompact ? "px-4" : isFuture ? "px-5" : "px-6",
           isFuture ? "cursor-pointer hover:-translate-y-0.5" : "cursor-default",
           data.planningHighlighted && "translate-y-[-1px]",
-          data.planningHighlighted
-            ? "border-slate-900/24 shadow-[0_18px_38px_-30px_rgba(15,23,42,0.46)]"
-            : "border-black/[0.08] shadow-[0_14px_32px_-30px_rgba(15,23,42,0.34)]",
+          isCurrent
+            ? "border-white/10 shadow-[0_28px_68px_-42px_rgba(15,23,42,0.7)]"
+            : data.planningHighlighted
+              ? "border-slate-900/24 shadow-[0_18px_38px_-30px_rgba(15,23,42,0.46)]"
+              : "border-black/[0.08] shadow-[0_14px_32px_-30px_rgba(15,23,42,0.34)]",
         )}
       >
         <span
           aria-hidden
-          className="absolute inset-y-2 left-2 w-1 rounded-full transition-opacity duration-300"
+          className={cn(
+            "absolute inset-y-3 left-3 rounded-full transition-opacity duration-300",
+            isCurrent ? "w-1.5 bg-white/82" : "w-1",
+          )}
           style={{
-            background: accentColor,
-            opacity: data.planningHighlighted || isFuture ? 1 : 0.7,
+            background: isCurrent ? undefined : accentColor,
+            opacity: data.planningHighlighted || isFuture || isCurrent ? 1 : 0.7,
           }}
         />
         <span
           aria-hidden
-          className="absolute inset-0 rounded-full opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+          className={cn(
+            "absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100",
+            isCurrent ? "rounded-[28px]" : "rounded-full",
+          )}
           style={{
-            background:
-              "linear-gradient(90deg, rgba(15,23,42,0.045), transparent 42%, rgba(255,255,255,0.72))",
+            background: isCurrent
+              ? "linear-gradient(90deg, rgba(255,255,255,0.08), transparent 46%, rgba(255,255,255,0.04))"
+              : "linear-gradient(90deg, rgba(15,23,42,0.045), transparent 42%, rgba(255,255,255,0.72))",
           }}
         />
-        <span className="relative z-10 flex w-full min-w-0 items-center gap-2 text-[10px] font-medium text-[var(--color-text-tertiary)]">
-          <span className="h-1.5 w-1.5 rounded-full" style={{ background: accentColor }} />
+        <span
+          className={cn(
+            "relative z-10 flex w-full min-w-0 items-center gap-2 font-medium",
+            isCurrent
+              ? "text-[11px] text-white/60"
+              : "text-[10px] text-[var(--color-text-tertiary)]",
+          )}
+        >
+          <span
+            className={cn("h-1.5 w-1.5 rounded-full", isCurrent && "bg-white/72")}
+            style={{ background: isCurrent ? undefined : accentColor }}
+          />
           <span className="truncate">{roleLabel}</span>
           {statusLabel ? (
-            <span className="text-[var(--color-text-secondary)]">{statusLabel}</span>
+            <span
+              className={cn(isCurrent ? "text-white/72" : "text-[var(--color-text-secondary)]")}
+            >
+              {statusLabel}
+            </span>
           ) : null}
         </span>
         <span
           className={cn(
-            "relative z-10 mt-1 block w-full truncate font-display font-semibold leading-tight text-[var(--color-text)]",
-            isCompact ? "text-xs" : isFuture ? "text-sm" : "text-base sm:text-lg",
+            "relative z-10 mt-1 block w-full truncate font-display font-semibold leading-tight",
+            isCurrent ? "text-white" : "text-[var(--color-text)]",
+            isCompact ? "text-xs" : isFuture ? "text-sm" : "text-xl sm:text-[1.35rem]",
           )}
         >
           {data.role.title}
         </span>
         {!isCompact ? (
-          <span className="relative z-10 mt-1 block w-full truncate text-[11px] text-[var(--color-text-tertiary)]">
+          <span
+            className={cn(
+              "relative z-10 mt-2 block w-full truncate text-[11px]",
+              isCurrent ? "text-white/54" : "text-[var(--color-text-tertiary)]",
+            )}
+          >
             {signalLabel}
           </span>
         ) : null}

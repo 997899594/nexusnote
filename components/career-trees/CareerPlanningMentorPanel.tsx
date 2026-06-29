@@ -7,7 +7,6 @@ import { ChatComposer, type ChatComposerSubmitPayload } from "@/components/chat/
 import { StreamdownMessage } from "@/components/chat/StreamdownMessage";
 import { useChatSession } from "@/components/chat/useChatSession";
 import { useInputProtection } from "@/components/common/useInputProtection";
-import { InterviewOptions } from "@/components/interview/InterviewOptions";
 import { ResearchSourceStrip } from "@/components/research/ResearchSourceStrip";
 import { type CareerGraphPatch, careerGraphPatchSchema } from "@/lib/ai/career-planning/schemas";
 import { buildCareerMentorPresentation } from "@/lib/career-planning/mentor-presentation";
@@ -113,17 +112,7 @@ function MentorThinkingState({ showSlowHint }: { showSlowHint: boolean }) {
   );
 }
 
-function MentorBriefCard({
-  patch,
-  showOptions,
-  isLoading,
-  onSelectOption,
-}: {
-  patch: CareerGraphPatch;
-  showOptions: boolean;
-  isLoading: boolean;
-  onSelectOption: (value: string) => void;
-}) {
+function MentorBriefCard({ patch }: { patch: CareerGraphPatch }) {
   const presentation = buildCareerMentorPresentation(patch);
 
   return (
@@ -198,14 +187,6 @@ function MentorBriefCard({
 
       <div className="rounded-[20px] bg-[var(--color-panel-soft)] px-3.5 py-3">
         <p className="text-sm leading-6 text-[var(--color-text)]">{presentation.question}</p>
-        {showOptions ? (
-          <InterviewOptions
-            options={presentation.options}
-            onSelect={(option) => onSelectOption(option.action || option.label)}
-            isStreaming={isLoading}
-            showWhileStreaming
-          />
-        ) : null}
       </div>
     </div>
   );
@@ -278,9 +259,6 @@ export function CareerPlanningMentorPanel({
   };
 
   const question = patch?.nextQuestion.question ?? null;
-  const options = patch?.nextQuestion.options ?? [];
-  const lastPatchMessageId = [...renderedMessages].reverse().find(({ patch }) => Boolean(patch))
-    ?.message.id;
 
   useEffect(() => {
     if (patch || hasError || isLoading || messages.length > 0 || bootstrapSentRef.current) {
@@ -400,12 +378,7 @@ export function CareerPlanningMentorPanel({
             <div className="flex justify-start">
               <div className={assistantBubbleClassName}>
                 {question ? (
-                  <MentorBriefCard
-                    patch={patch as CareerGraphPatch}
-                    showOptions={options.length > 0}
-                    isLoading={isLoading}
-                    onSelectOption={(value) => void sendCareerMessage(value)}
-                  />
+                  <MentorBriefCard patch={patch as CareerGraphPatch} />
                 ) : showEmptyError ? (
                   <div className="space-y-3">
                     <p className="text-sm leading-7">刚才没有连上模型服务。</p>
@@ -426,10 +399,6 @@ export function CareerPlanningMentorPanel({
 
           {renderedMessages.map(({ patch: messagePatch, message, text }, messageIndex) => {
             const isUser = message.role === "user";
-            const showPatchOptions =
-              Boolean(messagePatch?.nextQuestion.options?.length) &&
-              message.id === lastPatchMessageId &&
-              !isLoading;
 
             return (
               <div
@@ -452,12 +421,7 @@ export function CareerPlanningMentorPanel({
                       {text}
                     </p>
                   ) : messagePatch ? (
-                    <MentorBriefCard
-                      patch={messagePatch}
-                      showOptions={showPatchOptions}
-                      isLoading={isLoading}
-                      onSelectOption={(value) => void sendCareerMessage(value)}
-                    />
+                    <MentorBriefCard patch={messagePatch} />
                   ) : (
                     <StreamdownMessage content={text} />
                   )}
