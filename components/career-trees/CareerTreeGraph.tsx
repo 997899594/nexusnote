@@ -234,7 +234,7 @@ function getRoleNodeDimensions(
     return roleKind === "future" ? { width: 128, height: 44 } : { width: 158, height: 52 };
   }
 
-  return roleKind === "future" ? { width: 204, height: 62 } : { width: 360, height: 104 };
+  return roleKind === "future" ? { width: 204, height: 62 } : { width: 332, height: 88 };
 }
 
 function getSkillNodeDimensions(variant: CareerTreeGraphVariant): FlowNodeDimensions {
@@ -573,7 +573,7 @@ function CareerRoleNodeView({ data }: NodeProps<CareerRoleFlowNode>) {
       : "h-[52px] w-[158px]"
     : isFuture
       ? "h-[58px] w-[184px] sm:h-[62px] sm:w-[204px]"
-      : "h-[104px] w-[304px] sm:w-[360px]";
+      : "h-[88px] w-[292px] sm:w-[332px]";
   const statusLabel = data.role.isSelected ? "已选" : data.role.isRecommended ? "推荐" : "";
   const roleLabel = isFuture
     ? data.role.source === "candidate_tree"
@@ -606,7 +606,7 @@ function CareerRoleNodeView({ data }: NodeProps<CareerRoleFlowNode>) {
         className={cn(
           "nodrag nowheel group relative isolate flex h-full w-full flex-col items-start justify-center overflow-hidden border text-left transition duration-300",
           isCurrent
-            ? "rounded-[28px] bg-[var(--color-panel-strong)] text-[var(--color-panel-strong-fg)]"
+            ? "rounded-[24px] bg-[var(--color-panel-strong)] text-[var(--color-panel-strong-fg)]"
             : "rounded-full bg-white text-[var(--color-text)]",
           isCompact ? "px-4" : isFuture ? "px-5" : "px-6",
           isFuture ? "cursor-pointer hover:-translate-y-0.5" : "cursor-default",
@@ -621,19 +621,8 @@ function CareerRoleNodeView({ data }: NodeProps<CareerRoleFlowNode>) {
         <span
           aria-hidden
           className={cn(
-            "absolute inset-y-3 left-3 rounded-full transition-opacity duration-300",
-            isCurrent ? "w-1.5 bg-white/82" : "w-1",
-          )}
-          style={{
-            background: isCurrent ? undefined : accentColor,
-            opacity: data.planningHighlighted || isFuture || isCurrent ? 1 : 0.7,
-          }}
-        />
-        <span
-          aria-hidden
-          className={cn(
             "absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100",
-            isCurrent ? "rounded-[28px]" : "rounded-full",
+            isCurrent ? "rounded-[24px]" : "rounded-full",
           )}
           style={{
             background: isCurrent
@@ -666,7 +655,7 @@ function CareerRoleNodeView({ data }: NodeProps<CareerRoleFlowNode>) {
           className={cn(
             "relative z-10 mt-1 block w-full truncate font-display font-semibold leading-tight",
             isCurrent ? "text-white" : "text-[var(--color-text)]",
-            isCompact ? "text-xs" : isFuture ? "text-sm" : "text-xl sm:text-[1.35rem]",
+            isCompact ? "text-xs" : isFuture ? "text-sm" : "text-lg sm:text-xl",
           )}
         >
           {data.role.title}
@@ -816,9 +805,9 @@ function CareerBranchEdge({
         interactionWidth={22}
         path={path}
         style={{
-          stroke: "rgba(15,23,42,0.08)",
+          stroke: data?.kind === "career" ? "rgba(15,23,42,0.055)" : "rgba(15,23,42,0.08)",
           strokeLinecap: "round",
-          strokeWidth: data?.kind === "career" ? 9 : 7,
+          strokeWidth: data?.kind === "career" ? 5.6 : 7,
         }}
       />
       <BaseEdge
@@ -831,7 +820,13 @@ function CareerBranchEdge({
           stroke: tone.edge,
           strokeDasharray: tone.dash,
           strokeLinecap: "round",
-          strokeWidth: data?.active ? 4.8 : data?.kind === "career" ? 3.6 : 2.8,
+          strokeWidth: data?.active
+            ? data.kind === "career"
+              ? 3.2
+              : 4.2
+            : data?.kind === "career"
+              ? 2.4
+              : 2.8,
         }}
       />
     </>
@@ -903,10 +898,6 @@ export function CareerTreeGraph({
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-[linear-gradient(180deg,rgba(255,255,255,0.8),transparent)]"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute left-1/2 top-16 bottom-20 w-px -translate-x-1/2 bg-gradient-to-b from-transparent via-black/10 to-transparent"
       />
       <div
         aria-hidden
