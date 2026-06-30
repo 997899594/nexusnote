@@ -1,7 +1,6 @@
 "use client";
 
 import { getToolName, isToolUIPart, type UIMessage } from "ai";
-import { ArrowRight, MessagesSquare } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChatActivityIndicator } from "@/components/chat/ChatActivityIndicator";
 import { ChatComposer, type ChatComposerSubmitPayload } from "@/components/chat/ChatComposer";
@@ -115,95 +114,28 @@ function MentorThinkingState({ showSlowHint }: { showSlowHint: boolean }) {
 
 function MentorBriefCard({ patch }: { patch: CareerGraphPatch }) {
   const presentation = buildCareerMentorPresentation(patch);
+  const primaryDirection = presentation.directions[0] ?? null;
+  const prioritySkills = presentation.skillPriorities.slice(0, 2);
+  const nextStepText =
+    prioritySkills.length > 0
+      ? `下一步先补 ${prioritySkills.map((skill) => `「${skill.title}」`).join("、")}。${prioritySkills
+          .map((skill) => skill.why)
+          .join(" ")}`
+      : presentation.mentorAdvice;
+  const conversationalParts = [
+    presentation.observation,
+    primaryDirection
+      ? `我会先把「${primaryDirection.title}」作为主线来看：${primaryDirection.counselorTake}${
+          presentation.marketRecommendation ? ` ${presentation.marketRecommendation}` : ""
+        }`
+      : null,
+    nextStepText,
+  ].filter((part): part is string => Boolean(part));
+  const messageText = conversationalParts.join("\n\n");
 
   return (
-    <div className="space-y-4">
-      {presentation.observation ? (
-        <p className="text-[0.9375rem] leading-7 tracking-[-0.01em] text-[var(--color-text)]">
-          {presentation.observation}
-        </p>
-      ) : null}
-
-      <div className="space-y-2.5">
-        {presentation.nodeAnalysis ? (
-          <div className="rounded-2xl bg-[var(--color-panel-soft)] px-3.5 py-3">
-            <div className="text-[0.625rem] font-semibold tracking-[0.08em] text-[var(--color-text-tertiary)] uppercase">
-              节点判断
-            </div>
-            <p className="mt-1.5 text-xs leading-5 text-[var(--color-text-secondary)]">
-              {presentation.nodeAnalysis}
-            </p>
-          </div>
-        ) : null}
-
-        {presentation.marketRecommendation ? (
-          <div className="rounded-2xl border border-black/[0.055] bg-white/72 px-3.5 py-3">
-            <div className="text-[0.625rem] font-semibold tracking-[0.08em] text-[var(--color-text-tertiary)] uppercase">
-              市场判断
-            </div>
-            <p className="mt-1.5 text-xs leading-5 text-[var(--color-text-secondary)]">
-              {presentation.marketRecommendation}
-            </p>
-          </div>
-        ) : null}
-
-        {presentation.mentorAdvice ? (
-          <div className="rounded-2xl border border-emerald-950/[0.08] bg-emerald-50/60 px-3.5 py-3">
-            <div className="text-[0.625rem] font-semibold tracking-[0.08em] text-emerald-900/60 uppercase">
-              建议
-            </div>
-            <p className="mt-1.5 text-xs leading-5 text-emerald-950/80">
-              {presentation.mentorAdvice}
-            </p>
-          </div>
-        ) : null}
-      </div>
-
-      {presentation.directions.length > 0 ? (
-        <div className="space-y-2">
-          {presentation.directions.map((direction) => (
-            <div
-              key={`${direction.title}-${direction.counselorTake}`}
-              className="rounded-[22px] border border-black/[0.055] bg-white/72 px-3.5 py-3"
-            >
-              <div className="text-sm font-semibold tracking-[-0.02em] text-[var(--color-text)]">
-                {direction.title}
-              </div>
-              <p className="mt-1.5 text-xs leading-5 text-[var(--color-text-secondary)]">
-                {direction.counselorTake}
-              </p>
-              {direction.decisionPressure ? (
-                <p className="mt-2 border-black/[0.05] border-t pt-2 text-[0.6875rem] leading-5 text-[var(--color-text-tertiary)]">
-                  {direction.decisionPressure}
-                </p>
-              ) : null}
-            </div>
-          ))}
-        </div>
-      ) : null}
-
-      {presentation.skillPriorities.length > 0 ? (
-        <div className="space-y-2">
-          {presentation.skillPriorities.map((skill) => (
-            <div
-              key={`${skill.title}-${skill.why}`}
-              className="flex gap-2 rounded-2xl bg-black/[0.025] px-3 py-2 text-xs text-[var(--color-text-secondary)]"
-            >
-              <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--color-text-tertiary)]" />
-              <div className="min-w-0">
-                <div className="font-medium text-[var(--color-text)]">{skill.title}</div>
-                <p className="mt-0.5 leading-5 text-[var(--color-text-tertiary)]">{skill.why}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : null}
-
-      {presentation.marketContext ? (
-        <p className="text-xs leading-5 text-[var(--color-text-tertiary)]">
-          {presentation.marketContext}
-        </p>
-      ) : null}
+    <div className="space-y-3">
+      {messageText ? <StreamdownMessage content={messageText} /> : null}
 
       {presentation.researchSources.length > 0 ? (
         <ResearchSourceStrip
@@ -224,14 +156,8 @@ function MentorBriefCard({ patch }: { patch: CareerGraphPatch }) {
         />
       ) : null}
 
-      <div className="border-black/[0.06] border-t pt-3">
-        <div className="flex items-start gap-2 text-xs text-[var(--color-text-tertiary)]">
-          <MessagesSquare className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          <div className="min-w-0">
-            <div className="font-medium text-[var(--color-text-secondary)]">需要你校准的一点</div>
-            <p className="mt-1 leading-5">{presentation.question}</p>
-          </div>
-        </div>
+      <div className="text-xs leading-5 text-[var(--color-text-tertiary)]">
+        我只需要再校准一点：{presentation.question}
       </div>
     </div>
   );
