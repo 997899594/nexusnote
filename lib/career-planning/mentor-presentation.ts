@@ -20,6 +20,9 @@ export interface CareerMentorSkillPriorityView {
 
 export interface CareerMentorPresentation {
   observation: string | null;
+  nodeAnalysis: string | null;
+  marketRecommendation: string | null;
+  mentorAdvice: string | null;
   directions: CareerMentorDirectionView[];
   skillPriorities: CareerMentorSkillPriorityView[];
   marketContext: string | null;
@@ -113,6 +116,9 @@ export function buildCareerMentorPresentation(patch: CareerGraphPatch): CareerMe
 
   return {
     observation: cleanUserVisibleText(brief?.openingObservation) || null,
+    nodeAnalysis: cleanUserVisibleText(brief?.nodeAnalysis) || null,
+    marketRecommendation: cleanUserVisibleText(brief?.marketRecommendation) || null,
+    mentorAdvice: cleanUserVisibleText(brief?.mentorAdvice) || null,
     directions: (brief?.recommendedDirections ?? [])
       .map(toDirectionView)
       .filter((direction): direction is CareerMentorDirectionView => Boolean(direction)),

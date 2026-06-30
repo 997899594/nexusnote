@@ -62,7 +62,9 @@ export const careerGraphPatchNodeSchema = z.object({
   title: z.string().min(1).max(100),
   summary: z.string().min(1).max(260),
   status: z.enum(["provisional", "evidence_backed", "committed"]).default("provisional"),
-  source: z.enum(["course", "skill_tree", "insight", "interview", "research"]).default("interview"),
+  source: z
+    .enum(["course", "skill_tree", "insight", "interview", "research", "mixed"])
+    .default("interview"),
   confidence: careerGraphPatchConfidenceSchema.default("low"),
 });
 
@@ -135,9 +137,30 @@ export const careerMentorBriefSchema = z.object({
     .min(1)
     .max(260)
     .describe("用户可见的导师判断。必须专业、克制、有人味，禁止伪口语、训斥或测评腔。"),
+  nodeAnalysis: z
+    .string()
+    .min(1)
+    .max(280)
+    .describe(
+      "必填。先分析职业树节点、课程证据、技能状态或证据缺口；空状态必须说明暂无节点证据，只能先用市场研究建立初始假设。",
+    ),
+  marketRecommendation: z
+    .string()
+    .min(1)
+    .max(260)
+    .describe("必填。说明岗位市场和职业现实性的判断，必须可行动，不得只写趋势口号。"),
+  mentorAdvice: z
+    .string()
+    .min(1)
+    .max(240)
+    .describe("必填。给出当前最值得采取的导师建议；nextQuestion 只能作为建议后的校准点。"),
   recommendedDirections: z.array(careerMentorDirectionSchema).min(1).max(4),
   skillPriorities: z.array(careerMentorSkillPrioritySchema).min(1).max(5),
-  marketContext: z.string().min(1).max(220).optional(),
+  marketContext: z
+    .string()
+    .min(1)
+    .max(220)
+    .describe("必填。说明市场判断依据或新鲜度；如果使用联网研究，要和 researchSources 对齐。"),
   researchSources: z.array(careerMentorResearchSourceSchema).max(5).default([]),
 });
 
@@ -155,7 +178,9 @@ export const careerGraphPatchSchema = z.object({
   diagnosis: careerGraphPatchDiagnosisSchema,
   interviewTechnique: careerGraphPatchInterviewTechniqueSchema,
   qualityGate: careerGraphPatchQualityGateSchema,
-  mentorBrief: careerMentorBriefSchema.optional(),
+  mentorBrief: careerMentorBriefSchema.describe(
+    "必填。主输出必须是节点分析、市场判断、导师建议、候选方向和技能优先级；nextQuestion 只是末尾校准。",
+  ),
   nextQuestion: careerGraphPatchNextQuestionSchema,
 });
 

@@ -1,4 +1,10 @@
-import { stepCountIs, ToolLoopAgent } from "ai";
+import {
+  type PrepareStepFunction,
+  type StopCondition,
+  stepCountIs,
+  ToolLoopAgent,
+  type ToolSet,
+} from "ai";
 import {
   formatLearningGuidancePromptContext,
   getLearningGuidance,
@@ -20,10 +26,127 @@ import { type AITelemetryContext, recordAIUsage } from "../core/telemetry";
 import type { ConversationCapabilityMode } from "../runtime/contracts";
 import { buildToolsForCapabilityMode } from "../tools";
 
-async function buildCareerPlanningPromptContextForSpecialist(userId: string): Promise<string> {
-  const { buildCareerPlanningPromptContext } = await import("@/lib/career-planning/workspace-data");
+const CAREER_PLANNING_BOOTSTRAP_TEXT = "__career_planning_mentor_bootstrap__";
+const PRESENT_CAREER_GRAPH_PATCH_TOOL = "presentCareerGraphPatch";
+const WEB_SEARCH_TOOL = "webSearch";
 
-  return buildCareerPlanningPromptContext(userId);
+interface CareerPlanningRuntimeContext {
+  promptContext: string;
+}
+
+async function buildCareerPlanningRuntimeContextForSpecialist(
+  userId: string,
+): Promise<CareerPlanningRuntimeContext> {
+  const { buildCareerPlanningSpecialistContext } = await import(
+    "@/lib/career-planning/workspace-data"
+  );
+
+  return buildCareerPlanningSpecialistContext(userId);
+}
+
+function getMessageText(message: unknown): string {
+  if (!message || typeof message !== "object") {
+    return "";
+  }
+
+  const content = "content" in message ? message.content : null;
+
+  if (typeof content === "string") {
+    return content;
+  }
+
+  if (!Array.isArray(content)) {
+    return "";
+  }
+
+  return content
+    .map((part) => {
+      if (!part || typeof part !== "object" || !("text" in part)) {
+        return "";
+      }
+
+      return typeof part.text === "string" ? part.text : "";
+    })
+    .join("")
+    .trim();
+}
+
+function isCareerPlanningBootstrapMessage(message: unknown): boolean {
+  return getMessageText(message) === CAREER_PLANNING_BOOTSTRAP_TEXT;
+}
+
+function hasStepToolCall(step: unknown, toolName: string): boolean {
+  if (!step || typeof step !== "object" || !("toolCalls" in step)) {
+    return false;
+  }
+
+  const toolCalls = step.toolCalls;
+  if (!Array.isArray(toolCalls)) {
+    return false;
+  }
+
+  return toolCalls.some(
+    (toolCall) =>
+      toolCall &&
+      typeof toolCall === "object" &&
+      "toolName" in toolCall &&
+      toolCall.toolName === toolName,
+  );
+}
+
+function hasStepToolResult(step: unknown, toolName: string): boolean {
+  if (!step || typeof step !== "object" || !("toolResults" in step)) {
+    return false;
+  }
+
+  const toolResults = step.toolResults;
+  if (!Array.isArray(toolResults)) {
+    return false;
+  }
+
+  return toolResults.some(
+    (toolResult) =>
+      toolResult &&
+      typeof toolResult === "object" &&
+      "toolName" in toolResult &&
+      toolResult.toolName === toolName &&
+      "type" in toolResult &&
+      toolResult.type === "tool-result",
+  );
+}
+
+function createCareerPlanningPrepareStep(): PrepareStepFunction<ToolSet> {
+  return ({ messages, stepNumber, steps }) => {
+    const isBootstrap = messages.some(isCareerPlanningBootstrapMessage);
+    const hasSearched = steps.some((step) => hasStepToolCall(step, WEB_SEARCH_TOOL));
+
+    if (stepNumber === 0 && isBootstrap && !hasSearched) {
+      return {
+        toolChoice: {
+          type: "tool",
+          toolName: WEB_SEARCH_TOOL,
+        },
+      };
+    }
+
+    if (!steps.some((step) => hasStepToolResult(step, PRESENT_CAREER_GRAPH_PATCH_TOOL))) {
+      return {
+        toolChoice: {
+          type: "tool",
+          toolName: PRESENT_CAREER_GRAPH_PATCH_TOOL,
+        },
+      };
+    }
+
+    return undefined;
+  };
+}
+
+function createCareerPlanningStopWhen(maxSteps: number): Array<StopCondition<ToolSet>> {
+  return [
+    stepCountIs(maxSteps),
+    ({ steps }) => steps.some((step) => hasStepToolResult(step, PRESENT_CAREER_GRAPH_PATCH_TOOL)),
+  ];
 }
 
 export interface ConversationSpecialistRuntimeSpec {
@@ -63,6 +186,7 @@ export async function createConversationToolLoopSpecialist(
   }
 
   const userContextParts = options.userContext ? [options.userContext] : [];
+  let isCareerPlanningRequest = false;
 
   if (spec.mode === "learn_coach" && options.courseId && isLearnRequestMetadata(options.metadata)) {
     const learningGuidance =
@@ -88,7 +212,9 @@ export async function createConversationToolLoopSpecialist(
 
   if (spec.mode === "career_guide" && isCareerRequestMetadata(options.metadata)) {
     if (options.metadata.entry === "planning" && options.userId) {
-      userContextParts.push(await buildCareerPlanningPromptContextForSpecialist(options.userId));
+      const runtimeContext = await buildCareerPlanningRuntimeContextForSpecialist(options.userId);
+      userContextParts.push(runtimeContext.promptContext);
+      isCareerPlanningRequest = true;
     }
 
     const selectedDirectionKey = options.metadata.selectedDirectionKey?.trim();
@@ -123,7 +249,10 @@ export async function createConversationToolLoopSpecialist(
     model,
     instructions,
     tools,
-    stopWhen: stepCountIs(spec.maxSteps),
+    prepareStep: isCareerPlanningRequest ? createCareerPlanningPrepareStep() : undefined,
+    stopWhen: isCareerPlanningRequest
+      ? createCareerPlanningStopWhen(spec.maxSteps)
+      : stepCountIs(spec.maxSteps),
     onFinish: ({ totalUsage, steps, finishReason }) => {
       if (!options.telemetry) {
         return;
