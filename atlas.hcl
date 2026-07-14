@@ -11,7 +11,7 @@ data "external_schema" "drizzle" {
 env "local" {
   url = getenv("DATABASE_URL")
   src = data.external_schema.drizzle.url
-  dev = "docker://postgres/16/dev?search_path=public"
+  dev = "docker://pgvector/pg16/dev?search_path=public"
 
   migration {
     dir = "file://migrations"

@@ -23,7 +23,7 @@
     "worker:rag": "bun scripts/start-rag-worker.ts",
     "worker:research": "bun scripts/start-research-worker.ts",
     "db:hash": "atlas migrate hash --dir file://migrations",
-    "db:validate": "atlas migrate validate --dir file://migrations --dev-url docker://postgres/16/dev?search_path=public",
+    "db:validate": "atlas migrate validate --dir file://migrations --dev-url docker://pgvector/pg16/dev?search_path=public",
     "db:push": "atlas migrate apply --env local --revisions-schema public",
     "db:studio": "drizzle-kit studio --config drizzle.config.mjs"
   },
