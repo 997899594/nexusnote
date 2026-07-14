@@ -13,9 +13,6 @@ services:
     run:
       command: node server.js
       port: 3000
-    healthcheck:
-      path: /api/health
-      interval: 30
     scaling:
       min: 1
     resources:
