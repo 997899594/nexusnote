@@ -4,7 +4,7 @@ const require = createRequire(import.meta.url);
 
 try {
   if (process.env.NODE_ENV !== "production") {
-    require("dotenv").config();
+    require("dotenv").config({ quiet: true });
   }
 } catch {
   // dotenv is optional outside local development

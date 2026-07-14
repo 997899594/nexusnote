@@ -1,4 +1,6 @@
+import { sql } from "drizzle-orm";
 import {
+  check,
   index,
   integer,
   jsonb,
@@ -40,6 +42,14 @@ export const learningEnrollments = pgTable(
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
   (table) => ({
+    sourceShapeCheck: check(
+      "learning_enrollments_source_shape_check",
+      sql`(
+        (${table.sourceType} = 'course_revision' and ${table.outlineVersionId} is not null and ${table.publicationId} is null and ${table.snapshotId} is null)
+        or
+        (${table.sourceType} = 'publication_snapshot' and ${table.outlineVersionId} is null and ${table.publicationId} is not null and ${table.snapshotId} is not null)
+      )`,
+    ),
     userRevisionUniqueIdx: uniqueIndex("learning_enrollments_user_revision_unique_idx").on(
       table.userId,
       table.outlineVersionId,

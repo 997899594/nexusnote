@@ -15,7 +15,6 @@
     "ai:eval:interview-speed": "bun scripts/run-interview-speed-eval.ts",
     "billing:create-code": "bun scripts/create-redeem-code.ts",
     "db:cleanup-retired-ai-model-series": "bun scripts/cleanup-retired-ai-model-series.ts",
-    "db:release": "bun scripts/apply-schema-release.ts",
     "worker:all": "bun scripts/start-workers.ts",
     "worker:career-tree": "bun scripts/start-career-tree-worker.ts",
     "worker:course-production": "bun scripts/start-course-production-worker.ts",
@@ -23,7 +22,9 @@
     "worker:note-followups": "bun scripts/start-note-followups-worker.ts",
     "worker:rag": "bun scripts/start-rag-worker.ts",
     "worker:research": "bun scripts/start-research-worker.ts",
-    "db:push": "bun run db:release && drizzle-kit push --config drizzle.config.mjs",
+    "db:hash": "atlas migrate hash --dir file://migrations",
+    "db:validate": "atlas migrate validate --dir file://migrations --dev-url docker://postgres/16/dev?search_path=public",
+    "db:push": "atlas migrate apply --env local --revisions-schema public",
     "db:studio": "drizzle-kit studio --config drizzle.config.mjs"
   },
   "engines": {

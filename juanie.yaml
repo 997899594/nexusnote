@@ -23,13 +23,22 @@ services:
       cpuLimit: 500m
       memoryRequest: 256Mi
       memoryLimit: 512Mi
-    # Auto-generated from package.json script db:push
     schema:
-      source: drizzle
-      config: drizzle.config.mjs
-      phase: preDeploy
+      source: atlas
+      config: atlas.hcl
       executionMode: automatic
       approvalPolicy: manual_in_production
+      releaseGraph:
+        baselineVersion: "20260714000000"
+        expand:
+          targetVersion: "20260714010003"
+        backfill:
+          targetVersion: "20260714020000"
+        verify:
+          targetVersion: "20260714030000"
+        cutover: deployment
+        contract:
+          targetVersion: "20260714050000"
   - name: worker
     type: worker
     build:
