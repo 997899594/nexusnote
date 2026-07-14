@@ -1,3 +1,4 @@
+import { EMBEDDING_DIMENSIONS } from "@/config/embedding";
 import {
   and,
   closeDbConnection,
@@ -18,7 +19,7 @@ import {
   buildChapterOutlineNodeKey,
   buildSectionOutlineNodeKey,
 } from "@/lib/learning/outline-node-key";
-import { REQUIRED_SCHEMA_RELEASE } from "@/lib/release/schema-release";
+import { EMBEDDING_SCHEMA_RELEASE, REQUIRED_SCHEMA_RELEASE } from "@/lib/release/schema-release";
 
 interface SnapshotRow {
   [key: string]: unknown;
@@ -39,6 +40,111 @@ interface SemanticNodeRow {
   outline_version_id: string;
   node_key: string;
   semantic_id: string;
+}
+
+interface EmbeddingColumnTypes {
+  [key: string]: unknown;
+  evidence_embedding_type: string | null;
+  tag_embedding_type: string | null;
+}
+
+async function ensureSchemaReleaseRegistry(): Promise<void> {
+  await db.execute(sql`
+    create table if not exists app_schema_releases (
+      version text primary key,
+      metadata jsonb not null default '{}'::jsonb,
+      applied_at timestamp not null default now()
+    )
+  `);
+}
+
+async function hasSchemaRelease(version: string): Promise<boolean> {
+  const [release] = await db.execute<{ version: string }>(sql`
+    select version from app_schema_releases where version = ${version} limit 1
+  `);
+  return Boolean(release);
+}
+
+async function registerSchemaRelease(
+  version: string,
+  metadata: Record<string, unknown>,
+): Promise<void> {
+  await db.execute(sql`
+    insert into app_schema_releases (version, metadata)
+    values (${version}, ${JSON.stringify(metadata)}::jsonb)
+    on conflict (version) do update set
+      metadata = excluded.metadata,
+      applied_at = now()
+  `);
+}
+
+async function applyEmbeddingSchemaRelease(): Promise<void> {
+  if (await hasSchemaRelease(EMBEDDING_SCHEMA_RELEASE)) {
+    return;
+  }
+  if (EMBEDDING_DIMENSIONS !== 1536) {
+    throw new Error("Update the embedding schema release before changing EMBEDDING_DIMENSIONS.");
+  }
+
+  const [columnTypes] = await db.execute<EmbeddingColumnTypes>(sql`
+    select
+      (
+        select format_type(attribute.atttypid, attribute.atttypmod)
+        from pg_attribute attribute
+        where attribute.attrelid = 'knowledge_evidence_chunks'::regclass
+          and attribute.attname = 'embedding'
+          and not attribute.attisdropped
+      ) as evidence_embedding_type,
+      (
+        select format_type(attribute.atttypid, attribute.atttypmod)
+        from pg_attribute attribute
+        where attribute.attrelid = 'tags'::regclass
+          and attribute.attname = 'name_embedding'
+          and not attribute.attisdropped
+      ) as tag_embedding_type
+  `);
+  if (!columnTypes?.evidence_embedding_type || !columnTypes.tag_embedding_type) {
+    throw new Error("Embedding columns must exist before applying the MRL schema release.");
+  }
+
+  await db.execute(sql`
+    drop index concurrently if exists knowledge_evidence_chunks_embedding_hnsw_idx
+  `);
+  await db.execute(sql`
+    drop index concurrently if exists tags_name_embedding_hnsw_idx
+  `);
+
+  if (columnTypes.evidence_embedding_type !== "vector(1536)") {
+    await db.execute(sql`
+      alter table knowledge_evidence_chunks
+      alter column embedding type vector(1536)
+      using subvector(embedding, 1, 1536)::vector(1536)
+    `);
+  }
+  if (columnTypes.tag_embedding_type !== "vector(1536)") {
+    await db.execute(sql`
+      alter table tags
+      alter column name_embedding type vector(1536)
+      using subvector(name_embedding, 1, 1536)::vector(1536)
+    `);
+  }
+
+  await db.execute(sql`
+    create index concurrently knowledge_evidence_chunks_embedding_hnsw_idx
+    on knowledge_evidence_chunks using hnsw (embedding vector_cosine_ops)
+    with (m = 16, ef_construction = 64)
+  `);
+  await db.execute(sql`
+    create index concurrently tags_name_embedding_hnsw_idx
+    on tags using hnsw (name_embedding vector_cosine_ops)
+    with (m = 16, ef_construction = 64)
+  `);
+
+  await registerSchemaRelease(EMBEDDING_SCHEMA_RELEASE, {
+    dimensions: EMBEDDING_DIMENSIONS,
+    model: "Qwen/Qwen3-Embedding-8B",
+    operatorClass: "vector_cosine_ops",
+  });
 }
 
 async function createLearningModel(): Promise<void> {
@@ -145,11 +251,6 @@ async function createLearningModel(): Promise<void> {
     create index if not exists domain_outbox_events_aggregate_idx
       on domain_outbox_events(aggregate_type, aggregate_id);
 
-    create table if not exists app_schema_releases (
-      version text primary key,
-      metadata jsonb not null default '{}'::jsonb,
-      applied_at timestamp not null default now()
-    );
     create table if not exists runtime_heartbeats (
       runtime_name text primary key,
       instance_id text not null,
@@ -437,29 +538,18 @@ async function finalizeRelease(): Promise<void> {
   await db.execute(sql`
     drop table if exists note_snapshots cascade;
   `);
-  await db.execute(sql`
-    insert into app_schema_releases (version, metadata)
-    values (
-      ${REQUIRED_SCHEMA_RELEASE},
-      jsonb_build_object('learningModel', 2, 'outbox', true, 'appliedBy', 'db:push')
-    )
-    on conflict (version) do update set
-      metadata = excluded.metadata,
-      applied_at = now();
-  `);
+  await registerSchemaRelease(REQUIRED_SCHEMA_RELEASE, {
+    learningModel: 2,
+    outbox: true,
+    appliedBy: "db:push",
+  });
 }
 
 async function main(): Promise<void> {
-  const [applied] = await db
-    .execute<{ version: string }>(sql`
-    select version
-    from app_schema_releases
-    where to_regclass('public.app_schema_releases') is not null
-      and version = ${REQUIRED_SCHEMA_RELEASE}
-    limit 1
-  `)
-    .catch(() => []);
-  if (applied) {
+  await ensureSchemaReleaseRegistry();
+  await applyEmbeddingSchemaRelease();
+
+  if (await hasSchemaRelease(REQUIRED_SCHEMA_RELEASE)) {
     await recomputePersistedCourseDurations();
     await rewritePublicationSnapshots();
     await reconcileLearningCompletions();

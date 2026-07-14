@@ -92,6 +92,11 @@ The MRL prefix preserves the existing Qwen3 embedding signal; normalizing the st
 required for cosine distance. A full re-embedding can run later to validate retrieval quality, but
 is not required for the cutover.
 
+`bun run db:release` owns this ordering as the idempotent
+`2026-07-14-mrl-embeddings-v1` schema release. It drops and creates the ANN indexes concurrently so
+a failed deployment can resume without letting Drizzle build HNSW against the old 4096-wide
+columns.
+
 ## Alternatives Considered
 
 ### Keep PartyKit as an optional runtime
