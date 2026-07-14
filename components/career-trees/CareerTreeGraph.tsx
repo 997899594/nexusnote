@@ -148,7 +148,7 @@ function clampProgress(progress: number): number {
 function getStateLabel(state: CareerNodeState): string {
   switch (state) {
     case "mastered":
-      return "已掌握";
+      return "已完成";
     case "in_progress":
       return "进行中";
     case "ready":

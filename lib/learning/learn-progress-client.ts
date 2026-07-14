@@ -21,25 +21,14 @@ function progressPayload(
   return payload;
 }
 
-export async function persistCurrentChapter(params: {
-  target: LearningProgressTarget;
-  currentChapter: number;
-}): Promise<void> {
-  const response = await fetch(progressApiPath(params.target), {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(progressPayload(params.target, { currentChapter: params.currentChapter })),
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to persist current chapter.");
-  }
-}
-
 export async function persistCompletedSection(params: {
   target: LearningProgressTarget;
   sectionNodeId: string;
-}): Promise<void> {
+}): Promise<{
+  completedSections: string[];
+  completedChapters: number[];
+  courseCompleted: boolean;
+}> {
   const response = await fetch(progressApiPath(params.target), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -48,5 +37,19 @@ export async function persistCompletedSection(params: {
 
   if (!response.ok) {
     throw new Error("Failed to persist completed section.");
+  }
+
+  return response.json();
+}
+
+export async function recordCourseOpened(courseId: string, activityId: string): Promise<void> {
+  const response = await fetch("/api/learn/activity", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ courseId, activityId }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to record course activity.");
   }
 }

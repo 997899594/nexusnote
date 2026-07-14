@@ -1,7 +1,8 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { GraduationCap, Loader2, Play } from "lucide-react";
+import { ExternalLink, GraduationCap, Loader2, LockKeyhole, Play, X } from "lucide-react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { ChatComposer, type ChatComposerSubmitPayload } from "@/components/chat/ChatComposer";
@@ -61,6 +62,40 @@ const mainContentVariants = {
 };
 
 type MobileInterviewView = "chat" | "outline";
+
+function CourseEntitlementNotice({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <div className="shrink-0 border-y border-black/[0.06] bg-[var(--color-panel-soft)] px-4 py-3 md:px-6">
+      <div className="mx-auto flex max-w-[var(--message-max-width)] items-center gap-3">
+        <LockKeyhole className="h-4 w-4 shrink-0 text-[var(--color-text-secondary)]" />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-[var(--color-text)]">课程蓝图已保留</p>
+          <p className="text-xs text-[var(--color-text-muted)]">
+            生成课程需要有效试用或 Pro 权益。定价页会在新标签页打开。
+          </p>
+        </div>
+        <Link
+          href="/pricing"
+          target="_blank"
+          rel="noreferrer"
+          className="ui-primary-button inline-flex h-9 shrink-0 items-center gap-2 rounded-xl px-3 text-xs font-medium"
+        >
+          查看 Pro
+          <ExternalLink className="h-3.5 w-3.5" />
+        </Link>
+        <button
+          type="button"
+          onClick={onDismiss}
+          title="关闭提示"
+          aria-label="关闭提示"
+          className="ui-icon-button h-9 w-9 shrink-0"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function OutlineInlineCard({
   outline,
@@ -192,7 +227,14 @@ function InterviewContent() {
     (status === "submitted" || status === "streaming") && (!lastMsg || lastMsg.role === "user");
   const activeOutline = displayOutline ?? stableOutline;
   const shouldShowOutlinePanel = Boolean(activeOutline) || interviewCompleted;
-  const { canStartLearning, isStarting, startStatus, startCourse } = useStartCourseFromOutline({
+  const {
+    canStartLearning,
+    isStarting,
+    startStatus,
+    entitlementRequired,
+    clearEntitlementRequired,
+    startCourse,
+  } = useStartCourseFromOutline({
     outline: stableOutline,
     courseId,
   });
@@ -380,6 +422,10 @@ function InterviewContent() {
         {isMobile && shouldShowOutlinePanel && mobileView === "outline"
           ? mobileOutlineView
           : chatViewport}
+
+        {entitlementRequired ? (
+          <CourseEntitlementNotice onDismiss={clearEntitlementRequired} />
+        ) : null}
 
         {!isMobile || mobileView === "chat" ? composer : null}
       </motion.div>

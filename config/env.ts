@@ -4,6 +4,9 @@
  */
 
 import { z } from "zod";
+import { EMBEDDING_DIMENSIONS, EMBEDDING_MODEL } from "./embedding";
+
+const DEVELOPMENT_AUTH_SECRET = "nexusnote-dev-secret-change-in-production";
 
 // ============================================
 // Default Values
@@ -28,8 +31,8 @@ export const defaults = {
 
   // Embedding
   embedding: {
-    model: "Qwen/Qwen3-Embedding-8B",
-    dimensions: 4096,
+    model: EMBEDDING_MODEL,
+    dimensions: EMBEDDING_DIMENSIONS,
   },
 
   // Reranker
@@ -80,6 +83,9 @@ export const defaults = {
 
   // Queue
   queue: {
+    learningOutboxConcurrency: 2,
+    learningOutboxMaxRetries: 5,
+    learningOutboxBackoffDelay: 1000,
     courseProductionConcurrency: 1,
     courseProductionMaxRetries: 2,
     courseProductionBackoffDelay: 1500,
@@ -127,7 +133,7 @@ const serverEnvSchema = z.object({
   REDIS_URL: z.string().describe("Redis Connection String"),
 
   // Auth.js v5 (session 签名，开发环境有默认值，生产必须自行配置)
-  AUTH_SECRET: z.string().default("nexusnote-dev-secret-change-in-production"),
+  AUTH_SECRET: z.string().min(32).default(DEVELOPMENT_AUTH_SECRET),
 
   // Magic Link (Resend)
   RESEND_API_KEY: z.string().optional(),
@@ -211,11 +217,13 @@ const serverEnvSchema = z.object({
     .transform((v) => v === "true"),
 
   // Billing
-  BILLING_PROVIDER: z.enum(["external", "302pay"]).default(defaults.billing.provider),
+  BILLING_PROVIDER: z.enum(["external", "302pay", "payjs"]).default(defaults.billing.provider),
   BILLING_CHECKOUT_BASE_URL: z.string().default(defaults.billing.checkoutBaseUrl),
   BILLING_WEBHOOK_SECRET: z.string().default(defaults.billing.webhookSecret),
   BILLING_302PAY_BASE_URL: z.string().url().default(defaults.billing.pay302BaseUrl),
   BILLING_302PAY_API_KEY: z.string().default(defaults.billing.pay302ApiKey),
+  BILLING_PAYJS_MCH_ID: z.string().optional(),
+  BILLING_PAYJS_KEY: z.string().optional(),
 
   // Notes / Liquid Knowledge
   NOTES_TOPIC_THRESHOLD: z.coerce.number().min(0).max(1).default(defaults.notes.topicThreshold),
@@ -378,6 +386,14 @@ function parseServerEnv(env: NodeJS.ProcessEnv = process.env): ServerEnv {
     for (const issue of result.error.issues) {
       console.error(`  - ${issue.path.join(".")}: ${issue.message}`);
     }
+    throw new Error("Invalid server environment configuration");
+  }
+
+  if (
+    result.data.NODE_ENV === "production" &&
+    result.data.AUTH_SECRET === DEVELOPMENT_AUTH_SECRET
+  ) {
+    console.error("Server environment validation failed: AUTH_SECRET uses the development value");
     throw new Error("Invalid server environment configuration");
   }
 

@@ -4,7 +4,7 @@ This file provides guidelines for agentic coding agents working in the NexusNote
 
 ## Project Overview
 
-NexusNote is an AI-native knowledge management system with real-time collaboration.
+NexusNote is an AI-native knowledge management and learning system.
 - **Stack**: Next.js 16, React 19, TypeScript, AI SDK v6, Drizzle ORM, PostgreSQL + pgvector
 - **Package Manager**: bun (NOT pnpm or npm)
 - **Linter/Formatter**: Biome
@@ -18,7 +18,6 @@ NexusNote is an AI-native knowledge management system with real-time collaborati
 bun dev              # Start dev server with Turbo (port 3000)
 bun run build        # Production build
 bun run start        # Start production server
-bunx partykit dev    # Start local PartyKit server (real-time collaboration)
 bun run db:studio    # Open Drizzle Studio (database GUI)
 ```
 
@@ -110,7 +109,7 @@ bun run db:push      # Local developer schema sync from Drizzle schema authoring
 - Keep Drizzle schema authoring clean; the repo contract is `db/schema/*` + `drizzle.config.mjs`
 - Treat platform-specific deployment contracts as injected-at-import concerns; runtime images must not become fallback migration executors
 - Use `zod` schemas alongside Drizzle for validation
-- Vector search schema currently uses `vector(4000)`; keep schema definitions and indexes aligned with the real database type
+- Vector search uses Qwen3 MRL `vector(1536)` with cosine HNSW indexes; keep model output, schema width, and operator class aligned
 
 ### AI System
 

@@ -1,5 +1,5 @@
 import { smoothStream, streamText } from "ai";
-import { and, courseSections, db, eq } from "@/db";
+import { and, courseSections, courses, db, eq } from "@/db";
 import { buildGenerationSettingsForPolicy } from "@/lib/ai/core/generation-settings";
 import { getModelForPolicy } from "@/lib/ai/core/model-policy";
 import { getUserAIModelSeries } from "@/lib/ai/core/model-series-preferences";
@@ -10,6 +10,7 @@ import {
   resolveCourseSectionEvidenceContext,
 } from "@/lib/ai/research/course-section-evidence";
 import { invalidateChapterCache } from "@/lib/cache/course-context";
+import { estimateReadingMinutes } from "@/lib/learning/course-duration";
 import { refreshPublishedCoursePublication } from "@/lib/learning/course-publication-service";
 import { getOwnedCourseWithOutline } from "@/lib/learning/course-repository";
 import { buildLearningGuidance, type LearningGuidance } from "@/lib/learning/guidance";
@@ -45,6 +46,7 @@ export interface CourseSectionProductionRunContext {
 export interface ExistingCourseSectionDocument {
   id: string;
   content: string | null;
+  outlineVersionId: string;
 }
 
 export interface ResolvedCourseSectionProductionInput {
@@ -52,7 +54,7 @@ export interface ResolvedCourseSectionProductionInput {
   chapter: LearningGuidance["chapter"];
   section: LearningGuidance["chapter"]["sections"][number];
   outlineNodeId: string;
-  existingSection: ExistingCourseSectionDocument | null;
+  existingSection: ExistingCourseSectionDocument;
 }
 
 export interface PersistGeneratedCourseSectionResult {
@@ -183,14 +185,21 @@ export function buildCourseSectionSystemPrompt(params: {
 }
 
 async function loadExistingSectionDocument(
-  courseId: string,
+  outlineVersionId: string,
   outlineNodeId: string,
 ): Promise<ExistingCourseSectionDocument | null> {
   const [existingSection] = await db
-    .select({ id: courseSections.id, content: courseSections.contentMarkdown })
+    .select({
+      id: courseSections.id,
+      content: courseSections.contentMarkdown,
+      outlineVersionId: courseSections.outlineVersionId,
+    })
     .from(courseSections)
     .where(
-      and(eq(courseSections.courseId, courseId), eq(courseSections.outlineNodeKey, outlineNodeId)),
+      and(
+        eq(courseSections.outlineVersionId, outlineVersionId),
+        eq(courseSections.outlineNodeKey, outlineNodeId),
+      ),
     )
     .limit(1);
 
@@ -219,7 +228,10 @@ export async function resolveCourseSectionProductionInput(
   }
 
   const outlineNodeId = buildSectionOutlineNodeKey(params.chapterIndex, params.sectionIndex);
-  const existingSection = await loadExistingSectionDocument(params.courseId, outlineNodeId);
+  const existingSection = await loadExistingSectionDocument(course.outlineVersionId, outlineNodeId);
+  if (!existingSection) {
+    throw new Error("COURSE_SECTION_DOCUMENT_NOT_FOUND");
+  }
 
   return {
     guidance,
@@ -237,7 +249,7 @@ export async function persistGeneratedCourseSection(params: {
   outlineNodeId: string;
   sectionTitle: string;
   text: string;
-  existingSection: ExistingCourseSectionDocument | null;
+  existingSection: ExistingCourseSectionDocument;
   trace?: ReturnType<typeof createLearnTrace>;
 }): Promise<PersistGeneratedCourseSectionResult> {
   const text = params.text.trim();
@@ -246,30 +258,27 @@ export async function persistGeneratedCourseSection(params: {
   }
 
   const sectionDocumentId = await db.transaction(async (tx) => {
-    let persistedSectionDocumentId = params.existingSection?.id ?? "";
+    const persistedSectionDocumentId = params.existingSection.id;
+    await tx
+      .update(courseSections)
+      .set({
+        contentMarkdown: text,
+        plainText: text,
+        updatedAt: new Date(),
+      })
+      .where(eq(courseSections.id, params.existingSection.id));
 
-    if (params.existingSection) {
-      await tx
-        .update(courseSections)
-        .set({
-          contentMarkdown: text,
-          plainText: text,
-          updatedAt: new Date(),
-        })
-        .where(eq(courseSections.id, params.existingSection.id));
-    } else {
-      const [inserted] = await tx
-        .insert(courseSections)
-        .values({
-          title: params.sectionTitle,
-          courseId: params.courseId,
-          outlineNodeKey: params.outlineNodeId,
-          contentMarkdown: text,
-          plainText: text,
-        })
-        .returning({ id: courseSections.id });
-      persistedSectionDocumentId = inserted?.id ?? "";
-    }
+    const revisionDocuments = await tx
+      .select({ plainText: courseSections.plainText })
+      .from(courseSections)
+      .where(eq(courseSections.outlineVersionId, params.existingSection.outlineVersionId));
+    const estimatedMinutes = estimateReadingMinutes(
+      revisionDocuments.map((document) => document.plainText ?? ""),
+    );
+    await tx
+      .update(courses)
+      .set({ estimatedMinutes, updatedAt: new Date() })
+      .where(eq(courses.id, params.courseId));
 
     if (!persistedSectionDocumentId) {
       return null;

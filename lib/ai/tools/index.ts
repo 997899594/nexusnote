@@ -14,6 +14,11 @@ interface CapabilityModeToolBuilderInput {
   userId?: string;
   resourceId?: string;
   messages?: UIMessage[];
+  researchEnabled?: boolean;
+}
+
+function createCapabilityWebSearchTool(input: CapabilityModeToolBuilderInput): ToolSet {
+  return input.researchEnabled ? createWebSearchTool(input.userId) : {};
 }
 
 export function buildToolsForCapabilityMode(
@@ -23,7 +28,7 @@ export function buildToolsForCapabilityMode(
   switch (capabilityMode) {
     case "general_chat":
       return {
-        ...createWebSearchTool(input.userId),
+        ...createCapabilityWebSearchTool(input),
       };
     case "learn_coach": {
       const ctx = createToolContext({
@@ -34,7 +39,7 @@ export function buildToolsForCapabilityMode(
       return {
         ...createLearnContextTools(ctx),
         ...createRagTools(ctx.userId),
-        ...createWebSearchTool(ctx.userId),
+        ...(input.researchEnabled ? createWebSearchTool(ctx.userId) : {}),
       };
     }
     case "note_assistant": {
@@ -56,7 +61,7 @@ export function buildToolsForCapabilityMode(
       return {
         ...createSearchTools(ctx.userId),
         ...createRagTools(ctx.userId),
-        ...createWebSearchTool(ctx.userId),
+        ...(input.researchEnabled ? createWebSearchTool(ctx.userId) : {}),
       };
     }
     case "career_guide": {
@@ -69,7 +74,7 @@ export function buildToolsForCapabilityMode(
         ...createCareerPlanningTools(),
         ...createSearchTools(ctx.userId),
         ...createRagTools(ctx.userId),
-        ...createWebSearchTool(ctx.userId),
+        ...(input.researchEnabled ? createWebSearchTool(ctx.userId) : {}),
       };
     }
   }

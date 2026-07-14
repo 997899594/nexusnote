@@ -10,7 +10,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { users } from "./auth";
-import { bytea, embeddingVector } from "./shared";
+import { embeddingVector } from "./shared";
 
 export type NoteSourceContext = {
   courseId?: string;
@@ -58,22 +58,6 @@ export const notes = pgTable(
   }),
 );
 
-export const noteSnapshots = pgTable("note_snapshots", {
-  id: text("id").primaryKey(),
-  noteId: uuid("note_id").references(() => notes.id, {
-    onDelete: "cascade",
-  }),
-  yjsState: bytea("yjs_state"),
-  plainText: text("plain_text"),
-  timestamp: timestamp("timestamp").notNull(),
-  trigger: text("trigger").notNull(),
-  summary: text("summary"),
-  wordCount: integer("word_count"),
-  diffAdded: integer("diff_added"),
-  diffRemoved: integer("diff_removed"),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
 export const tags = pgTable(
   "tags",
   {
@@ -86,6 +70,9 @@ export const tags = pgTable(
   },
   (table) => ({
     nameIdx: index("tags_name_idx").on(table.name),
+    nameEmbeddingHnswIdx: index("tags_name_embedding_hnsw_idx")
+      .using("hnsw", table.nameEmbedding.op("vector_cosine_ops"))
+      .with({ m: 16, ef_construction: 64 }),
   }),
 );
 
@@ -114,8 +101,6 @@ export const noteTags = pgTable(
 
 export type Note = typeof notes.$inferSelect;
 export type NewNote = typeof notes.$inferInsert;
-export type NoteSnapshot = typeof noteSnapshots.$inferSelect;
-export type NewNoteSnapshot = typeof noteSnapshots.$inferInsert;
 export type Tag = typeof tags.$inferSelect;
 export type NewTag = typeof tags.$inferInsert;
 export type NoteTag = typeof noteTags.$inferSelect;

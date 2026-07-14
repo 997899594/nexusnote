@@ -183,6 +183,9 @@ export const knowledgeEvidenceChunks = pgTable(
   },
   (table) => ({
     evidenceIdx: index("knowledge_evidence_chunks_evidence_idx").on(table.knowledgeEvidenceId),
+    embeddingHnswIdx: index("knowledge_evidence_chunks_embedding_hnsw_idx")
+      .using("hnsw", table.embedding.op("vector_cosine_ops"))
+      .with({ m: 16, ef_construction: 64 }),
     contentSearchTrgmIdx: index("knowledge_evidence_chunks_content_search_trgm_idx").using(
       "gin",
       table.contentSearchText.op("gin_trgm_ops"),

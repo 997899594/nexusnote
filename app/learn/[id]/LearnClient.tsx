@@ -4,12 +4,13 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { Globe2, List, MessageSquare, MessageSquareText, MoreHorizontal, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CoursePublishControl } from "@/components/course-reader/CoursePublishControl";
 import { AppBackLink } from "@/components/shared/layout";
 import { useChapterSections } from "@/hooks/useChapterSections";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { stripSectionNumber } from "@/lib/learning/content-formatting";
+import { recordCourseOpened } from "@/lib/learning/learn-progress-client";
 import type { LearnPageProjection, LearnResumeState } from "@/lib/learning/projection";
 import { PAGE_BACK_TARGETS } from "@/lib/navigation/app-navigation";
 import { cn } from "@/lib/utils";
@@ -34,7 +35,7 @@ export interface LearnClientProps
     >,
     Pick<
       LearnResumeState,
-      "initialChapterIndex" | "initialCompletedSections" | "scrollToSectionId"
+      "initialChapterIndex" | "initialCompletedSections" | "scrollToSectionId" | "isCourseComplete"
     > {
   sessionId: string;
   learningSource?: {
@@ -57,20 +58,15 @@ export function LearnClient({
   initialChapterIndex,
   initialCompletedSections,
   scrollToSectionId,
+  isCourseComplete,
 }: LearnClientProps) {
-  const setCourseId = useLearnStore((s) => s.setCourseId);
-  const setProgressTarget = useLearnStore((s) => s.setProgressTarget);
-  const setChapters = useLearnStore((s) => s.setChapters);
-  const setCurrentChapterIndex = useLearnStore((s) => s.setCurrentChapterIndex);
-  const markSectionComplete = useLearnStore((s) => s.markSectionComplete);
-  const expandChapter = useLearnStore((s) => s.expandChapter);
+  const initializeLearningSession = useLearnStore((s) => s.initializeLearningSession);
   const currentChapterIndex = useLearnStore((s) => s.currentChapterIndex);
   const currentSectionIndex = useLearnStore((s) => s.currentSectionIndex);
   const isSidebarOpen = useLearnStore((s) => s.isSidebarOpen);
   const setSidebarOpen = useLearnStore((s) => s.setSidebarOpen);
   const isChatOpen = useLearnStore((s) => s.isChatOpen);
   const setChatOpen = useLearnStore((s) => s.setChatOpen);
-  const setChatSelectionContext = useLearnStore((s) => s.setChatSelectionContext);
   const isNotesOpen = useLearnStore((s) => s.isNotesOpen);
   const setNotesOpen = useLearnStore((s) => s.setNotesOpen);
   const currentSectionAnnotationCount = useLearnStore((s) => s.currentSectionAnnotationCount);
@@ -86,30 +82,28 @@ export function LearnClient({
 
   const isMobile = useIsMobile();
   const [isMobileToolsOpen, setIsMobileToolsOpen] = useState(false);
+  const courseOpenActivityId = useRef<string | null>(null);
 
   // Initialize store on mount
   // biome-ignore lint/correctness/useExhaustiveDependencies: initialization effect, runs once on mount
   useEffect(() => {
-    // Set chapter index BEFORE loading chapters to avoid triggering PATCH
-    setCurrentChapterIndex(initialChapterIndex);
-    setCourseId(sessionId);
-    setProgressTarget(progressTarget);
-    setChapters(chapters);
-    setSidebarOpen(false);
-    setChatOpen(false);
-    setChatSelectionContext(null);
-    setNotesOpen(false);
-    setDesktopSidebarCollapsed(false);
-    setDesktopChatCollapsed(true);
-
-    // Initialize completed sections
-    for (const nodeId of initialCompletedSections) {
-      markSectionComplete(nodeId);
-    }
-
-    // Keep the active chapter visible in the table of contents.
-    expandChapter(initialChapterIndex);
+    initializeLearningSession({
+      courseId: sessionId,
+      progressTarget,
+      chapters,
+      currentChapterIndex: initialChapterIndex,
+      completedSections: initialCompletedSections,
+      isCourseComplete,
+    });
   }, []); // Run once on mount
+
+  useEffect(() => {
+    if (learningSource.kind !== "course") return;
+    courseOpenActivityId.current ??= crypto.randomUUID();
+    recordCourseOpened(sessionId, courseOpenActivityId.current).catch((error) => {
+      console.error("[LearnClient] Failed to record course open:", error);
+    });
+  }, [learningSource.kind, sessionId]);
 
   const currentChapter = chapters[currentChapterIndex];
   const currentSection = currentChapter?.sections[currentSectionIndex] ?? null;

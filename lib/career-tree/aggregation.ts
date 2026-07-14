@@ -7,9 +7,8 @@ import {
   db,
 } from "@/db";
 import {
+  CAREER_COMPLETED_PROGRESS_THRESHOLD,
   CAREER_IN_PROGRESS_THRESHOLD,
-  CAREER_MASTERED_EVIDENCE_THRESHOLD,
-  CAREER_MASTERED_PROGRESS_THRESHOLD,
   CAREER_READY_PREREQ_PROGRESS_THRESHOLD,
 } from "@/lib/career-tree/constants";
 import { getCareerCourseProgressMap, getCareerCourseSource } from "@/lib/career-tree/source";
@@ -21,7 +20,6 @@ interface AggregationInput {
   courseLevelProgressRatios: Array<{ ratio: number; confidence: number }>;
   courseCount: number;
   chapterCount: number;
-  repeatedEvidenceCount: number;
   prerequisiteProgresses: number[];
 }
 
@@ -55,23 +53,11 @@ function computeEvidenceScore(input: AggregationInput): number {
   return clampPercent(Math.min(100, support));
 }
 
-function computeMasteryScore(progress: number, input: AggregationInput): number {
-  return clampPercent(
-    progress * 0.7 +
-      Math.min(20, input.courseCount * 5) +
-      Math.min(10, input.repeatedEvidenceCount * 2),
-  );
-}
-
 function resolveCareerNodeState(
   progress: number,
-  evidenceScore: number,
   prerequisiteProgresses: number[],
 ): "mastered" | "in_progress" | "ready" | "locked" {
-  if (
-    progress >= CAREER_MASTERED_PROGRESS_THRESHOLD &&
-    evidenceScore >= CAREER_MASTERED_EVIDENCE_THRESHOLD
-  ) {
+  if (progress >= CAREER_COMPLETED_PROGRESS_THRESHOLD) {
     return "mastered";
   }
 
@@ -89,14 +75,12 @@ function resolveCareerNodeState(
 function buildChapterProgressMap(params: {
   chapterKeys: string[];
   completedSections: string[];
-  completedChapters: number[];
   sectionsByChapterKey: Map<string, string[]>;
 }) {
   const completedSectionSet = new Set(params.completedSections);
-  const completedChapterSet = new Set(params.completedChapters);
   const chapterRatios = new Map<string, number>();
 
-  for (const [index, chapterKey] of params.chapterKeys.entries()) {
+  for (const chapterKey of params.chapterKeys) {
     const sectionKeys = params.sectionsByChapterKey.get(chapterKey) ?? [];
     if (sectionKeys.length > 0) {
       const completed = sectionKeys.filter((sectionKey) =>
@@ -106,7 +90,7 @@ function buildChapterProgressMap(params: {
       continue;
     }
 
-    chapterRatios.set(chapterKey, completedChapterSet.has(index) ? 100 : 0);
+    chapterRatios.set(chapterKey, 0);
   }
 
   const courseRatio =
@@ -158,13 +142,11 @@ export async function recomputeCareerNodeAggregates(
       }
 
       const progress = progressByCourseId.get(courseId) ?? {
-        completedChapters: [],
         completedSections: [],
       };
       const chapterProgress = buildChapterProgressMap({
         chapterKeys: course.outline.chapters.map((chapter) => chapter.chapterKey),
         completedSections: progress.completedSections,
-        completedChapters: progress.completedChapters,
         sectionsByChapterKey: new Map(
           course.outline.chapters.map((chapter) => [
             chapter.chapterKey,
@@ -212,18 +194,13 @@ export async function recomputeCareerNodeAggregates(
       courseLevelProgressRatios,
       courseCount: courseIds.length,
       chapterCount: chapterKeys.size,
-      repeatedEvidenceCount: Math.max(0, linkedEvidenceRows.length - courseIds.length),
       prerequisiteProgresses: prerequisiteSourceRows.map((row) => row.progress),
     };
 
     const progress = computeProgress(aggregationInput);
     const evidenceScore = computeEvidenceScore(aggregationInput);
-    const masteryScore = computeMasteryScore(progress, aggregationInput);
-    const state = resolveCareerNodeState(
-      progress,
-      evidenceScore,
-      aggregationInput.prerequisiteProgresses,
-    );
+    const masteryScore = progress;
+    const state = resolveCareerNodeState(progress, aggregationInput.prerequisiteProgresses);
 
     await executor
       .update(careerUserSkillNodes)

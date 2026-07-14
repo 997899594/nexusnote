@@ -29,12 +29,23 @@ export function unauthorized(message = "Unauthorized", code = "UNAUTHORIZED"): A
   return new APIError(message, 401, code);
 }
 
+export function paymentRequired(
+  message = "此能力需要有效试用或 Pro 权益",
+  code = "PAYMENT_REQUIRED",
+): APIError {
+  return new APIError(message, 402, code);
+}
+
 export function notFound(message: string, code = "NOT_FOUND"): APIError {
   return new APIError(message, 404, code);
 }
 
 export function conflict(message: string, code = "CONFLICT"): APIError {
   return new APIError(message, 409, code);
+}
+
+export function tooManyRequests(message: string, code = "RATE_LIMITED"): APIError {
+  return new APIError(message, 429, code);
 }
 
 export function internalError(message = "服务暂时不可用，请稍后重试。", code = "INTERNAL_ERROR") {

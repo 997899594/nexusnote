@@ -7,11 +7,16 @@
  */
 
 import { getRedis } from "@/lib/redis";
+import { serviceUnavailable, tooManyRequests } from "./errors";
 
 interface RateLimitResult {
   allowed: boolean;
   remaining: number;
   resetInMs: number;
+}
+
+interface RateLimitOptions {
+  failureMode?: "allow" | "deny";
 }
 
 const INCREMENT_WITH_TTL_SCRIPT = `
@@ -33,6 +38,7 @@ async function checkRateLimit(
   key: string,
   limit: number,
   windowMs: number,
+  options: RateLimitOptions,
 ): Promise<RateLimitResult> {
   try {
     const namespacedKey = `rate-limit:${key}`;
@@ -53,7 +59,11 @@ async function checkRateLimit(
       resetInMs: ttl > 0 ? ttl : windowMs,
     };
   } catch (error) {
-    console.error("[RateLimit] Redis unavailable, allowing request:", error);
+    console.error("[RateLimit] Redis unavailable:", error);
+    if (options.failureMode === "deny") {
+      throw serviceUnavailable("请求保护服务暂时不可用，请稍后重试", "RATE_LIMIT_UNAVAILABLE");
+    }
+
     return {
       allowed: true,
       remaining: limit,
@@ -70,19 +80,12 @@ export async function checkRateLimitOrThrow(
   limit: number,
   windowMs: number,
   errorMessage = "请求过于频繁，请稍后再试",
+  options: RateLimitOptions = {},
 ): Promise<void> {
-  const result = await checkRateLimit(key, limit, windowMs);
+  const result = await checkRateLimit(key, limit, windowMs, options);
   if (result.allowed) {
     return;
   }
 
-  const error = new Error(errorMessage) as Error & {
-    statusCode: number;
-    code: string;
-    retryAfter: number;
-  };
-  error.statusCode = 429;
-  error.code = "RATE_LIMITED";
-  error.retryAfter = Math.ceil(result.resetInMs / 1000);
-  throw error;
+  throw tooManyRequests(errorMessage);
 }

@@ -10,12 +10,13 @@ import type { NextAuthConfig, User } from "next-auth";
 import type { Adapter, VerificationToken } from "next-auth/adapters";
 import type { JWT } from "next-auth/jwt";
 import Resend from "next-auth/providers/resend";
+import { env } from "@/config/env";
 import { and, db, eq, lt, sql, users } from "@/db";
 import { accounts, sessions, verificationTokens } from "@/db/schema";
 import { getAuthProviderFlags } from "@/lib/auth/provider-flags";
+import { createTrialEntitlement } from "@/lib/billing/entitlements";
 
 const { isResendLoginEnabled } = getAuthProviderFlags();
-const AUTH_EMAIL_SECRET = process.env.AUTH_SECRET ?? "nexusnote-dev-secret-change-in-production";
 const EMAIL_LOGIN_MAX_AGE_SECONDS = 10 * 60;
 const EMAIL_TOKEN_MAX_USES = 5;
 
@@ -114,6 +115,7 @@ function createAuthAdapter(): Adapter {
 
 export const authConfig = {
   trustHost: true,
+  secret: env.AUTH_SECRET,
 
   // Only initialize adapter when db is available (runtime)
   // Build phase with no DATABASE_URL: db is null, skip adapter
@@ -136,7 +138,7 @@ export const authConfig = {
             apiKey: process.env.RESEND_API_KEY,
             from: process.env.EMAIL_FROM ?? "NexusNote <noreply@nexusnote.app>",
             maxAge: EMAIL_LOGIN_MAX_AGE_SECONDS,
-            secret: AUTH_EMAIL_SECRET,
+            secret: env.AUTH_SECRET,
             async sendVerificationRequest({ identifier, provider, url }) {
               if (!provider.apiKey) {
                 throw new Error("Missing Resend API key.");
@@ -188,6 +190,17 @@ export const authConfig = {
         session.user.id = sessionUserId;
       }
       return session;
+    },
+  },
+
+  events: {
+    async createUser(message) {
+      if (!message.user.id) return;
+      try {
+        await createTrialEntitlement(message.user.id);
+      } catch (error) {
+        console.error("[Auth] Failed to create trial entitlement:", error);
+      }
     },
   },
 } satisfies NextAuthConfig;

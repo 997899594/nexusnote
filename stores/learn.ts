@@ -5,10 +5,7 @@
  */
 
 import { create } from "zustand";
-import {
-  type LearningProgressTarget,
-  persistCurrentChapter,
-} from "@/lib/learning/learn-progress-client";
+import type { LearningProgressTarget } from "@/lib/learning/learn-progress-client";
 import type { LearnChapterProjection, LearnSectionProjection } from "@/lib/learning/projection";
 
 export type SectionOutline = LearnSectionProjection;
@@ -24,6 +21,15 @@ export interface LearnChatSelectionContext {
 }
 
 interface LearnState {
+  initializeLearningSession: (input: {
+    courseId: string;
+    progressTarget: LearningProgressTarget;
+    chapters: ChapterOutline[];
+    currentChapterIndex: number;
+    completedSections: string[];
+    isCourseComplete: boolean;
+  }) => void;
+
   // Course session ID (for persisting progress)
   courseId: string;
   setCourseId: (id: string) => void;
@@ -53,9 +59,10 @@ interface LearnState {
   setExpandedChapterOnly: (index: number) => void;
   toggleChapterExpanded: (index: number) => void;
 
-  // Completed sections (Set of nodeId strings like "section-1-1")
+  // Completed sections use stable semantic section IDs.
   completedSections: Set<string>;
-  markSectionComplete: (nodeId: string) => void;
+  isCourseComplete: boolean;
+  applyPersistedProgress: (completedSections: string[], isCourseComplete: boolean) => void;
 
   // Sidebar (mobile overlay)
   isSidebarOpen: boolean;
@@ -97,6 +104,7 @@ const initialState = {
   chapters: [] as ChapterOutline[],
   expandedChapters: new Set<number>(),
   completedSections: new Set<string>(),
+  isCourseComplete: false,
   isSidebarOpen: false,
   isChatOpen: false,
   chatSelectionContext: null as LearnChatSelectionContext | null,
@@ -109,23 +117,23 @@ const initialState = {
 export const useLearnStore = create<LearnState>((set) => ({
   ...initialState,
 
+  initializeLearningSession: (input) =>
+    set({
+      ...initialState,
+      courseId: input.courseId,
+      progressTarget: input.progressTarget,
+      chapters: input.chapters,
+      currentChapterIndex: input.currentChapterIndex,
+      expandedChapters: new Set([input.currentChapterIndex]),
+      completedSections: new Set(input.completedSections),
+      isCourseComplete: input.isCourseComplete,
+      isDesktopChatCollapsed: true,
+    }),
+
   setCourseId: (courseId) => set({ courseId }),
   setProgressTarget: (progressTarget) => set({ progressTarget }),
 
-  setCurrentChapterIndex: (index) =>
-    set((state) => {
-      // Persist chapter position to server when user navigates (skip initial load)
-      if (
-        state.progressTarget &&
-        state.currentChapterIndex !== index &&
-        state.chapters.length > 0
-      ) {
-        persistCurrentChapter({ target: state.progressTarget, currentChapter: index }).catch(
-          () => {},
-        );
-      }
-      return { currentChapterIndex: index, currentSectionIndex: 0 };
-    }),
+  setCurrentChapterIndex: (index) => set({ currentChapterIndex: index, currentSectionIndex: 0 }),
 
   setCurrentSectionIndex: (index) => set({ currentSectionIndex: index }),
 
@@ -155,11 +163,10 @@ export const useLearnStore = create<LearnState>((set) => ({
       return { expandedChapters: expanded };
     }),
 
-  markSectionComplete: (nodeId) =>
-    set((state) => {
-      const completed = new Set(state.completedSections);
-      completed.add(nodeId);
-      return { completedSections: completed };
+  applyPersistedProgress: (completedSections, isCourseComplete) =>
+    set({
+      completedSections: new Set(completedSections),
+      isCourseComplete,
     }),
 
   toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),

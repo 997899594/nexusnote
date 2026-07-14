@@ -151,7 +151,7 @@ function buildFocusSummary(candidate: FocusCandidate): string {
     case "locked":
       return `这条能力分支已经出现明确信号${evidenceLabel}，但还被前置链路卡住，优先围绕它补齐上游能力最划算。`;
     case "mastered":
-      return `这条能力分支已经接近完成，当前进度 ${candidate.node.progress}%${evidenceLabel}，适合作为下一轮整理输出和巩固复盘的落点。`;
+      return `这条能力分支的关联学习内容已经完成${evidenceLabel}，适合作为下一轮整理输出和回顾的落点。`;
   }
 }
 

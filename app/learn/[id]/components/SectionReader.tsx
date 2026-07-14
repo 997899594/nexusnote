@@ -4,18 +4,23 @@
 
 import { motion } from "framer-motion";
 import {
+  ArrowRight,
   BookPlus,
+  CheckCircle2,
   ExternalLink,
   EyeOff,
+  FileText,
   Highlighter,
   Loader2,
   MessageSquareQuote,
+  Network,
   RefreshCw,
   RotateCcw,
   X,
 } from "lucide-react";
+import Link from "next/link";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { StreamdownMessage } from "@/components/chat/StreamdownMessage";
+import { CourseReaderArticle } from "@/components/course-reader/CourseReaderArticle";
 import { TextSelectionActionBar } from "@/components/course-reader/TextSelectionActionBar";
 import { useToast } from "@/components/ui/Toast";
 import type { Annotation } from "@/hooks/useAnnotations";
@@ -415,9 +420,10 @@ function SectionBlock({
   } | null>(null);
   const [isSubmittingCapture, setIsSubmittingCapture] = useState(false);
   const isSubmittingCaptureRef = useRef(false);
+  const isPersistingCompletionRef = useRef(false);
   const [sectionPublicAnnotations, setSectionPublicAnnotations] = useState(publicAnnotations);
   const [moderatingAnnotationId, setModeratingAnnotationId] = useState<string | null>(null);
-  const markSectionComplete = useLearnStore((s) => s.markSectionComplete);
+  const applyPersistedProgress = useLearnStore((s) => s.applyPersistedProgress);
   const completedSections = useLearnStore((s) => s.completedSections);
   const isNotesOpen = useLearnStore((s) => s.isNotesOpen);
   const setNotesOpen = useLearnStore((s) => s.setNotesOpen);
@@ -467,13 +473,19 @@ function SectionBlock({
           if (entry.isIntersecting) {
             // Debounce: must stay visible for 800ms
             debounceTimer = setTimeout(() => {
-              markSectionComplete(anchorId);
-
-              persistCompletedSection({ target: progressTarget, sectionNodeId: anchorId }).catch(
-                (err) => {
-                  console.error("[SectionReader] Failed to persist progress:", err);
-                },
-              );
+              if (isPersistingCompletionRef.current) return;
+              isPersistingCompletionRef.current = true;
+              persistCompletedSection({ target: progressTarget, sectionNodeId: anchorId })
+                .then((progress) => {
+                  applyPersistedProgress(progress.completedSections, progress.courseCompleted);
+                })
+                .catch((error) => {
+                  console.error("[SectionReader] Failed to persist progress:", error);
+                  addToast("学习进度保存失败，请稍后重试", "error");
+                })
+                .finally(() => {
+                  isPersistingCompletionRef.current = false;
+                });
             }, 800);
           } else if (debounceTimer) {
             clearTimeout(debounceTimer);
@@ -489,7 +501,7 @@ function SectionBlock({
       observer.disconnect();
       if (debounceTimer) clearTimeout(debounceTimer);
     };
-  }, [isComplete, isAlreadyRead, anchorId, progressTarget, markSectionComplete]);
+  }, [isComplete, isAlreadyRead, anchorId, progressTarget, applyPersistedProgress, addToast]);
 
   const handleCapture = useCallback(
     async (noteContent: string) => {
@@ -562,7 +574,7 @@ function SectionBlock({
         isHighlighted && "animate-[section-focus_1.2s_ease-out]",
       )}
     >
-      <div ref={containerRef} className="relative">
+      <div className="relative">
         <SectionIntro
           chapterIndex={chapterIndex}
           chapterTitle={stripSectionNumber(chapter.title)}
@@ -598,16 +610,53 @@ function SectionBlock({
         )}
 
         {(state.status === "generating" || state.status === "complete") && readableContent && (
-          <article className="px-1 py-1 md:px-2">
-            <div className="learn-prose pb-10 md:pb-12">
-              <StreamdownMessage
-                content={readableContent}
-                isStreaming={state.status === "generating"}
-                variant="reader"
-                controls={{ code: false, mermaid: false, table: false }}
-              />
-            </div>
-          </article>
+          <CourseReaderArticle
+            containerRef={containerRef}
+            content={readableContent}
+            isStreaming={state.status === "generating"}
+          >
+            {isComplete && !isReadOnly ? (
+              <>
+                <AnnotationLayer
+                  containerRef={containerRef}
+                  annotations={annotations}
+                  onRemove={removeAnnotation}
+                />
+                <TextSelectionActionBar
+                  containerRef={containerRef}
+                  swatchAction={{ label: "标记", icon: Highlighter }}
+                  swatches={HIGHLIGHT_COLORS}
+                  onSwatchSelect={addHighlight}
+                  actions={[
+                    {
+                      label: "笔记",
+                      icon: BookPlus,
+                      variant: "primary",
+                      onSelect: ({ anchor, selectedText }) => {
+                        setPendingCapture({ anchor, selectedText });
+                      },
+                    },
+                    {
+                      label: "对话",
+                      icon: MessageSquareQuote,
+                      onSelect: ({ selectedText }) => {
+                        setChatSelectionContext({
+                          id: crypto.randomUUID(),
+                          text: selectedText,
+                          chapterIndex: currentChapterIndex,
+                          sectionIndex,
+                          chapterTitle: currentChapter?.title,
+                          sectionTitle,
+                        });
+                        setChatOpen(true);
+                        setDesktopChatCollapsed(false);
+                      },
+                    },
+                  ]}
+                />
+              </>
+            ) : null}
+          </CourseReaderArticle>
         )}
 
         {state.status === "error" && (
@@ -629,49 +678,6 @@ function SectionBlock({
               </button>
             }
           />
-        )}
-
-        {/* Annotation layer — only for completed sections */}
-        {isComplete && !isReadOnly && (
-          <>
-            <AnnotationLayer
-              containerRef={containerRef}
-              annotations={annotations}
-              onRemove={removeAnnotation}
-            />
-            <TextSelectionActionBar
-              containerRef={containerRef}
-              swatchAction={{ label: "标记", icon: Highlighter }}
-              swatches={HIGHLIGHT_COLORS}
-              onSwatchSelect={addHighlight}
-              actions={[
-                {
-                  label: "笔记",
-                  icon: BookPlus,
-                  variant: "primary",
-                  onSelect: ({ anchor, selectedText }) => {
-                    setPendingCapture({ anchor, selectedText });
-                  },
-                },
-                {
-                  label: "对话",
-                  icon: MessageSquareQuote,
-                  onSelect: ({ selectedText }) => {
-                    setChatSelectionContext({
-                      id: crypto.randomUUID(),
-                      text: selectedText,
-                      chapterIndex: currentChapterIndex,
-                      sectionIndex,
-                      chapterTitle: currentChapter?.title,
-                      sectionTitle,
-                    });
-                    setChatOpen(true);
-                    setDesktopChatCollapsed(false);
-                  },
-                },
-              ]}
-            />
-          </>
         )}
 
         {isNotesOpen ? (
@@ -756,6 +762,68 @@ function SectionBoundary({
   );
 }
 
+function CourseCompletionState({
+  totalSectionCount,
+  showGrowthLinks,
+  onOpenChat,
+}: {
+  totalSectionCount: number;
+  showGrowthLinks: boolean;
+  onOpenChat: () => void;
+}) {
+  return (
+    <section className="mt-10 border-t border-black/[0.08] pt-8 md:mt-12 md:pt-10">
+      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--color-panel-strong)] text-white">
+        <CheckCircle2 className="h-5 w-5" />
+      </div>
+      <p className="mt-5 text-xs font-medium text-[var(--color-text-tertiary)]">课程已完成</p>
+      <h2 className="mt-2 text-2xl font-semibold leading-tight text-[var(--color-text)] md:text-3xl">
+        这一轮学习已经走完
+      </h2>
+      <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--color-text-secondary)]">
+        全部 {totalSectionCount}{" "}
+        篇内容已读。现在可以整理学习记录、围绕课程继续对话，或查看成长路径。
+      </p>
+
+      <div className="mt-7 flex flex-wrap gap-2">
+        {showGrowthLinks ? (
+          <>
+            <Link
+              href="/editor"
+              className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[var(--color-panel-strong)] px-4 py-2.5 text-sm font-medium text-white"
+            >
+              <FileText className="h-4 w-4" />
+              整理学习笔记
+            </Link>
+            <Link
+              href="/career-trees"
+              className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-black/[0.08] px-4 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)]"
+            >
+              <Network className="h-4 w-4" />
+              查看成长路径
+            </Link>
+          </>
+        ) : null}
+        <button
+          type="button"
+          onClick={onOpenChat}
+          className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-black/[0.08] px-4 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-panel-soft)] hover:text-[var(--color-text)]"
+        >
+          <MessageSquareQuote className="h-4 w-4" />
+          继续课程对话
+        </button>
+        <Link
+          href="/"
+          className="inline-flex min-h-10 items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
+        >
+          回到首页
+          <ArrowRight className="h-4 w-4" />
+        </Link>
+      </div>
+    </section>
+  );
+}
+
 export function SectionReader({
   progressTarget,
   learningMode = "course",
@@ -778,6 +846,9 @@ export function SectionReader({
   } = useLearnStore();
   const currentChapter = chapters[currentChapterIndex];
   const currentSectionIndex = useLearnStore((s) => s.currentSectionIndex);
+  const isCourseComplete = useLearnStore((s) => s.isCourseComplete);
+  const setChatOpen = useLearnStore((s) => s.setChatOpen);
+  const setDesktopChatCollapsed = useLearnStore((s) => s.setDesktopChatCollapsed);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const previousSectionIdRef = useRef<string | null>(null);
   const hasScrolledToResume = useRef(false);
@@ -959,7 +1030,7 @@ export function SectionReader({
             sectionTitle={stripSectionNumber(currentSection.title)}
             sectionDescription={currentSection.description}
             state={currentSectionState}
-            sectionDoc={sectionDocs.find((doc) => doc.outlineNodeKey === currentSection.nodeId)}
+            sectionDoc={sectionDocs.find((doc) => doc.outlineNodeKey === currentSection.nodeKey)}
             publicAnnotations={currentSectionPublicAnnotations}
             progressTarget={progressTarget}
             generateSection={generateSection}
@@ -977,6 +1048,17 @@ export function SectionReader({
           onPrevious={() => navigateToSection(previousTarget)}
           onNext={() => navigateToSection(nextTarget)}
         />
+
+        {isCourseComplete && !nextTarget ? (
+          <CourseCompletionState
+            totalSectionCount={sectionTargets.length}
+            showGrowthLinks={!isReadOnlyLearning}
+            onOpenChat={() => {
+              setChatOpen(true);
+              setDesktopChatCollapsed(false);
+            }}
+          />
+        ) : null}
 
         {/* Bottom spacing */}
         <div className="h-28 md:h-24" />

@@ -5,7 +5,6 @@ import {
   and,
   coursePublicAnnotations,
   coursePublicationLikes,
-  coursePublicationProgress,
   coursePublicationSnapshots,
   coursePublicationSubscriptions,
   coursePublications,
@@ -14,6 +13,8 @@ import {
   desc,
   eq,
   inArray,
+  learningEnrollments,
+  learningSectionCompletions,
   sql,
   users,
 } from "@/db";
@@ -306,25 +307,33 @@ async function hasPublicationSubscription(
 }
 
 async function loadPublicationProgressRecord(
-  publicationId: string,
+  snapshotId: string,
   userId: string,
 ): Promise<LearnProgressProjection | null> {
-  const [progress] = await db
+  const [enrollment] = await db
     .select({
-      currentChapter: coursePublicationProgress.currentChapter,
-      completedSections: coursePublicationProgress.completedSections,
-      completedAt: coursePublicationProgress.completedAt,
+      id: learningEnrollments.id,
+      startedAt: learningEnrollments.startedAt,
+      completedAt: learningEnrollments.completedAt,
     })
-    .from(coursePublicationProgress)
+    .from(learningEnrollments)
     .where(
-      and(
-        eq(coursePublicationProgress.publicationId, publicationId),
-        eq(coursePublicationProgress.userId, userId),
-      ),
+      and(eq(learningEnrollments.snapshotId, snapshotId), eq(learningEnrollments.userId, userId)),
     )
     .limit(1);
 
-  return progress ?? null;
+  if (!enrollment) return null;
+
+  const completions = await db
+    .select({ sectionId: learningSectionCompletions.sectionId })
+    .from(learningSectionCompletions)
+    .where(eq(learningSectionCompletions.enrollmentId, enrollment.id));
+
+  return {
+    completedSections: completions.map((completion) => completion.sectionId),
+    startedAt: enrollment.startedAt,
+    completedAt: enrollment.completedAt,
+  };
 }
 
 function buildLearnPageProjectionFromPublication(
@@ -344,6 +353,7 @@ function buildLearnPageProjectionFromPublication(
         title: section.title,
         description: section.description,
         nodeId: section.nodeId,
+        nodeKey: section.nodeId,
       })),
     })),
     sectionDocs: snapshot.content.sections.map((section) => ({
@@ -449,10 +459,7 @@ export async function getSubscribedPublicCourseLearnPage(params: {
     }
   }
 
-  const progressRecord = await loadPublicationProgressRecord(
-    snapshot.publication.id,
-    params.userId,
-  );
+  const progressRecord = await loadPublicationProgressRecord(snapshot.snapshotId, params.userId);
 
   return {
     snapshot: buildLearnPageProjectionFromPublication({
@@ -471,15 +478,9 @@ export async function getPublicCourseProgressTarget(params: {
   sourceCourseId: string;
   ownerUserId: string;
   currentSnapshotId: string;
+  sourceOutlineVersionId: string;
+  snapshotHash: string;
   content: CoursePublicationSnapshotContent;
-  existingProgress: {
-    id: string;
-    currentChapter: number;
-    completedChapters: number[];
-    completedSections: string[];
-    startedAt: Date | null;
-    completedAt: Date | null;
-  } | null;
 }> {
   const publication = await db.query.coursePublications.findFirst({
     where: and(
@@ -505,64 +506,15 @@ export async function getPublicCourseProgressTarget(params: {
     throw new Error("COURSE_PUBLICATION_NOT_FOUND");
   }
 
-  const [existingProgress] = await db
-    .select({
-      id: coursePublicationProgress.id,
-      currentChapter: coursePublicationProgress.currentChapter,
-      completedChapters: coursePublicationProgress.completedChapters,
-      completedSections: coursePublicationProgress.completedSections,
-      startedAt: coursePublicationProgress.startedAt,
-      completedAt: coursePublicationProgress.completedAt,
-    })
-    .from(coursePublicationProgress)
-    .where(
-      and(
-        eq(coursePublicationProgress.publicationId, publication.id),
-        eq(coursePublicationProgress.userId, params.userId),
-      ),
-    )
-    .limit(1);
-
   return {
     publicationId: publication.id,
     sourceCourseId: publication.sourceCourseId,
     ownerUserId: publication.ownerUserId,
     currentSnapshotId: publication.currentSnapshotId,
+    sourceOutlineVersionId: snapshot.sourceOutlineVersionId,
+    snapshotHash: snapshot.snapshotHash,
     content: snapshot.contentJson,
-    existingProgress: existingProgress ?? null,
   };
-}
-
-export async function persistPublicCourseProgress(params: {
-  publicationId: string;
-  userId: string;
-  progress: {
-    currentChapter: number;
-    completedChapters: number[];
-    completedSections: string[];
-    startedAt: Date | null;
-    completedAt: Date | null;
-  };
-  existingRecordId?: string;
-}): Promise<void> {
-  const values = {
-    ...params.progress,
-    updatedAt: new Date(),
-  };
-
-  if (params.existingRecordId) {
-    await db
-      .update(coursePublicationProgress)
-      .set(values)
-      .where(eq(coursePublicationProgress.id, params.existingRecordId));
-    return;
-  }
-
-  await db.insert(coursePublicationProgress).values({
-    publicationId: params.publicationId,
-    userId: params.userId,
-    ...values,
-  });
 }
 
 export async function createPublicCourseAnnotation(params: {

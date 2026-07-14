@@ -5,7 +5,7 @@ export function getCareerNodeStateLabel(
 ): string {
   switch (state) {
     case "mastered":
-      return "已掌握";
+      return "已完成";
     case "in_progress":
       return "学习中";
     case "ready":

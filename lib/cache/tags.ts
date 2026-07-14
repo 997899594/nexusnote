@@ -37,6 +37,10 @@ export function getCoursePublicationTag(slugOrId: string): string {
   return `course-publication:${slugOrId}`;
 }
 
+export function getPublicCourseCatalogTag(): string {
+  return "public-course-catalog";
+}
+
 export function getCareerTreesTag(userId: string): string {
   return `career-trees:${userId}`;
 }
@@ -63,6 +67,7 @@ export function revalidateLearnPage(userId: string, courseId: string): void {
 
 export function revalidateCoursePublication(slugOrId: string): void {
   revalidateTagSafely(getCoursePublicationTag(slugOrId), { expire: 0 });
+  revalidateTagSafely(getPublicCourseCatalogTag(), { expire: 0 });
 }
 
 export function revalidateCareerTrees(userId: string): void {

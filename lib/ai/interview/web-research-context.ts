@@ -40,9 +40,21 @@ export async function resolveInterviewWebResearchContext(params: {
   userId: string;
   messages: Array<Pick<UIMessage, "role" | "parts">>;
   modelSeries?: AIModelSeries;
+  enabled?: boolean;
   onRequest?: (request: ResearchEvidenceRequest) => void | Promise<void>;
   onProgress?: (progress: ResearchEvidenceProgress) => void | Promise<void>;
 }): Promise<InterviewWebResearchContext> {
+  if (params.enabled === false) {
+    return {
+      promptBlock: "",
+      evidenceRequest: null,
+      retrieval: null,
+      evidenceSnapshot: null,
+      shouldDraftOutline: false,
+      evidenceAvailable: false,
+    };
+  }
+
   const evidenceRequest = await resolveResearchEvidenceRequestFromMessagesWithPlanner({
     messages: params.messages,
     userId: params.userId,

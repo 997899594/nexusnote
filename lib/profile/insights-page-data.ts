@@ -13,7 +13,7 @@ import type {
   NotesWorkbenchSnapshot,
   NoteWorkbenchItem,
 } from "@/lib/knowledge/workbench-projection";
-import { getUserProfileInsightsCached, type ProfileAIUsageStats } from "@/lib/profile/stats-data";
+import { getLearningInsightStats, type LearningInsightStats } from "@/lib/learning/insights";
 
 export interface ProfileInsightsOverviewDirection {
   title: string;
@@ -37,7 +37,7 @@ export interface ProfileInsightsOverview {
 }
 
 export interface ProfileInsightsPageData {
-  usage: ProfileAIUsageStats;
+  learning: LearningInsightStats;
   overview: ProfileInsightsOverview | null;
   insights: KnowledgeInsight[];
   focusNotes: NoteWorkbenchItem[];
@@ -97,8 +97,8 @@ export async function getProfileInsightsPageDataCached(
   cacheTag(getCareerTreesTag(userId));
   cacheTag(getNotesIndexTag(userId));
 
-  const [usage, careerTree, workbenchSnapshot] = await Promise.all([
-    getUserProfileInsightsCached(userId, windowStartIso),
+  const [learning, careerTree, workbenchSnapshot] = await Promise.all([
+    getLearningInsightStats(userId, new Date(windowStartIso)),
     getCareerTreeWorkspaceDataCached(userId, 4),
     getNotesWorkbenchCached(userId),
   ]);
@@ -107,7 +107,7 @@ export async function getProfileInsightsPageDataCached(
   const relatedMaterialCount = workbenchSnapshot.focus?.relatedItemIds.length ?? 0;
 
   return {
-    usage,
+    learning,
     overview: buildProfileInsightsOverview(careerTree, relatedMaterialCount),
     insights: careerTree.insights,
     focusNotes,

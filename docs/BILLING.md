@@ -3,6 +3,36 @@
 NexusNote billing is intentionally small: entitlements are owned by NexusNote, and payment
 providers are external adapters.
 
+## Capability policy
+
+Authentication and paid capability access are separate concerns:
+
+- `basic_chat` is available to every authenticated user.
+- `course_generation` requires an active trial or Pro entitlement.
+- `research` requires an active trial or Pro entitlement.
+- Course interviews remain available without an entitlement, but external research is physically
+  removed from the agent tool set and course persistence is blocked until access is active.
+
+Capability checks live in `lib/billing/capability-policy.ts`. Routes and AI prompts must not invent
+their own billing rules.
+
+The product catalog used by pricing lives in `lib/billing/product-catalog.ts` and derives monetary
+amounts from `lib/billing/plans.ts`. The public contract is:
+
+- Free keeps basic authenticated chat, course interviews and outline revisions, public-course
+  learning, note capture, and publication of courses the user already owns.
+- Trial and Pro add course generation and external research.
+- Rate limits protect service availability but are not monthly product quotas.
+- Pricing copy must not advertise course-count, message-count, publication-count, or model-routing
+  entitlements unless the same rule exists in the server capability policy.
+
+## Processing contract
+
+Paid webhook processing is an atomic database inbox operation. Event insertion, order locking,
+amount validation, user locking, entitlement extension, and event completion happen in one
+PostgreSQL transaction. Any failure rolls the event back so the payment provider can safely replay
+it. Redeem-code counters and grants follow the same locking and transaction contract.
+
 ## Modes
 
 ### Redeem codes

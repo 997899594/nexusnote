@@ -44,14 +44,16 @@ export function buildCourseOutlineNodeValues(params: {
   courseId: string;
   outlineVersionId: string;
   outline: CourseOutline;
+  semanticIdsByNodeKey?: ReadonlyMap<string, string>;
 }): NewCourseOutlineNode[] {
-  const { courseId, outlineVersionId, outline } = params;
+  const { courseId, outlineVersionId, outline, semanticIdsByNodeKey } = params;
 
   return outline.chapters.flatMap((chapter, chapterIndex) => {
     const chapterNodeKey = buildChapterOutlineNodeKey(chapterIndex);
     const chapterNode: NewCourseOutlineNode = {
       courseId,
       outlineVersionId,
+      semanticId: chapter.nodeId ?? semanticIdsByNodeKey?.get(chapterNodeKey),
       nodeType: "chapter",
       nodeKey: chapterNodeKey,
       parentNodeKey: null,
@@ -68,6 +70,9 @@ export function buildCourseOutlineNodeValues(params: {
     const sectionNodes = chapter.sections.map<NewCourseOutlineNode>((section, sectionIndex) => ({
       courseId,
       outlineVersionId,
+      semanticId:
+        section.nodeId ??
+        semanticIdsByNodeKey?.get(buildSectionOutlineNodeKey(chapterIndex, sectionIndex)),
       nodeType: "section",
       nodeKey: buildSectionOutlineNodeKey(chapterIndex, sectionIndex),
       parentNodeKey: chapterNodeKey,
@@ -117,6 +122,7 @@ export function materializeCourseOutline(params: {
     Pick<
       CourseOutlineNode,
       | "nodeType"
+      | "semanticId"
       | "nodeKey"
       | "parentNodeKey"
       | "chapterIndex"
@@ -146,6 +152,7 @@ export function materializeCourseOutline(params: {
     learningOutcome: requireCourseBlueprintText(version.learningOutcome, "learningOutcome"),
     researchCitations: normalizeResearchCitations(version.researchCitations),
     chapters: chapterNodes.map((chapterNode) => ({
+      nodeId: chapterNode.semanticId,
       title: chapterNode.title,
       description: chapterNode.description ?? undefined,
       practiceType: (chapterNode.practiceType ?? undefined) as
@@ -158,6 +165,7 @@ export function materializeCourseOutline(params: {
           (left, right) => left.chapterIndex - right.chapterIndex || left.position - right.position,
         )
         .map((sectionNode) => ({
+          nodeId: sectionNode.semanticId,
           title: sectionNode.title,
           description: sectionNode.description ?? undefined,
         })),

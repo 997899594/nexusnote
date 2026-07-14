@@ -8,6 +8,9 @@ import type { WorkerRuntimeDefinition, WorkerStarter } from "./types";
 type WorkerModuleResolver = () => Promise<Pick<WorkerStarter, "start">>;
 
 const queueWorkerResolvers = {
+  "learning-outbox": async () => ({
+    start: (await import("@/lib/queue/learning-outbox-worker")).startLearningOutboxWorker,
+  }),
   "course-production": async () => ({
     start: (await import("@/lib/queue/course-production-worker")).startCourseProductionWorker,
   }),

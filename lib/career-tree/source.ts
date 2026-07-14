@@ -1,7 +1,15 @@
 import { createHash } from "node:crypto";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
-import { courseOutlineNodes, courseOutlineVersions, courseProgress, courses, db } from "@/db";
+import {
+  courseOutlineNodes,
+  courseOutlineVersions,
+  coursePublicationSnapshots,
+  courses,
+  db,
+  learningEnrollments,
+  learningSectionCompletions,
+} from "@/db";
 import {
   buildChapterOutlineNodeKey,
   buildSectionOutlineNodeKey,
@@ -9,11 +17,13 @@ import {
 import { normalizeStringList, stableStringify } from "@/lib/utils/stable-data";
 
 const careerOutlineSectionSchema = z.object({
+  nodeId: z.string().uuid().optional(),
   title: z.string().optional(),
   description: z.string().optional(),
 });
 
 const careerOutlineChapterSchema = z.object({
+  nodeId: z.string().uuid().optional(),
   title: z.string().optional(),
   description: z.string().optional(),
   skillIds: z.array(z.string()).optional(),
@@ -62,7 +72,6 @@ export interface CareerCourseSource {
 }
 
 export interface CareerCourseProgress {
-  completedChapters: number[];
   completedSections: string[];
 }
 
@@ -77,13 +86,13 @@ export function normalizeCareerOutline(input: unknown): NormalizedCareerOutline 
     courseSkillIds: normalizeStringList(parsed.courseSkillIds),
     prerequisites: normalizeStringList(parsed.prerequisites),
     chapters: (parsed.chapters ?? []).map((chapter, chapterIndex) => ({
-      chapterKey: buildChapterOutlineNodeKey(chapterIndex),
+      chapterKey: chapter.nodeId ?? buildChapterOutlineNodeKey(chapterIndex),
       chapterIndex,
       title: chapter.title?.trim() || `第 ${chapterIndex + 1} 章`,
       description: chapter.description?.trim() || "",
       explicitSkillIds: normalizeStringList(chapter.skillIds),
       sections: (chapter.sections ?? []).map((section, sectionIndex) => ({
-        sectionKey: buildSectionOutlineNodeKey(chapterIndex, sectionIndex),
+        sectionKey: section.nodeId ?? buildSectionOutlineNodeKey(chapterIndex, sectionIndex),
         title: section.title?.trim() || `第 ${chapterIndex + 1}.${sectionIndex + 1} 节`,
         description: section.description?.trim() || "",
       })),
@@ -107,7 +116,42 @@ export async function getCareerCourseSource(
     .limit(1);
 
   if (!course) {
-    return null;
+    const [publicationSource] = await executor
+      .select({
+        outlineVersionId: coursePublicationSnapshots.sourceOutlineVersionId,
+        snapshotHash: coursePublicationSnapshots.snapshotHash,
+        content: coursePublicationSnapshots.contentJson,
+      })
+      .from(learningEnrollments)
+      .innerJoin(
+        coursePublicationSnapshots,
+        eq(learningEnrollments.snapshotId, coursePublicationSnapshots.id),
+      )
+      .where(
+        and(
+          eq(learningEnrollments.userId, userId),
+          eq(learningEnrollments.courseId, courseId),
+          eq(learningEnrollments.sourceType, "publication_snapshot"),
+        ),
+      )
+      .orderBy(desc(learningEnrollments.updatedAt))
+      .limit(1);
+
+    if (!publicationSource) return null;
+    const outline = normalizeCareerOutline({
+      title: publicationSource.content.course.title,
+      description: publicationSource.content.course.description,
+      chapters: publicationSource.content.outline.chapters,
+    });
+    return {
+      id: courseId,
+      userId,
+      title: publicationSource.content.course.title,
+      description: publicationSource.content.course.description,
+      outlineVersionId: publicationSource.outlineVersionId,
+      outlineVersionHash: publicationSource.snapshotHash,
+      outline,
+    };
   }
 
   const outlineVersion = await executor.query.courseOutlineVersions.findFirst({
@@ -139,6 +183,7 @@ export async function getCareerCourseSource(
     courseSkillIds: outlineVersion.courseSkillIds,
     prerequisites: outlineVersion.prerequisites,
     chapters: chapterNodes.map((chapterNode) => ({
+      nodeId: chapterNode.semanticId,
       title: chapterNode.title,
       description: chapterNode.description ?? "",
       skillIds: chapterNode.skillIds ?? [],
@@ -148,6 +193,7 @@ export async function getCareerCourseSource(
           (left, right) => left.chapterIndex - right.chapterIndex || left.position - right.position,
         )
         .map((sectionNode) => ({
+          nodeId: sectionNode.semanticId,
           title: sectionNode.title,
           description: sectionNode.description ?? "",
         })),
@@ -166,17 +212,32 @@ export async function getCareerCourseSource(
 }
 
 export async function hasEligibleCareerCourses(userId: string): Promise<boolean> {
-  const rows = await db
-    .select({ id: courses.id })
-    .from(courses)
-    .innerJoin(
-      courseOutlineVersions,
-      and(eq(courseOutlineVersions.courseId, courses.id), eq(courseOutlineVersions.isLatest, true)),
-    )
-    .where(eq(courses.userId, userId))
-    .limit(1);
+  const [owned, subscribed] = await Promise.all([
+    db
+      .select({ id: courses.id })
+      .from(courses)
+      .innerJoin(
+        courseOutlineVersions,
+        and(
+          eq(courseOutlineVersions.courseId, courses.id),
+          eq(courseOutlineVersions.isLatest, true),
+        ),
+      )
+      .where(eq(courses.userId, userId))
+      .limit(1),
+    db
+      .select({ id: learningEnrollments.id })
+      .from(learningEnrollments)
+      .where(
+        and(
+          eq(learningEnrollments.userId, userId),
+          eq(learningEnrollments.sourceType, "publication_snapshot"),
+        ),
+      )
+      .limit(1),
+  ]);
 
-  return rows.length > 0;
+  return owned.length > 0 || subscribed.length > 0;
 }
 
 export async function listCareerCourseSourcesForUser(params: {
@@ -184,7 +245,7 @@ export async function listCareerCourseSourcesForUser(params: {
   courseId?: string;
   limit?: number;
 }): Promise<Array<{ userId: string; courseId: string }>> {
-  const rows = await db
+  const ownedRows = await db
     .select({
       userId: courses.userId,
       courseId: courses.id,
@@ -203,7 +264,27 @@ export async function listCareerCourseSourcesForUser(params: {
     .orderBy(desc(courses.updatedAt))
     .limit(params.limit ?? 500);
 
-  return rows;
+  const publicationRows = await db
+    .select({
+      userId: learningEnrollments.userId,
+      courseId: learningEnrollments.courseId,
+    })
+    .from(learningEnrollments)
+    .where(
+      and(
+        eq(learningEnrollments.sourceType, "publication_snapshot"),
+        params.userId ? eq(learningEnrollments.userId, params.userId) : undefined,
+        params.courseId ? eq(learningEnrollments.courseId, params.courseId) : undefined,
+      ),
+    )
+    .orderBy(desc(learningEnrollments.updatedAt))
+    .limit(params.limit ?? 500);
+
+  return [
+    ...new Map(
+      [...ownedRows, ...publicationRows].map((row) => [`${row.userId}:${row.courseId}`, row]),
+    ).values(),
+  ].slice(0, params.limit ?? 500);
 }
 
 export async function getCareerCourseProgressMap(
@@ -214,25 +295,46 @@ export async function getCareerCourseProgressMap(
     return new Map();
   }
 
-  const rows = await db
+  const enrollments = await db
     .select({
-      courseId: courseProgress.courseId,
-      completedChapters: courseProgress.completedChapters,
-      completedSections: courseProgress.completedSections,
+      id: learningEnrollments.id,
+      courseId: learningEnrollments.courseId,
     })
-    .from(courseProgress)
-    .where(and(eq(courseProgress.userId, userId)));
+    .from(learningEnrollments)
+    .where(
+      and(eq(learningEnrollments.userId, userId), inArray(learningEnrollments.courseId, courseIds)),
+    );
+  if (enrollments.length === 0) return new Map();
+
+  const completions = await db
+    .select({
+      enrollmentId: learningSectionCompletions.enrollmentId,
+      sectionId: learningSectionCompletions.sectionId,
+    })
+    .from(learningSectionCompletions)
+    .where(
+      inArray(
+        learningSectionCompletions.enrollmentId,
+        enrollments.map((enrollment) => enrollment.id),
+      ),
+    );
+  const courseByEnrollment = new Map(
+    enrollments.map((enrollment) => [enrollment.id, enrollment.courseId]),
+  );
+  const sectionsByCourse = new Map<string, Set<string>>();
+  for (const completion of completions) {
+    const courseId = courseByEnrollment.get(completion.enrollmentId);
+    if (!courseId) continue;
+    const sectionIds = sectionsByCourse.get(courseId) ?? new Set<string>();
+    sectionIds.add(completion.sectionId);
+    sectionsByCourse.set(courseId, sectionIds);
+  }
 
   return new Map(
-    rows
-      .filter((row) => courseIds.includes(row.courseId))
-      .map((row) => [
-        row.courseId,
-        {
-          completedChapters: row.completedChapters ?? [],
-          completedSections: row.completedSections ?? [],
-        },
-      ]),
+    [...sectionsByCourse].map(([courseId, sectionIds]) => [
+      courseId,
+      { completedSections: [...sectionIds] },
+    ]),
   );
 }
 

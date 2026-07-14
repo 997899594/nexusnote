@@ -12,12 +12,14 @@ export async function syncCourseOutlineKnowledgePipeline(params: {
   userId: string;
   courseId: string;
   outline: CourseOutline;
+  eventId: string;
+  requestKey: string;
 }): Promise<CourseKnowledgePipelineResult> {
   const normalizedOutline = normalizeCareerOutline(params.outline);
   const outlineHash = computeCareerOutlineHash(normalizedOutline);
 
   await ingestEvidenceEvent({
-    id: crypto.randomUUID(),
+    id: params.eventId,
     userId: params.userId,
     kind: "course_outline",
     sourceType: "course",
@@ -43,7 +45,11 @@ export async function syncCourseOutlineKnowledgePipeline(params: {
     })),
   });
 
-  const extractJob = await enqueueCareerTreeExtract(params.userId, params.courseId);
+  const extractJob = await enqueueCareerTreeExtract(
+    params.userId,
+    params.courseId,
+    params.requestKey,
+  );
 
   return {
     outlineHash,

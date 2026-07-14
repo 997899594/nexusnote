@@ -14,7 +14,7 @@ NexusNote 的主链不是“通用笔记”，而是：
 - AI SDK v6
 - Drizzle ORM + PostgreSQL + pgvector
 - Redis + BullMQ
-- Tiptap + Yjs + PartyKit
+- Tiptap 3
 - Tailwind CSS 4
 - Bun for package management and local development
 

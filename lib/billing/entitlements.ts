@@ -1,9 +1,47 @@
 import { and, desc, eq, gt, isNull, sql } from "drizzle-orm";
-import { billingOrders, db, redeemCodeRedemptions, redeemCodes, userEntitlements } from "@/db";
-import { badRequest, conflict, notFound } from "@/lib/api";
+import {
+  billingOrders,
+  billingWebhookEvents,
+  db,
+  redeemCodeRedemptions,
+  redeemCodes,
+  userEntitlements,
+  users,
+} from "@/db";
+import { badRequest, conflict, notFound } from "@/lib/api/errors";
 import type { BillingPlanId } from "./plans";
 import { getBillingPlan } from "./plans";
 import { hashRedeemCode } from "./redeem-codes";
+
+const TRIAL_DAYS = 7;
+
+type BillingTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type UserEntitlement = typeof userEntitlements.$inferSelect;
+
+interface GrantEntitlementParams {
+  userId: string;
+  plan: BillingPlanId;
+  source: string;
+  sourceRefId: string;
+  entitlementDays?: number;
+  metadata?: Record<string, unknown>;
+}
+
+export interface BillingWebhookEventInput {
+  provider: string;
+  eventId: string;
+  payload: Record<string, unknown>;
+  signature?: string | null;
+}
+
+interface PaidBillingWebhookInput {
+  event: BillingWebhookEventInput;
+  orderId: string;
+  providerOrderId?: string | null;
+  providerTransactionId?: string | null;
+  paidAt?: Date;
+  amountCents?: number;
+}
 
 function addDays(date: Date, days: number): Date {
   const next = new Date(date);
@@ -11,16 +49,31 @@ function addDays(date: Date, days: number): Date {
   return next;
 }
 
-export async function getActiveEntitlement(userId: string) {
-  const now = new Date();
-  const [entitlement] = await db
+async function lockUser(tx: BillingTransaction, userId: string): Promise<void> {
+  const [user] = await tx
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.id, userId))
+    .for("update")
+    .limit(1);
+
+  if (!user) {
+    throw notFound("用户不存在", "USER_NOT_FOUND");
+  }
+}
+
+async function getActiveEntitlementInTransaction(
+  tx: BillingTransaction,
+  userId: string,
+): Promise<UserEntitlement | null> {
+  const [entitlement] = await tx
     .select()
     .from(userEntitlements)
     .where(
       and(
         eq(userEntitlements.userId, userId),
         isNull(userEntitlements.revokedAt),
-        gt(userEntitlements.expiresAt, now),
+        gt(userEntitlements.expiresAt, new Date()),
       ),
     )
     .orderBy(desc(userEntitlements.expiresAt))
@@ -29,15 +82,11 @@ export async function getActiveEntitlement(userId: string) {
   return entitlement ?? null;
 }
 
-export async function grantEntitlement(params: {
-  userId: string;
-  plan: BillingPlanId;
-  source: string;
-  sourceRefId: string;
-  entitlementDays?: number;
-  metadata?: Record<string, unknown>;
-}) {
-  const existing = await db
+async function grantEntitlementInTransaction(
+  tx: BillingTransaction,
+  params: GrantEntitlementParams,
+): Promise<UserEntitlement> {
+  const [existing] = await tx
     .select()
     .from(userEntitlements)
     .where(
@@ -48,17 +97,17 @@ export async function grantEntitlement(params: {
     )
     .limit(1);
 
-  if (existing[0]) {
-    return existing[0];
+  if (existing) {
+    return existing;
   }
 
   const plan = getBillingPlan(params.plan);
   const now = new Date();
-  const active = await getActiveEntitlement(params.userId);
+  const active = await getActiveEntitlementInTransaction(tx, params.userId);
   const startsAt = active && active.expiresAt > now ? active.expiresAt : now;
   const expiresAt = addDays(startsAt, params.entitlementDays ?? plan.entitlementDays);
 
-  const [entitlement] = await db
+  const [entitlement] = await tx
     .insert(userEntitlements)
     .values({
       userId: params.userId,
@@ -71,116 +120,212 @@ export async function grantEntitlement(params: {
     })
     .returning();
 
+  if (!entitlement) {
+    throw new Error("Failed to create user entitlement");
+  }
+
   return entitlement;
 }
 
-export async function markOrderPaidAndGrantEntitlement(params: {
-  orderId: string;
-  provider: string;
-  providerOrderId?: string | null;
-  providerTransactionId?: string | null;
-  paidAt?: Date;
-  amountCents?: number;
-}) {
-  const [order] = await db
+export async function getActiveEntitlement(userId: string): Promise<UserEntitlement | null> {
+  const [entitlement] = await db
     .select()
-    .from(billingOrders)
-    .where(and(eq(billingOrders.id, params.orderId), eq(billingOrders.provider, params.provider)))
+    .from(userEntitlements)
+    .where(
+      and(
+        eq(userEntitlements.userId, userId),
+        isNull(userEntitlements.revokedAt),
+        gt(userEntitlements.expiresAt, new Date()),
+      ),
+    )
+    .orderBy(desc(userEntitlements.expiresAt))
     .limit(1);
 
-  if (!order) {
-    throw notFound("订单不存在", "BILLING_ORDER_NOT_FOUND");
+  return entitlement ?? null;
+}
+
+export interface EntitlementStatus {
+  isPro: boolean;
+  isTrialing: boolean;
+  trialEndsAt: Date | null;
+  plan: string | null;
+  expiresAt: Date | null;
+}
+
+export async function getUserEntitlementStatus(userId: string): Promise<EntitlementStatus> {
+  const entitlement = await getActiveEntitlement(userId);
+
+  if (!entitlement) {
+    return { isPro: false, isTrialing: false, trialEndsAt: null, plan: null, expiresAt: null };
   }
 
-  if (params.amountCents != null && params.amountCents !== order.amountCents) {
-    throw badRequest("支付金额不匹配", "BILLING_AMOUNT_MISMATCH");
-  }
+  const isTrialing = entitlement.source === "trial";
 
-  const paidAt = params.paidAt ?? new Date();
-  const plan = order.plan as BillingPlanId;
+  return {
+    isPro: true,
+    isTrialing,
+    trialEndsAt: isTrialing ? entitlement.expiresAt : null,
+    plan: entitlement.plan,
+    expiresAt: entitlement.expiresAt,
+  };
+}
 
-  const [updatedOrder] = await db
-    .update(billingOrders)
-    .set({
-      status: "paid",
-      providerOrderId: params.providerOrderId ?? order.providerOrderId,
-      paidAt,
-      updatedAt: new Date(),
-    })
-    .where(eq(billingOrders.id, order.id))
-    .returning();
-
-  const entitlement = await grantEntitlement({
-    userId: order.userId,
-    plan,
-    source: "billing_order",
-    sourceRefId: order.id,
-    entitlementDays: order.entitlementDays,
-    metadata: {
-      provider: params.provider,
-      providerOrderId: params.providerOrderId ?? null,
-      providerTransactionId: params.providerTransactionId ?? null,
-    },
+export async function createTrialEntitlement(userId: string): Promise<void> {
+  await db.transaction(async (tx) => {
+    await lockUser(tx, userId);
+    await grantEntitlementInTransaction(tx, {
+      userId,
+      plan: "pro_month",
+      source: "trial",
+      sourceRefId: `trial-${userId}`,
+      entitlementDays: TRIAL_DAYS,
+    });
   });
+}
 
-  return { order: updatedOrder, entitlement };
+export async function recordBillingWebhookEvent(
+  event: BillingWebhookEventInput,
+): Promise<{ duplicate: boolean }> {
+  const [inserted] = await db
+    .insert(billingWebhookEvents)
+    .values({
+      ...event,
+      processedAt: new Date(),
+    })
+    .onConflictDoNothing()
+    .returning({ id: billingWebhookEvents.id });
+
+  return { duplicate: !inserted };
+}
+
+export async function processPaidBillingWebhook(
+  params: PaidBillingWebhookInput,
+): Promise<{ duplicate: boolean; entitlement: UserEntitlement | null }> {
+  return db.transaction(async (tx) => {
+    const [event] = await tx
+      .insert(billingWebhookEvents)
+      .values(params.event)
+      .onConflictDoNothing()
+      .returning({ id: billingWebhookEvents.id });
+
+    if (!event) {
+      return { duplicate: true, entitlement: null };
+    }
+
+    const [order] = await tx
+      .select()
+      .from(billingOrders)
+      .where(
+        and(
+          eq(billingOrders.id, params.orderId),
+          eq(billingOrders.provider, params.event.provider),
+        ),
+      )
+      .for("update")
+      .limit(1);
+
+    if (!order) {
+      throw notFound("订单不存在", "BILLING_ORDER_NOT_FOUND");
+    }
+
+    if (params.amountCents != null && params.amountCents !== order.amountCents) {
+      throw badRequest("支付金额不匹配", "BILLING_AMOUNT_MISMATCH");
+    }
+
+    await lockUser(tx, order.userId);
+
+    await tx
+      .update(billingOrders)
+      .set({
+        status: "paid",
+        providerOrderId: params.providerOrderId ?? order.providerOrderId,
+        paidAt: params.paidAt ?? new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(billingOrders.id, order.id));
+
+    const entitlement = await grantEntitlementInTransaction(tx, {
+      userId: order.userId,
+      plan: order.plan as BillingPlanId,
+      source: "billing_order",
+      sourceRefId: order.id,
+      entitlementDays: order.entitlementDays,
+      metadata: {
+        provider: params.event.provider,
+        providerOrderId: params.providerOrderId ?? null,
+        providerTransactionId: params.providerTransactionId ?? null,
+      },
+    });
+
+    await tx
+      .update(billingWebhookEvents)
+      .set({ processedAt: new Date() })
+      .where(eq(billingWebhookEvents.id, event.id));
+
+    return { duplicate: false, entitlement };
+  });
 }
 
 export async function redeemCodeForUser(params: { userId: string; code: string }) {
   const codeHash = hashRedeemCode(params.code);
-  const [code] = await db.select().from(redeemCodes).where(eq(redeemCodes.codeHash, codeHash));
 
-  if (!code || code.disabledAt) {
-    throw notFound("兑换码无效", "REDEEM_CODE_NOT_FOUND");
-  }
+  return db.transaction(async (tx) => {
+    const [code] = await tx
+      .select()
+      .from(redeemCodes)
+      .where(eq(redeemCodes.codeHash, codeHash))
+      .for("update")
+      .limit(1);
 
-  if (code.expiresAt && code.expiresAt <= new Date()) {
-    throw conflict("兑换码已过期", "REDEEM_CODE_EXPIRED");
-  }
+    if (!code || code.disabledAt) {
+      throw notFound("兑换码无效", "REDEEM_CODE_NOT_FOUND");
+    }
 
-  if (code.redeemedCount >= code.maxRedemptions) {
-    throw conflict("兑换码已被使用", "REDEEM_CODE_EXHAUSTED");
-  }
+    if (code.expiresAt && code.expiresAt <= new Date()) {
+      throw conflict("兑换码已过期", "REDEEM_CODE_EXPIRED");
+    }
 
-  const [existingRedemption] = await db
-    .select()
-    .from(redeemCodeRedemptions)
-    .where(
-      and(
-        eq(redeemCodeRedemptions.codeId, code.id),
-        eq(redeemCodeRedemptions.userId, params.userId),
-      ),
-    )
-    .limit(1);
+    if (code.redeemedCount >= code.maxRedemptions) {
+      throw conflict("兑换码已被使用", "REDEEM_CODE_EXHAUSTED");
+    }
 
-  if (existingRedemption) {
-    throw conflict("兑换码已兑换", "REDEEM_CODE_ALREADY_USED");
-  }
+    await lockUser(tx, params.userId);
 
-  const entitlement = await grantEntitlement({
-    userId: params.userId,
-    plan: code.plan as BillingPlanId,
-    source: "redeem_code",
-    sourceRefId: `${code.id}:${params.userId}`,
-    entitlementDays: code.entitlementDays,
-    metadata: {
-      codeId: code.id,
-    },
-  });
+    const [existingRedemption] = await tx
+      .select({ id: redeemCodeRedemptions.id })
+      .from(redeemCodeRedemptions)
+      .where(
+        and(
+          eq(redeemCodeRedemptions.codeId, code.id),
+          eq(redeemCodeRedemptions.userId, params.userId),
+        ),
+      )
+      .limit(1);
 
-  await db.transaction(async (tx) => {
+    if (existingRedemption) {
+      throw conflict("兑换码已兑换", "REDEEM_CODE_ALREADY_USED");
+    }
+
+    const entitlement = await grantEntitlementInTransaction(tx, {
+      userId: params.userId,
+      plan: code.plan as BillingPlanId,
+      source: "redeem_code",
+      sourceRefId: `${code.id}:${params.userId}`,
+      entitlementDays: code.entitlementDays,
+      metadata: { codeId: code.id },
+    });
+
     await tx.insert(redeemCodeRedemptions).values({
       codeId: code.id,
       userId: params.userId,
       entitlementId: entitlement.id,
     });
+
     await tx
       .update(redeemCodes)
-      .set({
-        redeemedCount: sql`${redeemCodes.redeemedCount} + 1`,
-      })
+      .set({ redeemedCount: sql`${redeemCodes.redeemedCount} + 1` })
       .where(eq(redeemCodes.id, code.id));
-  });
 
-  return entitlement;
+    return entitlement;
+  });
 }

@@ -1,4 +1,5 @@
 import type { Annotation } from "@/lib/learning/learn-annotations-client";
+import { projectLearningMomentum } from "@/lib/learning/momentum";
 import { buildSectionOutlineNodeKey } from "@/lib/learning/outline-node-key";
 import type { getOwnedCourseWithOutline } from "./course-repository";
 
@@ -8,6 +9,7 @@ export interface LearnSectionProjection {
   title: string;
   description: string;
   nodeId: string;
+  nodeKey: string;
 }
 
 export interface LearnChapterProjection {
@@ -39,8 +41,8 @@ export interface LearnPublicAnnotationProjection {
 }
 
 export interface LearnProgressProjection {
-  currentChapter: number;
   completedSections: string[];
+  startedAt: Date | null;
   completedAt: Date | null;
 }
 
@@ -61,6 +63,7 @@ export interface LearnResumeState {
   initialChapterIndex: number;
   initialCompletedSections: string[];
   scrollToSectionId: string | null;
+  isCourseComplete: boolean;
 }
 
 export interface LearnProjectionSectionDocRow {
@@ -99,7 +102,8 @@ function buildLearnChapters(courseSession: OwnedCourseWithOutline): LearnChapter
     sections: chapter.sections.map((section, sectionIndex) => ({
       title: section.title,
       description: section.description ?? "",
-      nodeId: buildSectionOutlineNodeKey(chapterIndex, sectionIndex),
+      nodeId: section.nodeId ?? buildSectionOutlineNodeKey(chapterIndex, sectionIndex),
+      nodeKey: buildSectionOutlineNodeKey(chapterIndex, sectionIndex),
     })),
   }));
 }
@@ -193,6 +197,19 @@ export function resolveLearnResumeState(
 ): LearnResumeState {
   const initialCompletedSections = snapshot.progressRecord?.completedSections ?? [];
   const completedSet = new Set(initialCompletedSections);
+  const momentum = projectLearningMomentum({
+    sections: snapshot.chapters.flatMap((chapter, chapterIndex) =>
+      chapter.sections.map((section, sectionIndex) => ({
+        nodeId: section.nodeId,
+        title: section.title,
+        chapterIndex,
+        sectionIndex,
+      })),
+    ),
+    completedSections: initialCompletedSections,
+    startedAt: snapshot.progressRecord?.startedAt,
+    completedAt: snapshot.progressRecord?.completedAt,
+  });
   const maxChapterIndex = Math.max(snapshot.chapters.length - 1, 0);
 
   let initialChapterIndex: number;
@@ -205,8 +222,7 @@ export function resolveLearnResumeState(
     const resumeChapter = snapshot.chapters.findIndex((chapter) =>
       chapter.sections.some((section) => !completedSet.has(section.nodeId)),
     );
-    initialChapterIndex =
-      resumeChapter >= 0 ? resumeChapter : (snapshot.progressRecord?.currentChapter ?? 0);
+    initialChapterIndex = resumeChapter >= 0 ? resumeChapter : 0;
   }
 
   initialChapterIndex = Math.min(Math.max(initialChapterIndex, 0), maxChapterIndex);
@@ -215,10 +231,15 @@ export function resolveLearnResumeState(
   const firstUnreadSection = resumeChapter?.sections.find(
     (section) => !completedSet.has(section.nodeId),
   );
+  const finalSection = snapshot.chapters.at(-1)?.sections.at(-1) ?? null;
 
   return {
     initialChapterIndex,
     initialCompletedSections,
-    scrollToSectionId: firstUnreadSection?.nodeId ?? null,
+    scrollToSectionId:
+      momentum.status === "completed"
+        ? (finalSection?.nodeId ?? null)
+        : (firstUnreadSection?.nodeId ?? null),
+    isCourseComplete: momentum.status === "completed",
   };
 }

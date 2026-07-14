@@ -1,4 +1,5 @@
 import type { Worker } from "bullmq";
+import { or } from "drizzle-orm";
 import { defaults } from "@/config/env";
 import { and, careerGenerationRuns, careerUserTreeSnapshots, db, eq, ne } from "@/db";
 import {
@@ -40,16 +41,18 @@ async function enqueueOutdatedCareerTreeRefreshJobs(): Promise<void> {
     .where(
       and(
         eq(careerUserTreeSnapshots.isLatest, true),
-        eq(careerUserTreeSnapshots.schemaVersion, CAREER_TREE_SCHEMA_VERSION),
         eq(careerUserTreeSnapshots.status, "ready"),
-        ne(careerGenerationRuns.promptVersion, CAREER_TREE_COMPOSE_PROMPT_VERSION),
+        or(
+          ne(careerUserTreeSnapshots.schemaVersion, CAREER_TREE_SCHEMA_VERSION),
+          ne(careerGenerationRuns.promptVersion, CAREER_TREE_COMPOSE_PROMPT_VERSION),
+        ),
       ),
     );
 
   for (const row of rows) {
     await enqueueCareerTreeRefresh({
       userId: row.userId,
-      reasonKey: CAREER_TREE_COMPOSE_PROMPT_VERSION,
+      reasonKey: `schema:${CAREER_TREE_SCHEMA_VERSION}:prompt:${CAREER_TREE_COMPOSE_PROMPT_VERSION}`,
     });
   }
 

@@ -23,6 +23,8 @@ out
 .agents
 .claude
 .codex
+.hermes
+.playwright-cli
 
 # Build cache
 *.tsbuildinfo

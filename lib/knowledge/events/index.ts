@@ -28,21 +28,33 @@ export async function ingestEvidenceEvent(input: IngestEvidenceEventInput): Prom
         happenedAt: new Date(input.happenedAt),
         metadata: input.metadata,
       })
+      .onConflictDoNothing({ target: knowledgeEvidenceEvents.id })
       .returning({ id: knowledgeEvidenceEvents.id });
 
+    const eventId = event?.id ?? input.id;
+
     if (input.refs && input.refs.length > 0) {
-      await tx.insert(knowledgeEvidenceEventRefs).values(
-        input.refs.map((ref) => ({
-          eventId: event.id,
-          refType: ref.refType,
-          refId: ref.refId,
-          snippet: ref.snippet ?? null,
-          weight: ref.weight.toFixed(3),
-        })),
-      );
+      await tx
+        .insert(knowledgeEvidenceEventRefs)
+        .values(
+          input.refs.map((ref) => ({
+            eventId,
+            refType: ref.refType,
+            refId: ref.refId,
+            snippet: ref.snippet ?? null,
+            weight: ref.weight.toFixed(3),
+          })),
+        )
+        .onConflictDoNothing({
+          target: [
+            knowledgeEvidenceEventRefs.eventId,
+            knowledgeEvidenceEventRefs.refType,
+            knowledgeEvidenceEventRefs.refId,
+          ],
+        });
     }
 
-    return event.id;
+    return eventId;
   });
 }
 

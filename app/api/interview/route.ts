@@ -25,7 +25,9 @@ import {
   serviceUnavailable,
   unauthorized,
 } from "@/lib/api";
+import { checkRateLimitOrThrow } from "@/lib/api/rate-limit";
 import { auth } from "@/lib/auth";
+import { AI_CAPABILITIES, canUseAICapability } from "@/lib/billing/capability-policy";
 import { getOwnedCourse } from "@/lib/learning/course-repository";
 
 export const maxDuration = 300;
@@ -58,7 +60,10 @@ export async function POST(request: NextRequest) {
     const modelPolicy = "outline-architect";
     const promptVersion = "interview@agent-v1";
     const workflow = "interview-agent";
-    const modelSeries = await getUserAIModelSeries(userId);
+    const [modelSeries, researchEnabled] = await Promise.all([
+      getUserAIModelSeries(userId),
+      canUseAICapability(userId, AI_CAPABILITIES.research),
+    ]);
     telemetry = createTelemetryContext({
       requestId,
       endpoint: "/api/interview",
@@ -98,7 +103,15 @@ export async function POST(request: NextRequest) {
           userId,
           messages: validatedMessages,
           modelSeries,
-          onRequest: (evidenceRequest) => {
+          enabled: researchEnabled,
+          onRequest: async (evidenceRequest) => {
+            await checkRateLimitOrThrow(
+              `research:${userId}`,
+              20,
+              60 * 60 * 1000,
+              "研究请求过于频繁，请稍后再试",
+              { failureMode: "deny" },
+            );
             writeData({
               type: "data-researchEvent",
               id: `${researchRunId}-started`,

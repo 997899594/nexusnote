@@ -84,6 +84,7 @@ export const courseOutlineNodes = pgTable(
   "course_outline_nodes",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    semanticId: uuid("semantic_id").notNull().defaultRandom(),
     courseId: uuid("course_id")
       .references(() => courses.id, { onDelete: "cascade" })
       .notNull(),
@@ -108,6 +109,10 @@ export const courseOutlineNodes = pgTable(
       table.outlineVersionId,
       table.nodeKey,
     ),
+    outlineSemanticUniqueIdx: uniqueIndex("course_outline_nodes_outline_semantic_unique_idx").on(
+      table.outlineVersionId,
+      table.semanticId,
+    ),
     courseVersionIdx: index("course_outline_nodes_course_version_idx").on(
       table.courseId,
       table.outlineVersionId,
@@ -123,6 +128,12 @@ export const courseSections = pgTable(
     courseId: uuid("course_id")
       .references(() => courses.id, { onDelete: "cascade" })
       .notNull(),
+    outlineVersionId: uuid("outline_version_id")
+      .references(() => courseOutlineVersions.id, { onDelete: "cascade" })
+      .notNull(),
+    outlineNodeId: uuid("outline_node_id")
+      .references(() => courseOutlineNodes.id, { onDelete: "cascade" })
+      .notNull(),
     outlineNodeKey: text("outline_node_key").notNull(),
     title: text("title").notNull(),
     contentMarkdown: text("content_markdown"),
@@ -132,34 +143,13 @@ export const courseSections = pgTable(
   },
   (table) => ({
     courseIdIdx: index("course_sections_course_id_idx").on(table.courseId),
-    outlineNodeKeyIdx: uniqueIndex("course_sections_course_outline_idx").on(
-      table.courseId,
+    outlineNodeUniqueIdx: uniqueIndex("course_sections_outline_node_unique_idx").on(
+      table.outlineNodeId,
+    ),
+    versionNodeKeyUniqueIdx: uniqueIndex("course_sections_version_node_key_unique_idx").on(
+      table.outlineVersionId,
       table.outlineNodeKey,
     ),
-  }),
-);
-
-export const courseProgress = pgTable(
-  "course_progress",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    courseId: uuid("course_id")
-      .references(() => courses.id, { onDelete: "cascade" })
-      .notNull(),
-    userId: uuid("user_id")
-      .references(() => users.id, { onDelete: "cascade" })
-      .notNull(),
-    currentChapter: integer("current_chapter").notNull().default(0),
-    completedChapters: jsonb("completed_chapters").$type<number[]>().notNull().default([]),
-    completedSections: jsonb("completed_sections").$type<string[]>().notNull().default([]),
-    startedAt: timestamp("started_at"),
-    completedAt: timestamp("completed_at"),
-    updatedAt: timestamp("updated_at").defaultNow(),
-    createdAt: timestamp("created_at").defaultNow(),
-  },
-  (table) => ({
-    courseIdUniqueIdx: uniqueIndex("course_progress_course_id_unique_idx").on(table.courseId),
-    userIdIdx: index("course_progress_user_id_idx").on(table.userId),
   }),
 );
 
@@ -196,7 +186,5 @@ export type CourseOutlineNode = typeof courseOutlineNodes.$inferSelect;
 export type NewCourseOutlineNode = typeof courseOutlineNodes.$inferInsert;
 export type CourseSection = typeof courseSections.$inferSelect;
 export type NewCourseSection = typeof courseSections.$inferInsert;
-export type CourseProgress = typeof courseProgress.$inferSelect;
-export type NewCourseProgress = typeof courseProgress.$inferInsert;
 export type CourseSectionAnnotation = typeof courseSectionAnnotations.$inferSelect;
 export type NewCourseSectionAnnotation = typeof courseSectionAnnotations.$inferInsert;

@@ -56,4 +56,4 @@ export function InterviewOptions({
   );
 }
 
-export type { Option, InterviewOptionsProps };
+export type { InterviewOptionsProps, Option };

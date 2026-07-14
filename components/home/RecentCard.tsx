@@ -1,73 +1,56 @@
-"use client";
+import { ArrowRight, BookOpen, Check } from "lucide-react";
+import Link from "next/link";
+import type { RecentLearningItem } from "@/lib/learning/recent-courses-data";
 
-import {
-  ArrowUpRight,
-  BookOpen,
-  FileText,
-  GraduationCap,
-  type LucideIcon,
-  Map as MapIcon,
-  MessageSquare,
-  StickyNote,
-} from "lucide-react";
-import { useRouter } from "next/navigation";
-
-const ICONS: Record<string, LucideIcon> = {
-  course: GraduationCap,
-  flashcard: StickyNote,
-  quiz: BookOpen,
-  note: FileText,
-  chat: MessageSquare,
-  mindmap: MapIcon,
-};
-
-export interface RecentCardProps {
-  title: string;
-  desc: string;
-  iconName: keyof typeof ICONS;
-  time: string;
-  url?: string;
+function itemDescription(item: RecentLearningItem): string {
+  if (item.status === "completed") return "课程已完成";
+  if (item.nextSectionTitle) return `下一篇：${item.nextSectionTitle}`;
+  return item.description ?? "开始阅读第一篇内容";
 }
 
-export function RecentCard({ title, desc, iconName, time, url }: RecentCardProps) {
-  const router = useRouter();
-  const Icon = ICONS[iconName] || FileText;
-  const canOpen = Boolean(url);
-
-  const handleClick = () => {
-    if (url) {
-      router.push(url);
-    }
-  };
-
+export function RecentCard({ item }: { item: RecentLearningItem }) {
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      disabled={!canOpen}
-      aria-label={canOpen ? `继续学习：${title}` : title}
-      className="touch-target ui-surface-card w-full rounded-[28px] p-4 text-left transition-colors duration-200 hover:[box-shadow:var(--shadow-soft-panel-hover)] disabled:cursor-default disabled:opacity-70 md:min-h-[220px] md:p-6"
+    <Link
+      href={item.url}
+      aria-label={`${item.status === "completed" ? "查看" : "继续学习"}：${item.title}`}
+      className="group flex min-h-48 w-full flex-col rounded-lg border border-black/[0.07] bg-white p-5 text-left transition-[border-color,box-shadow] hover:border-black/[0.14] hover:shadow-[0_18px_44px_-36px_rgba(15,23,42,0.45)]"
     >
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <div className="ui-icon-chip flex h-10 w-10 items-center justify-center rounded-2xl">
-          <Icon className="h-4 w-4 text-[var(--color-text-secondary)]" />
-        </div>
-        <span className="pt-0.5 text-[11px] text-[var(--color-text-muted)]">{time}</span>
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-panel-soft)]">
+          {item.status === "completed" ? (
+            <Check className="h-4 w-4 text-[var(--color-text-secondary)]" />
+          ) : (
+            <BookOpen className="h-4 w-4 text-[var(--color-text-secondary)]" />
+          )}
+        </span>
+        <span className="pt-1 text-xs text-[var(--color-text-muted)]">{item.timeLabel}</span>
       </div>
 
-      <h3 className="mb-2 line-clamp-2 text-[0.95rem] font-medium leading-6 text-[var(--color-text)] md:text-[15px]">
-        {title}
+      <h3 className="line-clamp-2 text-sm font-semibold leading-6 text-[var(--color-text)]">
+        {item.title}
       </h3>
-      <p className="line-clamp-2 text-xs leading-6 text-[var(--color-text-secondary)] md:text-sm">
-        {desc}
+      <p className="mt-1 line-clamp-2 text-xs leading-6 text-[var(--color-text-secondary)]">
+        {itemDescription(item)}
       </p>
 
-      <div className="mt-4 flex items-center justify-between text-xs text-[var(--color-text-secondary)] md:mt-6">
-        <span className="font-medium">{canOpen ? "继续学习" : "暂无入口"}</span>
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-panel-soft)] md:h-9 md:w-9">
-          <ArrowUpRight className="h-3.5 w-3.5" />
-        </span>
+      <div className="mt-auto pt-5">
+        <div className="mb-2 flex items-center justify-between text-[0.6875rem] text-[var(--color-text-tertiary)]">
+          <span>{item.status === "completed" ? "已完成" : `${item.progressPercent}%`}</span>
+          <span>
+            {item.completedSectionCount}/{item.totalSectionCount}
+          </span>
+        </div>
+        <div className="h-1 overflow-hidden rounded-full bg-black/[0.06]">
+          <div
+            className="h-full rounded-full bg-[var(--color-accent)]"
+            style={{ width: `${item.progressPercent}%` }}
+          />
+        </div>
+        <div className="mt-4 flex items-center justify-between text-xs font-medium text-[var(--color-text-secondary)]">
+          <span>{item.status === "completed" ? "查看课程" : "继续学习"}</span>
+          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+        </div>
       </div>
-    </button>
+    </Link>
   );
 }

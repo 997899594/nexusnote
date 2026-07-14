@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AuthSync, SessionProvider } from "@/components/auth";
+import { TrialBannerWrapper } from "@/components/common/TrialBannerWrapper";
 import { ToastProvider } from "@/components/ui/Toast";
 
 export const viewport: Viewport = {
@@ -22,10 +23,6 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: "NexusNote",
   },
-  icons: {
-    icon: "/favicon.ico",
-    apple: "/apple-icon.png",
-  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -35,6 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SessionProvider>
           <ToastProvider>
             <AuthSync />
+            <TrialBannerWrapper />
             <div className="min-h-dvh">{children}</div>
           </ToastProvider>
         </SessionProvider>

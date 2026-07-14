@@ -115,12 +115,12 @@ function hasStepToolResult(step: unknown, toolName: string): boolean {
   );
 }
 
-function createCareerPlanningPrepareStep(): PrepareStepFunction<ToolSet> {
+function createCareerPlanningPrepareStep(researchEnabled: boolean): PrepareStepFunction<ToolSet> {
   return ({ messages, stepNumber, steps }) => {
     const isBootstrap = messages.some(isCareerPlanningBootstrapMessage);
     const hasSearched = steps.some((step) => hasStepToolCall(step, WEB_SEARCH_TOOL));
 
-    if (stepNumber === 0 && isBootstrap && !hasSearched) {
+    if (researchEnabled && stepNumber === 0 && isBootstrap && !hasSearched) {
       return {
         toolChoice: {
           type: "tool",
@@ -170,6 +170,7 @@ export interface ConversationSpecialistAgentOptions {
   metadata?: RequestMetadata;
   modelSeries?: AIModelSeries;
   telemetry?: AITelemetryContext;
+  researchEnabled?: boolean;
 }
 
 export async function createConversationToolLoopSpecialist(
@@ -238,6 +239,7 @@ export async function createConversationToolLoopSpecialist(
   const tools = buildToolsForCapabilityMode(spec.mode, {
     userId: options.userId,
     resourceId: options.courseId,
+    researchEnabled: options.researchEnabled,
   });
   const model = spec.preferToolCallingModel
     ? getToolCallingModelForPolicy(spec.modelPolicy, {
@@ -249,7 +251,9 @@ export async function createConversationToolLoopSpecialist(
     model,
     instructions,
     tools,
-    prepareStep: isCareerPlanningRequest ? createCareerPlanningPrepareStep() : undefined,
+    prepareStep: isCareerPlanningRequest
+      ? createCareerPlanningPrepareStep(options.researchEnabled === true)
+      : undefined,
     stopWhen: isCareerPlanningRequest
       ? createCareerPlanningStopWhen(spec.maxSteps)
       : stepCountIs(spec.maxSteps),

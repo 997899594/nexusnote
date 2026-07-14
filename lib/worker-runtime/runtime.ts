@@ -1,5 +1,6 @@
 import { closeDbConnection } from "@/db";
 import { closeRedisConnection } from "@/lib/redis";
+import { startRuntimeHeartbeat } from "./heartbeat";
 import type { WorkerStarter } from "./types";
 
 const WORKER_GRACEFUL_SHUTDOWN_TIMEOUT_MS = 10_000;
@@ -89,6 +90,7 @@ export function startWorkerRuntime(runtimeName: string, workerStarters: WorkerSt
     name: workerStarter.name,
     worker: workerStarter.start(),
   }));
+  const stopHeartbeat = startRuntimeHeartbeat(runtimeName);
   let isShuttingDown = false;
 
   async function shutdown(signal: string) {
@@ -97,6 +99,7 @@ export function startWorkerRuntime(runtimeName: string, workerStarters: WorkerSt
     }
 
     isShuttingDown = true;
+    stopHeartbeat();
     console.log(`[${runtimeName}] Shutting down on ${signal}...`);
     const workerClosure = await closeWorkersWithTimeout(runtimeName, workers);
     const workerResults = workerClosure.results;

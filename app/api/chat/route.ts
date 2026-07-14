@@ -38,6 +38,11 @@ import { ChatApiRequestSchema } from "@/lib/ai/validation";
 import { handleError, parseJsonBodyAs, serviceUnavailable, unauthorized } from "@/lib/api";
 import { checkRateLimitOrThrow } from "@/lib/api/rate-limit";
 import { auth } from "@/lib/auth";
+import {
+  AI_CAPABILITIES,
+  assertAICapabilityAccess,
+  canUseAICapability,
+} from "@/lib/billing/capability-policy";
 
 export const maxDuration = 300;
 
@@ -128,6 +133,23 @@ export async function POST(request: NextRequest) {
             messages: uiMessages,
             requestContext,
           });
+
+    const researchRequested =
+      routeDecision.resolvedCapabilityMode === "research_assistant" ||
+      routeDecision.requiredScopes.includes("web");
+    const researchEnabled = await canUseAICapability(userId, AI_CAPABILITIES.research);
+
+    if (researchRequested) {
+      assertAICapabilityAccess(AI_CAPABILITIES.research, researchEnabled);
+      await checkRateLimitOrThrow(
+        `research:${userId}`,
+        20,
+        60 * 60 * 1000,
+        "研究请求过于频繁，请稍后再试",
+        { failureMode: "deny" },
+      );
+    }
+
     const specialist = getConversationSpecialistSpec(routeDecision.resolvedCapabilityMode);
     const resolvedCourseId = requestContext.resourceContext.courseId;
     const resolvedMetadata = requestContext.metadata;
@@ -214,6 +236,7 @@ export async function POST(request: NextRequest) {
         metadata: resolvedMetadata,
         modelSeries,
         telemetry,
+        researchEnabled,
       },
     });
     const response = await createChatStreamResponse({

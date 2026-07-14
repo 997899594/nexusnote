@@ -3,13 +3,14 @@ import "server-only";
 import { and, eq } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 import {
-  courseProgress,
   coursePublicAnnotations,
   coursePublications,
   courseSectionAnnotations,
   courseSections,
   db,
   desc,
+  learningEnrollments,
+  learningSectionCompletions,
   users,
 } from "@/db";
 import { getLearnPageTag } from "@/lib/cache/tags";
@@ -23,21 +24,39 @@ import {
   type LearnProjectionSectionDocRow,
 } from "@/lib/learning/projection";
 
-async function loadProgressRecord(userId: string, courseId: string) {
-  const rows = await db
+async function loadProgressRecord(userId: string, outlineVersionId: string) {
+  const [enrollment] = await db
     .select({
-      currentChapter: courseProgress.currentChapter,
-      completedSections: courseProgress.completedSections,
-      completedAt: courseProgress.completedAt,
+      id: learningEnrollments.id,
+      startedAt: learningEnrollments.startedAt,
+      completedAt: learningEnrollments.completedAt,
     })
-    .from(courseProgress)
-    .where(and(eq(courseProgress.courseId, courseId), eq(courseProgress.userId, userId)))
+    .from(learningEnrollments)
+    .where(
+      and(
+        eq(learningEnrollments.outlineVersionId, outlineVersionId),
+        eq(learningEnrollments.userId, userId),
+      ),
+    )
     .limit(1);
 
-  return rows[0] ?? null;
+  if (!enrollment) return null;
+
+  const completions = await db
+    .select({ sectionId: learningSectionCompletions.sectionId })
+    .from(learningSectionCompletions)
+    .where(eq(learningSectionCompletions.enrollmentId, enrollment.id));
+
+  return {
+    completedSections: completions.map((completion) => completion.sectionId),
+    startedAt: enrollment.startedAt,
+    completedAt: enrollment.completedAt,
+  };
 }
 
-async function loadSectionDocRows(courseId: string): Promise<LearnProjectionSectionDocRow[]> {
+async function loadSectionDocRows(
+  outlineVersionId: string,
+): Promise<LearnProjectionSectionDocRow[]> {
   return db
     .select({
       id: courseSections.id,
@@ -46,12 +65,12 @@ async function loadSectionDocRows(courseId: string): Promise<LearnProjectionSect
       outlineNodeKey: courseSections.outlineNodeKey,
     })
     .from(courseSections)
-    .where(eq(courseSections.courseId, courseId));
+    .where(eq(courseSections.outlineVersionId, outlineVersionId));
 }
 
 async function loadSectionAnnotationRows(
   userId: string,
-  courseId: string,
+  outlineVersionId: string,
 ): Promise<LearnProjectionAnnotationRow[]> {
   return db
     .select({
@@ -65,7 +84,12 @@ async function loadSectionAnnotationRows(
     })
     .from(courseSectionAnnotations)
     .innerJoin(courseSections, eq(courseSectionAnnotations.courseSectionId, courseSections.id))
-    .where(and(eq(courseSectionAnnotations.userId, userId), eq(courseSections.courseId, courseId)));
+    .where(
+      and(
+        eq(courseSectionAnnotations.userId, userId),
+        eq(courseSections.outlineVersionId, outlineVersionId),
+      ),
+    );
 }
 
 async function loadPublicAnnotationRows(
@@ -130,9 +154,9 @@ export async function getLearnPageSnapshotCached(
   });
 
   const [progressRecord, rawSections, annotations, publicAnnotations] = await Promise.all([
-    loadProgressRecord(userId, courseId),
-    loadSectionDocRows(courseId),
-    loadSectionAnnotationRows(userId, courseId),
+    loadProgressRecord(userId, courseSession.outlineVersionId),
+    loadSectionDocRows(courseSession.outlineVersionId),
+    loadSectionAnnotationRows(userId, courseSession.outlineVersionId),
     loadPublicAnnotationRows(userId, courseId),
   ]);
   trace.step("records-loaded", {

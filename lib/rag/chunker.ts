@@ -8,8 +8,8 @@
  * - course_section
  */
 
-import { embedMany } from "ai";
 import { and, db, eq, inArray, knowledgeEvidence, knowledgeEvidenceChunks } from "@/db";
+import { generateEmbeddings } from "@/lib/ai/core/embeddings";
 import { aiModelGateway } from "@/lib/ai/core/model-gateway";
 import {
   groupEvidenceSourceLinksByEvidenceId,
@@ -55,10 +55,7 @@ async function createEmbeddingsOrNull(
   }
 
   try {
-    const { embeddings } = await embedMany({
-      model: aiModelGateway.getEmbeddingModel(),
-      values: chunks,
-    });
+    const embeddings = await generateEmbeddings(chunks);
 
     if (embeddings.length !== chunks.length) {
       console.warn(

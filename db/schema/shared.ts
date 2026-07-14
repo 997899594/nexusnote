@@ -1,18 +1,8 @@
-import { customType } from "drizzle-orm/pg-core";
+import { vector } from "drizzle-orm/pg-core";
+import { EMBEDDING_DIMENSIONS } from "@/config/embedding";
 
-export const bytea = customType<{ data: Buffer }>({
-  dataType() {
-    return "bytea";
-  },
-});
+export { EMBEDDING_DIMENSIONS } from "@/config/embedding";
 
-export const EMBEDDING_DIMENSIONS = 4096;
-
-export const embeddingVector = customType<{ data: number[]; driverData: string }>({
-  dataType() {
-    return `vector(${EMBEDDING_DIMENSIONS})`;
-  },
-  toDriver(value) {
-    return `[${value.join(",")}]`;
-  },
-});
+export function embeddingVector(name: string) {
+  return vector(name, { dimensions: EMBEDDING_DIMENSIONS });
+}

@@ -14,6 +14,9 @@ RAG 链路要同时满足三件事：
 
 ### 向量检索
 
+向量契约是 Qwen3 Embedding MRL 1536 维，列类型统一使用 `vector(1536)`，距离统一使用
+cosine `<=>`。模型请求必须显式发送 `dimensions=1536`，并在写库前校验返回长度。
+
 `knowledge_evidence_chunks.embedding` 使用 HNSW 索引：
 
 - `knowledge_evidence_chunks_embedding_hnsw_idx`
@@ -21,6 +24,9 @@ RAG 链路要同时满足三件事：
 `tags.name_embedding` 使用 HNSW 索引：
 
 - `tags_name_embedding_hnsw_idx`
+
+两个索引统一使用 `vector_cosine_ops`、`m=16`、`ef_construction=64`。禁止把模型维度、
+列宽和索引 opclass 分散配置。
 
 ### 关键词检索
 
@@ -99,3 +105,4 @@ RAG 链路要同时满足三件事：
 2. `SKIP_ENV_VALIDATION=true bun run build`
 3. 关键查询在有/无 embedding 时都能返回结果
 4. 日志能看出 rewrite、vector、keyword、fusion 各阶段耗时
+5. 模型返回向量长度必须等于 1536，任何漂移都显式降级为关键词检索

@@ -19,12 +19,13 @@ Public courses now use subscription semantics.
 
 - Author content remains owned by `course_publications.current_snapshot_id`.
 - Readers subscribe through `course_publication_subscriptions`.
-- Reader progress is stored separately in `course_publication_progress`.
+- Reader progress is stored in a `learning_enrollment` bound to the exact publication snapshot, with
+  section completion facts in `learning_section_completions`.
 - The subscribed learning URL is `/c/{slug}/learn`.
 - Published courses advance `course_publications.current_snapshot_id` automatically after owner
   course structure saves and section-content materialization complete.
 - New code no longer writes copied public courses into `courses`, `course_outline_versions`,
-  `course_outline_nodes`, `course_sections`, or `course_progress`.
+  private course content tables.
 - Existing copied-course data is migrated once by
   `scripts/migrate-public-course-saves-to-subscriptions.ts`, then `course_publication_saves` is
   dropped.

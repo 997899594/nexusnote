@@ -1,12 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import {
-  courseOutlineNodes,
-  courseOutlineVersions,
-  courseProgress,
-  courseSections,
-  courses,
-  db,
-} from "@/db";
+import { courseOutlineNodes, courseOutlineVersions, courseSections, courses, db } from "@/db";
 import {
   type CoursePublicationRefreshResult,
   refreshPublishedCoursePublication,
@@ -17,7 +10,11 @@ import {
   buildCourseOutlineVersionValues,
   computeCourseOutlineVersionHash,
 } from "@/lib/learning/course-structure";
-import { buildSectionOutlineNodeKey } from "@/lib/learning/outline-node-key";
+import { appendLearningOutboxEvent, LEARNING_OUTBOX_TOPICS } from "@/lib/learning/outbox";
+import {
+  buildChapterOutlineNodeKey,
+  buildSectionOutlineNodeKey,
+} from "@/lib/learning/outline-node-key";
 import type { CourseOutline } from "./course-outline";
 
 interface SaveCourseFromOutlineOptions {
@@ -33,91 +30,106 @@ export interface SaveCourseFromOutlineResult {
 
 type CourseSaveTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-function estimateCourseMinutes(outline: CourseOutline) {
-  const sectionCount = outline.chapters.reduce(
-    (total, chapter) => total + chapter.sections.length,
-    0,
+interface PreviousOutlineNode {
+  nodeType: string;
+  nodeKey: string;
+  parentNodeKey: string | null;
+  title: string;
+  semanticId: string;
+}
+
+function normalizeSemanticTitle(value: string): string {
+  return value.trim().toLocaleLowerCase("zh-CN").replace(/\s+/g, " ");
+}
+
+function buildSemanticIdsByNodeKey(
+  outline: CourseOutline,
+  previousNodes: PreviousOutlineNode[],
+): Map<string, string> {
+  const previousChaptersByTitle = new Map(
+    previousNodes
+      .filter((node) => node.nodeType === "chapter")
+      .map((node) => [normalizeSemanticTitle(node.title), node] as const),
   );
-  const baseMinutes = Math.max(sectionCount, 1) * 45;
-  const projectBonus = outline.chapters.some((chapter) => chapter.practiceType === "project")
-    ? 90
-    : 0;
-  return baseMinutes + projectBonus;
-}
-
-function buildInitialProgress(_outline: CourseOutline) {
-  return {
-    currentChapter: 0,
-    completedChapters: [] as number[],
-    completedSections: [] as string[],
-    startedAt: new Date(),
-    completedAt: null,
-    updatedAt: new Date(),
-  };
-}
-
-function buildSectionDocuments(courseId: string, outline: CourseOutline) {
-  return outline.chapters.flatMap((chapter, chapterIndex) =>
-    chapter.sections.map((section, sectionIndex) => ({
-      title: section.title,
-      courseId,
-      outlineNodeKey: buildSectionOutlineNodeKey(chapterIndex, sectionIndex),
-      contentMarkdown: null,
-      plainText: null,
-    })),
+  const previousNodesByKey = new Map(previousNodes.map((node) => [node.nodeKey, node]));
+  const previousSectionsByPath = new Map(
+    previousNodes
+      .filter((node) => node.nodeType === "section" && node.parentNodeKey)
+      .flatMap((node) => {
+        const parent = node.parentNodeKey ? previousNodesByKey.get(node.parentNodeKey) : null;
+        return parent
+          ? [
+              [
+                `${normalizeSemanticTitle(parent.title)}:${normalizeSemanticTitle(node.title)}`,
+                node,
+              ] as const,
+            ]
+          : [];
+      }),
   );
+  const semanticIds = new Map<string, string>();
+
+  outline.chapters.forEach((chapter, chapterIndex) => {
+    const chapterKey = buildChapterOutlineNodeKey(chapterIndex);
+    const chapterTitle = normalizeSemanticTitle(chapter.title);
+    const previousChapter = previousChaptersByTitle.get(chapterTitle);
+    if (previousChapter) semanticIds.set(chapterKey, previousChapter.semanticId);
+
+    chapter.sections.forEach((section, sectionIndex) => {
+      const previousSection = previousSectionsByPath.get(
+        `${chapterTitle}:${normalizeSemanticTitle(section.title)}`,
+      );
+      if (previousSection) {
+        semanticIds.set(
+          buildSectionOutlineNodeKey(chapterIndex, sectionIndex),
+          previousSection.semanticId,
+        );
+      }
+    });
+  });
+
+  return semanticIds;
 }
 
-async function replaceCourseStructureFromOutline(params: {
+async function createCourseRevisionStructure(params: {
   tx: CourseSaveTransaction;
-  userId: string;
   courseId: string;
   outlineVersionId: string;
   outline: CourseOutline;
+  previousNodes: PreviousOutlineNode[];
 }) {
-  const { tx, userId, courseId, outlineVersionId, outline } = params;
-
-  await tx
-    .delete(courseOutlineNodes)
-    .where(eq(courseOutlineNodes.outlineVersionId, outlineVersionId));
+  const { tx, courseId, outlineVersionId, outline, previousNodes } = params;
 
   const outlineNodes = buildCourseOutlineNodeValues({
     courseId,
     outlineVersionId,
     outline,
+    semanticIdsByNodeKey: buildSemanticIdsByNodeKey(outline, previousNodes),
   });
 
-  if (outlineNodes.length > 0) {
-    await tx.insert(courseOutlineNodes).values(outlineNodes);
-  }
-
-  await tx.delete(courseSections).where(eq(courseSections.courseId, courseId));
-
-  const sectionDocuments = buildSectionDocuments(courseId, outline);
+  const persistedNodes =
+    outlineNodes.length > 0
+      ? await tx.insert(courseOutlineNodes).values(outlineNodes).returning({
+          id: courseOutlineNodes.id,
+          nodeType: courseOutlineNodes.nodeType,
+          nodeKey: courseOutlineNodes.nodeKey,
+          title: courseOutlineNodes.title,
+        })
+      : [];
+  const sectionDocuments = persistedNodes
+    .filter((node) => node.nodeType === "section")
+    .map((node) => ({
+      title: node.title,
+      courseId,
+      outlineVersionId,
+      outlineNodeId: node.id,
+      outlineNodeKey: node.nodeKey,
+      contentMarkdown: null,
+      plainText: null,
+    }));
 
   if (sectionDocuments.length > 0) {
     await tx.insert(courseSections).values(sectionDocuments);
-  }
-
-  const progressValues = {
-    courseId,
-    userId,
-    ...buildInitialProgress(outline),
-  };
-
-  const [existingProgress] = await tx
-    .select({ id: courseProgress.id })
-    .from(courseProgress)
-    .where(eq(courseProgress.courseId, courseId))
-    .limit(1);
-
-  if (existingProgress) {
-    await tx
-      .update(courseProgress)
-      .set(progressValues)
-      .where(eq(courseProgress.courseId, courseId));
-  } else {
-    await tx.insert(courseProgress).values(progressValues);
   }
 }
 
@@ -134,7 +146,7 @@ export async function saveCourseFromOutline({
       title: outline.title,
       description: outline.description ?? null,
       difficulty: outline.difficulty,
-      estimatedMinutes: estimateCourseMinutes(outline),
+      estimatedMinutes: null,
       updatedAt: now,
     };
 
@@ -155,6 +167,25 @@ export async function saveCourseFromOutline({
 
       persistedCourseId = createdCourse.id;
     }
+
+    const previousOutlineVersion = await tx.query.courseOutlineVersions.findFirst({
+      where: and(
+        eq(courseOutlineVersions.courseId, persistedCourseId),
+        eq(courseOutlineVersions.isLatest, true),
+      ),
+    });
+    const previousNodes = previousOutlineVersion
+      ? await tx
+          .select({
+            nodeType: courseOutlineNodes.nodeType,
+            nodeKey: courseOutlineNodes.nodeKey,
+            parentNodeKey: courseOutlineNodes.parentNodeKey,
+            title: courseOutlineNodes.title,
+            semanticId: courseOutlineNodes.semanticId,
+          })
+          .from(courseOutlineNodes)
+          .where(eq(courseOutlineNodes.outlineVersionId, previousOutlineVersion.id))
+      : [];
 
     const [existingOutlineVersion] = await tx
       .select({ id: courseOutlineVersions.id, isLatest: courseOutlineVersions.isLatest })
@@ -179,12 +210,16 @@ export async function saveCourseFromOutline({
           .set({ isLatest: true, updatedAt: now })
           .where(eq(courseOutlineVersions.id, existingOutlineVersion.id));
 
-        await replaceCourseStructureFromOutline({
-          tx,
-          userId,
-          courseId: persistedCourseId,
-          outlineVersionId: existingOutlineVersion.id,
-          outline,
+        await appendLearningOutboxEvent(tx, {
+          topic: LEARNING_OUTBOX_TOPICS.courseRevisionCreated,
+          aggregateType: "course_revision",
+          aggregateId: existingOutlineVersion.id,
+          payload: {
+            userId,
+            courseId: persistedCourseId,
+            outlineVersionId: existingOutlineVersion.id,
+            outline,
+          },
         });
       }
 
@@ -238,6 +273,18 @@ export async function saveCourseFromOutline({
           .update(courseOutlineVersions)
           .set({ isLatest: true, updatedAt: now })
           .where(eq(courseOutlineVersions.id, racedOutlineVersion.id));
+
+        await appendLearningOutboxEvent(tx, {
+          topic: LEARNING_OUTBOX_TOPICS.courseRevisionCreated,
+          aggregateType: "course_revision",
+          aggregateId: racedOutlineVersion.id,
+          payload: {
+            userId,
+            courseId: persistedCourseId,
+            outlineVersionId: racedOutlineVersion.id,
+            outline,
+          },
+        });
       }
 
       const publicationRefresh = await refreshPublishedCoursePublication({
@@ -249,12 +296,24 @@ export async function saveCourseFromOutline({
       return { courseId: persistedCourseId, publicationRefresh };
     }
 
-    await replaceCourseStructureFromOutline({
+    await createCourseRevisionStructure({
       tx,
-      userId,
       courseId: persistedCourseId,
       outlineVersionId: outlineVersion.id,
       outline,
+      previousNodes,
+    });
+
+    await appendLearningOutboxEvent(tx, {
+      topic: LEARNING_OUTBOX_TOPICS.courseRevisionCreated,
+      aggregateType: "course_revision",
+      aggregateId: outlineVersion.id,
+      payload: {
+        userId,
+        courseId: persistedCourseId,
+        outlineVersionId: outlineVersion.id,
+        outline,
+      },
     });
 
     const publicationRefresh = await refreshPublishedCoursePublication({

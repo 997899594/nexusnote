@@ -277,7 +277,7 @@ function buildStrengthInsights(
       title: node.canonicalLabel,
       summary:
         node.state === "mastered"
-          ? "这条能力分支已经形成稳定掌握。"
+          ? "这条能力分支的关联学习内容已经完成。"
           : "这条能力分支正在持续稳定生长。",
       confidence: clampConfidence(Math.max(node.progress, 70) / 100, 0.7),
       evidenceIds: uniqueValues(node.evidenceIds, 6),

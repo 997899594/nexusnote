@@ -33,10 +33,10 @@ Use the smallest async mechanism that matches the contract:
 
 Current examples:
 
-- Course creation returns immediately, then `after()` syncs outline knowledge and enqueues the career
-  extraction chain.
-- Learning progress persists the progress first, then `after()` records evidence, aggregates
-  knowledge, and enqueues career-tree refresh.
+- Course revision and learning completion write `domain_outbox_events` in the same PostgreSQL
+  transaction as their authoritative state.
+- The learning outbox worker dispatches through BullMQ and owns knowledge evidence, aggregation,
+  career-tree updates, retries, and idempotency.
 - Course section production writes materialized content, enqueues RAG indexing, invalidates the
   chapter Redis cache, then revalidates the learn page domain view.
 

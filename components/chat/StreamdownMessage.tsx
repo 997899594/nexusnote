@@ -10,7 +10,6 @@
 import { cjk } from "@streamdown/cjk";
 import { code } from "@streamdown/code";
 import { math } from "@streamdown/math";
-import { mermaid } from "@streamdown/mermaid";
 import { type ControlsConfig, Streamdown } from "streamdown";
 import "katex/dist/katex.min.css";
 import { cn } from "@/lib/utils";
@@ -41,7 +40,7 @@ function SafeStreamdown({
   try {
     return (
       <Streamdown
-        plugins={{ code, math, mermaid, cjk }}
+        plugins={{ code, math, cjk }}
         isAnimating={isStreaming}
         controls={controls}
         className={className}

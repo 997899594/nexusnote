@@ -1,7 +1,6 @@
 import {
   boolean,
   index,
-  integer,
   jsonb,
   pgTable,
   text,
@@ -28,6 +27,7 @@ export interface CoursePublicationSnapshotContent {
   };
   outline: {
     chapters: Array<{
+      nodeId: string;
       title: string;
       description: string;
       sections: Array<{
@@ -187,37 +187,8 @@ export const coursePublicationSubscriptions = pgTable(
   }),
 );
 
-export const coursePublicationProgress = pgTable(
-  "course_publication_progress",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    publicationId: uuid("publication_id")
-      .references(() => coursePublications.id, { onDelete: "cascade" })
-      .notNull(),
-    userId: uuid("user_id")
-      .references(() => users.id, { onDelete: "cascade" })
-      .notNull(),
-    currentChapter: integer("current_chapter").notNull().default(0),
-    completedChapters: jsonb("completed_chapters").$type<number[]>().notNull().default([]),
-    completedSections: jsonb("completed_sections").$type<string[]>().notNull().default([]),
-    startedAt: timestamp("started_at"),
-    completedAt: timestamp("completed_at"),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  },
-  (table) => ({
-    userPublicationUniqueIdx: uniqueIndex(
-      "course_publication_progress_user_publication_unique_idx",
-    ).on(table.userId, table.publicationId),
-    publicationIdx: index("course_publication_progress_publication_idx").on(table.publicationId),
-    userIdx: index("course_publication_progress_user_idx").on(table.userId),
-  }),
-);
-
 export type CoursePublicationSubscription = typeof coursePublicationSubscriptions.$inferSelect;
 export type NewCoursePublicationSubscription = typeof coursePublicationSubscriptions.$inferInsert;
-export type CoursePublicationProgress = typeof coursePublicationProgress.$inferSelect;
-export type NewCoursePublicationProgress = typeof coursePublicationProgress.$inferInsert;
 
 export const coursePublicationLikes = pgTable(
   "course_publication_likes",

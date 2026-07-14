@@ -6,7 +6,7 @@
  * If Redis is unavailable, queries DB directly.
  */
 
-import { and, courseSections, db, eq, inArray } from "@/db";
+import { and, courseOutlineVersions, courseSections, db, eq, inArray } from "@/db";
 import { getCourseWithOutline } from "@/lib/learning/course-repository";
 import { buildSectionOutlineNodeKey } from "@/lib/learning/outline-node-key";
 import { getRedis } from "@/lib/redis";
@@ -197,6 +197,13 @@ export async function getChapterContent(
       outlineNodeKey: courseSections.outlineNodeKey,
     })
     .from(courseSections)
+    .innerJoin(
+      courseOutlineVersions,
+      and(
+        eq(courseSections.outlineVersionId, courseOutlineVersions.id),
+        eq(courseOutlineVersions.isLatest, true),
+      ),
+    )
     .where(
       and(eq(courseSections.courseId, courseId), inArray(courseSections.outlineNodeKey, nodeIds)),
     );

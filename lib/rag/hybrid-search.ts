@@ -5,9 +5,9 @@
  * Supports multiple sources: note | capture | conversation | course_section
  */
 
-import { embedMany } from "ai";
 import type { SQL } from "drizzle-orm";
 import { db, sql } from "@/db";
+import { generateEmbedding } from "@/lib/ai/core/embeddings";
 import { aiModelGateway } from "@/lib/ai/core/model-gateway";
 import type { SourceType } from "./chunker";
 import { createRagTrace } from "./observability";
@@ -134,13 +134,7 @@ async function vectorSearch(
   }
 
   try {
-    const { embeddings } = await embedMany({
-      model: aiModelGateway.getEmbeddingModel(),
-      values: [query],
-    });
-
-    const queryEmbedding = embeddings[0];
-    if (!queryEmbedding) return [];
+    const queryEmbedding = await generateEmbedding(query);
 
     const sourceTypeFilter =
       sourceTypes && sourceTypes.length > 0

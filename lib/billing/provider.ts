@@ -3,6 +3,7 @@ import { env } from "@/config/env";
 import { billingOrders, db, eq } from "@/db";
 import { badRequest } from "@/lib/api";
 import { createPay302Checkout } from "./302pay";
+import { createPayJSCashierCheckout } from "./payjs";
 import { type BillingPlanId, getBillingPlan } from "./plans";
 import { signBillingPayload } from "./signing";
 
@@ -39,18 +40,25 @@ export async function createBillingCheckout(params: {
           returnUrl: params.returnUrl,
           callbackUrl: params.callbackUrl,
         })
-      : {
-          providerOrderId: null,
-          checkoutUrl: buildExternalCheckoutUrl({
+      : env.BILLING_PROVIDER === "payjs"
+        ? await buildPayJSCheckout({
             orderId: order.id,
-            userId: params.userId,
             plan: plan.id,
             amountCents: plan.amountCents,
-            currency: plan.currency,
-            returnUrl: params.returnUrl,
-          }),
-          metadata: {},
-        };
+            callbackUrl: params.callbackUrl,
+          })
+        : {
+            providerOrderId: null,
+            checkoutUrl: buildExternalCheckoutUrl({
+              orderId: order.id,
+              userId: params.userId,
+              plan: plan.id,
+              amountCents: plan.amountCents,
+              currency: plan.currency,
+              returnUrl: params.returnUrl,
+            }),
+            metadata: {},
+          };
 
   await db
     .update(billingOrders)
@@ -72,6 +80,33 @@ export async function createBillingCheckout(params: {
       status: order.status,
     },
     checkoutUrl: checkout.checkoutUrl,
+  };
+}
+
+async function buildPayJSCheckout(params: {
+  orderId: string;
+  plan: BillingPlanId;
+  amountCents: number;
+  callbackUrl?: string;
+}) {
+  if (!params.callbackUrl) {
+    throw badRequest("PayJS checkout requires a callback URL", "BILLING_URL_REQUIRED");
+  }
+
+  const plan = getBillingPlan(params.plan);
+  const checkout = await createPayJSCashierCheckout({
+    orderId: params.orderId,
+    description: `NexusNote ${plan.name}`,
+    totalFee: params.amountCents,
+    callbackUrl: params.callbackUrl,
+  });
+
+  return {
+    providerOrderId: checkout.payjsOrderId,
+    checkoutUrl: checkout.cashierUrl,
+    metadata: {
+      payjsOrderId: checkout.payjsOrderId,
+    },
   };
 }
 

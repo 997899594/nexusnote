@@ -10,11 +10,13 @@ import { researchCitationRefSchema } from "@/lib/ai/research/source-types";
 const CoursePrerequisiteSchema = z.string().trim().min(1).max(120);
 
 export const CourseOutlineSectionSchema = z.object({
+  nodeId: z.string().uuid().optional(),
   title: z.string().min(1).max(80),
   description: z.string().min(1).max(180).optional(),
 });
 
 export const CourseOutlineChapterSchema = z.object({
+  nodeId: z.string().uuid().optional(),
   title: z.string().min(1).max(120),
   sections: z
     .array(CourseOutlineSectionSchema)

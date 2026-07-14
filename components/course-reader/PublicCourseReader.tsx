@@ -18,7 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { StreamdownMessage } from "@/components/chat/StreamdownMessage";
+import { CourseReaderArticle } from "@/components/course-reader/CourseReaderArticle";
 import { TextSelectionActionBar } from "@/components/course-reader/TextSelectionActionBar";
 import { AppBackLink } from "@/components/shared/layout";
 import { useToast } from "@/components/ui/Toast";
@@ -768,26 +768,17 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
                       ))}
                     </div>
                   ) : null}
-                  <div className="relative">
-                    <div ref={articleContentRef} className="learn-prose pb-10 md:pb-12">
-                      {activeSectionContent ? (
-                        <StreamdownMessage
-                          content={activeSectionContent}
-                          variant="reader"
-                          controls={{ code: false, mermaid: false, table: false }}
-                        />
-                      ) : (
-                        <p className="text-sm text-[var(--color-text-secondary)]">
-                          这一节还没有公开内容。
-                        </p>
-                      )}
-                    </div>
+                  <CourseReaderArticle
+                    containerRef={articleContentRef}
+                    content={activeSectionContent}
+                    emptyLabel="这一节还没有公开内容。"
+                  >
                     {annotationHighlights.length > 0 ? (
                       <div className="pointer-events-none absolute inset-0">
                         {annotationHighlights.map((highlight) =>
-                          highlight.rects.map((rect, rectIndex) => (
+                          highlight.rects.map((rect) => (
                             <button
-                              key={`${highlight.id}-${rectIndex}`}
+                              key={`${highlight.id}-${rect.top}-${rect.left}-${rect.width}-${rect.height}`}
                               type="button"
                               data-public-annotation-id={highlight.id}
                               onClick={() => focusAnnotation(highlight.id)}
@@ -826,7 +817,7 @@ export function PublicCourseReader({ data }: PublicCourseReaderProps) {
                         },
                       ]}
                     />
-                  </div>
+                  </CourseReaderArticle>
                 </section>
               ) : (
                 <div className="py-10 text-sm text-[var(--color-text-secondary)]">暂无内容</div>

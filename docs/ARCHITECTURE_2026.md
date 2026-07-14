@@ -10,7 +10,7 @@ NexusNote 当前是一个以 Next.js 16 为核心的 AI-native 学习应用：
 - Drizzle + PostgreSQL + pgvector
 - Redis + BullMQ 处理后台任务
 - AI SDK v6 驱动 chat、interview、course generation、RAG
-- Tiptap + Yjs + PartyKit 提供协作编辑基础能力
+- Tiptap 3 提供单用户结构化编辑能力
 
 目标不是“拼很多技术”，而是保持一条清晰主链：
 
@@ -70,6 +70,8 @@ NexusNote 当前是一个以 Next.js 16 为核心的 AI-native 学习应用：
 
 - `lib/rag/`: rewrite、hybrid search、chunking、trace
 - `knowledge_evidence_chunks` 表承载统一检索索引
+- Qwen3 Embedding 统一输出 1536 维 MRL 向量
+- pgvector `vector(1536)` + cosine HNSW 承载近似最近邻检索
 - 向量、全文、最近数据索引与查询路径严格对齐
 
 更多见：
@@ -93,13 +95,20 @@ NexusNote 当前是一个以 Next.js 16 为核心的 AI-native 学习应用：
 - career-tree
 - ai-usage
 - skins
+- learning
 
-### 6. Async / Collaboration
+职业树当前使用 completion-based progression：`mastery_score` 是兼容字段，数值必须与阅读
+进度一致；内部 `mastered` 状态只表示关联学习内容 100% 完成，用户界面统一展示“已完成”。
+
+学习状态由 `learning_enrollments` 和 `learning_section_completions` 统一承载。私有课程绑定
+`course_outline_versions`，公开课程绑定 `course_publication_snapshots`；章节完成、继续位置和
+百分比均为可重建投影。课程 revision、section document、批注和完成记录不可变绑定，不允许
+改版时覆盖旧学习资产。
+
+### 6. Async Runtime
 
 - `lib/queue/`: BullMQ queue 和 worker
 - `scripts/start-workers.ts` + `scripts/start-*-worker.ts`: 显式 worker runtime 入口
-- `party/`: PartyKit realtime server
-- 协作能力是可选运行时，不阻塞主应用主链
 
 规则：
 
@@ -107,6 +116,7 @@ NexusNote 当前是一个以 Next.js 16 为核心的 AI-native 学习应用：
 - 后台任务由独立 worker 进程 / service 承载
 - worker 生命周期、并发和重试参数必须显式配置，而不是挂在页面服务器副作用里
 - `after()` 只放响应后的轻量 follow-up；可重试、长耗时、有副作用链路的任务进入 BullMQ
+- 关键领域事务通过 PostgreSQL transactional outbox 与 BullMQ 衔接，worker 心跳属于 readiness
 
 ## 当前仓库约束
 
@@ -123,3 +133,4 @@ NexusNote 当前是一个以 Next.js 16 为核心的 AI-native 学习应用：
 - Helm / ArgoCD / Flux 仓库内编排
 - 根级别大而全代理说明
 - 历史方案和过渡文档回流到仓库
+- 未完成鉴权、租户隔离和持久化契约的实时协作运行时

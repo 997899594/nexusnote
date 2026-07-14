@@ -16,7 +16,10 @@ import type {
   CoursePublicationSnapshotContent,
 } from "@/db/schema/course-sharing";
 import { getOwnedCourseWithOutline } from "@/lib/learning/course-repository";
-import { buildSectionOutlineNodeKey } from "@/lib/learning/outline-node-key";
+import {
+  buildChapterOutlineNodeKey,
+  buildSectionOutlineNodeKey,
+} from "@/lib/learning/outline-node-key";
 import { stableStringify } from "@/lib/utils/stable-data";
 
 export type CoursePublicationWriteExecutor = Pick<
@@ -56,7 +59,10 @@ function getPublicDescription(
   return course.description ?? course.outline.description ?? null;
 }
 
-async function loadSectionRows(courseId: string, executor: CoursePublicationWriteExecutor = db) {
+async function loadSectionRows(
+  outlineVersionId: string,
+  executor: CoursePublicationWriteExecutor = db,
+) {
   return executor
     .select({
       id: courseSections.id,
@@ -65,7 +71,7 @@ async function loadSectionRows(courseId: string, executor: CoursePublicationWrit
       outlineNodeKey: courseSections.outlineNodeKey,
     })
     .from(courseSections)
-    .where(eq(courseSections.courseId, courseId));
+    .where(eq(courseSections.outlineVersionId, outlineVersionId));
 }
 
 async function buildPublicationSnapshotContent(
@@ -81,7 +87,7 @@ async function buildPublicationSnapshotContent(
     throw new Error("COURSE_NOT_FOUND");
   }
 
-  const sectionRows = await loadSectionRows(courseId, executor);
+  const sectionRows = await loadSectionRows(course.outlineVersionId, executor);
   const sectionsByNodeId = new Map(sectionRows.map((section) => [section.outlineNodeKey, section]));
 
   return {
@@ -98,10 +104,11 @@ async function buildPublicationSnapshotContent(
       },
       outline: {
         chapters: course.outline.chapters.map((chapter, chapterIndex) => ({
+          nodeId: chapter.nodeId ?? buildChapterOutlineNodeKey(chapterIndex),
           title: chapter.title,
           description: chapter.description ?? "",
           sections: chapter.sections.map((section, sectionIndex) => ({
-            nodeId: buildSectionOutlineNodeKey(chapterIndex, sectionIndex),
+            nodeId: section.nodeId ?? buildSectionOutlineNodeKey(chapterIndex, sectionIndex),
             title: section.title,
             description: section.description ?? "",
           })),
@@ -109,8 +116,9 @@ async function buildPublicationSnapshotContent(
       },
       sections: course.outline.chapters.flatMap((chapter, chapterIndex) =>
         chapter.sections.map((section, sectionIndex) => {
-          const nodeId = buildSectionOutlineNodeKey(chapterIndex, sectionIndex);
-          const persisted = sectionsByNodeId.get(nodeId);
+          const nodeKey = buildSectionOutlineNodeKey(chapterIndex, sectionIndex);
+          const nodeId = section.nodeId ?? nodeKey;
+          const persisted = sectionsByNodeId.get(nodeKey);
 
           return {
             id: persisted?.id ?? nodeId,

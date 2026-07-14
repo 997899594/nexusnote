@@ -7,11 +7,11 @@
  * - 自动合并语义相同的标签
  */
 
-import { embed } from "ai";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { notes, noteTags, tags } from "@/db/schema";
+import { generateEmbedding } from "@/lib/ai/core/embeddings";
 import { buildGenerationSettingsForPolicy } from "@/lib/ai/core/generation-settings";
 import { aiModelGateway } from "@/lib/ai/core/model-gateway";
 import { getPlainModelForPolicy } from "@/lib/ai/core/model-policy";
@@ -172,7 +172,7 @@ class TagGenerationService {
     // 2. 生成 embedding（不可用时降级为精确匹配 + 直接创建）
     let embedding: number[] | null = null;
     try {
-      embedding = await this.generateEmbedding(normalizedName);
+      embedding = await generateEmbedding(normalizedName);
     } catch (error) {
       console.warn(
         `[Tags] Embedding unavailable, skip semantic merge for "${normalizedName}"`,
@@ -182,15 +182,12 @@ class TagGenerationService {
 
     if (embedding) {
       // 3. 向量搜索相似标签
+      const distance = sql<number>`${tags.nameEmbedding} <=> ${JSON.stringify(embedding)}::vector`;
       const [similarTag] = await db
         .select()
         .from(tags)
-        .where(
-          and(
-            sql`name_embedding IS NOT NULL`,
-            sql`cosine_distance(name_embedding, ${JSON.stringify(embedding)}) < ${CONFIG.TAG_MERGE_THRESHOLD}`,
-          ),
-        )
+        .where(and(isNotNull(tags.nameEmbedding), sql`${distance} < ${CONFIG.TAG_MERGE_THRESHOLD}`))
+        .orderBy(distance)
         .limit(1);
 
       if (similarTag) {
@@ -209,22 +206,6 @@ class TagGenerationService {
       .returning();
 
     return newTag;
-  }
-
-  /**
-   * 生成文本 embedding
-   */
-  private async generateEmbedding(text: string): Promise<number[]> {
-    if (!aiModelGateway.isConfigured()) {
-      throw new Error("AI model gateway not configured");
-    }
-
-    const { embedding } = await embed({
-      model: aiModelGateway.getEmbeddingModel(),
-      value: text,
-    });
-
-    return embedding;
   }
 
   /**

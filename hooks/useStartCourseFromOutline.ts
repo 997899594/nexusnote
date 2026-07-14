@@ -16,6 +16,7 @@ export function useStartCourseFromOutline({ outline, courseId }: StartCourseFrom
   const { addToast } = useToast();
   const [isStarting, setIsStarting] = useState(false);
   const [startStatus, setStartStatus] = useState<string | null>(null);
+  const [entitlementRequired, setEntitlementRequired] = useState(false);
   const canStartLearning = Boolean(outline) && !isStarting;
 
   const startCourse = async () => {
@@ -30,6 +31,7 @@ export function useStartCourseFromOutline({ outline, courseId }: StartCourseFrom
 
     setIsStarting(true);
     setStartStatus("创建课程");
+    setEntitlementRequired(false);
 
     let isNavigating = false;
     try {
@@ -63,6 +65,13 @@ export function useStartCourseFromOutline({ outline, courseId }: StartCourseFrom
         return;
       }
 
+      if (status === 402 && code === "ENTITLEMENT_REQUIRED") {
+        setStartStatus(null);
+        setEntitlementRequired(true);
+        addToast("当前页面中的课程蓝图已保留", "info");
+        return;
+      }
+
       setStartStatus(null);
       addToast(message || "课程生成失败", "error");
     } finally {
@@ -76,6 +85,8 @@ export function useStartCourseFromOutline({ outline, courseId }: StartCourseFrom
     canStartLearning,
     isStarting,
     startStatus,
+    entitlementRequired,
+    clearEntitlementRequired: () => setEntitlementRequired(false),
     startCourse,
   };
 }

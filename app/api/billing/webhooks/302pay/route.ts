@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { billingOrders, billingWebhookEvents, db, eq } from "@/db";
+import { billingOrders, db, eq } from "@/db";
 import { badRequest, handleError, notFound } from "@/lib/api";
 import { getPay302CheckoutStatus, isPay302PaidStatus } from "@/lib/billing/302pay";
-import { markOrderPaidAndGrantEntitlement } from "@/lib/billing/entitlements";
+import { processPaidBillingWebhook, recordBillingWebhookEvent } from "@/lib/billing/entitlements";
 
 const Pay302CallbackSchema = z.object({
   checkout_id: z.string().trim().min(1).optional(),
@@ -38,22 +38,20 @@ async function handlePay302Callback(request: Request) {
   const status = await getPay302CheckoutStatus(checkoutId);
   const eventId = `302pay:${status.checkout_id}:${status.status}`;
 
-  const [event] = await db
-    .insert(billingWebhookEvents)
-    .values({
-      provider: "302pay",
-      eventId,
-      payload: status,
-    })
-    .onConflictDoNothing()
-    .returning();
-
-  if (!event) {
-    return Response.json({ received: true, duplicate: true });
-  }
+  const event = {
+    provider: "302pay",
+    eventId,
+    payload: status,
+  };
 
   if (!isPay302PaidStatus(status.status)) {
-    return Response.json({ received: true, paid: false, status: status.status });
+    const result = await recordBillingWebhookEvent(event);
+    return Response.json({
+      received: true,
+      duplicate: result.duplicate,
+      paid: false,
+      status: status.status,
+    });
   }
 
   const [order] = await db
@@ -66,22 +64,20 @@ async function handlePay302Callback(request: Request) {
     throw notFound("302Pay 订单不存在", "BILLING_302PAY_ORDER_NOT_FOUND");
   }
 
-  await markOrderPaidAndGrantEntitlement({
+  const result = await processPaidBillingWebhook({
+    event: {
+      provider: "302pay",
+      eventId,
+      payload: status,
+    },
     orderId: order.id,
-    provider: "302pay",
     providerOrderId: status.checkout_id,
     providerTransactionId: status.checkout_id,
     paidAt: new Date(),
+    amountCents: status.amount == null ? undefined : Math.round(status.amount * 100),
   });
 
-  await db
-    .update(billingWebhookEvents)
-    .set({
-      processedAt: new Date(),
-    })
-    .where(eq(billingWebhookEvents.id, event.id));
-
-  return Response.json({ received: true, paid: true });
+  return Response.json({ received: true, duplicate: result.duplicate, paid: true });
 }
 
 export const GET = async (request: Request) => {

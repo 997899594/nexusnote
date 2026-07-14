@@ -2,7 +2,10 @@ import "server-only";
 
 import { cacheLife, cacheTag } from "next/cache";
 import { getProfileStatsTag } from "@/lib/cache/tags";
-import { getRecentItemsCached, type RecentItem } from "@/lib/learning/recent-courses-data";
+import {
+  getRecentLearningItemsCached,
+  type RecentLearningItem,
+} from "@/lib/learning/recent-courses-data";
 import { getUserProfileOverviewCached, type ProfileOverview } from "@/lib/profile/stats-data";
 
 export interface ProfileHomePrimaryLearningEntry {
@@ -18,7 +21,7 @@ export interface ProfileHomeData {
 }
 
 function buildPrimaryLearningEntry(
-  primaryCourse: RecentItem | null,
+  primaryCourse: RecentLearningItem | null,
 ): ProfileHomePrimaryLearningEntry {
   if (!primaryCourse) {
     return {
@@ -31,11 +34,19 @@ function buildPrimaryLearningEntry(
 
   return {
     title: primaryCourse.title,
-    description: primaryCourse.desc
-      ? `${primaryCourse.desc}。从这里继续学习。`
-      : "从上次停下的地方继续学习。",
+    description:
+      primaryCourse.status === "completed"
+        ? "课程已完成，可以回看内容、笔记和学习对话。"
+        : primaryCourse.nextSectionTitle
+          ? `下一篇：${primaryCourse.nextSectionTitle}`
+          : "从第一篇内容开始学习。",
     href: primaryCourse.url,
-    cta: "继续学习",
+    cta:
+      primaryCourse.status === "completed"
+        ? "查看课程"
+        : primaryCourse.status === "not_started"
+          ? "开始学习"
+          : "继续学习",
   };
 }
 
@@ -47,7 +58,7 @@ export async function getProfileHomeDataCached(userId: string): Promise<ProfileH
 
   const [overview, recentCourses] = await Promise.all([
     getUserProfileOverviewCached(userId),
-    getRecentItemsCached(userId, 1),
+    getRecentLearningItemsCached(userId, 1),
   ]);
   const primaryCourse = recentCourses[0] ?? null;
 

@@ -1,16 +1,17 @@
 import {
   ArrowUpRight,
-  BarChart3,
   Brain,
+  CalendarDays,
+  CheckCircle2,
   Compass,
   FileText,
   GraduationCap,
+  RotateCcw,
   Settings2,
 } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { KnowledgeInsightStrip } from "@/components/knowledge/KnowledgeInsightStrip";
-import { ProfileAiUsagePanel } from "@/components/profile/ProfileAiUsagePanel";
 import { FloatingHeader, LibraryAnalysisPageShell } from "@/components/shared/layout";
 import { redirectIfUnauthenticated } from "@/lib/auth/page";
 import { getCareerNodeStateLabel } from "@/lib/career-tree/presentation";
@@ -23,7 +24,7 @@ async function ProfileInsightsPageContent() {
   const session = await redirectIfUnauthenticated("/profile/insights");
   const windowStart = getProfileStatsWindowStart();
   const data = await getProfileInsightsPageDataCached(session.user.id, windowStart.toISOString());
-  const { usage, overview, focusNotes, insights: topInsights } = data;
+  const { learning, overview, focusNotes, insights: topInsights } = data;
 
   return (
     <LibraryAnalysisPageShell
@@ -71,6 +72,49 @@ async function ProfileInsightsPageContent() {
       </section>
 
       <div className="space-y-8">
+        <section className="grid border-y border-black/[0.06] sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            {
+              label: "活跃学习日",
+              value: learning.activeDays,
+              detail: "最近 7 天",
+              icon: CalendarDays,
+            },
+            {
+              label: "完成篇数",
+              value: learning.completedSections,
+              detail: "最近 7 天",
+              icon: CheckCircle2,
+            },
+            {
+              label: "恢复学习",
+              value: learning.resumedSessions,
+              detail: "再次打开课程",
+              icon: RotateCcw,
+            },
+            {
+              label: "课程完成率",
+              value: `${learning.completionRate}%`,
+              detail: `${learning.completedCourses}/${learning.startedCourses} 门`,
+              icon: GraduationCap,
+            },
+          ].map((metric) => (
+            <div
+              key={metric.label}
+              className="border-black/[0.06] px-4 py-5 sm:border-r last:border-r-0"
+            >
+              <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+                <metric.icon className="h-4 w-4" />
+                {metric.label}
+              </div>
+              <div className="mt-3 text-3xl font-semibold text-[var(--color-text)]">
+                {metric.value}
+              </div>
+              <div className="mt-1 text-xs text-[var(--color-text-tertiary)]">{metric.detail}</div>
+            </div>
+          ))}
+        </section>
+
         {overview ? (
           <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
             <article className="ui-message-card rounded-[30px] p-5 md:p-6">
@@ -192,20 +236,6 @@ async function ProfileInsightsPageContent() {
             </div>
           </section>
         ) : null}
-
-        <section>
-          <div className="mb-4 flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
-            <BarChart3 className="h-4 w-4" />
-            AI 使用
-          </div>
-          <ProfileAiUsagePanel
-            usage={usage}
-            windowStartLabel={usage.windowStart.toLocaleDateString("zh-CN", {
-              month: "short",
-              day: "numeric",
-            })}
-          />
-        </section>
       </div>
     </LibraryAnalysisPageShell>
   );
