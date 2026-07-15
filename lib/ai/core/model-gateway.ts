@@ -87,10 +87,13 @@ function createPlainModel(
 }
 
 class AIModelGateway {
-  private static instance: AIModelGateway;
-  private readonly client: ReturnType<typeof createOpenAI>;
+  private client: ReturnType<typeof createOpenAI> | null = null;
 
-  private constructor() {
+  private getClient(): ReturnType<typeof createOpenAI> {
+    if (this.client) {
+      return this.client;
+    }
+
     this.client = createOpenAI({
       baseURL: env.AI_302_BASE_URL,
       apiKey: env.AI_302_API_KEY,
@@ -102,13 +105,7 @@ class AIModelGateway {
     if (env.AI_DEBUG_LOGS) {
       console.log("[AI] Model gateway initialized");
     }
-  }
-
-  static getInstance(): AIModelGateway {
-    if (!AIModelGateway.instance) {
-      AIModelGateway.instance = new AIModelGateway();
-    }
-    return AIModelGateway.instance;
+    return this.client;
   }
 
   isConfigured(): boolean {
@@ -126,16 +123,20 @@ class AIModelGateway {
   }
 
   getModel(modelType: LanguageModelType = "chat", modelSeries?: AIModelSeries) {
-    return createReasoningModel(this.client, this.getModelId(modelType, modelSeries), modelType);
+    return createReasoningModel(
+      this.getClient(),
+      this.getModelId(modelType, modelSeries),
+      modelType,
+    );
   }
 
   getPlainModel(modelType: LanguageModelType = "chat", modelSeries?: AIModelSeries) {
-    return createPlainModel(this.client, this.getModelId(modelType, modelSeries));
+    return createPlainModel(this.getClient(), this.getModelId(modelType, modelSeries));
   }
 
   getToolCallingModel(modelType: LanguageModelType = "chat", modelSeries?: AIModelSeries) {
     const targetModelType = modelType === "chat" ? "toolCalling" : modelType;
-    return createPlainModel(this.client, this.getModelId(targetModelType, modelSeries));
+    return createPlainModel(this.getClient(), this.getModelId(targetModelType, modelSeries));
   }
 
   getModelName(modelType: ModelType = "chat", modelSeries?: AIModelSeries): string {
@@ -143,8 +144,8 @@ class AIModelGateway {
   }
 
   getEmbeddingModel(): EmbeddingModelV3 {
-    return this.client.embedding(this.getModelId("embedding")) as EmbeddingModelV3;
+    return this.getClient().embedding(this.getModelId("embedding")) as EmbeddingModelV3;
   }
 }
 
-export const aiModelGateway = AIModelGateway.getInstance();
+export const aiModelGateway = new AIModelGateway();

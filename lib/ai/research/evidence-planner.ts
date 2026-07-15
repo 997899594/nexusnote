@@ -3,6 +3,7 @@ import type { AIModelSeries } from "@/lib/ai/core/model-series";
 import {
   createResearchEvidenceDecisionInput,
   createResearchEvidenceDecisionInputFromMessages,
+  type ModelFreshnessDecision,
   type ModelFreshnessDecisionInput,
   type ResearchEvidenceRequest,
   resolveResearchEvidenceRequest,
@@ -10,9 +11,20 @@ import {
   resolveResearchEvidenceRequestFromModelDecision,
 } from "@/lib/ai/research/evidence-request";
 import { shouldUseModelFreshnessPlanner } from "@/lib/ai/research/evidence-signals";
-import { resolveModelFreshnessDecision } from "@/lib/ai/research/freshness-decision";
 
-export type FreshnessDecisionResolver = typeof resolveModelFreshnessDecision;
+export type FreshnessDecisionResolver = (params: {
+  input: ModelFreshnessDecisionInput;
+  userId?: string;
+  modelSeries?: AIModelSeries;
+  currentDate?: Date;
+}) => Promise<ModelFreshnessDecision | null>;
+
+async function resolveDefaultModelFreshnessDecision(
+  params: Parameters<FreshnessDecisionResolver>[0],
+): Promise<ModelFreshnessDecision | null> {
+  const { resolveModelFreshnessDecision } = await import("@/lib/ai/research/freshness-decision");
+  return resolveModelFreshnessDecision(params);
+}
 
 async function resolveWithModelPlanner(params: {
   decisionInput: ModelFreshnessDecisionInput | null;
@@ -25,7 +37,7 @@ async function resolveWithModelPlanner(params: {
     return null;
   }
 
-  const decision = await (params.decisionResolver ?? resolveModelFreshnessDecision)({
+  const decision = await (params.decisionResolver ?? resolveDefaultModelFreshnessDecision)({
     input: params.decisionInput,
     userId: params.userId,
     modelSeries: params.modelSeries,

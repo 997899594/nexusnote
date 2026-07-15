@@ -1,9 +1,9 @@
+import { buildCourseSectionSystemPrompt } from "@/lib/ai/prompts/course-section";
 import { resolveResearchEvidenceRequestWithPlanner } from "@/lib/ai/research/evidence-planner";
 import {
   createResearchEvidenceDecisionInput,
   resolveResearchEvidenceRequest,
 } from "@/lib/ai/research/evidence-request";
-import { buildCourseSectionSystemPrompt } from "@/lib/ai/workflows/course-section-production";
 import { buildSafeJobId } from "@/lib/queue/job-id";
 
 const currentDate = new Date("2026-06-05");
