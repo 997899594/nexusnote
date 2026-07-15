@@ -50,8 +50,9 @@ Minimum required keys:
 Optional but recommended:
 - `RESEND_API_KEY`
 - `EMAIL_FROM`
-- `LANGFUSE_PUBLIC_KEY`
-- `LANGFUSE_SECRET_KEY`
+- `AI_MODEL_PRICING_VERSION`
+- `AI_MODEL_PRICING_JSON`
+- `OTEL_EXPORTER_OTLP_ENDPOINT` (required in production for SLO metrics)
 
 ## Release flow
 

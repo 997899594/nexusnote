@@ -70,6 +70,7 @@ export async function createPayJSCashierCheckout(params: {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams(formParams).toString(),
+    signal: AbortSignal.timeout(10_000),
   });
 
   if (!response.ok) {
@@ -107,6 +108,7 @@ export async function getPayJSOrderStatus(payjsOrderId: string): Promise<PayJSSt
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams(queryParams).toString(),
+    signal: AbortSignal.timeout(10_000),
   });
 
   if (!response.ok) {

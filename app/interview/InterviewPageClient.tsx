@@ -137,7 +137,10 @@ function OutlineInlineCard({
 
         <div className="mt-4 space-y-2">
           {outline.chapters.slice(0, 3).map((chapter, index) => (
-            <div key={`${chapter.title}-${index}`} className="flex items-center gap-3 text-sm">
+            <div
+              key={`${chapter.title}:${chapter.sections.map((section) => section.title).join(":")}`}
+              className="flex items-center gap-3 text-sm"
+            >
               <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--color-panel-soft)] text-xs font-semibold text-[var(--color-text-secondary)]">
                 {index + 1}
               </span>

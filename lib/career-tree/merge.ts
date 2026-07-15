@@ -30,12 +30,13 @@ import {
 } from "@/lib/career-tree/pipeline-log";
 import { enqueueCareerTreeCompose } from "@/lib/career-tree/queue";
 import {
+  acquireCareerRun,
   type CareerRunFailureOptions,
   getCareerRunById,
   getLatestSucceededCareerRun,
-  getOrCreateCareerRun,
   markCareerRunFailed,
   markCareerRunSucceeded,
+  startCareerRunLeaseHeartbeat,
 } from "@/lib/career-tree/runs";
 import { recomputeCareerNodeAggregates } from "./aggregation";
 
@@ -537,7 +538,7 @@ export async function processCareerTreeMergeJob(job: {
     extractRunId: job.extractRunId ?? null,
   });
   const extractRun = await loadExtractRun(job);
-  if (!extractRun || extractRun.status !== "succeeded") {
+  if (extractRun?.status !== "succeeded") {
     logCareerTreePipelineSkip({
       stage: "merge",
       reason: "succeeded_extract_run_missing",
@@ -551,7 +552,7 @@ export async function processCareerTreeMergeJob(job: {
   }
 
   const model = getCareerTreeRunModelName("merge");
-  const mergeRun = await getOrCreateCareerRun({
+  const acquisition = await acquireCareerRun({
     userId: job.userId,
     courseId: job.courseId,
     kind: "merge",
@@ -561,8 +562,9 @@ export async function processCareerTreeMergeJob(job: {
     promptVersion: CAREER_TREE_MERGE_PROMPT_VERSION,
     reuseCompleted: true,
   });
+  const mergeRun = acquisition.run;
 
-  if (mergeRun.status === "succeeded") {
+  if (acquisition.state === "completed") {
     logCareerTreePipelineEvent("career_tree_pipeline_succeeded", {
       stage: "merge",
       userId: job.userId,
@@ -578,19 +580,10 @@ export async function processCareerTreeMergeJob(job: {
     return;
   }
 
-  const [existingNodes, existingEdges, evidenceRows] = await Promise.all([
-    db.select().from(careerUserSkillNodes).where(eq(careerUserSkillNodes.userId, job.userId)),
-    db.select().from(careerUserSkillEdges).where(eq(careerUserSkillEdges.userId, job.userId)),
-    db
-      .select()
-      .from(careerCourseSkillEvidence)
-      .where(eq(careerCourseSkillEvidence.extractRunId, extractRun.id)),
-  ]);
-
-  if (evidenceRows.length === 0) {
+  if (acquisition.state === "busy") {
     logCareerTreePipelineSkip({
       stage: "merge",
-      reason: "extract_run_has_no_evidence",
+      reason: "run_lease_held",
       userId: job.userId,
       courseId: job.courseId,
       requestKey: job.requestKey ?? null,
@@ -600,7 +593,41 @@ export async function processCareerTreeMergeJob(job: {
     return;
   }
 
+  const stopLeaseHeartbeat = startCareerRunLeaseHeartbeat({
+    runId: mergeRun.id,
+    fencingToken: acquisition.fencingToken,
+  });
+
   try {
+    const [existingNodes, existingEdges, evidenceRows] = await Promise.all([
+      db.select().from(careerUserSkillNodes).where(eq(careerUserSkillNodes.userId, job.userId)),
+      db.select().from(careerUserSkillEdges).where(eq(careerUserSkillEdges.userId, job.userId)),
+      db
+        .select()
+        .from(careerCourseSkillEvidence)
+        .where(eq(careerCourseSkillEvidence.extractRunId, extractRun.id)),
+    ]);
+
+    if (evidenceRows.length === 0) {
+      await markCareerRunSucceeded(db, mergeRun.id, acquisition.fencingToken, {
+        decisions: [],
+        reason: "extract_run_has_no_evidence",
+      });
+      logCareerTreePipelineSkip({
+        stage: "merge",
+        reason: "extract_run_has_no_evidence",
+        userId: job.userId,
+        courseId: job.courseId,
+        requestKey: job.requestKey ?? null,
+        runId: mergeRun.id,
+        extractRunId: extractRun.id,
+      });
+      if (job.enqueueFollowups !== false) {
+        await enqueueCareerTreeCompose(job.userId, job.requestKey);
+      }
+      return;
+    }
+
     const planned = await planCareerMerge({
       userId: job.userId,
       courseId: job.courseId,
@@ -638,7 +665,7 @@ export async function processCareerTreeMergeJob(job: {
         validated,
         priorMergeRunIds,
       });
-      await markCareerRunSucceeded(tx, mergeRun.id, validated);
+      await markCareerRunSucceeded(tx, mergeRun.id, acquisition.fencingToken, validated);
     });
     logCareerTreePipelineEvent("career_tree_pipeline_succeeded", {
       stage: "merge",
@@ -657,7 +684,9 @@ export async function processCareerTreeMergeJob(job: {
       await enqueueCareerTreeCompose(job.userId, job.requestKey);
     }
   } catch (error) {
-    await markCareerRunFailed(mergeRun.id, error, job.failure);
+    await markCareerRunFailed(mergeRun.id, acquisition.fencingToken, error, job.failure);
     throw error;
+  } finally {
+    stopLeaseHeartbeat();
   }
 }

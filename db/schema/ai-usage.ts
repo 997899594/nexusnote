@@ -1,4 +1,5 @@
 import {
+  bigint,
   boolean,
   index,
   integer,
@@ -9,6 +10,14 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { users } from "./auth";
+
+export interface AIModelPricingSnapshot {
+  version: string;
+  currency: "USD";
+  model: string;
+  inputPerMillion: number | null;
+  outputPerMillion: number | null;
+}
 
 export const aiUsage = pgTable(
   "ai_usage",
@@ -29,7 +38,8 @@ export const aiUsage = pgTable(
     inputTokens: integer("input_tokens").notNull().default(0),
     outputTokens: integer("output_tokens").notNull().default(0),
     totalTokens: integer("total_tokens").notNull().default(0),
-    costCents: integer("cost_cents").notNull().default(0),
+    costMicroUsd: bigint("cost_micro_usd", { mode: "number" }).notNull().default(0),
+    pricingSnapshot: jsonb("pricing_snapshot").$type<AIModelPricingSnapshot>(),
     durationMs: integer("duration_ms"),
     success: boolean("success").notNull().default(true),
     errorMessage: text("error_message"),

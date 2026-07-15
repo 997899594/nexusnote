@@ -1,11 +1,12 @@
-import { db, learningActivityEvents } from "@/db";
+import { learningActivityEvents } from "@/db";
 import type {
   LearningActivityEventType,
   LearningActivityMetadata,
 } from "@/db/schema/learning-activity";
+import type { LearningEnrollmentExecutor } from "@/lib/learning/enrollments";
 import { appendLearningOutboxEvent, LEARNING_OUTBOX_TOPICS } from "@/lib/learning/outbox";
 
-export type LearningActivityExecutor = Pick<typeof db, "insert">;
+export type LearningActivityExecutor = Pick<LearningEnrollmentExecutor, "insert">;
 
 export interface AppendLearningActivityEventInput {
   id?: string;
@@ -21,7 +22,7 @@ export interface AppendLearningActivityEventInput {
 
 export async function appendLearningActivityEvent(
   input: AppendLearningActivityEventInput,
-  executor: LearningActivityExecutor = db,
+  executor: LearningActivityExecutor,
 ): Promise<string | null> {
   const eventId = input.id ?? crypto.randomUUID();
   const occurredAt = input.occurredAt ?? new Date();

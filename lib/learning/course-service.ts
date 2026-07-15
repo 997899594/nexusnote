@@ -1,5 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { courseOutlineNodes, courseOutlineVersions, courseSections, courses, db } from "@/db";
+import { AI_CAPABILITIES } from "@/lib/billing/capabilities";
+import { consumeCapabilityAllowance } from "@/lib/billing/capability-access";
 import {
   appendLearningActivityEvent,
   buildLearningActivityKey,
@@ -143,6 +145,7 @@ export async function saveCourseFromOutline({
   courseId,
 }: SaveCourseFromOutlineOptions): Promise<SaveCourseFromOutlineResult> {
   const isNewCourse = !courseId;
+  const targetCourseId = courseId ?? crypto.randomUUID();
   const result = await db.transaction(async (tx) => {
     const now = new Date();
     const outlineVersionHash = computeCourseOutlineVersionHash(outline);
@@ -155,9 +158,9 @@ export async function saveCourseFromOutline({
       updatedAt: now,
     };
 
-    let persistedCourseId = courseId;
+    let persistedCourseId = targetCourseId;
 
-    if (persistedCourseId) {
+    if (courseId) {
       const existingCourse = await getOwnedCourse(persistedCourseId, userId, tx);
       if (!existingCourse) {
         throw new Error("课程不存在或无权访问");
@@ -165,9 +168,15 @@ export async function saveCourseFromOutline({
 
       await tx.update(courses).set(courseValues).where(eq(courses.id, persistedCourseId));
     } else {
+      await consumeCapabilityAllowance(tx, {
+        userId,
+        capability: AI_CAPABILITIES.courseGeneration,
+        consumptionKey: `course-generation:${persistedCourseId}`,
+        metadata: { courseId: persistedCourseId },
+      });
       const [createdCourse] = await tx
         .insert(courses)
-        .values(courseValues)
+        .values({ id: persistedCourseId, ...courseValues })
         .returning({ id: courses.id });
 
       persistedCourseId = createdCourse.id;

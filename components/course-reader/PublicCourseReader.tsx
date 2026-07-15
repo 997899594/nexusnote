@@ -17,365 +17,70 @@ import {
   Send,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
 import { CourseReaderArticle } from "@/components/course-reader/CourseReaderArticle";
 import { TextSelectionActionBar } from "@/components/course-reader/TextSelectionActionBar";
-import { AppBackLink } from "@/components/shared/layout";
-import { useToast } from "@/components/ui/Toast";
-import { useTextAnchorHighlights } from "@/hooks/useTextAnchorHighlights";
-import { stripLeadingSectionHeading, stripSectionNumber } from "@/lib/learning/content-formatting";
-import type {
-  PublicCourseAnnotationProjection,
-  PublicCourseReaderProjection,
-} from "@/lib/learning/course-sharing-types";
 import {
-  createPublicAnnotation,
-  mergePublicAnnotationMutation,
-  submitPublicCourseUrge,
-  subscribePublicCourse,
-  togglePublicCourseLike,
-  updatePublicAnnotationStatus,
-} from "@/lib/learning/public-course-client";
+  getPublicChapterKey as getChapterKey,
+  usePublicCourseReaderController,
+} from "@/components/course-reader/usePublicCourseReaderController";
+import { AppBackLink } from "@/components/shared/layout";
+import { stripSectionNumber } from "@/lib/learning/content-formatting";
+import type { PublicCourseReaderProjection } from "@/lib/learning/course-sharing-types";
 import { PAGE_BACK_TARGETS } from "@/lib/navigation/app-navigation";
 import { cn } from "@/lib/utils";
-import { copyTextToClipboard } from "@/lib/utils/clipboard";
 
 interface PublicCourseReaderProps {
   data: PublicCourseReaderProjection;
 }
 
-type PublicOutlineChapter = PublicCourseReaderProjection["content"]["outline"]["chapters"][number];
-
-interface SelectionDraft {
-  sectionKey: string;
-  quotedText: string;
-  anchor: PublicCourseAnnotationProjection["anchor"];
-}
-
-const EMPTY_PUBLIC_ANNOTATIONS: PublicCourseAnnotationProjection[] = [];
-
-function getChapterKey(chapterTitle: string, chapterIndex: number): string {
-  return `${chapterIndex}:${chapterTitle}`;
-}
-
-function getSectionChapterKey(chapters: PublicOutlineChapter[], sectionKey: string): string | null {
-  const chapterIndex = chapters.findIndex((chapter) =>
-    chapter.sections.some((section) => section.nodeId === sectionKey),
-  );
-
-  if (chapterIndex < 0) {
-    return null;
-  }
-
-  return getChapterKey(chapters[chapterIndex].title, chapterIndex);
-}
-
 export function PublicCourseReader({ data }: PublicCourseReaderProps) {
-  const { addToast } = useToast();
-  const [activeSectionKey, setActiveSectionKey] = useState(
-    () => data.content.outline.chapters[0]?.sections[0]?.nodeId ?? "",
-  );
-  const [annotations, setAnnotations] = useState(data.annotations);
-  const [subscription, setSubscription] = useState(data.subscription);
-  const [liked, setLiked] = useState(data.viewer.liked);
-  const [urged, setUrged] = useState(data.viewer.urged);
-  const [likesCount, setLikesCount] = useState(data.engagement.likesCount);
-  const [urgesCount, setUrgesCount] = useState(data.engagement.urgesCount);
-  const [selectionDraft, setSelectionDraft] = useState<SelectionDraft | null>(null);
-  const [annotationBody, setAnnotationBody] = useState("");
-  const [activeAnnotationId, setActiveAnnotationId] = useState<string | null>(null);
-  const [isSubmittingAnnotation, setIsSubmittingAnnotation] = useState(false);
-  const [isSubscribingCourse, setIsSubscribingCourse] = useState(false);
-  const [moderatingAnnotationId, setModeratingAnnotationId] = useState<string | null>(null);
-  const [mobilePanel, setMobilePanel] = useState<"outline" | "annotations" | null>(null);
-  const [isMobileToolsOpen, setIsMobileToolsOpen] = useState(false);
-  const [expandedChapterKeys, setExpandedChapterKeys] = useState<Set<string>>(
-    () =>
-      new Set(
-        data.content.outline.chapters[0]
-          ? [getChapterKey(data.content.outline.chapters[0].title, 0)]
-          : [],
-      ),
-  );
-  const articleContentRef = useRef<HTMLDivElement | null>(null);
-  const isOwnerView = data.capabilities.canModeratePublicAnnotations;
-  const visibleAnnotations = useMemo(
-    () => annotations.filter((annotation) => annotation.status === "visible"),
-    [annotations],
-  );
-  const displayAnnotations = useMemo(
-    () => (isOwnerView ? annotations : visibleAnnotations),
-    [annotations, isOwnerView, visibleAnnotations],
-  );
-  const annotationsBySection = useMemo(() => {
-    const map = new Map<string, PublicCourseAnnotationProjection[]>();
-    for (const annotation of displayAnnotations) {
-      const existing = map.get(annotation.sectionKey) ?? [];
-      existing.push(annotation);
-      map.set(annotation.sectionKey, existing);
-    }
-    return map;
-  }, [displayAnnotations]);
-  const visibleAnnotationsBySection = useMemo(() => {
-    const map = new Map<string, PublicCourseAnnotationProjection[]>();
-    for (const annotation of visibleAnnotations) {
-      const existing = map.get(annotation.sectionKey) ?? [];
-      existing.push(annotation);
-      map.set(annotation.sectionKey, existing);
-    }
-    return map;
-  }, [visibleAnnotations]);
-
-  const activeSection =
-    data.content.sections.find((section) => section.nodeId === activeSectionKey) ??
-    data.content.sections[0] ??
-    null;
-  const activeSectionAnnotations =
-    annotationsBySection.get(activeSectionKey) ?? EMPTY_PUBLIC_ANNOTATIONS;
-  const activeVisibleAnnotations =
-    visibleAnnotationsBySection.get(activeSectionKey) ?? EMPTY_PUBLIC_ANNOTATIONS;
-  const hiddenAnnotationCount = annotations.filter(
-    (annotation) => annotation.status === "hidden",
-  ).length;
-  const totalSections = data.content.sections.length;
-  const activeChapterIndex = data.content.outline.chapters.findIndex((chapter) =>
-    chapter.sections.some((section) => section.nodeId === activeSectionKey),
-  );
-  const activeChapter =
-    activeChapterIndex >= 0 ? data.content.outline.chapters[activeChapterIndex] : null;
-  const activeOutlineSection =
-    activeChapter?.sections.find((section) => section.nodeId === activeSectionKey) ?? null;
-  const activeSectionTitle = activeOutlineSection?.title ?? activeSection?.title ?? "未命名小节";
-  const activeSectionIntro =
-    activeOutlineSection?.description.trim() || activeChapter?.description.trim() || "";
-  const activeSectionOrderByKey = useMemo(() => {
-    const map = new Map<string, number>();
-    let order = 1;
-
-    for (const chapter of data.content.outline.chapters) {
-      for (const section of chapter.sections) {
-        map.set(section.nodeId, order);
-        order += 1;
-      }
-    }
-
-    return map;
-  }, [data.content.outline.chapters]);
-  const activeSectionOrder = activeSectionOrderByKey.get(activeSectionKey) ?? 0;
-  const activeSectionContent = activeSection?.content
-    ? stripLeadingSectionHeading(activeSection.content, activeSectionTitle)
-    : "";
-  const annotationHighlightItems = useMemo(
-    () =>
-      activeVisibleAnnotations.map((annotation) => ({
-        id: annotation.id,
-        anchor: annotation.anchor,
-        quotedText: annotation.quotedText,
-      })),
-    [activeVisibleAnnotations],
-  );
-  const annotationHighlights = useTextAnchorHighlights({
-    containerRef: articleContentRef,
-    items: annotationHighlightItems,
-  });
-
-  useEffect(() => {
-    if (!mobilePanel && !isMobileToolsOpen) {
-      return;
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setMobilePanel(null);
-      }
-    };
-
-    document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.body.style.overflow = "";
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isMobileToolsOpen, mobilePanel]);
-
-  const copyLink = async () => {
-    const result = await copyTextToClipboard(window.location.href);
-    if (result === "failed") {
-      addToast("复制受浏览器限制，请从地址栏复制链接", "warning");
-      return;
-    }
-
-    addToast("已复制公开链接", "success");
-  };
-
-  const focusAnnotation = (annotationId: string) => {
-    setActiveAnnotationId(annotationId);
-    setMobilePanel(null);
-    requestAnimationFrame(() => {
-      document
-        .querySelector(`[data-public-annotation-id="${annotationId}"]`)
-        ?.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
-    });
-  };
-
-  const selectSection = (sectionKey: string) => {
-    setActiveSectionKey(sectionKey);
-    const chapterKey = getSectionChapterKey(data.content.outline.chapters, sectionKey);
-    if (chapterKey) {
-      setExpandedChapterKeys((current) => {
-        if (current.has(chapterKey)) {
-          return current;
-        }
-
-        return new Set([...current, chapterKey]);
-      });
-    }
-    setMobilePanel(null);
-  };
-
-  const selectChapter = (chapterKey: string, sectionKey?: string) => {
-    if (sectionKey && sectionKey !== activeSectionKey) {
-      setActiveSectionKey(sectionKey);
-    }
-
-    setExpandedChapterKeys(new Set([chapterKey]));
-  };
-
-  const startComment = (draft: SelectionDraft) => {
-    if (!data.capabilities.canAnnotatePublicly) {
-      addToast("登录后可以发表评论", "info");
-      return;
-    }
-
-    setSelectionDraft(draft);
-    setAnnotationBody("");
-  };
-
-  const toggleLike = async () => {
-    if (!data.viewer.userId) {
-      window.location.assign(
-        `/login?callbackUrl=${encodeURIComponent(`/c/${data.publication.slug}`)}`,
-      );
-      return;
-    }
-
-    try {
-      const result = await togglePublicCourseLike({
-        publicationSlug: data.publication.slug,
-      });
-      setLiked(result.liked);
-      setLikesCount((count) => Math.max(0, count + (result.liked ? 1 : -1)));
-    } catch {
-      addToast("\u64cd\u4f5c\u5931\u8d25\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5", "error");
-    }
-  };
-
-  const toggleUrge = async () => {
-    if (!data.viewer.userId) {
-      window.location.assign(
-        `/login?callbackUrl=${encodeURIComponent(`/c/${data.publication.slug}`)}`,
-      );
-      return;
-    }
-
-    try {
-      const result = await submitPublicCourseUrge({
-        publicationSlug: data.publication.slug,
-      });
-      setUrged(result.urged);
-      setUrgesCount((count) => Math.max(0, count + (result.urged ? 1 : -1)));
-    } catch {
-      addToast("\u64cd\u4f5c\u5931\u8d25\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5", "error");
-    }
-  };
-
-  const subscribeAndStart = async () => {
-    if (subscription.learnUrl) {
-      window.location.assign(subscription.learnUrl);
-      return;
-    }
-
-    if (!data.viewer.userId) {
-      window.location.assign(
-        `/login?callbackUrl=${encodeURIComponent(`/c/${data.publication.slug}`)}`,
-      );
-      return;
-    }
-
-    setIsSubscribingCourse(true);
-
-    try {
-      const payload = await subscribePublicCourse({
-        publicationSlug: data.publication.slug,
-      });
-
-      setSubscription({
-        active: true,
-        learnUrl: payload.learnUrl,
-      });
-
-      window.location.replace(payload.learnUrl);
-    } catch {
-      addToast("订阅失败，请稍后重试", "error");
-      setIsSubscribingCourse(false);
-    }
-  };
-
-  const updateAnnotationStatus = async (
-    annotation: PublicCourseAnnotationProjection,
-    status: PublicCourseAnnotationProjection["status"],
-  ) => {
-    setModeratingAnnotationId(annotation.id);
-
-    try {
-      const payload = await updatePublicAnnotationStatus<PublicCourseAnnotationProjection>({
-        publicationSlug: data.publication.slug,
-        annotationId: annotation.id,
-        status,
-      });
-      const nextAnnotation = mergePublicAnnotationMutation(annotation, payload, status);
-
-      setAnnotations((current) =>
-        current.map((item) => (item.id === annotation.id ? nextAnnotation : item)),
-      );
-      addToast(status === "hidden" ? "评论已隐藏" : "评论已恢复", "success");
-    } catch {
-      addToast("更新评论失败，请稍后重试", "error");
-    } finally {
-      setModeratingAnnotationId(null);
-    }
-  };
-
-  const submitAnnotation = async () => {
-    if (!selectionDraft || !annotationBody.trim()) {
-      return;
-    }
-
-    setIsSubmittingAnnotation(true);
-
-    try {
-      const payload = await createPublicAnnotation<PublicCourseAnnotationProjection>({
-        publicationSlug: data.publication.slug,
-        ...selectionDraft,
-        body: annotationBody.trim(),
-      });
-      if (payload.annotation) {
-        setAnnotations((current) => [
-          ...current,
-          payload.annotation as PublicCourseAnnotationProjection,
-        ]);
-      }
-
-      addToast("评论已发布", "success");
-      setSelectionDraft(null);
-      setAnnotationBody("");
-    } catch {
-      addToast("发布评论失败，请稍后重试", "error");
-    } finally {
-      setIsSubmittingAnnotation(false);
-    }
-  };
+  const {
+    activeSectionKey,
+    subscription,
+    liked,
+    urged,
+    likesCount,
+    urgesCount,
+    selectionDraft,
+    setSelectionDraft,
+    annotationBody,
+    setAnnotationBody,
+    activeAnnotationId,
+    isSubmittingAnnotation,
+    isSubscribingCourse,
+    moderatingAnnotationId,
+    mobilePanel,
+    setMobilePanel,
+    isMobileToolsOpen,
+    setIsMobileToolsOpen,
+    expandedChapterKeys,
+    articleContentRef,
+    isOwnerView,
+    visibleAnnotations,
+    visibleAnnotationsBySection,
+    activeSection,
+    activeSectionAnnotations,
+    activeVisibleAnnotations,
+    hiddenAnnotationCount,
+    totalSections,
+    activeChapterIndex,
+    activeChapter,
+    activeSectionTitle,
+    activeSectionIntro,
+    activeSectionOrder,
+    activeSectionContent,
+    annotationHighlights,
+    copyLink,
+    focusAnnotation,
+    selectSection,
+    selectChapter,
+    startComment,
+    toggleLike,
+    toggleUrge,
+    subscribeAndStart,
+    updateAnnotationStatus,
+    submitAnnotation,
+  } = usePublicCourseReaderController(data);
 
   const outlinePanel = (
     <>

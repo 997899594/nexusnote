@@ -2,10 +2,11 @@
  * Server-Side Rate Limiter
  *
  * Redis-backed implementation for distributed environments.
- * If Redis is temporarily unavailable, requests are allowed and an error is logged
- * instead of silently falling back to per-process memory state.
+ * If Redis is temporarily unavailable, fail-open callers use a bounded in-process
+ * emergency limiter while fail-closed callers remain unavailable.
  */
 
+import { buildErrorLogFields, writeStructuredLog } from "@/lib/observability/structured-log";
 import { getRedis } from "@/lib/redis";
 import { serviceUnavailable, tooManyRequests } from "./errors";
 
@@ -17,6 +18,43 @@ interface RateLimitResult {
 
 interface RateLimitOptions {
   failureMode?: "allow" | "deny";
+}
+
+interface EmergencyRateLimitEntry {
+  count: number;
+  expiresAt: number;
+}
+
+const MAX_EMERGENCY_RATE_LIMIT_KEYS = 10_000;
+const emergencyRateLimits = new Map<string, EmergencyRateLimitEntry>();
+
+function pruneExpiredEmergencyLimits(now: number): void {
+  for (const [key, entry] of emergencyRateLimits) {
+    if (entry.expiresAt <= now) emergencyRateLimits.delete(key);
+  }
+}
+
+function checkEmergencyRateLimit(key: string, limit: number, windowMs: number): RateLimitResult {
+  const now = Date.now();
+  let entry = emergencyRateLimits.get(key);
+
+  if (!entry || entry.expiresAt <= now) {
+    if (emergencyRateLimits.size >= MAX_EMERGENCY_RATE_LIMIT_KEYS) {
+      pruneExpiredEmergencyLimits(now);
+    }
+    if (emergencyRateLimits.size >= MAX_EMERGENCY_RATE_LIMIT_KEYS) {
+      return { allowed: false, remaining: 0, resetInMs: windowMs };
+    }
+    entry = { count: 0, expiresAt: now + windowMs };
+    emergencyRateLimits.set(key, entry);
+  }
+
+  entry.count += 1;
+  return {
+    allowed: entry.count <= limit,
+    remaining: Math.max(0, limit - entry.count),
+    resetInMs: Math.max(1, entry.expiresAt - now),
+  };
 }
 
 const INCREMENT_WITH_TTL_SCRIPT = `
@@ -59,16 +97,12 @@ async function checkRateLimit(
       resetInMs: ttl > 0 ? ttl : windowMs,
     };
   } catch (error) {
-    console.error("[RateLimit] Redis unavailable:", error);
+    writeStructuredLog("warn", "rate_limit_redis_unavailable", buildErrorLogFields(error));
     if (options.failureMode === "deny") {
       throw serviceUnavailable("请求保护服务暂时不可用，请稍后重试", "RATE_LIMIT_UNAVAILABLE");
     }
 
-    return {
-      allowed: true,
-      remaining: limit,
-      resetInMs: windowMs,
-    };
+    return checkEmergencyRateLimit(key, limit, windowMs);
   }
 }
 

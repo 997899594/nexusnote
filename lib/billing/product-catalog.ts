@@ -26,6 +26,7 @@ export interface PricingAccountStatus {
   kind: "anonymous" | "free" | "trial" | "pro";
   planId: BillingPlanId | null;
   expiresAt: string | null;
+  permanent: boolean;
 }
 
 const FREE_FEATURES: ProductFeature[] = [
@@ -38,17 +39,27 @@ const FREE_FEATURES: ProductFeature[] = [
   { id: "public_course_learning", label: "浏览和学习公开课程" },
   { id: "knowledge_workspace", label: "笔记、高亮与知识沉淀" },
   { id: "course_publishing", label: "发布已有课程并接收学习反馈" },
+  {
+    id: AI_CAPABILITIES.courseGeneration,
+    label: "免费生成 1 门完整课程",
+    capability: AI_CAPABILITIES.courseGeneration,
+  },
+  {
+    id: AI_CAPABILITIES.research,
+    label: "每周 3 次联网 Research",
+    capability: AI_CAPABILITIES.research,
+  },
 ];
 
 const PRO_FEATURES: ProductFeature[] = [
   {
     id: AI_CAPABILITIES.courseGeneration,
-    label: "生成和持续更新自有课程",
+    label: "无限生成和持续更新自有课程",
     capability: AI_CAPABILITIES.courseGeneration,
   },
   {
     id: AI_CAPABILITIES.research,
-    label: "联网研究、资料核验与引用",
+    label: "无限联网研究、资料核验与引用",
     capability: AI_CAPABILITIES.research,
   },
   { id: "course_section_generation", label: "按学习进度生成课程章节" },

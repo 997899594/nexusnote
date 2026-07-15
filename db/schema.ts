@@ -2,8 +2,10 @@ import { relations } from "drizzle-orm";
 import { aiUsage } from "./schema/ai-usage";
 import { accounts, sessions, userProfiles, users, verificationTokens } from "./schema/auth";
 import {
+  aiCapabilityUsageEvents,
   billingOrders,
   billingWebhookEvents,
+  productAccessGrants,
   redeemCodeRedemptions,
   redeemCodes,
   userEntitlements,
@@ -47,7 +49,7 @@ import {
 } from "./schema/knowledge";
 import { knowledgeGenerationRuns } from "./schema/knowledge-runs";
 import { learningEnrollments, learningSectionCompletions } from "./schema/learning";
-import { learningActivityEvents } from "./schema/learning-activity";
+import { learningActivationProjections, learningActivityEvents } from "./schema/learning-activity";
 import { notes, noteTags, tags } from "./schema/notes";
 import { researchRunSources, researchRuns, researchRunTasks } from "./schema/research";
 import { aiSkins, userSkinPreferences } from "./schema/skins";
@@ -78,6 +80,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   knowledgeEvidence: many(knowledgeEvidence),
   knowledgeEvidenceEvents: many(knowledgeEvidenceEvents),
   learningActivityEvents: many(learningActivityEvents),
+  learningActivationProjections: many(learningActivationProjections),
   learningEnrollments: many(learningEnrollments),
   knowledgeInsights: many(knowledgeInsights),
   userProfiles: many(userProfiles),
@@ -106,6 +109,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   billingOrders: many(billingOrders),
   entitlements: many(userEntitlements),
   redeemCodeRedemptions: many(redeemCodeRedemptions),
+  aiCapabilityUsageEvents: many(aiCapabilityUsageEvents),
 }));
 
 export const notesRelations = relations(notes, ({ one, many }) => ({
@@ -228,6 +232,7 @@ export const coursesRelations = relations(courses, ({ one, many }) => ({
   outlineNodes: many(courseOutlineNodes),
   sections: many(courseSections),
   learningActivityEvents: many(learningActivityEvents),
+  learningActivationProjections: many(learningActivationProjections),
   publications: many(coursePublications),
 }));
 
@@ -245,6 +250,20 @@ export const learningActivityEventsRelations = relations(learningActivityEvents,
     references: [learningEnrollments.id],
   }),
 }));
+
+export const learningActivationProjectionsRelations = relations(
+  learningActivationProjections,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [learningActivationProjections.userId],
+      references: [users.id],
+    }),
+    course: one(courses, {
+      fields: [learningActivationProjections.courseId],
+      references: [courses.id],
+    }),
+  }),
+);
 
 export const learningEnrollmentsRelations = relations(learningEnrollments, ({ one, many }) => ({
   user: one(users, {
@@ -548,6 +567,15 @@ export const userEntitlementsRelations = relations(userEntitlements, ({ one }) =
     references: [users.id],
   }),
 }));
+
+export const aiCapabilityUsageEventsRelations = relations(aiCapabilityUsageEvents, ({ one }) => ({
+  user: one(users, {
+    fields: [aiCapabilityUsageEvents.userId],
+    references: [users.id],
+  }),
+}));
+
+export const productAccessGrantsRelations = relations(productAccessGrants, () => ({}));
 
 export const billingWebhookEventsRelations = relations(billingWebhookEvents, () => ({}));
 

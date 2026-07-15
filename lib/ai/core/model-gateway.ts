@@ -18,6 +18,15 @@ import type { AIModelSeries } from "./model-series";
 
 type OpenAIProviderOptions = NonNullable<Parameters<typeof createOpenAI>[0]>;
 type OpenAIProviderFetch = NonNullable<OpenAIProviderOptions["fetch"]>;
+const AI_PROVIDER_DEADLINE_MS = 180_000;
+
+function withProviderDeadline(init?: RequestInit): RequestInit {
+  const deadline = AbortSignal.timeout(AI_PROVIDER_DEADLINE_MS);
+  return {
+    ...init,
+    signal: init?.signal ? AbortSignal.any([init.signal, deadline]) : deadline,
+  };
+}
 
 function create302CompatibleFetch(): OpenAIProviderFetch {
   return (async (input, init) => {
@@ -30,7 +39,7 @@ function create302CompatibleFetch(): OpenAIProviderFetch {
 
     const body = parseModelGatewayJsonBody(init?.body);
     if (!body) {
-      return fetch(input, init);
+      return fetch(input, withProviderDeadline(init));
     }
 
     const structuredOutputAdapted = adapt302StructuredOutputRequest({
@@ -43,11 +52,11 @@ function create302CompatibleFetch(): OpenAIProviderFetch {
     });
 
     if (!structuredOutputAdapted.changed && !adapted.changed) {
-      return fetch(input, init);
+      return fetch(input, withProviderDeadline(init));
     }
 
     return fetch(input, {
-      ...init,
+      ...withProviderDeadline(init),
       headers: adapted.headers,
       body: JSON.stringify(adapted.body),
     });

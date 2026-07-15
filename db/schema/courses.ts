@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   boolean,
   index,
@@ -69,10 +70,9 @@ export const courseOutlineVersions = pgTable(
     updatedAt: timestamp("updated_at").defaultNow(),
   },
   (table) => ({
-    courseLatestIdx: index("course_outline_versions_course_latest_idx").on(
-      table.courseId,
-      table.isLatest,
-    ),
+    courseLatestIdx: uniqueIndex("course_outline_versions_course_latest_idx")
+      .on(table.courseId)
+      .where(sql`${table.isLatest} = true`),
     courseHashUniqueIdx: uniqueIndex("course_outline_versions_course_hash_unique_idx").on(
       table.courseId,
       table.versionHash,

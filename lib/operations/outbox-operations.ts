@@ -6,7 +6,12 @@ import { LEARNING_OUTBOX_TOPICS } from "@/lib/learning/outbox";
 const CRITICAL_OUTBOX_TOPICS = [
   LEARNING_OUTBOX_TOPICS.courseRevisionCreated,
   LEARNING_OUTBOX_TOPICS.sectionCompleted,
+  LEARNING_OUTBOX_TOPICS.activityRecorded,
 ] as const;
+
+const ANALYTICS_OUTBOX_TOPICS = [LEARNING_OUTBOX_TOPICS.analyticsLearningActivityRecorded] as const;
+
+type OutboxDatabaseExecutor = Pick<typeof db, "execute">;
 
 export interface OutboxOperationalSnapshot {
   criticalPendingCount: number;
@@ -23,8 +28,10 @@ interface OutboxSnapshotRow extends Record<string, unknown> {
   analytics_dead_letter_count: number | string;
 }
 
-export async function getOutboxOperationalSnapshot(): Promise<OutboxOperationalSnapshot> {
-  const [row] = await db.execute<OutboxSnapshotRow>(sql`
+export async function getOutboxOperationalSnapshot(
+  executor: OutboxDatabaseExecutor = db,
+): Promise<OutboxOperationalSnapshot> {
+  const [row] = await executor.execute<OutboxSnapshotRow>(sql`
     select
       count(*) filter (
         where topic in (${sql.join(
@@ -53,7 +60,10 @@ export async function getOutboxOperationalSnapshot(): Promise<OutboxOperationalS
           and dead_lettered_at is not null
       ) as critical_dead_letter_count,
       count(*) filter (
-        where topic = ${LEARNING_OUTBOX_TOPICS.activityRecorded}
+        where topic in (${sql.join(
+          ANALYTICS_OUTBOX_TOPICS.map((topic) => sql`${topic}`),
+          sql`, `,
+        )})
           and dead_lettered_at is not null
       ) as analytics_dead_letter_count
     from domain_outbox_events
@@ -70,8 +80,10 @@ export async function getOutboxOperationalSnapshot(): Promise<OutboxOperationalS
   };
 }
 
-export async function assertOutboxOperational(): Promise<OutboxOperationalSnapshot> {
-  const snapshot = await getOutboxOperationalSnapshot();
+export async function assertOutboxOperational(
+  executor: OutboxDatabaseExecutor = db,
+): Promise<OutboxOperationalSnapshot> {
+  const snapshot = await getOutboxOperationalSnapshot(executor);
   if (snapshot.criticalDeadLetterCount > 0) {
     throw new Error(`Critical outbox has ${snapshot.criticalDeadLetterCount} dead-letter event(s)`);
   }
@@ -100,10 +112,7 @@ export async function replayDeadLetterEvent(eventId: string): Promise<boolean> {
         eq(domainOutboxEvents.id, eventId),
         isNull(domainOutboxEvents.processedAt),
         isNotNull(domainOutboxEvents.deadLetteredAt),
-        inArray(domainOutboxEvents.topic, [
-          ...CRITICAL_OUTBOX_TOPICS,
-          LEARNING_OUTBOX_TOPICS.activityRecorded,
-        ]),
+        inArray(domainOutboxEvents.topic, [...CRITICAL_OUTBOX_TOPICS, ...ANALYTICS_OUTBOX_TOPICS]),
       ),
     )
     .returning({ id: domainOutboxEvents.id });

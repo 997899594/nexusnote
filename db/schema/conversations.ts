@@ -27,6 +27,7 @@ export const conversations = pgTable(
       onDelete: "cascade",
     }),
     learnChapterIndex: integer("learn_chapter_index"),
+    activeStreamId: text("active_stream_id"),
     metadata: jsonb("metadata"),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
@@ -47,6 +48,7 @@ export const conversationMessages = pgTable(
   "conversation_messages",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    messageId: text("message_id").notNull(),
     conversationId: uuid("conversation_id")
       .references(() => conversations.id, { onDelete: "cascade" })
       .notNull(),
@@ -61,6 +63,10 @@ export const conversationMessages = pgTable(
     conversationPositionIdx: uniqueIndex("conversation_messages_conversation_position_idx").on(
       table.conversationId,
       table.position,
+    ),
+    conversationMessageIdx: uniqueIndex("conversation_messages_conversation_message_idx").on(
+      table.conversationId,
+      table.messageId,
     ),
   }),
 );

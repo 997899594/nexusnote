@@ -1,7 +1,7 @@
 import type { Queue } from "bullmq";
-import { defaults } from "@/config/env";
 import { createNexusQueue } from "@/lib/queue/bullmq";
 import { buildSafeJobId } from "@/lib/queue/job-id";
+import { getQueueRuntimePolicy } from "@/lib/queue/runtime-policy";
 
 export type ResearchJobData = {
   type: "run_background_research";
@@ -26,8 +26,7 @@ export function getResearchQueue(): Queue<ResearchJobData> {
   }
 
   researchQueue = createNexusQueue<ResearchJobData>("research", {
-    attempts: defaults.queue.researchMaxRetries,
-    backoffDelay: defaults.queue.researchBackoffDelay,
+    ...getQueueRuntimePolicy("research"),
     removeOnComplete: 500,
     removeOnFail: 2000,
   });

@@ -22,6 +22,8 @@ env:
   IMAGE_REGISTRY: ghcr.io
   JUANIE_SOURCE_SHA: ${{ inputs.juanie_source_sha || github.sha }}
   JUANIE_RELEASE_REF: ${{ inputs.juanie_release_ref || github.ref }}
+  JUANIE_REPOSITORY: ${{ github.repository }}
+  JUANIE_EXTERNAL_RUN_ID: ${{ format('{0}-{1}', github.run_id, github.run_attempt) }}
   IMAGE_TAG: ${{ format('{0}/{1}:sha-{2}', 'ghcr.io', github.repository, inputs.juanie_source_sha || github.sha) }}
 
 jobs:
@@ -45,15 +47,20 @@ jobs:
       - run: bun run db:hash
       - run: git diff --exit-code -- migrations/atlas.sum
       - run: bun run db:validate
+      - run: bun run check:release-contract
       - run: bun run lint
       - run: bun run typecheck
+      - run: bun run check:research-routing
       - run: bun run check:worker-runtime
+      - run: bun audit --production
+      - run: SKIP_ENV_VALIDATION=true bun run build
 
   release:
     needs: quality-gate
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write
       packages: write
     steps:
       - uses: actions/checkout@v5
@@ -281,32 +288,29 @@ jobs:
 
       - name: Trigger Juanie Release
         id: release
-        env:
-          JUANIE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
+          source .juanie/workload-identity.sh
 
           release_payload="$(
             jq -cn \
               --arg repository "${GITHUB_REPOSITORY}" \
               --arg sha "${JUANIE_SOURCE_SHA}" \
               --arg ref "${JUANIE_RELEASE_REF}" \
+              --arg externalRunId "${JUANIE_EXTERNAL_RUN_ID}" \
               --argjson services '${{ steps.plan.outputs.release_services_json }}' \
               '{
                 repository: $repository,
                 sha: $sha,
                 ref: $ref,
+                externalRunId: $externalRunId,
                 services: $services
               }'
           )"
 
           release_response_file="$(mktemp)"
-          release_status="$(
-            curl -sS -o "$release_response_file" -w '%{http_code}' -X POST "https://juanie.art/api/releases" \
-              -H "Content-Type: application/json" \
-              -H "Authorization: Bearer ${JUANIE_TOKEN}" \
-              -d "$release_payload"
-          )"
+          juanie_api_json POST "/api/releases" "$release_payload" "$release_response_file"
+          release_status="$JUANIE_HTTP_STATUS"
           release_response="$(cat "$release_response_file")"
           rm -f "$release_response_file"
 
@@ -338,10 +342,15 @@ jobs:
           echo "artifacts_ready=false" >> "$GITHUB_OUTPUT"
 
           for _ in $(seq 1 270); do
-            status_response="$(
-              curl -fsSL "https://juanie.art/api/releases/${release_id}/status" \
-                -H "Authorization: Bearer ${JUANIE_TOKEN}"
-            )"
+            status_response_file="$(mktemp)"
+            juanie_api_json GET "/api/releases/${release_id}/status" "" "$status_response_file"
+            if [ "$JUANIE_HTTP_STATUS" -lt 200 ] || [ "$JUANIE_HTTP_STATUS" -ge 300 ]; then
+              cat "$status_response_file"
+              rm -f "$status_response_file"
+              exit 1
+            fi
+            status_response="$(cat "$status_response_file")"
+            rm -f "$status_response_file"
 
             status="$(printf '%s' "$status_response" | jq -r '.release.status')"
             status_label="$(printf '%s' "$status_response" | jq -r '.release.statusLabel')"
@@ -380,7 +389,6 @@ jobs:
         id: delivery
         if: ${{ steps.release.outputs.artifacts_ready == 'true' }}
         env:
-          JUANIE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           JUANIE_RELEASE_ID: ${{ steps.release.outputs.release_id }}
           JUANIE_REPOSITORY: ${{ github.repository }}
           JUANIE_RELEASE_SERVICES_JSON: ${{ steps.plan.outputs.release_services_json }}
@@ -400,13 +408,13 @@ jobs:
       - name: Register GitHub Delivery Artifacts
         if: ${{ steps.delivery.outputs.has_delivery_artifacts == 'true' }}
         env:
-          JUANIE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           JUANIE_RELEASE_ID: ${{ steps.release.outputs.release_id }}
           JUANIE_REPOSITORY: ${{ github.repository }}
           JUANIE_ARTIFACT_URL: ${{ steps.upload-delivery.outputs.artifact-url }}
           JUANIE_DELIVERY_MANIFEST: ${{ steps.delivery.outputs.manifest }}
         run: |
           set -euo pipefail
+          source .juanie/workload-identity.sh
 
           register_payload="$(
             jq -cn \
@@ -419,7 +427,10 @@ jobs:
               }'
           )"
 
-          curl -fsSL -X POST "https://juanie.art/api/releases/${JUANIE_RELEASE_ID}/artifacts" \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${JUANIE_TOKEN}" \
-            -d "$register_payload"
+          register_response_file="$(mktemp)"
+          juanie_api_json POST "/api/releases/${JUANIE_RELEASE_ID}/artifacts" "$register_payload" "$register_response_file"
+          cat "$register_response_file"
+          rm -f "$register_response_file"
+          if [ "$JUANIE_HTTP_STATUS" -lt 200 ] || [ "$JUANIE_HTTP_STATUS" -ge 300 ]; then
+            exit 1
+          fi

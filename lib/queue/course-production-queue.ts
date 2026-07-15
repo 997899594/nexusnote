@@ -1,7 +1,7 @@
 import type { Queue } from "bullmq";
-import { defaults } from "@/config/env";
 import { createNexusQueue } from "@/lib/queue/bullmq";
 import { buildSafeJobId } from "@/lib/queue/job-id";
+import { getQueueRuntimePolicy } from "@/lib/queue/runtime-policy";
 
 export type CourseProductionJobData = {
   type: "materialize_section";
@@ -30,10 +30,10 @@ export function getCourseProductionQueue(): Queue<CourseProductionJobData> {
     return courseProductionQueue;
   }
 
-  courseProductionQueue = createNexusQueue<CourseProductionJobData>("course-production", {
-    attempts: defaults.queue.courseProductionMaxRetries,
-    backoffDelay: defaults.queue.courseProductionBackoffDelay,
-  });
+  courseProductionQueue = createNexusQueue<CourseProductionJobData>(
+    "course-production",
+    getQueueRuntimePolicy("courseProduction"),
+  );
 
   return courseProductionQueue;
 }

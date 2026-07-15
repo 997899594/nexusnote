@@ -5,10 +5,10 @@
  */
 
 import type { Worker } from "bullmq";
-import { defaults } from "@/config/env";
 import { syncCourseSectionKnowledgeByDocumentId } from "@/lib/learning/course-section-knowledge";
 import { createNexusWorker } from "./bullmq";
 import type { RagIndexJobData } from "./rag-queue";
+import { getQueueRuntimePolicy } from "./runtime-policy";
 
 let worker: Worker<RagIndexJobData> | null = null;
 
@@ -46,7 +46,7 @@ export function startRagWorker(): Worker<RagIndexJobData> {
     },
     {
       label: "RagWorker",
-      concurrency: defaults.queue.ragConcurrency,
+      concurrency: getQueueRuntimePolicy("rag").concurrency,
       logProgressOnComplete: true,
     },
   );

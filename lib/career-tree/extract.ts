@@ -23,10 +23,11 @@ import {
 } from "@/lib/career-tree/source";
 import { logCareerTreePipelineEvent, logCareerTreePipelineSkip } from "./pipeline-log";
 import {
+  acquireCareerRun,
   type CareerRunFailureOptions,
-  getOrCreateCareerRun,
   markCareerRunFailed,
   markCareerRunSucceeded,
+  startCareerRunLeaseHeartbeat,
 } from "./runs";
 
 export const careerEvidenceKindSchema = z.enum(["skill", "theme", "tool", "workflow", "concept"]);
@@ -286,7 +287,7 @@ export async function processCareerTreeExtractJob(job: {
 
   const outlineHash = computeCareerOutlineHash(course.outline);
   const model = getCareerTreeRunModelName("extract");
-  const run = await getOrCreateCareerRun({
+  const acquisition = await acquireCareerRun({
     userId: job.userId,
     courseId: job.courseId,
     kind: "extract",
@@ -301,8 +302,9 @@ export async function processCareerTreeExtractJob(job: {
     promptVersion: CAREER_TREE_EXTRACT_PROMPT_VERSION,
     reuseCompleted: true,
   });
+  const run = acquisition.run;
 
-  if (run.status === "succeeded") {
+  if (acquisition.state === "completed") {
     logCareerTreePipelineEvent("career_tree_pipeline_succeeded", {
       stage: "extract",
       userId: job.userId,
@@ -316,6 +318,23 @@ export async function processCareerTreeExtractJob(job: {
     }
     return;
   }
+
+  if (acquisition.state === "busy") {
+    logCareerTreePipelineSkip({
+      stage: "extract",
+      reason: "run_lease_held",
+      userId: job.userId,
+      courseId: job.courseId,
+      requestKey: job.requestKey ?? null,
+      runId: run.id,
+    });
+    return;
+  }
+
+  const stopLeaseHeartbeat = startCareerRunLeaseHeartbeat({
+    runId: run.id,
+    fencingToken: acquisition.fencingToken,
+  });
 
   try {
     const extracted = await runCareerCourseExtractor({
@@ -340,7 +359,7 @@ export async function processCareerTreeExtractJob(job: {
       extracted,
     });
 
-    await markCareerRunSucceeded(db, run.id, extracted);
+    await markCareerRunSucceeded(db, run.id, acquisition.fencingToken, extracted);
     logCareerTreePipelineEvent("career_tree_pipeline_succeeded", {
       stage: "extract",
       userId: job.userId,
@@ -355,7 +374,9 @@ export async function processCareerTreeExtractJob(job: {
       await enqueueCareerTreeMerge(job.userId, job.courseId, run.id, job.requestKey);
     }
   } catch (error) {
-    await markCareerRunFailed(run.id, error, job.failure);
+    await markCareerRunFailed(run.id, acquisition.fencingToken, error, job.failure);
     throw error;
+  } finally {
+    stopLeaseHeartbeat();
   }
 }

@@ -5,6 +5,7 @@
 
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
+import { CapabilityAllowanceExceededError } from "@/lib/billing/capability-errors";
 
 export class APIError extends Error {
   constructor(
@@ -81,6 +82,10 @@ export function handleError(error: unknown): NextResponse {
       console.error("[API Error]", error);
     }
     return errorResponse(error.message, error.statusCode, error.code);
+  }
+
+  if (error instanceof CapabilityAllowanceExceededError) {
+    return errorResponse(error.message, 429, error.code);
   }
 
   if (error instanceof ZodError) {

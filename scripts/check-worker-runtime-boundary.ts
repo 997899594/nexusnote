@@ -19,6 +19,7 @@ const workerOwnedSources = [
   "lib/queue/course-production-worker.ts",
   "lib/queue/knowledge-insights-worker.ts",
   "lib/queue/learning-outbox-worker.ts",
+  "lib/queue/analytics-outbox-worker.ts",
   "lib/queue/note-followups-worker.ts",
   "lib/queue/rag-worker.ts",
   "lib/queue/research-worker.ts",

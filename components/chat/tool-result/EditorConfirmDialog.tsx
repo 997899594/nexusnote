@@ -99,8 +99,11 @@ export function EditorConfirmDialog({ output, toolName }: EditorConfirmDialogPro
           <p className="text-xs text-[var(--color-text-secondary)]">
             {output.edits.length} 个修改:
           </p>
-          {output.edits.slice(0, 3).map((edit, i) => (
-            <div key={`${edit.targetId}-${i}`} className="ui-message-card rounded-lg p-1 text-xs">
+          {output.edits.slice(0, 3).map((edit) => (
+            <div
+              key={`${edit.action}:${edit.targetId}:${edit.newContent ?? ""}`}
+              className="ui-message-card rounded-lg p-1 text-xs"
+            >
               {edit.action}: {edit.targetId}
             </div>
           ))}

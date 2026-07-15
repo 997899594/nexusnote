@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { env } from "@/config/env";
 import { badRequest, handleError } from "@/lib/api";
+import { readBodyWithinLimit } from "@/lib/api/request-body";
 import { processPaidBillingWebhook } from "@/lib/billing/entitlements";
 import { assertBillingWebhookConfigured } from "@/lib/billing/provider";
 import { verifyBillingSignature } from "@/lib/billing/signing";
@@ -19,7 +20,7 @@ export const POST = async (request: Request) => {
   try {
     assertBillingWebhookConfigured();
 
-    const rawBody = await request.text();
+    const rawBody = await readBodyWithinLimit(request, 64 * 1024);
     const signature =
       request.headers.get("x-billing-signature") ??
       request.headers.get("x-signature") ??

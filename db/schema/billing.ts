@@ -1,4 +1,6 @@
+import { sql } from "drizzle-orm";
 import {
+  check,
   index,
   integer,
   jsonb,
@@ -62,6 +64,80 @@ export const userEntitlements = pgTable(
     sourceIdx: uniqueIndex("user_entitlements_source_unique_idx").on(
       table.source,
       table.sourceRefId,
+    ),
+  }),
+);
+
+export const productAccessGrants = pgTable(
+  "product_access_grants",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    email: text("email").notNull(),
+    plan: text("plan").notNull(),
+    capabilities: jsonb("capabilities").$type<string[]>().notNull().default([]),
+    source: text("source").notNull(),
+    startsAt: timestamp("starts_at").defaultNow().notNull(),
+    expiresAt: timestamp("expires_at"),
+    revokedAt: timestamp("revoked_at"),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    emailUniqueIdx: uniqueIndex("product_access_grants_email_unique_idx").on(table.email),
+    activeIdx: index("product_access_grants_active_idx").on(table.revokedAt, table.expiresAt),
+    canonicalEmailCheck: check(
+      "product_access_grants_canonical_email_check",
+      sql`${table.email} = lower(btrim(${table.email}))`,
+    ),
+    capabilitiesArrayCheck: check(
+      "product_access_grants_capabilities_array_check",
+      sql`jsonb_typeof(${table.capabilities}) = 'array'`,
+    ),
+  }),
+);
+
+export const aiCapabilityUsageEvents = pgTable(
+  "ai_capability_usage_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    capability: text("capability").notNull(),
+    consumptionKey: text("consumption_key").notNull(),
+    periodStart: timestamp("period_start", { withTimezone: true }).notNull(),
+    periodEnd: timestamp("period_end", { withTimezone: true }).notNull(),
+    status: text("status").notNull().default("consumed"),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+    refundedAt: timestamp("refunded_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    consumptionKeyUniqueIdx: uniqueIndex("ai_capability_usage_events_key_unique_idx").on(
+      table.consumptionKey,
+    ),
+    allowanceIdx: index("ai_capability_usage_events_allowance_idx").on(
+      table.userId,
+      table.capability,
+      table.periodStart,
+      table.status,
+    ),
+    periodCheck: check(
+      "ai_capability_usage_events_period_check",
+      sql`${table.periodEnd} > ${table.periodStart}`,
+    ),
+    statusCheck: check(
+      "ai_capability_usage_events_status_check",
+      sql`${table.status} in ('consumed', 'refunded')`,
+    ),
+    refundCheck: check(
+      "ai_capability_usage_events_refund_check",
+      sql`(
+        (${table.status} = 'consumed' and ${table.refundedAt} is null)
+        or (${table.status} = 'refunded' and ${table.refundedAt} is not null)
+      )`,
     ),
   }),
 );
@@ -131,6 +207,8 @@ export type BillingOrder = typeof billingOrders.$inferSelect;
 export type NewBillingOrder = typeof billingOrders.$inferInsert;
 export type UserEntitlement = typeof userEntitlements.$inferSelect;
 export type NewUserEntitlement = typeof userEntitlements.$inferInsert;
+export type ProductAccessGrant = typeof productAccessGrants.$inferSelect;
+export type AICapabilityUsageEvent = typeof aiCapabilityUsageEvents.$inferSelect;
 export type BillingWebhookEvent = typeof billingWebhookEvents.$inferSelect;
 export type NewBillingWebhookEvent = typeof billingWebhookEvents.$inferInsert;
 export type RedeemCode = typeof redeemCodes.$inferSelect;

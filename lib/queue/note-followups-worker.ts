@@ -1,10 +1,10 @@
 import type { Worker } from "bullmq";
-import { defaults } from "@/config/env";
 import { tagGenerationService } from "@/lib/ai/services/tag-generation-service";
 import { syncNoteCreateKnowledge } from "@/lib/notes/followups";
 import { getOwnedNote } from "@/lib/notes/repository";
 import { createNexusWorker } from "./bullmq";
 import type { NoteFollowupsJobData } from "./note-followups-queue";
+import { getQueueRuntimePolicy } from "./runtime-policy";
 
 let worker: Worker<NoteFollowupsJobData> | null = null;
 
@@ -32,7 +32,7 @@ export function startNoteFollowupsWorker(): Worker<NoteFollowupsJobData> {
     },
     {
       label: "NoteFollowupsWorker",
-      concurrency: defaults.queue.noteFollowupsConcurrency,
+      concurrency: getQueueRuntimePolicy("noteFollowups").concurrency,
     },
   );
 

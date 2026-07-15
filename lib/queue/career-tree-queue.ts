@@ -1,6 +1,6 @@
 import type { Queue } from "bullmq";
-import { defaults } from "@/config/env";
 import { createNexusQueue } from "@/lib/queue/bullmq";
+import { getQueueRuntimePolicy } from "@/lib/queue/runtime-policy";
 
 export type CareerTreeJobData =
   | {
@@ -36,10 +36,10 @@ export function getCareerTreeQueue(): Queue<CareerTreeJobData> {
     return careerTreeQueue;
   }
 
-  careerTreeQueue = createNexusQueue<CareerTreeJobData>("career-tree", {
-    attempts: defaults.queue.careerTreeMaxRetries,
-    backoffDelay: defaults.queue.careerTreeBackoffDelay,
-  });
+  careerTreeQueue = createNexusQueue<CareerTreeJobData>(
+    "career-tree",
+    getQueueRuntimePolicy("careerTree"),
+  );
 
   return careerTreeQueue;
 }

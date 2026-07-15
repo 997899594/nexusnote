@@ -1,5 +1,4 @@
 import type { Worker } from "bullmq";
-import { defaults } from "@/config/env";
 import { normalizeAIModelSeries } from "@/lib/ai/core/model-series";
 import { buildResearchRunMetadata, failResearchRun } from "@/lib/ai/research/store";
 import {
@@ -10,6 +9,7 @@ import { mergeOwnedConversationMetadata } from "@/lib/chat/conversation-reposito
 import { isUuidString } from "@/lib/chat/session-id";
 import { createNexusWorker } from "./bullmq";
 import type { ResearchJobData } from "./research-queue";
+import { getQueueRuntimePolicy } from "./runtime-policy";
 
 let worker: Worker<ResearchJobData> | null = null;
 
@@ -92,7 +92,7 @@ export function startResearchWorker(): Worker<ResearchJobData> {
     },
     {
       label: "ResearchWorker",
-      concurrency: defaults.queue.researchConcurrency,
+      concurrency: getQueueRuntimePolicy("research").concurrency,
     },
   );
   return worker;

@@ -18,7 +18,7 @@ function getSafeCallbackPath(value: string | null): string {
 function getSafeEmail(value: string | null): string {
   const normalized = value?.trim().toLowerCase();
 
-  if (!normalized || !normalized.includes("@")) {
+  if (!normalized?.includes("@")) {
     return DEV_LOGIN_EMAIL;
   }
 

@@ -1,6 +1,6 @@
 import type { Queue } from "bullmq";
-import { defaults } from "@/config/env";
 import { createNexusQueue } from "@/lib/queue/bullmq";
+import { getQueueRuntimePolicy } from "@/lib/queue/runtime-policy";
 
 export type KnowledgeInsightsQueueJobData = {
   type: "derive_user_insights";
@@ -14,10 +14,10 @@ export function getKnowledgeInsightsQueue(): Queue<KnowledgeInsightsQueueJobData
     return knowledgeInsightsQueue;
   }
 
-  knowledgeInsightsQueue = createNexusQueue<KnowledgeInsightsQueueJobData>("knowledge-insights", {
-    attempts: defaults.queue.knowledgeInsightsMaxRetries,
-    backoffDelay: defaults.queue.knowledgeInsightsBackoffDelay,
-  });
+  knowledgeInsightsQueue = createNexusQueue<KnowledgeInsightsQueueJobData>(
+    "knowledge-insights",
+    getQueueRuntimePolicy("knowledgeInsights"),
+  );
 
   return knowledgeInsightsQueue;
 }

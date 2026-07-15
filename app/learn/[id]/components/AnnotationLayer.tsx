@@ -63,10 +63,10 @@ export function AnnotationLayer({ containerRef, annotations, onRemove }: Annotat
       {highlights.map((h) => (
         <div key={h.id}>
           {/* Highlight rectangles */}
-          {h.rects.map((rect, i) => (
+          {h.rects.map((rect) => (
             <button
               type="button"
-              key={`${h.id}-${i}`}
+              key={`${h.id}:${rect.top}:${rect.left}:${rect.width}:${rect.height}`}
               className="absolute pointer-events-auto cursor-pointer border-none p-0"
               style={{
                 top: rect.top,

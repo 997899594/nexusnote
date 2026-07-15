@@ -1,5 +1,6 @@
-import { validateUIMessages } from "ai";
 import type { NextRequest } from "next/server";
+import { db } from "@/db";
+import { parseConversationRequest } from "@/lib/ai/conversation-input";
 import { classifyAIDegradation } from "@/lib/ai/core/degradation";
 import { aiModelGateway } from "@/lib/ai/core/model-gateway";
 import { getUserAIModelSeries } from "@/lib/ai/core/model-series-preferences";
@@ -17,16 +18,11 @@ import {
 import type { InterviewUIMessage } from "@/lib/ai/interview/ui";
 import { resolveInterviewWebResearchContext } from "@/lib/ai/interview/web-research-context";
 import { createCourseInterviewerSpecialistAgent } from "@/lib/ai/specialists/registry";
-import { InterviewApiRequestSchema } from "@/lib/ai/validation";
-import {
-  handleError,
-  notFound,
-  parseJsonBodyAs,
-  serviceUnavailable,
-  unauthorized,
-} from "@/lib/api";
+import { type InterviewApiRequest, InterviewApiRequestSchema } from "@/lib/ai/validation";
+import { handleError, notFound, serviceUnavailable, unauthorized } from "@/lib/api";
 import { checkRateLimitOrThrow } from "@/lib/api/rate-limit";
 import { auth } from "@/lib/auth";
+import { consumeCapabilityAllowance } from "@/lib/billing/capability-access";
 import { AI_CAPABILITIES, canUseAICapability } from "@/lib/billing/capability-policy";
 import { getOwnedCourse } from "@/lib/learning/course-repository";
 
@@ -51,12 +47,11 @@ export async function POST(request: NextRequest) {
       throw unauthorized("请先登录");
     }
 
-    const {
-      messages,
-      sessionId,
-      courseId: inputCourseId,
-      outline,
-    } = await parseJsonBodyAs(request, InterviewApiRequestSchema);
+    const { input, messages, estimatedTokens } = await parseConversationRequest<
+      InterviewApiRequest,
+      InterviewUIMessage
+    >(request, InterviewApiRequestSchema);
+    const { sessionId, courseId: inputCourseId, outline } = input;
     const modelPolicy = "outline-architect";
     const promptVersion = "interview@agent-v1";
     const workflow = "interview-agent";
@@ -76,6 +71,7 @@ export async function POST(request: NextRequest) {
         sessionId: sessionId ?? null,
         courseId: inputCourseId ?? null,
         modelSeries,
+        requestEstimatedTokens: estimatedTokens,
       },
     });
 
@@ -93,7 +89,7 @@ export async function POST(request: NextRequest) {
       courseId = existingCourse.id;
     }
 
-    const validatedMessages = await validateUIMessages<InterviewUIMessage>({ messages });
+    const validatedMessages = messages;
     const response = createNexusNoteDeferredStreamResponse({
       originalMessages: validatedMessages,
       sessionId,
@@ -111,6 +107,18 @@ export async function POST(request: NextRequest) {
               60 * 60 * 1000,
               "研究请求过于频繁，请稍后再试",
               { failureMode: "deny" },
+            );
+            await db.transaction((tx) =>
+              consumeCapabilityAllowance(tx, {
+                userId,
+                capability: AI_CAPABILITIES.research,
+                consumptionKey: `interview-research:${researchRunId}`,
+                metadata: {
+                  runId: researchRunId,
+                  source: "course_interview",
+                  query: evidenceRequest.query,
+                },
+              }),
             );
             writeData({
               type: "data-researchEvent",
@@ -180,6 +188,7 @@ export async function POST(request: NextRequest) {
           messages: validatedMessages,
           presentation: "interview",
           sendReasoning: false,
+          observability: { endpoint: "/api/interview", startedAt },
         });
       },
     });

@@ -90,7 +90,10 @@ export function startWorkerRuntime(runtimeName: string, workerStarters: WorkerSt
     name: workerStarter.name,
     worker: workerStarter.start(),
   }));
-  const stopHeartbeat = startRuntimeHeartbeat(runtimeName);
+  const stopHeartbeat = startRuntimeHeartbeat(
+    runtimeName,
+    workerStarters.map((worker) => worker.name),
+  );
   let isShuttingDown = false;
 
   async function shutdown(signal: string) {

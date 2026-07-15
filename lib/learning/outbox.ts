@@ -5,6 +5,7 @@ export const LEARNING_OUTBOX_TOPICS = {
   courseRevisionCreated: "learning.course_revision_created",
   sectionCompleted: "learning.section_completed",
   activityRecorded: "product.learning_activity_recorded",
+  analyticsLearningActivityRecorded: "analytics.learning_activity_recorded",
 } as const;
 
 export type LearningOutboxTopic =

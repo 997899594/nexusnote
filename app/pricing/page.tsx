@@ -12,20 +12,22 @@ async function PricingContent() {
   const entitlement = userId ? await getUserEntitlementStatus(userId) : null;
   const planResult = BillingPlanIdSchema.safeParse(entitlement?.plan);
   const account: PricingAccountStatus = !userId
-    ? { kind: "anonymous", planId: null, expiresAt: null }
+    ? { kind: "anonymous", planId: null, expiresAt: null, permanent: false }
     : entitlement?.isTrialing
       ? {
           kind: "trial",
           planId: planResult.success ? planResult.data : null,
           expiresAt: entitlement.expiresAt?.toISOString() ?? null,
+          permanent: false,
         }
       : entitlement?.isPro
         ? {
             kind: "pro",
             planId: planResult.success ? planResult.data : null,
             expiresAt: entitlement.expiresAt?.toISOString() ?? null,
+            permanent: entitlement.expiresAt == null,
           }
-        : { kind: "free", planId: null, expiresAt: null };
+        : { kind: "free", planId: null, expiresAt: null, permanent: false };
 
   return <PricingClient account={account} catalog={getPricingCatalog()} />;
 }

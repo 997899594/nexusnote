@@ -1,12 +1,13 @@
 import type { Agent, ToolSet, UIMessage, UIMessageChunk } from "ai";
 import type { after as afterFn } from "next/server";
 import { getChatResumableStreamContext } from "@/lib/ai/core/resumable-streams";
-import { createNexusNoteStreamResponse } from "@/lib/ai/core/streaming";
+import { createNexusNoteStreamResponse, type StreamObservability } from "@/lib/ai/core/streaming";
 import { buildPersonalization } from "@/lib/ai/personalization";
 import { notFound } from "@/lib/api";
 import { syncConversationKnowledge } from "@/lib/chat/conversation-knowledge";
 import { buildConversationMemoryContext } from "@/lib/chat/conversation-memory";
 import {
+  clearConversationActiveStreamId,
   getConversationActiveStreamId,
   persistConversationMessages,
   setConversationActiveStreamId,
@@ -124,7 +125,7 @@ export async function clearActiveChatStream(params: {
   userId: string;
 }): Promise<void> {
   if (await getConversationActiveStreamId(params.sessionId, params.userId)) {
-    await setConversationActiveStreamId(params.sessionId, params.userId, null);
+    await clearConversationActiveStreamId(params.sessionId, params.userId);
   }
 }
 
@@ -139,6 +140,7 @@ export async function createChatStreamResponse<
   sessionId?: string | null;
   scheduleAfter: ScheduleAfter;
   dataParts?: UIMessageChunk[];
+  observability?: StreamObservability;
 }): Promise<Response> {
   if (isPersistentChatSession(params.sessionId)) {
     await persistConversationMessages(params.sessionId, params.userId, params.messages);
@@ -149,12 +151,14 @@ export async function createChatStreamResponse<
   }
 
   const resumableStreamContext = getChatResumableStreamContext(params.scheduleAfter);
+  const streamId = isPersistentChatSession(params.sessionId) ? crypto.randomUUID() : null;
 
   return createNexusNoteStreamResponse(params.agent, params.messages, {
     sessionId: params.sessionId ?? undefined,
     presentation: "chat",
     dataParts: params.dataParts,
     modelMessages: params.modelMessages,
+    observability: params.observability,
     onFinish: async ({ messages }) => {
       const persistentSessionId = isPersistentChatSession(params.sessionId)
         ? params.sessionId
@@ -164,7 +168,11 @@ export async function createChatStreamResponse<
       }
 
       await persistConversationMessages(persistentSessionId, params.userId, messages);
-      await setConversationActiveStreamId(persistentSessionId, params.userId, null);
+      await clearConversationActiveStreamId(
+        persistentSessionId,
+        params.userId,
+        streamId ?? undefined,
+      );
       params.scheduleAfter(async () => {
         await syncConversationKnowledge({
           conversationId: persistentSessionId,
@@ -178,7 +186,7 @@ export async function createChatStreamResponse<
         return;
       }
 
-      const streamId = crypto.randomUUID();
+      if (!streamId) return;
       await resumableStreamContext.createNewResumableStream(streamId, () => stream);
       await setConversationActiveStreamId(params.sessionId, params.userId, streamId);
     },

@@ -28,6 +28,17 @@ export const defaults = {
     standardContextMessages: 24,
     economyContextMessages: 12,
     compactContextMessages: 6,
+    standardContextTokens: 80_000,
+    economyContextTokens: 48_000,
+    compactContextTokens: 32_000,
+  },
+
+  conversationInput: {
+    maxRequestBytes: 512_000,
+    maxMessages: 80,
+    maxPartsPerMessage: 32,
+    maxTextPartCharacters: 24_000,
+    maxEstimatedTokens: 120_000,
   },
 
   operations: {
@@ -62,18 +73,21 @@ export const defaults = {
   // AI Models (task-routed stack)
   ai: {
     qwenModelInteractive: "qwen3.6-plus",
+    qwenModelEconomy: "qwen3.6-flash",
     qwenModelOutline: "qwen3.7-max",
     qwenModelSectionDraft: "qwen3.6-plus",
     qwenModelExtract: "qwen3.6-flash",
     qwenModelReview: "qwen3.7-max",
     qwenModelWebSearch: "qwen3.6-plus",
     deepseekModelInteractive: "deepseek-v4-flash",
+    deepseekModelEconomy: "deepseek-chat",
     deepseekModelOutline: "deepseek-v4-pro",
     deepseekModelSectionDraft: "deepseek-v4-flash",
     deepseekModelExtract: "deepseek-v4-flash",
     deepseekModelReview: "deepseek-v4-pro",
     deepseekModelWebSearch: "deepseek-v4-flash",
     openaiModelInteractive: "gpt-5.5",
+    openaiModelEconomy: "gpt-5-mini",
     openaiModelOutline: "gpt-5.5",
     openaiModelSectionDraft: "gpt-5.5",
     openaiModelExtract: "gpt-5.5",
@@ -82,6 +96,7 @@ export const defaults = {
     // Optional JSON object keyed by concrete model id:
     // {"qwen3.6-plus":{"input":0.3,"output":1.2}}
     modelPricingJson: "{}",
+    modelPricingVersion: "unversioned",
     // 默认关闭 AI 初始化噪音
     debugLogs: false,
     baseURL: "https://api.302ai.cn/v1",
@@ -103,6 +118,9 @@ export const defaults = {
     learningOutboxConcurrency: 2,
     learningOutboxMaxRetries: 5,
     learningOutboxBackoffDelay: 1000,
+    analyticsOutboxConcurrency: 4,
+    analyticsOutboxMaxRetries: 5,
+    analyticsOutboxBackoffDelay: 1000,
     courseProductionConcurrency: 1,
     courseProductionMaxRetries: 2,
     courseProductionBackoffDelay: 1500,
@@ -159,6 +177,7 @@ const serverEnvSchema = z.object({
     .string()
     .optional()
     .transform((v) => v === "true"),
+  APP_BASE_URL: z.string().url().optional(),
 
   // AI gateway
   AI_302_API_KEY: z.string().min(1),
@@ -168,28 +187,29 @@ const serverEnvSchema = z.object({
   FIRECRAWL_API_KEY: z.string().optional(),
   JINA_API_KEY: z.string().optional(),
 
-  // AI Observability (可选 - Langfuse)
-  LANGFUSE_PUBLIC_KEY: z.string().optional(),
-  LANGFUSE_SECRET_KEY: z.string().optional(),
-
   // Product analytics is an optional projection; PostgreSQL remains authoritative.
   POSTHOG_PROJECT_KEY: z.string().min(1).optional(),
   POSTHOG_HOST: z.string().url().default(defaults.productAnalytics.posthogHost),
+  OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url().optional(),
+  OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: z.string().url().optional(),
 
   // AI Models (task-routed defaults)
   AI_QWEN_MODEL_INTERACTIVE: z.string().default(defaults.ai.qwenModelInteractive),
+  AI_QWEN_MODEL_ECONOMY: z.string().default(defaults.ai.qwenModelEconomy),
   AI_QWEN_MODEL_OUTLINE: z.string().default(defaults.ai.qwenModelOutline),
   AI_QWEN_MODEL_SECTION_DRAFT: z.string().default(defaults.ai.qwenModelSectionDraft),
   AI_QWEN_MODEL_EXTRACT: z.string().default(defaults.ai.qwenModelExtract),
   AI_QWEN_MODEL_REVIEW: z.string().default(defaults.ai.qwenModelReview),
   AI_QWEN_MODEL_WEB_SEARCH: z.string().default(defaults.ai.qwenModelWebSearch),
   AI_DEEPSEEK_MODEL_INTERACTIVE: z.string().default(defaults.ai.deepseekModelInteractive),
+  AI_DEEPSEEK_MODEL_ECONOMY: z.string().default(defaults.ai.deepseekModelEconomy),
   AI_DEEPSEEK_MODEL_OUTLINE: z.string().default(defaults.ai.deepseekModelOutline),
   AI_DEEPSEEK_MODEL_SECTION_DRAFT: z.string().default(defaults.ai.deepseekModelSectionDraft),
   AI_DEEPSEEK_MODEL_EXTRACT: z.string().default(defaults.ai.deepseekModelExtract),
   AI_DEEPSEEK_MODEL_REVIEW: z.string().default(defaults.ai.deepseekModelReview),
   AI_DEEPSEEK_MODEL_WEB_SEARCH: z.string().default(defaults.ai.deepseekModelWebSearch),
   AI_OPENAI_MODEL_INTERACTIVE: z.string().default(defaults.ai.openaiModelInteractive),
+  AI_OPENAI_MODEL_ECONOMY: z.string().default(defaults.ai.openaiModelEconomy),
   AI_OPENAI_MODEL_OUTLINE: z.string().default(defaults.ai.openaiModelOutline),
   AI_OPENAI_MODEL_SECTION_DRAFT: z.string().default(defaults.ai.openaiModelSectionDraft),
   AI_OPENAI_MODEL_EXTRACT: z.string().default(defaults.ai.openaiModelExtract),
@@ -218,6 +238,7 @@ const serverEnvSchema = z.object({
         return z.NEVER;
       }
     }),
+  AI_MODEL_PRICING_VERSION: z.string().min(1).default(defaults.ai.modelPricingVersion),
   AI_DEBUG_LOGS: z
     .string()
     .default(String(defaults.ai.debugLogs))
@@ -247,6 +268,46 @@ const serverEnvSchema = z.object({
     .int()
     .positive()
     .default(defaults.freeChatGovernor.compactContextMessages),
+  FREE_CHAT_STANDARD_CONTEXT_TOKENS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(defaults.freeChatGovernor.standardContextTokens),
+  FREE_CHAT_ECONOMY_CONTEXT_TOKENS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(defaults.freeChatGovernor.economyContextTokens),
+  FREE_CHAT_COMPACT_CONTEXT_TOKENS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(defaults.freeChatGovernor.compactContextTokens),
+  AI_CONVERSATION_MAX_REQUEST_BYTES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(defaults.conversationInput.maxRequestBytes),
+  AI_CONVERSATION_MAX_MESSAGES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(defaults.conversationInput.maxMessages),
+  AI_CONVERSATION_MAX_PARTS_PER_MESSAGE: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(defaults.conversationInput.maxPartsPerMessage),
+  AI_CONVERSATION_MAX_TEXT_PART_CHARACTERS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(defaults.conversationInput.maxTextPartCharacters),
+  AI_CONVERSATION_MAX_ESTIMATED_TOKENS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(defaults.conversationInput.maxEstimatedTokens),
   APP_TRACE_LOGS: z
     .string()
     .default(String(defaults.observability.appTraceLogs))
@@ -346,6 +407,21 @@ const serverEnvSchema = z.object({
     .int()
     .positive()
     .default(defaults.queue.learningOutboxBackoffDelay),
+  QUEUE_ANALYTICS_OUTBOX_CONCURRENCY: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(defaults.queue.analyticsOutboxConcurrency),
+  QUEUE_ANALYTICS_OUTBOX_MAX_RETRIES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(defaults.queue.analyticsOutboxMaxRetries),
+  QUEUE_ANALYTICS_OUTBOX_BACKOFF_DELAY: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(defaults.queue.analyticsOutboxBackoffDelay),
   OUTBOX_SLO_MAX_PENDING_AGE_SECONDS: z.coerce
     .number()
     .int()
@@ -396,6 +472,21 @@ const serverEnvSchema = z.object({
     .int()
     .positive()
     .default(defaults.queue.knowledgeInsightsBackoffDelay),
+  QUEUE_NOTE_FOLLOWUPS_CONCURRENCY: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(defaults.queue.noteFollowupsConcurrency),
+  QUEUE_NOTE_FOLLOWUPS_MAX_RETRIES: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .default(defaults.queue.noteFollowupsMaxRetries),
+  QUEUE_NOTE_FOLLOWUPS_BACKOFF_DELAY: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(defaults.queue.noteFollowupsBackoffDelay),
   QUEUE_RAG_CONCURRENCY: z.coerce.number().int().positive().default(defaults.queue.ragConcurrency),
   QUEUE_RAG_MAX_RETRIES: z.coerce.number().int().min(0).default(defaults.queue.ragMaxRetries),
   QUEUE_RAG_BACKOFF_DELAY: z.coerce
@@ -443,7 +534,11 @@ function parseServerEnv(env: NodeJS.ProcessEnv = process.env): ServerEnv {
   }
 
   // Read from process.env for server-side
-  const merged = { ...process.env, ...env };
+  const merged = {
+    ...process.env,
+    ...env,
+    APP_BASE_URL: env.APP_BASE_URL ?? env.AUTH_URL ?? env.NEXT_PUBLIC_APP_URL,
+  };
 
   const result = serverEnvSchema.safeParse(merged);
 
@@ -461,6 +556,62 @@ function parseServerEnv(env: NodeJS.ProcessEnv = process.env): ServerEnv {
   ) {
     console.error("Server environment validation failed: AUTH_SECRET uses the development value");
     throw new Error("Invalid server environment configuration");
+  }
+
+  const economyModelPairs = [
+    ["Qwen", result.data.AI_QWEN_MODEL_INTERACTIVE, result.data.AI_QWEN_MODEL_ECONOMY],
+    ["DeepSeek", result.data.AI_DEEPSEEK_MODEL_INTERACTIVE, result.data.AI_DEEPSEEK_MODEL_ECONOMY],
+    ["OpenAI", result.data.AI_OPENAI_MODEL_INTERACTIVE, result.data.AI_OPENAI_MODEL_ECONOMY],
+  ] as const;
+  for (const [series, interactiveModel, economyModel] of economyModelPairs) {
+    if (interactiveModel === economyModel) {
+      console.error(`${series} economy model must differ from the interactive model`);
+      throw new Error("Invalid AI model economy configuration");
+    }
+  }
+
+  if (result.data.NODE_ENV === "production") {
+    if (!result.data.APP_BASE_URL) {
+      throw new Error("APP_BASE_URL, AUTH_URL, or NEXT_PUBLIC_APP_URL is required in production");
+    }
+    if (
+      !result.data.OTEL_EXPORTER_OTLP_ENDPOINT &&
+      !result.data.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
+    ) {
+      throw new Error("An OTLP metrics endpoint is required in production");
+    }
+    if (result.data.AI_MODEL_PRICING_VERSION === defaults.ai.modelPricingVersion) {
+      throw new Error("AI_MODEL_PRICING_VERSION must be explicit in production");
+    }
+    const configuredModels = new Set([
+      result.data.AI_QWEN_MODEL_INTERACTIVE,
+      result.data.AI_QWEN_MODEL_ECONOMY,
+      result.data.AI_QWEN_MODEL_OUTLINE,
+      result.data.AI_QWEN_MODEL_SECTION_DRAFT,
+      result.data.AI_QWEN_MODEL_EXTRACT,
+      result.data.AI_QWEN_MODEL_REVIEW,
+      result.data.AI_QWEN_MODEL_WEB_SEARCH,
+      result.data.AI_DEEPSEEK_MODEL_INTERACTIVE,
+      result.data.AI_DEEPSEEK_MODEL_ECONOMY,
+      result.data.AI_DEEPSEEK_MODEL_OUTLINE,
+      result.data.AI_DEEPSEEK_MODEL_SECTION_DRAFT,
+      result.data.AI_DEEPSEEK_MODEL_EXTRACT,
+      result.data.AI_DEEPSEEK_MODEL_REVIEW,
+      result.data.AI_DEEPSEEK_MODEL_WEB_SEARCH,
+      result.data.AI_OPENAI_MODEL_INTERACTIVE,
+      result.data.AI_OPENAI_MODEL_ECONOMY,
+      result.data.AI_OPENAI_MODEL_OUTLINE,
+      result.data.AI_OPENAI_MODEL_SECTION_DRAFT,
+      result.data.AI_OPENAI_MODEL_EXTRACT,
+      result.data.AI_OPENAI_MODEL_REVIEW,
+      result.data.AI_OPENAI_MODEL_WEB_SEARCH,
+    ]);
+    const missingPricing = [...configuredModels].filter(
+      (model) => !result.data.AI_MODEL_PRICING_JSON[model],
+    );
+    if (missingPricing.length > 0) {
+      throw new Error(`AI pricing is missing for configured models: ${missingPricing.join(", ")}`);
+    }
   }
 
   return result.data;

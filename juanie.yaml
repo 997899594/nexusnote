@@ -28,14 +28,14 @@ services:
       releaseGraph:
         baselineVersion: "20260714000000"
         expand:
-          targetVersion: "20260714010003"
+          targetVersion: "20260715074000"
         backfill:
-          targetVersion: "20260714020000"
+          targetVersion: "20260715075000"
         verify:
-          targetVersion: "20260714030000"
+          targetVersion: "20260715076000"
         cutover: deployment
         contract:
-          targetVersion: "20260714050000"
+          targetVersion: "20260715077000"
   - name: worker
     type: worker
     build:

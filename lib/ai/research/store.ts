@@ -6,6 +6,11 @@ import {
   researchRuns,
   researchRunTasks,
 } from "@/db";
+import { AI_CAPABILITIES } from "@/lib/billing/capabilities";
+import {
+  buildResearchConsumptionKey,
+  consumeCapabilityAllowance,
+} from "@/lib/billing/capability-access";
 import { buildKnowledgeContentHash } from "@/lib/knowledge/content-hash";
 import type {
   BackgroundResearchMetadata,
@@ -191,35 +196,48 @@ export async function createResearchRun(params: {
   modelSeries?: string | null;
   retryOfRunId?: string | null;
 }): Promise<ResearchRunRecord> {
-  const [created] = await db
-    .insert(researchRuns)
-    .values({
-      userId: params.userId,
-      sessionId: params.sessionId ?? null,
-      jobType: "run_background_research",
-      status: "queued",
-      modelSeries: params.modelSeries ?? null,
-      workerTransport: "local",
-      userPrompt: params.userPrompt.trim(),
-      inputHash: createResearchInputHash({
-        userPrompt: params.userPrompt,
-        modelSeries: params.modelSeries,
-        sessionId: params.sessionId,
-      }),
-      retryOfRunId: params.retryOfRunId ?? null,
-      progressJson: {
-        stage: "queued",
-        message: "研究已开始。",
-        updatedAt: new Date().toISOString(),
-      },
-    })
-    .returning();
+  const runId = crypto.randomUUID();
+  return db.transaction(async (tx) => {
+    if (!params.retryOfRunId) {
+      await consumeCapabilityAllowance(tx, {
+        userId: params.userId,
+        capability: AI_CAPABILITIES.research,
+        consumptionKey: buildResearchConsumptionKey(runId),
+        metadata: { runId, source: "background_research" },
+      });
+    }
 
-  if (!created) {
-    throw new Error("Failed to create research run.");
-  }
+    const [created] = await tx
+      .insert(researchRuns)
+      .values({
+        id: runId,
+        userId: params.userId,
+        sessionId: params.sessionId ?? null,
+        jobType: "run_background_research",
+        status: "queued",
+        modelSeries: params.modelSeries ?? null,
+        workerTransport: "local",
+        userPrompt: params.userPrompt.trim(),
+        inputHash: createResearchInputHash({
+          userPrompt: params.userPrompt,
+          modelSeries: params.modelSeries,
+          sessionId: params.sessionId,
+        }),
+        retryOfRunId: params.retryOfRunId ?? null,
+        progressJson: {
+          stage: "queued",
+          message: "研究已开始。",
+          updatedAt: new Date().toISOString(),
+        },
+      })
+      .returning();
 
-  return created;
+    if (!created) {
+      throw new Error("Failed to create research run.");
+    }
+
+    return created;
+  });
 }
 
 export async function markResearchRunQueued(runId: string) {

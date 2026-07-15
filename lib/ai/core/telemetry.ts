@@ -3,6 +3,7 @@ import { env } from "@/config/env";
 import { aiUsage, db } from "@/db";
 import type { CapabilityMode } from "@/lib/ai/runtime/contracts";
 import { isUuidString } from "@/lib/chat/session-id";
+import { recordAIRequestMetric } from "@/lib/observability/metrics";
 import { getAIErrorMessage } from "./ai-errors";
 import { getModelNameForPolicy, type ModelPolicy } from "./model-policy";
 import type { AIModelSeries } from "./model-series";
@@ -40,16 +41,25 @@ function normalizeUsage(usage?: Partial<LanguageModelUsage>) {
   };
 }
 
-function estimateCostCents(model: string, inputTokens: number, outputTokens: number): number {
+function estimateCost(model: string, inputTokens: number, outputTokens: number) {
   const pricing = env.AI_MODEL_PRICING_JSON[model];
   if (!pricing) {
-    return 0;
+    return { costMicroUsd: 0, pricingSnapshot: null };
   }
 
   const costUsd =
     (inputTokens / 1_000_000) * pricing.input + (outputTokens / 1_000_000) * pricing.output;
 
-  return Math.round(costUsd * 100);
+  return {
+    costMicroUsd: Math.round(costUsd * 1_000_000),
+    pricingSnapshot: {
+      version: env.AI_MODEL_PRICING_VERSION,
+      currency: "USD" as const,
+      model,
+      inputPerMillion: pricing.input,
+      outputPerMillion: pricing.output,
+    },
+  };
 }
 
 function normalizeTelemetryUserId(userId: string | undefined): string | undefined {
@@ -80,6 +90,16 @@ export async function recordAIUsage(input: RecordAIUsageInput): Promise<void> {
   }
 
   const { inputTokens, outputTokens, totalTokens } = normalizeUsage(input.usage);
+  const cost = estimateCost(model, inputTokens, outputTokens);
+  recordAIRequestMetric({
+    endpoint: input.endpoint,
+    model,
+    success: input.success ?? true,
+    durationMs: input.durationMs,
+    inputTokens,
+    outputTokens,
+    costMicroUsd: cost.costMicroUsd,
+  });
 
   try {
     await db.insert(aiUsage).values({
@@ -96,7 +116,8 @@ export async function recordAIUsage(input: RecordAIUsageInput): Promise<void> {
       inputTokens,
       outputTokens,
       totalTokens,
-      costCents: estimateCostCents(model, inputTokens, outputTokens),
+      costMicroUsd: cost.costMicroUsd,
+      pricingSnapshot: cost.pricingSnapshot,
       durationMs: input.durationMs,
       success: input.success ?? true,
       errorMessage: input.errorMessage,
@@ -106,6 +127,7 @@ export async function recordAIUsage(input: RecordAIUsageInput): Promise<void> {
         modelSeries: input.modelSeries ?? null,
         modelPolicy: input.modelPolicy ?? null,
         resolvedModel: model,
+        pricingMissing: cost.pricingSnapshot === null,
       },
     });
   } catch (error) {

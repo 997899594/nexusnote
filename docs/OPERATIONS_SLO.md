@@ -25,17 +25,27 @@ require entitlement solely because a daily cost threshold was crossed.
 | Critical outbox delivery p95 | <= 60 seconds | investigate worker/provider latency |
 | Oldest critical pending event | <= 120 seconds | system health fails |
 | Critical dead-letter count | 0 | system health fails and operator replay is required |
-| Queue worker heartbeat age | <= 60 seconds | system health fails |
+| Every registered queue worker heartbeat age | <= 60 seconds | system health fails |
 | Database recovery point | <= 5 minutes | restore from managed backups/WAL |
 | Database recovery time | <= 30 minutes | invoke recovery runbook |
 
-Product analytics mirror failures are visible but do not fail product health. Learning evidence and
-career-tree delivery are critical and do fail health after the thresholds above.
+`product.learning_activity_recorded` is part of the critical projection lane;
+`analytics.learning_activity_recorded` is the non-critical analytics mirror lane. Both lanes are
+operator-replayable, but analytics mirror failures remain visible without failing product health.
+Learning evidence and career-tree delivery are critical and do fail health after the thresholds
+above. Heartbeats are tracked per runtime, worker, and process instance so replicas cannot overwrite
+one another and a partially started worker process cannot report the whole runtime as healthy.
+
+The canonical runtime signals are OpenTelemetry metrics. Production must configure an OTLP metrics
+endpoint. TTFT is emitted as `nexusnote.chat.ttft`, AI latency and cost as
+`nexusnote.ai.request.duration` and `nexusnote.ai.cost`, and outbox latency as
+`nexusnote.outbox.delivery.duration` with a `lane` attribute.
 
 ## Operator commands
 
 ```bash
 bun run learning:funnel 90
+bun run learning:rebuild-activation
 bun run outbox:replay <event-uuid>
 ```
 

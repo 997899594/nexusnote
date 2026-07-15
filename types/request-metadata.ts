@@ -34,7 +34,7 @@ export const DefaultRequestMetadataSchema = z
   .object({
     context: z.literal("default").optional(),
   })
-  .passthrough();
+  .strict();
 
 export const RequestMetadataSchema = z.union([
   LearnRequestMetadataSchema,

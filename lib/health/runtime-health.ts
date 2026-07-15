@@ -3,6 +3,7 @@ import { db, sql } from "@/db";
 import { assertOutboxOperational } from "@/lib/operations/outbox-operations";
 import { getRedis } from "@/lib/redis";
 import { REQUIRED_SCHEMA_RELEASE } from "@/lib/release/schema-release";
+import { queueWorkerRuntimeDefinition } from "@/lib/worker-runtime/registry";
 import packageJson from "@/package.json";
 
 type CheckStatus = "pass" | "fail";
@@ -24,8 +25,10 @@ interface HealthReport {
 }
 
 const CHECK_TIMEOUT_MS = 1500;
+type HealthDatabaseExecutor = Pick<typeof db, "execute">;
 const REQUIRED_TABLES = [
   "app_schema_releases",
+  "ai_capability_usage_events",
   "billing_orders",
   "course_public_annotations",
   "course_publication_likes",
@@ -33,9 +36,11 @@ const REQUIRED_TABLES = [
   "course_publication_urges",
   "domain_outbox_events",
   "learning_activity_events",
+  "learning_activation_projections",
   "learning_enrollments",
   "learning_section_completions",
-  "runtime_heartbeats",
+  "runtime_worker_heartbeats",
+  "product_access_grants",
   "user_entitlements",
 ] as const;
 
@@ -43,20 +48,32 @@ function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Unknown error";
 }
 
-async function assertSchemaCompatibility(): Promise<void> {
-  const [release] = await db.execute<{ version: string }>(sql`
+async function withDatabaseDeadline<T>(
+  task: (executor: HealthDatabaseExecutor) => Promise<T>,
+): Promise<T> {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select set_config('statement_timeout', ${`${CHECK_TIMEOUT_MS}ms`}, true)`);
+    return task(tx);
+  });
+}
+
+async function assertSchemaCompatibility(executor: HealthDatabaseExecutor): Promise<void> {
+  const [release] = await executor.execute<{ version: string }>(sql`
     select version from app_schema_releases where version = ${REQUIRED_SCHEMA_RELEASE} limit 1
   `);
   if (!release) throw new Error(`Required schema release is missing: ${REQUIRED_SCHEMA_RELEASE}`);
 
-  const tables = await db.execute<{ table_name: string }>(sql`
+  const tables = await executor.execute<{ table_name: string }>(sql`
     select table_name from information_schema.tables where table_schema = 'public'
   `);
   const existing = new Set(tables.map((table) => table.table_name));
   const missing = REQUIRED_TABLES.filter((table) => !existing.has(table));
   if (missing.length > 0) throw new Error(`Missing required tables: ${missing.join(", ")}`);
 
-  const [vectorContract] = await db.execute<{ vector_type: string; indexdef: string | null }>(sql`
+  const [vectorContract] = await executor.execute<{
+    vector_type: string;
+    indexdef: string | null;
+  }>(sql`
     select
       format_type(attribute.atttypid, attribute.atttypmod) as vector_type,
       (
@@ -85,29 +102,45 @@ async function assertSchemaCompatibility(): Promise<void> {
   }
 }
 
-async function assertWorkerHeartbeat(): Promise<void> {
-  const [heartbeat] = await db.execute<{ last_seen_at: Date }>(sql`
-    select last_seen_at
+async function assertWorkerHeartbeat(
+  executor: HealthDatabaseExecutor,
+): Promise<{ activeWorkers: number }> {
+  const expectedWorkers = queueWorkerRuntimeDefinition.workers.map((worker) => worker.name);
+  const heartbeats = await executor.execute<{ worker_name: string }>(sql`
+    select distinct worker_name
     from runtime_heartbeats
-    where runtime_name = 'QueueWorkersRuntime'
+    where runtime_name = ${queueWorkerRuntimeDefinition.runtimeName}
+      and worker_name in (${sql.join(
+        expectedWorkers.map((worker) => sql`${worker}`),
+        sql`, `,
+      )})
       and last_seen_at > now() - interval '60 seconds'
-    limit 1
   `);
-  if (!heartbeat) throw new Error("Queue worker runtime heartbeat is stale or missing");
+  const activeWorkers = new Set(heartbeats.map((heartbeat) => heartbeat.worker_name));
+  const missingWorkers = expectedWorkers.filter((worker) => !activeWorkers.has(worker));
+  if (missingWorkers.length > 0) {
+    throw new Error(`Queue worker heartbeat is stale or missing: ${missingWorkers.join(", ")}`);
+  }
+  return { activeWorkers: activeWorkers.size };
 }
 
-async function runCheck(task: () => Promise<unknown>): Promise<DependencyCheckResult> {
+async function runCheck(
+  task: () => Promise<unknown>,
+  options: { clientTimeout?: boolean } = {},
+): Promise<DependencyCheckResult> {
   const startedAt = Date.now();
   try {
-    const result = await Promise.race([
-      task(),
-      new Promise((_, reject) =>
-        setTimeout(
-          () => reject(new Error(`Timed out after ${CHECK_TIMEOUT_MS}ms`)),
-          CHECK_TIMEOUT_MS,
-        ),
-      ),
-    ]);
+    const result = options.clientTimeout
+      ? await Promise.race([
+          task(),
+          new Promise((_, reject) =>
+            setTimeout(
+              () => reject(new Error(`Timed out after ${CHECK_TIMEOUT_MS}ms`)),
+              CHECK_TIMEOUT_MS,
+            ),
+          ),
+        ])
+      : await task();
     return {
       status: "pass",
       latencyMs: Date.now() - startedAt,
@@ -146,9 +179,9 @@ export function getLivenessReport(): HealthReport {
 
 export async function getReadinessReport(): Promise<HealthReport> {
   const [database, redis, schema] = await Promise.all([
-    runCheck(() => db.execute(sql`select 1`)),
-    runCheck(() => getRedis().ping()),
-    runCheck(() => assertSchemaCompatibility()),
+    runCheck(() => withDatabaseDeadline((executor) => executor.execute(sql`select 1`))),
+    runCheck(() => getRedis().ping(), { clientTimeout: true }),
+    runCheck(() => withDatabaseDeadline(assertSchemaCompatibility)),
   ]);
   return createHealthReport({ database, redis, schema });
 }
@@ -156,8 +189,8 @@ export async function getReadinessReport(): Promise<HealthReport> {
 export async function getSystemHealthReport(): Promise<HealthReport> {
   const [readiness, workers, outbox] = await Promise.all([
     getReadinessReport(),
-    runCheck(() => assertWorkerHeartbeat()),
-    runCheck(() => assertOutboxOperational()),
+    runCheck(() => withDatabaseDeadline(assertWorkerHeartbeat)),
+    runCheck(() => withDatabaseDeadline(assertOutboxOperational)),
   ]);
   return createHealthReport({ ...readiness.checks, workers, outbox });
 }

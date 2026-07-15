@@ -6,10 +6,10 @@
  */
 
 import type { Queue } from "bullmq";
-import { defaults } from "@/config/env";
 import { buildKnowledgeContentHash } from "@/lib/knowledge/content-hash";
 import { createNexusQueue } from "@/lib/queue/bullmq";
 import { buildSafeJobId } from "@/lib/queue/job-id";
+import { getQueueRuntimePolicy } from "@/lib/queue/runtime-policy";
 
 export interface RagIndexJobData {
   type: "course_section";
@@ -32,10 +32,7 @@ export function getRagQueue(): Queue<RagIndexJobData> {
     return ragQueue;
   }
 
-  ragQueue = createNexusQueue<RagIndexJobData>("rag-index", {
-    attempts: defaults.queue.ragMaxRetries,
-    backoffDelay: defaults.queue.ragBackoffDelay,
-  });
+  ragQueue = createNexusQueue<RagIndexJobData>("rag-index", getQueueRuntimePolicy("rag"));
 
   return ragQueue;
 }

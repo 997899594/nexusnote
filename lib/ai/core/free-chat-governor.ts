@@ -3,6 +3,7 @@ import "server-only";
 import type { UIMessage } from "ai";
 import { env } from "@/config/env";
 import { db, sql } from "@/db";
+import { estimateConversationTokens } from "@/lib/ai/conversation-input";
 import type { ModelPolicy } from "@/lib/ai/core/model-policy";
 import type { ConversationCapabilityMode } from "@/lib/ai/runtime/contracts";
 import { buildErrorLogFields, writeStructuredLog } from "@/lib/observability/structured-log";
@@ -13,6 +14,7 @@ export interface FreeChatGovernorDecision {
   mode: FreeChatCostMode;
   modelPolicy: ModelPolicy | null;
   maxContextMessages: number;
+  maxContextTokens: number;
   dailyTokens: number;
 }
 
@@ -29,6 +31,7 @@ function standardDecision(): FreeChatGovernorDecision {
     mode: "standard",
     modelPolicy: null,
     maxContextMessages: env.FREE_CHAT_STANDARD_CONTEXT_MESSAGES,
+    maxContextTokens: env.FREE_CHAT_STANDARD_CONTEXT_TOKENS,
     dailyTokens: 0,
   };
 }
@@ -43,6 +46,7 @@ export async function resolveFreeChatGovernor(params: {
       mode: "standard",
       modelPolicy: null,
       maxContextMessages: Number.MAX_SAFE_INTEGER,
+      maxContextTokens: Number.MAX_SAFE_INTEGER,
       dailyTokens: 0,
     };
   }
@@ -63,6 +67,7 @@ export async function resolveFreeChatGovernor(params: {
         mode: "compact",
         modelPolicy: "interactive-economy",
         maxContextMessages: env.FREE_CHAT_COMPACT_CONTEXT_MESSAGES,
+        maxContextTokens: env.FREE_CHAT_COMPACT_CONTEXT_TOKENS,
         dailyTokens,
       };
     }
@@ -71,6 +76,7 @@ export async function resolveFreeChatGovernor(params: {
         mode: "economy",
         modelPolicy: "interactive-economy",
         maxContextMessages: env.FREE_CHAT_ECONOMY_CONTEXT_MESSAGES,
+        maxContextTokens: env.FREE_CHAT_ECONOMY_CONTEXT_TOKENS,
         dailyTokens,
       };
     }
@@ -88,8 +94,22 @@ export async function resolveFreeChatGovernor(params: {
 export function selectChatModelContext(
   messages: UIMessage[],
   maxContextMessages: number,
+  maxContextTokens: number,
 ): UIMessage[] {
   const systemMessages = messages.filter((message) => message.role === "system");
-  const conversationMessages = messages.filter((message) => message.role !== "system");
-  return [...systemMessages, ...conversationMessages.slice(-maxContextMessages)];
+  const conversationMessages = messages
+    .filter((message) => message.role !== "system")
+    .slice(-maxContextMessages);
+  const selectedMessages: UIMessage[] = [];
+
+  for (let index = conversationMessages.length - 1; index >= 0; index -= 1) {
+    const message = conversationMessages[index];
+    const candidate = [...systemMessages, message, ...selectedMessages];
+    if (selectedMessages.length > 0 && estimateConversationTokens(candidate) > maxContextTokens) {
+      break;
+    }
+    selectedMessages.unshift(message);
+  }
+
+  return [...systemMessages, ...selectedMessages];
 }

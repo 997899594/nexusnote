@@ -31,6 +31,9 @@ export const careerGenerationRuns = pgTable(
     outputJson: jsonb("output_json"),
     errorCode: text("error_code"),
     errorMessage: text("error_message"),
+    leaseToken: uuid("lease_token"),
+    leaseExpiresAt: timestamp("lease_expires_at"),
+    attemptCount: integer("attempt_count").notNull().default(0),
     startedAt: timestamp("started_at"),
     finishedAt: timestamp("finished_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -264,10 +267,9 @@ export const careerUserTreeSnapshots = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => ({
-    userLatestIdx: index("career_user_tree_snapshots_user_latest_idx").on(
-      table.userId,
-      table.isLatest,
-    ),
+    userLatestIdx: uniqueIndex("career_user_tree_snapshots_user_latest_idx")
+      .on(table.userId)
+      .where(sql`${table.isLatest} = true`),
     userCreatedIdx: index("career_user_tree_snapshots_user_created_idx").on(
       table.userId,
       table.createdAt,

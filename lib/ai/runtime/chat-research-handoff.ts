@@ -16,6 +16,10 @@ import {
   AI_WORKFLOW_JOB_ID_HEADER,
   AI_WORKFLOW_JOB_TYPE_HEADER,
 } from "@/lib/ai/runtime/response-headers";
+import {
+  buildResearchConsumptionKey,
+  refundCapabilityAllowance,
+} from "@/lib/billing/capability-access";
 import { persistConversationMessages } from "@/lib/chat/conversation-persistence";
 import { mergeOwnedConversationMetadata } from "@/lib/chat/conversation-repository";
 import { enqueueBackgroundResearch, type QueuedResearchJob } from "@/lib/queue/research-queue";
@@ -68,11 +72,23 @@ export async function createBackgroundResearchHandoffResponse(params: {
     });
     await markResearchRunQueued(run.id);
   } catch (error) {
-    await failResearchRun({
-      runId: run.id,
-      errorCode: "QUEUE_ENQUEUE_FAILED",
-      errorMessage: error instanceof Error ? error.message : "研究任务入队失败",
-    });
+    const [refundResult, failureResult] = await Promise.allSettled([
+      refundCapabilityAllowance(buildResearchConsumptionKey(run.id)),
+      failResearchRun({
+        runId: run.id,
+        errorCode: "QUEUE_ENQUEUE_FAILED",
+        errorMessage: error instanceof Error ? error.message : "研究任务入队失败",
+      }),
+    ]);
+    if (refundResult.status === "rejected") {
+      console.error(
+        "[Research] Failed to refund allowance after queue failure",
+        refundResult.reason,
+      );
+    }
+    if (failureResult.status === "rejected") {
+      console.error("[Research] Failed to persist queue failure", failureResult.reason);
+    }
     throw error;
   }
 

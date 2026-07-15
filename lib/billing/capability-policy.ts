@@ -1,15 +1,11 @@
-import { paymentRequired } from "@/lib/api/errors";
-import { AI_CAPABILITIES, type AICapability, requiresEntitlement } from "./capabilities";
-import { getActiveEntitlement } from "./entitlements";
+import type { AICapability } from "./capabilities";
+import { getCapabilityAllowance } from "./capability-access";
+import { CapabilityAllowanceExceededError } from "./capability-errors";
 
 export { AI_CAPABILITIES, type AICapability } from "./capabilities";
 
 export async function canUseAICapability(userId: string, capability: AICapability) {
-  if (!requiresEntitlement(capability)) {
-    return true;
-  }
-
-  return Boolean(await getActiveEntitlement(userId));
+  return (await getCapabilityAllowance(userId, capability)).allowed;
 }
 
 export function assertAICapabilityAccess(capability: AICapability, allowed: boolean): void {
@@ -17,12 +13,7 @@ export function assertAICapabilityAccess(capability: AICapability, allowed: bool
     return;
   }
 
-  throw paymentRequired(
-    capability === AI_CAPABILITIES.research
-      ? "联网研究需要有效试用或 Pro 权益"
-      : "课程生成需要有效试用或 Pro 权益",
-    "ENTITLEMENT_REQUIRED",
-  );
+  throw new CapabilityAllowanceExceededError(capability);
 }
 
 export async function requireAICapability(userId: string, capability: AICapability): Promise<void> {

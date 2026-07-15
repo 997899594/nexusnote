@@ -169,10 +169,12 @@ export const authConfig = {
                     "如果邮件客户端或安全扫描先打开了链接，10 分钟内复制同一链接到默认浏览器仍可继续使用。",
                   ].join("\n"),
                 }),
+                signal: AbortSignal.timeout(10_000),
               });
 
               if (!res.ok) {
-                throw new Error(`Resend error: ${JSON.stringify(await res.json())}`);
+                const providerError = (await res.text()).slice(0, 1_000);
+                throw new Error(`Resend error (${res.status}): ${providerError}`);
               }
             },
           }),

@@ -13,10 +13,13 @@ export type ModelPolicy =
 
 const POLICY_TO_MODEL_TYPE: Record<
   ModelPolicy,
-  Extract<ModelType, "chat" | "outline" | "sectionDraft" | "extract" | "review" | "webSearch">
+  Extract<
+    ModelType,
+    "chat" | "economy" | "outline" | "sectionDraft" | "extract" | "review" | "webSearch"
+  >
 > = {
   "interactive-fast": "chat",
-  "interactive-economy": "extract",
+  "interactive-economy": "economy",
   "outline-architect": "outline",
   "section-draft": "sectionDraft",
   "extract-fast": "extract",

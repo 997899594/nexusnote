@@ -17,6 +17,7 @@ export function buildConversationMessageRows({
   messages,
 }: ConversationMessageRowInput) {
   return messages.map((message, index) => ({
+    messageId: message.id,
     conversationId,
     position: index,
     role: message.role,
@@ -50,6 +51,7 @@ export async function loadConversationMessagesMap(
   const rows = await db
     .select({
       conversationId: conversationMessages.conversationId,
+      messageId: conversationMessages.messageId,
       position: conversationMessages.position,
       message: conversationMessages.message,
     })

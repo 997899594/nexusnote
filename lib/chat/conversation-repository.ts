@@ -1,4 +1,5 @@
-import { and, conversations, db, eq } from "@/db";
+import type { SQL } from "drizzle-orm";
+import { and, conversations, db, eq, sql } from "@/db";
 
 type ConversationRecord = typeof conversations.$inferSelect;
 
@@ -8,7 +9,7 @@ export interface OwnedConversationUpdate {
   summary?: string | null;
   messageCount?: number | null;
   lastMessageAt?: Date | null;
-  metadata?: Record<string, unknown> | null;
+  metadata?: Record<string, unknown> | SQL | null;
   updatedAt?: Date | null;
 }
 
@@ -41,7 +42,7 @@ async function findConversation(
 
 function buildConversationTouchUpdate(messageCount: number) {
   return {
-    messageCount,
+    messageCount: sql`greatest(coalesce(${conversations.messageCount}, 0), ${messageCount})`,
     lastMessageAt: new Date(),
   };
 }
@@ -92,33 +93,18 @@ export async function updateOwnedConversation(params: {
   return updated ?? null;
 }
 
-function normalizeConversationMetadata(metadata: unknown): Record<string, unknown> {
-  if (metadata && typeof metadata === "object" && !Array.isArray(metadata)) {
-    return metadata as Record<string, unknown>;
-  }
-
-  return {};
-}
-
 export async function mergeOwnedConversationMetadata(params: {
   conversationId: string;
   userId: string;
   metadataPatch: Record<string, unknown>;
 }): Promise<ConversationRecord | null> {
-  const existing = await getOwnedConversation(params.conversationId, params.userId);
-
-  if (!existing) {
-    return null;
-  }
-
   return updateOwnedConversation({
     conversationId: params.conversationId,
     userId: params.userId,
     updates: {
-      metadata: {
-        ...normalizeConversationMetadata(existing.metadata),
-        ...params.metadataPatch,
-      },
+      metadata: sql`coalesce(${conversations.metadata}, '{}'::jsonb) || ${JSON.stringify(
+        params.metadataPatch,
+      )}::jsonb`,
       updatedAt: new Date(),
     },
   });

@@ -5,6 +5,7 @@ import {
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -128,13 +129,25 @@ export const appSchemaReleases = pgTable("app_schema_releases", {
   appliedAt: timestamp("applied_at").notNull().defaultNow(),
 });
 
-export const runtimeHeartbeats = pgTable("runtime_heartbeats", {
-  runtimeName: text("runtime_name").primaryKey(),
-  instanceId: text("instance_id").notNull(),
-  metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
-  startedAt: timestamp("started_at").notNull().defaultNow(),
-  lastSeenAt: timestamp("last_seen_at").notNull().defaultNow(),
-});
+export const runtimeHeartbeats = pgTable(
+  "runtime_worker_heartbeats",
+  {
+    runtimeName: text("runtime_name").notNull(),
+    workerName: text("worker_name").notNull(),
+    instanceId: text("instance_id").notNull(),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+    startedAt: timestamp("started_at").notNull().defaultNow(),
+    lastSeenAt: timestamp("last_seen_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.runtimeName, table.workerName, table.instanceId] }),
+    freshnessIdx: index("runtime_heartbeats_freshness_idx").on(
+      table.runtimeName,
+      table.workerName,
+      table.lastSeenAt,
+    ),
+  }),
+);
 
 export type LearningEnrollment = typeof learningEnrollments.$inferSelect;
 export type NewLearningEnrollment = typeof learningEnrollments.$inferInsert;

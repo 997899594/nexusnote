@@ -17,6 +17,19 @@ import {
   getToolUIPresentation,
   type ToolUIPresentation,
 } from "@/lib/ai/tools/shared/display-contract";
+import { recordChatTimeToFirstToken } from "@/lib/observability/metrics";
+
+export interface StreamObservability {
+  endpoint: string;
+  startedAt: number;
+}
+
+function createFirstTextTokenObserver(observability?: StreamObservability) {
+  if (!observability) return undefined;
+  return () => {
+    recordChatTimeToFirstToken(observability.endpoint, Date.now() - observability.startedAt);
+  };
+}
 
 export interface StreamOptions {
   /** 会话 ID */
@@ -41,6 +54,7 @@ export interface StreamOptions {
   }) => Promise<void> | void;
   /** 复制底层 SSE 以支持 resumable streams */
   consumeSseStream?: (options: { stream: ReadableStream<string> }) => Promise<void> | void;
+  observability?: StreamObservability;
 }
 
 // ============================================
@@ -86,9 +100,11 @@ async function forwardFilteredChunks(
     write: (chunk: UIMessageChunk) => void;
   },
   allowedPresentation: ToolUIPresentation,
+  onFirstTextToken?: () => void,
 ) {
   const reader = stream.getReader();
   const visibleToolCallIds = new Map<string, boolean>();
+  let firstTextTokenObserved = false;
 
   try {
     while (true) {
@@ -99,6 +115,11 @@ async function forwardFilteredChunks(
 
       if (!value) {
         continue;
+      }
+
+      if (!firstTextTokenObserved && value.type === "text-delta" && value.delta.length > 0) {
+        firstTextTokenObserved = true;
+        onFirstTextToken?.();
       }
 
       switch (value.type) {
@@ -197,6 +218,7 @@ export async function streamAgentIntoWriter<
   messages: UIMessage[];
   presentation: "chat" | "interview";
   sendReasoning?: boolean;
+  observability?: StreamObservability;
 }) {
   const modelMessages = await convertToModelMessages(params.messages, {
     tools: params.agent.tools,
@@ -212,6 +234,7 @@ export async function streamAgentIntoWriter<
       sendReasoning: params.sendReasoning ?? false,
     }) as ReadableStream<UIMessageChunk>,
     allowedPresentation: params.presentation,
+    onFirstTextToken: createFirstTextTokenObserver(params.observability),
   });
 
   params.writer.merge(filteredStream);
@@ -220,13 +243,15 @@ export async function streamAgentIntoWriter<
 function createFilteredUIMessageStream({
   stream,
   allowedPresentation,
+  onFirstTextToken,
 }: {
   stream: ReadableStream<UIMessageChunk>;
   allowedPresentation: ToolUIPresentation;
+  onFirstTextToken?: () => void;
 }) {
   return createUIMessageStream({
     execute: async ({ writer }) => {
-      await forwardFilteredChunks(stream, writer, allowedPresentation);
+      await forwardFilteredChunks(stream, writer, allowedPresentation, onFirstTextToken);
     },
   });
 }
@@ -282,6 +307,7 @@ function createPresentationFilteredStreamResponse({
   onError,
   onFinish,
   consumeSseStream,
+  observability,
 }: {
   stream: ReadableStream<UIMessageChunk>;
   dataParts?: UIMessageChunk[];
@@ -297,6 +323,7 @@ function createPresentationFilteredStreamResponse({
     finishReason?: "stop" | "length" | "content-filter" | "tool-calls" | "error" | "other";
   }) => Promise<void> | void;
   consumeSseStream?: (options: { stream: ReadableStream<string> }) => Promise<void> | void;
+  observability?: StreamObservability;
 }) {
   return createUIMessageStreamResponse({
     stream: createUIMessageStream({
@@ -306,7 +333,12 @@ function createPresentationFilteredStreamResponse({
         for (const part of dataParts ?? []) {
           writer.write(part);
         }
-        await forwardFilteredChunks(stream, writer, allowedPresentation);
+        await forwardFilteredChunks(
+          stream,
+          writer,
+          allowedPresentation,
+          createFirstTextTokenObserver(observability),
+        );
       },
       onError,
     }),
@@ -344,6 +376,7 @@ export async function createNexusNoteStreamResponse<
     modelMessages,
     onFinish,
     consumeSseStream,
+    observability,
   } = options;
 
   try {
@@ -368,6 +401,7 @@ export async function createNexusNoteStreamResponse<
       onError: getFallbackMessage,
       onFinish,
       consumeSseStream,
+      observability,
     });
 
     if (sessionId) response.headers.set("X-Session-Id", sessionId);

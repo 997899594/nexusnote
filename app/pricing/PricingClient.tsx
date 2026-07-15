@@ -46,7 +46,7 @@ function getUpgradeLabel(account: PricingAccountStatus, isCheckingOut: boolean):
     case "trial":
       return "升级并延长 Pro";
     case "pro":
-      return "续费 Pro";
+      return account.permanent ? "最高会员" : "续费 Pro";
     case "free":
       return "升级到 Pro";
   }
@@ -99,7 +99,13 @@ export function PricingClient({ account, catalog }: PricingClientProps) {
   };
 
   const proBadge =
-    account.kind === "trial" ? "试用中" : account.kind === "pro" ? "当前权益" : "推荐";
+    account.kind === "trial"
+      ? "试用中"
+      : account.kind === "pro"
+        ? account.permanent
+          ? "最高会员"
+          : "当前权益"
+        : "推荐";
 
   return (
     <div className="mx-auto grid max-w-4xl grid-cols-1 gap-6 md:grid-cols-2">
@@ -160,9 +166,11 @@ export function PricingClient({ account, catalog }: PricingClientProps) {
           <p className="mt-1 text-sm text-[var(--color-text-muted)]">
             {account.kind === "trial" && expiryLabel
               ? `试用有效至 ${expiryLabel}`
-              : account.kind === "pro" && expiryLabel
-                ? `Pro 有效至 ${expiryLabel}`
-                : `${catalog.trialDays} 天免费试用，无需绑定支付`}
+              : account.kind === "pro" && account.permanent
+                ? "最高会员，长期有效"
+                : account.kind === "pro" && expiryLabel
+                  ? `Pro 有效至 ${expiryLabel}`
+                  : `${catalog.trialDays} 天免费试用，无需绑定支付`}
           </p>
         </div>
 
@@ -199,7 +207,7 @@ export function PricingClient({ account, catalog }: PricingClientProps) {
         <button
           type="button"
           onClick={() => void handleUpgrade()}
-          disabled={isCheckingOut}
+          disabled={isCheckingOut || account.permanent}
           className="mt-8 inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--color-accent)] px-6 py-3 text-sm font-medium text-white shadow-md transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isCheckingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : null}

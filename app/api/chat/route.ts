@@ -7,8 +7,8 @@
  * - 无人设式混杂语义
  */
 
-import type { UIMessage } from "ai";
 import { after, type NextRequest } from "next/server";
+import { estimateConversationTokens, parseConversationRequest } from "@/lib/ai/conversation-input";
 import { classifyAIDegradation } from "@/lib/ai/core/degradation";
 import { resolveFreeChatGovernor, selectChatModelContext } from "@/lib/ai/core/free-chat-governor";
 import { aiModelGateway } from "@/lib/ai/core/model-gateway";
@@ -37,7 +37,7 @@ import {
   getConversationSpecialistSpec,
 } from "@/lib/ai/specialists/registry";
 import { ChatApiRequestSchema } from "@/lib/ai/validation";
-import { handleError, parseJsonBodyAs, serviceUnavailable, unauthorized } from "@/lib/api";
+import { handleError, serviceUnavailable, unauthorized } from "@/lib/api";
 import { checkRateLimitOrThrow } from "@/lib/api/rate-limit";
 import { auth } from "@/lib/auth";
 import {
@@ -100,10 +100,12 @@ export async function POST(request: NextRequest) {
     // Rate Limiting
     await checkRateLimitOrThrow(userId, 100, 60 * 1000, "请求过于频繁，请稍后再试");
 
-    const { messages, sessionId, skinSlug, courseId, metadata, learnSelectionContext } =
-      await parseJsonBodyAs(request, ChatApiRequestSchema);
-
-    const uiMessages = messages as UIMessage[];
+    const {
+      input,
+      messages: uiMessages,
+      estimatedTokens,
+    } = await parseConversationRequest(request, ChatApiRequestSchema);
+    const { sessionId, skinSlug, courseId, metadata, learnSelectionContext } = input;
     const modelSeries = await getUserAIModelSeries(userId);
     const requestContext = await resolveRequestContext({
       userId,
@@ -157,6 +159,11 @@ export async function POST(request: NextRequest) {
       userId,
       capabilityMode: routeDecision.resolvedCapabilityMode,
     });
+    const modelMessages = selectChatModelContext(
+      uiMessages,
+      costGovernor.maxContextMessages,
+      costGovernor.maxContextTokens,
+    );
     const resolvedCourseId = requestContext.resourceContext.courseId;
     const resolvedMetadata = requestContext.metadata;
     const persistableConversationMetadata = getPersistableConversationMetadata(resolvedMetadata);
@@ -192,7 +199,9 @@ export async function POST(request: NextRequest) {
         arbiterNotes: routeDecision.arbiterNotes,
         freeChatCostMode: costGovernor.mode,
         freeChatDailyTokens: costGovernor.dailyTokens,
-        modelContextMessageCount: Math.min(uiMessages.length, costGovernor.maxContextMessages),
+        modelContextMessageCount: modelMessages.length,
+        modelContextEstimatedTokens: estimateConversationTokens(modelMessages),
+        requestEstimatedTokens: estimatedTokens,
       },
     });
 
@@ -252,10 +261,11 @@ export async function POST(request: NextRequest) {
     const response = await createChatStreamResponse({
       agent,
       messages: uiMessages,
-      modelMessages: selectChatModelContext(uiMessages, costGovernor.maxContextMessages),
+      modelMessages,
       userId,
       sessionId,
       scheduleAfter: after,
+      observability: { endpoint: "/api/chat", startedAt: startTime },
     });
     response.headers.set("X-Request-Id", requestId);
     response.headers.set(AI_EXECUTION_MODE_HEADER, routeDecision.executionMode);

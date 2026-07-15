@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-: "${JUANIE_TOKEN:?JUANIE_TOKEN is required}"
 : "${JUANIE_RELEASE_ID:?JUANIE_RELEASE_ID is required}"
 : "${JUANIE_REPOSITORY:?JUANIE_REPOSITORY is required}"
 : "${JUANIE_RELEASE_SERVICES_JSON:?JUANIE_RELEASE_SERVICES_JSON is required}"
 : "${JUANIE_BASE_URL:=https://juanie.art}"
+
+source .juanie/workload-identity.sh
 
 deliverables_file="${JUANIE_DELIVERABLES_FILE:-.juanie-deliverables.json}"
 delivery_storage_mode="${JUANIE_DELIVERY_STORAGE_MODE:-managed}"
@@ -226,12 +227,14 @@ while IFS= read -r deliverable; do
         contentType: "application/octet-stream"
       }'
   )"
-  upload_response="$(
-    curl -fsSL -X POST "${JUANIE_BASE_URL}/api/artifacts/uploads" \
-      -H "Content-Type: application/json" \
-      -H "Authorization: Bearer ${JUANIE_TOKEN}" \
-      -d "$upload_payload"
-  )"
+  upload_response_file="$(mktemp)"
+  juanie_api_json POST "/api/artifacts/uploads" "$upload_payload" "$upload_response_file"
+  upload_response="$(cat "$upload_response_file")"
+  rm -f "$upload_response_file"
+  if [ "$JUANIE_HTTP_STATUS" -lt 200 ] || [ "$JUANIE_HTTP_STATUS" -ge 300 ]; then
+    echo "$upload_response"
+    exit 1
+  fi
   upload_url="$(jq -r '.upload.uploadUrl' <<<"$upload_response")"
   artifact_uri="$(jq -r '.upload.uri' <<<"$upload_response")"
 
@@ -275,10 +278,13 @@ while IFS= read -r deliverable; do
       }'
   )"
 
-  curl -fsSL -X POST "${JUANIE_BASE_URL}/api/releases/${JUANIE_RELEASE_ID}/artifacts" \
-    -H "Content-Type: application/json" \
-    -H "Authorization: Bearer ${JUANIE_TOKEN}" \
-    -d "$register_payload"
+  register_response_file="$(mktemp)"
+  juanie_api_json POST "/api/releases/${JUANIE_RELEASE_ID}/artifacts" "$register_payload" "$register_response_file"
+  cat "$register_response_file"
+  rm -f "$register_response_file"
+  if [ "$JUANIE_HTTP_STATUS" -lt 200 ] || [ "$JUANIE_HTTP_STATUS" -ge 300 ]; then
+    exit 1
+  fi
 done < <(jq -c '.[]' "$deliverables_file")
 
 if [ "$delivery_storage_mode" = "github_actions" ]; then

@@ -1,8 +1,8 @@
 import type { Worker } from "bullmq";
-import { defaults } from "@/config/env";
 import { materializeCourseSectionInBackground } from "@/lib/ai/workflows/course-section-production";
 import { createNexusWorker } from "./bullmq";
 import type { CourseProductionJobData } from "./course-production-queue";
+import { getQueueRuntimePolicy } from "./runtime-policy";
 
 let worker: Worker<CourseProductionJobData> | null = null;
 
@@ -25,7 +25,7 @@ export function startCourseProductionWorker(): Worker<CourseProductionJobData> {
     },
     {
       label: "CourseProductionWorker",
-      concurrency: defaults.queue.courseProductionConcurrency,
+      concurrency: getQueueRuntimePolicy("courseProduction").concurrency,
     },
   );
 

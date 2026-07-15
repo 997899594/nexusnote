@@ -40,11 +40,11 @@ export function InterviewOptions({
 
   return (
     <div className="mt-3 flex flex-wrap gap-2">
-      {options.map((option, index) => {
+      {options.map((option) => {
         const normalized = normalizeOption(option);
         return (
           <PromptChip
-            key={`${normalized.label}-${index}`}
+            key={`${normalized.intent ?? "reply"}:${normalized.action ?? ""}:${normalized.label}`}
             label={normalized.label}
             onClick={() => onSelect(normalized)}
             disabled={isStreaming}

@@ -1,4 +1,13 @@
-import { index, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import {
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { users } from "./auth";
 import { courses } from "./courses";
 import { learningEnrollments } from "./learning";
@@ -67,5 +76,38 @@ export const learningActivityEvents = pgTable(
   }),
 );
 
+export const learningActivationProjections = pgTable(
+  "learning_activation_projections",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    courseId: uuid("course_id")
+      .references(() => courses.id, { onDelete: "cascade" })
+      .notNull(),
+    generatedAt: timestamp("generated_at"),
+    startedAt: timestamp("started_at"),
+    firstCompletedAt: timestamp("first_completed_at"),
+    continuedAt: timestamp("continued_at"),
+    completedAt: timestamp("completed_at"),
+    sourceEventCount: integer("source_event_count").notNull().default(0),
+    lastEventAt: timestamp("last_event_at").notNull(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    userCourseUniqueIdx: uniqueIndex("learning_activation_projections_user_course_unique_idx").on(
+      table.userId,
+      table.courseId,
+    ),
+    userGeneratedIdx: index("learning_activation_projections_user_generated_idx").on(
+      table.userId,
+      table.generatedAt,
+    ),
+    generatedIdx: index("learning_activation_projections_generated_idx").on(table.generatedAt),
+  }),
+);
+
 export type LearningActivityEvent = typeof learningActivityEvents.$inferSelect;
 export type NewLearningActivityEvent = typeof learningActivityEvents.$inferInsert;
+export type LearningActivationProjection = typeof learningActivationProjections.$inferSelect;

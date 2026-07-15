@@ -1,16 +1,17 @@
 import { z } from "zod";
 import { billingOrders, db, eq } from "@/db";
 import { badRequest, handleError, notFound } from "@/lib/api";
+import { readBodyWithinLimit } from "@/lib/api/request-body";
 import { processPaidBillingWebhook, recordBillingWebhookEvent } from "@/lib/billing/entitlements";
 import { isPayJSPaidStatus, verifyPayJSSignature } from "@/lib/billing/payjs";
 
 async function parsePayJSBody(request: Request): Promise<Record<string, string>> {
   const contentType = request.headers.get("content-type") ?? "";
+  const text = await readBodyWithinLimit(request, 64 * 1024);
   if (contentType.includes("application/json")) {
-    return (await request.json()) as Record<string, string>;
+    return z.record(z.string(), z.string()).parse(JSON.parse(text));
   }
 
-  const text = await request.text();
   return Object.fromEntries(new URLSearchParams(text));
 }
 
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
       .where(eq(billingOrders.providerOrderId, payjsOrderId))
       .limit(1);
 
-    if (!order || order.provider !== "payjs") {
+    if (order?.provider !== "payjs") {
       throw notFound("PayJS 订单不存在", "BILLING_PAYJS_ORDER_NOT_FOUND");
     }
 

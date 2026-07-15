@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { billingOrders, db, eq } from "@/db";
 import { badRequest, handleError, notFound } from "@/lib/api";
+import { readBodyWithinLimit } from "@/lib/api/request-body";
 import { getPay302CheckoutStatus, isPay302PaidStatus } from "@/lib/billing/302pay";
 import { processPaidBillingWebhook, recordBillingWebhookEvent } from "@/lib/billing/entitlements";
 
@@ -8,6 +9,7 @@ const Pay302CallbackSchema = z.object({
   checkout_id: z.string().trim().min(1).optional(),
   checkoutId: z.string().trim().min(1).optional(),
 });
+const MAX_BILLING_WEBHOOK_BYTES = 64 * 1024;
 
 async function parseCheckoutId(request: Request): Promise<string> {
   const urlCheckoutId = new URL(request.url).searchParams.get("checkout_id");
@@ -15,7 +17,7 @@ async function parseCheckoutId(request: Request): Promise<string> {
     return urlCheckoutId;
   }
 
-  const rawBody = await request.text();
+  const rawBody = await readBodyWithinLimit(request, MAX_BILLING_WEBHOOK_BYTES);
   if (!rawBody) {
     throw badRequest("Missing 302Pay checkout id", "BILLING_302PAY_CHECKOUT_ID_REQUIRED");
   }
@@ -60,7 +62,7 @@ async function handlePay302Callback(request: Request) {
     .where(eq(billingOrders.providerOrderId, status.checkout_id))
     .limit(1);
 
-  if (!order || order.provider !== "302pay") {
+  if (order?.provider !== "302pay") {
     throw notFound("302Pay 订单不存在", "BILLING_302PAY_ORDER_NOT_FOUND");
   }
 

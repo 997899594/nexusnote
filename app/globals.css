@@ -632,10 +632,6 @@
   color: oklch(48% 0.01 250);
 }
 
-.learn-prose section[data-footnotes] ol {
-  margin: 0;
-}
-
 /* Lists */
 .learn-prose ul,
 .learn-prose ol {
@@ -957,6 +953,10 @@
   .learn-prose table {
     margin-bottom: 1.25rem;
   }
+}
+
+.learn-prose section[data-footnotes] ol {
+  margin: 0;
 }
 
 /* ────────────────────────────────────────────────────────────────────────────

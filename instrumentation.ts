@@ -1,9 +1,6 @@
-/**
- * Next.js Instrumentation Hook
- *
- * The web runtime intentionally does not start BullMQ workers.
- * Background queues run in explicit worker processes (`bun run worker:*`)
- * or a dedicated platform worker service.
- */
-
-export async function register() {}
+export async function register(): Promise<void> {
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    const { registerNexusTelemetry } = await import("@/lib/observability/register");
+    registerNexusTelemetry("nexusnote-web");
+  }
+}

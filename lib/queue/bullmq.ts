@@ -58,7 +58,9 @@ export function createNexusWorker<T, R = unknown>(
       jobName: job?.name ?? null,
       attemptsMade: job?.attemptsMade ?? null,
       maxAttempts: job?.opts.attempts ?? null,
-      data: job?.data ?? null,
+      jobDataKeys:
+        job?.data && typeof job.data === "object" ? Object.keys(job.data as object).sort() : [],
+      jobDataBytes: job?.data ? Buffer.byteLength(JSON.stringify(job.data), "utf8") : 0,
       ...buildErrorLogFields(err),
     });
   });

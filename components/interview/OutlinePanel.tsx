@@ -149,7 +149,10 @@ export function OutlinePanel({
             {/* Chapters */}
             <div className="space-y-3">
               {outline.chapters.map((chapter, index) => (
-                <div key={`${chapter.title}-${index}`} className="ui-message-card rounded-xl p-3">
+                <div
+                  key={`${chapter.title}:${chapter.sections.map((section) => section.title).join(":")}`}
+                  className="ui-message-card rounded-xl p-3"
+                >
                   <div className="flex items-start gap-3">
                     <div
                       className={cn(
@@ -165,9 +168,9 @@ export function OutlinePanel({
                       </h4>
                       {chapter.sections && chapter.sections.length > 0 && (
                         <div className="mt-2 space-y-1">
-                          {chapter.sections.map((section, secIndex) => (
+                          {chapter.sections.map((section) => (
                             <div
-                              key={`${section.title}-${secIndex}`}
+                              key={`${chapter.title}:${section.title}`}
                               className="flex items-center gap-2 text-xs leading-5 text-[var(--color-text-secondary)]"
                             >
                               <span className="h-1 w-1 shrink-0 rounded-full bg-black/20" />

@@ -1,7 +1,7 @@
 import type { Queue } from "bullmq";
-import { defaults } from "@/config/env";
 import { createNexusQueue } from "@/lib/queue/bullmq";
 import { buildSafeJobId } from "@/lib/queue/job-id";
+import { getQueueRuntimePolicy } from "@/lib/queue/runtime-policy";
 
 export type NoteFollowupsJobData = {
   type: "sync_note_followups";
@@ -22,10 +22,10 @@ export function getNoteFollowupsQueue(): Queue<NoteFollowupsJobData> {
     return noteFollowupsQueue;
   }
 
-  noteFollowupsQueue = createNexusQueue<NoteFollowupsJobData>("note-followups", {
-    attempts: defaults.queue.noteFollowupsMaxRetries,
-    backoffDelay: defaults.queue.noteFollowupsBackoffDelay,
-  });
+  noteFollowupsQueue = createNexusQueue<NoteFollowupsJobData>(
+    "note-followups",
+    getQueueRuntimePolicy("noteFollowups"),
+  );
 
   return noteFollowupsQueue;
 }

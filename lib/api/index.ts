@@ -1,7 +1,8 @@
 import { connection, type NextRequest, type NextResponse } from "next/server";
 import type { z } from "zod";
 import { auth } from "@/lib/auth";
-import { badRequest, handleError, unauthorized } from "./errors";
+import { handleError, unauthorized } from "./errors";
+import { parseJsonBodyWithinLimit, parseUnknownJsonBodyWithinLimit } from "./request-body";
 
 export * from "./errors";
 
@@ -48,16 +49,21 @@ async function withHandledRoute<T>(handler: () => RouteResult<T>): RouteResult<T
   }
 }
 
-export async function parseJsonBody(request: NextRequest): Promise<unknown> {
-  try {
-    return await request.json();
-  } catch {
-    throw badRequest("无效的 JSON", "INVALID_JSON");
-  }
+const DEFAULT_JSON_BODY_LIMIT_BYTES = 256 * 1024;
+
+export async function parseJsonBody(
+  request: NextRequest,
+  maxBytes = DEFAULT_JSON_BODY_LIMIT_BYTES,
+): Promise<unknown> {
+  return parseUnknownJsonBodyWithinLimit(request, maxBytes);
 }
 
-export async function parseJsonBodyAs<T>(request: NextRequest, schema: z.ZodType<T>): Promise<T> {
-  return schema.parse(await parseJsonBody(request));
+export async function parseJsonBodyAs<T>(
+  request: NextRequest,
+  schema: z.ZodType<T>,
+  maxBytes = DEFAULT_JSON_BODY_LIMIT_BYTES,
+): Promise<T> {
+  return parseJsonBodyWithinLimit(request, schema, maxBytes);
 }
 
 export function parseSearchParamsAs<T>(request: NextRequest, schema: z.ZodType<T>): T {

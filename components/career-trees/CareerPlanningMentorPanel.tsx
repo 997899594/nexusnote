@@ -368,12 +368,12 @@ export function CareerPlanningMentorPanel({
             </div>
           ) : null}
 
-          {renderedMessages.map(({ patch: messagePatch, message, text }, messageIndex) => {
+          {renderedMessages.map(({ patch: messagePatch, message, text }) => {
             const isUser = message.role === "user";
 
             return (
               <div
-                key={`${message.id}:${messageIndex}`}
+                key={message.id}
                 className={cn("flex", isUser ? "justify-end" : "justify-start")}
               >
                 <div

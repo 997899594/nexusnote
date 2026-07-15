@@ -1,3 +1,4 @@
+import { registerNexusTelemetry } from "@/lib/observability/register";
 import {
   assertWorkerRuntimeDefinition,
   type QueueWorkerId,
@@ -10,6 +11,9 @@ type WorkerModuleResolver = () => Promise<Pick<WorkerStarter, "start">>;
 const queueWorkerResolvers = {
   "learning-outbox": async () => ({
     start: (await import("@/lib/queue/learning-outbox-worker")).startLearningOutboxWorker,
+  }),
+  "analytics-outbox": async () => ({
+    start: (await import("@/lib/queue/analytics-outbox-worker")).startAnalyticsOutboxWorker,
   }),
   "course-production": async () => ({
     start: (await import("@/lib/queue/course-production-worker")).startCourseProductionWorker,
@@ -74,6 +78,7 @@ export async function createQueueWorkerStarters(
 }
 
 export async function startQueueWorkersRuntime(): Promise<void> {
+  registerNexusTelemetry("nexusnote-workers");
   const definition = getQueueWorkerRuntimeContract();
   const [{ startWorkerRuntime }, workerStarters] = await Promise.all([
     import("./runtime"),

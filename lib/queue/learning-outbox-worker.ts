@@ -1,20 +1,23 @@
 import type { Worker } from "bullmq";
-import { and, asc, eq, isNull, lte, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
-import { env } from "@/config/env";
-import { db, domainOutboxEvents } from "@/db";
+import { type DomainOutboxEvent, db, domainOutboxEvents } from "@/db";
 import {
-  mirrorLearningActivityToPostHog,
+  type ProductLearningActivityPayload,
   ProductLearningActivityPayloadSchema,
 } from "@/lib/analytics/product-analytics";
 import { enqueueCareerTreeRefresh } from "@/lib/career-tree/queue";
 import { ingestEvidenceEvent } from "@/lib/knowledge/events";
 import { aggregateCourseEventsToKnowledgeEvidence } from "@/lib/knowledge/evidence/aggregate";
+import { refreshLearningActivationProjection } from "@/lib/learning/activation-projection";
 import { syncCourseOutlineKnowledgePipeline } from "@/lib/learning/course-knowledge-pipeline";
 import { CourseOutlineSchema } from "@/lib/learning/course-outline";
-import { LEARNING_OUTBOX_TOPICS } from "@/lib/learning/outbox";
+import { appendLearningOutboxEvent, LEARNING_OUTBOX_TOPICS } from "@/lib/learning/outbox";
+import { recordOutboxDeliveryMetric } from "@/lib/observability/metrics";
 import { buildErrorLogFields, writeStructuredLog } from "@/lib/observability/structured-log";
 import { createNexusWorker } from "@/lib/queue/bullmq";
+import { listPendingOutboxEventIds } from "@/lib/queue/outbox-dispatch";
+import { getQueueRuntimePolicy } from "@/lib/queue/runtime-policy";
 import { getLearningOutboxQueue, type LearningOutboxJobData } from "./learning-outbox-queue";
 
 const courseRevisionPayloadSchema = z.object({
@@ -45,28 +48,22 @@ let worker: Worker<LearningOutboxJobData> | null = null;
 let dispatchTimer: ReturnType<typeof setInterval> | null = null;
 let dispatching = false;
 
+const CRITICAL_OUTBOX_TOPICS = [
+  LEARNING_OUTBOX_TOPICS.courseRevisionCreated,
+  LEARNING_OUTBOX_TOPICS.sectionCompleted,
+  LEARNING_OUTBOX_TOPICS.activityRecorded,
+] as const;
+
 async function dispatchPendingEvents(): Promise<void> {
   if (dispatching) return;
   dispatching = true;
   try {
-    const events = await db
-      .select({ id: domainOutboxEvents.id })
-      .from(domainOutboxEvents)
-      .where(
-        and(
-          isNull(domainOutboxEvents.processedAt),
-          isNull(domainOutboxEvents.deadLetteredAt),
-          lte(domainOutboxEvents.availableAt, new Date()),
-        ),
-      )
-      .orderBy(asc(domainOutboxEvents.createdAt))
-      .limit(100);
-
-    for (const event of events) {
+    const eventIds = await listPendingOutboxEventIds(CRITICAL_OUTBOX_TOPICS, 100);
+    for (const eventId of eventIds) {
       await getLearningOutboxQueue().add(
         "dispatch",
-        { eventId: event.id },
-        { jobId: `learning-outbox-${event.id}` },
+        { eventId },
+        { jobId: `learning-outbox-${eventId}` },
       );
     }
   } finally {
@@ -74,7 +71,30 @@ async function dispatchPendingEvents(): Promise<void> {
   }
 }
 
+async function projectActivityAndEnqueueAnalytics(
+  event: DomainOutboxEvent,
+  payload: ProductLearningActivityPayload,
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    await refreshLearningActivationProjection(
+      { userId: payload.userId, courseId: payload.courseId },
+      tx,
+    );
+    await appendLearningOutboxEvent(tx, {
+      topic: LEARNING_OUTBOX_TOPICS.analyticsLearningActivityRecorded,
+      aggregateType: "learning_activity",
+      aggregateId: payload.eventId,
+      payload,
+    });
+    await tx
+      .update(domainOutboxEvents)
+      .set({ processedAt: new Date(), lastAttemptAt: new Date(), lastError: null })
+      .where(eq(domainOutboxEvents.id, event.id));
+  });
+}
+
 async function processOutboxEvent(eventId: string): Promise<void> {
+  const policy = getQueueRuntimePolicy("learningOutbox");
   const [event] = await db
     .select()
     .from(domainOutboxEvents)
@@ -144,7 +164,14 @@ async function processOutboxEvent(eventId: string): Promise<void> {
       });
     } else if (event.topic === LEARNING_OUTBOX_TOPICS.activityRecorded) {
       const payload = ProductLearningActivityPayloadSchema.parse(event.payload);
-      await mirrorLearningActivityToPostHog(payload);
+      await projectActivityAndEnqueueAnalytics(event, payload);
+      recordOutboxDeliveryMetric({
+        lane: "critical",
+        topic: event.topic,
+        outcome: "processed",
+        durationMs: Date.now() - event.createdAt.getTime(),
+      });
+      return;
     } else {
       throw new Error(`Unsupported learning outbox topic: ${event.topic}`);
     }
@@ -153,12 +180,18 @@ async function processOutboxEvent(eventId: string): Promise<void> {
       .update(domainOutboxEvents)
       .set({ processedAt: new Date(), lastAttemptAt: new Date(), lastError: null })
       .where(eq(domainOutboxEvents.id, event.id));
+    recordOutboxDeliveryMetric({
+      lane: "critical",
+      topic: event.topic,
+      outcome: "processed",
+      durationMs: Date.now() - event.createdAt.getTime(),
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown outbox processing error";
     const nextAttemptCount = event.attemptCount + 1;
-    const deadLettered = nextAttemptCount >= env.QUEUE_LEARNING_OUTBOX_MAX_RETRIES;
+    const deadLettered = nextAttemptCount >= policy.attempts;
     const retryDelay = Math.min(
-      env.QUEUE_LEARNING_OUTBOX_BACKOFF_DELAY * 2 ** Math.max(0, nextAttemptCount - 1),
+      policy.backoffDelay * 2 ** Math.max(0, nextAttemptCount - 1),
       15 * 60 * 1000,
     );
     const now = new Date();
@@ -181,6 +214,12 @@ async function processOutboxEvent(eventId: string): Promise<void> {
       retryDelayMs: deadLettered ? null : retryDelay,
       ...buildErrorLogFields(error),
     });
+    recordOutboxDeliveryMetric({
+      lane: "critical",
+      topic: event.topic,
+      outcome: deadLettered ? "dead_lettered" : "failed",
+      durationMs: Date.now() - event.createdAt.getTime(),
+    });
     throw error;
   }
 }
@@ -193,7 +232,7 @@ export function startLearningOutboxWorker() {
     async (job) => processOutboxEvent(job.data.eventId),
     {
       label: "LearningOutboxWorker",
-      concurrency: env.QUEUE_LEARNING_OUTBOX_CONCURRENCY,
+      concurrency: getQueueRuntimePolicy("learningOutbox").concurrency,
     },
   );
 

@@ -1,8 +1,8 @@
 import type { Worker } from "bullmq";
-import { defaults } from "@/config/env";
 import { processKnowledgeInsightsJob } from "@/lib/knowledge/insights/jobs";
 import { createNexusWorker } from "./bullmq";
 import type { KnowledgeInsightsQueueJobData } from "./knowledge-insights-queue";
+import { getQueueRuntimePolicy } from "./runtime-policy";
 
 let worker: Worker<KnowledgeInsightsQueueJobData> | null = null;
 
@@ -22,7 +22,7 @@ export function startKnowledgeInsightsWorker(): Worker<KnowledgeInsightsQueueJob
     },
     {
       label: "KnowledgeInsightsWorker",
-      concurrency: defaults.queue.knowledgeInsightsConcurrency,
+      concurrency: getQueueRuntimePolicy("knowledgeInsights").concurrency,
     },
   );
   return worker;

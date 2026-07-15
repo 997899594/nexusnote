@@ -3,7 +3,6 @@ import { z } from "zod";
 import { InterviewOutlineSchema } from "@/lib/ai/interview/schemas";
 import { runCreateCourseWorkflow } from "@/lib/ai/workflows/create-course";
 import { notFound, parseJsonBodyAs, withAuth } from "@/lib/api";
-import { AI_CAPABILITIES, requireAICapability } from "@/lib/billing/capability-policy";
 import {
   revalidateCourseCreationViews,
   revalidateCoursePublicationViews,
@@ -17,8 +16,6 @@ const RequestSchema = z.object({
 
 export const POST = withAuth(async (request: NextRequest, { userId }) => {
   const { outline, courseId } = await parseJsonBodyAs(request, RequestSchema);
-  await requireAICapability(userId, AI_CAPABILITIES.courseGeneration);
-
   if (courseId) {
     const existingCourse = await getOwnedCourse(courseId, userId);
     if (!existingCourse) {

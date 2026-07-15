@@ -9,6 +9,7 @@ import {
   users,
 } from "@/db";
 import { badRequest, conflict, notFound } from "@/lib/api/errors";
+import { getActiveProductAccessGrant } from "./capability-access";
 import type { BillingPlanId } from "./plans";
 import { getBillingPlan } from "./plans";
 import { hashRedeemCode } from "./redeem-codes";
@@ -150,13 +151,33 @@ export interface EntitlementStatus {
   trialEndsAt: Date | null;
   plan: string | null;
   expiresAt: Date | null;
+  source: string | null;
 }
 
 export async function getUserEntitlementStatus(userId: string): Promise<EntitlementStatus> {
+  const grant = await getActiveProductAccessGrant(userId);
+  if (grant) {
+    return {
+      isPro: true,
+      isTrialing: false,
+      trialEndsAt: null,
+      plan: grant.plan,
+      expiresAt: grant.expiresAt,
+      source: grant.source,
+    };
+  }
+
   const entitlement = await getActiveEntitlement(userId);
 
   if (!entitlement) {
-    return { isPro: false, isTrialing: false, trialEndsAt: null, plan: null, expiresAt: null };
+    return {
+      isPro: false,
+      isTrialing: false,
+      trialEndsAt: null,
+      plan: null,
+      expiresAt: null,
+      source: null,
+    };
   }
 
   const isTrialing = entitlement.source === "trial";
@@ -167,10 +188,12 @@ export async function getUserEntitlementStatus(userId: string): Promise<Entitlem
     trialEndsAt: isTrialing ? entitlement.expiresAt : null,
     plan: entitlement.plan,
     expiresAt: entitlement.expiresAt,
+    source: entitlement.source,
   };
 }
 
 export async function createTrialEntitlement(userId: string): Promise<void> {
+  if (await getActiveProductAccessGrant(userId)) return;
   await db.transaction(async (tx) => {
     await lockUser(tx, userId);
     await grantEntitlementInTransaction(tx, {

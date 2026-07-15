@@ -6,7 +6,6 @@ import { aiModelGateway } from "@/lib/ai/core/model-gateway";
 import { runGenerateCourseSectionWorkflow } from "@/lib/ai/workflows/generate-course-section";
 import { parseJsonBodyAs, serviceUnavailable, withAuth } from "@/lib/api";
 import { checkRateLimitOrThrow } from "@/lib/api/rate-limit";
-import { AI_CAPABILITIES, requireAICapability } from "@/lib/billing/capability-policy";
 import { createLearnTrace } from "@/lib/learning/observability";
 
 export const maxDuration = 300;
@@ -21,8 +20,6 @@ export const POST = withAuth(async (request: NextRequest, { userId }) => {
   let trace: ReturnType<typeof createLearnTrace> | null = null;
 
   try {
-    await requireAICapability(userId, AI_CAPABILITIES.courseGeneration);
-
     trace = createLearnTrace("generate-route", {
       userId,
       method: request.method,

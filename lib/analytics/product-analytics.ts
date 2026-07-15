@@ -21,30 +21,39 @@ export const ProductLearningActivityPayloadSchema = z.object({
 
 export type ProductLearningActivityPayload = z.infer<typeof ProductLearningActivityPayloadSchema>;
 
-export async function mirrorLearningActivityToPostHog(
-  payload: ProductLearningActivityPayload,
+function buildPostHogEvent(payload: ProductLearningActivityPayload) {
+  return {
+    event: `learning.${payload.eventType}`,
+    uuid: payload.eventId,
+    timestamp: payload.occurredAt,
+    properties: {
+      ...payload.metadata,
+      distinct_id: payload.userId,
+      event_id: payload.eventId,
+      course_id: payload.courseId,
+      enrollment_id: payload.enrollmentId ?? null,
+      section_node_id: payload.sectionNodeId ?? null,
+    },
+  };
+}
+
+export async function mirrorLearningActivitiesToPostHog(
+  payloads: ProductLearningActivityPayload[],
 ): Promise<"captured" | "skipped"> {
+  if (payloads.length === 0) {
+    return "skipped";
+  }
   if (!env.POSTHOG_PROJECT_KEY) {
     return "skipped";
   }
 
-  const endpoint = new URL("/i/v0/e/", env.POSTHOG_HOST);
+  const endpoint = new URL("/batch/", env.POSTHOG_HOST);
   const response = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       api_key: env.POSTHOG_PROJECT_KEY,
-      event: `learning.${payload.eventType}`,
-      uuid: payload.eventId,
-      timestamp: payload.occurredAt,
-      properties: {
-        ...payload.metadata,
-        distinct_id: payload.userId,
-        event_id: payload.eventId,
-        course_id: payload.courseId,
-        enrollment_id: payload.enrollmentId ?? null,
-        section_node_id: payload.sectionNodeId ?? null,
-      },
+      batch: payloads.map(buildPostHogEvent),
     }),
     signal: AbortSignal.timeout(5_000),
   });

@@ -2,6 +2,7 @@ import type { WorkerRuntimeDefinition } from "./types";
 
 export type QueueWorkerId =
   | "learning-outbox"
+  | "analytics-outbox"
   | "course-production"
   | "career-tree"
   | "note-followups"
@@ -15,6 +16,10 @@ export const queueWorkerRuntimeDefinition = {
     {
       id: "learning-outbox",
       name: "learning-outbox",
+    },
+    {
+      id: "analytics-outbox",
+      name: "analytics-outbox",
     },
     {
       id: "course-production",

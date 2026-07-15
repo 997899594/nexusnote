@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { careerGenerationRuns, db } from "@/db";
 import { normalizeAIError } from "@/lib/ai/core/ai-errors";
 import {
@@ -10,6 +10,20 @@ import {
 type CareerRunExecutor = Pick<typeof db, "update">;
 type CareerRunStatus = typeof careerGenerationRuns.$inferSelect.status;
 type CareerGenerationRun = typeof careerGenerationRuns.$inferSelect;
+const CAREER_RUN_LEASE_MS = 5 * 60 * 1000;
+const CAREER_RUN_LEASE_HEARTBEAT_MS = 30 * 1000;
+
+export type CareerRunAcquisition =
+  | { state: "acquired"; run: CareerGenerationRun; fencingToken: string }
+  | { state: "completed"; run: CareerGenerationRun; fencingToken: null }
+  | { state: "busy"; run: CareerGenerationRun; fencingToken: null };
+
+export class CareerRunLeaseLostError extends Error {
+  constructor(runId: string) {
+    super(`Career generation run lease was lost: ${runId}`);
+    this.name = "CareerRunLeaseLostError";
+  }
+}
 
 export interface CareerRunFailureOptions {
   final: boolean;
@@ -77,6 +91,7 @@ async function updateCareerRunStatus(
     errorMessage?: string | null;
     startedAt?: Date | null;
     finishedAt?: Date | null;
+    fencingToken: string;
   },
 ): Promise<CareerGenerationRun | null> {
   const [updated] = await executor
@@ -88,8 +103,16 @@ async function updateCareerRunStatus(
       ...(params.finishedAt !== undefined && { finishedAt: params.finishedAt }),
       ...(params.errorCode !== undefined && { errorCode: params.errorCode }),
       ...(params.errorMessage !== undefined && { errorMessage: params.errorMessage }),
+      leaseToken: null,
+      leaseExpiresAt: null,
     })
-    .where(eq(careerGenerationRuns.id, params.runId))
+    .where(
+      and(
+        eq(careerGenerationRuns.id, params.runId),
+        eq(careerGenerationRuns.leaseToken, params.fencingToken),
+        eq(careerGenerationRuns.status, "running"),
+      ),
+    )
     .returning();
 
   return updated ?? null;
@@ -117,7 +140,7 @@ export async function getLatestSucceededCareerRun(params: {
   });
 }
 
-export async function getOrCreateCareerRun(params: {
+export async function acquireCareerRun(params: {
   userId: string;
   courseId?: string;
   kind: string;
@@ -126,7 +149,9 @@ export async function getOrCreateCareerRun(params: {
   model: string;
   promptVersion: string;
   reuseCompleted?: boolean;
-}) {
+}): Promise<CareerRunAcquisition> {
+  const fencingToken = crypto.randomUUID();
+  const startedAt = new Date();
   const [created] = await db
     .insert(careerGenerationRuns)
     .values({
@@ -138,14 +163,17 @@ export async function getOrCreateCareerRun(params: {
       model: params.model,
       promptVersion: params.promptVersion,
       inputHash: params.inputHash,
-      startedAt: new Date(),
+      startedAt,
+      leaseToken: fencingToken,
+      leaseExpiresAt: new Date(startedAt.getTime() + CAREER_RUN_LEASE_MS),
+      attemptCount: 1,
     })
     .onConflictDoNothing()
     .returning();
 
   if (created) {
     logCareerRunStarted(created, { previousStatus: null });
-    return created;
+    return { state: "acquired", run: created, fencingToken };
   }
 
   const existing = await getCareerRunByIdempotencyKey(params.idempotencyKey);
@@ -154,44 +182,82 @@ export async function getOrCreateCareerRun(params: {
   }
 
   if (params.reuseCompleted && existing.status === "succeeded") {
-    return existing;
+    return { state: "completed", run: existing, fencingToken: null };
   }
 
-  if (existing.status !== "running") {
-    const startedAt = new Date();
-    const updated = await updateCareerRunStatus(db, {
-      runId: existing.id,
+  const [acquired] = await db
+    .update(careerGenerationRuns)
+    .set({
       status: "running",
       startedAt,
       finishedAt: null,
       errorCode: null,
       errorMessage: null,
-    });
+      leaseToken: fencingToken,
+      leaseExpiresAt: new Date(startedAt.getTime() + CAREER_RUN_LEASE_MS),
+      attemptCount: sql`${careerGenerationRuns.attemptCount} + 1`,
+    })
+    .where(
+      and(
+        eq(careerGenerationRuns.id, existing.id),
+        or(
+          ne(careerGenerationRuns.status, "running"),
+          isNull(careerGenerationRuns.leaseToken),
+          isNull(careerGenerationRuns.leaseExpiresAt),
+          lt(careerGenerationRuns.leaseExpiresAt, startedAt),
+        ),
+      ),
+    )
+    .returning();
 
-    const restarted = updated ?? {
-      ...existing,
-      status: "running" as const,
-      startedAt,
-      finishedAt: null,
-      errorCode: null,
-      errorMessage: null,
-    };
-
-    logCareerRunStarted(restarted, { previousStatus: existing.status });
-
-    return restarted;
+  if (acquired) {
+    logCareerRunStarted(acquired, { previousStatus: existing.status });
+    return { state: "acquired", run: acquired, fencingToken };
   }
 
-  return existing;
+  const current = (await getCareerRunById(existing.id)) ?? existing;
+  return { state: "busy", run: current, fencingToken: null };
+}
+
+export function startCareerRunLeaseHeartbeat(params: {
+  runId: string;
+  fencingToken: string;
+}): () => void {
+  const renew = async () => {
+    const [renewed] = await db
+      .update(careerGenerationRuns)
+      .set({ leaseExpiresAt: new Date(Date.now() + CAREER_RUN_LEASE_MS) })
+      .where(
+        and(
+          eq(careerGenerationRuns.id, params.runId),
+          eq(careerGenerationRuns.leaseToken, params.fencingToken),
+          eq(careerGenerationRuns.status, "running"),
+        ),
+      )
+      .returning({ id: careerGenerationRuns.id });
+    if (!renewed) throw new CareerRunLeaseLostError(params.runId);
+  };
+
+  const timer = setInterval(() => {
+    void renew().catch((error) =>
+      writeStructuredLog("error", "career_tree_run_lease_renewal_failed", {
+        runId: params.runId,
+        ...buildErrorLogFields(error),
+      }),
+    );
+  }, CAREER_RUN_LEASE_HEARTBEAT_MS);
+  return () => clearInterval(timer);
 }
 
 export async function markCareerRunSucceeded(
   executor: CareerRunExecutor,
   runId: string,
+  fencingToken: string,
   outputJson: unknown,
 ) {
   const updated = await updateCareerRunStatus(executor, {
     runId,
+    fencingToken,
     status: "succeeded",
     outputJson,
     finishedAt: new Date(),
@@ -199,38 +265,25 @@ export async function markCareerRunSucceeded(
     errorMessage: null,
   });
 
+  if (!updated) throw new CareerRunLeaseLostError(runId);
   logCareerRunSucceeded(updated);
 }
 
 export async function markCareerRunFailed(
   runId: string,
+  fencingToken: string,
   error: unknown,
   options: CareerRunFailureOptions = { final: true },
 ) {
-  if (options.final) {
-    try {
-      const run = await getCareerRunById(runId);
-      logCareerRunFailure(run ?? null, error, options);
-    } catch (logError) {
-      console.error(
-        JSON.stringify({
-          level: "error",
-          event: "career_tree_run_failure_log_failed",
-          runId,
-          attemptNumber: options.attemptNumber ?? null,
-          maxAttempts: options.maxAttempts ?? null,
-          errorMessage: getErrorMessage(logError),
-          originalErrorMessage: getErrorMessage(error),
-        }),
-      );
-    }
-  }
-
-  await updateCareerRunStatus(db, {
+  const updated = await updateCareerRunStatus(db, {
     runId,
+    fencingToken,
     status: options.final ? "failed" : "running",
     finishedAt: options.final ? new Date() : null,
     errorCode: normalizeAIError(error).code,
     errorMessage: getErrorMessage(error),
   });
+  if (options.final && updated) {
+    logCareerRunFailure(updated, error, options);
+  }
 }

@@ -3,13 +3,16 @@
  */
 
 import { z } from "zod";
+import { defaults } from "@/config/env";
 import { InterviewOutlineSchema } from "@/lib/ai/interview/schemas";
 import { RequestMetadataSchema } from "@/types/request-metadata";
 
-const BaseConversationRequestSchema = z.object({
-  messages: z.array(z.unknown()).min(1),
-  sessionId: z.string().optional(),
-});
+const BaseConversationRequestSchema = z
+  .object({
+    messages: z.array(z.unknown()).min(1).max(defaults.conversationInput.maxMessages),
+    sessionId: z.string().uuid().optional(),
+  })
+  .strict();
 
 export const LearnSelectionContextSchema = z.object({
   text: z.string().trim().min(1).max(4000),
@@ -32,7 +35,6 @@ export const ChatApiRequestSchema = BaseConversationRequestSchema.extend({
 });
 
 export const InterviewApiRequestSchema = BaseConversationRequestSchema.extend({
-  messages: z.array(z.unknown()).min(1),
   courseId: z.string().uuid().nullish(),
   outline: InterviewOutlineSchema.nullish(),
 });

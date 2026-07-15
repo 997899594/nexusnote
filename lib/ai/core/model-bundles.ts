@@ -7,6 +7,7 @@ import {
 
 export type ModelType =
   | "chat"
+  | "economy"
   | "toolCalling"
   | "pro"
   | "outline"
@@ -40,6 +41,7 @@ function getAIModelBundles(): Record<AIModelSeries, AIModelBundle> {
       label: "Qwen",
       models: buildModelMap({
         chat: env.AI_QWEN_MODEL_INTERACTIVE,
+        economy: env.AI_QWEN_MODEL_ECONOMY,
         toolCalling: env.AI_QWEN_MODEL_INTERACTIVE,
         pro: env.AI_QWEN_MODEL_REVIEW,
         outline: env.AI_QWEN_MODEL_OUTLINE,
@@ -54,6 +56,7 @@ function getAIModelBundles(): Record<AIModelSeries, AIModelBundle> {
       label: "DeepSeek",
       models: buildModelMap({
         chat: env.AI_DEEPSEEK_MODEL_INTERACTIVE,
+        economy: env.AI_DEEPSEEK_MODEL_ECONOMY,
         toolCalling: env.AI_DEEPSEEK_MODEL_INTERACTIVE,
         pro: env.AI_DEEPSEEK_MODEL_REVIEW,
         outline: env.AI_DEEPSEEK_MODEL_OUTLINE,
@@ -68,6 +71,7 @@ function getAIModelBundles(): Record<AIModelSeries, AIModelBundle> {
       label: "OpenAI",
       models: buildModelMap({
         chat: env.AI_OPENAI_MODEL_INTERACTIVE,
+        economy: env.AI_OPENAI_MODEL_ECONOMY,
         toolCalling: env.AI_OPENAI_MODEL_INTERACTIVE,
         pro: env.AI_OPENAI_MODEL_REVIEW,
         outline: env.AI_OPENAI_MODEL_OUTLINE,

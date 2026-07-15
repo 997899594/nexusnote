@@ -1,5 +1,5 @@
 import type { UIMessage } from "ai";
-import { conversationMessages, conversations, db, eq } from "@/db";
+import { and, conversationMessages, conversations, db, eq, sql } from "@/db";
 import { summarizeDroppedConversationMessages } from "@/lib/chat/conversation-memory";
 import {
   buildConversationMessageRows,
@@ -60,25 +60,51 @@ function buildPersistedMessageSnapshot(messages: UIMessage[]): PersistedMessageS
   };
 }
 
-async function replaceConversationMessages(
+async function appendConversationMessages(
   tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
   conversationId: string,
   messages: UIMessage[],
-): Promise<void> {
+): Promise<number> {
+  await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${conversationId}, 0))`);
+
   const rows = buildConversationMessageRows({
     conversationId,
     messages,
   });
 
-  await tx
-    .delete(conversationMessages)
+  const existingRows = await tx
+    .select({
+      messageId: conversationMessages.messageId,
+      position: conversationMessages.position,
+    })
+    .from(conversationMessages)
     .where(eq(conversationMessages.conversationId, conversationId));
+  const positionByMessageId = new Map(
+    existingRows.map((row) => [row.messageId, row.position] as const),
+  );
+  let nextPosition = existingRows.reduce((max, row) => Math.max(max, row.position), -1) + 1;
 
-  if (rows.length === 0) {
-    return;
+  for (const row of rows) {
+    const existingPosition = positionByMessageId.get(row.messageId);
+    const position = existingPosition ?? nextPosition++;
+    await tx
+      .insert(conversationMessages)
+      .values({ ...row, position })
+      .onConflictDoUpdate({
+        target: [conversationMessages.conversationId, conversationMessages.messageId],
+        set: {
+          role: row.role,
+          message: row.message,
+          textContent: row.textContent,
+        },
+      });
   }
 
-  await tx.insert(conversationMessages).values(rows);
+  const [count] = await tx
+    .select({ value: sql<number>`count(*)::integer` })
+    .from(conversationMessages)
+    .where(eq(conversationMessages.conversationId, conversationId));
+  return count?.value ?? 0;
 }
 
 async function loadOwnedConversationWithMetadata(
@@ -118,23 +144,29 @@ export async function setConversationActiveStreamId(
   userId: string,
   activeStreamId: string | null,
 ): Promise<void> {
-  const loadedConversation = await loadOwnedConversationWithMetadata(conversationId, userId);
-  if (!loadedConversation) {
-    return;
-  }
-
-  const nextMetadata = {
-    ...loadedConversation.metadata,
-    activeStreamId,
-  };
-
   await db
     .update(conversations)
     .set({
-      metadata: nextMetadata,
+      activeStreamId,
       updatedAt: new Date(),
     })
     .where(matchOwnedConversation(conversationId, userId));
+}
+
+export async function clearConversationActiveStreamId(
+  conversationId: string,
+  userId: string,
+  expectedStreamId?: string,
+): Promise<void> {
+  await db
+    .update(conversations)
+    .set({ activeStreamId: null, updatedAt: new Date() })
+    .where(
+      and(
+        matchOwnedConversation(conversationId, userId),
+        expectedStreamId ? eq(conversations.activeStreamId, expectedStreamId) : undefined,
+      ),
+    );
 }
 
 export async function getConversationActiveStreamId(
@@ -142,9 +174,7 @@ export async function getConversationActiveStreamId(
   userId: string,
 ): Promise<string | null> {
   const loadedConversation = await loadOwnedConversationWithMetadata(conversationId, userId);
-  const activeStreamId = loadedConversation?.metadata.activeStreamId;
-
-  return typeof activeStreamId === "string" && activeStreamId.length > 0 ? activeStreamId : null;
+  return loadedConversation?.conversation.activeStreamId ?? null;
 }
 
 export async function saveOwnedConversationSnapshot(params: {
@@ -178,27 +208,26 @@ export async function saveOwnedConversationSnapshot(params: {
         : undefined;
 
   const [result] = await db.transaction(async (tx) => {
-    const [conversation] = await tx
+    const [ownedConversation] = await tx
       .update(conversations)
-      .set(
-        buildConversationActivityUpdate({
-          title,
-          summary: summaryUpdate,
-          messageCount: messages.length,
-        }),
-      )
+      .set({ updatedAt: new Date() })
       .where(matchOwnedConversation(conversationId, userId))
       .returning();
 
-    if (!conversation) {
+    if (!ownedConversation) {
       return [];
     }
 
-    await replaceConversationMessages(tx, conversationId, snapshot.messages);
+    const messageCount = await appendConversationMessages(tx, conversationId, snapshot.messages);
+    const [conversation] = await tx
+      .update(conversations)
+      .set(buildConversationActivityUpdate({ title, summary: summaryUpdate, messageCount }))
+      .where(matchOwnedConversation(conversationId, userId))
+      .returning();
 
     return [
       {
-        conversation,
+        conversation: conversation ?? ownedConversation,
         messages: snapshot.messages,
       },
     ];
@@ -226,17 +255,16 @@ export async function persistConversationMessages(
     : (loadedConversation.conversation.summary ?? null);
 
   await db.transaction(async (tx) => {
+    const messageCount = await appendConversationMessages(tx, conversationId, snapshot.messages);
     await tx
       .update(conversations)
       .set(
         buildConversationActivityUpdate({
-          messageCount: messages.length,
+          messageCount,
           summary: nextSummary,
         }),
       )
       .where(matchOwnedConversation(conversationId, userId));
-
-    await replaceConversationMessages(tx, conversationId, snapshot.messages);
   });
 
   return loadConversationMessages(conversationId);

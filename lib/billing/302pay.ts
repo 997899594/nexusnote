@@ -59,6 +59,7 @@ export async function createPay302Checkout(params: {
         order_id: params.orderId,
       },
     }),
+    signal: AbortSignal.timeout(10_000),
   });
 
   if (!response.ok) {
@@ -78,6 +79,7 @@ export async function getPay302CheckoutStatus(checkoutId: string): Promise<Pay30
     headers: {
       Authorization: `Bearer ${getPay302ApiKey()}`,
     },
+    signal: AbortSignal.timeout(10_000),
   });
 
   if (!response.ok) {

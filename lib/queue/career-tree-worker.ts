@@ -1,6 +1,5 @@
 import type { Worker } from "bullmq";
 import { or } from "drizzle-orm";
-import { defaults } from "@/config/env";
 import { and, careerGenerationRuns, careerUserTreeSnapshots, db, eq, ne } from "@/db";
 import {
   recomputeAllCareerNodeAggregatesForUser,
@@ -25,6 +24,7 @@ import {
 import { listCareerCourseSourcesForUser } from "@/lib/career-tree/source";
 import { createNexusWorker } from "./bullmq";
 import type { CareerTreeJobData } from "./career-tree-queue";
+import { getQueueRuntimePolicy } from "./runtime-policy";
 
 let worker: Worker<CareerTreeJobData> | null = null;
 
@@ -147,7 +147,7 @@ export function startCareerTreeWorker(): Worker<CareerTreeJobData> {
     },
     {
       label: "CareerTreeWorker",
-      concurrency: defaults.queue.careerTreeConcurrency,
+      concurrency: getQueueRuntimePolicy("careerTree").concurrency,
     },
   );
 
