@@ -107,8 +107,9 @@
 
 ## RAG 约束
 
-- 查询链路：rewrite → vector search → keyword search → RRF fusion
+- 查询链路：rewrite → vector search → keyword search → RRF fusion → context compression
 - trace 入口统一走 [observability.ts](/Users/findbiao/projects/nexusnote/lib/rag/observability.ts)
+- research reranker、context compression 和 learn 入口共享同一个 traceId
 - 禁止在检索查询里使用 `sql.raw()` 拼接过滤条件
 - embedding、全文索引、最近数据索引必须和查询路径对应
 
@@ -126,6 +127,16 @@
   - `APP_TRACE_LOGS=true`：统一打开应用级关键链路 trace
   - `LEARN_DEBUG_LOGS=true`：只打开 learn trace
   - `RAG_DEBUG_LOGS=true`：只打开 RAG trace
+
+trace 输出统一为 `application_trace` 结构化 JSON 日志，不允许业务链路重新使用自由文本
+`console.log` 作为观测协议。
+
+### 基础聊天成本治理
+
+- 基础聊天永远不因为日成本或 token 阈值拒绝请求
+- governor 只作用于 `general_chat`，研究和课程能力继续使用各自 entitlement
+- 达到软阈值后在用户选择的模型系列内切换 economy 模型，并缩短送模上下文
+- 每次决策写入 AI telemetry，并通过 `X-AI-Cost-Mode` 返回当前模式
 
 当前已覆盖：
 

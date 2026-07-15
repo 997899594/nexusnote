@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { env } from "@/config/env";
+import { createRagTrace } from "@/lib/rag/observability";
 import { getRedis } from "@/lib/redis";
 import type {
   ResearchEvidenceChunk,
@@ -174,6 +175,7 @@ interface CollectResearchEvidenceInput {
   maxExtractedSources?: number;
   freshnessWindowDays?: 30 | 90 | 180;
   userId?: string;
+  traceId?: string;
   onProgress?: (progress: ResearchEvidenceProgress) => void | Promise<void>;
 }
 
@@ -1367,13 +1369,15 @@ async function rankEvidenceSources(
 
   const chunksBySource = new Map<number, ResearchEvidenceChunk[]>();
   const relevanceBySource = new Map<number, number>();
+  const maxChunksPerSource = env.CONTEXT_COMPRESSION_ENABLED ? 2 : 3;
+  const maxChunkLength = env.CONTEXT_COMPRESSION_ENABLED ? 900 : 1500;
 
   rankedChunks.forEach((chunk) => {
     const existingChunks = chunksBySource.get(chunk.sourceIndex) ?? [];
-    if (existingChunks.length < 3) {
+    if (existingChunks.length < maxChunksPerSource) {
       existingChunks.push({
         id: `c${chunk.chunkIndex + 1}`,
-        text: truncateText(chunk.text, 1500),
+        text: truncateText(chunk.text, maxChunkLength),
         relevanceScore: chunk.score,
       });
       chunksBySource.set(chunk.sourceIndex, existingChunks);
@@ -1460,8 +1464,9 @@ export function hasResearchProviderConfigured(): boolean {
   return Boolean(env.AI_302_API_KEY || env.TAVILY_API_KEY || env.EXA_API_KEY || env.JINA_API_KEY);
 }
 
-export async function collectResearchEvidence(
+async function collectResearchEvidenceOperation(
   input: CollectResearchEvidenceInput,
+  trace: ReturnType<typeof createRagTrace>,
 ): Promise<ResearchRetrievalOutput> {
   const query = input.query.replace(/\s+/gu, " ").trim();
   const freshnessWindowDays = input.freshnessWindowDays ?? getFreshnessWindowDays(query);
@@ -1528,6 +1533,11 @@ export async function collectResearchEvidence(
     errors.push(...output.errors);
     providerTrace.push(...output.providerTrace);
   }
+  trace.step("provider-search", {
+    queryCount: queries.length,
+    resultCount: searchOutputs.reduce((count, output) => count + output.results.length, 0),
+    providerFailures: providerTrace.filter((item) => item.status === "failed").length,
+  });
 
   const results = dedupeSearchResults(searchOutputs.flatMap((output) => output.results))
     .map((result) => {
@@ -1553,6 +1563,10 @@ export async function collectResearchEvidence(
     sourceCount: extractionTargets.length,
   });
   const documents = await extractDocuments(extractionTargets, freshnessWindowDays, providerTrace);
+  trace.step("extraction", {
+    requestedCount: extractionTargets.length,
+    extractedCount: documents.size,
+  });
   await input.onProgress?.({
     stage: "read",
     query,
@@ -1575,7 +1589,23 @@ export async function collectResearchEvidence(
     sourceCount: sourcesWithoutRank.length,
   });
   const rankedSources = await rankEvidenceSources(query, sourcesWithoutRank, providerTrace);
+  const rerankerTrace = providerTrace.findLast((item) => item.provider === "reranker");
+  trace.step("reranker", {
+    status: rerankerTrace?.status ?? "not-reached",
+    candidateCount: sourcesWithoutRank.length,
+    rankedCount: rankedSources.length,
+  });
   const sources = rankedSources.slice(0, limit);
+  trace.step("context-compression", {
+    enabled: env.CONTEXT_COMPRESSION_ENABLED,
+    sourceCount: sources.length,
+    chunkCount: sources.reduce((count, source) => count + source.evidenceChunks.length, 0),
+    outputChars: sources.reduce(
+      (count, source) =>
+        count + source.evidenceChunks.reduce((sum, chunk) => sum + chunk.text.length, 0),
+      0,
+    ),
+  });
   await input.onProgress?.({
     stage: "completed",
     query,
@@ -1594,6 +1624,35 @@ export async function collectResearchEvidence(
     errors,
     providerTrace,
   };
+}
+
+export async function collectResearchEvidence(
+  input: CollectResearchEvidenceInput,
+): Promise<ResearchRetrievalOutput> {
+  const trace = createRagTrace(
+    "research-evidence",
+    {
+      query: input.query,
+      hasUserId: Boolean(input.userId),
+      requestedLimit: input.limit ?? DEFAULT_LIMIT,
+      requestedExtractLimit: input.maxExtractedSources ?? DEFAULT_EXTRACT_LIMIT,
+    },
+    input.traceId,
+  );
+
+  try {
+    const output = await collectResearchEvidenceOperation(input, trace);
+    trace.finish({
+      success: output.success,
+      queryCount: output.queries.length,
+      sourceCount: output.sources.length,
+      unavailableReason: output.unavailableReason ?? null,
+    });
+    return output;
+  } catch (error) {
+    trace.fail(error);
+    throw error;
+  }
 }
 
 export function formatResearchEvidenceForPrompt(

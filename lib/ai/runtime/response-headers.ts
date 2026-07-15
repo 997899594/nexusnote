@@ -7,6 +7,7 @@ import {
 
 export const AI_EXECUTION_MODE_HEADER = "X-AI-Execution-Mode";
 export const AI_HANDOFF_TARGET_HEADER = "X-AI-Handoff-Target";
+export const AI_COST_MODE_HEADER = "X-AI-Cost-Mode";
 export const AI_WORKFLOW_JOB_ID_HEADER = "X-AI-Workflow-Job-Id";
 export const AI_WORKFLOW_JOB_TYPE_HEADER = "X-AI-Workflow-Job-Type";
 

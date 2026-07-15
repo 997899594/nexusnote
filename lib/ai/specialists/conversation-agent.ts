@@ -171,6 +171,7 @@ export interface ConversationSpecialistAgentOptions {
   modelSeries?: AIModelSeries;
   telemetry?: AITelemetryContext;
   researchEnabled?: boolean;
+  modelPolicyOverride?: ModelPolicy;
 }
 
 export async function createConversationToolLoopSpecialist(
@@ -241,11 +242,12 @@ export async function createConversationToolLoopSpecialist(
     resourceId: options.courseId,
     researchEnabled: options.researchEnabled,
   });
+  const modelPolicy = options.modelPolicyOverride ?? spec.modelPolicy;
   const model = spec.preferToolCallingModel
-    ? getToolCallingModelForPolicy(spec.modelPolicy, {
+    ? getToolCallingModelForPolicy(modelPolicy, {
         modelSeries: options.modelSeries,
       })
-    : getModelForPolicy(spec.modelPolicy, { modelSeries: options.modelSeries });
+    : getModelForPolicy(modelPolicy, { modelSeries: options.modelSeries });
   return new ToolLoopAgent({
     id: `nexusnote-${spec.mode}`,
     model,

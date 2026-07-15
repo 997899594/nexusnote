@@ -29,6 +29,8 @@ export interface StreamOptions {
   sendReasoning?: boolean;
   /** 服务端写入的权威 UI 数据片段 */
   dataParts?: UIMessageChunk[];
+  /** 仅用于模型 prompt 的上下文视图；完整 messages 仍用于 UI 与持久化。 */
+  modelMessages?: UIMessage[];
   /** 流结束回调 */
   onFinish?: (options: {
     messages: UIMessage[];
@@ -339,17 +341,18 @@ export async function createNexusNoteStreamResponse<
     presentation = "chat",
     sendReasoning = false,
     dataParts,
+    modelMessages,
     onFinish,
     consumeSseStream,
   } = options;
 
   try {
-    const modelMessages = await convertToModelMessages(messages, {
+    const promptMessages = await convertToModelMessages(modelMessages ?? messages, {
       tools: agent.tools,
     });
 
     const result = await agent.stream({
-      prompt: modelMessages,
+      prompt: promptMessages,
       experimental_transform: smoothStream({
         chunking: new Intl.Segmenter("zh-Hans", { granularity: "word" }),
       }),

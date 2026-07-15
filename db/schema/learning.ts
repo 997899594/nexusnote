@@ -102,12 +102,19 @@ export const domainOutboxEvents = pgTable(
     payload: jsonb("payload").$type<DomainOutboxPayload>().notNull(),
     availableAt: timestamp("available_at").notNull().defaultNow(),
     processedAt: timestamp("processed_at"),
+    deadLetteredAt: timestamp("dead_lettered_at"),
+    lastAttemptAt: timestamp("last_attempt_at"),
     attemptCount: integer("attempt_count").notNull().default(0),
+    replayCount: integer("replay_count").notNull().default(0),
     lastError: text("last_error"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (table) => ({
-    pendingIdx: index("domain_outbox_events_pending_idx").on(table.processedAt, table.availableAt),
+    dispatchIdx: index("domain_outbox_events_dispatch_idx").on(
+      table.processedAt,
+      table.deadLetteredAt,
+      table.availableAt,
+    ),
     aggregateIdx: index("domain_outbox_events_aggregate_idx").on(
       table.aggregateType,
       table.aggregateId,

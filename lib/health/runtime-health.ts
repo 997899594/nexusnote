@@ -1,5 +1,6 @@
 import { EMBEDDING_DIMENSIONS } from "@/config/embedding";
 import { db, sql } from "@/db";
+import { assertOutboxOperational } from "@/lib/operations/outbox-operations";
 import { getRedis } from "@/lib/redis";
 import { REQUIRED_SCHEMA_RELEASE } from "@/lib/release/schema-release";
 import packageJson from "@/package.json";
@@ -10,6 +11,7 @@ interface DependencyCheckResult {
   status: CheckStatus;
   latencyMs: number;
   error?: string;
+  details?: Record<string, unknown>;
 }
 
 interface HealthReport {
@@ -97,7 +99,7 @@ async function assertWorkerHeartbeat(): Promise<void> {
 async function runCheck(task: () => Promise<unknown>): Promise<DependencyCheckResult> {
   const startedAt = Date.now();
   try {
-    await Promise.race([
+    const result = await Promise.race([
       task(),
       new Promise((_, reject) =>
         setTimeout(
@@ -106,7 +108,14 @@ async function runCheck(task: () => Promise<unknown>): Promise<DependencyCheckRe
         ),
       ),
     ]);
-    return { status: "pass", latencyMs: Date.now() - startedAt };
+    return {
+      status: "pass",
+      latencyMs: Date.now() - startedAt,
+      details:
+        typeof result === "object" && result !== null
+          ? (result as Record<string, unknown>)
+          : undefined,
+    };
   } catch (error) {
     return { status: "fail", latencyMs: Date.now() - startedAt, error: getErrorMessage(error) };
   }
@@ -145,9 +154,10 @@ export async function getReadinessReport(): Promise<HealthReport> {
 }
 
 export async function getSystemHealthReport(): Promise<HealthReport> {
-  const [readiness, workers] = await Promise.all([
+  const [readiness, workers, outbox] = await Promise.all([
     getReadinessReport(),
     runCheck(() => assertWorkerHeartbeat()),
+    runCheck(() => assertOutboxOperational()),
   ]);
-  return createHealthReport({ ...readiness.checks, workers });
+  return createHealthReport({ ...readiness.checks, workers, outbox });
 }

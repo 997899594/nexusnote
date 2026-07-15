@@ -37,6 +37,10 @@ Current examples:
   transaction as their authoritative state.
 - The learning outbox worker dispatches through BullMQ and owns knowledge evidence, aggregation,
   career-tree updates, retries, and idempotency.
+- Product analytics consumes the same learning event stream through an optional outbox projection;
+  clients never double-write analytics events.
+- Outbox delivery has explicit retry and dead-letter states. Critical dead letters fail holistic
+  health; operators replay immutable payloads with `bun run outbox:replay <event-uuid>`.
 - Course section production writes materialized content, enqueues RAG indexing, invalidates the
   chapter Redis cache, then revalidates the learn page domain view.
 

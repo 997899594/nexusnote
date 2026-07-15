@@ -18,6 +18,22 @@ export const defaults = {
     learnDebugLogs: false,
   },
 
+  productAnalytics: {
+    posthogHost: "https://us.i.posthog.com",
+  },
+
+  freeChatGovernor: {
+    economyDailyTokens: 100_000,
+    compactDailyTokens: 300_000,
+    standardContextMessages: 24,
+    economyContextMessages: 12,
+    compactContextMessages: 6,
+  },
+
+  operations: {
+    outboxMaxPendingAgeSeconds: 120,
+  },
+
   // RAG Pipeline
   rag: {
     timeout: 5000,
@@ -27,6 +43,7 @@ export const defaults = {
     chunkOverlap: 50,
     topK: 5,
     debugLogs: false,
+    contextCompressionEnabled: true,
   },
 
   // Embedding
@@ -155,6 +172,10 @@ const serverEnvSchema = z.object({
   LANGFUSE_PUBLIC_KEY: z.string().optional(),
   LANGFUSE_SECRET_KEY: z.string().optional(),
 
+  // Product analytics is an optional projection; PostgreSQL remains authoritative.
+  POSTHOG_PROJECT_KEY: z.string().min(1).optional(),
+  POSTHOG_HOST: z.string().url().default(defaults.productAnalytics.posthogHost),
+
   // AI Models (task-routed defaults)
   AI_QWEN_MODEL_INTERACTIVE: z.string().default(defaults.ai.qwenModelInteractive),
   AI_QWEN_MODEL_OUTLINE: z.string().default(defaults.ai.qwenModelOutline),
@@ -201,6 +222,31 @@ const serverEnvSchema = z.object({
     .string()
     .default(String(defaults.ai.debugLogs))
     .transform((v) => v === "true"),
+  FREE_CHAT_ECONOMY_DAILY_TOKENS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(defaults.freeChatGovernor.economyDailyTokens),
+  FREE_CHAT_COMPACT_DAILY_TOKENS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(defaults.freeChatGovernor.compactDailyTokens),
+  FREE_CHAT_STANDARD_CONTEXT_MESSAGES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(defaults.freeChatGovernor.standardContextMessages),
+  FREE_CHAT_ECONOMY_CONTEXT_MESSAGES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(defaults.freeChatGovernor.economyContextMessages),
+  FREE_CHAT_COMPACT_CONTEXT_MESSAGES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(defaults.freeChatGovernor.compactContextMessages),
   APP_TRACE_LOGS: z
     .string()
     .default(String(defaults.observability.appTraceLogs))
@@ -269,7 +315,7 @@ const serverEnvSchema = z.object({
     .transform((v) => v === "true"),
   CONTEXT_COMPRESSION_ENABLED: z
     .string()
-    .default("false")
+    .default(String(defaults.rag.contextCompressionEnabled))
     .transform((v) => v === "true"),
   RAG_DEBUG_LOGS: z
     .string()
@@ -285,6 +331,26 @@ const serverEnvSchema = z.object({
     .default(defaults.snapshot.maxPerDocument),
 
   // Queue
+  QUEUE_LEARNING_OUTBOX_CONCURRENCY: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(defaults.queue.learningOutboxConcurrency),
+  QUEUE_LEARNING_OUTBOX_MAX_RETRIES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(defaults.queue.learningOutboxMaxRetries),
+  QUEUE_LEARNING_OUTBOX_BACKOFF_DELAY: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(defaults.queue.learningOutboxBackoffDelay),
+  OUTBOX_SLO_MAX_PENDING_AGE_SECONDS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(defaults.operations.outboxMaxPendingAgeSeconds),
   QUEUE_COURSE_PRODUCTION_CONCURRENCY: z.coerce
     .number()
     .int()

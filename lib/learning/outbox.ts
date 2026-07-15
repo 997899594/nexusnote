@@ -4,6 +4,7 @@ import type { LearningEnrollmentExecutor } from "@/lib/learning/enrollments";
 export const LEARNING_OUTBOX_TOPICS = {
   courseRevisionCreated: "learning.course_revision_created",
   sectionCompleted: "learning.section_completed",
+  activityRecorded: "product.learning_activity_recorded",
 } as const;
 
 export type LearningOutboxTopic =
@@ -14,7 +15,7 @@ export async function appendLearningOutboxEvent(
   input: {
     id?: string;
     topic: LearningOutboxTopic;
-    aggregateType: "course_revision" | "learning_enrollment";
+    aggregateType: "course_revision" | "learning_enrollment" | "learning_activity";
     aggregateId: string;
     payload: DomainOutboxPayload;
   },

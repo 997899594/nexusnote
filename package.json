@@ -14,6 +14,8 @@
     "ai:eval": "bun scripts/run-ai-evals.ts",
     "ai:eval:interview-speed": "bun scripts/run-interview-speed-eval.ts",
     "billing:create-code": "bun scripts/create-redeem-code.ts",
+    "learning:funnel": "bun scripts/report-learning-funnel.ts",
+    "outbox:replay": "bun scripts/replay-outbox-event.ts",
     "db:cleanup-retired-ai-model-series": "bun scripts/cleanup-retired-ai-model-series.ts",
     "worker:all": "bun scripts/start-workers.ts",
     "worker:career-tree": "bun scripts/start-career-tree-worker.ts",

@@ -13,6 +13,10 @@ import type {
   NotesWorkbenchSnapshot,
   NoteWorkbenchItem,
 } from "@/lib/knowledge/workbench-projection";
+import {
+  getUserLearningActivationJourney,
+  type LearningActivationJourney,
+} from "@/lib/learning/activation";
 import { getLearningInsightStats, type LearningInsightStats } from "@/lib/learning/insights";
 
 export interface ProfileInsightsOverviewDirection {
@@ -38,6 +42,7 @@ export interface ProfileInsightsOverview {
 
 export interface ProfileInsightsPageData {
   learning: LearningInsightStats;
+  activation: LearningActivationJourney;
   overview: ProfileInsightsOverview | null;
   insights: KnowledgeInsight[];
   focusNotes: NoteWorkbenchItem[];
@@ -97,8 +102,9 @@ export async function getProfileInsightsPageDataCached(
   cacheTag(getCareerTreesTag(userId));
   cacheTag(getNotesIndexTag(userId));
 
-  const [learning, careerTree, workbenchSnapshot] = await Promise.all([
+  const [learning, activation, careerTree, workbenchSnapshot] = await Promise.all([
     getLearningInsightStats(userId, new Date(windowStartIso)),
+    getUserLearningActivationJourney(userId),
     getCareerTreeWorkspaceDataCached(userId, 4),
     getNotesWorkbenchCached(userId),
   ]);
@@ -108,6 +114,7 @@ export async function getProfileInsightsPageDataCached(
 
   return {
     learning,
+    activation,
     overview: buildProfileInsightsOverview(careerTree, relatedMaterialCount),
     insights: careerTree.insights,
     focusNotes,

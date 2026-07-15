@@ -1,14 +1,19 @@
 import type { Worker } from "bullmq";
 import { and, asc, eq, isNull, lte, sql } from "drizzle-orm";
 import { z } from "zod";
-import { defaults } from "@/config/env";
+import { env } from "@/config/env";
 import { db, domainOutboxEvents } from "@/db";
+import {
+  mirrorLearningActivityToPostHog,
+  ProductLearningActivityPayloadSchema,
+} from "@/lib/analytics/product-analytics";
 import { enqueueCareerTreeRefresh } from "@/lib/career-tree/queue";
 import { ingestEvidenceEvent } from "@/lib/knowledge/events";
 import { aggregateCourseEventsToKnowledgeEvidence } from "@/lib/knowledge/evidence/aggregate";
 import { syncCourseOutlineKnowledgePipeline } from "@/lib/learning/course-knowledge-pipeline";
 import { CourseOutlineSchema } from "@/lib/learning/course-outline";
 import { LEARNING_OUTBOX_TOPICS } from "@/lib/learning/outbox";
+import { buildErrorLogFields, writeStructuredLog } from "@/lib/observability/structured-log";
 import { createNexusWorker } from "@/lib/queue/bullmq";
 import { getLearningOutboxQueue, type LearningOutboxJobData } from "./learning-outbox-queue";
 
@@ -50,6 +55,7 @@ async function dispatchPendingEvents(): Promise<void> {
       .where(
         and(
           isNull(domainOutboxEvents.processedAt),
+          isNull(domainOutboxEvents.deadLetteredAt),
           lte(domainOutboxEvents.availableAt, new Date()),
         ),
       )
@@ -74,7 +80,7 @@ async function processOutboxEvent(eventId: string): Promise<void> {
     .from(domainOutboxEvents)
     .where(eq(domainOutboxEvents.id, eventId))
     .limit(1);
-  if (!event || event.processedAt) return;
+  if (!event || event.processedAt || event.deadLetteredAt) return;
 
   try {
     if (event.topic === LEARNING_OUTBOX_TOPICS.courseRevisionCreated) {
@@ -136,24 +142,45 @@ async function processOutboxEvent(eventId: string): Promise<void> {
         reasonKey: `learning-outbox:${event.id}`,
         requestKey: `outbox:${event.id}`,
       });
+    } else if (event.topic === LEARNING_OUTBOX_TOPICS.activityRecorded) {
+      const payload = ProductLearningActivityPayloadSchema.parse(event.payload);
+      await mirrorLearningActivityToPostHog(payload);
     } else {
       throw new Error(`Unsupported learning outbox topic: ${event.topic}`);
     }
 
     await db
       .update(domainOutboxEvents)
-      .set({ processedAt: new Date(), lastError: null })
+      .set({ processedAt: new Date(), lastAttemptAt: new Date(), lastError: null })
       .where(eq(domainOutboxEvents.id, event.id));
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown outbox processing error";
+    const nextAttemptCount = event.attemptCount + 1;
+    const deadLettered = nextAttemptCount >= env.QUEUE_LEARNING_OUTBOX_MAX_RETRIES;
+    const retryDelay = Math.min(
+      env.QUEUE_LEARNING_OUTBOX_BACKOFF_DELAY * 2 ** Math.max(0, nextAttemptCount - 1),
+      15 * 60 * 1000,
+    );
+    const now = new Date();
     await db
       .update(domainOutboxEvents)
       .set({
         attemptCount: sql`${domainOutboxEvents.attemptCount} + 1`,
-        availableAt: new Date(Date.now() + 30_000),
+        availableAt: new Date(now.getTime() + retryDelay),
+        lastAttemptAt: now,
+        deadLetteredAt: deadLettered ? now : null,
         lastError: message.slice(0, 2000),
       })
       .where(eq(domainOutboxEvents.id, event.id));
+
+    writeStructuredLog(deadLettered ? "error" : "warn", "learning_outbox_delivery_failed", {
+      eventId: event.id,
+      topic: event.topic,
+      attemptCount: nextAttemptCount,
+      deadLettered,
+      retryDelayMs: deadLettered ? null : retryDelay,
+      ...buildErrorLogFields(error),
+    });
     throw error;
   }
 }
@@ -166,7 +193,7 @@ export function startLearningOutboxWorker() {
     async (job) => processOutboxEvent(job.data.eventId),
     {
       label: "LearningOutboxWorker",
-      concurrency: defaults.queue.learningOutboxConcurrency,
+      concurrency: env.QUEUE_LEARNING_OUTBOX_CONCURRENCY,
     },
   );
 

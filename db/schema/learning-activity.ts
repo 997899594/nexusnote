@@ -4,6 +4,7 @@ import { courses } from "./courses";
 import { learningEnrollments } from "./learning";
 
 export type LearningActivityEventType =
+  | "course_generated"
   | "course_opened"
   | "course_started"
   | "section_completed"
@@ -14,7 +15,12 @@ export interface LearningActivityMetadata {
   sectionIndex?: number;
   completedSectionCount?: number;
   totalSectionCount?: number;
-  source?: "course_reader" | "publication_reader" | "progress_transition" | "backfill";
+  source?:
+    | "course_generation"
+    | "course_reader"
+    | "publication_reader"
+    | "progress_transition"
+    | "backfill";
 }
 
 export const learningActivityEvents = pgTable(
@@ -47,6 +53,10 @@ export const learningActivityEvents = pgTable(
     ),
     courseOccurredAtIdx: index("learning_activity_events_course_occurred_at_idx").on(
       table.courseId,
+      table.occurredAt,
+    ),
+    typeOccurredAtIdx: index("learning_activity_events_type_occurred_at_idx").on(
+      table.eventType,
       table.occurredAt,
     ),
     userTypeOccurredAtIdx: index("learning_activity_events_user_type_occurred_at_idx").on(

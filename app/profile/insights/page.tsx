@@ -12,6 +12,7 @@ import {
 import Link from "next/link";
 import { Suspense } from "react";
 import { KnowledgeInsightStrip } from "@/components/knowledge/KnowledgeInsightStrip";
+import { LearningActivationJourneyView } from "@/components/profile/LearningActivationJourney";
 import { FloatingHeader, LibraryAnalysisPageShell } from "@/components/shared/layout";
 import { redirectIfUnauthenticated } from "@/lib/auth/page";
 import { getCareerNodeStateLabel } from "@/lib/career-tree/presentation";
@@ -24,7 +25,7 @@ async function ProfileInsightsPageContent() {
   const session = await redirectIfUnauthenticated("/profile/insights");
   const windowStart = getProfileStatsWindowStart();
   const data = await getProfileInsightsPageDataCached(session.user.id, windowStart.toISOString());
-  const { learning, overview, focusNotes, insights: topInsights } = data;
+  const { activation, learning, overview, focusNotes, insights: topInsights } = data;
 
   return (
     <LibraryAnalysisPageShell
@@ -72,6 +73,8 @@ async function ProfileInsightsPageContent() {
       </section>
 
       <div className="space-y-8">
+        <LearningActivationJourneyView journey={activation} />
+
         <section className="grid border-y border-black/[0.06] sm:grid-cols-2 lg:grid-cols-4">
           {[
             {

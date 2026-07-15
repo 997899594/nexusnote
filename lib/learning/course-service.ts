@@ -1,6 +1,10 @@
 import { and, eq } from "drizzle-orm";
 import { courseOutlineNodes, courseOutlineVersions, courseSections, courses, db } from "@/db";
 import {
+  appendLearningActivityEvent,
+  buildLearningActivityKey,
+} from "@/lib/learning/activity-events";
+import {
   type CoursePublicationRefreshResult,
   refreshPublishedCoursePublication,
 } from "@/lib/learning/course-publication-service";
@@ -138,6 +142,7 @@ export async function saveCourseFromOutline({
   outline,
   courseId,
 }: SaveCourseFromOutlineOptions): Promise<SaveCourseFromOutlineResult> {
+  const isNewCourse = !courseId;
   const result = await db.transaction(async (tx) => {
     const now = new Date();
     const outlineVersionHash = computeCourseOutlineVersionHash(outline);
@@ -303,6 +308,24 @@ export async function saveCourseFromOutline({
       outline,
       previousNodes,
     });
+
+    if (isNewCourse) {
+      await appendLearningActivityEvent(
+        {
+          userId,
+          courseId: persistedCourseId,
+          eventType: "course_generated",
+          idempotencyKey: buildLearningActivityKey({
+            userId,
+            courseId: persistedCourseId,
+            eventType: "course_generated",
+          }),
+          metadata: { source: "course_generation" },
+          occurredAt: now,
+        },
+        tx,
+      );
+    }
 
     await appendLearningOutboxEvent(tx, {
       topic: LEARNING_OUTBOX_TOPICS.courseRevisionCreated,

@@ -134,6 +134,7 @@ export async function createChatStreamResponse<
 >(params: {
   agent: Agent<CALL_OPTIONS, TOOLS, never>;
   messages: UIMessage[];
+  modelMessages?: UIMessage[];
   userId: string;
   sessionId?: string | null;
   scheduleAfter: ScheduleAfter;
@@ -153,6 +154,7 @@ export async function createChatStreamResponse<
     sessionId: params.sessionId ?? undefined,
     presentation: "chat",
     dataParts: params.dataParts,
+    modelMessages: params.modelMessages,
     onFinish: async ({ messages }) => {
       const persistentSessionId = isPersistentChatSession(params.sessionId)
         ? params.sessionId

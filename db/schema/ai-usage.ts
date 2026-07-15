@@ -38,6 +38,11 @@ export const aiUsage = pgTable(
   },
   (table) => ({
     userIdIdx: index("ai_usage_user_id_idx").on(table.userId),
+    userEndpointCreatedAtIdx: index("ai_usage_user_endpoint_created_at_idx").on(
+      table.userId,
+      table.endpoint,
+      table.createdAt,
+    ),
     requestIdIdx: index("ai_usage_request_id_idx").on(table.requestId),
     endpointIdx: index("ai_usage_endpoint_idx").on(table.endpoint),
     capabilityModeIdx: index("ai_usage_capability_mode_idx").on(table.capabilityMode),

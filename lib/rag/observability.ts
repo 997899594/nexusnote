@@ -16,11 +16,16 @@ export interface RagTrace {
   fail: (error: unknown, payload?: RagTracePayload) => void;
 }
 
-export function createRagTrace(name: string, payload: RagTracePayload = {}): RagTrace {
+export function createRagTrace(
+  name: string,
+  payload: RagTracePayload = {},
+  traceId?: string,
+): RagTrace {
   return createTrace({
     channel: "RAGTrace",
     name,
     enabled: shouldLogRagTrace(),
     payload,
+    traceId,
   });
 }

@@ -22,7 +22,11 @@ function emit(channel: string, event: string, enabled: boolean, payload: TracePa
     return;
   }
 
-  console.log(`[${channel}] ${event}`, payload);
+  writeStructuredLog("info", "application_trace", {
+    channel,
+    traceEvent: event,
+    ...payload,
+  });
 }
 
 export function createTrace({
@@ -65,3 +69,5 @@ export function createTrace({
     },
   };
 }
+
+import { writeStructuredLog } from "@/lib/observability/structured-log";

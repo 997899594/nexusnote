@@ -8,6 +8,7 @@ import {
   type ResearchRetrievalOutput,
 } from "@/lib/ai/research/web-research";
 import type { LearningGuidance } from "@/lib/learning/guidance";
+import { createRagTrace } from "@/lib/rag/observability";
 
 export interface CourseSectionEvidenceContext {
   promptBlock: string;
@@ -101,13 +102,23 @@ function buildUnavailablePromptBlock(params: {
     .join("\n");
 }
 
-export async function resolveCourseSectionEvidenceContext(params: {
+interface ResolveCourseSectionEvidenceContextParams {
   guidance: LearningGuidance;
   sectionIndex: number;
   userId: string;
   modelSeries?: AIModelSeries;
-}): Promise<CourseSectionEvidenceContext> {
+}
+
+async function resolveCourseSectionEvidenceContextOperation(
+  params: ResolveCourseSectionEvidenceContextParams,
+  trace: ReturnType<typeof createRagTrace>,
+): Promise<CourseSectionEvidenceContext> {
   const evidenceRequest = await resolveSectionEvidenceRequest(params);
+  trace.step("evidence-planner", {
+    evidenceRequired: Boolean(evidenceRequest),
+    decisionSource: evidenceRequest?.decisionSource ?? null,
+    retrievalMode: evidenceRequest?.plan.retrievalMode ?? null,
+  });
   if (!evidenceRequest) {
     return {
       promptBlock: "本小节未触发额外实时检索；不要主动写未经核验的最新事实。",
@@ -127,6 +138,12 @@ export async function resolveCourseSectionEvidenceContext(params: {
       maxExtractedSources: budget.maxExtractedSources,
       freshnessWindowDays: evidenceRequest.freshnessWindowDays,
       userId: params.userId,
+      traceId: trace.traceId,
+    });
+    trace.step("research-retrieval", {
+      success: output.success,
+      sourceCount: output.sources.length,
+      unavailableReason: output.unavailableReason ?? null,
     });
 
     if (!output.success) {
@@ -172,5 +189,30 @@ export async function resolveCourseSectionEvidenceContext(params: {
       evidenceAvailable: false,
       error: errorMessage,
     };
+  }
+}
+
+export async function resolveCourseSectionEvidenceContext(
+  params: ResolveCourseSectionEvidenceContextParams,
+): Promise<CourseSectionEvidenceContext> {
+  const trace = createRagTrace("learn-course-section-evidence", {
+    userId: params.userId,
+    courseId: params.guidance.course.id,
+    chapterIndex: params.guidance.chapter.index,
+    sectionIndex: params.sectionIndex,
+  });
+
+  try {
+    const result = await resolveCourseSectionEvidenceContextOperation(params, trace);
+    trace.finish({
+      evidenceRequired: Boolean(result.evidenceRequest),
+      evidenceAvailable: result.evidenceAvailable,
+      sourceCount: result.retrieval?.sources.length ?? 0,
+      error: result.error,
+    });
+    return result;
+  } catch (error) {
+    trace.fail(error);
+    throw error;
   }
 }

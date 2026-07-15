@@ -10,6 +10,7 @@ import { db, sql } from "@/db";
 import { generateEmbedding } from "@/lib/ai/core/embeddings";
 import { aiModelGateway } from "@/lib/ai/core/model-gateway";
 import type { SourceType } from "./chunker";
+import { compressHybridSearchContext } from "./context-compression";
 import { createRagTrace } from "./observability";
 import { rewriteQuery } from "./query-rewriter";
 import { normalizeRagSearchText } from "./search-text";
@@ -363,12 +364,18 @@ export async function hybridSearch(
     });
 
     const fusedResults = reciprocalRankFusion(vResults, kResults, k);
+    trace.step("fusion", {
+      candidateCount: vResults.length + kResults.length,
+      fusedCount: fusedResults.length,
+    });
+    const compressed = compressHybridSearchContext(rewrittenQuery, fusedResults);
+    trace.step("context-compression", { ...compressed.stats });
     trace.finish({
-      resultCount: fusedResults.length,
-      topSourceTypes: fusedResults.slice(0, 3).map((item) => item.sourceType),
+      resultCount: compressed.results.length,
+      topSourceTypes: compressed.results.slice(0, 3).map((item) => item.sourceType),
     });
 
-    return fusedResults;
+    return compressed.results;
   } catch (error) {
     trace.fail(error);
     throw error;

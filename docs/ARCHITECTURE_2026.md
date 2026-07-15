@@ -16,6 +16,9 @@ NexusNote 当前是一个以 Next.js 16 为核心的 AI-native 学习应用：
 
 `课程生成 -> 学习行为 -> evidence event -> knowledge evidence -> insight -> 成长树 / 知识工作台`
 
+`learning_activity_events` 同时是产品激活投影的事实源。生成、开学、首次完成、7 日继续和
+课程完成由服务端重建；PostHog 只允许通过 transactional outbox 异步镜像。
+
 ## 分层
 
 ### 1. Web Runtime
@@ -117,6 +120,15 @@ NexusNote 当前是一个以 Next.js 16 为核心的 AI-native 学习应用：
 - worker 生命周期、并发和重试参数必须显式配置，而不是挂在页面服务器副作用里
 - `after()` 只放响应后的轻量 follow-up；可重试、长耗时、有副作用链路的任务进入 BullMQ
 - 关键领域事务通过 PostgreSQL transactional outbox 与 BullMQ 衔接，worker 心跳属于 readiness
+- outbox 使用 pending / retrying / processed / dead-letter 状态机；关键死信和超龄积压属于
+  系统健康失败，可选产品分析镜像失败不阻断产品健康
+
+### 7. Product and Operations Control Plane
+
+- `lib/learning/activation.ts`: 用户激活阶段与运营 cohort 漏斗
+- `lib/ai/core/free-chat-governor.ts`: 基础聊天软成本路由，不承担 entitlement
+- `lib/operations/`: outbox SLO、死信重放和运维投影
+- `lib/observability/trace.ts`: 结构化 JSON trace，RAG 子链共享 traceId
 
 ## 当前仓库约束
 

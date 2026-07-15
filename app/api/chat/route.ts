@@ -10,6 +10,7 @@
 import type { UIMessage } from "ai";
 import { after, type NextRequest } from "next/server";
 import { classifyAIDegradation } from "@/lib/ai/core/degradation";
+import { resolveFreeChatGovernor, selectChatModelContext } from "@/lib/ai/core/free-chat-governor";
 import { aiModelGateway } from "@/lib/ai/core/model-gateway";
 import { getUserAIModelSeries } from "@/lib/ai/core/model-series-preferences";
 import { createTelemetryContext, getErrorMessage, recordAIUsage } from "@/lib/ai/core/telemetry";
@@ -27,6 +28,7 @@ import type { RouteDecision } from "@/lib/ai/runtime/contracts";
 import { orchestrateRequest } from "@/lib/ai/runtime/orchestrate-request";
 import { resolveRequestContext } from "@/lib/ai/runtime/resolve-request-context";
 import {
+  AI_COST_MODE_HEADER,
   AI_EXECUTION_MODE_HEADER,
   AI_HANDOFF_TARGET_HEADER,
 } from "@/lib/ai/runtime/response-headers";
@@ -151,6 +153,10 @@ export async function POST(request: NextRequest) {
     }
 
     const specialist = getConversationSpecialistSpec(routeDecision.resolvedCapabilityMode);
+    const costGovernor = await resolveFreeChatGovernor({
+      userId,
+      capabilityMode: routeDecision.resolvedCapabilityMode,
+    });
     const resolvedCourseId = requestContext.resourceContext.courseId;
     const resolvedMetadata = requestContext.metadata;
     const persistableConversationMetadata = getPersistableConversationMetadata(resolvedMetadata);
@@ -162,7 +168,7 @@ export async function POST(request: NextRequest) {
       intent: routeDecision.intent,
       capabilityMode: routeDecision.resolvedCapabilityMode,
       promptVersion: specialist.promptKey,
-      modelPolicy: specialist.modelPolicy,
+      modelPolicy: costGovernor.modelPolicy ?? specialist.modelPolicy,
       modelSeries,
       metadata: {
         sessionId: sessionId ?? null,
@@ -184,6 +190,9 @@ export async function POST(request: NextRequest) {
         routeConfidence: routeDecision.confidence,
         routeReasons: routeDecision.reasons,
         arbiterNotes: routeDecision.arbiterNotes,
+        freeChatCostMode: costGovernor.mode,
+        freeChatDailyTokens: costGovernor.dailyTokens,
+        modelContextMessageCount: Math.min(uiMessages.length, costGovernor.maxContextMessages),
       },
     });
 
@@ -237,11 +246,13 @@ export async function POST(request: NextRequest) {
         modelSeries,
         telemetry,
         researchEnabled,
+        modelPolicyOverride: costGovernor.modelPolicy ?? undefined,
       },
     });
     const response = await createChatStreamResponse({
       agent,
       messages: uiMessages,
+      modelMessages: selectChatModelContext(uiMessages, costGovernor.maxContextMessages),
       userId,
       sessionId,
       scheduleAfter: after,
@@ -249,6 +260,7 @@ export async function POST(request: NextRequest) {
     response.headers.set("X-Request-Id", requestId);
     response.headers.set(AI_EXECUTION_MODE_HEADER, routeDecision.executionMode);
     response.headers.set(AI_HANDOFF_TARGET_HEADER, routeDecision.handoffTarget ?? "");
+    response.headers.set(AI_COST_MODE_HEADER, costGovernor.mode);
 
     return response;
   } catch (error) {

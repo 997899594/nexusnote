@@ -4,6 +4,7 @@ import type { AIModelSeries } from "./model-series";
 
 export type ModelPolicy =
   | "interactive-fast"
+  | "interactive-economy"
   | "outline-architect"
   | "section-draft"
   | "extract-fast"
@@ -15,6 +16,7 @@ const POLICY_TO_MODEL_TYPE: Record<
   Extract<ModelType, "chat" | "outline" | "sectionDraft" | "extract" | "review" | "webSearch">
 > = {
   "interactive-fast": "chat",
+  "interactive-economy": "extract",
   "outline-architect": "outline",
   "section-draft": "sectionDraft",
   "extract-fast": "extract",
