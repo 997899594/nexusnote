@@ -29,12 +29,12 @@ function requireVersion(value: unknown, field: string): string {
   return value;
 }
 
-const config = Bun.YAML.parse(await readFile("juanie.yaml", "utf8")) as JuanieConfig;
+const config = Bun.YAML.parse(await readFile("juanie.yml", "utf8")) as JuanieConfig;
 const schema = config.services?.find((service) => service.schema?.source === "atlas")?.schema;
 const graph = schema?.releaseGraph;
 
 if (!graph) {
-  throw new Error("juanie.yaml must define an Atlas releaseGraph");
+  throw new Error("juanie.yml must define an Atlas releaseGraph");
 }
 
 const versions = {
