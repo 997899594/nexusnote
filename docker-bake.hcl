@@ -44,6 +44,15 @@ target "worker" {
   ]
 }
 
+# Build-only artifact targets keep delivery outputs separate from runtime services.
+target "web-runtime" {
+  inherits = ["web"]
+}
+
+target "worker-runtime" {
+  inherits = ["worker"]
+}
+
 # 默认目标（兼容旧脚本）
 target "default" {
   inherits = ["web"]

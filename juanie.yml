@@ -54,6 +54,30 @@ services:
       memoryRequest: 256Mi
       memoryLimit: 512Mi
 
+buildTargets:
+  - name: nexusnote-web-runtime
+    kind: bundle
+    monorepo:
+      appDir: .
+    build:
+      strategy: bake
+      definition: docker-bake.hcl
+      context: .
+      target: web-runtime
+    output:
+      path: .
+  - name: nexusnote-worker-runtime
+    kind: bundle
+    monorepo:
+      appDir: .
+    build:
+      strategy: bake
+      definition: docker-bake.hcl
+      context: .
+      target: worker-runtime
+    output:
+      path: .
+
 databases:
   - name: primary
     type: postgresql
@@ -79,7 +103,7 @@ deliverables:
   - name: nexusnote-web-runtime
     type: archive
     source:
-      service: web
+      target: nexusnote-web-runtime
     variants:
       - name: linux-amd64
         platform: linux/amd64
@@ -96,7 +120,7 @@ deliverables:
   - name: nexusnote-worker-runtime
     type: archive
     source:
-      service: worker
+      target: nexusnote-worker-runtime
     variants:
       - name: linux-amd64
         platform: linux/amd64
