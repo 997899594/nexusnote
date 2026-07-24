@@ -96,7 +96,7 @@ export const defaults = {
     // Optional JSON object keyed by concrete model id:
     // {"qwen3.6-plus":{"input":0.3,"output":1.2}}
     modelPricingJson: "{}",
-    modelPricingVersion: "unversioned",
+    modelPricingVersion: "unconfigured",
     // 默认关闭 AI 初始化噪音
     debugLogs: false,
     baseURL: "https://api.302ai.cn/v1",
@@ -575,37 +575,14 @@ function parseServerEnv(env: NodeJS.ProcessEnv = process.env): ServerEnv {
     if (!result.data.APP_BASE_URL) {
       throw new Error("APP_BASE_URL, AUTH_URL, or NEXT_PUBLIC_APP_URL is required in production");
     }
-    if (result.data.AI_MODEL_PRICING_VERSION === defaults.ai.modelPricingVersion) {
-      throw new Error("AI_MODEL_PRICING_VERSION must be explicit in production");
-    }
-    const configuredModels = new Set([
-      result.data.AI_QWEN_MODEL_INTERACTIVE,
-      result.data.AI_QWEN_MODEL_ECONOMY,
-      result.data.AI_QWEN_MODEL_OUTLINE,
-      result.data.AI_QWEN_MODEL_SECTION_DRAFT,
-      result.data.AI_QWEN_MODEL_EXTRACT,
-      result.data.AI_QWEN_MODEL_REVIEW,
-      result.data.AI_QWEN_MODEL_WEB_SEARCH,
-      result.data.AI_DEEPSEEK_MODEL_INTERACTIVE,
-      result.data.AI_DEEPSEEK_MODEL_ECONOMY,
-      result.data.AI_DEEPSEEK_MODEL_OUTLINE,
-      result.data.AI_DEEPSEEK_MODEL_SECTION_DRAFT,
-      result.data.AI_DEEPSEEK_MODEL_EXTRACT,
-      result.data.AI_DEEPSEEK_MODEL_REVIEW,
-      result.data.AI_DEEPSEEK_MODEL_WEB_SEARCH,
-      result.data.AI_OPENAI_MODEL_INTERACTIVE,
-      result.data.AI_OPENAI_MODEL_ECONOMY,
-      result.data.AI_OPENAI_MODEL_OUTLINE,
-      result.data.AI_OPENAI_MODEL_SECTION_DRAFT,
-      result.data.AI_OPENAI_MODEL_EXTRACT,
-      result.data.AI_OPENAI_MODEL_REVIEW,
-      result.data.AI_OPENAI_MODEL_WEB_SEARCH,
-    ]);
-    const missingPricing = [...configuredModels].filter(
-      (model) => !result.data.AI_MODEL_PRICING_JSON[model],
-    );
-    if (missingPricing.length > 0) {
-      throw new Error(`AI pricing is missing for configured models: ${missingPricing.join(", ")}`);
+    const hasPricingCatalog = Object.keys(result.data.AI_MODEL_PRICING_JSON).length > 0;
+    if (
+      hasPricingCatalog &&
+      result.data.AI_MODEL_PRICING_VERSION === defaults.ai.modelPricingVersion
+    ) {
+      throw new Error(
+        "AI_MODEL_PRICING_VERSION is required when AI_MODEL_PRICING_JSON is configured",
+      );
     }
   }
 

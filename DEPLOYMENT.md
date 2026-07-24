@@ -50,8 +50,8 @@ Minimum required keys:
 Optional but recommended:
 - `RESEND_API_KEY`
 - `EMAIL_FROM`
-- `AI_MODEL_PRICING_VERSION`
-- `AI_MODEL_PRICING_JSON`
+- `AI_MODEL_PRICING_JSON` together with `AI_MODEL_PRICING_VERSION` to enable versioned cost
+  accounting; omit both to run without cost estimation
 - `OTEL_EXPORTER_OTLP_ENDPOINT` or `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` to export telemetry when
   the deployment platform provides an OTLP collector
 
