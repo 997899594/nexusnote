@@ -1,5 +1,5 @@
 import { EMBEDDING_DIMENSIONS } from "@/config/embedding";
-import { db, sql } from "@/db";
+import { db, runtimeHeartbeats, sql } from "@/db";
 import { assertOutboxOperational } from "@/lib/operations/outbox-operations";
 import { getRedis } from "@/lib/redis";
 import { REQUIRED_SCHEMA_RELEASE } from "@/lib/release/schema-release";
@@ -107,14 +107,14 @@ async function assertWorkerHeartbeat(
 ): Promise<{ activeWorkers: number }> {
   const expectedWorkers = queueWorkerRuntimeDefinition.workers.map((worker) => worker.name);
   const heartbeats = await executor.execute<{ worker_name: string }>(sql`
-    select distinct worker_name
-    from runtime_heartbeats
-    where runtime_name = ${queueWorkerRuntimeDefinition.runtimeName}
-      and worker_name in (${sql.join(
+    select distinct ${runtimeHeartbeats.workerName} as worker_name
+    from ${runtimeHeartbeats}
+    where ${runtimeHeartbeats.runtimeName} = ${queueWorkerRuntimeDefinition.runtimeName}
+      and ${runtimeHeartbeats.workerName} in (${sql.join(
         expectedWorkers.map((worker) => sql`${worker}`),
         sql`, `,
       )})
-      and last_seen_at > now() - interval '60 seconds'
+      and ${runtimeHeartbeats.lastSeenAt} > now() - interval '60 seconds'
   `);
   const activeWorkers = new Set(heartbeats.map((heartbeat) => heartbeat.worker_name));
   const missingWorkers = expectedWorkers.filter((worker) => !activeWorkers.has(worker));
