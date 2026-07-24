@@ -39,7 +39,7 @@
     "@ai-sdk/openai": "^3.0.84",
     "@ai-sdk/provider": "^3.0.14",
     "@ai-sdk/react": "^3.0.226",
-    "@auth/drizzle-adapter": "^1.11.2",
+    "@auth/drizzle-adapter": "1.11.3",
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/exporter-metrics-otlp-http": "^0.220.0",
     "@opentelemetry/instrumentation": "^0.220.0",
@@ -73,13 +73,14 @@
     "ioredis": "^5.11.1",
     "katex": "^0.16.47",
     "lucide-react": "^0.475.0",
-    "next": "^16.2.10",
-    "next-auth": "5.0.0-beta.30",
+    "next": "16.2.11",
+    "next-auth": "5.0.0-beta.32",
     "postgres": "^3.4.9",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "resumable-stream": "^2.2.12",
     "server-only": "^0.0.1",
+    "sharp": "0.35.3",
     "streamdown": "^2.5.0",
     "tailwind-merge": "^3.6.0",
     "zod": "^4.4.3",
@@ -101,6 +102,7 @@
   },
   "overrides": {
     "postcss": "^8.5.19",
+    "sharp": "0.35.3",
     "uuid": "^11.1.1",
     "ws": "^8.20.1"
   }

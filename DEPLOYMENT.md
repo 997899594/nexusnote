@@ -52,7 +52,8 @@ Optional but recommended:
 - `EMAIL_FROM`
 - `AI_MODEL_PRICING_VERSION`
 - `AI_MODEL_PRICING_JSON`
-- `OTEL_EXPORTER_OTLP_ENDPOINT` (required in production for SLO metrics)
+- `OTEL_EXPORTER_OTLP_ENDPOINT` or `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` to export telemetry when
+  the deployment platform provides an OTLP collector
 
 ## Release flow
 

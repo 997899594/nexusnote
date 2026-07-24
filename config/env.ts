@@ -190,6 +190,7 @@ const serverEnvSchema = z.object({
   // Product analytics is an optional projection; PostgreSQL remains authoritative.
   POSTHOG_PROJECT_KEY: z.string().min(1).optional(),
   POSTHOG_HOST: z.string().url().default(defaults.productAnalytics.posthogHost),
+  // Telemetry export is capability-driven. The runtime stays healthy when no collector is bound.
   OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url().optional(),
   OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: z.string().url().optional(),
 
@@ -573,12 +574,6 @@ function parseServerEnv(env: NodeJS.ProcessEnv = process.env): ServerEnv {
   if (result.data.NODE_ENV === "production") {
     if (!result.data.APP_BASE_URL) {
       throw new Error("APP_BASE_URL, AUTH_URL, or NEXT_PUBLIC_APP_URL is required in production");
-    }
-    if (
-      !result.data.OTEL_EXPORTER_OTLP_ENDPOINT &&
-      !result.data.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
-    ) {
-      throw new Error("An OTLP metrics endpoint is required in production");
     }
     if (result.data.AI_MODEL_PRICING_VERSION === defaults.ai.modelPricingVersion) {
       throw new Error("AI_MODEL_PRICING_VERSION must be explicit in production");
